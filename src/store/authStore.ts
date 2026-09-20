@@ -156,6 +156,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return 'error';
     }
     if (data) {
+      const prev = get().profile;
+      if (prev && prev.id === userId && prev.role && (data as any).role && prev.role !== (data as any).role) {
+        logWarn('Auth', `role changed from ${prev.role} to ${(data as any).role} for ${userId}`);
+      }
       set({ profile: data as Profile, profileLoading: false, profileFetchFailed: false });
       return 'ok';
     }

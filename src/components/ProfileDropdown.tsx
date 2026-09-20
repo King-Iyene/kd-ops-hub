@@ -66,7 +66,7 @@ export function ProfileDropdown() {
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const initials = initialsOf(profile?.full_name, profile?.email);
-  const currentRole = profile?.role || 'field_staff';
+  const currentRole = profile?.role ?? 'field_staff';
   // Active simulation defaults to the user's own role when nothing is set.
   const activeSim: UserRole =
     (viewAs as UserRole) || (currentRole as UserRole);

@@ -382,7 +382,7 @@ export const EmployeeCsvImport = ({
           }
         }
       } else {
-        await supabase.from('profiles').update(payload).eq('email', payload.email);
+        await supabase.from('profiles').update(payload).eq('email', payload.email).eq('status', 'invited');
       }
       ok++;
     }

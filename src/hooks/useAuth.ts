@@ -12,6 +12,7 @@ export const useAuth = () => {
   const navigate = useNavigate();
   const didInit = useRef(false);
   const loginAuditLogged = useRef(false);
+  const everLoadedProfile = useRef(false);
 
   useEffect(() => {
     if (didInit.current) return;
@@ -124,17 +125,35 @@ export const useAuth = () => {
       // on 'not_found' this is null and we fall into the self-heal path below.
       const fetched = useAuthStore.getState().profile;
 
+      if (fetched) {
+        everLoadedProfile.current = true;
+      }
+
       // result === 'not_found': the query succeeded and there is genuinely no
       // profile row. Before rejecting, try the self-healing RPC which creates
       // the profile from pending_invites. This handles cases where the DB
       // trigger failed (e.g. the auth user already existed before the trigger
       // was fixed, or a race condition). The RPC raises an exception for users
       // who have no pending invite, so only legitimate invited users get through.
+      //
+      // GUARD: if we previously loaded a profile in this session, the
+      // 'not_found' is almost certainly a transient RLS miss (e.g. the JWT
+      // expired between getSession() and this query). In that case skip
+      // activate_my_profile — the RPC overwrites the role from a stale
+      // pending_invites row, which is what was silently downgrading
+      // super_admin users to field_staff.
       if (!fetched) {
+        if (everLoadedProfile.current) {
+          logWarn('Auth', 'fetchProfile returned not_found but profile was loaded earlier — skipping activate_my_profile');
+          setLoading(false);
+          return;
+        }
+
         const { error: activateErr } = await supabase.rpc('activate_my_profile');
         if (!activateErr) {
           const healed = await fetchProfile(userId);
           if (healed === 'ok' && useAuthStore.getState().profile) {
+            everLoadedProfile.current = true;
             setLoading(false);
             if (redirectIfLogin && window.location.pathname === '/login') {
               navigate('/dashboard', { replace: true });
