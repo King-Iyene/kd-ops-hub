@@ -37,6 +37,7 @@ export default function FlexFormPublic() {
   // for the selected person) can't be filled in no matter what — required
   // or not, they submit as empty and count as nothing.
   const [linkFieldsEmpty, setLinkFieldsEmpty] = useState<Record<string, boolean>>({});
+  const [taskOptionsCache, setTaskOptionsCache] = useState<Record<string, LinkableTaskOption[]>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -96,12 +97,52 @@ export default function FlexFormPublic() {
       setError('Could not submit the form. Please try again.');
       return;
     }
+    const resolvedFields: Record<string, unknown> = {};
+    for (const entry of visibleEntries) {
+      const field = fieldsById.get(entry.field_id);
+      if (!field) continue;
+      const raw = data[entry.field_id];
+      switch (field.type) {
+        case 'person': {
+          const p = field.options.people?.find((x) => x.id === raw);
+          resolvedFields[field.name] = p?.full_name ?? raw;
+          break;
+        }
+        case 'multi_person': {
+          const ids = Array.isArray(raw) ? (raw as string[]) : [];
+          resolvedFields[field.name] = ids.map((id) => field.options.people?.find((x) => x.id === id)?.full_name ?? id);
+          break;
+        }
+        case 'select': {
+          const c = field.options.choices?.find((x) => x.id === raw);
+          resolvedFields[field.name] = c?.label ?? raw;
+          break;
+        }
+        case 'multi_select': {
+          const ids = Array.isArray(raw) ? (raw as string[]) : [];
+          resolvedFields[field.name] = ids.map((id) => field.options.choices?.find((x) => x.id === id)?.label ?? id);
+          break;
+        }
+        case 'task_link':
+        case 'completed_task_link': {
+          const ids = Array.isArray(raw) ? (raw as string[]) : [];
+          const cached = taskOptionsCache[entry.field_id] || [];
+          resolvedFields[field.name] = ids.map((id) => {
+            const t = cached.find((x) => x.id === id);
+            return t ? taskOptionLabel(t) : id;
+          });
+          break;
+        }
+        default:
+          resolvedFields[field.name] = raw;
+      }
+    }
     dispatchFormWebhook('table.form_submitted', token, {
       form_id: payload.form.id,
       form_name: payload.form.name,
       table_id: payload.table.id,
       table_name: payload.table.name,
-      fields: data,
+      fields: resolvedFields,
     });
     setSubmitted(true);
   };
@@ -167,6 +208,7 @@ export default function FlexFormPublic() {
                   hasPersonFilter={!!personFieldId}
                   personId={personFieldId ? (values[personFieldId] as string | undefined) : undefined}
                   onNoOptions={(empty) => setLinkFieldsEmpty((prev) => (prev[field.id] === empty ? prev : { ...prev, [field.id]: empty }))}
+                  onTaskOptionsLoaded={(fid, opts) => setTaskOptionsCache((prev) => ({ ...prev, [fid]: opts }))}
                 />
               </div>
             );
@@ -183,7 +225,7 @@ export default function FlexFormPublic() {
   );
 }
 
-function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, onNoOptions }: {
+function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, onNoOptions, onTaskOptionsLoaded }: {
   field: PublicField;
   value: unknown;
   onChange: (v: unknown) => void;
@@ -191,6 +233,7 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, 
   personId?: string;
   hasPersonFilter: boolean;
   onNoOptions: (empty: boolean) => void;
+  onTaskOptionsLoaded?: (fieldId: string, options: LinkableTaskOption[]) => void;
 }) {
   switch (field.type) {
     case 'long_text':
@@ -269,12 +312,12 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, 
       if (!hasPersonFilter) {
         return <NoOptionsNotice onNoOptions={onNoOptions} text="Linked tasks aren't editable from this form." />;
       }
-      return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} />;
+      return <TaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} onOptionsLoaded={onTaskOptionsLoaded ? (opts) => onTaskOptionsLoaded(field.id, opts) : undefined} />;
     case 'completed_task_link':
       if (!hasPersonFilter) {
         return <NoOptionsNotice onNoOptions={onNoOptions} text="Completed linked tasks aren't editable from this form." />;
       }
-      return <CompletedTaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} />;
+      return <CompletedTaskLinkPicker token={token} personId={personId} value={value} onChange={onChange} onNoOptions={onNoOptions} onOptionsLoaded={onTaskOptionsLoaded ? (opts) => onTaskOptionsLoaded(field.id, opts) : undefined} />;
     default:
       return <Input value={(value as string) || ''} onChange={(e) => onChange(e.target.value)} />;
   }
@@ -361,12 +404,13 @@ function LinkedTaskCheckboxList({ options, ids, onToggle }: {
   return <>{rows}</>;
 }
 
-function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
+function TaskLinkPicker({ token, personId, value, onChange, onNoOptions, onOptionsLoaded }: {
   token: string;
   personId?: string;
   value: unknown;
   onChange: (v: unknown) => void;
   onNoOptions: (empty: boolean) => void;
+  onOptionsLoaded?: (options: LinkableTaskOption[]) => void;
 }) {
   const [options, setOptions] = useState<LinkableTaskOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -382,6 +426,7 @@ function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
         setOptions(list);
         setLoading(false);
         onNoOptions(list.length === 0);
+        onOptionsLoaded?.(list);
       }
     })();
     return () => { cancelled = true; };
@@ -404,12 +449,13 @@ function TaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
   );
 }
 
-function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions }: {
+function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions, onOptionsLoaded }: {
   token: string;
   personId?: string;
   value: unknown;
   onChange: (v: unknown) => void;
   onNoOptions: (empty: boolean) => void;
+  onOptionsLoaded?: (options: LinkableTaskOption[]) => void;
 }) {
   const [options, setOptions] = useState<LinkableTaskOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -425,6 +471,7 @@ function CompletedTaskLinkPicker({ token, personId, value, onChange, onNoOptions
         setOptions(list);
         setLoading(false);
         onNoOptions(list.length === 0);
+        onOptionsLoaded?.(list);
       }
     })();
     return () => { cancelled = true; };
