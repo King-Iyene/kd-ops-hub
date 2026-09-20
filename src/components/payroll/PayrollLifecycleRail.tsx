@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 const STEPS = ['Draft', 'Review', 'Approved', 'Paid'] as const;
 
 /** Index into STEPS for a backend status, or -1 for rejected/cancelled/unknown. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function realStepIndex(status: string): number {
   if (status === 'draft') return 0;
   if (status === 'pending_approval') return 1;

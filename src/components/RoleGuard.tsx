@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';

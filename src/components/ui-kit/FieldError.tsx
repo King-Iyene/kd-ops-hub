@@ -12,6 +12,7 @@ export function FieldError({ message, className }: { message?: string; className
 
 type Errors<T extends string> = Partial<Record<T, string>>;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFieldErrors<T extends string>() {
   const [errors, setErrors] = useState<Errors<T>>({});
 

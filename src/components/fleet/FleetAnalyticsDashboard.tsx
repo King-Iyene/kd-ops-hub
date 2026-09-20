@@ -423,6 +423,7 @@ function FleetAnalyticsDashboard({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const SERVICE_TYPES = [
   'Oil Change',
   'Tyre Rotation',

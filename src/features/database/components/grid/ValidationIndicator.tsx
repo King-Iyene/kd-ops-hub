@@ -5,6 +5,7 @@ import { validateField, type ValidationRule, type ValidationResult } from '../..
 /**
  * Hook: run validation rules stored in field.options.validations against a cell value.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFieldValidation(
   value: any,
   field: FieldMeta,

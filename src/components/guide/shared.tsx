@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { type ElementType, type ReactNode, useState } from 'react';
 import { Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Shared chart design system — validated palette, custom tooltip, and
  * chart styling constants. All chart tabs import from here so the

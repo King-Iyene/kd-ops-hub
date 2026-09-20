@@ -267,5 +267,6 @@ function GeofencesTab() {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { GEOFENCE_COLORS };
 export default GeofencesTab;

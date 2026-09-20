@@ -147,6 +147,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
  * Hook to register global keyboard shortcuts at the shell level.
  * Returns callbacks and state for the shortcuts dialog.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGlobalShortcuts({
   onOpenShortcuts,
   onAddRow,

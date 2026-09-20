@@ -29,6 +29,7 @@ interface Props {
   stopPropagation?: boolean;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function whatsAppHref(phone: string, text?: string): string | null {
   let p = phone.replace(/[\s.\-()]/g, '');
   if (p.startsWith('+')) p = p.slice(1);

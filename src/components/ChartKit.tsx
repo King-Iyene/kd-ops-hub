@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Shared chart styling — gradient defs, glass tooltip, theme colours.
  * Drop ChartGradients once inside any Recharts container, then reference

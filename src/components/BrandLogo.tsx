@@ -46,6 +46,7 @@ async function fetchBrand() {
   return inflight;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBrand(): BrandState {
   const [state, setState] = useState<BrandState>(() => ({
     logoUrl:     (typeof window !== 'undefined' && localStorage.getItem(LOGO_CACHE_KEY))  || FALLBACK_LOGO,

@@ -189,6 +189,7 @@ function computeSummary(
   return '';
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function evaluateCondition(
   record: RecordRow,
   rule: ConditionalFormatRule,

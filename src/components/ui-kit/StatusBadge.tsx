@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { cn } from '@/lib/utils';
 
 // Each status keeps its own hue (so Approved/Funded/Processing stay visually

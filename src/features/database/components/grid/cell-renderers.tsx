@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useMemo } from 'react';
 import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
