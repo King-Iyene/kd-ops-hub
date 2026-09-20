@@ -17,6 +17,12 @@ function json(body: Record<string, unknown>, status = 200, req?: Request): Respo
   });
 }
 
+interface AutomationCondition {
+  field_id: string;
+  operator: string;
+  value?: unknown;
+}
+
 interface AutomationAction {
   id: string;
   type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';
@@ -34,6 +40,58 @@ interface Automation {
   actions: AutomationAction[];
 }
 
+function evaluateCondition(record: Record<string, any>, cond: AutomationCondition, fieldMap: Map<string, string>): boolean {
+  const colName = fieldMap.get(cond.field_id) ?? cond.field_id;
+  const val = record[colName];
+
+  switch (cond.operator) {
+    case 'equals':
+      return String(val) === String(cond.value);
+    case 'not_equals':
+      return String(val) !== String(cond.value);
+    case 'contains':
+      return typeof val === 'string' && typeof cond.value === 'string' && val.toLowerCase().includes(cond.value.toLowerCase());
+    case 'not_contains':
+      return typeof val === 'string' && typeof cond.value === 'string' && !val.toLowerCase().includes(cond.value.toLowerCase());
+    case 'is_empty':
+      return val === null || val === undefined || val === '' || (Array.isArray(val) && val.length === 0);
+    case 'is_not_empty':
+      return val !== null && val !== undefined && val !== '' && !(Array.isArray(val) && val.length === 0);
+    case 'greater_than':
+      return Number(val) > Number(cond.value);
+    case 'less_than':
+      return Number(val) < Number(cond.value);
+    case 'greater_or_equal':
+      return Number(val) >= Number(cond.value);
+    case 'less_or_equal':
+      return Number(val) <= Number(cond.value);
+    default:
+      return false;
+  }
+}
+
+function evaluateConditions(record: Record<string, any>, conditions: AutomationCondition[], fieldMap: Map<string, string>, logic: string = 'AND'): boolean {
+  if (!conditions || conditions.length === 0) return true;
+  if (logic === 'OR') return conditions.some(c => evaluateCondition(record, c, fieldMap));
+  return conditions.every(c => evaluateCondition(record, c, fieldMap));
+}
+
+async function resolveFieldMap(supabase: ReturnType<typeof createClient>, tableId: string): Promise<Map<string, string>> {
+  const { data: fields } = await supabase
+    .schema('nc_meta')
+    .from('fields')
+    .select('id, pg_column_name')
+    .eq('table_id', tableId);
+
+  const map = new Map<string, string>();
+  if (fields) {
+    for (const f of fields) {
+      map.set(f.id, f.pg_column_name);
+    }
+  }
+  return map;
+}
+
 async function executeAction(
   action: AutomationAction,
   context: {
@@ -42,6 +100,7 @@ async function executeAction(
     supabase: ReturnType<typeof createClient>;
     schemaName: string;
     tableName: string;
+    fieldMap: Map<string, string>;
   },
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -69,14 +128,40 @@ async function executeAction(
       }
 
       case 'update_record': {
-        const { field, value } = action.config;
-        if (!field || !context.record.id) return { success: false, error: 'Missing field or record ID' };
+        const { field_id, value, target_table_id } = action.config;
+        if (!field_id) return { success: false, error: 'No field configured' };
+
+        const colName = context.fieldMap.get(field_id) ?? field_id;
+        const recordId = context.record.id;
+        if (!recordId) return { success: false, error: 'No record ID' };
+
+        if (target_table_id && target_table_id !== '') {
+          const { data: targetTable } = await context.supabase
+            .schema('nc_meta')
+            .from('tables')
+            .select('pg_table_name')
+            .eq('id', target_table_id)
+            .single();
+
+          if (!targetTable) return { success: false, error: 'Target table not found' };
+
+          const targetFieldMap = await resolveFieldMap(context.supabase, target_table_id);
+          const targetCol = targetFieldMap.get(field_id) ?? field_id;
+
+          const { error } = await context.supabase
+            .schema(context.schemaName)
+            .from(targetTable.pg_table_name)
+            .update({ [targetCol]: value })
+            .eq('id', recordId);
+
+          return { success: !error, error: error?.message };
+        }
 
         const { error } = await context.supabase
           .schema(context.schemaName)
           .from(context.tableName)
-          .update({ [field]: value })
-          .eq('id', context.record.id);
+          .update({ [colName]: value })
+          .eq('id', recordId);
 
         return { success: !error, error: error?.message };
       }
@@ -154,7 +239,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ success: false, error: 'Missing required fields: event, baseId, tableId' }, 400);
     }
 
-    // Map event to trigger_type
     const triggerMap: Record<string, string> = {
       'record.created': 'record_created',
       'record.updated': 'record_updated',
@@ -165,13 +249,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ success: false, error: `Unknown event type: ${event}` }, 400);
     }
 
-    // Fetch enabled automations for this table/trigger
+    // Fetch ALL enabled automations for this table (including record_matches_conditions)
+    const triggerTypes = [triggerType];
+    if (triggerType === 'record_created' || triggerType === 'record_updated') {
+      triggerTypes.push('record_matches_conditions');
+    }
+
     const { data: automations, error: autoErr } = await supabase
       .schema('nc_meta')
       .from('automations')
       .select('*')
       .eq('table_id', tableId)
-      .eq('trigger_type', triggerType)
+      .in('trigger_type', triggerTypes)
       .eq('enabled', true);
 
     if (autoErr) throw autoErr;
@@ -179,7 +268,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ success: true, message: 'No matching automations', executed: 0 });
     }
 
-    // Resolve schema/table names
     const { data: base } = await supabase
       .schema('nc_meta')
       .from('bases')
@@ -198,13 +286,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ success: false, error: 'Could not resolve base/table' }, 404);
     }
 
+    const fieldMap = await resolveFieldMap(supabase, tableId);
+
     const results: Array<{ automationId: string; name: string; actions: Array<{ actionId: string; success: boolean; error?: string }> }> = [];
 
     for (const automation of automations as Automation[]) {
-      // Check field_changed trigger config
-      if (automation.trigger_type === 'field_changed' && automation.trigger_config.field) {
-        const watchedField = automation.trigger_config.field;
-        if (!oldRecord || record?.[watchedField] === oldRecord?.[watchedField]) {
+      // field_changed: skip if watched field didn't change
+      if (automation.trigger_type === 'field_changed' && automation.trigger_config.field_id) {
+        const watchedCol = fieldMap.get(automation.trigger_config.field_id) ?? automation.trigger_config.field_id;
+        if (!oldRecord || record?.[watchedCol] === oldRecord?.[watchedCol]) {
+          continue;
+        }
+      }
+
+      // record_matches_conditions: evaluate conditions against the record
+      if (automation.trigger_type === 'record_matches_conditions') {
+        const conditions = automation.trigger_config.conditions as AutomationCondition[] | undefined;
+        const logic = (automation.trigger_config.logic as string) ?? 'AND';
+        if (!evaluateConditions(record ?? {}, conditions ?? [], fieldMap, logic)) {
           continue;
         }
       }
@@ -218,6 +317,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           supabase,
           schemaName: base.schema_name,
           tableName: table.pg_table_name,
+          fieldMap,
         });
         actionResults.push({ actionId: action.id, ...result });
       }

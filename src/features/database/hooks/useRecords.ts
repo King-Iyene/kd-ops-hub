@@ -1017,7 +1017,14 @@ export function useUpdateRecord() {
         };
       });
 
-      return { previous };
+      // Capture full old record for automation condition evaluation
+      let oldRecord: Record<string, any> | undefined;
+      for (const [, data] of previous) {
+        const rec = data?.records.find((r) => r.id === variables.recordId);
+        if (rec) { oldRecord = { ...rec }; break; }
+      }
+
+      return { previous, oldRecord };
     },
     onError: (_err, _variables, context) => {
       if (context?.previous) {
@@ -1026,9 +1033,9 @@ export function useUpdateRecord() {
         }
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data, variables, context) => {
       const updates = variables.fields ?? (variables.field ? { [variables.field]: variables.value } : {});
-      fireAutomations('record.updated', variables.baseId, variables.tableId, data);
+      fireAutomations('record.updated', variables.baseId, variables.tableId, data, context?.oldRecord);
       fireWebhooks('record.updated', variables.baseId, variables.tableId, data);
       logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, updates);
     },

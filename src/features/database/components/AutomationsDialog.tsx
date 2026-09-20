@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, X, Filter } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from '../hooks';
 import { useFields } from '../hooks';
-import type { Automation, AutomationAction } from '../types';
+import type { Automation, AutomationAction, AutomationCondition, AutomationConditionOp } from '../types';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -16,6 +16,7 @@ const TRIGGER_LABELS: Record<Automation['trigger_type'], string> = {
   record_deleted: 'Record Deleted',
   field_changed: 'Field Changed',
   scheduled: 'Scheduled',
+  record_matches_conditions: 'When Record Matches Conditions',
 };
 
 const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: string; text: string; darkText: string }> = {
@@ -24,6 +25,7 @@ const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: s
   record_deleted: { bg: '#FEE2E2', darkBg: 'hsl(0,40%,18%)', text: '#991B1B', darkText: '#FCA5A5' },
   field_changed: { bg: '#EDE9FE', darkBg: 'hsl(263,40%,18%)', text: '#5B21B6', darkText: '#C4B5FD' },
   scheduled: { bg: '#FEF3C7', darkBg: 'hsl(45,40%,18%)', text: '#92400E', darkText: '#FCD34D' },
+  record_matches_conditions: { bg: '#FCE7F3', darkBg: 'hsl(330,40%,18%)', text: '#9D174D', darkText: '#F9A8D4' },
 };
 
 const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeof Mail }[] = [
@@ -32,6 +34,19 @@ const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeo
   { type: 'update_record', label: 'Update Record', icon: FileEdit },
   { type: 'create_record', label: 'Create Record', icon: FilePlus },
   { type: 'send_notification', label: 'Send Notification', icon: Bell },
+];
+
+const CONDITION_OPERATORS: { value: AutomationConditionOp; label: string; needsValue: boolean }[] = [
+  { value: 'equals', label: 'is', needsValue: true },
+  { value: 'not_equals', label: 'is not', needsValue: true },
+  { value: 'contains', label: 'contains', needsValue: true },
+  { value: 'not_contains', label: 'does not contain', needsValue: true },
+  { value: 'is_empty', label: 'is empty', needsValue: false },
+  { value: 'is_not_empty', label: 'is not empty', needsValue: false },
+  { value: 'greater_than', label: 'greater than', needsValue: true },
+  { value: 'less_than', label: 'less than', needsValue: true },
+  { value: 'greater_or_equal', label: 'greater or equal', needsValue: true },
+  { value: 'less_or_equal', label: 'less or equal', needsValue: true },
 ];
 
 const CRON_PRESETS = [
@@ -45,6 +60,10 @@ function actionId() {
   return `act_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function conditionId() {
+  return `cond_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function useIsDark() {
   const [isDark, setIsDark] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -53,7 +72,6 @@ function useIsDark() {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
     mq.addEventListener('change', handler);
-    // Also check for class-based dark mode
     const observer = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains('dark'));
     });
@@ -62,6 +80,128 @@ function useIsDark() {
     return () => { mq.removeEventListener('change', handler); observer.disconnect(); };
   }, []);
   return isDark;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Condition builder                                                  */
+/* ------------------------------------------------------------------ */
+
+function ConditionRow({
+  condition,
+  fields,
+  onChange,
+  onRemove,
+  index,
+}: {
+  condition: AutomationCondition & { _id?: string };
+  fields: { id: string; name: string }[];
+  onChange: (updated: AutomationCondition) => void;
+  onRemove: () => void;
+  index: number;
+}) {
+  const opMeta = CONDITION_OPERATORS.find(o => o.value === condition.operator);
+  const needsValue = opMeta?.needsValue ?? true;
+
+  return (
+    <div className="flex items-center gap-2 group">
+      <span className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] w-10 shrink-0 text-right">
+        {index === 0 ? 'When' : 'AND'}
+      </span>
+      <select
+        className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+        value={condition.field_id}
+        onChange={(e) => onChange({ ...condition, field_id: e.target.value })}
+      >
+        <option value="">Select field...</option>
+        {fields.map((f) => (
+          <option key={f.id} value={f.id}>{f.name}</option>
+        ))}
+      </select>
+      <select
+        className="w-[130px] shrink-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+        value={condition.operator}
+        onChange={(e) => onChange({ ...condition, operator: e.target.value as AutomationConditionOp })}
+      >
+        {CONDITION_OPERATORS.map((op) => (
+          <option key={op.value} value={op.value}>{op.label}</option>
+        ))}
+      </select>
+      {needsValue && (
+        <input
+          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+          value={String(condition.value ?? '')}
+          onChange={(e) => onChange({ ...condition, value: e.target.value })}
+          placeholder="Value..."
+        />
+      )}
+      <button
+        className="shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-all"
+        onClick={onRemove}
+        title="Remove condition"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
+
+function ConditionBuilder({
+  conditions,
+  fields,
+  onChange,
+}: {
+  conditions: (AutomationCondition & { _id?: string })[];
+  fields: { id: string; name: string }[];
+  onChange: (conditions: AutomationCondition[]) => void;
+}) {
+  const addCondition = () => {
+    onChange([...conditions, { field_id: '', operator: 'equals' as AutomationConditionOp, value: '', _id: conditionId() } as any]);
+  };
+
+  const updateCondition = (index: number, updated: AutomationCondition) => {
+    const next = [...conditions];
+    next[index] = { ...updated, _id: conditions[index]._id };
+    onChange(next);
+  };
+
+  const removeCondition = (index: number) => {
+    onChange(conditions.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Filter size={12} className="text-[#2D7FF9]" />
+        <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Conditions</label>
+      </div>
+
+      {conditions.length === 0 && (
+        <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">
+          No conditions — automation will fire on every record change.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {conditions.map((cond, i) => (
+          <ConditionRow
+            key={cond._id ?? i}
+            condition={cond}
+            fields={fields}
+            onChange={(updated) => updateCondition(i, updated)}
+            onRemove={() => removeCondition(i)}
+            index={i}
+          />
+        ))}
+      </div>
+
+      <button
+        className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors mt-1"
+        onClick={addCondition}
+      >
+        <Plus size={11} /> Add condition
+      </button>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,7 +262,7 @@ function ActionConfigForm({
       return (
         <div className="space-y-2">
           <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Field</label>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Field to update</label>
             <select
               className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
               value={c.field_id ?? ''}
@@ -134,7 +274,7 @@ function ActionConfigForm({
               ))}
             </select>
           </div>
-          <InputRow label="Value" value={c.value ?? ''} onChange={(v) => set('value', v)} placeholder="New value" />
+          <InputRow label="Value" value={c.value ?? ''} onChange={(v) => set('value', v)} placeholder="New value (or record ID for link fields)" />
         </div>
       );
 
@@ -209,12 +349,10 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showActionPicker, setShowActionPicker] = useState(false);
 
-  // Local draft state for the selected automation
   const [draft, setDraft] = useState<Automation | null>(null);
 
   const selected = useMemo(() => automations.find((a) => a.id === selectedId) ?? null, [automations, selectedId]);
 
-  // Sync draft when server data changes for the selected automation
   const selectedVersion = selected?.updated_at ?? selected?.id;
   useEffect(() => {
     if (selected && draft && selected.id === draft.id && selectedVersion !== (draft as any)._syncKey) {
@@ -222,7 +360,6 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     }
   }, [selectedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When selection changes, reset draft
   const selectAutomation = useCallback((a: Automation | null) => {
     setSelectedId(a?.id ?? null);
     setDraft(a ? { ...a, actions: [...a.actions] } : null);
@@ -234,7 +371,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     const result = await createAutomation.mutateAsync({
       base_id: baseId,
       table_id: tableId,
-      trigger_type: 'record_created',
+      trigger_type: 'record_matches_conditions',
     });
     selectAutomation(result);
   }, [tableId, baseId, createAutomation, selectAutomation]);
@@ -289,6 +426,21 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   }, []);
 
   const fieldOptions = useMemo(() => fields.map((f: any) => ({ id: f.id, name: f.name })), [fields]);
+
+  const conditions = useMemo(() => {
+    const raw = (draft?.trigger_config?.conditions as AutomationCondition[]) ?? [];
+    return raw.map((c, i) => ({ ...c, _id: (c as any)._id ?? `cond_init_${i}` }));
+  }, [draft?.trigger_config?.conditions]);
+
+  const handleConditionsChange = useCallback((newConditions: AutomationCondition[]) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        trigger_config: { ...prev.trigger_config, conditions: newConditions },
+      };
+    });
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -406,6 +558,14 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 </div>
 
                 {/* Trigger-specific config */}
+                {draft.trigger_type === 'record_matches_conditions' && (
+                  <ConditionBuilder
+                    conditions={conditions}
+                    fields={fieldOptions}
+                    onChange={handleConditionsChange}
+                  />
+                )}
+
                 {draft.trigger_type === 'field_changed' && (
                   <div>
                     <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Watch field</label>

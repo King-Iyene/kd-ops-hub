@@ -349,6 +349,19 @@ export interface WebhookMeta {
   failure_count: number;
 }
 
+export type AutomationConditionOp =
+  | 'equals' | 'not_equals'
+  | 'contains' | 'not_contains'
+  | 'is_empty' | 'is_not_empty'
+  | 'greater_than' | 'less_than'
+  | 'greater_or_equal' | 'less_or_equal';
+
+export interface AutomationCondition {
+  field_id: string;
+  operator: AutomationConditionOp;
+  value?: unknown;
+}
+
 export interface AutomationAction {
   id: string;
   type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';
@@ -361,7 +374,7 @@ export interface Automation {
   table_id: string;
   name: string;
   enabled: boolean;
-  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled';
+  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled' | 'record_matches_conditions';
   trigger_config: Record<string, any>;
   actions: AutomationAction[];
   created_at: string;
