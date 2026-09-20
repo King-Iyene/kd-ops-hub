@@ -1053,16 +1053,19 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     <Dialog
       open={open}
       onOpenChange={(v) => {
+        if (!v && step === 'importing') return;
         if (!v) {
-          if (step === 'importing') {
-            abortRef.current = true;
-          }
+          abortRef.current = true;
           reset();
         }
         onOpenChange(v);
       }}
     >
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent
+        className="sm:max-w-xl"
+        onPointerDownOutside={(e) => { if (step === 'importing') e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (step === 'importing') e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Download size={18} className="text-[#2D7FF9]" />
