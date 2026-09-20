@@ -16718,6 +16718,10 @@ export type Database = {
         Args: { p_assignee_id: string; p_share_token: string }
         Returns: Json
       }
+      get_matching_webhooks: {
+        Args: { p_base_id: string; p_event: string; p_table_id: string }
+        Returns: Json
+      }
       get_my_role: { Args: never; Returns: string }
       get_outstanding_ewa_for_period: {
         Args: { p_employee_id: string; p_period: string }
@@ -16817,6 +16821,7 @@ export type Database = {
         }
         Returns: string
       }
+      log_webhook_deliveries: { Args: { p_rows: Json }; Returns: undefined }
       mark_advance_request_paid: {
         Args: { p_request_id: string; p_start_period?: string }
         Returns: {
@@ -17785,6 +17790,7 @@ export type Database = {
       tick_payroll_scheduler: { Args: never; Returns: undefined }
       tick_webhook_retry_worker: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
+      update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
         Args: {
           p_allowances_json?: Json
