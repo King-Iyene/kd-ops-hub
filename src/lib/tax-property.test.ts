@@ -3,10 +3,6 @@ import {
   computePayslip,
   applyTaxBands,
   PENSION_EMPLOYEE_RATE,
-  NHIS_EMPLOYEE_RATE,
-  NHIS_EMPLOYER_RATE,
-  NSITF_RATE,
-  RENT_RELIEF_RATE,
   RENT_RELIEF_CAP_ANNUAL,
   type PayslipInput,
 } from './tax';

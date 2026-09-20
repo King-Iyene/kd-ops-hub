@@ -22,7 +22,6 @@ import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { supabase } from '@/lib/supabase';
-import { useCompanySettings } from '@/queries';
 import {
   Beaker, Plus, Trash2, TrendingUp, Users,
   DollarSign, Building2, AlertTriangle,
@@ -65,12 +64,6 @@ const defaultAdj = (): Adjustment => ({
 
 export default function ScenarioPlannerTab() {
   const { toast } = useToast();
-  const { data: companySettingsData } = useCompanySettings();
-  const monthlyRevenueEstimate = useMemo(
-    () => (companySettingsData as any)?.monthly_revenue_estimate_ngn ?? 0,
-    [companySettingsData],
-  );
-
   const [loading, setLoading] = useState(true);
   const [baseForecast, setBaseForecast] = useState<{ week: string; balance: number }[]>([]);
   const [cashOnHand, setCashOnHand] = useState(0);
