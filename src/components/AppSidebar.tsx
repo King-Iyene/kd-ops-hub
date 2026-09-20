@@ -66,7 +66,8 @@ function getInitials(name: string): string {
 export function AppSidebar() {
   const { state, setOpenMobile, setOpen, isMobile, width } = useSidebar();
   const sidebarCollapsed = state === 'collapsed' || (!isMobile && width < SIDEBAR_AUTO_ICON_WIDTH_PX);
-  const { profile, signOut } = useAuthStore();
+  const profile = useAuthStore((s) => s.profile);
+  const signOut = useAuthStore((s) => s.signOut);
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
