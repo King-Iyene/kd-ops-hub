@@ -62,12 +62,17 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+  const ncMeta = createClient(supabaseUrl, serviceRoleKey, {
+    db: { schema: 'nc_meta' },
+    auth: { persistSession: false },
+  });
 
   if (shareToken) {
     // Database shared-view submission — authorize via the nc_meta share token.
-    const { data: sharedView, error: shareError } = await supabase
-      .schema('nc_meta')
+    const { data: sharedView, error: shareError } = await ncMeta
       .from('shared_views')
       .select('table_id, is_enabled')
       .eq('share_token', shareToken)
@@ -141,9 +146,10 @@ Deno.serve(async (req) => {
 
   // Fetch active webhooks matching this event: base-specific, platform-wide
   // (nil UUID), base-wide (table_id IS NULL), or scoped to this table.
+  // Uses the ncMeta client (db.schema preset to nc_meta) instead of .schema()
+  // which can fail in edge functions due to PostgREST schema handling.
   const PLATFORM_SENTINEL = '00000000-0000-0000-0000-000000000000';
-  const { data: webhooks, error: fetchError } = await supabase
-    .schema('nc_meta')
+  const { data: webhooks, error: fetchError } = await ncMeta
     .from('webhooks')
     .select('id, url, secret, headers, events')
     .or(`base_id.eq.${baseId},base_id.eq.${PLATFORM_SENTINEL}`)
@@ -152,8 +158,8 @@ Deno.serve(async (req) => {
     .contains('events', [event]);
 
   if (fetchError) {
-    console.error('[webhook-dispatcher] Failed to fetch webhooks:', fetchError.message);
-    return json({ error: 'Failed to fetch webhooks' }, 500, req);
+    console.error('[webhook-dispatcher] Failed to fetch webhooks:', fetchError.message, fetchError.code, fetchError.details);
+    return json({ error: 'Failed to fetch webhooks', detail: fetchError.message, code: fetchError.code }, 500, req);
   }
 
   const uniqueWebhooks = webhooks ?? [];
@@ -252,7 +258,7 @@ Deno.serve(async (req) => {
 
   // Best-effort: a logging failure should never take down the actual dispatch.
   if (deliveryRows.length > 0) {
-    await supabase.schema('nc_meta').from('webhook_deliveries').insert(deliveryRows).then(({ error }) => {
+    await ncMeta.from('webhook_deliveries').insert(deliveryRows).then(({ error }) => {
       if (error) console.warn('[webhook-dispatcher] Failed to log deliveries:', error.message);
     });
   }
@@ -264,8 +270,7 @@ Deno.serve(async (req) => {
   // never counts against it.
   const successIds = uniqueWebhooks.map((w) => w.id).filter((id: string) => !failedIds.includes(id));
   if (successIds.length > 0) {
-    await supabase
-      .schema('nc_meta')
+    await ncMeta
       .from('webhooks')
       .update({ last_triggered_at: new Date().toISOString(), failure_count: 0 })
       .in('id', successIds)
