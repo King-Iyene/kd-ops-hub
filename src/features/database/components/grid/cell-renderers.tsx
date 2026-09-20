@@ -759,31 +759,17 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
 });
 
 
-const FORMULA_SYMBOL_TO_ISO: Record<string, string> = {
-  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
-  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
-  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
-};
-
 function formatFormulaNumber(val: number, field: FieldMeta): string {
   const resultType = field.options?.result?.type;
   if (resultType === 'currency') {
     const sym = field.options?.result?.options?.symbol ?? '$';
-    const trimmed = (sym as string).trim();
-    const code = /^[A-Z]{3}$/.test(trimmed) ? trimmed : (FORMULA_SYMBOL_TO_ISO[trimmed] ?? 'USD');
+    const code = resolveISO((sym as string).trim());
     const precision = field.options?.result?.options?.precision ?? 0;
     try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency', currency: code,
-        minimumFractionDigits: precision, maximumFractionDigits: precision,
-        currencyDisplay: 'narrowSymbol',
-      }).format(val);
+      return getCurrencyFormatter(code, precision, true).format(val);
     } catch {
       try {
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency', currency: code,
-          minimumFractionDigits: precision, maximumFractionDigits: precision,
-        }).format(val);
+        return getCurrencyFormatter(code, precision, false).format(val);
       } catch {
         return `${sym}${val.toLocaleString()}`;
       }

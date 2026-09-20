@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, X, Search } from 'lucide-react';
 import {
   Popover,
@@ -142,9 +142,10 @@ export const LinkCellRenderer = React.memo(function LinkCellRenderer({
     recordId: record.id,
   });
 
-  const linkedIds = new Set(linkedRecords.map((r) => r.id));
-  const filteredSearchResults = searchResults.filter(
-    (r) => !linkedIds.has(r.id),
+  const linkedIds = useMemo(() => new Set(linkedRecords.map((r) => r.id)), [linkedRecords]);
+  const filteredSearchResults = useMemo(
+    () => searchResults.filter((r) => !linkedIds.has(r.id)),
+    [searchResults, linkedIds],
   );
 
   const handleOpenChange = (open: boolean) => {
