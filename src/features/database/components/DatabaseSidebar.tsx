@@ -215,7 +215,7 @@ export function DatabaseSidebar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 text-[#6A7184] hover:text-[#374151] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
+            className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
             onClick={toggleSidebarCollapsed}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >

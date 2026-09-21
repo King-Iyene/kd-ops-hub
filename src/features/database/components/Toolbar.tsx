@@ -273,7 +273,7 @@ function FilterGroupBlock({
           <div className="flex items-center gap-1.5">
             <ChevronRight size={10} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]" />
             <select
-              className="text-3xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:bg-[hsl(220,20%,12%)] font-medium"
+              className="text-3xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1 py-0.5 text-[#6A7184] dark:text-[hsl(220,15%,55%)] dark:bg-[hsl(220,20%,12%)] font-medium"
               value={group.conjunction}
               onChange={(e) => onUpdateGroup(group.id, { ...group, conjunction: e.target.value as 'and' | 'or' })}
             >
