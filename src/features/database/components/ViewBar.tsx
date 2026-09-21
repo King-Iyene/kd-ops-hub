@@ -85,7 +85,7 @@ function SortableViewTab({
       <div ref={setNodeRef} style={style} className="flex items-center gap-1">
         <input
           ref={renameRef}
-          className="h-6 w-28 px-1.5 text-xs border border-[#2D7FF9] rounded outline-none"
+          className="h-6 w-28 px-1.5 text-xs border border-[#2D7FF9] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground"
           value={renameText}
           onChange={(e) => setRenameText(e.target.value)}
           onBlur={() => onRename(view.id)}
@@ -105,12 +105,8 @@ function SortableViewTab({
       {...listeners}
       onClick={onSelect}
       onContextMenu={onContextMenu}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-      style={{
-        ...style,
-        color: isActive ? '#2D7FF9' : '#6A7184',
-        borderBottom: isActive ? '2px solid #2D7FF9' : '2px solid transparent',
-      }}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isActive ? 'text-[#2D7FF9] border-b-2 border-b-[#2D7FF9]' : 'text-[#6A7184] dark:text-[hsl(220,25%,55%)] border-b-2 border-b-transparent'}`}
+      style={style}
     >
       <Icon size={13} />
       {view.name}
@@ -349,9 +345,9 @@ export function ViewBar() {
                 : <><Lock size={12} className="text-[#9AA2AF]" /> Lock view</>
               }
             </button>
-            <div className="h-px bg-[#E5E5E5] my-0.5" />
+            <div className="h-px bg-[#E5E5E5] dark:bg-[hsl(220,20%,18%)] my-0.5" />
             <button
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 flex items-center gap-2 text-red-500"
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500 dark:text-red-400"
               onClick={() => {
                 if (!activeTableId) return;
                 const view = sorted.find((v) => v.id === contextMenu.viewId);
