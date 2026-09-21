@@ -76,14 +76,15 @@ export const TextCellRenderer = React.memo(function TextCellRenderer({
   if (value == null || value === '') return null;
   let text: string;
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    if ('state' in value && (value.value == null || value.value === '')) return null;
     text = value.value ?? value.title ?? value.name ?? value.label ?? value.display_name ?? value.email ?? value.primary ?? JSON.stringify(value);
   } else {
     text = String(value);
-    // Handle JSON strings stored as text (e.g. Airtable migration)
     if (text.startsWith('{') && text.includes('"')) {
       try {
         const parsed = JSON.parse(text);
         if (typeof parsed === 'object' && parsed !== null) {
+          if ('state' in parsed && (parsed.value == null || parsed.value === '')) return null;
           text = parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? parsed.display_name ?? parsed.email ?? parsed.primary ?? text;
         }
       } catch { /* not valid JSON, use as-is */ }
@@ -202,6 +203,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   if (value == null || value === '') return null;
   let text: string;
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    if ('state' in value && (value.value == null || value.value === '')) return null;
     text = value.value ?? value.title ?? value.name ?? value.label ?? JSON.stringify(value);
   } else {
     text = String(value);
@@ -209,6 +211,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
       try {
         const parsed = JSON.parse(text);
         if (typeof parsed === 'object' && parsed !== null) {
+          if ('state' in parsed && (parsed.value == null || parsed.value === '')) return null;
           text = parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? text;
         }
       } catch { /* not valid JSON */ }
@@ -834,7 +837,23 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
       return <span className="truncate">{formatDate(value)}</span>;
     }
   }
-  return <span className="truncate">{String(value)}</span>;
+  let displayText = String(value);
+  if (typeof value === 'string' && value.startsWith('{') && value.includes('"')) {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'object' && parsed !== null) {
+        if ('state' in parsed && (parsed.value == null || parsed.value === '')) return null;
+        const extracted = parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? parsed.display_name ?? null;
+        if (extracted != null && extracted !== '') displayText = String(extracted);
+      }
+    } catch { /* not valid JSON */ }
+  } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    if ('state' in value && (value.value == null || value.value === '')) return null;
+    const extracted = value.value ?? value.title ?? value.name ?? value.label ?? value.display_name ?? null;
+    if (extracted != null && extracted !== '') displayText = String(extracted);
+    else displayText = JSON.stringify(value);
+  }
+  return <span className="truncate">{displayText}</span>;
 });
 
 export const JsonCellRenderer = React.memo(function JsonCellRenderer({
