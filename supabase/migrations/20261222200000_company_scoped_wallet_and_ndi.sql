@@ -14,7 +14,7 @@
 -- ── 1. Add company_id to principal_wallet_dva ──────────────────────────
 
 ALTER TABLE public.principal_wallet_dva
-  ADD COLUMN company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
 
 COMMENT ON COLUMN public.principal_wallet_dva.company_id IS
   'Which company this DVA belongs to. NULL = legacy (treated as KD Squares).';
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_principal_wallet_dva_company
 -- ── 2. Add company_id to principal_wallet_ledger ───────────────────────
 
 ALTER TABLE public.principal_wallet_ledger
-  ADD COLUMN company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
 
 COMMENT ON COLUMN public.principal_wallet_ledger.company_id IS
   'Which company this ledger entry belongs to. Balance per company = '
@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_principal_wallet_ledger_company
 -- ── 3. Add company_id to personal_transfers ────────────────────────────
 
 ALTER TABLE public.personal_transfers
-  ADD COLUMN company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
 
 UPDATE public.personal_transfers
 SET company_id = (SELECT id FROM public.companies WHERE short_code = 'KDS' LIMIT 1)
@@ -67,7 +67,7 @@ WHERE company_id IS NULL;
 -- ── 4. Add company_id to personal_transfer_beneficiaries ───────────────
 
 ALTER TABLE public.personal_transfer_beneficiaries
-  ADD COLUMN company_id uuid REFERENCES public.companies(id);
+  ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id);
 
 -- Existing beneficiaries are personal (owner-scoped), not company-scoped.
 -- New company-scoped beneficiaries will have company_id set.
@@ -123,6 +123,8 @@ $$;
 
 -- ── 6. Replace debit_principal_wallet with company_id param ────────────
 
+DROP FUNCTION IF EXISTS public.debit_principal_wallet(numeric, text, text, uuid, uuid);
+
 CREATE OR REPLACE FUNCTION public.debit_principal_wallet(
   p_amount_ngn numeric,
   p_source text,
@@ -156,6 +158,8 @@ $$;
 
 -- ── 7. Replace credit_back_principal_wallet with company_id ────────────
 
+DROP FUNCTION IF EXISTS public.credit_back_principal_wallet(numeric, text);
+
 CREATE OR REPLACE FUNCTION public.credit_back_principal_wallet(
   p_amount_ngn numeric,
   p_reference text,
@@ -186,6 +190,9 @@ END;
 $$;
 
 -- ── 8. Company-scoped wallet balance RPC ───────────────────────────────
+
+-- Drop the old no-arg version to avoid ambiguous overload
+DROP FUNCTION IF EXISTS public.principal_wallet_balance();
 
 CREATE OR REPLACE FUNCTION public.principal_wallet_balance(
   p_company_id uuid DEFAULT NULL
