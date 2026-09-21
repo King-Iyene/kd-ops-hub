@@ -35,7 +35,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanySettings } from '@/queries';
+import { useCompanySettings, useCompanies } from '@/queries';
+import { CompanySwitcher } from '@/components/ui-kit/CompanySwitcher';
 import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
@@ -146,6 +147,14 @@ export default function DirectorDisbursements() {
   usePageTitle('Principal Disbursements');
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const { data: companies = [] } = useCompanies();
+  const [companyId, setCompanyId] = useState<string>('');
+
+  useEffect(() => {
+    if (!companyId && companies.length > 0) setCompanyId(companies[0].id);
+  }, [companies, companyId]);
+
+  if (!companyId) return null;
 
   return (
     <div className="space-y-4">
@@ -169,7 +178,11 @@ export default function DirectorDisbursements() {
         />
       </AuroraHero>
 
-      <PrincipalWalletPanel profile={profile} toast={toast} />
+      {companies.length > 1 && (
+        <CompanySwitcher companies={companies} value={companyId} onChange={setCompanyId} />
+      )}
+
+      <PrincipalWalletPanel key={companyId} profile={profile} toast={toast} companyId={companyId} />
 
       <Tabs defaultValue="company" className="space-y-4">
         <TabsList>
@@ -177,10 +190,10 @@ export default function DirectorDisbursements() {
           <TabsTrigger value="personal">Personal Transfer</TabsTrigger>
         </TabsList>
         <TabsContent value="company">
-          <CompanyDisbursementSection profile={profile} toast={toast} />
+          <CompanyDisbursementSection profile={profile} toast={toast} companyId={companyId} />
         </TabsContent>
         <TabsContent value="personal">
-          <PersonalTransferSection profile={profile} toast={toast} />
+          <PersonalTransferSection profile={profile} toast={toast} companyId={companyId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -193,7 +206,7 @@ export default function DirectorDisbursements() {
    this module, shared above both tabs since it's one account backing
    both Company Disbursement and Personal Transfer.
    ═══════════════════════════════════════════════════════════════════════ */
-function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
+function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toast: ReturnType<typeof useToast>['toast']; companyId: string }) {
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,7 +218,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
   const load = async () => {
     setLoading(true);
     try {
-      const [account, bal] = await Promise.all([fetchDvaAccount(), fetchWalletBalance()]);
+      const [account, bal] = await Promise.all([fetchDvaAccount(companyId), fetchWalletBalance(companyId)]);
       setDva(account);
       setBalance(bal);
     } catch (err: unknown) {
@@ -224,7 +237,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
     if (next && history.length === 0) {
       setHistoryLoading(true);
       try {
-        setHistory(await fetchWalletLedger(50));
+        setHistory(await fetchWalletLedger(50, companyId));
       } catch (err: unknown) {
         toast({ title: 'Could not load funding history', description: errorMessage(err), variant: 'destructive' });
       } finally {
@@ -318,7 +331,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
         )}
       </CardContent>
 
-      <LinkDvaDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} toast={toast} onLinked={load} />
+      <LinkDvaDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} toast={toast} onLinked={load} companyId={companyId} />
 
       <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
         <AlertDialogContent>
@@ -343,13 +356,14 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
 }
 
 function LinkDvaDialog({
-  open, onOpenChange, profile, toast, onLinked,
+  open, onOpenChange, profile, toast, onLinked, companyId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   profile: any;
   toast: ReturnType<typeof useToast>['toast'];
   onLinked: () => void;
+  companyId: string;
 }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ customerCode: '', accountNumber: '', bankName: '', accountName: '' });
@@ -368,6 +382,7 @@ function LinkDvaDialog({
         accountNumber: form.accountNumber.trim(),
         bankName: form.bankName.trim(),
         accountName: form.accountName.trim() || null,
+        companyId,
         createdBy: profile?.id,
       });
       toast({ title: 'Dedicated account linked' });
@@ -424,7 +439,7 @@ function LinkDvaDialog({
 /* ═══════════════════════════════════════════════════════════════════════
    Company Disbursement section
    ═══════════════════════════════════════════════════════════════════════ */
-function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
+function CompanyDisbursementSection({ profile, toast, companyId }: { profile: any; toast: ReturnType<typeof useToast>['toast']; companyId: string }) {
   const [rows, setRows] = useState<DisbursementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
@@ -444,8 +459,8 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
 
   useEffect(() => {
-    fetchDvaAccount().then(setDva).catch(() => setDva(null));
-  }, []);
+    fetchDvaAccount(companyId).then(setDva).catch(() => setDva(null));
+  }, [companyId]);
 
   const load = async () => {
     setLoading(true);
@@ -637,6 +652,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         toast={toast}
         onSent={load}
         dva={dva}
+        companyId={companyId}
       />
 
       <ReceiptModal
@@ -660,7 +676,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
 }
 
 function CompanyDisbursementSendDialog({
-  open, onOpenChange, profile, toast, onSent, dva,
+  open, onOpenChange, profile, toast, onSent, dva, companyId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -668,6 +684,7 @@ function CompanyDisbursementSendDialog({
   toast: ReturnType<typeof useToast>['toast'];
   onSent: () => void;
   dva: PrincipalWalletDva | null;
+  companyId: string;
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
@@ -694,7 +711,7 @@ function CompanyDisbursementSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount));
+      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount), companyId);
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const { data: batch, error: batchErr } = await supabase
@@ -882,7 +899,7 @@ function CompanyDisbursementSendDialog({
         label={form.description || directorDisbursementCategoryLabel(form.category)}
         title="Confirm Company Disbursement"
         onConfirm={(narration) => executeSend(narration)}
-        fetchWalletBalance={fetchWalletBalanceOrNull}
+        fetchWalletBalance={() => fetchWalletBalanceOrNull(companyId)}
         walletBalanceLabel="Principal Disbursements wallet"
         hideProviderBalance
         walletBankName={dva?.bank_name}
@@ -1062,7 +1079,7 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
 /* ═══════════════════════════════════════════════════════════════════════
    Personal Transfer section
    ═══════════════════════════════════════════════════════════════════════ */
-function PersonalTransferSection({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
+function PersonalTransferSection({ profile, toast, companyId }: { profile: any; toast: ReturnType<typeof useToast>['toast']; companyId: string }) {
   const [rows, setRows] = useState<PersonalTransferRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
@@ -1094,9 +1111,9 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [visibleCount, setVisibleCount] = useState(50);
 
   useEffect(() => {
-    fetchDvaAccount().then(setDva).catch(() => setDva(null));
-    fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => setWalletBalance(null));
-  }, []);
+    fetchDvaAccount(companyId).then(setDva).catch(() => setDva(null));
+    fetchWalletBalanceOrNull(companyId).then(setWalletBalance).catch(() => setWalletBalance(null));
+  }, [companyId]);
 
   const load = async () => {
     setLoading(true);
@@ -1628,21 +1645,23 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         onOpenChange={(v) => { setSendOpen(v); if (!v) setSendDraft(null); }}
         profile={profile}
         toast={toast}
-        onSent={() => { load(); fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => {}); }}
+        onSent={() => { load(); fetchWalletBalanceOrNull(companyId).then(setWalletBalance).catch(() => {}); }}
         beneficiaries={beneficiaries}
         dva={dva}
         draft={sendDraft}
         onDraftSent={loadDrafts}
+        companyId={companyId}
       />
       <PersonalTransferBatchDialog
         open={batchOpen}
         onOpenChange={setBatchOpen}
         profile={profile}
         toast={toast}
-        onSent={() => { load(); fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => {}); }}
+        onSent={() => { load(); fetchWalletBalanceOrNull(companyId).then(setWalletBalance).catch(() => {}); }}
         beneficiaries={beneficiaries}
         history={rows}
         dva={dva}
+        companyId={companyId}
       />
       <PersonalTransferBeneficiariesDialog
         open={beneficiariesOpen}
@@ -1949,7 +1968,7 @@ function PersonalTransferBeneficiariesDialog({
 }
 
 function PersonalTransferSendDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries, dva, draft, onDraftSent,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, dva, draft, onDraftSent, companyId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1960,6 +1979,7 @@ function PersonalTransferSendDialog({
   dva: PrincipalWalletDva | null;
   draft?: PersonalTransferDraftRow | null;
   onDraftSent?: () => void;
+  companyId: string;
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
@@ -2012,7 +2032,7 @@ function PersonalTransferSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount));
+      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount), companyId);
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const bankCode = getBankCode(bank.bank_name);
@@ -2183,7 +2203,7 @@ function PersonalTransferSendDialog({
         label={form.memo || undefined}
         title="Confirm Personal Transfer"
         onConfirm={(narration) => executeSend(narration)}
-        fetchWalletBalance={fetchWalletBalanceOrNull}
+        fetchWalletBalance={() => fetchWalletBalanceOrNull(companyId)}
         walletBalanceLabel="Principal Disbursements wallet"
         hideProviderBalance
         walletBankName={dva?.bank_name}
@@ -2256,7 +2276,7 @@ function computeBatchRiskFlags(
 }
 
 function PersonalTransferBatchDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries, history, dva,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, history, dva, companyId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -2266,6 +2286,7 @@ function PersonalTransferBatchDialog({
   beneficiaries: PersonalTransferBeneficiaryRow[];
   history: PersonalTransferRow[];
   dva: PrincipalWalletDva | null;
+  companyId: string;
 }) {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState('');
@@ -2308,7 +2329,7 @@ function PersonalTransferBatchDialog({
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   useEffect(() => {
     if (!open) { setWalletBalance(null); return; }
-    void fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => setWalletBalance(null));
+    void fetchWalletBalanceOrNull(companyId).then(setWalletBalance).catch(() => setWalletBalance(null));
   }, [open]);
   const walletInsufficient = walletBalance != null && batchCost.grandTotal > walletBalance;
 
@@ -2326,7 +2347,7 @@ function PersonalTransferBatchDialog({
         const cap = await previewCapCheck(profile.id, totalAmount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(batchCost.grandTotal);
+      const walletCheck = await checkWalletCanCover(batchCost.grandTotal, companyId);
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const label = batchLabel.trim() || null;
@@ -2565,7 +2586,7 @@ function PersonalTransferBatchDialog({
         label={batchLabel || undefined}
         title="Confirm Personal Transfer Batch"
         onConfirm={(narration) => executeBatch(narration)}
-        fetchWalletBalance={fetchWalletBalanceOrNull}
+        fetchWalletBalance={() => fetchWalletBalanceOrNull(companyId)}
         walletBalanceLabel="Principal Disbursements wallet"
         hideProviderBalance
         walletBankName={dva?.bank_name}
