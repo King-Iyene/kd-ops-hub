@@ -71,6 +71,7 @@ import {
   Database,
   Table2,
   Code2,
+  Globe,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -166,6 +167,11 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Database',         url: '/data',              icon: Database,        roles: ['super_admin'] },
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // NDI — standalone org module, admin + super_admin only
+  { title: 'NDI Overview',     url: '/ndi',               icon: Globe,           roles: ['super_admin', 'admin'] },
+  { title: 'NDI Finance',      url: '/ndi/finance',       icon: Wallet,          roles: ['super_admin', 'admin'] },
+  { title: 'NDI Employees',    url: '/ndi/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
+  { title: 'NDI Profile',      url: '/ndi/profile',       icon: Building2,       roles: ['super_admin', 'admin'] },
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
@@ -191,6 +197,7 @@ export const NAV_GROUPS = [
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements', 'Database', 'Developer'] },
+  { key: 'ndi',        label: 'NDI',                 titles: ['NDI Overview', 'NDI Finance', 'NDI Employees', 'NDI Profile'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -252,6 +259,15 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-sky-400',
     iconBg: 'bg-sky-500/15',
     groups: ['crm'],
+  },
+  {
+    key: 'ndi',
+    label: 'NDI',
+    description: 'Niger Delta Innovate',
+    icon: 'Globe',
+    color: 'text-orange-400',
+    iconBg: 'bg-orange-500/15',
+    groups: ['ndi'],
   },
   {
     key: 'admin',

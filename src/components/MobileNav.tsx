@@ -19,6 +19,7 @@ import {
   Landmark,
   Layers,
   Contact2,
+  Globe,
   CalendarDays,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -35,7 +36,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe,
 };
 
 type TabDef = {

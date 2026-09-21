@@ -102,6 +102,11 @@ const SharedViewPage    = lazy(() => import('./features/database/pages/SharedVie
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
 const Developer         = lazy(() => import('./pages/Developer'));
+// NDI — standalone org module
+const NdiDashboard      = lazy(() => import('./pages/ndi/NdiDashboard'));
+const NdiFinance        = lazy(() => import('./pages/ndi/NdiFinance'));
+const NdiEmployees      = lazy(() => import('./pages/ndi/NdiEmployees'));
+const NdiProfile        = lazy(() => import('./pages/ndi/NdiProfile'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -964,6 +969,12 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
+
+        {/* NDI — standalone org module, admin + super_admin */}
+        <Route path="/ndi" element={<RoleGuard roles={['super_admin', 'admin']}><NdiDashboard /></RoleGuard>} />
+        <Route path="/ndi/finance" element={<RoleGuard roles={['super_admin', 'admin']}><NdiFinance /></RoleGuard>} />
+        <Route path="/ndi/employees" element={<RoleGuard roles={['super_admin', 'admin']}><NdiEmployees /></RoleGuard>} />
+        <Route path="/ndi/profile" element={<RoleGuard roles={['super_admin', 'admin']}><NdiProfile /></RoleGuard>} />
 
         {/* Profile — any signed-in user. */}
         <Route

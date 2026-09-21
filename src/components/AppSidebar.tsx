@@ -11,6 +11,7 @@ import {
   Truck,
   Layers,
   Contact2,
+  Globe,
   Search,
   X,
 } from 'lucide-react';
@@ -50,6 +51,7 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Truck,
   Layers,
   Contact2,
+  Globe,
 };
 
 const UNGROUPED_SET = new Set(['Dashboard', 'Approvals', 'My Portal', 'Finance']);
