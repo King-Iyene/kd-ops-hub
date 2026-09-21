@@ -231,9 +231,10 @@ export function DatabaseSidebar() {
           const bStarred = starredIds.has(b.id) ? 0 : 1;
           return aStarred - bStarred || (a.position ?? 0) - (b.position ?? 0);
         }).map((base: any) => (
-          <a
+          <div
             key={base.id}
-            href={`/data/${toShort(base.id)}`}
+            role="link"
+            tabIndex={renamingBaseId === base.id ? undefined : 0}
             className={cn(
               'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors no-underline',
               sidebarCollapsed && 'justify-center mx-0.5 px-0',
@@ -242,12 +243,12 @@ export function DatabaseSidebar() {
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
             )}
             onClick={(e) => {
-              e.preventDefault();
               if (renamingBaseId === base.id) return;
               if (base.id !== activeBaseId) navigateToBase(base.id);
             }}
             onKeyDown={(e) => {
-              if (renamingBaseId === base.id) { e.preventDefault(); e.stopPropagation(); }
+              if (renamingBaseId === base.id) return;
+              if (e.key === 'Enter') navigateToBase(base.id);
             }}
             title={sidebarCollapsed ? base.name : undefined}
           >
@@ -390,7 +391,7 @@ export function DatabaseSidebar() {
                 </DropdownMenu>
               </>
             )}
-          </a>
+          </div>
         ))}
 
         {(!bases || bases.length === 0) && !sidebarCollapsed && (
