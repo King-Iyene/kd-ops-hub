@@ -102,7 +102,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
     <div ref={setNodeRef} style={style} className="flex items-center gap-2 group">
       <button
         type="button"
-        className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
         {...attributes}
         {...listeners}
       >
@@ -169,7 +169,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       </Popover>
       <button
         type="button"
-        className="p-0.5 rounded hover:bg-red-50 text-[#9AA2AF] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+        className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
         onClick={() => onRemove(choice.title)}
       >
         <X size={14} />
@@ -528,7 +528,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>
             <textarea
               id="field-desc"
               value={description}
@@ -536,7 +536,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                 if (e.target.value.length <= 500) setDescription(e.target.value);
               }}
               placeholder="Describe this field..."
-              className="w-full rounded-md border border-[#E5E5E5] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
+              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
               rows={2}
               maxLength={500}
             />
@@ -546,7 +546,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Field Type</Label>
             <div className="border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg overflow-hidden">
               <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)]">
-                <Search size={13} className="text-[#9AA2AF] shrink-0" />
+                <Search size={13} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] shrink-0" />
                 <input
                   type="text"
                   value={typeSearch}
@@ -560,10 +560,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     }
                   }}
                   placeholder="Search field types..."
-                  className="w-full bg-transparent text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] outline-none"
+                  className="w-full bg-transparent text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] outline-none"
                 />
                 {typeSearch && (
-                  <button type="button" onClick={() => setTypeSearch('')} className="text-[#9AA2AF] hover:text-[#374151]">
+                  <button type="button" onClick={() => setTypeSearch('')} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]">
                     <X size={12} />
                   </button>
                 )}
@@ -576,7 +576,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   if (items.length === 0) return null;
                   return (
                     <div key={group}>
-                      <div className="px-3 py-1 text-3xs font-semibold text-[#9AA2AF] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] sticky top-0">
+                      <div className="px-3 py-1 text-3xs font-semibold text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] uppercase tracking-wider bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] sticky top-0">
                         {group}
                       </div>
                       {items.map((opt) => {
@@ -593,7 +593,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                             )}
                             onClick={() => handleTypeChange(opt.value)}
                           >
-                            <Icon size={14} className={uiType === opt.value ? 'text-[#2D7FF9]' : 'text-[#9AA2AF]'} />
+                            <Icon size={14} className={uiType === opt.value ? 'text-[#2D7FF9]' : 'text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]'} />
                             {opt.label}
                           </button>
                         );
@@ -602,7 +602,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   );
                 })}
                 {FIELD_TYPE_OPTIONS.filter((o) => o.label.toLowerCase().includes(typeSearch.toLowerCase())).length === 0 && typeSearch && (
-                  <div className="px-3 py-3 text-xs text-[#9AA2AF] text-center">No matching field types</div>
+                  <div className="px-3 py-3 text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] text-center">No matching field types</div>
                 )}
               </div>
             </div>
@@ -934,7 +934,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Default to current date</span>
                 </label>
                 {defaultToCurrentDate && (
-                  <p className="text-2xs text-[#9AA2AF] mt-1 ml-5">
+                  <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mt-1 ml-5">
                     New rows will automatically use today's date for this field.
                   </p>
                 )}
@@ -975,7 +975,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   placeholder="https://example.com/{Name}"
                   className="h-9"
                 />
-                <p className="text-2xs text-[#9AA2AF]">
+                <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
                   Use {'{fieldName}'} to insert field values from the record.
                 </p>
               </div>

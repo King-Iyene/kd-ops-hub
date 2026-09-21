@@ -84,7 +84,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
                       return (
                         <SelectItem key={f.id} value={f.id}>
                           <span className="flex items-center gap-1.5">
-                            <Icon size={12} className="text-[#9AA2AF]" />
+                            <Icon size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                             {f.name}
                           </span>
                         </SelectItem>
@@ -109,7 +109,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-red-500 shrink-0"
                   onClick={() => removeGroup(idx)}
                 >
                   <X size={14} />
@@ -130,7 +130,7 @@ export function GroupPanel({ fields, groups, onGroupsChange }: GroupPanelProps) 
           </Button>
           {groups.length > 0 && (
             <button
-              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,55%)] transition-colors"
+              className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)] transition-colors"
               onClick={() => onGroupsChange([])}
             >
               Clear all

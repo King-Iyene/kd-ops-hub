@@ -71,7 +71,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
     <div ref={setNodeRef} style={style} className="flex items-center gap-2 group">
       <button
         type="button"
-        className="text-[#9AA2AF] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+        className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] cursor-grab shrink-0 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
         {...attributes}
         {...listeners}
       >
@@ -138,7 +138,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       </Popover>
       <button
         type="button"
-        className="p-0.5 rounded hover:bg-destructive/5 text-[#9AA2AF] hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+        className="p-0.5 rounded hover:bg-destructive/5 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
         onClick={() => onRemove(choice.title)}
       >
         <X size={14} />
@@ -435,7 +435,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF]">(optional)</span></Label>
+            <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>
             <textarea
               id="edit-field-desc"
               value={description}
@@ -443,11 +443,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 if (e.target.value.length <= 500) setDescription(e.target.value);
               }}
               placeholder="Add a description for this field..."
-              className="w-full rounded-md border border-[#E5E5E5] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
+              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
               rows={3}
               maxLength={500}
             />
-            <div className="text-2xs text-[#9AA2AF] text-right">{description.length}/500</div>
+            <div className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] text-right">{description.length}/500</div>
           </div>
 
           <div className="space-y-1.5">
@@ -475,7 +475,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     onClick={() => canConvert && setShowTypeSelector(!showTypeSelector)}
                     disabled={!canConvert}
                   >
-                    <ActiveIcon size={14} className="text-[#9AA2AF]" />
+                    <ActiveIcon size={14} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                     <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">
                       {FIELD_TYPE_LABELS[activeType] ?? activeType}
                     </span>
@@ -483,12 +483,12 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       <span className="text-2xs text-[#2D7FF9] ml-1">(changing)</span>
                     )}
                     {!canConvert && (
-                      <span className="text-2xs text-[#9AA2AF] ml-auto">
+                      <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] ml-auto">
                         {isVirtual ? 'Virtual type' : field.is_primary ? 'Primary field' : 'No conversions available'}
                       </span>
                     )}
                     {canConvert && (
-                      <span className="text-2xs text-[#9AA2AF] ml-auto">Click to change</span>
+                      <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] ml-auto">Click to change</span>
                     )}
                   </button>
 
@@ -505,11 +505,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                             setShowTypeSelector(false);
                           }}
                         >
-                          <Icon size={13} className="text-[#9AA2AF]" />
+                          <Icon size={13} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                           <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">
                             {FIELD_TYPE_LABELS[field.ui_type] ?? field.ui_type}
                           </span>
-                          <span className="text-3xs text-[#9AA2AF] ml-auto">current</span>
+                          <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] ml-auto">current</span>
                         </button>
                       )}
                       {convertibleTypes.map(({ type, rule }) => {
@@ -531,7 +531,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                               setShowTypeSelector(false);
                             }}
                           >
-                            <TypeIcon size={13} className="text-[#9AA2AF]" />
+                            <TypeIcon size={13} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                             <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">
                               {FIELD_TYPE_LABELS[type] ?? type}
                             </span>
@@ -914,7 +914,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Default to current date</span>
                 </label>
                 {defaultToCurrentDate && (
-                  <p className="text-2xs text-[#9AA2AF] mt-1 ml-5">
+                  <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mt-1 ml-5">
                     New rows will automatically use today's date for this field.
                   </p>
                 )}
@@ -941,7 +941,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   placeholder="https://example.com/{Name}"
                   className="h-9"
                 />
-                <p className="text-2xs text-[#9AA2AF]">
+                <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
                   Use {'{fieldName}'} to insert field values from the record.
                 </p>
               </div>

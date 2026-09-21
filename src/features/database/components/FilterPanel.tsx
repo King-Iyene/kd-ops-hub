@@ -174,7 +174,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="xs" className="text-[#6A7184] gap-1">
+        <Button variant="ghost" size="xs" className="text-[#6A7184] dark:text-[hsl(220,20%,60%)] gap-1">
           <FilterIcon size={14} />
           Filter
           {activeCount > 0 && (
@@ -195,7 +195,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
                 {/* Conjunction */}
                 <div className="w-[52px] shrink-0">
                   {idx === 0 ? (
-                    <span className="text-xs text-[#6A7184] pl-1">Where</span>
+                    <span className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,60%)] pl-1">Where</span>
                   ) : (
                     <Select
                       value={filter.conjunction}
@@ -235,7 +235,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
                       return (
                         <SelectItem key={f.id} value={f.id}>
                           <span className="flex items-center gap-1.5">
-                            <FIcon size={12} className="text-[#9AA2AF]" />
+                            <FIcon size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                             {f.name}
                           </span>
                         </SelectItem>
@@ -273,7 +273,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-red-500 shrink-0"
                   onClick={() => removeFilter(filter.id)}
                 >
                   <X size={14} />
@@ -294,7 +294,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
           </Button>
           {filters.length > 0 && (
             <button
-              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] transition-colors"
+              className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)] transition-colors"
               onClick={() => onFiltersChange([])}
             >
               Clear all

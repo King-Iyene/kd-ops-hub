@@ -229,7 +229,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
                       return (
                         <SelectItem key={f.id} value={f.id}>
                           <span className="flex items-center gap-1.5">
-                            <FIcon size={12} className="text-[#9AA2AF]" />
+                            <FIcon size={12} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                             {f.name}
                           </span>
                         </SelectItem>
@@ -267,7 +267,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-[#9AA2AF] hover:text-red-500 shrink-0"
+                  className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-red-500 shrink-0"
                   onClick={() => removeRule(rule.id)}
                 >
                   <X size={14} />
@@ -288,7 +288,7 @@ export function RowColorPanel({ fields, rules, onRulesChange }: RowColorPanelPro
           </Button>
           {rules.length > 0 && (
             <button
-              className="text-xs text-[#9AA2AF] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,55%)] transition-colors"
+              className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)] transition-colors"
               onClick={() => onRulesChange([])}
             >
               Clear all
