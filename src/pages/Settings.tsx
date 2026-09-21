@@ -35,6 +35,7 @@ import { validateFile } from '@/lib/file-validation';
 import { errorMessage } from '@/lib/db-errors';
 import { setTimezoneCache } from '@/lib/format';
 import { useCompanies, useInvalidate, queryKeys } from '@/queries';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -445,7 +446,10 @@ const SettingsPage = () => {
 
           <p className="hidden md:block text-2xs font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-2">Organization</p>
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+            <>
+            <TabsTrigger value="companies" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Companies</TabsTrigger>
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
+            </>
           )}
           <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
 
@@ -552,6 +556,11 @@ const SettingsPage = () => {
           />
         </TabsContent>
         )}
+
+        {/* COMPANIES --------------------------------------------------- */}
+        <TabsContent value="companies" className="mt-4 space-y-4">
+          <CompaniesManager />
+        </TabsContent>
 
         {/* DEPARTMENTS -------------------------------------------------- */}
         <TabsContent value="departments" className="mt-4 space-y-4">
@@ -1514,6 +1523,364 @@ function ConfigureRetentionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Companies CRUD
+// ---------------------------------------------------------------------------
+
+interface CompanyRow {
+  id: string;
+  name: string;
+  short_code: string;
+  rc_number: string | null;
+  tin: string | null;
+  address: string | null;
+  color: string;
+  is_active: boolean;
+}
+
+function CompaniesManager() {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const invalidate = useInvalidate();
+  const [rows, setRows] = useState<CompanyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<CompanyRow | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<CompanyRow | null>(null);
+  const [deletingRow, setDeletingRow] = useState(false);
+
+  // Form fields
+  const [fName, setFName] = useState('');
+  const [fShortCode, setFShortCode] = useState('');
+  const [fRcNumber, setFRcNumber] = useState('');
+  const [fTin, setFTin] = useState('');
+  const [fAddress, setFAddress] = useState('');
+  const [fColor, setFColor] = useState('#3B82F6');
+  const [fIsActive, setFIsActive] = useState(true);
+
+  // Employee counts per company (via pay_groups)
+  const [employeeCounts, setEmployeeCounts] = useState<Record<string, number>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [{ data }, { data: pgData }] = await Promise.all([
+      supabase.from('companies').select('id, name, short_code, rc_number, tin, address, color, is_active').order('name'),
+      supabase.from('pay_groups').select('id, company_id'),
+    ]);
+    setRows((data as CompanyRow[]) || []);
+
+    // Count employees per company through pay_groups
+    if (pgData && pgData.length > 0) {
+      const pgByCompany = new Map<string, string[]>();
+      for (const pg of pgData as { id: string; company_id: string }[]) {
+        if (!pg.company_id) continue;
+        const list = pgByCompany.get(pg.company_id) ?? [];
+        list.push(pg.id);
+        pgByCompany.set(pg.company_id, list);
+      }
+      const counts: Record<string, number> = {};
+      for (const [companyId, pgIds] of pgByCompany) {
+        const { count } = await supabase
+          .from('employees')
+          .select('id', { count: 'exact', head: true })
+          .in('pay_group_id', pgIds);
+        counts[companyId] = count ?? 0;
+      }
+      setEmployeeCounts(counts);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const reset = () => {
+    setEditing(null);
+    setFName('');
+    setFShortCode('');
+    setFRcNumber('');
+    setFTin('');
+    setFAddress('');
+    setFColor('#3B82F6');
+    setFIsActive(true);
+  };
+
+  const openAdd = () => { reset(); setShowForm(true); };
+  const openEdit = (c: CompanyRow) => {
+    setEditing(c);
+    setFName(c.name);
+    setFShortCode(c.short_code);
+    setFRcNumber(c.rc_number || '');
+    setFTin(c.tin || '');
+    setFAddress(c.address || '');
+    setFColor(c.color || '#3B82F6');
+    setFIsActive(c.is_active);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!fName.trim()) { toast({ title: 'Company name is required', variant: 'destructive' }); return; }
+    if (!fShortCode.trim()) { toast({ title: 'Short code is required', variant: 'destructive' }); return; }
+
+    setSubmitting(true);
+    const payload = {
+      name: fName.trim(),
+      short_code: fShortCode.trim().toUpperCase(),
+      rc_number: fRcNumber.trim() || null,
+      tin: fTin.trim() || null,
+      address: fAddress.trim() || null,
+      color: fColor,
+      is_active: fIsActive,
+    };
+
+    if (editing) {
+      const { error } = await supabase.from('companies').update(payload).eq('id', editing.id);
+      if (error) {
+        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      } else {
+        await logAudit('company_settings_saved', `Company "${fName.trim()}" updated`, profile);
+        toast({ title: 'Company updated' });
+      }
+    } else {
+      const { error } = await supabase.from('companies').insert(payload);
+      if (error) {
+        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
+      } else {
+        await logAudit('company_settings_saved', `Company "${fName.trim()}" created`, profile);
+        toast({ title: 'Company created' });
+      }
+    }
+    setSubmitting(false);
+    setShowForm(false);
+    reset();
+    load();
+    invalidate(queryKeys.companies);
+  };
+
+  const handleDelete = async (c: CompanyRow) => {
+    const empCount = employeeCounts[c.id] || 0;
+    if (empCount > 0) {
+      toast({
+        title: 'Cannot delete',
+        description: `${empCount} employee(s) are in pay groups under this company. Reassign them first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Check pay_groups
+    const { count: pgCount } = await supabase
+      .from('pay_groups')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', c.id);
+    if (pgCount && pgCount > 0) {
+      toast({
+        title: 'Cannot delete',
+        description: `${pgCount} pay group(s) belong to this company. Remove or reassign them first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { error } = await supabase.from('companies').delete().eq('id', c.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('company_settings_saved', `Company "${c.name}" deleted`, profile);
+      toast({ title: 'Company deleted' });
+      load();
+      invalidate(queryKeys.companies);
+    }
+  };
+
+  if (loading) {
+    return <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Companies</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Legal entities that employ staff and run payroll. Powers employee assignment, payroll runs, and modules like NDI.</p>
+          </div>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> Add company
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-6 text-center">
+              No companies yet. Add your first company to get started.
+            </p>
+          ) : (
+            <>
+            <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableRow>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Short Code</TableHead>
+                  <TableHead>RC Number</TableHead>
+                  <TableHead>TIN</TableHead>
+                  <TableHead className="text-right">Employees</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((c) => (
+                  <TableRow key={c.id} className="hover:bg-muted/40 kd-transition">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="font-medium">{c.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><Badge variant="outline" className="font-mono text-xs">{c.short_code}</Badge></TableCell>
+                    <TableCell className="text-muted-foreground">{c.rc_number || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground">{c.tin || '—'}</TableCell>
+                    <TableCell className="text-right">{employeeCounts[c.id] || 0}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.is_active ? 'default' : 'secondary'}>{c.is_active ? 'Active' : 'Inactive'}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(c)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+            <div className="md:hidden space-y-2 p-3">
+              {rows.map((c) => (
+                <MobileCard key={c.id}>
+                  <MobileCardHeader>
+                    <div className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                      <div>
+                        <MobileCardTitle>{c.name}</MobileCardTitle>
+                        <MobileCardMeta>{c.short_code}{c.rc_number ? ` · RC ${c.rc_number}` : ''}</MobileCardMeta>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(c)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Employees" value={String(employeeCounts[c.id] || 0)} />
+                  <MobileCardRow label="Status">
+                    <Badge variant={c.is_active ? 'default' : 'secondary'}>{c.is_active ? 'Active' : 'Inactive'}</Badge>
+                  </MobileCardRow>
+                </MobileCard>
+              ))}
+            </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showForm} onOpenChange={(v) => { if (!v) { setShowForm(false); reset(); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Add'} company</DialogTitle>
+            <DialogDescription>
+              {editing ? 'Update company details.' : 'Add a new legal entity. This will appear in employee profiles, payroll, and module selection.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="co_name">Company name</Label>
+              <Input id="co_name" value={fName} onChange={(e) => setFName(e.target.value)} placeholder="e.g. Niger Delta Innovate" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="co_code">Short code</Label>
+                <Input id="co_code" value={fShortCode} onChange={(e) => setFShortCode(e.target.value)} placeholder="e.g. NDI" className="uppercase" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="co_color">Brand color</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" id="co_color" value={fColor} onChange={(e) => setFColor(e.target.value)} className="h-9 w-9 rounded border cursor-pointer" />
+                  <Input value={fColor} onChange={(e) => setFColor(e.target.value)} className="flex-1 font-mono text-xs" />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="co_rc">RC Number (optional)</Label>
+                <Input id="co_rc" value={fRcNumber} onChange={(e) => setFRcNumber(e.target.value)} placeholder="RC 123456" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="co_tin">TIN (optional)</Label>
+                <Input id="co_tin" value={fTin} onChange={(e) => setFTin(e.target.value)} placeholder="12345678-0001" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="co_address">Address (optional)</Label>
+              <Input id="co_address" value={fAddress} onChange={(e) => setFAddress(e.target.value)} placeholder="Registered office address" />
+            </div>
+            {editing && (
+              <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
+                <div>
+                  <Label htmlFor="co_active" className="text-sm font-medium">Active</Label>
+                  <p className="text-xs text-muted-foreground">Inactive companies won't appear in dropdowns.</p>
+                </div>
+                <Switch id="co_active" checked={fIsActive} onCheckedChange={setFIsActive} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={submitting || !fName.trim() || !fShortCode.trim()}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete company</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? This action cannot be undone. All pay groups and employees must be reassigned first.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deletingRow}
+              onClick={async () => {
+                if (confirmDelete) {
+                  setDeletingRow(true);
+                  await handleDelete(confirmDelete);
+                  setDeletingRow(false);
+                  setConfirmDelete(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
