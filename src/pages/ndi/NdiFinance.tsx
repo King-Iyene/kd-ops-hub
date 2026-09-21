@@ -25,9 +25,10 @@ import {
   fetchNdiAccount, createNdiAccount, deleteNdiAccount,
   fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv,
   fetchNdiBeneficiaries, createNdiBeneficiary, updateNdiBeneficiary, deactivateNdiBeneficiary,
-  fetchNdiTransfers, createNdiTransfer, updateNdiTransferStatus, updateNdiTransferReference,
   fetchAllNdiTransfers, exportNdiTransfersCsv,
   generateNdiGrantReport,
+  executeNdiTransfer, verifyNdiTransferStatus, resolveAndCreateNdiRecipient,
+  resolveAccount, paystackTransferFee, totalChargeFor, friendlyPaystackError,
   NDI_CATEGORIES, ndiCategoryLabel,
   type NdiDedicatedAccount, type NdiLedgerRow, type NdiBeneficiary, type NdiTransfer,
   type NdiGrantReportData,
@@ -442,9 +443,9 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
     }
     setVerifyingId(row.id);
     try {
-      // Note: verifyTransfer from @/lib/paystack could be called here.
-      // For now we just re-fetch the transfer status from our DB.
-      toast({ title: 'Status check requested', description: 'Refresh to see updated status.' });
+      const newStatus = await verifyNdiTransferStatus(row.id, row.paystack_reference);
+      toast({ title: `Status updated: ${newStatus}` });
+      void load();
     } catch (err) {
       toast({ title: 'Verification failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
@@ -619,23 +620,44 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
 }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ beneficiaryId: '', amount: '', category: '', description: '', narration: '' });
-  const [result, setResult] = useState<{ ok: boolean; message: string; reference?: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; message: string; reference?: string; status?: string } | null>(null);
 
   const reset = () => {
     setForm({ beneficiaryId: '', amount: '', category: '', description: '', narration: '' });
     setResult(null);
   };
 
+  const selectedBeneficiary = beneficiaries.find((b) => b.id === form.beneficiaryId);
+  const amt = parseFloat(form.amount) || 0;
+  const fee = amt > 0 ? paystackTransferFee(amt) : 0;
+  const totalCharge = amt > 0 ? totalChargeFor(amt) : 0;
+
   const send = async () => {
-    const amt = parseFloat(form.amount);
     if (!amt || amt <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
+    if (!form.beneficiaryId) { toast({ title: 'Select a beneficiary', variant: 'destructive' }); return; }
     if (!form.category) { toast({ title: 'Select a category', variant: 'destructive' }); return; }
+
+    const ben = beneficiaries.find((b) => b.id === form.beneficiaryId);
+    if (!ben) { toast({ title: 'Beneficiary not found', variant: 'destructive' }); return; }
 
     setSaving(true);
     try {
-      const transfer = await createNdiTransfer({
+      // Ensure beneficiary has a Paystack recipient code
+      let recipientCode = ben.paystack_recipient_code;
+      if (!recipientCode) {
+        if (!ben.bank_code) {
+          toast({ title: 'Beneficiary missing bank code — edit and resolve their account first', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+        const recipient = await resolveAndCreateNdiRecipient(ben.id, ben.account_number, ben.bank_code, ben.name);
+        recipientCode = recipient.recipient_code;
+      }
+
+      const { paystackRef, status } = await executeNdiTransfer({
         companyId,
-        beneficiaryId: form.beneficiaryId || undefined,
+        beneficiaryId: ben.id,
+        recipientCode: recipientCode!,
         amountNgn: amt,
         category: form.category,
         description: form.description.trim() || undefined,
@@ -643,16 +665,16 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
         createdBy: profile?.id ?? '',
       });
 
-      // Write idempotent reference
-      const ref = `ndi_${transfer.id.slice(0, 8)}_${Date.now()}`;
-      await updateNdiTransferReference(transfer.id, ref);
-
-      // In production, this would call initiateTransferIdempotent via Paystack.
-      // For now, mark as pending — webhook will update to success/failed.
-      setResult({ ok: true, message: 'Transfer created and queued for processing.', reference: ref });
+      setResult({
+        ok: true,
+        message: status === 'success' ? 'Transfer completed successfully!' : 'Transfer initiated — status will update automatically.',
+        reference: paystackRef,
+        status,
+      });
       onSent();
     } catch (err) {
-      setResult({ ok: false, message: errorMessage(err) });
+      const friendly = friendlyPaystackError(errorMessage(err));
+      setResult({ ok: false, message: friendly.userMessage || errorMessage(err) });
     } finally {
       setSaving(false);
     }
@@ -684,20 +706,28 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
           <>
             <div className="space-y-3">
               <div>
-                <Label>Beneficiary (optional)</Label>
+                <Label>Beneficiary</Label>
                 <Select value={form.beneficiaryId} onValueChange={(v) => setForm({ ...form, beneficiaryId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select saved beneficiary…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select beneficiary…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (manual)</SelectItem>
                     {beneficiaries.map((b) => (
                       <SelectItem key={b.id} value={b.id}>{b.name} · {b.bank_name} · {b.account_number}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedBeneficiary && !selectedBeneficiary.bank_code && (
+                  <p className="text-xs text-amber-500 mt-1">This beneficiary needs a bank code — edit them in the Beneficiaries tab first.</p>
+                )}
               </div>
               <div>
                 <Label>Amount (NGN)</Label>
                 <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
+                {amt > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                    <div className="flex justify-between"><span>Transfer fee</span><span>{formatNaira(fee)}</span></div>
+                    <div className="flex justify-between font-medium"><span>Total charge</span><span>{formatNaira(totalCharge)}</span></div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Category</Label>

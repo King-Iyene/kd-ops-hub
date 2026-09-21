@@ -5,6 +5,18 @@
  */
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
+import {
+  resolveAccount,
+  createTransferRecipient,
+  initiateTransferIdempotent,
+  verifyTransfer,
+  generateKdopsRef,
+  buildNarration,
+  paystackTransferFee,
+  totalChargeFor,
+  friendlyPaystackError,
+  type PaystackRecipient,
+} from '@/lib/paystack';
 
 export interface NdiDedicatedAccount {
   id: string;
@@ -370,6 +382,99 @@ export async function generateNdiGrantReport(companyId: string): Promise<NdiGran
     },
   };
 }
+
+// ── Paystack Integration ────────────────────────────────────────
+
+export { resolveAccount, paystackTransferFee, totalChargeFor, friendlyPaystackError };
+
+export async function resolveAndCreateNdiRecipient(
+  beneficiaryId: string,
+  accountNumber: string,
+  bankCode: string,
+  name: string,
+): Promise<PaystackRecipient> {
+  const recipient = await createTransferRecipient({
+    name,
+    account_number: accountNumber,
+    bank_code: bankCode,
+  });
+  await updateNdiBeneficiary(beneficiaryId, {
+    paystackRecipientCode: recipient.recipient_code,
+    bankCode,
+  });
+  return recipient;
+}
+
+export async function executeNdiTransfer(input: {
+  companyId: string;
+  beneficiaryId: string;
+  recipientCode: string;
+  amountNgn: number;
+  category: string;
+  description?: string;
+  narration?: string;
+  createdBy: string;
+}): Promise<{ transfer: NdiTransfer; paystackRef: string; status: string }> {
+  const transfer = await createNdiTransfer({
+    companyId: input.companyId,
+    beneficiaryId: input.beneficiaryId,
+    amountNgn: input.amountNgn,
+    category: input.category,
+    description: input.description,
+    narration: input.narration,
+    createdBy: input.createdBy,
+  });
+
+  const ref = generateKdopsRef(transfer.id);
+  await updateNdiTransferReference(transfer.id, ref);
+
+  try {
+    const result = await initiateTransferIdempotent({
+      recipient_code: input.recipientCode,
+      amount_ngn: input.amountNgn,
+      reference: ref,
+      reason: input.narration || input.description || 'NDI disbursement',
+    });
+
+    const mappedStatus = mapPaystackStatus(result.verified_status ?? result.status);
+    await updateNdiTransferStatus(transfer.id, mappedStatus);
+
+    if (result.transfer_code) {
+      await supabase.from('ndi_transfers')
+        .update({ paystack_transfer_code: result.transfer_code })
+        .eq('id', transfer.id);
+    }
+
+    return { transfer: { ...transfer, paystack_reference: ref, status: mappedStatus }, paystackRef: ref, status: mappedStatus };
+  } catch (err) {
+    await updateNdiTransferStatus(transfer.id, 'failed', errorMsg(err));
+    throw err;
+  }
+}
+
+export async function verifyNdiTransferStatus(transferId: string, reference: string): Promise<string> {
+  const result = await verifyTransfer(reference);
+  const mapped = mapPaystackStatus(result.status);
+  await updateNdiTransferStatus(transferId, mapped);
+  return mapped;
+}
+
+function mapPaystackStatus(ps: string): NdiTransfer['status'] {
+  switch (ps) {
+    case 'success': return 'success';
+    case 'failed': case 'abandoned': return 'failed';
+    case 'reversed': return 'reversed';
+    case 'pending': case 'otp': return 'pending';
+    default: return 'processing';
+  }
+}
+
+function errorMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+// ── CSV Export ────────────────────────────────────────────────────
 
 export async function exportNdiLedgerCsv(companyId: string): Promise<string> {
   const rows = await fetchNdiLedger(companyId, 10000);

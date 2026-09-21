@@ -90,7 +90,7 @@ export default function NdiDashboard() {
           title="Niger Delta Innovate"
           description="NDI's standalone organizational hub — employees, finance, and reporting, fully isolated from KD Squares."
           icon={Building2}
-          badge={<Badge variant="outline" style={{ borderColor: accentColor, color: accentColor }}>Admin + Super Admin</Badge>}
+          badge={<Badge variant="outline" style={{ borderColor: accentColor, color: accentColor }}>NDI</Badge>}
         />
       </AuroraHero>
 
