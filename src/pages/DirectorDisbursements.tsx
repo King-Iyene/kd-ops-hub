@@ -55,6 +55,7 @@ import {
   DIRECTOR_DISBURSEMENT_CATEGORIES,
   directorDisbursementCategoryDef,
   directorDisbursementCategoryLabel,
+  categoriesForCompany,
   type DirectorDisbursementCategoryDef,
 } from '@/lib/director-disbursements';
 import {
@@ -208,6 +209,8 @@ export default function DirectorDisbursements() {
    both Company Disbursement and Personal Transfer.
    ═══════════════════════════════════════════════════════════════════════ */
 function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toast: ReturnType<typeof useToast>['toast']; companyId: string }) {
+  const { data: companies = [] } = useCompanies();
+  const currentCompany = useMemo(() => companies.find((c) => c.id === companyId), [companies, companyId]);
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -219,9 +222,14 @@ function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toa
   const load = async () => {
     setLoading(true);
     try {
-      const [account, bal] = await Promise.all([fetchDvaAccount(companyId), fetchWalletBalance(companyId)]);
+      const [account, bal, ledger] = await Promise.all([
+        fetchDvaAccount(companyId),
+        fetchWalletBalance(companyId),
+        fetchWalletLedger(50, companyId),
+      ]);
       setDva(account);
       setBalance(bal);
+      setHistory(ledger);
     } catch (err: unknown) {
       toast({ title: 'Could not load wallet', description: errorMessage(err), variant: 'destructive' });
     } finally {
@@ -269,10 +277,31 @@ function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toa
     : 'Reversal refund'
   );
 
+  const quickStats = useMemo(() => {
+    if (history.length === 0) return null;
+    const totalIn = history.filter((h) => h.direction === 'credit').reduce((s, h) => s + Number(h.amount_ngn), 0);
+    const totalOut = history.filter((h) => h.direction === 'debit').reduce((s, h) => s + Number(h.amount_ngn), 0);
+    const txCount = history.length;
+    return { totalIn, totalOut, txCount };
+  }, [history]);
+
+  const sparklineData = useMemo(() => {
+    if (history.length === 0) return [];
+    const sorted = [...history].reverse();
+    let running = 0;
+    return sorted.map((h) => {
+      running += h.direction === 'credit' ? Number(h.amount_ngn) : -Number(h.amount_ngn);
+      return { date: h.created_at.slice(0, 10), balance: running };
+    });
+  }, [history]);
+
+  const accentColor = currentCompany?.color ?? '#2D7FF9';
+
   if (loading) return null;
 
   return (
-    <Card className="rounded-xl">
+    <Card className="rounded-xl overflow-hidden">
+      <div className="h-1" style={{ background: `linear-gradient(90deg, ${accentColor}, ${accentColor}88)` }} />
       <CardContent className="p-4 space-y-3">
         {!dva ? (
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -289,16 +318,64 @@ function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toa
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-                  <Building2 className="h-3.5 w-3.5" /> Dedicated account
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: accentColor }} aria-hidden />
+                  {currentCompany?.name ?? 'Company'} dedicated account
                 </div>
                 <p className="text-sm font-medium mt-0.5">{dva.bank_name} · {dva.account_number}</p>
                 <p className="text-xs text-muted-foreground">{dva.account_name} · {dva.paystack_customer_code}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Wallet balance</p>
-                <p className="text-2xl font-bold currency">{formatNaira(balance ?? 0)}</p>
+                <p className="text-2xl font-bold currency" style={{ color: accentColor }}>{formatNaira(balance ?? 0)}</p>
               </div>
             </div>
+
+            {quickStats && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg bg-success/10 dark:bg-success/5 px-3 py-2">
+                  <p className="text-2xs text-muted-foreground uppercase tracking-wide">Total funded</p>
+                  <p className="text-sm font-semibold text-success currency">{formatNairaCompact(quickStats.totalIn)}</p>
+                </div>
+                <div className="rounded-lg bg-destructive/10 dark:bg-destructive/5 px-3 py-2">
+                  <p className="text-2xs text-muted-foreground uppercase tracking-wide">Total spent</p>
+                  <p className="text-sm font-semibold text-destructive currency">{formatNairaCompact(quickStats.totalOut)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/60 px-3 py-2">
+                  <p className="text-2xs text-muted-foreground uppercase tracking-wide">Transactions</p>
+                  <p className="text-sm font-semibold">{quickStats.txCount}</p>
+                </div>
+              </div>
+            )}
+
+            {sparklineData.length > 1 && (
+              <div className="h-16 w-full">
+                <svg viewBox={`0 0 ${sparklineData.length * 10} 40`} className="h-full w-full" preserveAspectRatio="none">
+                  {(() => {
+                    const vals = sparklineData.map((d) => d.balance);
+                    const min = Math.min(...vals);
+                    const max = Math.max(...vals);
+                    const range = max - min || 1;
+                    const points = sparklineData
+                      .map((d, i) => `${i * 10},${38 - ((d.balance - min) / range) * 36}`)
+                      .join(' ');
+                    const areaPoints = `0,38 ${points} ${(sparklineData.length - 1) * 10},38`;
+                    return (
+                      <>
+                        <defs>
+                          <linearGradient id={`sparkGrad-${companyId}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={accentColor} stopOpacity="0.3" />
+                            <stop offset="100%" stopColor={accentColor} stopOpacity="0.02" />
+                          </linearGradient>
+                        </defs>
+                        <polygon points={areaPoints} fill={`url(#sparkGrad-${companyId})`} />
+                        <polyline points={points} fill="none" stroke={accentColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={toggleHistory}>
                 <History className="mr-1.5 h-3.5 w-3.5" /> {historyOpen ? 'Hide' : 'Funding'} history
@@ -463,6 +540,9 @@ function CompanyDisbursementSection({ profile, toast, companyId }: { profile: an
   const [receiptRow, setReceiptRow] = useState<DisbursementRow | null>(null);
   const [recurRow, setRecurRow] = useState<DisbursementRow | null>(null);
   const { data: companySettings } = useCompanySettings();
+  const { data: companies = [] } = useCompanies();
+  const currentCompany = useMemo(() => companies.find((c) => c.id === companyId), [companies, companyId]);
+  const companyCategories = useMemo(() => categoriesForCompany(currentCompany?.short_code), [currentCompany]);
   const companyName = useMemo(
     () => (companySettings as any)?.company_name || 'KD Squares Ltd',
     [companySettings],
@@ -715,7 +795,7 @@ function CompanyDisbursementSendDialog({
     if (!bank.verified) { toast({ title: 'Verify bank account first', variant: 'destructive' }); return; }
     const amount = parseFloat(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
-    if (!form.category) { toast({ title: 'Pick a category', description: 'Salary, drawings, or loan repayment — required for every company disbursement.', variant: 'destructive' }); return; }
+    if (!form.category) { toast({ title: 'Pick a category', description: 'Required for every company disbursement.', variant: 'destructive' }); return; }
     setShowConfirm(true);
   };
 
@@ -878,13 +958,13 @@ function CompanyDisbursementSendDialog({
                 <SelectTrigger className={form.category ? '' : 'text-muted-foreground'}>
                   {(() => {
                     const def = directorDisbursementCategoryDef(form.category);
-                    if (!def) return <SelectValue placeholder="Salary, drawings, or loan repayment…" />;
+                    if (!def) return <SelectValue placeholder="Select category…" />;
                     const Icon = def.icon;
                     return <span className="flex items-center gap-2 truncate"><Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="truncate text-sm">{def.label}</span></span>;
                   })()}
                 </SelectTrigger>
                 <SelectContent>
-                  {DIRECTOR_DISBURSEMENT_CATEGORIES.map((opt: DirectorDisbursementCategoryDef) => {
+                  {companyCategories.map((opt: DirectorDisbursementCategoryDef) => {
                     const Icon = opt.icon;
                     return (
                       <SelectItem key={opt.key} value={opt.key} className="py-1.5">

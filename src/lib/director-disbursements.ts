@@ -11,23 +11,45 @@
  * half of that restriction, not a substitute for it.
  */
 
-import { Wallet, HandCoins, Landmark, type LucideIcon } from 'lucide-react';
+import { Wallet, HandCoins, Landmark, BookOpen, Settings, Users, Banknote, type LucideIcon } from 'lucide-react';
 
 export interface DirectorDisbursementCategoryDef {
-  key: 'director_salary' | 'director_drawings' | 'director_loan_repayment';
+  key: string;
   label: string;
   icon: LucideIcon;
   hint: string;
+  companyScope?: 'KDS' | 'NDI';
 }
 
-export const DIRECTOR_DISBURSEMENT_CATEGORIES: DirectorDisbursementCategoryDef[] = [
+const KDS_CATEGORIES: DirectorDisbursementCategoryDef[] = [
   { key: 'director_salary', icon: Wallet, label: 'Salary',
-    hint: 'Recurring or ad-hoc salary payment to the director.' },
+    hint: 'Recurring or ad-hoc salary payment to the director.', companyScope: 'KDS' },
   { key: 'director_drawings', icon: HandCoins, label: 'Drawings',
-    hint: "Owner's drawings — money taken out against the director's equity in the company." },
+    hint: "Owner's drawings — money taken out against the director's equity in the company.", companyScope: 'KDS' },
   { key: 'director_loan_repayment', icon: Landmark, label: 'Loan repayment',
-    hint: 'The company repaying money the director personally lent it.' },
+    hint: 'The company repaying money the director personally lent it.', companyScope: 'KDS' },
 ];
+
+const NDI_CATEGORIES: DirectorDisbursementCategoryDef[] = [
+  { key: 'ndi_program_expense', icon: BookOpen, label: 'Program expense',
+    hint: 'Direct programme costs — training, materials, fieldwork, beneficiary support.', companyScope: 'NDI' },
+  { key: 'ndi_admin', icon: Settings, label: 'Admin & overhead',
+    hint: 'Office rent, utilities, insurance, professional services.', companyScope: 'NDI' },
+  { key: 'ndi_payroll', icon: Users, label: 'Staff payroll',
+    hint: 'NDI employee salaries and statutory remittances.', companyScope: 'NDI' },
+  { key: 'ndi_grant_disbursement', icon: Banknote, label: 'Grant disbursement',
+    hint: 'Sub-grants or direct disbursements to grant beneficiaries.', companyScope: 'NDI' },
+];
+
+export const DIRECTOR_DISBURSEMENT_CATEGORIES: DirectorDisbursementCategoryDef[] = [
+  ...KDS_CATEGORIES,
+  ...NDI_CATEGORIES,
+];
+
+export function categoriesForCompany(shortCode: string | null | undefined): DirectorDisbursementCategoryDef[] {
+  if (shortCode === 'NDI') return NDI_CATEGORIES;
+  return KDS_CATEGORIES;
+}
 
 export const DIRECTOR_DISBURSEMENT_CATEGORY_KEYS = DIRECTOR_DISBURSEMENT_CATEGORIES.map((c) => c.key);
 
