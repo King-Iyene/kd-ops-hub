@@ -309,7 +309,7 @@ const SummaryRow = React.memo(function SummaryRow({
               minWidth: field.width,
               borderRight: isLastFroz ? `1px solid ${colors.border}` : `1px solid ${colors.border}`,
               backgroundColor: colors.headerBg,
-              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined } : {}),
+              ...(isFroz ? { position: 'sticky' as const, left: cellLeft, zIndex: 10, boxShadow: isLastFroz ? colors.frozenShadow : undefined } : {}),
             }}
           >
             <button
