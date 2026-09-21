@@ -136,3 +136,20 @@ export async function fetchWalletLedger(limit = 50, companyId?: string): Promise
   if (error) throw error;
   return (data ?? []) as unknown as PrincipalWalletLedgerRow[];
 }
+
+export async function exportWalletLedgerCsv(companyId: string): Promise<string> {
+  const rows = await fetchWalletLedger(10000, companyId);
+  const balance = await fetchWalletBalance(companyId);
+  const dva = await fetchDvaAccount(companyId);
+  const header = 'Date,Direction,Amount (NGN),Source,Reference';
+  const lines = rows.map((r) =>
+    `${r.created_at},${r.direction},${r.amount_ngn},${r.source},${r.reference ?? ''}`
+  );
+  const summary = [
+    '',
+    `Account,${dva?.bank_name ?? 'N/A'} ${dva?.account_number ?? 'N/A'}`,
+    `Balance,${balance}`,
+    `Exported,${new Date().toISOString()}`,
+  ];
+  return [header, ...lines, ...summary].join('\n');
+}

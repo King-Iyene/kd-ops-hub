@@ -84,6 +84,7 @@ import {
   fetchWalletBalanceOrNull,
   fetchWalletLedger,
   checkWalletCanCover,
+  exportWalletLedgerCsv,
   type PrincipalWalletDva,
   type PrincipalWalletLedgerRow,
 } from '@/lib/principal-wallet';
@@ -298,9 +299,25 @@ function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toa
                 <p className="text-2xl font-bold currency">{formatNaira(balance ?? 0)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={toggleHistory}>
                 <History className="mr-1.5 h-3.5 w-3.5" /> {historyOpen ? 'Hide' : 'Funding'} history
+              </Button>
+              <Button variant="outline" size="sm" onClick={async () => {
+                try {
+                  const csv = await exportWalletLedgerCsv(companyId);
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `wallet-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err: unknown) {
+                  toast({ title: 'Export failed', description: errorMessage(err), variant: 'destructive' });
+                }
+              }}>
+                <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
               </Button>
               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmRemoveOpen(true)}>
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove account
