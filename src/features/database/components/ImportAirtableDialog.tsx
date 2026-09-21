@@ -1063,7 +1063,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
     >
       <DialogContent
         className="sm:max-w-xl"
-        onPointerDownOutside={(e) => { if (step === 'importing') e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (step !== 'done') e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (step === 'importing') e.preventDefault(); }}
       >
         <DialogHeader>
