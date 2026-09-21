@@ -181,6 +181,13 @@ async function invokeDDL(body: Record<string, unknown>, timeoutMs = 45000): Prom
   }
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms),
+  );
+  return Promise.race([promise, timeout]);
+}
+
 async function forceSchemaReload(): Promise<void> {
   await invokeDDL({ action: 'reloadSchema' }).catch(() => {});
   await new Promise((r) => setTimeout(r, 1000));
@@ -765,18 +772,21 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
 
       // --- Second pass: resolve links, lookups, rollups, formulas ---
       setProgress((p) => ({ ...p, phase: 'metadata', tableIndex: selectedTables.length, tableName: 'Saving formula metadata...' }));
+      const metadataDeadline = Date.now() + 180_000;
       try {
-        const { data: allBaseTables } = await supabase
-          .schema('nc_meta')
-          .from('tables')
-          .select('id, pg_table_name')
-          .eq('base_id', base.id);
+        const { data: allBaseTables } = await withTimeout(
+          supabase.schema('nc_meta').from('tables').select('id, pg_table_name').eq('base_id', base.id),
+          30000,
+          'Fetch base tables',
+        );
 
-        const { data: allBaseFields } = await supabase
-          .schema('nc_meta')
-          .from('fields')
-          .select('id, table_id, name, ui_type, options, pg_column_name')
-          .in('table_id', (allBaseTables ?? []).map((t: any) => t.id));
+        const { data: allBaseFields } = await withTimeout(
+          supabase.schema('nc_meta').from('fields')
+            .select('id, table_id, name, ui_type, options, pg_column_name')
+            .in('table_id', (allBaseTables ?? []).map((t: any) => t.id)),
+          30000,
+          'Fetch base fields',
+        );
 
         // Build Airtable field ID → field name map for formula translation
         const atFieldIdToName: Record<string, string> = {};
@@ -795,17 +805,27 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               const name = atFieldIdToName[atId];
               return name ? `{${name}}` : `{${atId}}`;
             });
-            await supabase.schema('nc_meta').from('formulas').upsert({
-              field_id: f.id,
-              expression,
-              parsed_tree: {},
-              error: null,
-            }, { onConflict: 'field_id' });
-
-            // Update field options with translated formula
-            await supabase.schema('nc_meta').from('fields').update({
-              options: { ...f.options, formula: expression },
-            }).eq('id', f.id);
+            try {
+              await withTimeout(
+                supabase.schema('nc_meta').from('formulas').upsert({
+                  field_id: f.id,
+                  expression,
+                  parsed_tree: {},
+                  error: null,
+                }, { onConflict: 'field_id' }),
+                30000,
+                `Formula upsert: ${f.name}`,
+              );
+              await withTimeout(
+                supabase.schema('nc_meta').from('fields').update({
+                  options: { ...f.options, formula: expression },
+                }).eq('id', f.id),
+                30000,
+                `Formula field update: ${f.name}`,
+              );
+            } catch (e: any) {
+              logWarn('Database', `Formula resolution timed out for ${f.name}:`, e?.message);
+            }
           }
         }
 
@@ -815,7 +835,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
         const createdJunctions = new Map<string, string>();
 
         for (const f of linkFields) {
-          if (abortRef.current) break;
+          if (abortRef.current || Date.now() > metadataDeadline) break;
           const atLinkedTableId = f.options?.linkedTableId;
           if (!atLinkedTableId) continue;
 
@@ -844,18 +864,22 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               });
             } catch { /* junction may already exist from inverse link */ }
 
-            const { data: jnMeta } = await supabase
-              .schema('nc_meta')
-              .from('tables')
-              .insert({
-                base_id: base.id,
-                name: jnTableName,
-                pg_table_name: jnTableName,
-                icon: null,
-                position: -1,
-              })
-              .select()
-              .single();
+            const { data: jnMeta } = await withTimeout(
+              supabase
+                .schema('nc_meta')
+                .from('tables')
+                .insert({
+                  base_id: base.id,
+                  name: jnTableName,
+                  pg_table_name: jnTableName,
+                  icon: null,
+                  position: -1,
+                })
+                .select()
+                .single(),
+              30000,
+              `Junction table insert: ${jnTableName}`,
+            );
 
             if (jnMeta) {
               junctionTableId = jnMeta.id;
@@ -867,30 +891,44 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           const inverseKdFieldId = inverseAtFieldId ? atFieldIdToKd[inverseAtFieldId] : null;
 
           const linkType = f.options?.prefersSingleRecordLink ? 'hm' : 'mm';
-          const { error: linkErr } = await supabase.schema('nc_meta').from('links').upsert({
-            field_id: f.id,
-            related_table_id: relatedKdTableId,
-            related_field_id: inverseKdFieldId,
-            junction_table_id: junctionTableId,
-            type: linkType,
-          }, { onConflict: 'field_id' });
-          if (linkErr) logWarn('Database', `Link upsert skipped for ${f.name}:`, linkErr.message);
+          try {
+            const { error: linkErr } = await withTimeout(
+              supabase.schema('nc_meta').from('links').upsert({
+                field_id: f.id,
+                related_table_id: relatedKdTableId,
+                related_field_id: inverseKdFieldId,
+                junction_table_id: junctionTableId,
+                type: linkType,
+              }, { onConflict: 'field_id' }),
+              30000,
+              `Link upsert: ${f.name}`,
+            );
+            if (linkErr) logWarn('Database', `Link upsert skipped for ${f.name}:`, linkErr.message);
+          } catch (e: any) {
+            logWarn('Database', `Link upsert timed out for ${f.name}:`, e?.message);
+          }
 
-          // Update field options with resolved KDOps IDs so renderers work
-          await supabase.schema('nc_meta').from('fields').update({
-            options: {
-              ...f.options,
-              relatedTableId: relatedKdTableId,
-              type: linkType,
-              linkedTableId: relatedKdTableId,
-            },
-          }).eq('id', f.id);
+          try {
+            await withTimeout(
+              supabase.schema('nc_meta').from('fields').update({
+                options: {
+                  ...f.options,
+                  relatedTableId: relatedKdTableId,
+                  type: linkType,
+                  linkedTableId: relatedKdTableId,
+                },
+              }).eq('id', f.id),
+              30000,
+              `Field options update: ${f.name}`,
+            );
+          } catch (e: any) {
+            logWarn('Database', `Field update timed out for ${f.name}:`, e?.message);
+          }
         }
 
         setProgress((p) => ({ ...p, phase: 'metadata', tableName: 'Resolving lookup fields...' }));
-        // Lookup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Lookup')) {
-          if (abortRef.current) break;
+          if (abortRef.current || Date.now() > metadataDeadline) break;
           const atLinkFieldId = f.options?.recordLinkFieldId;
           const atLookupFieldId = f.options?.fieldIdInLinkedTable;
           if (!atLinkFieldId || !atLookupFieldId) continue;
@@ -899,26 +937,40 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           const kdLookupFieldId = atFieldIdToKd[atLookupFieldId];
           if (!kdLinkFieldId) continue;
 
-          await supabase.schema('nc_meta').from('lookups').upsert({
-            field_id: f.id,
-            link_field_id: kdLinkFieldId,
-            lookup_field_id: kdLookupFieldId ?? null,
-          }, { onConflict: 'field_id' });
+          try {
+            await withTimeout(
+              supabase.schema('nc_meta').from('lookups').upsert({
+                field_id: f.id,
+                link_field_id: kdLinkFieldId,
+                lookup_field_id: kdLookupFieldId ?? null,
+              }, { onConflict: 'field_id' }),
+              30000,
+              `Lookup upsert: ${f.name}`,
+            );
+          } catch (e: any) {
+            logWarn('Database', `Lookup upsert timed out for ${f.name}:`, e?.message);
+          }
 
-          // Update field options with resolved KDOps IDs so renderers work
-          await supabase.schema('nc_meta').from('fields').update({
-            options: {
-              ...f.options,
-              linkFieldId: kdLinkFieldId,
-              lookupFieldId: kdLookupFieldId ?? null,
-            },
-          }).eq('id', f.id);
+          try {
+            await withTimeout(
+              supabase.schema('nc_meta').from('fields').update({
+                options: {
+                  ...f.options,
+                  linkFieldId: kdLinkFieldId,
+                  lookupFieldId: kdLookupFieldId ?? null,
+                },
+              }).eq('id', f.id),
+              30000,
+              `Lookup field update: ${f.name}`,
+            );
+          } catch (e: any) {
+            logWarn('Database', `Lookup field update timed out for ${f.name}:`, e?.message);
+          }
         }
 
         setProgress((p) => ({ ...p, phase: 'metadata', tableName: 'Resolving rollup fields...' }));
-        // Rollup fields: resolve Airtable field IDs → KDOps field IDs
         for (const f of (allBaseFields ?? []).filter((f: any) => f.ui_type === 'Rollup')) {
-          if (abortRef.current) break;
+          if (abortRef.current || Date.now() > metadataDeadline) break;
           const atLinkFieldId = f.options?.recordLinkFieldId;
           const atRollupFieldId = f.options?.fieldIdInLinkedTable;
           if (!atLinkFieldId || !atRollupFieldId) continue;
@@ -929,29 +981,44 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
           const rollupFn = 'SUM';
           if (!kdLinkFieldId) continue;
 
-          await supabase.schema('nc_meta').from('rollups').upsert({
-            field_id: f.id,
-            link_field_id: kdLinkFieldId,
-            rollup_field_id: kdRollupFieldId ?? null,
-            rollup_function: rollupFn,
-          }, { onConflict: 'field_id' });
+          try {
+            await withTimeout(
+              supabase.schema('nc_meta').from('rollups').upsert({
+                field_id: f.id,
+                link_field_id: kdLinkFieldId,
+                rollup_field_id: kdRollupFieldId ?? null,
+                rollup_function: rollupFn,
+              }, { onConflict: 'field_id' }),
+              30000,
+              `Rollup upsert: ${f.name}`,
+            );
+          } catch (e: any) {
+            logWarn('Database', `Rollup upsert timed out for ${f.name}:`, e?.message);
+          }
 
-          // Update field options with resolved KDOps IDs so renderers work
-          await supabase.schema('nc_meta').from('fields').update({
-            options: {
-              ...f.options,
-              linkFieldId: kdLinkFieldId,
-              rollupFieldId: kdRollupFieldId ?? null,
-              fn: rollupFn,
-            },
-          }).eq('id', f.id);
+          try {
+            await withTimeout(
+              supabase.schema('nc_meta').from('fields').update({
+                options: {
+                  ...f.options,
+                  linkFieldId: kdLinkFieldId,
+                  rollupFieldId: kdRollupFieldId ?? null,
+                  fn: rollupFn,
+                },
+              }).eq('id', f.id),
+              30000,
+              `Rollup field update: ${f.name}`,
+            );
+          } catch (e: any) {
+            logWarn('Database', `Rollup field update timed out for ${f.name}:`, e?.message);
+          }
         }
 
         // --- Third pass: populate junction tables from linked record data ---
         setProgress((p) => ({ ...p, phase: 'metadata', tableName: 'Resolving linked records...' }));
 
         for (const f of linkFields) {
-          if (abortRef.current) break;
+          if (abortRef.current || Date.now() > metadataDeadline) break;
           const atLinkedTableId = f.options?.linkedTableId;
           if (!atLinkedTableId) continue;
 
@@ -1023,10 +1090,15 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             for (let b = 0; b < junctionRows.length; b += BATCH_SIZE) {
               if (abortRef.current) break;
               const batch = junctionRows.slice(b, b + BATCH_SIZE);
-              await supabase
-                .schema(schemaName)
-                .from(jnTableName)
-                .insert(batch);
+              try {
+                await withTimeout(
+                  supabase.schema(schemaName).from(jnTableName).insert(batch),
+                  30000,
+                  `Junction insert: ${jnTableName} batch ${b}`,
+                );
+              } catch (e: any) {
+                logWarn('Database', `Junction insert timed out for ${jnTableName}:`, e?.message);
+              }
             }
           } catch (resolveErr) {
             errors.push(`Link resolution (${f.name}): ${(resolveErr as Error).message}`);
@@ -1291,8 +1363,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
             )}
 
             {progress.errors.length > 0 && (
-              <div className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
+              <div className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 space-y-1 max-h-24 overflow-y-auto">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-warning sticky top-0 bg-warning/10">
                   <AlertTriangle size={12} /> {progress.errors.length} warning{progress.errors.length !== 1 ? 's' : ''}
                 </div>
                 {progress.errors.slice(-3).map((err, i) => (
