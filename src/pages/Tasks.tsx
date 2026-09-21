@@ -4,7 +4,7 @@ import {
   Plus, Search, Loader2, ListTodo, Flag,
   Check, X, Filter, Trash2, Target,
   User, ArrowRight, Download, CalendarDays,
-  LayoutGrid, List, GanttChart, Weight,
+  LayoutGrid, List, GanttChart, Weight, BarChart3,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
