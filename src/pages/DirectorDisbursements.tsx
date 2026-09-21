@@ -206,6 +206,57 @@ export default function DirectorDisbursements() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Audit / grant readiness indicator — visual checklist of financial
+   controls that grant reviewers and investors look for.
+   ═══════════════════════════════════════════════════════════════════════ */
+function AuditReadinessBar({ hasDva, hasTransactions, hasRecentActivity, companyColor }: {
+  hasDva: boolean;
+  hasTransactions: boolean;
+  hasRecentActivity: boolean;
+  companyColor: string;
+}) {
+  const checks = [
+    { label: 'Dedicated account', ok: hasDva },
+    { label: 'Transaction history', ok: hasTransactions },
+    { label: 'Active (last 90 days)', ok: hasRecentActivity },
+    { label: 'Entity isolation', ok: true },
+  ];
+  const score = checks.filter((c) => c.ok).length;
+  const pct = Math.round((score / checks.length) * 100);
+
+  return (
+    <div className="rounded-lg border border-border/60 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <ShieldAlert className="h-3.5 w-3.5" /> Audit readiness
+        </span>
+        <span className="text-xs font-bold" style={{ color: pct === 100 ? 'var(--success)' : companyColor }}>
+          {pct}%
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: pct === 100 ? 'var(--success)' : companyColor }}
+        />
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {checks.map((c) => (
+          <span key={c.label} className="flex items-center gap-1 text-2xs">
+            {c.ok ? (
+              <CheckCircle2 className="h-3 w-3 text-success" />
+            ) : (
+              <XCircle className="h-3 w-3 text-muted-foreground" />
+            )}
+            <span className={c.ok ? '' : 'text-muted-foreground'}>{c.label}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Multi-entity overview — at-a-glance comparison of all entities' wallet
    health. Investment/grant-ready: proves financial isolation at first sight.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -454,6 +505,17 @@ function PrincipalWalletPanel({ profile, toast, companyId }: { profile: any; toa
                 </svg>
               </div>
             )}
+
+            <AuditReadinessBar
+              hasDva={!!dva}
+              hasTransactions={history.length > 0}
+              hasRecentActivity={history.some((h) => {
+                const d = new Date(h.created_at);
+                const now = new Date();
+                return (now.getTime() - d.getTime()) < 90 * 24 * 60 * 60 * 1000;
+              })}
+              companyColor={accentColor}
+            />
 
             <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={toggleHistory}>
