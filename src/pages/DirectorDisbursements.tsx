@@ -52,7 +52,6 @@ import {
 import { previewCapCheck, startBatchProcessing } from '@/lib/transfer-safety';
 import { formatNaira, formatNairaCompact, formatDateTime } from '@/lib/format';
 import {
-  DIRECTOR_DISBURSEMENT_CATEGORIES,
   directorDisbursementCategoryDef,
   directorDisbursementCategoryLabel,
   categoriesForCompany,
@@ -681,9 +680,6 @@ function CompanyDisbursementSection({ profile, toast, companyId }: { profile: an
   const [receiptRow, setReceiptRow] = useState<DisbursementRow | null>(null);
   const [recurRow, setRecurRow] = useState<DisbursementRow | null>(null);
   const { data: companySettings } = useCompanySettings();
-  const { data: companies = [] } = useCompanies();
-  const currentCompany = useMemo(() => companies.find((c) => c.id === companyId), [companies, companyId]);
-  const companyCategories = useMemo(() => categoriesForCompany(currentCompany?.short_code), [currentCompany]);
   const companyName = useMemo(
     () => (companySettings as any)?.company_name || 'KD Squares Ltd',
     [companySettings],
@@ -2571,7 +2567,7 @@ function PersonalTransferBatchDialog({
   useEffect(() => {
     if (!open) { setWalletBalance(null); return; }
     void fetchWalletBalanceOrNull(companyId).then(setWalletBalance).catch(() => setWalletBalance(null));
-  }, [open]);
+  }, [open, companyId]);
   const walletInsufficient = walletBalance != null && batchCost.grandTotal > walletBalance;
 
   const riskFlags = useMemo(
