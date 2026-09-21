@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3, AlertTriangle, CheckCircle2, Clock, FileText } from 'lucide-react';
+import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3, AlertTriangle, CheckCircle2, Clock, FileText, Settings2, CalendarDays, UserCog } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -53,6 +53,7 @@ export function PayrollDashboardTab({
   monthLabel,
   onOpenRun,
   onNewDraft,
+  onGoToTab,
 }: {
   runs: PayrollRunLite[];
   trend: { label: string; burn: number }[];
@@ -62,6 +63,7 @@ export function PayrollDashboardTab({
   monthLabel: (period: string, periodType?: string) => string;
   onOpenRun: (runId: string) => void;
   onNewDraft: () => void;
+  onGoToTab?: (tab: string) => void;
 }) {
   const { profile } = useAuthStore();
   const navigate = useNavigate();
@@ -343,6 +345,64 @@ export function PayrollDashboardTab({
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Quick actions ──────────────────────────────────────────── */}
+      {onGoToTab && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 kd-animate-slide-up kd-stagger-2">
+          <button
+            type="button"
+            onClick={() => onGoToTab('setup')}
+            className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 py-3.5 text-left hover:bg-muted/50 hover:border-border/60 hover:shadow-sm transition-all duration-200 group/qa"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 group-hover/qa:bg-primary/15 transition-colors shrink-0">
+              <CalendarClock className="h-4 w-4 text-primary" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Schedules</p>
+              <p className="text-2xs text-muted-foreground leading-tight mt-0.5">Manage pay schedules</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onGoToTab('groups')}
+            className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 py-3.5 text-left hover:bg-muted/50 hover:border-border/60 hover:shadow-sm transition-all duration-200 group/qa"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-success/10 group-hover/qa:bg-success/15 transition-colors shrink-0">
+              <UserCog className="h-4 w-4 text-success" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Pay groups</p>
+              <p className="text-2xs text-muted-foreground leading-tight mt-0.5">Assign employees</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onGoToTab('calendar')}
+            className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 py-3.5 text-left hover:bg-muted/50 hover:border-border/60 hover:shadow-sm transition-all duration-200 group/qa"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/10 group-hover/qa:bg-sky-500/15 transition-colors shrink-0">
+              <CalendarDays className="h-4 w-4 text-sky-500" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Calendar</p>
+              <p className="text-2xs text-muted-foreground leading-tight mt-0.5">Pay dates & holidays</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onGoToTab('runs')}
+            className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 py-3.5 text-left hover:bg-muted/50 hover:border-border/60 hover:shadow-sm transition-all duration-200 group/qa"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning/10 group-hover/qa:bg-warning/15 transition-colors shrink-0">
+              <Layers className="h-4 w-4 text-warning" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">All runs</p>
+              <p className="text-2xs text-muted-foreground leading-tight mt-0.5">History & lifecycle</p>
+            </div>
+          </button>
+        </div>
       )}
 
       {/* ── Trend + Roster ────────────────────────────────────────── */}

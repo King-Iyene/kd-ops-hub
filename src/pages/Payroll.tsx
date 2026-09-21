@@ -107,6 +107,7 @@ const Payroll = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   // Highlight + scroll to a specific run when arriving from PaymentSchedule.
+  const [payrollTab, setPayrollTab] = useState('dashboard');
   const [highlightedRunId, setHighlightedRunId] = useState<string | null>(null);
   const runRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
@@ -2594,7 +2595,7 @@ const Payroll = () => {
 
       <NextPayrollBanner onStartDraft={openNewDraft} companyId={isAllCompanies ? null : selectedCompanyId} companyName={companies.find((c) => c.id === selectedCompanyId)?.name} />
 
-      <Tabs defaultValue="dashboard">
+      <Tabs value={payrollTab} onValueChange={setPayrollTab}>
         <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0 overflow-x-auto scrollbar-none">
           <TabsTrigger
             value="dashboard"
@@ -2652,9 +2653,8 @@ const Payroll = () => {
               if (!run) return;
               if (run.status === 'draft') editDraft(run);
               else if (run.status === 'pending_approval') setConfirmApproveRun(run);
-              // approved/processing: nothing actionable from here — the Runs
-              // tab (with disburse/schedule controls) is the place for that.
             }}
+            onGoToTab={setPayrollTab}
           />
         </TabsContent>
 

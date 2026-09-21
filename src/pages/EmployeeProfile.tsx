@@ -22,7 +22,7 @@ import IncrementsTab from '@/components/employee/IncrementsTab';
 import AdvancesTab from '@/components/employee/AdvancesTab';
 import PermissionsTab from '@/components/employee/PermissionsTab';
 import { supabase } from '@/lib/supabase';
-import { useCompanySettings, useDepartments } from '@/queries';
+import { useCompanySettings, useDepartments, useCompanies } from '@/queries';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -285,7 +285,8 @@ const EmployeeProfile = () => {
   const [bankRejectReason, setBankRejectReason] = useState('');
   const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
   const { data: departments = [] } = useDepartments();
-  const [payGroups, setPayGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const { data: companiesList = [] } = useCompanies();
+  const [payGroups, setPayGroups] = useState<Array<{ id: string; name: string; company_id: string | null }>>([]);
   // Active employees (used as the Reports-to dropdown).
   const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
@@ -557,8 +558,8 @@ const EmployeeProfile = () => {
     });
     setPermissions((data as any).permissions || {});
 
-    supabase.from('pay_groups').select('id, name').order('name').then(({ data }) => {
-      setPayGroups((data as Array<{ id: string; name: string }>) || []);
+    supabase.from('pay_groups').select('id, name, company_id').order('name').then(({ data }) => {
+      setPayGroups((data as Array<{ id: string; name: string; company_id: string | null }>) || []);
     }).catch(() => {});
 
     supabase.from('profiles_directory')
@@ -1546,6 +1547,7 @@ const EmployeeProfile = () => {
           }}
           onOpenIncrementDialog={() => setShowIncrementDialog(true)}
           departments={departments}
+          companies={companiesList}
           payGroups={payGroups}
           managers={managers}
           canEditRole={canEditRole}

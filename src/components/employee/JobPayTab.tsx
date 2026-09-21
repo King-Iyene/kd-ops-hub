@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Loader2, Briefcase, TrendingUp, AlertTriangle, Plus, FileText, ExternalLink, Download, History, CheckCircle2, XCircle } from 'lucide-react';
 import type { EmployeeData, EditSection } from './types';
 import { formatDate, formatNaira } from '@/lib/format';
@@ -5,6 +6,7 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { CompanyBadge } from '@/components/ui-kit/CompanySwitcher';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,7 @@ import {
   MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow,
 } from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
+import type { Company } from '@/queries';
 
 interface CompensationBreakdown {
   hasSalary: boolean;
@@ -52,7 +55,8 @@ interface Props {
   onOpenIncrementDialog: () => void;
   // Employment details dropdowns
   departments: Array<{ id: string; name: string }>;
-  payGroups: Array<{ id: string; name: string }>;
+  companies: Company[];
+  payGroups: Array<{ id: string; name: string; company_id: string | null }>;
   managers: Array<{ id: string; full_name: string | null; email: string }>;
   canEditRole: boolean;
   isSelf: boolean;
@@ -92,7 +96,7 @@ export default function JobPayTab({
   employee, form, patch, editingSection, sectionSaving,
   startEdit, cancelEdit, saveSection, canManage, comp,
   onOpenIncrementDialog,
-  departments, payGroups, managers, canEditRole, isSelf, assignableRoles,
+  departments, companies, payGroups, managers, canEditRole, isSelf, assignableRoles,
   bankEditMode, setBankEditMode, bankDetails, setBankDetails,
   activeProvider, bankSaving, saveBank, openBankHistory,
   bankRequests, showBankRequestForm, setShowBankRequestForm,
@@ -108,6 +112,24 @@ export default function JobPayTab({
     avcMonthly, nhfOn, nhfMonthly, nhisOn, nhisMonthly,
     totalDeductMonthly, netMonthly, employerContribMonthly,
   } = comp;
+
+  const pgToCompany = useMemo(() => {
+    const m = new Map<string, string>();
+    payGroups.forEach((g) => { if (g.company_id) m.set(g.id, g.company_id); });
+    return m;
+  }, [payGroups]);
+
+  const derivedCompanyId = useMemo(() => {
+    const pgId = form.pay_group_id ?? employee.pay_group_id;
+    return pgId ? pgToCompany.get(pgId) ?? null : null;
+  }, [form.pay_group_id, employee.pay_group_id, pgToCompany]);
+
+  const selectedCompanyId = derivedCompanyId;
+
+  const filteredPayGroups = useMemo(() => {
+    if (!selectedCompanyId) return payGroups;
+    return payGroups.filter((g) => g.company_id === selectedCompanyId);
+  }, [payGroups, selectedCompanyId]);
 
   return (
     <div className="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -481,25 +503,57 @@ export default function JobPayTab({
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
-                  <Select
-                    value={form.pay_group_id || '__none__'}
-                    onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
-                  >
-                    <SelectTrigger id="pay_group_id"><SelectValue placeholder="Not assigned yet" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Not assigned yet —</SelectItem>
-                      {payGroups.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-2xs text-muted-foreground">
-                    Which company this person is paid by, on what schedule, and which payroll runs include them.
-                    Manage pay groups from Payroll → Pay Groups.
-                  </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="company_id" className="text-xs">Company</Label>
+                    <Select
+                      value={selectedCompanyId || '__none__'}
+                      onValueChange={(v) => {
+                        if (v === '__none__') {
+                          patch({ pay_group_id: null });
+                        } else {
+                          const currentPg = form.pay_group_id;
+                          const currentPgCompany = currentPg ? pgToCompany.get(currentPg) : null;
+                          if (currentPgCompany !== v) {
+                            const firstGroupInCompany = payGroups.find((g) => g.company_id === v);
+                            patch({ pay_group_id: firstGroupInCompany?.id ?? null });
+                          }
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="company_id"><SelectValue placeholder="Select company…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— No company —</SelectItem>
+                        {companies.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                              {c.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
+                    <Select
+                      value={form.pay_group_id || '__none__'}
+                      onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
+                    >
+                      <SelectTrigger id="pay_group_id"><SelectValue placeholder="Not assigned yet" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Not assigned yet —</SelectItem>
+                        {filteredPayGroups.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                <p className="text-2xs text-muted-foreground -mt-1">
+                  Selecting a company filters the available pay groups. The pay group determines which payroll schedule and runs include this person.
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="start_date" className="text-xs">Start date</Label>
@@ -678,6 +732,16 @@ export default function JobPayTab({
                         {employee.employment_type}
                       </Badge>
                     ) : <span className="font-medium">—</span>}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <dt className="text-muted-foreground">Company</dt>
+                  <dd>
+                    {(() => {
+                      const companyId = employee.pay_group_id ? pgToCompany.get(employee.pay_group_id) : null;
+                      const company = companyId ? companies.find((c) => c.id === companyId) : null;
+                      return <CompanyBadge company={company} />;
+                    })()}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between text-sm">
