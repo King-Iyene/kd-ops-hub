@@ -45,11 +45,21 @@ export default function NdiDashboard() {
         setBalance(bal);
         setLedger(rows);
 
-        const { count } = await supabase
+        // Count employees via their pay groups
+        const { data: pgData } = await supabase
           .from('pay_groups')
-          .select('id', { count: 'exact', head: true })
+          .select('id')
           .eq('company_id', ndi.id);
-        setEmployeeCount(count ?? 0);
+        const pgIds = (pgData ?? []).map((g: any) => g.id);
+        if (pgIds.length > 0) {
+          const { count } = await supabase
+            .from('employees')
+            .select('id', { count: 'exact', head: true })
+            .in('pay_group_id', pgIds);
+          setEmployeeCount(count ?? 0);
+        } else {
+          setEmployeeCount(0);
+        }
       } catch {
         // non-critical
       } finally {
@@ -108,9 +118,9 @@ export default function NdiDashboard() {
         <QuickCard
           to="/ndi/employees"
           icon={Users}
-          label="Pay Groups"
+          label="Employees"
           value={employeeCount !== null ? String(employeeCount) : '—'}
-          sub="NDI-scoped groups"
+          sub="NDI staff"
           color={accentColor}
           loading={loading}
         />
