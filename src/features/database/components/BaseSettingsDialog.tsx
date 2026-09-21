@@ -529,7 +529,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex items-center gap-1.5">
           <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
         </p>
-        <p className="text-2xs text-[#9AA2AF]">
+        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
           Send HTTP POST requests to external URLs when records are created, updated, or deleted.
           Use with n8n, Zapier, or any webhook receiver.
         </p>
@@ -681,7 +681,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
     ]
   }
 }`}</pre>
-        <p className="text-3xs text-[#9AA2AF]">
+        <p className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
           If a secret is set, requests include an <code className="bg-white dark:bg-[hsl(220,30%,10%)] px-1 rounded">X-KDOps-Signature</code> header (SHA-256 of body + secret).
         </p>
       </div>
@@ -789,7 +789,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
             <Copy size={12} />
           </Button>
         </div>
-        <p className="text-2xs text-[#9AA2AF]">
+        <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
           Use with header: <code className="bg-white dark:bg-[hsl(220,30%,10%)] px-1 rounded text-3xs">Authorization: Bearer kdops_xxx</code>
         </p>
       </div>

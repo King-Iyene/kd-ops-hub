@@ -68,7 +68,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3 mt-auto text-2xs text-[#9AA2AF]">
+      <div className="flex items-center gap-3 mt-auto text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
         <BaseCardTableCount baseId={base.id} />
         <span className="flex items-center gap-1">
           <Clock size={12} />
@@ -112,7 +112,7 @@ export function EmptyState() {
             <p className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
               No tables yet
             </p>
-            <p className="text-xs-plus text-[#6A7184] mt-1 leading-relaxed">
+            <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,60%)] mt-1 leading-relaxed">
               Click the <strong>+</strong> button in the table bar above to create your first table.
             </p>
           </div>
@@ -131,7 +131,7 @@ export function EmptyState() {
           </h1>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9AA2AF]" />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
               <input
                 type="text"
                 placeholder="Filter bases..."
@@ -161,7 +161,7 @@ export function EmptyState() {
             <div className="w-10 h-10 rounded-full bg-[#2D7FF9]/10 flex items-center justify-center mb-2 group-hover:bg-[#2D7FF9]/20 transition-colors">
               <Plus size={20} className="text-[#2D7FF9]" />
             </div>
-            <span className="text-xs-plus font-medium text-[#6A7184] group-hover:text-[#2D7FF9] transition-colors">
+            <span className="text-xs-plus font-medium text-[#6A7184] dark:text-[hsl(220,20%,60%)] group-hover:text-[#2D7FF9] transition-colors">
               Create Base
             </span>
           </button>
@@ -177,13 +177,13 @@ export function EmptyState() {
 
         {filteredBases.length === 0 && searchQuery && (
           <div className="text-center py-12">
-            <p className="text-xs-plus text-[#9AA2AF]">No bases match &ldquo;{searchQuery}&rdquo;</p>
+            <p className="text-xs-plus text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">No bases match &ldquo;{searchQuery}&rdquo;</p>
           </div>
         )}
 
         {(bases ?? []).length === 0 && !searchQuery && (
           <div className="text-center py-8">
-            <p className="text-xs-plus text-[#9AA2AF]">
+            <p className="text-xs-plus text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
               No bases yet. Create one or import from Airtable to get started.
             </p>
           </div>

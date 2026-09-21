@@ -155,19 +155,19 @@ export function AttachmentManager({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
             <div className="flex items-center gap-2">
-              <Paperclip size={14} className="text-[#6A7184]" />
+              <Paperclip size={14} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
               <h2 className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 Attachments
               </h2>
               {attachments.length > 0 && (
-                <span className="text-xs text-[#9AA2AF]">({attachments.length})</span>
+                <span className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">({attachments.length})</span>
               )}
             </div>
             <button
               onClick={() => onOpenChange(false)}
               className="p-1 rounded hover:bg-muted"
             >
-              <X size={16} className="text-[#6A7184]" />
+              <X size={16} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
             </button>
           </div>
 
@@ -189,7 +189,7 @@ export function AttachmentManager({
               }}
             >
               <Upload size={24} className={dragOver ? 'text-[#2D7FF9]' : 'text-[#9AA2AF]'} />
-              <span className="text-sm text-[#6A7184]">
+              <span className="text-sm text-[#6A7184] dark:text-[hsl(220,20%,60%)]">
                 {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
               </span>
             </div>
@@ -235,7 +235,7 @@ export function AttachmentManager({
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="color:#9AA2AF;font-size:12px">Failed to load</span>'; }}
                           />
                         ) : (
-                          <Icon size={32} className="text-[#9AA2AF]" />
+                          <Icon size={32} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
                         )}
                       </div>
                       {/* Info */}
@@ -243,7 +243,7 @@ export function AttachmentManager({
                         <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">
                           {att.name}
                         </p>
-                        <p className="text-3xs text-[#9AA2AF]">{formatSize(att.size)}</p>
+                        <p className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">{formatSize(att.size)}</p>
                       </div>
                       {/* Delete button */}
                       <button

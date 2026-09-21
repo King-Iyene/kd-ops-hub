@@ -196,7 +196,7 @@ export function DatabaseSidebar() {
             onClick={(e) => { e.preventDefault(); navigateToBase(null); }}
             title="Go to home"
           >
-            <Home size={13} className="text-[#9AA2AF]" />
+            <Home size={13} className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
             Bases
           </a>
         )}
@@ -399,7 +399,7 @@ export function DatabaseSidebar() {
             <div className="mx-auto w-10 h-10 rounded-xl bg-[#2D7FF9]/10 flex items-center justify-center mb-3">
               <Database size={20} className="text-[#2D7FF9]" />
             </div>
-            <p className="text-xs text-[#9AA2AF] mb-2">No bases yet</p>
+            <p className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mb-2">No bases yet</p>
             <Button
               variant="ghost"
               size="sm"
