@@ -267,6 +267,64 @@ export async function createNdiTransfer(input: {
 
 // ── CSV Export ────────────────────────────────────────────────────
 
+export interface NdiGrantReportData {
+  generatedAt: string;
+  account: NdiDedicatedAccount | null;
+  balance: number;
+  totalCredits: number;
+  totalDebits: number;
+  transactionCount: number;
+  categoryBreakdown: { category: string; label: string; credits: number; debits: number; net: number; count: number }[];
+  recentTransactions: NdiLedgerRow[];
+  beneficiaryCount: number;
+  transfersSummary: { total: number; successful: number; pending: number; failed: number; totalAmount: number };
+}
+
+export async function generateNdiGrantReport(companyId: string): Promise<NdiGrantReportData> {
+  const [account, rows, beneficiaries, transfers] = await Promise.all([
+    fetchNdiAccount(companyId),
+    fetchNdiLedger(companyId, 10000),
+    fetchNdiBeneficiaries(companyId),
+    fetchNdiTransfers(companyId, 10000),
+  ]);
+
+  const totalCredits = rows.filter((r) => r.direction === 'credit').reduce((s, r) => s + Number(r.amount_ngn), 0);
+  const totalDebits = rows.filter((r) => r.direction === 'debit').reduce((s, r) => s + Number(r.amount_ngn), 0);
+
+  const catMap = new Map<string, { credits: number; debits: number; count: number }>();
+  for (const r of rows) {
+    const key = r.category || 'other';
+    const entry = catMap.get(key) ?? { credits: 0, debits: 0, count: 0 };
+    if (r.direction === 'credit') entry.credits += Number(r.amount_ngn);
+    else entry.debits += Number(r.amount_ngn);
+    entry.count++;
+    catMap.set(key, entry);
+  }
+
+  const categoryBreakdown = Array.from(catMap.entries())
+    .map(([cat, v]) => ({ category: cat, label: ndiCategoryLabel(cat), credits: v.credits, debits: v.debits, net: v.credits - v.debits, count: v.count }))
+    .sort((a, b) => b.debits - a.debits);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    account,
+    balance: totalCredits - totalDebits,
+    totalCredits,
+    totalDebits,
+    transactionCount: rows.length,
+    categoryBreakdown,
+    recentTransactions: rows.slice(0, 20),
+    beneficiaryCount: beneficiaries.length,
+    transfersSummary: {
+      total: transfers.length,
+      successful: transfers.filter((t) => t.status === 'success').length,
+      pending: transfers.filter((t) => t.status === 'pending' || t.status === 'processing').length,
+      failed: transfers.filter((t) => t.status === 'failed').length,
+      totalAmount: transfers.filter((t) => t.status === 'success').reduce((s, t) => s + Number(t.amount_ngn), 0),
+    },
+  };
+}
+
 export async function exportNdiLedgerCsv(companyId: string): Promise<string> {
   const rows = await fetchNdiLedger(companyId, 10000);
   const balance = await fetchNdiBalance(companyId);

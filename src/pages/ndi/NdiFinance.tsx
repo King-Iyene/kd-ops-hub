@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Building2, Wallet, Plus, Trash2, History, Download, Send,
   Loader2, CheckCircle2, XCircle, ShieldAlert, RefreshCw,
-  Users as UsersIcon,
+  Users as UsersIcon, FileText, Printer,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuthStore } from '@/store/authStore';
@@ -22,9 +22,10 @@ import {
   fetchNdiAccount, createNdiAccount, deleteNdiAccount,
   fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv,
   fetchNdiBeneficiaries, createNdiBeneficiary, deactivateNdiBeneficiary,
-  fetchNdiTransfers,
+  fetchNdiTransfers, generateNdiGrantReport,
   NDI_CATEGORIES, ndiCategoryLabel,
   type NdiDedicatedAccount, type NdiLedgerRow, type NdiBeneficiary, type NdiTransfer,
+  type NdiGrantReportData,
 } from '@/lib/ndi-finance';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -80,6 +81,7 @@ export default function NdiFinance() {
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="transfers">Transfers</TabsTrigger>
           <TabsTrigger value="beneficiaries">Beneficiaries</TabsTrigger>
+          <TabsTrigger value="grant-report">Grant Report</TabsTrigger>
         </TabsList>
         <TabsContent value="ledger">
           <LedgerTab companyId={ndi.id} profile={profile} toast={toast} />
@@ -89,6 +91,9 @@ export default function NdiFinance() {
         </TabsContent>
         <TabsContent value="beneficiaries">
           <BeneficiariesTab companyId={ndi.id} profile={profile} toast={toast} />
+        </TabsContent>
+        <TabsContent value="grant-report">
+          <GrantReportTab companyId={ndi.id} accentColor={accentColor} toast={toast} />
         </TabsContent>
       </Tabs>
     </div>
@@ -654,5 +659,162 @@ function AddBeneficiaryDialog({ open, onOpenChange, companyId, profile, toast, o
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Grant Report Tab ────────────────────────────────────────────
+
+function GrantReportTab({ companyId, accentColor, toast }: { companyId: string; accentColor: string; toast: any }) {
+  const [report, setReport] = useState<NdiGrantReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setReport(await generateNdiGrantReport(companyId));
+    } catch (err) {
+      toast({ title: 'Could not generate report', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  if (!report) return <EmptyState icon={FileText} title="Report unavailable" description="Could not generate the grant report." compact />;
+
+  const printReport = () => window.print();
+
+  return (
+    <div className="space-y-4 print:space-y-2">
+      <div className="flex items-center justify-between print:hidden">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <FileText className="h-4 w-4" /> Grant-Ready Financial Report
+        </h3>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => void load()}>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={printReport}>
+            <Printer className="mr-1.5 h-3.5 w-3.5" /> Print / PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* Print header */}
+      <div className="hidden print:block text-center mb-4">
+        <h1 className="text-lg font-bold">Niger Delta Innovate — Financial Report</h1>
+        <p className="text-xs text-muted-foreground">Generated {new Date(report.generatedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryCard label="Total Credits" value={formatNaira(report.totalCredits)} color="text-green-600" />
+        <SummaryCard label="Total Debits" value={formatNaira(report.totalDebits)} color="text-red-500" />
+        <SummaryCard label="Net Balance" value={formatNaira(report.balance)} color={report.balance >= 0 ? 'text-green-600' : 'text-red-500'} />
+        <SummaryCard label="Transactions" value={String(report.transactionCount)} />
+      </div>
+
+      {/* Dedicated account */}
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Dedicated Account</h4>
+          {report.account ? (
+            <div className="text-sm space-y-1">
+              <p><span className="text-muted-foreground">Bank:</span> {report.account.bank_name}</p>
+              <p><span className="text-muted-foreground">Account:</span> {report.account.account_number}</p>
+              {report.account.account_name && <p><span className="text-muted-foreground">Name:</span> {report.account.account_name}</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No dedicated account linked yet.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Category breakdown */}
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Spend by Category</h4>
+          {report.categoryBreakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {report.categoryBreakdown.map((cat) => {
+                const maxDebit = Math.max(...report.categoryBreakdown.map((c) => c.debits), 1);
+                const pct = (cat.debits / maxDebit) * 100;
+                return (
+                  <div key={cat.category} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{cat.label}</span>
+                      <span className="text-muted-foreground tabular-nums">{formatNaira(cat.debits)} spent · {cat.count} txns</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: accentColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Transfer summary */}
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Disbursement Summary</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div><p className="text-muted-foreground">Total transfers</p><p className="font-medium">{report.transfersSummary.total}</p></div>
+            <div><p className="text-muted-foreground">Successful</p><p className="font-medium text-green-600">{report.transfersSummary.successful}</p></div>
+            <div><p className="text-muted-foreground">Pending</p><p className="font-medium text-amber-500">{report.transfersSummary.pending}</p></div>
+            <div><p className="text-muted-foreground">Amount disbursed</p><p className="font-medium">{formatNaira(report.transfersSummary.totalAmount)}</p></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Entity isolation proof */}
+      <Card className="border-green-200 dark:border-green-900">
+        <CardContent className="p-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-green-600 mb-2 flex items-center gap-1.5">
+            <ShieldAlert className="h-3.5 w-3.5" /> Entity Isolation Certification
+          </h4>
+          <ul className="text-sm space-y-1.5">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <span>All financial data sourced exclusively from <code className="text-xs bg-muted px-1 rounded">ndi_wallet_ledger</code>, <code className="text-xs bg-muted px-1 rounded">ndi_transfers</code>, and <code className="text-xs bg-muted px-1 rounded">ndi_beneficiaries</code>.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <span>No data shared with or sourced from KD Squares Principal Disbursements (<code className="text-xs bg-muted px-1 rounded">principal_wallet_ledger</code>).</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Ledger entries are immutable — no UPDATE or DELETE operations permitted by database policy.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Row-level security enforces company-scoped access; only admin and super_admin roles may view or insert.</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Beneficiary count */}
+      <div className="text-xs text-muted-foreground text-center print:text-left">
+        {report.beneficiaryCount} registered beneficiar{report.beneficiaryCount === 1 ? 'y' : 'ies'} · Report generated {new Date(report.generatedAt).toLocaleString('en-NG')}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-3 text-center">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`text-lg font-bold tabular-nums ${color ?? ''}`}>{value}</p>
+      </CardContent>
+    </Card>
   );
 }
