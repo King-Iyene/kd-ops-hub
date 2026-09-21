@@ -496,7 +496,7 @@ Deno.serve(async (req) => {
       if (event === "transfer.success" || event === "transfer.reversed") {
         const { data: pt } = await supabase
           .from("personal_transfers")
-          .select("id, amount_ngn")
+          .select("id, amount_ngn, company_id")
           .eq("paystack_reference", reference)
           .maybeSingle();
         if (pt) {
@@ -507,6 +507,7 @@ Deno.serve(async (req) => {
               p_reference: reference,
               p_related_batch_item_id: null,
               p_related_personal_transfer_id: (pt as any).id,
+              p_company_id: (pt as any).company_id ?? null,
             });
             if (debitErr) {
               console.warn("[webhook] wallet debit failed (personal_transfer):", debitErr.message, reference);
@@ -516,6 +517,7 @@ Deno.serve(async (req) => {
             const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
               p_amount_ngn: (pt as any).amount_ngn,
               p_reference: reference,
+              p_company_id: (pt as any).company_id ?? null,
             });
             if (refundErr) {
               console.warn("[webhook] wallet refund failed (personal_transfer):", refundErr.message, reference);
