@@ -1,5 +1,4 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { Expand } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderers';
@@ -200,22 +199,6 @@ export const GridCell = React.memo(function GridCell({
       onKeyDown={handleKeyDown}
       tabIndex={isSelected ? 0 : -1}
     >
-      {field.is_primary && !isEditing && (
-        <span
-          className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity mr-1 cursor-pointer"
-          style={{ color: GRID_COLORS.muted }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = GRID_COLORS.primary)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = GRID_COLORS.muted)}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const expandEvent = new CustomEvent('grid:expand-row', { detail: record });
-            window.dispatchEvent(expandEvent);
-          }}
-        >
-          <Expand size={12} />
-        </span>
-      )}
       {validationError && (
         <div className="absolute left-0 top-full z-50 bg-white dark:bg-[hsl(220,20%,10%)] border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-red-600 whitespace-nowrap">
           {validationError}

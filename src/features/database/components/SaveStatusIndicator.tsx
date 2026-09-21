@@ -3,7 +3,7 @@ import { useIsMutating } from '@tanstack/react-query';
 import { CloudOff, Loader2, Check } from 'lucide-react';
 
 export function SaveStatusIndicator() {
-  const mutatingCount = useIsMutating();
+  const mutatingCount = useIsMutating({ mutationKey: ['nc', 'user-save'] });
   const [visible, setVisible] = useState<'saving' | 'saved' | 'offline' | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const wasSaving = useRef(false);

@@ -878,10 +878,36 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   });
 }
 
+function updateInfiniteCache<T>(
+  qc: ReturnType<typeof useQueryClient>,
+  queryKeyPrefix: string[],
+  updater: (records: RecordRow[]) => RecordRow[],
+  countDelta = 0,
+) {
+  qc.setQueriesData({ queryKey: queryKeyPrefix }, (old: any) => {
+    if (!old) return old;
+    if (Array.isArray(old.records)) {
+      return { ...old, records: updater(old.records), totalCount: old.totalCount + countDelta };
+    }
+    if (old.pages && Array.isArray(old.pages)) {
+      return {
+        ...old,
+        pages: old.pages.map((page: any, i: number) => ({
+          ...page,
+          records: updater(page.records ?? []),
+          totalCount: (page.totalCount ?? 0) + (i === 0 ? countDelta : 0),
+        })),
+      };
+    }
+    return old;
+  });
+}
+
 export function useCreateRecord() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -900,14 +926,11 @@ export function useCreateRecord() {
       return data as RecordRow;
     },
     onMutate: async (variables) => {
-      await qc.cancelQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
-      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueriesData({ queryKey });
       const optimisticRow = { id: `temp-${Date.now()}`, ...variables.record } as RecordRow;
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return { records: [...old.records, optimisticRow], totalCount: old.totalCount + 1 };
-      });
+      updateInfiniteCache(qc, queryKey, (records) => [...records, optimisticRow], 1);
       return { previous };
     },
     onError: (_err, variables, context) => {
@@ -932,6 +955,7 @@ export function useUpdateRecord() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -1005,22 +1029,15 @@ export function useUpdateRecord() {
         });
       }
 
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return {
-          ...old,
-          records: old.records.map((r) =>
-            r.id === variables.recordId
-              ? { ...r, ...updates }
-              : r
-          ),
-        };
-      });
+      updateInfiniteCache(qc, queryKey, (records) =>
+        records.map((r) => r.id === variables.recordId ? { ...r, ...updates } : r),
+      );
 
       // Capture full old record for automation condition evaluation
       let oldRecord: Record<string, any> | undefined;
       for (const [, data] of previous) {
-        const rec = data?.records.find((r) => r.id === variables.recordId);
+        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
+        const rec = recs?.find((r: any) => r.id === variables.recordId);
         if (rec) { oldRecord = { ...rec }; break; }
       }
 
@@ -1038,6 +1055,9 @@ export function useUpdateRecord() {
       fireAutomations('record.updated', variables.baseId, variables.tableId, data, context?.oldRecord);
       fireWebhooks('record.updated', variables.baseId, variables.tableId, data);
       logRecordAudit('UPDATE', variables.baseId, variables.tableId, variables.recordId, updates);
+    },
+    onSettled: (_data, _error, variables) => {
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
     },
   });
 }
@@ -1075,6 +1095,7 @@ export function useDeleteRecord() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -1097,7 +1118,8 @@ export function useDeleteRecord() {
 
       let deletedRecord: RecordRow | null = null;
       for (const [, data] of previous) {
-        const rec = data?.records.find((r) => r.id === variables.recordId);
+        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
+        const rec = recs?.find((r: any) => r.id === variables.recordId);
         if (rec) {
           deletedRecord = rec;
           break;
@@ -1133,14 +1155,9 @@ export function useDeleteRecord() {
         });
       }
 
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return {
-          ...old,
-          records: old.records.filter((r) => r.id !== variables.recordId),
-          totalCount: old.totalCount - 1,
-        };
-      });
+      updateInfiniteCache(qc, queryKey, (records) =>
+        records.filter((r) => r.id !== variables.recordId), -1,
+      );
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -1166,6 +1183,7 @@ export function useBulkCreateRecords() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -1196,19 +1214,12 @@ export function useBulkCreateRecords() {
     onMutate: async (variables) => {
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
       await qc.cancelQueries({ queryKey });
-      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      const previous = qc.getQueriesData({ queryKey });
       const optimisticRows = variables.records.map((rec, i) => ({
         id: `temp-${Date.now()}-${i}`,
         ...rec,
       })) as RecordRow[];
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return {
-          ...old,
-          records: [...old.records, ...optimisticRows],
-          totalCount: old.totalCount + optimisticRows.length,
-        };
-      });
+      updateInfiniteCache(qc, queryKey, (records) => [...records, ...optimisticRows], optimisticRows.length);
       return { previous };
     },
     onSuccess: (data, variables) => {
@@ -1233,6 +1244,7 @@ export function useBulkUpdateRecords() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -1264,17 +1276,11 @@ export function useBulkUpdateRecords() {
     onMutate: async (variables) => {
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
       await qc.cancelQueries({ queryKey });
-      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+      const previous = qc.getQueriesData({ queryKey });
       const updatesById = new Map(variables.updates.map((u) => [u.id, u.fields]));
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return {
-          ...old,
-          records: old.records.map((r) =>
-            updatesById.has(r.id) ? { ...r, ...updatesById.get(r.id) } : r
-          ),
-        };
-      });
+      updateInfiniteCache(qc, queryKey, (records) =>
+        records.map((r) => updatesById.has(r.id) ? { ...r, ...updatesById.get(r.id) } : r),
+      );
       return { previous };
     },
     onSuccess: (data, variables) => {
@@ -1297,6 +1303,7 @@ export function useBulkDeleteRecords() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -1329,15 +1336,13 @@ export function useBulkDeleteRecords() {
       const queryKey = ['nc', 'records', variables.baseId, variables.tableId];
       await qc.cancelQueries({ queryKey });
       const idsSet = new Set(variables.recordIds);
-      const previous = qc.getQueriesData<RecordsResult>({ queryKey });
-      qc.setQueriesData<RecordsResult>({ queryKey }, (old) => {
-        if (!old || !Array.isArray(old.records)) return old;
-        return {
-          ...old,
-          records: old.records.filter((r) => !idsSet.has(r.id)),
-          totalCount: old.totalCount - variables.recordIds.length,
-        };
-      });
+      const previous = qc.getQueriesData({ queryKey });
+      updateInfiniteCache(
+        qc,
+        queryKey,
+        (records) => records.filter((r) => !idsSet.has(r.id)),
+        -variables.recordIds.length,
+      );
       return { previous };
     },
     onError: (_err, _variables, context) => {
