@@ -182,7 +182,23 @@ export function useUpdateBase() {
       if (error) throw error;
       return data as Base;
     },
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'bases'] });
+      const previous = qc.getQueriesData<Base[]>({ queryKey: ['nc', 'bases'] });
+      const { id, ...updates } = variables;
+      qc.setQueriesData<Base[]>({ queryKey: ['nc', 'bases'] }, (old) =>
+        old?.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        for (const [key, data] of context.previous) {
+          qc.setQueryData(key, data);
+        }
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['nc', 'bases'] });
     },
   });

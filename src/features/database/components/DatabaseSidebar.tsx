@@ -48,6 +48,7 @@ function InlineRenameInput({
 }) {
   const [text, setText] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
+  const committed = useRef(false);
 
   useEffect(() => {
     ref.current?.focus();
@@ -55,6 +56,8 @@ function InlineRenameInput({
   }, []);
 
   const commit = useCallback(() => {
+    if (committed.current) return;
+    committed.current = true;
     const trimmed = text.trim();
     if (trimmed && trimmed !== value) onCommit(trimmed);
     else onCancel();
@@ -238,7 +241,7 @@ export function DatabaseSidebar() {
                 ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
             )}
-            onClick={(e) => { e.preventDefault(); navigateToBase(base.id); }}
+            onClick={(e) => { e.preventDefault(); if (base.id !== activeBaseId) navigateToBase(base.id); }}
             title={sidebarCollapsed ? base.name : undefined}
           >
             <span
