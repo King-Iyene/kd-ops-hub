@@ -924,6 +924,9 @@ function CompanyDisbursementSendDialog({
   dva: PrincipalWalletDva | null;
   companyId: string;
 }) {
+  const { data: companies = [] } = useCompanies();
+  const currentCompany = useMemo(() => companies.find((c) => c.id === companyId), [companies, companyId]);
+  const companyCategories = useMemo(() => categoriesForCompany(currentCompany?.short_code), [currentCompany]);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
