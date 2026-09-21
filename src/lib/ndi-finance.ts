@@ -218,6 +218,17 @@ export async function createNdiBeneficiary(input: {
   return data as NdiBeneficiary;
 }
 
+export async function updateNdiBeneficiary(id: string, fields: { name?: string; bankName?: string; accountNumber?: string; bankCode?: string; paystackRecipientCode?: string }): Promise<void> {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (fields.name !== undefined) patch.name = fields.name;
+  if (fields.bankName !== undefined) patch.bank_name = fields.bankName;
+  if (fields.accountNumber !== undefined) patch.account_number = fields.accountNumber;
+  if (fields.bankCode !== undefined) patch.bank_code = fields.bankCode;
+  if (fields.paystackRecipientCode !== undefined) patch.paystack_recipient_code = fields.paystackRecipientCode;
+  const { error } = await supabase.from('ndi_beneficiaries').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
 export async function deactivateNdiBeneficiary(id: string): Promise<void> {
   const { error } = await supabase
     .from('ndi_beneficiaries')
@@ -263,6 +274,41 @@ export async function createNdiTransfer(input: {
     .single();
   if (error) throw error;
   return data as NdiTransfer;
+}
+
+export async function updateNdiTransferStatus(id: string, status: NdiTransfer['status'], failureReason?: string): Promise<void> {
+  const patch: Record<string, unknown> = { status };
+  if (status === 'success' || status === 'failed' || status === 'reversed') {
+    patch.completed_at = new Date().toISOString();
+  }
+  if (failureReason) patch.failure_reason = failureReason;
+  const { error } = await supabase.from('ndi_transfers').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateNdiTransferReference(id: string, ref: string): Promise<void> {
+  const { error } = await supabase.from('ndi_transfers').update({ paystack_reference: ref }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchAllNdiTransfers(companyId: string): Promise<NdiTransfer[]> {
+  const { data, error } = await supabase
+    .from('ndi_transfers')
+    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, status, created_at, completed_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as NdiTransfer[];
+}
+
+export function exportNdiTransfersCsv(transfers: NdiTransfer[], beneficiaries: NdiBeneficiary[]): string {
+  const bMap = new Map(beneficiaries.map((b) => [b.id, b]));
+  const header = 'Date,Beneficiary,Amount (NGN),Category,Description,Reference,Status';
+  const lines = transfers.map((t) => {
+    const b = t.beneficiary_id ? bMap.get(t.beneficiary_id) : null;
+    return `${t.created_at},"${b?.name ?? 'Manual'}",${t.amount_ngn},${ndiCategoryLabel(t.category)},"${(t.description ?? '').replace(/"/g, '""')}",${t.paystack_reference ?? ''},${t.status}`;
+  });
+  return [header, ...lines].join('\n');
 }
 
 // ── CSV Export ────────────────────────────────────────────────────

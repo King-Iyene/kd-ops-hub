@@ -167,7 +167,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Database',         url: '/data',              icon: Database,        roles: ['super_admin'] },
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  // NDI — standalone org module, admin + super_admin only
+  // NDI — standalone org module
   { title: 'NDI Overview',     url: '/ndi',               icon: Globe,           roles: ['super_admin', 'admin'] },
   { title: 'NDI Finance',      url: '/ndi/finance',       icon: Wallet,          roles: ['super_admin', 'admin'] },
   { title: 'NDI Employees',    url: '/ndi/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },

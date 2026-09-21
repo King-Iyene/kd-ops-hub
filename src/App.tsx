@@ -970,11 +970,11 @@ function AppRoutes() {
           }
         />
 
-        {/* NDI — standalone org module, admin + super_admin */}
-        <Route path="/ndi" element={<RoleGuard roles={['super_admin', 'admin']}><NdiDashboard /></RoleGuard>} />
-        <Route path="/ndi/finance" element={<RoleGuard roles={['super_admin', 'admin']}><NdiFinance /></RoleGuard>} />
-        <Route path="/ndi/employees" element={<RoleGuard roles={['super_admin', 'admin']}><NdiEmployees /></RoleGuard>} />
-        <Route path="/ndi/profile" element={<RoleGuard roles={['super_admin', 'admin']}><NdiProfile /></RoleGuard>} />
+        {/* NDI — standalone org module */}
+        <Route path="/ndi" element={<RoleGuard roles={ADMIN_ONLY_ROLES}><NdiDashboard /></RoleGuard>} />
+        <Route path="/ndi/finance" element={<RoleGuard roles={ADMIN_ONLY_ROLES}><NdiFinance /></RoleGuard>} />
+        <Route path="/ndi/employees" element={<RoleGuard roles={ADMIN_ONLY_ROLES}><NdiEmployees /></RoleGuard>} />
+        <Route path="/ndi/profile" element={<RoleGuard roles={ADMIN_ONLY_ROLES}><NdiProfile /></RoleGuard>} />
 
         {/* Profile — any signed-in user. */}
         <Route
