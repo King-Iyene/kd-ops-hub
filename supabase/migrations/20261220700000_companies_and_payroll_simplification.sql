@@ -262,10 +262,23 @@ CREATE INDEX IF NOT EXISTS idx_compliance_filings_company_id ON public.complianc
 -- unique constraint, but never actually set or read anywhere in the app
 -- (verified: zero references outside its own migration). Renaming it in
 -- place is a safe, zero-data-loss change.
-ALTER TABLE public.tax_remittances RENAME COLUMN org_id TO company_id;
-ALTER TABLE public.tax_remittances
-  ADD CONSTRAINT tax_remittances_company_id_fkey
-    FOREIGN KEY (company_id) REFERENCES public.companies(id);
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'tax_remittances' AND column_name = 'org_id'
+  ) THEN
+    ALTER TABLE public.tax_remittances RENAME COLUMN org_id TO company_id;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'tax_remittances_company_id_fkey'
+  ) THEN
+    ALTER TABLE public.tax_remittances
+      ADD CONSTRAINT tax_remittances_company_id_fkey
+        FOREIGN KEY (company_id) REFERENCES public.companies(id);
+  END IF;
+END $$;
 
 UPDATE public.tax_remittances tr
 SET company_id = pr.company_id
@@ -304,8 +317,15 @@ CREATE INDEX IF NOT EXISTS idx_payment_batches_company_id
 ALTER TABLE public.profiles
   DROP CONSTRAINT IF EXISTS profiles_employee_category_check;
 
-ALTER TABLE public.profiles
-  RENAME COLUMN employee_category TO employee_category_deprecated_unused;
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'employee_category'
+  ) THEN
+    ALTER TABLE public.profiles
+      RENAME COLUMN employee_category TO employee_category_deprecated_unused;
+  END IF;
+END $$;
 
 COMMENT ON COLUMN public.profiles.employee_category_deprecated_unused IS
   'Deprecated 2026-12-20: collapsed into pay_groups (now company-scoped) to match how Gusto/Deel/BambooHR model this — one concept, not two overlapping ones. No longer read or written by the app. Kept (not dropped) only to avoid destroying any incidentally-set historical data.';
