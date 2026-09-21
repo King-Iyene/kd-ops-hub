@@ -181,7 +181,10 @@ export default function DirectorDisbursements() {
       </AuroraHero>
 
       {companies.length > 1 && (
-        <CompanySwitcher companies={companies} value={companyId} onChange={setCompanyId} />
+        <>
+          <MultiEntityOverview companies={companies} activeCompanyId={companyId} onSwitch={setCompanyId} />
+          <CompanySwitcher companies={companies} value={companyId} onChange={setCompanyId} />
+        </>
       )}
 
       <PrincipalWalletPanel key={companyId} profile={profile} toast={toast} companyId={companyId} />
@@ -198,6 +201,82 @@ export default function DirectorDisbursements() {
           <PersonalTransferSection profile={profile} toast={toast} companyId={companyId} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Multi-entity overview — at-a-glance comparison of all entities' wallet
+   health. Investment/grant-ready: proves financial isolation at first sight.
+   ═══════════════════════════════════════════════════════════════════════ */
+function MultiEntityOverview({ companies, activeCompanyId, onSwitch }: {
+  companies: Array<{ id: string; name: string; short_code: string; color: string }>;
+  activeCompanyId: string;
+  onSwitch: (id: string) => void;
+}) {
+  const [balances, setBalances] = useState<Record<string, number | null>>({});
+  const [dvas, setDvas] = useState<Record<string, PrincipalWalletDva | null>>({});
+
+  useEffect(() => {
+    companies.forEach(async (c) => {
+      try {
+        const [dva, bal] = await Promise.all([fetchDvaAccount(c.id), fetchWalletBalance(c.id)]);
+        setDvas((prev) => ({ ...prev, [c.id]: dva }));
+        setBalances((prev) => ({ ...prev, [c.id]: bal }));
+      } catch {
+        setBalances((prev) => ({ ...prev, [c.id]: null }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {companies.map((c) => {
+        const bal = balances[c.id];
+        const dva = dvas[c.id];
+        const isActive = c.id === activeCompanyId;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onSwitch(c.id)}
+            className={`relative overflow-hidden rounded-xl border-2 p-4 text-left transition-all hover:shadow-md ${
+              isActive ? 'ring-2 ring-offset-2 ring-offset-background' : 'opacity-80 hover:opacity-100'
+            }`}
+            style={{
+              borderColor: c.color,
+              ...(isActive ? { ringColor: c.color } as React.CSSProperties : {}),
+            }}
+          >
+            <div className="absolute inset-0 opacity-[0.04]" style={{ background: `linear-gradient(135deg, ${c.color}, transparent)` }} />
+            <div className="relative flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} aria-hidden />
+                  <span className="font-semibold text-sm">{c.name}</span>
+                  <span className="text-2xs text-muted-foreground font-mono">{c.short_code}</span>
+                </div>
+                {dva ? (
+                  <p className="text-xs text-muted-foreground mt-1">{dva.bank_name} · {dva.account_number}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">No dedicated account</p>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                {bal !== null && bal !== undefined ? (
+                  <p className="text-lg font-bold currency" style={{ color: c.color }}>{formatNaira(bal)}</p>
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            </div>
+            {isActive && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ backgroundColor: c.color }} />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
