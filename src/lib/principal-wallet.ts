@@ -23,7 +23,6 @@ export interface PrincipalWalletDva {
   bank_name: string;
   account_name: string | null;
   currency: string;
-  company_id: string;
   created_at: string;
 }
 
@@ -33,16 +32,14 @@ export interface PrincipalWalletLedgerRow {
   amount_ngn: number;
   source: 'dva_funding' | 'company_disbursement' | 'personal_transfer' | 'reversal_refund';
   reference: string | null;
-  company_id: string;
   created_at: string;
 }
 
-export async function fetchDvaAccount(companyId?: string): Promise<PrincipalWalletDva | null> {
-  let query = supabase
+export async function fetchDvaAccount(): Promise<PrincipalWalletDva | null> {
+  const { data, error } = await supabase
     .from('principal_wallet_dva')
-    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, company_id, created_at');
-  if (companyId) query = query.eq('company_id', companyId);
-  const { data, error } = await query.maybeSingle();
+    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, created_at')
+    .maybeSingle();
   if (error) throw error;
   return (data as unknown as PrincipalWalletDva) ?? null;
 }
@@ -52,7 +49,6 @@ export async function createDvaAccount(input: {
   accountNumber: string;
   bankName: string;
   accountName: string | null;
-  companyId: string;
   createdBy: string;
 }): Promise<PrincipalWalletDva> {
   const { data, error } = await supabase
@@ -62,10 +58,9 @@ export async function createDvaAccount(input: {
       account_number: input.accountNumber,
       bank_name: input.bankName,
       account_name: input.accountName,
-      company_id: input.companyId,
       created_by: input.createdBy,
     })
-    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, company_id, created_at')
+    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, created_at')
     .single();
   if (error) throw error;
   return data as unknown as PrincipalWalletDva;
@@ -79,12 +74,10 @@ export async function deleteDvaAccount(id: string): Promise<void> {
 /** Balance = SUM(credit) - SUM(debit). RLS already scopes the ledger to
  *  super_admin, so this reads the whole (small) table client-side rather
  *  than adding a dedicated balance RPC. */
-export async function fetchWalletBalance(companyId?: string): Promise<number> {
-  let query = supabase
+export async function fetchWalletBalance(): Promise<number> {
+  const { data, error } = await supabase
     .from('principal_wallet_ledger')
     .select('direction, amount_ngn');
-  if (companyId) query = query.eq('company_id', companyId);
-  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).reduce((sum: number, row: any) => (
     row.direction === 'credit' ? sum + Number(row.amount_ngn) : sum - Number(row.amount_ngn)
@@ -101,11 +94,10 @@ export async function fetchWalletBalance(companyId?: string): Promise<number> {
  *  batchCostBreakdown) — not just the raw transfer amount. */
 export async function checkWalletCanCover(
   totalNgn: number,
-  companyId?: string,
 ): Promise<{ ok: boolean; reason?: string }> {
-  const dva = await fetchDvaAccount(companyId);
+  const dva = await fetchDvaAccount();
   if (!dva) return { ok: true };
-  const balance = await fetchWalletBalance(companyId);
+  const balance = await fetchWalletBalance();
   if (balance < totalNgn) {
     return {
       ok: false,
@@ -119,37 +111,18 @@ export async function checkWalletCanCover(
  *  null (meaning "skip this check, no wallet configured") rather than
  *  throwing, so the modal can render its normal single-balance layout
  *  until a DVA is actually linked. */
-export async function fetchWalletBalanceOrNull(companyId?: string): Promise<number | null> {
-  const dva = await fetchDvaAccount(companyId);
+export async function fetchWalletBalanceOrNull(): Promise<number | null> {
+  const dva = await fetchDvaAccount();
   if (!dva) return null;
-  return fetchWalletBalance(companyId);
+  return fetchWalletBalance();
 }
 
-export async function fetchWalletLedger(limit = 50, companyId?: string): Promise<PrincipalWalletLedgerRow[]> {
-  let query = supabase
+export async function fetchWalletLedger(limit = 50): Promise<PrincipalWalletLedgerRow[]> {
+  const { data, error } = await supabase
     .from('principal_wallet_ledger')
-    .select('id, direction, amount_ngn, source, reference, company_id, created_at')
+    .select('id, direction, amount_ngn, source, reference, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (companyId) query = query.eq('company_id', companyId);
-  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as PrincipalWalletLedgerRow[];
-}
-
-export async function exportWalletLedgerCsv(companyId: string): Promise<string> {
-  const rows = await fetchWalletLedger(10000, companyId);
-  const balance = await fetchWalletBalance(companyId);
-  const dva = await fetchDvaAccount(companyId);
-  const header = 'Date,Direction,Amount (NGN),Source,Reference';
-  const lines = rows.map((r) =>
-    `${r.created_at},${r.direction},${r.amount_ngn},${r.source},${r.reference ?? ''}`
-  );
-  const summary = [
-    '',
-    `Account,${dva?.bank_name ?? 'N/A'} ${dva?.account_number ?? 'N/A'}`,
-    `Balance,${balance}`,
-    `Exported,${new Date().toISOString()}`,
-  ];
-  return [header, ...lines, ...summary].join('\n');
 }
