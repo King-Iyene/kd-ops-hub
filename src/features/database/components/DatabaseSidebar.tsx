@@ -241,7 +241,14 @@ export function DatabaseSidebar() {
                 ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
             )}
-            onClick={(e) => { e.preventDefault(); if (base.id !== activeBaseId) navigateToBase(base.id); }}
+            onClick={(e) => {
+              e.preventDefault();
+              if (renamingBaseId === base.id) return;
+              if (base.id !== activeBaseId) navigateToBase(base.id);
+            }}
+            onKeyDown={(e) => {
+              if (renamingBaseId === base.id) { e.preventDefault(); e.stopPropagation(); }
+            }}
             title={sidebarCollapsed ? base.name : undefined}
           >
             <span
