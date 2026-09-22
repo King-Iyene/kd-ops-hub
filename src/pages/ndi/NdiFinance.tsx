@@ -70,7 +70,7 @@ export default function NdiFinance() {
     );
   }
 
-  const accentColor = ndi.color || '#E84D1A';
+  const accentColor = ndi.color || '#112B34';
 
   return (
     <div className="space-y-5">

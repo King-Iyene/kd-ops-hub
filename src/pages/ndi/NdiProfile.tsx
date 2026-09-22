@@ -50,7 +50,7 @@ export default function NdiProfile() {
     );
   }
 
-  const accentColor = ndi.color || '#E84D1A';
+  const accentColor = ndi.color || '#112B34';
 
   const save = async () => {
     setSaving(true);
@@ -134,7 +134,7 @@ export default function NdiProfile() {
                 <Input
                   value={form.color ?? ''}
                   onChange={(e) => setForm({ ...form, color: e.target.value })}
-                  placeholder="#E84D1A"
+                  placeholder="#112B34"
                   className="flex-1"
                 />
                 <div

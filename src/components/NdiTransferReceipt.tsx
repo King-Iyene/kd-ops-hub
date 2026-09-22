@@ -4,15 +4,14 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Printer, Share2, X, FileImage, FileText, ChevronDown } from 'lucide-react';
+import { Download, Printer, Share2, X, FileImage, FileText, ChevronDown, CheckCircle2, AlertTriangle, Clock, XCircle } from 'lucide-react';
 import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { paystackTransferFee } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
-import { hexToRgba } from '@/lib/receipt-theme';
 import { errorMessage } from '@/lib/db-errors';
 
-const NDI_BRAND = '#e97c1f';
-const NDI_BRAND_DARK = '#b35f14';
+const TEAL = '#112B34';
+const CYAN = '#A3F2F5';
 
 interface NdiTransferRow {
   id: string;
@@ -42,12 +41,14 @@ interface Props {
   categoryLabel: string;
 }
 
-function statusInfo(status: string) {
-  if (status === 'success') return { label: 'SUCCESSFUL', dot: '#117a3d', bg: '#e6f7ec' };
-  if (status === 'failed') return { label: 'FAILED', dot: '#b22222', bg: '#fde9e9' };
-  if (status === 'reversed') return { label: 'REVERSED', dot: '#71717a', bg: '#f4f4f5' };
-  if (status === 'processing') return { label: 'PROCESSING', dot: '#2563eb', bg: '#eff6ff' };
-  return { label: 'PENDING', dot: '#8c6700', bg: '#fff5e0' };
+function statusConfig(status: string) {
+  switch (status) {
+    case 'success': return { label: 'Successful', icon: CheckCircle2, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' };
+    case 'failed': return { label: 'Failed', icon: XCircle, color: '#ef4444', bg: '#fef2f2', border: '#fecaca' };
+    case 'reversed': return { label: 'Reversed', icon: AlertTriangle, color: '#6b7280', bg: '#f3f4f6', border: '#d1d5db' };
+    case 'processing': return { label: 'Processing', icon: Clock, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' };
+    default: return { label: 'Pending', icon: Clock, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' };
+  }
 }
 
 export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLabel }: Props) {
@@ -57,12 +58,12 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
 
   if (!row) return null;
 
-  const s = statusInfo(row.status);
+  const s = statusConfig(row.status);
+  const StatusIcon = s.icon;
   const amount = Number(row.amount_ngn);
   const fee = row.status === 'success' ? paystackTransferFee(amount) : 0;
   const total = amount + fee;
-  const dateStr = formatReceiptDateTime(row.created_at);
-  const certId = `NDI-${row.id.replace(/-/g, '').slice(0, 20).toUpperCase()}`;
+  const certId = `NDI-${row.id.replace(/-/g, '').slice(0, 16).toUpperCase()}`;
   const isSuccess = row.status === 'success';
 
   const filenameFor = (kind: 'png' | 'pdf') =>
@@ -118,7 +119,7 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
       const mime = kind === 'pdf' ? 'application/pdf' : 'image/png';
       const file = blob ? new File([blob], filenameFor(kind), { type: mime }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: `NDI Transfer Receipt — ${beneficiary?.name ?? 'Transfer'}`, text: `${formatNaira(amount)} to ${beneficiary?.name ?? 'recipient'}`, files: [file] });
+        await navigator.share({ title: `NDI Transfer Receipt`, text: `${formatNaira(amount)} to ${beneficiary?.name ?? 'recipient'}`, files: [file] });
       } else if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -136,201 +137,130 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="kd-receipt-dialog max-w-[600px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
-        <div style={{ position: 'relative', background: '#1a1a1e', padding: '24px 18px', borderRadius: '16px' }}>
+      <DialogContent className="kd-receipt-dialog max-w-[520px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
+        {/* Dark teal envelope */}
+        <div style={{ position: 'relative', background: TEAL, padding: '20px 16px', borderRadius: '16px' }}>
           <button
             type="button" onClick={onClose} aria-label="Close"
             style={{
-              position: 'absolute', top: '12px', right: '12px', height: '32px', width: '32px', borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fff',
+              position: 'absolute', top: '10px', right: '10px', height: '28px', width: '28px', borderRadius: '50%',
+              border: 'none', background: 'rgba(163, 242, 245, 0.12)', color: CYAN,
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5,
             }}
           >
-            <X size={16} />
+            <X size={14} />
           </button>
 
+          {/* Status banner at top of envelope */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            padding: '8px 16px', marginBottom: '16px',
+            background: `${s.color}18`, borderRadius: '8px',
+          }}>
+            <StatusIcon size={16} style={{ color: s.color }} />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: s.color, letterSpacing: '0.03em' }}>
+              Transfer {s.label}
+            </span>
+            {row.status === 'failed' && row.failure_reason && (
+              <span style={{ fontSize: '11px', color: `${s.color}cc`, marginLeft: '4px' }}>— {row.failure_reason}</span>
+            )}
+          </div>
+
+          {/* Main receipt card */}
           <div
             ref={cardRef}
             id="ndi-receipt-card"
             style={{
-              position: 'relative', maxWidth: '520px', margin: '0 auto',
-              background: '#ffffff',
-              borderRadius: '14px', overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 24px 48px -14px rgba(0,0,0,0.35)',
-              fontFamily: 'Inter, system-ui, sans-serif', color: '#18181b',
+              position: 'relative', maxWidth: '480px', margin: '0 auto',
+              background: '#ffffff', borderRadius: '12px', overflow: 'hidden',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+              fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a',
             }}
           >
-            {/* Top brand bar */}
-            <div style={{ height: '4px', background: `linear-gradient(90deg, ${NDI_BRAND}, ${NDI_BRAND_DARK})` }} />
+            {/* Gradient top edge */}
+            <div style={{ height: '3px', background: `linear-gradient(90deg, ${TEAL}, ${CYAN})` }} />
 
-            {/* Masthead */}
-            <div style={{ padding: '28px 28px 0', position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.2em', color: NDI_BRAND, textTransform: 'uppercase' }}>
-                    Corporate Transfer
-                  </div>
-                  <div style={{ fontSize: '32px', fontWeight: 900, color: '#0c1b26', letterSpacing: '-0.03em', lineHeight: 1, marginTop: '4px' }}>
-                    RECEIPT
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#111' }}>NDI</div>
-                  <div style={{ fontSize: '10px', color: '#8194a0', marginTop: '1px' }}>Niger Delta Innovate</div>
-                </div>
+            {/* Header — amount + NDI identity */}
+            <div style={{ padding: '24px 24px 20px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '14px' }}>
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '6px', background: TEAL,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '11px', fontWeight: 900, color: CYAN, letterSpacing: '0.05em',
+                }}>N</div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: TEAL, letterSpacing: '0.02em' }}>Niger Delta Innovate</span>
               </div>
-
-              <div style={{ display: 'flex', gap: '24px', marginTop: '20px', flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9aa5ac', textTransform: 'uppercase' }}>Receipt No.</div>
-                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: '#333', marginTop: '2px' }}>{certId}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9aa5ac', textTransform: 'uppercase' }}>Date</div>
-                  <div style={{ fontSize: '11px', color: '#333', marginTop: '2px' }}>{dateStr}</div>
-                </div>
-                <div style={{ marginLeft: 'auto' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px',
-                    background: s.bg, color: s.dot, fontWeight: 700, fontSize: '10px',
-                    letterSpacing: '0.05em', textTransform: 'uppercase',
-                  }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
-                    {s.label}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div style={{ margin: '20px 28px 0', height: '2px', background: NDI_BRAND, position: 'relative', zIndex: 1 }}>
-              {[0.2, 0.5, 0.8].map((pos) => (
-                <span key={pos} style={{
-                  position: 'absolute', top: '50%', left: `${pos * 100}%`, transform: 'translate(-50%, -50%)',
-                  width: '5px', height: '5px', borderRadius: '50%', background: NDI_BRAND,
-                }} />
-              ))}
-            </div>
-
-            {/* FROM / TO */}
-            <div style={{ display: 'flex', padding: '20px 28px', gap: '20px', zIndex: 1, position: 'relative', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 160px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: NDI_BRAND, textTransform: 'uppercase', marginBottom: '5px' }}>From</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>Niger Delta Innovate</div>
-                <div style={{ fontSize: '11px', color: '#8194a0', marginTop: '2px' }}>NDI Corporate Account</div>
-              </div>
-              <div style={{ flex: '1 1 160px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: NDI_BRAND, textTransform: 'uppercase', marginBottom: '5px' }}>To</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>{beneficiary?.name ?? row.description ?? '—'}</div>
-                {beneficiary && (
-                  <div style={{ fontSize: '11px', color: '#8194a0', marginTop: '2px' }}>
-                    {beneficiary.bank_name} · <span style={{ fontFamily: 'ui-monospace, Consolas, monospace' }}>{beneficiary.account_number}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Itemized table */}
-            <div style={{ padding: '0 28px 8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                display: 'flex', fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: '#8194a0', borderBottom: `2px solid ${NDI_BRAND}`, paddingBottom: '7px',
-              }}>
-                <div style={{ flex: 1 }}>Description</div>
-                <div style={{ width: '110px', textAlign: 'right' }}>Amount</div>
-              </div>
-
-              <div style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid #eee' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '12px' }}>Transfer to {beneficiary?.name ?? 'recipient'}</div>
-                  <div style={{ fontSize: '10.5px', color: '#8194a0', marginTop: '2px' }}>{categoryLabel}</div>
-                  {row.narration && <div style={{ fontSize: '10.5px', color: '#8194a0', fontStyle: 'italic', marginTop: '1px' }}>{row.narration}</div>}
-                </div>
-                <div style={{ width: '110px', textAlign: 'right', fontWeight: 600, fontSize: '12px' }}>{formatNaira(amount)}</div>
-              </div>
-
+              <p style={{ fontSize: '36px', fontWeight: 900, color: TEAL, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>
+                {formatNaira(amount)}
+              </p>
               {isSuccess && fee > 0 && (
-                <div style={{ display: 'flex', padding: '7px 0', fontSize: '11.5px', color: '#71717a' }}>
-                  <div style={{ flex: 1 }}>Transfer fee</div>
-                  <div style={{ width: '110px', textAlign: 'right' }}>{formatNaira(fee)}</div>
-                </div>
-              )}
-
-              {isSuccess && (
-                <div style={{
-                  display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: '28px',
-                  padding: '12px 0 4px', borderTop: `2px solid ${NDI_BRAND}`, marginTop: '4px',
-                }}>
-                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#111' }}>TOTAL</div>
-                  <div style={{ fontWeight: 900, fontSize: '18px', color: NDI_BRAND }}>{formatNaira(total)}</div>
-                </div>
-              )}
-
-              {!isSuccess && (
-                <div style={{
-                  display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: '28px',
-                  padding: '12px 0 4px', borderTop: '1px solid #eee', marginTop: '4px',
-                }}>
-                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#111' }}>AMOUNT</div>
-                  <div style={{ fontWeight: 900, fontSize: '18px', color: '#333' }}>{formatNaira(amount)}</div>
-                </div>
-              )}
-
-              {row.status === 'failed' && row.failure_reason && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 12px', marginTop: '12px' }}>
-                  <p style={{ fontSize: '11.5px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{row.failure_reason}</p>
-                </div>
-              )}
-
-              {/* Verification stamp */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
-                <div
-                  aria-hidden
-                  style={{
-                    width: '70px', height: '70px', flexShrink: 0,
-                    borderRadius: '50%', border: `2.5px dashed ${s.dot}`, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transform: 'rotate(-13deg)', background: hexToRgba(s.dot, 0.04),
-                  }}
-                >
-                  <div style={{ textAlign: 'center', color: s.dot, lineHeight: 1.3 }}>
-                    <div style={{ fontSize: '6.5px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Paystack</div>
-                    <div style={{ fontSize: '10px', fontWeight: 900, letterSpacing: '0.03em' }}>{s.label}</div>
-                    <div style={{ fontSize: '6px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Verified</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Reference */}
-              {row.paystack_reference && (
-                <div style={{ marginTop: '12px', padding: '8px 10px', background: '#f9fafb', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', color: '#9aa5ac', textTransform: 'uppercase' }}>Reference</div>
-                    <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#555', marginTop: '2px', wordBreak: 'break-all' }}>{row.paystack_reference}</div>
-                  </div>
-                </div>
+                <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
+                  + {formatNaira(fee)} fee = {formatNaira(total)} total
+                </p>
               )}
             </div>
 
-            {/* Wave flourish */}
-            <div style={{ position: 'relative', marginTop: '16px' }}>
-              <svg viewBox="0 0 600 50" preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: '42px' }}>
-                <path d="M0,28 C120,52 240,6 360,30 C450,48 540,8 600,24 L600,50 L0,50 Z" fill={hexToRgba(NDI_BRAND, 0.10)} />
-                <path d="M0,36 C100,12 220,48 340,20 C420,4 520,38 600,18 L600,50 L0,50 Z" fill={hexToRgba(NDI_BRAND, 0.20)} />
-              </svg>
+            {/* Transfer details — clean grid */}
+            <div style={{ padding: '0 24px 20px' }}>
               <div style={{
-                position: 'absolute', left: '28px', bottom: '8px', fontFamily: 'Georgia, "Times New Roman", serif',
-                fontStyle: 'italic', fontSize: '13px', color: NDI_BRAND, opacity: 0.85,
+                background: '#f8fafb', borderRadius: '10px', padding: '16px',
+                border: '1px solid #e5eaed',
               }}>
-                NDI · verified corporate transfer
+                {/* Sender */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid #e5eaed' }}>
+                  <div>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 3px' }}>From</p>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: TEAL, margin: 0 }}>NDI Corporate</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 3px' }}>To</p>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{beneficiary?.name ?? row.description ?? '—'}</p>
+                    {beneficiary && (
+                      <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
+                        {beneficiary.bank_name} · {beneficiary.account_number}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Meta rows */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <MetaField label="Category" value={categoryLabel} />
+                  <MetaField label="Date" value={new Date(row.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })} />
+                  <MetaField label="Time" value={new Date(row.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })} />
+                  <MetaField label="Status" value={s.label} valueColor={s.color} />
+                  {row.narration && <MetaField label="Narration" value={row.narration} span />}
+                  {row.description && beneficiary && <MetaField label="Note" value={row.description} span />}
+                </div>
               </div>
             </div>
 
-            {/* Certificate ID */}
-            <div style={{ padding: '8px 28px 18px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '9px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
-                {certId}
-              </span>
+            {/* Reference section */}
+            {row.paystack_reference && (
+              <div style={{ padding: '0 24px 16px' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', background: `${TEAL}08`, borderRadius: '8px', border: `1px solid ${TEAL}15`,
+                }}>
+                  <div>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 2px' }}>Reference</p>
+                    <p style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#555', margin: 0, wordBreak: 'break-all' }}>{row.paystack_reference}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Footer with cert ID */}
+            <div style={{
+              padding: '12px 24px', borderTop: '1px solid #f0f0f0',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '9px', color: '#c4c4c7' }}>{certId}</span>
+              <span style={{ fontSize: '9px', color: '#c4c4c7' }}>{formatReceiptDateTime(row.created_at)}</span>
             </div>
+
+            {/* Bottom brand bar */}
+            <div style={{ height: '3px', background: `linear-gradient(90deg, ${CYAN}, ${TEAL})` }} />
           </div>
         </div>
 
@@ -379,5 +309,14 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MetaField({ label, value, valueColor, span }: { label: string; value: string; valueColor?: string; span?: boolean }) {
+  return (
+    <div style={span ? { gridColumn: '1 / -1' } : undefined}>
+      <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 2px' }}>{label}</p>
+      <p style={{ fontSize: '12px', fontWeight: 500, color: valueColor ?? '#374151', margin: 0 }}>{value}</p>
+    </div>
   );
 }
