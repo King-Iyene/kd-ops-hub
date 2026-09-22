@@ -61,6 +61,8 @@ export interface NdiTransfer {
   description: string | null;
   narration: string | null;
   paystack_reference: string | null;
+  paystack_recipient_code: string | null;
+  paystack_transfer_code: string | null;
   status: 'pending' | 'processing' | 'success' | 'failed' | 'reversed';
   created_at: string;
   completed_at: string | null;
@@ -254,7 +256,7 @@ export async function deactivateNdiBeneficiary(id: string): Promise<void> {
 export async function fetchNdiTransfers(companyId: string, limit = 100): Promise<NdiTransfer[]> {
   const { data, error } = await supabase
     .from('ndi_transfers')
-    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, status, created_at, completed_at')
+    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, paystack_recipient_code, paystack_transfer_code, status, created_at, completed_at')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -269,6 +271,7 @@ export async function createNdiTransfer(input: {
   category: string;
   description?: string;
   narration?: string;
+  recipientCode?: string;
   createdBy: string;
 }): Promise<NdiTransfer> {
   const { data, error } = await supabase
@@ -280,9 +283,10 @@ export async function createNdiTransfer(input: {
       category: input.category,
       description: input.description ?? null,
       narration: input.narration ?? null,
+      paystack_recipient_code: input.recipientCode ?? null,
       created_by: input.createdBy,
     })
-    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, status, created_at, completed_at')
+    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, paystack_recipient_code, status, created_at, completed_at')
     .single();
   if (error) throw error;
   return data as NdiTransfer;
@@ -306,7 +310,7 @@ export async function updateNdiTransferReference(id: string, ref: string): Promi
 export async function fetchAllNdiTransfers(companyId: string): Promise<NdiTransfer[]> {
   const { data, error } = await supabase
     .from('ndi_transfers')
-    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, status, created_at, completed_at')
+    .select('id, company_id, beneficiary_id, amount_ngn, category, description, narration, paystack_reference, paystack_recipient_code, paystack_transfer_code, status, created_at, completed_at')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -422,6 +426,7 @@ export async function executeNdiTransfer(input: {
     category: input.category,
     description: input.description,
     narration: input.narration,
+    recipientCode: input.recipientCode,
     createdBy: input.createdBy,
   });
 

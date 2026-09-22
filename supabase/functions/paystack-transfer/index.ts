@@ -547,19 +547,30 @@ Deno.serve(async (req) => {
           dbAmountNgn = Number((ptRow as any).amount_ngn);
           dbRecipientCode = (ptRow as any).paystack_recipient_code;
         } else {
-          const { data: biRow, error: biErr } = await serviceClient
+          // Check batch_items first, then fall back to ndi_transfers (NDI module).
+          const { data: biRow } = await serviceClient
             .from("batch_items")
             .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
             .eq("paystack_reference", params.reference)
             .maybeSingle();
-          if (biErr || !biRow) {
+
+          const sourceRow = biRow ?? (await (async () => {
+            const { data: ndiRow } = await serviceClient
+              .from("ndi_transfers")
+              .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
+              .eq("paystack_reference", params.reference)
+              .maybeSingle();
+            return ndiRow;
+          })());
+
+          if (!sourceRow) {
             return new Response(
-              JSON.stringify({ error: "No approved batch_items record for this reference" }),
+              JSON.stringify({ error: "No approved transfer record for this reference" }),
               { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
-          if ((biRow as any).paystack_transfer_code) {
-            let liveStatus = (biRow as any).status;
+          if ((sourceRow as any).paystack_transfer_code) {
+            let liveStatus = (sourceRow as any).status;
             try {
               const verifyBody = await paystackFetch(
                 `/transfer/verify/${encodeURIComponent(params.reference)}`,
@@ -569,7 +580,7 @@ Deno.serve(async (req) => {
               console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
             }
             result = {
-              transfer_code: (biRow as any).paystack_transfer_code,
+              transfer_code: (sourceRow as any).paystack_transfer_code,
               reference: params.reference,
               status: liveStatus,
               recovered: true,
@@ -577,8 +588,8 @@ Deno.serve(async (req) => {
             };
             break;
           }
-          dbAmountNgn = Number((biRow as any).amount_ngn);
-          dbRecipientCode = (biRow as any).paystack_recipient_code;
+          dbAmountNgn = Number((sourceRow as any).amount_ngn);
+          dbRecipientCode = (sourceRow as any).paystack_recipient_code;
         }
 
         if (!dbRecipientCode) {
