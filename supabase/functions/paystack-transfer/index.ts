@@ -845,12 +845,48 @@ Deno.serve(async (req) => {
         if (acctErr || !ndiAcct) throw new Error(`NDI account not found: ${acctErr?.message ?? "no row"}`);
         console.info("[reconcile_ndi_dva] account found:", ndiAcct.paystack_customer_code, ndiAcct.account_number);
 
-        // Fetch customer transactions from Paystack
-        const txBody = await paystackFetch(
-          `/transaction?customer=${encodeURIComponent(ndiAcct.paystack_customer_code)}&status=success&perPage=100`
-        );
-        const transactions = Array.isArray(txBody.data) ? txBody.data : [];
-        console.info("[reconcile_ndi_dva] found", transactions.length, "transactions from Paystack");
+        // Fetch DVA deposits: Paystack records DVA bank transfers as
+        // "transactions" linked to the customer. Try both /transaction
+        // (with customer filter) and the dedicated_account endpoint.
+        let transactions: any[] = [];
+        try {
+          // Method 1: list transactions filtered by customer
+          const txBody = await paystackFetch(
+            `/transaction?customer=${encodeURIComponent(ndiAcct.paystack_customer_code)}&status=success&perPage=100`
+          );
+          if (Array.isArray(txBody.data)) transactions.push(...txBody.data);
+          console.info("[reconcile_ndi_dva] /transaction returned", txBody.data?.length ?? 0, "records");
+        } catch (e) {
+          console.warn("[reconcile_ndi_dva] /transaction query failed:", e);
+        }
+
+        // Method 2: query dedicated account requery by account number
+        try {
+          const reqBody = await paystackFetch(
+            `/dedicated_account/requery?account_number=${encodeURIComponent(ndiAcct.account_number)}&provider_slug=wema-bank`
+          );
+          console.info("[reconcile_ndi_dva] /dedicated_account/requery:", JSON.stringify(reqBody).slice(0, 300));
+        } catch (e) {
+          console.warn("[reconcile_ndi_dva] /dedicated_account/requery failed:", e);
+        }
+
+        // Method 3: fetch settlement/transfer history for the full account
+        try {
+          const settBody = await paystackFetch(`/transaction?status=success&perPage=100`);
+          const allTx = Array.isArray(settBody.data) ? settBody.data : [];
+          // Filter to only those with the NDI customer code
+          const ndiTx = allTx.filter((t: any) => t.customer?.customer_code === ndiAcct.paystack_customer_code);
+          console.info("[reconcile_ndi_dva] /transaction (all) returned", allTx.length, "total,", ndiTx.length, "for NDI customer");
+          for (const t of ndiTx) {
+            if (!transactions.some((existing: any) => existing.reference === t.reference)) {
+              transactions.push(t);
+            }
+          }
+        } catch (e) {
+          console.warn("[reconcile_ndi_dva] /transaction (all) failed:", e);
+        }
+
+        console.info("[reconcile_ndi_dva] total unique transactions to reconcile:", transactions.length);
 
         // Get existing ledger references for idempotency
         const { data: existingRefs } = await svc
