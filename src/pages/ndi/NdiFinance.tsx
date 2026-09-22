@@ -89,12 +89,16 @@ export default function NdiFinance() {
       <Tabs defaultValue="transfers" className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="transfers">Transfers</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="beneficiaries">Beneficiaries</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="grant-report">Grant Report</TabsTrigger>
         </TabsList>
         <TabsContent value="transfers">
           <TransfersSection companyId={ndi.id} accentColor={accentColor} profile={profile} toast={toast} />
+        </TabsContent>
+        <TabsContent value="analytics">
+          <AnalyticsTab companyId={ndi.id} accentColor={accentColor} toast={toast} />
         </TabsContent>
         <TabsContent value="beneficiaries">
           <BeneficiariesSection companyId={ndi.id} profile={profile} toast={toast} />
@@ -1509,6 +1513,285 @@ function RecordEntryDialog({ open, onOpenChange, companyId, profile, toast, onSa
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── Analytics Tab ──────────────────────────────────────────────
+
+function AnalyticsTab({ companyId, accentColor, toast }: { companyId: string; accentColor: string; toast: any }) {
+  const [transfers, setTransfers] = useState<NdiTransfer[]>([]);
+  const [ledger, setLedger] = useState<NdiLedgerRow[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<NdiBeneficiary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [t, l, b] = await Promise.all([
+        fetchAllNdiTransfers(companyId),
+        fetchNdiLedger(companyId, 10000),
+        fetchNdiBeneficiaries(companyId),
+      ]);
+      setTransfers(t);
+      setLedger(l);
+      setBeneficiaries(b);
+    } catch (err) {
+      toast({ title: 'Could not load analytics', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, toast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const bMap = useMemo(() => new Map(beneficiaries.map((b) => [b.id, b])), [beneficiaries]);
+
+  // Monthly cash flow (credits vs debits from ledger)
+  const monthlyCashFlow = useMemo(() => {
+    const months = new Map<string, { credits: number; debits: number }>();
+    for (const r of ledger) {
+      const d = new Date(r.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const entry = months.get(key) ?? { credits: 0, debits: 0 };
+      if (r.direction === 'credit') entry.credits += Number(r.amount_ngn);
+      else entry.debits += Number(r.amount_ngn);
+      months.set(key, entry);
+    }
+    return Array.from(months.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, v]) => ({
+        month,
+        label: new Date(`${month}-01`).toLocaleDateString('en-NG', { month: 'short', year: '2-digit' }),
+        ...v,
+        net: v.credits - v.debits,
+      }));
+  }, [ledger]);
+
+  // Category breakdown (all time from transfers)
+  const categoryBreakdown = useMemo(() => {
+    const catMap = new Map<string, { amount: number; count: number }>();
+    for (const t of transfers) {
+      if (t.status !== 'success') continue;
+      const entry = catMap.get(t.category) ?? { amount: 0, count: 0 };
+      entry.amount += Number(t.amount_ngn);
+      entry.count++;
+      catMap.set(t.category, entry);
+    }
+    const total = Array.from(catMap.values()).reduce((s, v) => s + v.amount, 0) || 1;
+    return Array.from(catMap.entries())
+      .map(([cat, v]) => ({ category: cat, label: ndiCategoryLabel(cat), amount: v.amount, count: v.count, pct: (v.amount / total) * 100 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [transfers]);
+
+  // Top recipients
+  const topRecipients = useMemo(() => {
+    const rMap = new Map<string, { name: string; bankName: string; total: number; count: number }>();
+    for (const t of transfers) {
+      if (!t.beneficiary_id || t.status !== 'success') continue;
+      const b = bMap.get(t.beneficiary_id);
+      if (!b) continue;
+      const entry = rMap.get(t.beneficiary_id) ?? { name: b.name, bankName: b.bank_name, total: 0, count: 0 };
+      entry.total += Number(t.amount_ngn);
+      entry.count++;
+      rMap.set(t.beneficiary_id, entry);
+    }
+    return Array.from(rMap.values()).sort((a, b) => b.total - a.total).slice(0, 5);
+  }, [transfers, bMap]);
+
+  // Week-over-week comparison
+  const weekComparison = useMemo(() => {
+    const now = Date.now();
+    const thisWeek = transfers.filter((t) => now - new Date(t.created_at).getTime() < 7 * 86400000 && t.status === 'success');
+    const lastWeek = transfers.filter((t) => {
+      const age = now - new Date(t.created_at).getTime();
+      return age >= 7 * 86400000 && age < 14 * 86400000 && t.status === 'success';
+    });
+    const thisWeekTotal = thisWeek.reduce((s, t) => s + Number(t.amount_ngn), 0);
+    const lastWeekTotal = lastWeek.reduce((s, t) => s + Number(t.amount_ngn), 0);
+    const change = lastWeekTotal > 0 ? ((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100 : 0;
+    return { thisWeekTotal, lastWeekTotal, thisWeekCount: thisWeek.length, lastWeekCount: lastWeek.length, change };
+  }, [transfers]);
+
+  // Overall stats
+  const overallStats = useMemo(() => {
+    const totalCredits = ledger.filter((r) => r.direction === 'credit').reduce((s, r) => s + Number(r.amount_ngn), 0);
+    const totalDebits = ledger.filter((r) => r.direction === 'debit').reduce((s, r) => s + Number(r.amount_ngn), 0);
+    const successTransfers = transfers.filter((t) => t.status === 'success');
+    const avgTransfer = successTransfers.length > 0 ? successTransfers.reduce((s, t) => s + Number(t.amount_ngn), 0) / successTransfers.length : 0;
+    const successRate = transfers.length > 0 ? (successTransfers.length / transfers.length) * 100 : 0;
+    return { totalCredits, totalDebits, balance: totalCredits - totalDebits, avgTransfer, successRate, totalTransfers: transfers.length };
+  }, [transfers, ledger]);
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Financial Analytics</h3>
+        <Button variant="outline" size="sm" onClick={() => void load()}>
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
+        </Button>
+      </div>
+
+      {/* Overview metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Total inflow</p>
+            <p className="text-lg font-bold tabular-nums text-green-600">{formatNaira(overallStats.totalCredits)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Total outflow</p>
+            <p className="text-lg font-bold tabular-nums text-red-500">{formatNaira(overallStats.totalDebits)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Avg transfer size</p>
+            <p className="text-lg font-bold tabular-nums">{formatNaira(overallStats.avgTransfer)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Success rate</p>
+            <p className="text-lg font-bold tabular-nums">{overallStats.successRate.toFixed(0)}%</p>
+            <p className="text-2xs text-muted-foreground">{overallStats.totalTransfers} total transfers</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Week-over-week */}
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Week over week</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">This week</p>
+              <p className="text-xl font-bold tabular-nums">{formatNaira(weekComparison.thisWeekTotal)}</p>
+              <p className="text-xs text-muted-foreground">{weekComparison.thisWeekCount} transfers</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Last week</p>
+              <p className="text-xl font-bold tabular-nums text-muted-foreground">{formatNaira(weekComparison.lastWeekTotal)}</p>
+              <p className="text-xs text-muted-foreground">{weekComparison.lastWeekCount} transfers</p>
+            </div>
+          </div>
+          {weekComparison.lastWeekTotal > 0 && (
+            <div className="mt-3 pt-3 border-t">
+              <div className="flex items-center gap-2">
+                {weekComparison.change > 0 ? (
+                  <TrendingUp className="h-4 w-4 text-red-400" />
+                ) : weekComparison.change < 0 ? (
+                  <TrendingDown className="h-4 w-4 text-green-500" />
+                ) : null}
+                <span className={`text-sm font-medium ${weekComparison.change > 0 ? 'text-red-400' : weekComparison.change < 0 ? 'text-green-500' : ''}`}>
+                  {weekComparison.change > 0 ? '+' : ''}{weekComparison.change.toFixed(1)}% vs last week
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Monthly cash flow chart */}
+      {monthlyCashFlow.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Monthly cash flow</h4>
+            <div className="space-y-3">
+              {monthlyCashFlow.map((m) => {
+                const maxVal = Math.max(...monthlyCashFlow.flatMap((x) => [x.credits, x.debits]), 1);
+                return (
+                  <div key={m.month} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium w-16">{m.label}</span>
+                      <div className="flex gap-3">
+                        <span className="text-green-500 tabular-nums">+{formatNaira(m.credits)}</span>
+                        <span className="text-red-400 tabular-nums">−{formatNaira(m.debits)}</span>
+                        <span className={`font-medium tabular-nums ${m.net >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {m.net >= 0 ? '+' : ''}{formatNaira(m.net)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 h-2">
+                      <div className="rounded-full bg-green-500/70" style={{ width: `${(m.credits / maxVal) * 100}%` }} />
+                      <div className="rounded-full bg-red-400/70" style={{ width: `${(m.debits / maxVal) * 100}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-3 pt-2 border-t text-2xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500/70" /> Inflow</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400/70" /> Outflow</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Category breakdown */}
+        {categoryBreakdown.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Spend by category (all time)</h4>
+              <div className="space-y-2.5">
+                {categoryBreakdown.map((cat) => (
+                  <div key={cat.category} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{cat.label}</span>
+                      <div className="text-right">
+                        <span className="text-muted-foreground tabular-nums">{formatNaira(cat.amount)}</span>
+                        <span className="text-2xs text-muted-foreground ml-1.5">({cat.pct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${cat.pct}%`, backgroundColor: accentColor, opacity: 0.8 }} />
+                    </div>
+                    <p className="text-2xs text-muted-foreground">{cat.count} transaction{cat.count === 1 ? '' : 's'}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top recipients */}
+        {topRecipients.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Top recipients</h4>
+              <div className="space-y-3">
+                {topRecipients.map((r, i) => (
+                  <div key={r.name} className="flex items-center gap-3">
+                    <span className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0" style={{ backgroundColor: accentColor, opacity: 1 - i * 0.12 }}>
+                      {r.name.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.name}</p>
+                      <p className="text-2xs text-muted-foreground">{r.bankName} · {r.count} transfers</p>
+                    </div>
+                    <span className="text-sm font-medium tabular-nums shrink-0">{formatNaira(r.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {transfers.length === 0 && ledger.length === 0 && (
+        <EmptyState
+          icon={TrendingUp}
+          title="No financial data yet"
+          description="Send transfers and record ledger entries to see analytics here."
+          compact
+        />
+      )}
+    </div>
   );
 }
 
