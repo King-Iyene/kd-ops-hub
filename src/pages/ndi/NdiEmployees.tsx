@@ -22,10 +22,11 @@ interface PayGroupRow {
 
 interface EmployeeRow {
   id: string;
-  first_name: string;
-  last_name: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
-  job_title: string | null;
+  role: string | null;
   department: { name: string } | null;
   status: string;
   pay_group: { name: string } | null;
@@ -60,7 +61,7 @@ export default function NdiEmployees() {
       if (pgIds.length > 0) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, email, job_title, department:departments(name), status, pay_group:pay_groups(name), pay_group_id')
+          .select('id, full_name, first_name, last_name, email, role, department:departments!department_id(name), status, pay_group:pay_groups!profiles_pay_group_id_fkey(name), pay_group_id')
           .in('pay_group_id', pgIds)
           .order('first_name');
         emps = (data ?? []) as unknown as EmployeeRow[];
@@ -85,10 +86,12 @@ export default function NdiEmployees() {
     if (filterPg) list = list.filter((e) => e.pay_group_id === filterPg);
     if (!search.trim()) return list;
     const q = search.toLowerCase();
+    const displayName = (emp: EmployeeRow) =>
+      emp.full_name || `${emp.first_name ?? ''} ${emp.last_name ?? ''}`.trim();
     return list.filter((e) =>
-      `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) ||
+      displayName(e).toLowerCase().includes(q) ||
       (e.email ?? '').toLowerCase().includes(q) ||
-      (e.job_title ?? '').toLowerCase().includes(q)
+      (e.role ?? '').toLowerCase().includes(q)
     );
   }, [employees, search, filterPg]);
 
@@ -237,11 +240,11 @@ export default function NdiEmployees() {
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">{e.first_name} {e.last_name}</p>
+                            <p className="font-medium">{e.full_name || `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || 'Unnamed'}</p>
                             <Badge variant={e.status === 'active' ? 'default' : 'secondary'} className="text-2xs">{e.status}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {e.job_title || 'No title'}
+                            {e.role || 'No role'}
                             {e.department ? ` · ${(e.department as any).name}` : ''}
                             {e.pay_group ? ` · ${(e.pay_group as any).name}` : ''}
                           </p>
