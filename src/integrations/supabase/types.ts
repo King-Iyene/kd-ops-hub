@@ -2199,6 +2199,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "compliance_filings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "compliance_filings_filed_by_fkey"
             columns: ["filed_by"]
             isOneToOne: false
@@ -7183,6 +7190,235 @@ export type Database = {
         }
         Relationships: []
       }
+      ndi_beneficiaries: {
+        Row: {
+          account_number: string
+          bank_code: string | null
+          bank_name: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          paystack_recipient_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_number: string
+          bank_code?: string | null
+          bank_name: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          paystack_recipient_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string
+          bank_code?: string | null
+          bank_name?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          paystack_recipient_code?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndi_beneficiaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndi_beneficiaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      ndi_dedicated_account: {
+        Row: {
+          account_name: string | null
+          account_number: string
+          bank_name: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          paystack_customer_code: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number: string
+          bank_name: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          paystack_customer_code: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string
+          bank_name?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          paystack_customer_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndi_dedicated_account_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndi_dedicated_account_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      ndi_transfers: {
+        Row: {
+          amount_ngn: number
+          beneficiary_id: string | null
+          category: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          narration: string | null
+          paystack_reference: string | null
+          paystack_transfer_code: string | null
+          status: string
+        }
+        Insert: {
+          amount_ngn: number
+          beneficiary_id?: string | null
+          category: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          narration?: string | null
+          paystack_reference?: string | null
+          paystack_transfer_code?: string | null
+          status?: string
+        }
+        Update: {
+          amount_ngn?: number
+          beneficiary_id?: string | null
+          category?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          narration?: string | null
+          paystack_reference?: string | null
+          paystack_transfer_code?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndi_transfers_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "ndi_beneficiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndi_transfers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndi_transfers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      ndi_wallet_ledger: {
+        Row: {
+          amount_ngn: number
+          category: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          direction: string
+          id: string
+          reference: string | null
+        }
+        Insert: {
+          amount_ngn: number
+          category: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          direction: string
+          id?: string
+          reference?: string | null
+        }
+        Update: {
+          amount_ngn?: number
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          direction?: string
+          id?: string
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndi_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndi_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           digest_frequency: string
@@ -7619,6 +7855,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "pay_groups_created_by_fkey"
@@ -8143,6 +8386,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "payment_batches_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -8545,6 +8795,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "payroll_runs_created_by_fkey"
@@ -9155,6 +9412,7 @@ export type Database = {
           account_number: string
           bank_code: string
           bank_name: string | null
+          company_id: string | null
           created_at: string
           id: string
           label: string
@@ -9166,6 +9424,7 @@ export type Database = {
           account_number: string
           bank_code: string
           bank_name?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           label: string
@@ -9177,6 +9436,7 @@ export type Database = {
           account_number?: string
           bank_code?: string
           bank_name?: string | null
+          company_id?: string | null
           created_at?: string
           id?: string
           label?: string
@@ -9184,6 +9444,20 @@ export type Database = {
           paystack_recipient_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "personal_transfer_beneficiaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_beneficiaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "personal_transfer_beneficiaries_owner_id_fkey"
             columns: ["owner_id"]
@@ -9370,6 +9644,7 @@ export type Database = {
           amount_ngn: number
           batch_label: string | null
           beneficiary_id: string | null
+          company_id: string | null
           created_at: string
           failure_reason: string | null
           id: string
@@ -9391,6 +9666,7 @@ export type Database = {
           amount_ngn: number
           batch_label?: string | null
           beneficiary_id?: string | null
+          company_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
@@ -9412,6 +9688,7 @@ export type Database = {
           amount_ngn?: number
           batch_label?: string | null
           beneficiary_id?: string | null
+          company_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
@@ -9436,6 +9713,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "personal_transfer_beneficiaries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "personal_transfers_initiated_by_fkey"
@@ -9929,6 +10220,7 @@ export type Database = {
           account_name: string | null
           account_number: string
           bank_name: string
+          company_id: string
           created_at: string
           created_by: string | null
           currency: string
@@ -9939,6 +10231,7 @@ export type Database = {
           account_name?: string | null
           account_number: string
           bank_name: string
+          company_id: string
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -9949,6 +10242,7 @@ export type Database = {
           account_name?: string | null
           account_number?: string
           bank_name?: string
+          company_id?: string
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -9956,6 +10250,20 @@ export type Database = {
           paystack_customer_code?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "principal_wallet_dva_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_dva_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "principal_wallet_dva_created_by_fkey"
             columns: ["created_by"]
@@ -9989,6 +10297,7 @@ export type Database = {
       principal_wallet_ledger: {
         Row: {
           amount_ngn: number
+          company_id: string
           created_at: string
           created_by: string | null
           direction: string
@@ -10001,6 +10310,7 @@ export type Database = {
         }
         Insert: {
           amount_ngn: number
+          company_id: string
           created_at?: string
           created_by?: string | null
           direction: string
@@ -10013,6 +10323,7 @@ export type Database = {
         }
         Update: {
           amount_ngn?: number
+          company_id?: string
           created_at?: string
           created_by?: string | null
           direction?: string
@@ -10024,6 +10335,20 @@ export type Database = {
           source?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "principal_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "principal_wallet_ledger_created_by_fkey"
             columns: ["created_by"]
@@ -13791,6 +14116,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tax_remittances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "tax_remittances_confirmed_by_fkey"
             columns: ["confirmed_by"]
             isOneToOne: false
@@ -15507,6 +15839,23 @@ export type Database = {
       }
     }
     Views: {
+      company_wallet_summary: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          bank_name: string | null
+          color: string | null
+          company_id: string | null
+          company_name: string | null
+          entry_count: number | null
+          paystack_customer_code: string | null
+          short_code: string | null
+          total_credits: number | null
+          total_debits: number | null
+          wallet_balance: number | null
+        }
+        Relationships: []
+      }
       leave_calendar_v: {
         Row: {
           days_requested: number | null
@@ -16476,7 +16825,11 @@ export type Database = {
         Returns: string
       }
       credit_back_principal_wallet: {
-        Args: { p_amount_ngn: number; p_reference: string }
+        Args: {
+          p_amount_ngn: number
+          p_company_id?: string
+          p_reference: string
+        }
         Returns: Json
       }
       credit_principal_wallet:
@@ -16506,6 +16859,7 @@ export type Database = {
       debit_principal_wallet: {
         Args: {
           p_amount_ngn: number
+          p_company_id?: string
           p_reference: string
           p_related_batch_item_id: string
           p_related_personal_transfer_id: string
@@ -17063,7 +17417,10 @@ export type Database = {
           total_amount: number
         }[]
       }
-      principal_wallet_balance: { Args: never; Returns: number }
+      principal_wallet_balance: {
+        Args: { p_company_id?: string }
+        Returns: number
+      }
       process_flutterwave_webhook: {
         Args: {
           p_event: string
