@@ -23,7 +23,7 @@ import { useCompanies } from '@/queries';
 import { formatNaira, formatDateTime } from '@/lib/format';
 import {
   fetchNdiAccount, createNdiAccount, deleteNdiAccount,
-  fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv,
+  fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv, reconcileNdiDva, fetchPaystackBalance,
   fetchNdiBeneficiaries, createNdiBeneficiary, updateNdiBeneficiary, deactivateNdiBeneficiary,
   fetchAllNdiTransfers, exportNdiTransfersCsv,
   generateNdiGrantReport,
@@ -127,6 +127,8 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
   const [showHistory, setShowHistory] = useState(false);
   const [ledger, setLedger] = useState<NdiLedgerRow[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [paystackBal, setPaystackBal] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -204,6 +206,9 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Wallet balance</p>
                   <p className="text-2xl font-bold" style={{ color: accentColor }}>{formatNaira(balance ?? 0)}</p>
+                  {paystackBal !== null && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Paystack integration: {formatNaira(paystackBal)}</p>
+                  )}
                 </div>
               </div>
 
@@ -213,6 +218,28 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => void load()}>
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
+                </Button>
+                <Button variant="outline" size="sm" disabled={syncing} onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    const res = await reconcileNdiDva(companyId);
+                    setPaystackBal(res.paystack_balance_ngn);
+                    if (res.newly_inserted > 0) {
+                      toast({ title: `Synced ${res.newly_inserted} missed deposit(s) from Paystack` });
+                      void load();
+                      setLedger([]);
+                      setShowHistory(false);
+                    } else {
+                      toast({ title: 'Ledger is up to date — no missing deposits found' });
+                    }
+                  } catch (err) {
+                    toast({ title: 'Sync failed', description: errorMessage(err), variant: 'destructive' });
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}>
+                  {syncing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
+                  Sync with Paystack
                 </Button>
                 <Button variant="outline" size="sm" onClick={async () => {
                   try {

@@ -138,6 +138,27 @@ export async function fetchNdiBalance(companyId: string): Promise<number> {
   ), 0);
 }
 
+export async function reconcileNdiDva(companyId: string): Promise<{
+  transactions_found: number;
+  already_recorded: number;
+  newly_inserted: number;
+  paystack_balance_ngn: number;
+}> {
+  const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+    body: { action: 'reconcile_ndi_dva', company_id: companyId },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchPaystackBalance(): Promise<number> {
+  const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+    body: { action: 'get_balance' },
+  });
+  if (error) throw error;
+  return data?.available ?? 0;
+}
+
 export async function checkNdiCanCover(
   totalNgn: number,
   companyId: string,

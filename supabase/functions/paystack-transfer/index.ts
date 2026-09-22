@@ -41,6 +41,7 @@ const PRIVILEGED_ACTIONS = new Set([
   "bulk_transfer",
   "verify_transfer",
   "get_balance",
+  "reconcile_ndi_dva",
 ]);
 
 const PRIVILEGED_ROLES = new Set(["super_admin", "admin", "finance"]);
@@ -824,6 +825,67 @@ Deno.serve(async (req) => {
         result = {
           available: (ngnBalance?.balance ?? 0) / 100,
           currency: 'NGN',
+        };
+        break;
+      }
+
+      case "reconcile_ndi_dva": {
+        const companyId = params.company_id as string;
+        if (!companyId) throw new Error("company_id required");
+
+        // Get NDI's customer code
+        const { data: ndiAcct, error: acctErr } = await supabase
+          .from("ndi_dedicated_account")
+          .select("paystack_customer_code, account_number")
+          .eq("company_id", companyId)
+          .maybeSingle();
+        if (acctErr || !ndiAcct) throw new Error("NDI account not found");
+
+        // Fetch customer transactions from Paystack
+        const txBody = await paystackFetch(
+          `/transaction?customer=${encodeURIComponent(ndiAcct.paystack_customer_code)}&status=success&perPage=100`
+        );
+        const transactions = Array.isArray(txBody.data) ? txBody.data : [];
+
+        // Get existing ledger references for idempotency
+        const { data: existingRefs } = await supabase
+          .from("ndi_wallet_ledger")
+          .select("reference")
+          .eq("company_id", companyId)
+          .eq("direction", "credit");
+        const refSet = new Set((existingRefs ?? []).map((r: any) => r.reference));
+
+        // Insert missing DVA credits
+        let inserted = 0;
+        for (const tx of transactions) {
+          const ref = tx.reference as string;
+          const amountNgn = Number(tx.amount || 0) / 100;
+          if (!ref || amountNgn <= 0 || refSet.has(ref)) continue;
+
+          const { error: insErr } = await supabase
+            .from("ndi_wallet_ledger")
+            .insert({
+              company_id: companyId,
+              direction: "credit",
+              amount_ngn: amountNgn,
+              category: "dva_funding",
+              description: `DVA funding (reconciled) — ${ndiAcct.account_number}`,
+              reference: ref,
+            });
+          if (!insErr) inserted++;
+        }
+
+        // Also get Paystack integration balance for comparison
+        const balBody = await paystackFetch('/balance');
+        const ngnBal = Array.isArray(balBody.data)
+          ? balBody.data.find((b: any) => b.currency === 'NGN')
+          : balBody.data;
+
+        result = {
+          transactions_found: transactions.length,
+          already_recorded: refSet.size,
+          newly_inserted: inserted,
+          paystack_balance_ngn: (ngnBal?.balance ?? 0) / 100,
         };
         break;
       }
