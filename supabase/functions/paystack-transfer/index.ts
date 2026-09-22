@@ -832,37 +832,41 @@ Deno.serve(async (req) => {
       case "reconcile_ndi_dva": {
         const companyId = params.company_id as string;
         if (!companyId) throw new Error("company_id required");
+        console.info("[reconcile_ndi_dva] starting for company:", companyId);
 
-        // Get NDI's customer code
-        const { data: ndiAcct, error: acctErr } = await supabase
+        // Use service client to bypass RLS for reads and inserts
+        const svc = serviceClient;
+
+        const { data: ndiAcct, error: acctErr } = await svc
           .from("ndi_dedicated_account")
           .select("paystack_customer_code, account_number")
           .eq("company_id", companyId)
           .maybeSingle();
-        if (acctErr || !ndiAcct) throw new Error("NDI account not found");
+        if (acctErr || !ndiAcct) throw new Error(`NDI account not found: ${acctErr?.message ?? "no row"}`);
+        console.info("[reconcile_ndi_dva] account found:", ndiAcct.paystack_customer_code, ndiAcct.account_number);
 
         // Fetch customer transactions from Paystack
         const txBody = await paystackFetch(
           `/transaction?customer=${encodeURIComponent(ndiAcct.paystack_customer_code)}&status=success&perPage=100`
         );
         const transactions = Array.isArray(txBody.data) ? txBody.data : [];
+        console.info("[reconcile_ndi_dva] found", transactions.length, "transactions from Paystack");
 
         // Get existing ledger references for idempotency
-        const { data: existingRefs } = await supabase
+        const { data: existingRefs } = await svc
           .from("ndi_wallet_ledger")
           .select("reference")
           .eq("company_id", companyId)
           .eq("direction", "credit");
         const refSet = new Set((existingRefs ?? []).map((r: any) => r.reference));
 
-        // Insert missing DVA credits
         let inserted = 0;
         for (const tx of transactions) {
           const ref = tx.reference as string;
           const amountNgn = Number(tx.amount || 0) / 100;
           if (!ref || amountNgn <= 0 || refSet.has(ref)) continue;
 
-          const { error: insErr } = await supabase
+          const { error: insErr } = await svc
             .from("ndi_wallet_ledger")
             .insert({
               company_id: companyId,
@@ -872,7 +876,11 @@ Deno.serve(async (req) => {
               description: `DVA funding (reconciled) — ${ndiAcct.account_number}`,
               reference: ref,
             });
-          if (!insErr) inserted++;
+          if (insErr) {
+            console.error("[reconcile] insert failed:", insErr.message, ref);
+          } else {
+            inserted++;
+          }
         }
 
         // Also get Paystack integration balance for comparison
