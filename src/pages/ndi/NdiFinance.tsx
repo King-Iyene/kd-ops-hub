@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuthStore } from '@/store/authStore';
-import { AuroraHero } from '@/components/AuroraHero';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
@@ -73,26 +72,34 @@ export default function NdiFinance() {
   const accentColor = ndi.color || '#E84D1A';
 
   return (
-    <div className="space-y-4">
-      <AuroraHero className="p-5 sm:p-6" pattern="nest" patternColor={accentColor}>
-        <PageHeader
-          className="mb-0"
-          title="NDI Finance"
-          description="Dedicated account, wallet ledger, disbursements, and financial reporting — fully isolated from KD Squares."
-          icon={Wallet}
-          badge={<Badge variant="outline" style={{ borderColor: accentColor, color: accentColor }}>NDI</Badge>}
-        />
-      </AuroraHero>
+    <div className="space-y-5">
+      {/* ── Corporate header ─────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ background: `${accentColor}18` }}>
+            <Building2 className="h-5 w-5" style={{ color: accentColor }} />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+              NDI Finance
+              <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wider" style={{ borderColor: accentColor, color: accentColor }}>Corporate</Badge>
+            </h1>
+            <p className="text-xs text-muted-foreground">Niger Delta Innovate — Dedicated corporate account</p>
+          </div>
+        </div>
+      </div>
 
+      {/* ── Balance + Account card ──────────────────────────────── */}
       <WalletPanel companyId={ndi.id} accentColor={accentColor} profile={profile} toast={toast} />
 
+      {/* ── Tabs ────────────────────────────────────────────────── */}
       <Tabs defaultValue="transfers" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="transfers">Transfers</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="beneficiaries">Beneficiaries</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger</TabsTrigger>
-          <TabsTrigger value="grant-report">Grant Report</TabsTrigger>
+        <TabsList className="h-9 bg-muted/50 p-0.5">
+          <TabsTrigger value="transfers" className="text-xs">Transfers</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs">Analytics</TabsTrigger>
+          <TabsTrigger value="beneficiaries" className="text-xs">Beneficiaries</TabsTrigger>
+          <TabsTrigger value="ledger" className="text-xs">Ledger</TabsTrigger>
+          <TabsTrigger value="grant-report" className="text-xs">Grant Report</TabsTrigger>
         </TabsList>
         <TabsContent value="transfers">
           <TransfersSection companyId={ndi.id} accentColor={accentColor} profile={profile} toast={toast} />
@@ -176,110 +183,110 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
 
   return (
     <>
-      <Card className="rounded-xl overflow-hidden">
-        <div className="h-1" style={{ background: `linear-gradient(90deg, ${accentColor}, ${accentColor}88)` }} />
-        <CardContent className="p-4 space-y-3">
-          {!account ? (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                No dedicated account linked for NDI.
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Link dedicated account
-              </Button>
+      {!account ? (
+        <Card className="rounded-xl border-dashed">
+          <CardContent className="p-6 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              No dedicated account linked. Set up a virtual bank account to receive funds.
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: accentColor }} aria-hidden />
-                    NDI Dedicated Account
-                  </div>
-                  <p className="text-sm font-medium mt-0.5">{account.bank_name} · {account.account_number}</p>
-                  {account.account_name && <p className="text-xs text-muted-foreground">{account.account_name}</p>}
-                  {account.paystack_customer_code && (
-                    <p className="text-xs text-muted-foreground font-mono">{account.paystack_customer_code}</p>
+            <Button size="sm" onClick={() => setAddOpen(true)} style={{ backgroundColor: accentColor }}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Link Account
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* ── Balance card (2/3 width) ──────────────────────────── */}
+          <Card className="lg:col-span-2 rounded-xl overflow-hidden">
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Available Balance</p>
+                  <p className="text-3xl sm:text-4xl font-bold tracking-tight" style={{ color: accentColor }}>
+                    {formatNaira(balance ?? 0)}
+                  </p>
+                  {paystackBal !== null && (
+                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                      Paystack: {formatNaira(paystackBal)}
+                    </p>
                   )}
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Wallet balance</p>
-                  <p className="text-2xl font-bold" style={{ color: accentColor }}>{formatNaira(balance ?? 0)}</p>
-                  {paystackBal !== null && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Paystack integration: {formatNaira(paystackBal)}</p>
-                  )}
+                <div className="flex items-center gap-1.5">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => void load()} title="Refresh balance">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={syncing} title="Sync with Paystack" onClick={async () => {
+                    setSyncing(true);
+                    try {
+                      const res = await reconcileNdiDva(companyId);
+                      setPaystackBal(res.paystack_balance_ngn);
+                      if (res.newly_inserted > 0) {
+                        toast({ title: `Synced ${res.newly_inserted} missed deposit(s)` });
+                        void load();
+                        setLedger([]);
+                        setShowHistory(false);
+                      } else {
+                        toast({ title: 'Balance is up to date' });
+                      }
+                    } catch (err) {
+                      toast({ title: 'Sync failed', description: errorMessage(err), variant: 'destructive' });
+                    } finally {
+                      setSyncing(false);
+                    }
+                  }}>
+                    {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowDownLeft className="h-3.5 w-3.5" />}
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={toggleHistory}>
-                  <History className="mr-1.5 h-3.5 w-3.5" /> {showHistory ? 'Hide history' : 'Funding history'}
+              {/* Quick actions row */}
+              <div className="flex items-center gap-2 flex-wrap border-t pt-4">
+                <Button variant="outline" size="sm" className="text-xs" onClick={toggleHistory}>
+                  <History className="mr-1 h-3 w-3" /> {showHistory ? 'Hide' : 'Activity'}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => void load()}>
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
-                </Button>
-                <Button variant="outline" size="sm" disabled={syncing} onClick={async () => {
-                  setSyncing(true);
-                  try {
-                    const res = await reconcileNdiDva(companyId);
-                    setPaystackBal(res.paystack_balance_ngn);
-                    if (res.newly_inserted > 0) {
-                      toast({ title: `Synced ${res.newly_inserted} missed deposit(s) from Paystack` });
-                      void load();
-                      setLedger([]);
-                      setShowHistory(false);
-                    } else {
-                      toast({ title: 'Ledger is up to date — no missing deposits found' });
-                    }
-                  } catch (err) {
-                    toast({ title: 'Sync failed', description: errorMessage(err), variant: 'destructive' });
-                  } finally {
-                    setSyncing(false);
-                  }
-                }}>
-                  {syncing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-                  Sync with Paystack
-                </Button>
-                <Button variant="outline" size="sm" onClick={async () => {
+                <Button variant="outline" size="sm" className="text-xs" onClick={async () => {
                   try {
                     const csv = await exportNdiLedgerCsv(companyId);
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `ndi-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.download = `ndi-statement-${new Date().toISOString().slice(0, 10)}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
                   } catch (err) {
                     toast({ title: 'Export failed', description: errorMessage(err), variant: 'destructive' });
                   }
                 }}>
-                  <Download className="mr-1.5 h-3.5 w-3.5" /> Export Ledger
-                </Button>
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmRemove(true)}>
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove account
+                  <Download className="mr-1 h-3 w-3" /> Statement
                 </Button>
               </div>
 
+              {/* Activity feed (funding history) */}
               {showHistory && (
-                <div className="border-t pt-3 mt-2 space-y-1.5">
+                <div className="border-t mt-4 pt-3 space-y-1">
                   {ledgerLoading ? (
                     <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                   ) : ledger.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-2">No ledger entries yet.</p>
+                    <p className="text-xs text-muted-foreground text-center py-3">No activity yet</p>
                   ) : (
                     ledger.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between text-xs py-1">
+                      <div key={r.id} className="flex items-center justify-between text-xs py-1.5 group">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`font-medium ${r.direction === 'credit' ? 'text-green-500' : 'text-red-400'}`}>
-                            {r.direction === 'credit' ? 'IN' : 'OUT'}
-                          </span>
+                          <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            r.direction === 'credit' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400'
+                          }`}>
+                            {r.direction === 'credit' ? '↓' : '↑'}
+                          </div>
                           <span className="text-muted-foreground truncate">{r.description || ndiCategoryLabel(r.category)}</span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}</span>
-                          <span className={`font-medium tabular-nums ${r.direction === 'credit' ? 'text-green-500' : 'text-red-400'}`}>
+                          <span className="text-muted-foreground text-[10px]">
+                            {new Date(r.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+                          </span>
+                          <span className={`font-medium tabular-nums ${r.direction === 'credit' ? 'text-emerald-500' : 'text-red-400'}`}>
                             {r.direction === 'credit' ? '+' : '−'}{formatNaira(r.amount_ngn)}
                           </span>
                         </div>
@@ -288,10 +295,53 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                   )}
                 </div>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* ── Account info card (1/3 width) ────────────────────── */}
+          <Card className="rounded-xl">
+            <CardContent className="p-5 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Receiving Account</p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Bank</p>
+                    <p className="text-sm font-medium">{account.bank_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Account Number</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-mono font-medium tracking-wide">{account.account_number}</p>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
+                        navigator.clipboard.writeText(account.account_number);
+                        toast({ title: 'Copied to clipboard' });
+                      }}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  {account.account_name && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Account Name</p>
+                      <p className="text-sm font-medium">{account.account_name}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Customer Code</p>
+                    <p className="text-xs font-mono text-muted-foreground">{account.paystack_customer_code}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive w-full justify-start" onClick={() => setConfirmRemove(true)}>
+                  <Trash2 className="mr-1.5 h-3 w-3" /> Remove account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <LinkAccountDialog open={addOpen} onOpenChange={setAddOpen} companyId={companyId} profile={profile} toast={toast} onLinked={load} />
 
@@ -544,19 +594,33 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
 
   return (
     <div className="space-y-4">
-      {/* Summary stat cards */}
+      {/* Summary stat cards — minimal Mercury-style */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Wallet className="h-3.5 w-3.5" /> Available balance
-            </div>
-            <p className={`text-xl font-semibold font-mono tabular-nums ${balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatNaira(balance)}</p>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Available</p>
+            <p className={`text-lg font-bold tabular-nums ${balance >= 0 ? '' : 'text-red-500'}`}>{formatNaira(balance)}</p>
           </CardContent>
         </Card>
-        <StatCard icon={ArrowUpRight} label="Sent this month" value={formatNaira(stats.sentThisMonth)} />
-        <StatCard icon={Clock} label="Pending" value={`${stats.pendingCount} · ${formatNaira(stats.pendingAmount)}`} color="text-amber-500" />
-        <StatCard icon={TrendingUp} label="This month" value={`${transfers.filter((t) => new Date(t.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length} transfers`} subValue={stats.failedThisMonth > 0 ? `${stats.failedThisMonth} failed` : undefined} />
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Sent this month</p>
+            <p className="text-lg font-bold tabular-nums">{formatNaira(stats.sentThisMonth)}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Pending</p>
+            <p className="text-lg font-bold tabular-nums text-amber-500">{stats.pendingCount} <span className="text-xs font-normal text-muted-foreground">· {formatNaira(stats.pendingAmount)}</span></p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">This month</p>
+            <p className="text-lg font-bold tabular-nums">{transfers.filter((t) => new Date(t.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length} <span className="text-xs font-normal text-muted-foreground">transfers</span></p>
+            {stats.failedThisMonth > 0 && <p className="text-[10px] text-red-400 mt-0.5">{stats.failedThisMonth} failed</p>}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Actions bar */}
@@ -685,63 +749,90 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
         </Select>
       </div>
 
-      {/* Transfer list */}
+      {/* Transfer list — date-grouped */}
       {filteredTransfers.length === 0 ? (
         <EmptyState icon={Send} title="No transfers" description={search || statusFilter !== 'all' ? 'No transfers match your filters.' : 'Send your first NDI transfer to see it here.'} compact />
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {visibleTransfers.map((t) => {
-                const b = t.beneficiary_id ? bMap.get(t.beneficiary_id) : null;
-                return (
-                  <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/30 transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{b?.name ?? t.description ?? 'Manual transfer'}</p>
-                        <StatusBadge status={t.status} />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ndiCategoryLabel(t.category)} · {formatDateTime(t.created_at)}
-                        {t.paystack_reference && (
-                          <> · <span className="font-mono">{t.paystack_reference.slice(0, 16)}…</span></>
-                        )}
-                      </p>
-                      {t.description && b && <p className="text-xs text-muted-foreground truncate">{t.description}</p>}
+      ) : (() => {
+        const grouped = new Map<string, typeof visibleTransfers>();
+        for (const t of visibleTransfers) {
+          const d = new Date(t.created_at);
+          const today = new Date();
+          const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+          let label: string;
+          if (d.toDateString() === today.toDateString()) label = 'Today';
+          else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday';
+          else label = d.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+          const arr = grouped.get(label) ?? [];
+          arr.push(t);
+          grouped.set(label, arr);
+        }
+        return (
+          <div className="space-y-1">
+            {Array.from(grouped.entries()).map(([dateLabel, rows]) => (
+              <div key={dateLabel}>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1 py-2">{dateLabel}</p>
+                <Card className="rounded-xl overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border/50">
+                      {rows.map((t) => {
+                        const b = t.beneficiary_id ? bMap.get(t.beneficiary_id) : null;
+                        const name = b?.name ?? t.description ?? 'Transfer';
+                        const initial = name.charAt(0).toUpperCase();
+                        const statusColors: Record<string, string> = {
+                          success: 'bg-emerald-500/10 text-emerald-500',
+                          pending: 'bg-amber-500/10 text-amber-500',
+                          processing: 'bg-blue-500/10 text-blue-500',
+                          failed: 'bg-red-500/10 text-red-400',
+                          reversed: 'bg-gray-500/10 text-gray-400',
+                        };
+                        return (
+                          <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setReceiptRow(t)}>
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ backgroundColor: `${accentColor}15`, color: accentColor }}>
+                              {initial}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">{name}</p>
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[t.status] ?? 'bg-muted text-muted-foreground'}`}>
+                                  {t.status}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {ndiCategoryLabel(t.category)}
+                                <span className="mx-1.5 opacity-30">·</span>
+                                {new Date(t.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0 flex items-center gap-2">
+                              <span className="text-sm font-medium tabular-nums text-red-400">−{formatNaira(t.amount_ngn)}</span>
+                              {(t.status === 'pending' || t.status === 'processing') && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Check status" onClick={(e) => { e.stopPropagation(); verifyStatus(t); }} disabled={verifyingId === t.id}>
+                                  {verifyingId === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-medium text-red-500 tabular-nums">−{formatNaira(t.amount_ngn)}</span>
-                      <div className="flex gap-1">
-                        {(t.status === 'pending' || t.status === 'processing') && (
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Check status" onClick={() => verifyStatus(t)} disabled={verifyingId === t.id}>
-                            {verifyingId === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View receipt" onClick={() => setReceiptRow(t)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
             {filteredTransfers.length > visibleCount && (
-              <div className="p-3 text-center border-t">
-                <Button variant="ghost" size="sm" onClick={() => setVisibleCount((c) => c + 50)}>
-                  Show more ({filteredTransfers.length - visibleCount} remaining) <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+              <div className="text-center pt-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setVisibleCount((c) => c + 50)}>
+                  Show more ({filteredTransfers.length - visibleCount} remaining) <ChevronDown className="ml-1 h-3 w-3" />
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Transfer count */}
-      <p className="text-xs text-muted-foreground text-center">
-        Showing {Math.min(visibleCount, filteredTransfers.length)} of {filteredTransfers.length} transfers
-        {filteredTransfers.length !== transfers.length && ` (${transfers.length} total)`}
-      </p>
+            <p className="text-[10px] text-muted-foreground text-center pt-1">
+              {Math.min(visibleCount, filteredTransfers.length)} of {filteredTransfers.length} transfers
+              {filteredTransfers.length !== transfers.length && ` (${transfers.length} total)`}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Dialogs */}
       <SendTransferDialog open={sendOpen} onOpenChange={setSendOpen} companyId={companyId} beneficiaries={beneficiaries} profile={profile} toast={toast} onSent={load} />
@@ -751,19 +842,6 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, subValue }: { icon: any; label: string; value: string; color?: string; subValue?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-          <Icon className="h-3.5 w-3.5" /> {label}
-        </div>
-        <p className={`text-sm font-bold tabular-nums ${color ?? ''}`}>{value}</p>
-        {subValue && <p className="text-2xs text-red-400 mt-0.5">{subValue}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
