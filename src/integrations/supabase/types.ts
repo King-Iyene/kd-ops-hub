@@ -7308,8 +7308,10 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          failure_reason: string | null
           id: string
           narration: string | null
+          paystack_recipient_code: string | null
           paystack_reference: string | null
           paystack_transfer_code: string | null
           status: string
@@ -7323,8 +7325,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          failure_reason?: string | null
           id?: string
           narration?: string | null
+          paystack_recipient_code?: string | null
           paystack_reference?: string | null
           paystack_transfer_code?: string | null
           status?: string
@@ -7338,8 +7342,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          failure_reason?: string | null
           id?: string
           narration?: string | null
+          paystack_recipient_code?: string | null
           paystack_reference?: string | null
           paystack_transfer_code?: string | null
           status?: string
