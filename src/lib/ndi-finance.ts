@@ -445,6 +445,19 @@ export async function executeNdiTransfer(input: {
         .eq('id', transfer.id);
     }
 
+    // Auto-record debit in the wallet ledger so balance stays accurate
+    if (mappedStatus !== 'failed') {
+      await insertNdiLedgerEntry({
+        companyId: input.companyId,
+        direction: 'debit',
+        amountNgn: totalChargeFor(input.amountNgn),
+        category: input.category,
+        description: `Transfer to ${input.narration || input.description || 'beneficiary'} (${ref})`,
+        reference: ref,
+        createdBy: input.createdBy,
+      }).catch(() => { /* non-critical — ledger miss won't block transfer */ });
+    }
+
     return { transfer: { ...transfer, paystack_reference: ref, status: mappedStatus }, paystackRef: ref, status: mappedStatus };
   } catch (err) {
     await updateNdiTransferStatus(transfer.id, 'failed', errorMsg(err));
