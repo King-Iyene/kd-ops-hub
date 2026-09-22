@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Printer, Share2, X, FileImage, FileText, ChevronDown, CheckCircle2, AlertTriangle, Clock, XCircle } from 'lucide-react';
+import { Download, Printer, Share2, X, FileImage, FileText, ChevronDown, CheckCircle2, AlertTriangle, Clock, XCircle, Shield } from 'lucide-react';
 import { formatNaira, formatReceiptDateTime } from '@/lib/format';
 import { paystackTransferFee } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,10 @@ import { errorMessage } from '@/lib/db-errors';
 
 const TEAL = '#112B34';
 const CYAN = '#A3F2F5';
+const TEAL_90 = '#112B34e6';
+const CYAN_20 = '#A3F2F533';
+const CYAN_08 = '#A3F2F514';
+const CYAN_40 = '#A3F2F566';
 
 interface NdiTransferRow {
   id: string;
@@ -43,12 +47,73 @@ interface Props {
 
 function statusConfig(status: string) {
   switch (status) {
-    case 'success': return { label: 'Successful', icon: CheckCircle2, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' };
-    case 'failed': return { label: 'Failed', icon: XCircle, color: '#ef4444', bg: '#fef2f2', border: '#fecaca' };
-    case 'reversed': return { label: 'Reversed', icon: AlertTriangle, color: '#6b7280', bg: '#f3f4f6', border: '#d1d5db' };
-    case 'processing': return { label: 'Processing', icon: Clock, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' };
-    default: return { label: 'Pending', icon: Clock, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' };
+    case 'success': return { label: 'Successful', color: '#10b981', bgLight: 'rgba(16,185,129,0.08)', icon: CheckCircle2 };
+    case 'failed': return { label: 'Failed', color: '#ef4444', bgLight: 'rgba(239,68,68,0.08)', icon: XCircle };
+    case 'reversed': return { label: 'Reversed', color: '#6b7280', bgLight: 'rgba(107,114,128,0.08)', icon: AlertTriangle };
+    case 'processing': return { label: 'Processing', color: '#3b82f6', bgLight: 'rgba(59,130,246,0.08)', icon: Clock };
+    default: return { label: 'Pending', color: '#f59e0b', bgLight: 'rgba(245,158,11,0.08)', icon: Clock };
   }
+}
+
+function NdiLogoWatermark() {
+  return (
+    <svg viewBox="0 0 400 200" style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', width: '260px', height: '130px', opacity: 0.04, pointerEvents: 'none' }}>
+      {/* NDI geometric logo shapes */}
+      <rect x="0" y="100" width="100" height="100" rx="0" fill={TEAL} />
+      <path d="M0 100 L0 0 A100 100 0 0 1 100 100 Z" fill={TEAL} />
+      <rect x="110" y="0" width="100" height="100" fill={TEAL} />
+      <path d="M210 0 A100 100 0 0 1 210 200 L110 200 L110 0 Z" fill={TEAL} />
+      <rect x="220" y="0" width="80" height="95" fill={TEAL} />
+      <rect x="220" y="105" width="80" height="95" fill={TEAL} />
+    </svg>
+  );
+}
+
+function SecurityPattern() {
+  return (
+    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.025 }}>
+      <defs>
+        <pattern id="ndi-guilloche" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+          <circle cx="30" cy="30" r="28" fill="none" stroke={TEAL} strokeWidth="0.5" />
+          <circle cx="30" cy="30" r="20" fill="none" stroke={TEAL} strokeWidth="0.3" />
+          <circle cx="30" cy="30" r="12" fill="none" stroke={TEAL} strokeWidth="0.3" />
+          <line x1="0" y1="30" x2="60" y2="30" stroke={TEAL} strokeWidth="0.2" />
+          <line x1="30" y1="0" x2="30" y2="60" stroke={TEAL} strokeWidth="0.2" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#ndi-guilloche)" />
+    </svg>
+  );
+}
+
+function VerificationSeal({ status, certId }: { status: string; certId: string }) {
+  const isSuccess = status === 'success';
+  const sealColor = isSuccess ? '#10b981' : status === 'failed' ? '#ef4444' : '#f59e0b';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '16px 0 8px' }}>
+      <div style={{
+        width: '56px', height: '56px', borderRadius: '50%',
+        border: `2.5px solid ${sealColor}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `${sealColor}0a`,
+        position: 'relative',
+      }}>
+        <div style={{
+          width: '44px', height: '44px', borderRadius: '50%',
+          border: `1px dashed ${sealColor}60`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Shield size={18} style={{ color: sealColor }} />
+        </div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.15em', color: sealColor, textTransform: 'uppercase', margin: 0 }}>
+          {isSuccess ? 'Verified & Settled' : status === 'failed' ? 'Transfer Failed' : 'Awaiting Settlement'}
+        </p>
+        <p style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: '#b0b0b5', margin: '2px 0 0' }}>{certId}</p>
+      </div>
+    </div>
+  );
 }
 
 export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLabel }: Props) {
@@ -65,6 +130,7 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
   const total = amount + fee;
   const certId = `NDI-${row.id.replace(/-/g, '').slice(0, 16).toUpperCase()}`;
   const isSuccess = row.status === 'success';
+  const txDate = new Date(row.created_at);
 
   const filenameFor = (kind: 'png' | 'pdf') =>
     `NDI-Receipt-${(row.paystack_reference ?? row.id).slice(0, 16)}.${kind}`;
@@ -119,7 +185,7 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
       const mime = kind === 'pdf' ? 'application/pdf' : 'image/png';
       const file = blob ? new File([blob], filenameFor(kind), { type: mime }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: `NDI Transfer Receipt`, text: `${formatNaira(amount)} to ${beneficiary?.name ?? 'recipient'}`, files: [file] });
+        await navigator.share({ title: 'NDI Transfer Receipt', text: `${formatNaira(amount)} to ${beneficiary?.name ?? 'recipient'}`, files: [file] });
       } else if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -137,134 +203,162 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="kd-receipt-dialog max-w-[520px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
-        {/* Dark teal envelope */}
-        <div style={{ position: 'relative', background: TEAL, padding: '20px 16px', borderRadius: '16px' }}>
-          <button
-            type="button" onClick={onClose} aria-label="Close"
-            style={{
-              position: 'absolute', top: '10px', right: '10px', height: '28px', width: '28px', borderRadius: '50%',
-              border: 'none', background: 'rgba(163, 242, 245, 0.12)', color: CYAN,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5,
-            }}
-          >
-            <X size={14} />
-          </button>
+      <DialogContent className="kd-receipt-dialog max-w-[540px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
+        {/* The full receipt card — captured for export */}
+        <div
+          ref={cardRef}
+          id="ndi-receipt-card"
+          style={{
+            position: 'relative', maxWidth: '520px', margin: '0 auto',
+            background: '#ffffff', borderRadius: '16px', overflow: 'hidden',
+            boxShadow: '0 8px 40px rgba(17,43,52,0.25), 0 0 0 1px rgba(17,43,52,0.08)',
+            fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a',
+          }}
+        >
+          {/* Security guilloche background */}
+          <SecurityPattern />
 
-          {/* Status banner at top of envelope */}
+          {/* ── HEADER: dark teal masthead ── */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-            padding: '8px 16px', marginBottom: '16px',
-            background: `${s.color}18`, borderRadius: '8px',
+            position: 'relative', overflow: 'hidden',
+            background: `linear-gradient(135deg, ${TEAL} 0%, #1a3d4a 100%)`,
+            padding: '24px 28px 28px',
           }}>
-            <StatusIcon size={16} style={{ color: s.color }} />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: s.color, letterSpacing: '0.03em' }}>
-              Transfer {s.label}
-            </span>
-            {row.status === 'failed' && row.failure_reason && (
-              <span style={{ fontSize: '11px', color: `${s.color}cc`, marginLeft: '4px' }}>— {row.failure_reason}</span>
+            {/* Close button */}
+            <button
+              type="button" onClick={onClose} aria-label="Close"
+              style={{
+                position: 'absolute', top: '12px', right: '12px', height: '28px', width: '28px', borderRadius: '50%',
+                border: 'none', background: CYAN_08, color: CYAN,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5,
+              }}
+            >
+              <X size={14} />
+            </button>
+
+            {/* NDI Logo + Brand */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              {/* Mini NDI geometric logo */}
+              <svg viewBox="0 0 36 18" width="36" height="18" style={{ flexShrink: 0 }}>
+                <rect x="0" y="9" width="9" height="9" fill={CYAN} />
+                <path d="M0 9 L0 0 A9 9 0 0 1 9 9 Z" fill={CYAN} />
+                <rect x="10" y="0" width="9" height="9" fill={CYAN} />
+                <path d="M19 0 A9 9 0 0 1 19 18 L10 18 L10 0 Z" fill={CYAN} />
+                <rect x="20" y="0" width="8" height="8" fill={CYAN} />
+                <rect x="20" y="10" width="8" height="8" fill={CYAN} />
+              </svg>
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: 800, color: CYAN, letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
+                  Niger Delta Innovate
+                </p>
+                <p style={{ fontSize: '8px', color: CYAN_40, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '2px 0 0' }}>
+                  Corporate Transfer Receipt
+                </p>
+              </div>
+            </div>
+
+            {/* Amount — hero */}
+            <p style={{ fontSize: '40px', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.025em', lineHeight: 1, margin: 0 }}>
+              {formatNaira(amount)}
+            </p>
+            {isSuccess && fee > 0 && (
+              <p style={{ fontSize: '11px', color: CYAN_40, marginTop: '4px' }}>
+                + {formatNaira(fee)} fee · {formatNaira(total)} total
+              </p>
             )}
+
+            {/* Status pill */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              marginTop: '12px', padding: '5px 12px',
+              background: s.bgLight, borderRadius: '20px',
+              border: `1px solid ${s.color}30`,
+            }}>
+              <StatusIcon size={12} style={{ color: s.color }} />
+              <span style={{ fontSize: '11px', fontWeight: 700, color: s.color }}>{s.label}</span>
+            </div>
+
+            {/* Failure reason inline */}
+            {row.status === 'failed' && row.failure_reason && (
+              <p style={{ fontSize: '10px', color: '#fca5a5', marginTop: '6px' }}>
+                {row.failure_reason}
+              </p>
+            )}
+
+            {/* Watermark logo in header */}
+            <NdiLogoWatermark />
           </div>
 
-          {/* Main receipt card */}
-          <div
-            ref={cardRef}
-            id="ndi-receipt-card"
-            style={{
-              position: 'relative', maxWidth: '480px', margin: '0 auto',
-              background: '#ffffff', borderRadius: '12px', overflow: 'hidden',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-              fontFamily: 'Inter, system-ui, sans-serif', color: '#1a1a1a',
-            }}
-          >
-            {/* Gradient top edge */}
-            <div style={{ height: '3px', background: `linear-gradient(90deg, ${TEAL}, ${CYAN})` }} />
+          {/* ── Thin accent divider ── */}
+          <div style={{ height: '2px', background: `linear-gradient(90deg, ${CYAN}, ${TEAL} 50%, transparent)` }} />
 
-            {/* Header — amount + NDI identity */}
-            <div style={{ padding: '24px 24px 20px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '14px' }}>
-                <div style={{
-                  width: '28px', height: '28px', borderRadius: '6px', background: TEAL,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '11px', fontWeight: 900, color: CYAN, letterSpacing: '0.05em',
-                }}>N</div>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: TEAL, letterSpacing: '0.02em' }}>Niger Delta Innovate</span>
+          {/* ── BODY ── */}
+          <div style={{ position: 'relative', padding: '24px 28px' }}>
+
+            {/* From → To flow */}
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', marginBottom: '24px' }}>
+              {/* From */}
+              <div style={{ flex: 1, padding: '14px 16px', background: '#f7fafb', borderRadius: '10px 0 0 10px', borderRight: 'none' }}>
+                <p style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.14em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 6px' }}>From</p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: TEAL, margin: 0 }}>NDI Corporate</p>
+                <p style={{ fontSize: '10px', color: '#9ca3af', margin: '3px 0 0' }}>Wema Bank · 9817509971</p>
               </div>
-              <p style={{ fontSize: '36px', fontWeight: 900, color: TEAL, letterSpacing: '-0.02em', lineHeight: 1, margin: 0 }}>
-                {formatNaira(amount)}
-              </p>
-              {isSuccess && fee > 0 && (
-                <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
-                  + {formatNaira(fee)} fee = {formatNaira(total)} total
-                </p>
+
+              {/* Arrow connector */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '40px', background: '#f7fafb',
+              }}>
+                <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16M12 1l5 5-5 5" fill="none" stroke={TEAL} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+
+              {/* To */}
+              <div style={{ flex: 1, padding: '14px 16px', background: '#f7fafb', borderRadius: '0 10px 10px 0', borderLeft: 'none' }}>
+                <p style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.14em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 6px' }}>To</p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a', margin: 0 }}>{beneficiary?.name ?? row.description ?? '—'}</p>
+                {beneficiary && (
+                  <p style={{ fontSize: '10px', color: '#9ca3af', margin: '3px 0 0' }}>
+                    {beneficiary.bank_name} · {beneficiary.account_number}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Details table */}
+            <div style={{
+              border: `1px solid #e8ecee`, borderRadius: '10px', overflow: 'hidden',
+            }}>
+              <DetailRow label="Category" value={categoryLabel} />
+              <DetailRow label="Date" value={txDate.toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })} />
+              <DetailRow label="Time" value={txDate.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} />
+              {isSuccess && fee > 0 && <DetailRow label="Transaction Fee" value={formatNaira(fee)} />}
+              {isSuccess && fee > 0 && <DetailRow label="Total Debit" value={formatNaira(total)} bold />}
+              {row.narration && <DetailRow label="Narration" value={row.narration} />}
+              {row.description && beneficiary && <DetailRow label="Description" value={row.description} />}
+              {row.paystack_reference && (
+                <DetailRow label="Reference" value={row.paystack_reference} mono last />
               )}
             </div>
 
-            {/* Transfer details — clean grid */}
-            <div style={{ padding: '0 24px 20px' }}>
-              <div style={{
-                background: '#f8fafb', borderRadius: '10px', padding: '16px',
-                border: '1px solid #e5eaed',
-              }}>
-                {/* Sender */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid #e5eaed' }}>
-                  <div>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 3px' }}>From</p>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: TEAL, margin: 0 }}>NDI Corporate</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 3px' }}>To</p>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{beneficiary?.name ?? row.description ?? '—'}</p>
-                    {beneficiary && (
-                      <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>
-                        {beneficiary.bank_name} · {beneficiary.account_number}
-                      </p>
-                    )}
-                  </div>
-                </div>
+            {/* Verification seal */}
+            <VerificationSeal status={row.status} certId={certId} />
+          </div>
 
-                {/* Meta rows */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <MetaField label="Category" value={categoryLabel} />
-                  <MetaField label="Date" value={new Date(row.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })} />
-                  <MetaField label="Time" value={new Date(row.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })} />
-                  <MetaField label="Status" value={s.label} valueColor={s.color} />
-                  {row.narration && <MetaField label="Narration" value={row.narration} span />}
-                  {row.description && beneficiary && <MetaField label="Note" value={row.description} span />}
-                </div>
-              </div>
-            </div>
-
-            {/* Reference section */}
-            {row.paystack_reference && (
-              <div style={{ padding: '0 24px 16px' }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', background: `${TEAL}08`, borderRadius: '8px', border: `1px solid ${TEAL}15`,
-                }}>
-                  <div>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 2px' }}>Reference</p>
-                    <p style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#555', margin: 0, wordBreak: 'break-all' }}>{row.paystack_reference}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Footer with cert ID */}
-            <div style={{
-              padding: '12px 24px', borderTop: '1px solid #f0f0f0',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '9px', color: '#c4c4c7' }}>{certId}</span>
-              <span style={{ fontSize: '9px', color: '#c4c4c7' }}>{formatReceiptDateTime(row.created_at)}</span>
-            </div>
-
-            {/* Bottom brand bar */}
-            <div style={{ height: '3px', background: `linear-gradient(90deg, ${CYAN}, ${TEAL})` }} />
+          {/* ── FOOTER ── */}
+          <div style={{
+            padding: '10px 28px', background: '#f9fafb', borderTop: '1px solid #f0f0f0',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: '8px', color: '#c4c4c7', letterSpacing: '0.04em' }}>
+              nigerdeltainnovate.org
+            </span>
+            <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: '#c4c4c7' }}>
+              {formatReceiptDateTime(row.created_at)}
+            </span>
           </div>
         </div>
 
-        {/* Actions bar */}
+        {/* ── ACTIONS BAR ── */}
         <div className="kd-receipt-actions sticky bottom-0 z-10 flex flex-wrap items-center justify-center sm:justify-end gap-2 px-4 py-3 bg-card/95 backdrop-blur-sm border-t border-border/40 rounded-b-2xl">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -312,11 +406,23 @@ export function NdiTransferReceipt({ open, onClose, row, beneficiary, categoryLa
   );
 }
 
-function MetaField({ label, value, valueColor, span }: { label: string; value: string; valueColor?: string; span?: boolean }) {
+function DetailRow({ label, value, mono, bold, last }: { label: string; value: string; mono?: boolean; bold?: boolean; last?: boolean }) {
   return (
-    <div style={span ? { gridColumn: '1 / -1' } : undefined}>
-      <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 2px' }}>{label}</p>
-      <p style={{ fontSize: '12px', fontWeight: 500, color: valueColor ?? '#374151', margin: 0 }}>{value}</p>
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+      padding: '10px 16px',
+      borderBottom: last ? 'none' : '1px solid #f0f2f3',
+    }}>
+      <span style={{ fontSize: '11px', color: '#8b919a', flexShrink: 0, marginRight: '12px' }}>{label}</span>
+      <span style={{
+        fontSize: bold ? '12px' : '11px',
+        fontWeight: bold ? 700 : 500,
+        color: bold ? TEAL : '#2d3339',
+        textAlign: 'right',
+        wordBreak: mono ? 'break-all' : undefined,
+        fontFamily: mono ? 'ui-monospace, Consolas, monospace' : undefined,
+        maxWidth: '65%',
+      }}>{value}</span>
     </div>
   );
 }
