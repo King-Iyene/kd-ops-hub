@@ -364,6 +364,61 @@ Deno.serve(async (req) => {
         console.error("[webhook] credit_principal_wallet threw:", e, chargeRef);
       }
     }
+
+    // ── NDI DVA credit handling ──────────────────────────────────────
+    // NDI's DVA lives in ndi_dedicated_account (not principal_wallet_dva).
+    // Match on account_number or paystack_customer_code and insert a
+    // credit row into ndi_wallet_ledger so the NDI balance stays in sync.
+    if ((receiverAccount || customerCode) && chargeRef && amountNgn > 0) {
+      try {
+        const { data: ndiAcct } = await supabase
+          .from("ndi_dedicated_account")
+          .select("company_id, account_number, paystack_customer_code")
+          .or(
+            [
+              receiverAccount ? `account_number.eq.${receiverAccount}` : null,
+              customerCode ? `paystack_customer_code.eq.${customerCode}` : null,
+            ]
+              .filter(Boolean)
+              .join(","),
+          )
+          .limit(1)
+          .maybeSingle();
+
+        if (ndiAcct) {
+          // Idempotency: skip if this reference was already recorded
+          const { data: existing } = await supabase
+            .from("ndi_wallet_ledger")
+            .select("id")
+            .eq("reference", chargeRef)
+            .limit(1)
+            .maybeSingle();
+
+          if (!existing) {
+            const { error: ledgerErr } = await supabase
+              .from("ndi_wallet_ledger")
+              .insert({
+                company_id: ndiAcct.company_id,
+                direction: "credit",
+                amount_ngn: amountNgn,
+                category: "dva_funding",
+                description: `DVA funding via ${receiverAccount ?? "Paystack"}`,
+                reference: chargeRef,
+              });
+            if (ledgerErr) {
+              console.error("[webhook] ndi_wallet_ledger insert failed:", ledgerErr.message, chargeRef);
+            } else {
+              console.info("[webhook] NDI DVA credit recorded:", chargeRef, amountNgn);
+            }
+          } else {
+            console.info("[webhook] NDI DVA credit already exists (idempotent):", chargeRef);
+          }
+        }
+      } catch (ndiErr) {
+        console.error("[webhook] NDI DVA credit handling threw:", ndiErr, chargeRef);
+      }
+    }
+
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
@@ -473,7 +528,73 @@ Deno.serve(async (req) => {
     return new Response("ok (duplicate)", { status: 200, headers: corsHeaders });
   }
   if (outcome === "no_match") {
-    console.info("[webhook] No batch_item for reference:", reference);
+    // ── NDI transfer status update ────────────────────────────────
+    // process_paystack_webhook only knows batch_items and personal_transfers.
+    // Check ndi_transfers as a fallback before giving up.
+    try {
+      const ndiStatus =
+        event === "transfer.success" ? "success" :
+        event === "transfer.failed" ? "failed" :
+        event === "transfer.reversed" ? "reversed" : null;
+
+      if (ndiStatus) {
+        const updatePayload: Record<string, unknown> = {
+          status: ndiStatus,
+        };
+        if (ndiStatus === "success") updatePayload.completed_at = new Date().toISOString();
+        if (failureReason) updatePayload.failure_reason = failureReason;
+
+        const { data: ndiRow, error: ndiErr } = await supabase
+          .from("ndi_transfers")
+          .update(updatePayload)
+          .eq("paystack_reference", reference)
+          .select("id, company_id, amount_ngn, status")
+          .maybeSingle();
+
+        if (ndiErr) {
+          console.error("[webhook] ndi_transfers update failed:", ndiErr.message, reference);
+        } else if (ndiRow) {
+          console.info("[webhook] ndi_transfers updated:", reference, ndiStatus);
+
+          // Record wallet debit on success, credit-back on reversal
+          if (ndiStatus === "success" || ndiStatus === "reversed") {
+            const ledgerDirection = ndiStatus === "success" ? "debit" : "credit";
+            const ledgerDesc = ndiStatus === "success"
+              ? `Transfer ${reference}`
+              : `Reversal of ${reference}`;
+
+            // Idempotency check
+            const { data: existingLedger } = await supabase
+              .from("ndi_wallet_ledger")
+              .select("id")
+              .eq("reference", `${ledgerDirection}_${reference}`)
+              .limit(1)
+              .maybeSingle();
+
+            if (!existingLedger) {
+              const totalDebit = ndiStatus === "completed"
+                ? Number(ndiRow.amount_ngn) + feeNgn
+                : Number(ndiRow.amount_ngn);
+
+              await supabase.from("ndi_wallet_ledger").insert({
+                company_id: ndiRow.company_id,
+                direction: ledgerDirection,
+                amount_ngn: totalDebit,
+                category: "transfer",
+                description: ledgerDesc,
+                reference: `${ledgerDirection}_${reference}`,
+              });
+            }
+          }
+
+          return new Response("ok (ndi_transfer)", { status: 200, headers: corsHeaders });
+        }
+      }
+    } catch (ndiTransferErr) {
+      console.error("[webhook] NDI transfer handling threw:", ndiTransferErr, reference);
+    }
+
+    console.info("[webhook] No batch_item/ndi_transfer for reference:", reference);
     return new Response("ok (no_match)", { status: 200, headers: corsHeaders });
   }
   if (outcome === "processed_personal_transfer") {
