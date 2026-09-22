@@ -1195,13 +1195,18 @@ function TransferReceiptDialog({ row, beneficiaries, onClose }: {
         <DialogHeader>
           <DialogTitle>Transfer Receipt</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 text-sm">
-          <div className="text-center py-3">
-            <StatusBadge status={row.status} />
-            <p className="text-2xl font-bold mt-2 tabular-nums">{formatNaira(row.amount_ngn)}</p>
+        <div className="space-y-3 text-sm" id="ndi-receipt">
+          <div className="text-center py-4 border-b">
+            <div className="h-10 w-10 rounded-lg mx-auto flex items-center justify-center bg-orange-500/10 mb-2">
+              <Building2 className="h-5 w-5 text-orange-500" />
+            </div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Niger Delta Innovate</p>
+            <p className="text-3xl font-bold mt-1 tabular-nums">{formatNaira(row.amount_ngn)}</p>
+            <div className="mt-2"><StatusBadge status={row.status} /></div>
           </div>
           <ReceiptRow label="Recipient" value={b?.name ?? 'Manual transfer'} />
-          {b && <ReceiptRow label="Account" value={`${b.bank_name} · ${b.account_number}`} />}
+          {b && <ReceiptRow label="Bank" value={b.bank_name} />}
+          {b && <ReceiptRow label="Account" value={b.account_number} />}
           <ReceiptRow label="Category" value={ndiCategoryLabel(row.category)} />
           {row.description && <ReceiptRow label="Description" value={row.description} />}
           {row.narration && <ReceiptRow label="Narration" value={row.narration} />}
@@ -1218,8 +1223,34 @@ function TransferReceiptDialog({ row, beneficiaries, onClose }: {
               </div>
             </div>
           )}
-          <div className="pt-2 border-t text-xs text-muted-foreground text-center">
-            Niger Delta Innovate · NDI Finance Module
+          <div className="pt-3 border-t text-[10px] text-muted-foreground text-center">
+            NDI Finance · Transfer Receipt · {new Date(row.created_at).toLocaleDateString('en-NG')}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => window.print()}>
+              <Printer className="mr-1 h-3 w-3" /> Print
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => {
+              const lines = [
+                'NIGER DELTA INNOVATE — TRANSFER RECEIPT',
+                '=========================================',
+                `Amount: ${formatNaira(row.amount_ngn)}`,
+                `Status: ${row.status}`,
+                `Recipient: ${b?.name ?? 'Manual transfer'}`,
+                b ? `Bank: ${b.bank_name}` : '',
+                b ? `Account: ${b.account_number}` : '',
+                `Category: ${ndiCategoryLabel(row.category)}`,
+                row.description ? `Description: ${row.description}` : '',
+                row.narration ? `Narration: ${row.narration}` : '',
+                `Date: ${formatDateTime(row.created_at)}`,
+                row.completed_at ? `Completed: ${formatDateTime(row.completed_at)}` : '',
+                row.paystack_reference ? `Reference: ${row.paystack_reference}` : '',
+                '=========================================',
+              ].filter(Boolean).join('\n');
+              navigator.clipboard.writeText(lines);
+            }}>
+              <Copy className="mr-1 h-3 w-3" /> Copy
+            </Button>
           </div>
         </div>
       </DialogContent>
