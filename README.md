@@ -69,14 +69,24 @@ npx vercel --prod
 
 Security headers (CSP, HSTS, X-Frame-Options, etc.) are defined in `vercel.json`.
 
-### Supabase Migrations
+### Supabase Backend (Migrations & Edge Functions)
 
-SQL migrations live in `supabase/migrations/`. They must be applied manually in the Supabase SQL editor (or via the Supabase CLI if configured):
+SQL migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/`) **auto-deploy via GitHub Actions on push to `main`**:
 
-```bash
-# If using Supabase CLI
-supabase db push
-```
+| Workflow | File | Trigger |
+|---|---|---|
+| Deploy Supabase Migrations | `.github/workflows/deploy-supabase-migrations.yml` | `supabase/migrations/**` changes on `main` |
+| Deploy Edge Functions | `.github/workflows/deploy-edge-functions.yml` | `supabase/functions/**` changes on `main` |
+
+**Required GitHub Secrets** (repo → Settings → Secrets and variables → Actions):
+
+| Secret | Description |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | Personal Access Token from [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) |
+| `SUPABASE_PROJECT_REF` | Production project ref (the slug in the project URL) |
+| `SUPABASE_DB_PASSWORD` | Database password (Project Settings → Database) |
+
+> **Important**: Each migration file must have a **unique 14-digit timestamp prefix**. Duplicate timestamps will cause `supabase db push` to fail. All migrations should be idempotent (`CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, etc.).
 
 ---
 
