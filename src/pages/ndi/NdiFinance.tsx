@@ -27,12 +27,14 @@ import {
   fetchNdiBeneficiaries, createNdiBeneficiary, updateNdiBeneficiary, deactivateNdiBeneficiary,
   fetchAllNdiTransfers, exportNdiTransfersCsv,
   generateNdiGrantReport,
-  executeNdiTransfer, verifyNdiTransferStatus, resolveAndCreateNdiRecipient,
-  resolveAccount, paystackTransferFee, totalChargeFor, friendlyPaystackError,
+  executeNdiTransfer, verifyNdiTransferStatus,
+  paystackTransferFee, totalChargeFor, friendlyPaystackError,
   NDI_CATEGORIES, ndiCategoryLabel,
   type NdiDedicatedAccount, type NdiLedgerRow, type NdiBeneficiary, type NdiTransfer,
   type NdiGrantReportData,
 } from '@/lib/ndi-finance';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { getBankCode, createTransferRecipient } from '@/lib/paystack';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -179,18 +181,10 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                   {account.account_name && <p className="text-xs text-muted-foreground">{account.account_name}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Ledger balance</p>
+                  <p className="text-xs text-muted-foreground">Wallet balance</p>
                   <p className="text-2xl font-bold" style={{ color: accentColor }}>{formatNaira(balance ?? 0)}</p>
                 </div>
               </div>
-
-              {/* Ledger balance notice */}
-              {balance === 0 && (
-                <p className="text-xs text-amber-500/90 leading-relaxed">
-                  This is the <strong>ledger balance</strong> — it tracks entries you record here, not the live Paystack DVA balance.
-                  Record incoming deposits via the Ledger tab to keep it in sync.
-                </p>
-              )}
 
               <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => void load()}>
@@ -588,45 +582,61 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
   open: boolean; onOpenChange: (v: boolean) => void; companyId: string; beneficiaries: NdiBeneficiary[]; profile: any; toast: any; onSent: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ beneficiaryId: '', amount: '', category: '', description: '', narration: '' });
+  const [bank, setBank] = useState<BankAccountValue>({ bank_name: '', account_number: '', account_name: '', verified: false });
+  const [form, setForm] = useState({ amount: '', category: '', description: '', narration: '' });
   const [result, setResult] = useState<{ ok: boolean; message: string; reference?: string; status?: string } | null>(null);
 
   const reset = () => {
-    setForm({ beneficiaryId: '', amount: '', category: '', description: '', narration: '' });
+    setBank({ bank_name: '', account_number: '', account_name: '', verified: false });
+    setForm({ amount: '', category: '', description: '', narration: '' });
     setResult(null);
   };
 
-  const selectedBeneficiary = beneficiaries.find((b) => b.id === form.beneficiaryId);
   const amt = parseFloat(form.amount) || 0;
   const fee = amt > 0 ? paystackTransferFee(amt) : 0;
   const totalCharge = amt > 0 ? totalChargeFor(amt) : 0;
 
   const send = async () => {
+    if (!bank.verified) { toast({ title: 'Verify the bank account first', variant: 'destructive' }); return; }
     if (!amt || amt <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
-    if (!form.beneficiaryId) { toast({ title: 'Select a beneficiary', variant: 'destructive' }); return; }
     if (!form.category) { toast({ title: 'Select a category', variant: 'destructive' }); return; }
-
-    const ben = beneficiaries.find((b) => b.id === form.beneficiaryId);
-    if (!ben) { toast({ title: 'Beneficiary not found', variant: 'destructive' }); return; }
 
     setSaving(true);
     try {
-      // Ensure beneficiary has a Paystack recipient code
-      let recipientCode = ben.paystack_recipient_code;
-      if (!recipientCode) {
-        if (!ben.bank_code) {
-          toast({ title: 'Beneficiary missing bank code — edit and resolve their account first', variant: 'destructive' });
-          setSaving(false);
-          return;
-        }
-        const recipient = await resolveAndCreateNdiRecipient(ben.id, ben.account_number, ben.bank_code, ben.name);
-        recipientCode = recipient.recipient_code;
+      const bankCode = getBankCode(bank.bank_name);
+      if (!bankCode) { toast({ title: 'Could not resolve bank code — try a different bank name', variant: 'destructive' }); setSaving(false); return; }
+
+      // Create Paystack transfer recipient
+      const recipient = await createTransferRecipient({
+        name: bank.account_name,
+        account_number: bank.account_number,
+        bank_code: bankCode,
+      });
+
+      // Also save as beneficiary for future reference
+      let beneficiaryId: string | undefined;
+      const existing = beneficiaries.find((b) => b.account_number === bank.account_number && b.bank_code === bankCode);
+      if (existing) {
+        beneficiaryId = existing.id;
+      } else {
+        try {
+          const newBen = await createNdiBeneficiary({
+            companyId,
+            name: bank.account_name,
+            bankName: bank.bank_name,
+            accountNumber: bank.account_number,
+            bankCode: bankCode,
+            paystackRecipientCode: recipient.recipient_code,
+            createdBy: profile?.id ?? '',
+          });
+          beneficiaryId = newBen.id;
+        } catch { /* non-critical — transfer can proceed without saving beneficiary */ }
       }
 
       const { paystackRef, status } = await executeNdiTransfer({
         companyId,
-        beneficiaryId: ben.id,
-        recipientCode: recipientCode!,
+        beneficiaryId: beneficiaryId ?? companyId,
+        recipientCode: recipient.recipient_code,
         amountNgn: amt,
         category: form.category,
         description: form.description.trim() || undefined,
@@ -654,19 +664,10 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Send NDI Transfer</DialogTitle>
-          <DialogDescription>Create a disbursement from NDI's wallet. Each transfer is logged immutably.</DialogDescription>
+          <DialogDescription>Select a bank, enter the account number, and we'll verify it via Paystack before sending.</DialogDescription>
         </DialogHeader>
 
-        {beneficiaries.length === 0 ? (
-          <div className="py-6 text-center space-y-3">
-            <UsersIcon className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="text-sm font-medium">No beneficiaries yet</p>
-            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-              Go to the <strong>Beneficiaries</strong> tab first and add the people or organizations NDI sends money to. Then come back here to send.
-            </p>
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Got it</Button>
-          </div>
-        ) : result ? (
+        {result ? (
           <div className="py-6 text-center space-y-3">
             {result.ok ? <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" /> : <XCircle className="h-12 w-12 text-red-500 mx-auto" />}
             <p className="text-sm font-medium">{result.message}</p>
@@ -683,20 +684,7 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
         ) : (
           <>
             <div className="space-y-3">
-              <div>
-                <Label>Beneficiary</Label>
-                <Select value={form.beneficiaryId} onValueChange={(v) => setForm({ ...form, beneficiaryId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select beneficiary…" /></SelectTrigger>
-                  <SelectContent>
-                    {beneficiaries.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name} · {b.bank_name} · {b.account_number}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedBeneficiary && !selectedBeneficiary.bank_code && (
-                  <p className="text-xs text-amber-500 mt-1">This beneficiary needs a bank code — edit them in the Beneficiaries tab first.</p>
-                )}
-              </div>
+              <BankAccountField value={bank} onChange={setBank} provider="paystack" disabled={saving} />
               <div>
                 <Label>Amount (NGN)</Label>
                 <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
@@ -729,7 +717,7 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
-              <Button onClick={send} disabled={saving}>
+              <Button onClick={send} disabled={saving || !bank.verified}>
                 {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Send Transfer
               </Button>
