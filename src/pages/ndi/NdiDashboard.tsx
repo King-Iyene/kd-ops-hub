@@ -53,7 +53,7 @@ export default function NdiDashboard() {
         const pgIds = (pgData ?? []).map((g: any) => g.id);
         if (pgIds.length > 0) {
           const { count } = await supabase
-            .from('employees')
+            .from('profiles')
             .select('id', { count: 'exact', head: true })
             .in('pay_group_id', pgIds);
           setEmployeeCount(count ?? 0);

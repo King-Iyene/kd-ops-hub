@@ -1585,7 +1585,7 @@ function CompaniesManager() {
       const counts: Record<string, number> = {};
       for (const [companyId, pgIds] of pgByCompany) {
         const { count } = await supabase
-          .from('employees')
+          .from('profiles')
           .select('id', { count: 'exact', head: true })
           .in('pay_group_id', pgIds);
         counts[companyId] = count ?? 0;

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS ndi_dedicated_account (
 
 ALTER TABLE ndi_dedicated_account ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ndi_dedicated_account_admin_read" ON ndi_dedicated_account;
 CREATE POLICY "ndi_dedicated_account_admin_read"
   ON ndi_dedicated_account FOR SELECT
   TO authenticated
@@ -25,6 +26,7 @@ CREATE POLICY "ndi_dedicated_account_admin_read"
     (auth.jwt() ->> 'user_role') IN ('super_admin', 'admin')
   );
 
+DROP POLICY IF EXISTS "ndi_dedicated_account_admin_write" ON ndi_dedicated_account;
 CREATE POLICY "ndi_dedicated_account_admin_write"
   ON ndi_dedicated_account FOR ALL
   TO authenticated
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS ndi_wallet_ledger (
 
 ALTER TABLE ndi_wallet_ledger ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ndi_wallet_ledger_admin_read" ON ndi_wallet_ledger;
 CREATE POLICY "ndi_wallet_ledger_admin_read"
   ON ndi_wallet_ledger FOR SELECT
   TO authenticated
@@ -57,6 +60,7 @@ CREATE POLICY "ndi_wallet_ledger_admin_read"
     (auth.jwt() ->> 'user_role') IN ('super_admin', 'admin')
   );
 
+DROP POLICY IF EXISTS "ndi_wallet_ledger_admin_insert" ON ndi_wallet_ledger;
 CREATE POLICY "ndi_wallet_ledger_admin_insert"
   ON ndi_wallet_ledger FOR INSERT
   TO authenticated
@@ -81,6 +85,7 @@ CREATE TABLE IF NOT EXISTS ndi_beneficiaries (
 
 ALTER TABLE ndi_beneficiaries ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ndi_beneficiaries_admin_all" ON ndi_beneficiaries;
 CREATE POLICY "ndi_beneficiaries_admin_all"
   ON ndi_beneficiaries FOR ALL
   TO authenticated
@@ -110,6 +115,7 @@ CREATE TABLE IF NOT EXISTS ndi_transfers (
 
 ALTER TABLE ndi_transfers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ndi_transfers_admin_read" ON ndi_transfers;
 CREATE POLICY "ndi_transfers_admin_read"
   ON ndi_transfers FOR SELECT
   TO authenticated
@@ -117,6 +123,7 @@ CREATE POLICY "ndi_transfers_admin_read"
     (auth.jwt() ->> 'user_role') IN ('super_admin', 'admin')
   );
 
+DROP POLICY IF EXISTS "ndi_transfers_admin_insert" ON ndi_transfers;
 CREATE POLICY "ndi_transfers_admin_insert"
   ON ndi_transfers FOR INSERT
   TO authenticated
@@ -124,6 +131,7 @@ CREATE POLICY "ndi_transfers_admin_insert"
     (auth.jwt() ->> 'user_role') IN ('super_admin', 'admin')
   );
 
+DROP POLICY IF EXISTS "ndi_transfers_admin_update" ON ndi_transfers;
 CREATE POLICY "ndi_transfers_admin_update"
   ON ndi_transfers FOR UPDATE
   TO authenticated

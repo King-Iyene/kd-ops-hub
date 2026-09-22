@@ -59,7 +59,7 @@ export default function NdiEmployees() {
       let emps: EmployeeRow[] = [];
       if (pgIds.length > 0) {
         const { data } = await supabase
-          .from('employees')
+          .from('profiles')
           .select('id, first_name, last_name, email, job_title, department:departments(name), status, pay_group:pay_groups(name), pay_group_id')
           .in('pay_group_id', pgIds)
           .order('first_name');
