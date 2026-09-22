@@ -179,12 +179,18 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                   {account.account_name && <p className="text-xs text-muted-foreground">{account.account_name}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Wallet balance</p>
+                  <p className="text-xs text-muted-foreground">Ledger balance</p>
                   <p className="text-2xl font-bold" style={{ color: accentColor }}>{formatNaira(balance ?? 0)}</p>
                 </div>
               </div>
 
-              <AuditReadiness hasAccount={!!account} hasTransactions={(balance ?? 0) !== 0} accentColor={accentColor} />
+              {/* Ledger balance notice */}
+              {balance === 0 && (
+                <p className="text-xs text-amber-500/90 leading-relaxed">
+                  This is the <strong>ledger balance</strong> — it tracks entries you record here, not the live Paystack DVA balance.
+                  Record incoming deposits via the Ledger tab to keep it in sync.
+                </p>
+              )}
 
               <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => void load()}>
@@ -234,43 +240,6 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-// ── Audit Readiness ──────────────────────────────────────────────
-
-function AuditReadiness({ hasAccount, hasTransactions, accentColor }: {
-  hasAccount: boolean; hasTransactions: boolean; accentColor: string;
-}) {
-  const checks = [
-    { label: 'Dedicated account', ok: hasAccount },
-    { label: 'Transaction history', ok: hasTransactions },
-    { label: 'Entity isolation', ok: true },
-    { label: 'Immutable ledger', ok: true },
-  ];
-  const score = checks.filter((c) => c.ok).length;
-  const pct = Math.round((score / checks.length) * 100);
-
-  return (
-    <div className="rounded-lg border border-border/60 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-          <ShieldAlert className="h-3.5 w-3.5" /> Grant readiness
-        </span>
-        <span className="text-xs font-bold" style={{ color: pct === 100 ? '#22c55e' : accentColor }}>{pct}%</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? '#22c55e' : accentColor }} />
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {checks.map((c) => (
-          <span key={c.label} className="flex items-center gap-1 text-2xs">
-            {c.ok ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-muted-foreground" />}
-            <span className={c.ok ? '' : 'text-muted-foreground'}>{c.label}</span>
-          </span>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -688,7 +657,16 @@ function SendTransferDialog({ open, onOpenChange, companyId, beneficiaries, prof
           <DialogDescription>Create a disbursement from NDI's wallet. Each transfer is logged immutably.</DialogDescription>
         </DialogHeader>
 
-        {result ? (
+        {beneficiaries.length === 0 ? (
+          <div className="py-6 text-center space-y-3">
+            <UsersIcon className="h-10 w-10 text-muted-foreground mx-auto" />
+            <p className="text-sm font-medium">No beneficiaries yet</p>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+              Go to the <strong>Beneficiaries</strong> tab first and add the people or organizations NDI sends money to. Then come back here to send.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Got it</Button>
+          </div>
+        ) : result ? (
           <div className="py-6 text-center space-y-3">
             {result.ok ? <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" /> : <XCircle className="h-12 w-12 text-red-500 mx-auto" />}
             <p className="text-sm font-medium">{result.message}</p>
