@@ -120,6 +120,9 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [ledger, setLedger] = useState<NdiLedgerRow[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,6 +141,17 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
   }, [companyId, toast]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const toggleHistory = async () => {
+    if (!showHistory && ledger.length === 0) {
+      setLedgerLoading(true);
+      try {
+        setLedger(await fetchNdiLedger(companyId, 20));
+      } catch { /* ignore */ }
+      setLedgerLoading(false);
+    }
+    setShowHistory((p) => !p);
+  };
 
   const remove = async () => {
     if (!account) return;
@@ -179,6 +193,9 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                   </div>
                   <p className="text-sm font-medium mt-0.5">{account.bank_name} · {account.account_number}</p>
                   {account.account_name && <p className="text-xs text-muted-foreground">{account.account_name}</p>}
+                  {account.paystack_customer_code && (
+                    <p className="text-xs text-muted-foreground font-mono">{account.paystack_customer_code}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Wallet balance</p>
@@ -187,6 +204,9 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={toggleHistory}>
+                  <History className="mr-1.5 h-3.5 w-3.5" /> {showHistory ? 'Hide history' : 'Funding history'}
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => void load()}>
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
                 </Button>
@@ -210,6 +230,33 @@ function WalletPanel({ companyId, accentColor, profile, toast }: {
                   <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove account
                 </Button>
               </div>
+
+              {showHistory && (
+                <div className="border-t pt-3 mt-2 space-y-1.5">
+                  {ledgerLoading ? (
+                    <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                  ) : ledger.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No ledger entries yet.</p>
+                  ) : (
+                    ledger.map((r) => (
+                      <div key={r.id} className="flex items-center justify-between text-xs py-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`font-medium ${r.direction === 'credit' ? 'text-green-500' : 'text-red-400'}`}>
+                            {r.direction === 'credit' ? 'IN' : 'OUT'}
+                          </span>
+                          <span className="text-muted-foreground truncate">{r.description || ndiCategoryLabel(r.category)}</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}</span>
+                          <span className={`font-medium tabular-nums ${r.direction === 'credit' ? 'text-green-500' : 'text-red-400'}`}>
+                            {r.direction === 'credit' ? '+' : '−'}{formatNaira(r.amount_ngn)}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -416,21 +463,74 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
     }
   };
 
+  // Recent contacts — unique recipients from last transfers
+  const recentContacts = useMemo(() => {
+    const seen = new Set<string>();
+    const contacts: { id: string; name: string; bankName: string; accountNumber: string }[] = [];
+    for (const t of transfers) {
+      if (!t.beneficiary_id || seen.has(t.beneficiary_id)) continue;
+      const b = bMap.get(t.beneficiary_id);
+      if (!b) continue;
+      seen.add(t.beneficiary_id);
+      contacts.push({ id: b.id, name: b.name, bankName: b.bank_name, accountNumber: b.account_number });
+      if (contacts.length >= 6) break;
+    }
+    return contacts;
+  }, [transfers, bMap]);
+
+  // Monthly cash flow analytics
+  const cashFlow = useMemo(() => {
+    const months = new Map<string, { credits: number; debits: number; count: number }>();
+    for (const t of transfers) {
+      const d = new Date(t.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const entry = months.get(key) ?? { credits: 0, debits: 0, count: 0 };
+      if (t.status === 'success') entry.debits += Number(t.amount_ngn);
+      entry.count++;
+      months.set(key, entry);
+    }
+    return Array.from(months.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, v]) => ({ month, ...v }));
+  }, [transfers]);
+
+  // Category breakdown for current month
+  const categorySpend = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonth = transfers.filter((t) => new Date(t.created_at) >= monthStart && t.status === 'success');
+    const catMap = new Map<string, number>();
+    for (const t of thisMonth) {
+      catMap.set(t.category, (catMap.get(t.category) ?? 0) + Number(t.amount_ngn));
+    }
+    return Array.from(catMap.entries())
+      .map(([cat, amount]) => ({ category: cat, label: ndiCategoryLabel(cat), amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [transfers]);
+
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-4">
       {/* Summary stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard icon={Wallet} label="Balance" value={formatNaira(balance)} color={balance >= 0 ? 'text-green-600' : 'text-red-500'} />
-        <StatCard icon={TrendingUp} label="Sent this month" value={formatNaira(stats.sentThisMonth)} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Wallet className="h-3.5 w-3.5" /> Available balance
+            </div>
+            <p className={`text-xl font-semibold font-mono tabular-nums ${balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatNaira(balance)}</p>
+          </CardContent>
+        </Card>
+        <StatCard icon={ArrowUpRight} label="Sent this month" value={formatNaira(stats.sentThisMonth)} />
         <StatCard icon={Clock} label="Pending" value={`${stats.pendingCount} · ${formatNaira(stats.pendingAmount)}`} color="text-amber-500" />
-        <StatCard icon={AlertTriangle} label="Failed (month)" value={String(stats.failedThisMonth)} color={stats.failedThisMonth > 0 ? 'text-red-500' : 'text-muted-foreground'} />
+        <StatCard icon={TrendingUp} label="This month" value={`${transfers.filter((t) => new Date(t.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length} transfers`} subValue={stats.failedThisMonth > 0 ? `${stats.failedThisMonth} failed` : undefined} />
       </div>
 
       {/* Actions bar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" onClick={() => setSendOpen(true)} style={{ backgroundColor: accentColor }}>
             <Send className="mr-1.5 h-3.5 w-3.5" /> Send Money
           </Button>
@@ -442,11 +542,80 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
           <Button variant="outline" size="sm" onClick={() => void load()}>
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filteredTransfers.length === 0}>
+          <Button variant="ghost" size="sm" onClick={handleExportCsv} disabled={filteredTransfers.length === 0}>
             <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
           </Button>
         </div>
       </div>
+
+      {/* Recent contacts strip */}
+      {recentContacts.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          <span className="text-xs text-muted-foreground shrink-0">Recent:</span>
+          {recentContacts.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSendOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 hover:bg-muted text-xs font-medium shrink-0 transition-colors"
+            >
+              <span className="h-5 w-5 rounded-full flex items-center justify-center text-2xs font-semibold text-white shrink-0" style={{ backgroundColor: accentColor }}>
+                {c.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="truncate max-w-[100px]">{c.name}</span>
+              <Send className="h-3 w-3 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Category spend breakdown (this month) */}
+      {categorySpend.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Spend by category this month</h4>
+            <div className="space-y-2">
+              {categorySpend.map((cat) => {
+                const maxAmount = Math.max(...categorySpend.map((c) => c.amount), 1);
+                const pct = (cat.amount / maxAmount) * 100;
+                return (
+                  <div key={cat.category} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{cat.label}</span>
+                      <span className="text-muted-foreground tabular-nums">{formatNaira(cat.amount)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: accentColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Monthly cash flow (if enough data) */}
+      {cashFlow.length >= 2 && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Monthly outflow trend</h4>
+            <div className="flex items-end gap-2 h-24">
+              {cashFlow.map((m) => {
+                const maxDebit = Math.max(...cashFlow.map((c) => c.debits), 1);
+                const h = Math.max((m.debits / maxDebit) * 100, 4);
+                const monthLabel = new Date(`${m.month}-01`).toLocaleDateString('en-NG', { month: 'short' });
+                return (
+                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-2xs text-muted-foreground tabular-nums">{formatNaira(m.debits)}</span>
+                    <div className="w-full rounded-t" style={{ height: `${h}%`, backgroundColor: accentColor, opacity: 0.8 }} />
+                    <span className="text-2xs text-muted-foreground">{monthLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -551,7 +720,7 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color?: string }) {
+function StatCard({ icon: Icon, label, value, color, subValue }: { icon: any; label: string; value: string; color?: string; subValue?: string }) {
   return (
     <Card>
       <CardContent className="p-3">
@@ -559,6 +728,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
           <Icon className="h-3.5 w-3.5" /> {label}
         </div>
         <p className={`text-sm font-bold tabular-nums ${color ?? ''}`}>{value}</p>
+        {subValue && <p className="text-2xs text-red-400 mt-0.5">{subValue}</p>}
       </CardContent>
     </Card>
   );
@@ -1078,25 +1248,45 @@ function AddBeneficiaryDialog({ open, onOpenChange, companyId, profile, toast, o
   open: boolean; onOpenChange: (v: boolean) => void; companyId: string; profile: any; toast: any; onAdded: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', bankName: '', accountNumber: '' });
+  const [bank, setBank] = useState<BankAccountValue>({ bank_name: '', account_number: '', account_name: '', verified: false });
+  const [customName, setCustomName] = useState('');
+
+  const reset = () => {
+    setBank({ bank_name: '', account_number: '', account_name: '', verified: false });
+    setCustomName('');
+  };
 
   const save = async () => {
-    if (!form.name.trim() || !form.bankName.trim() || !form.accountNumber.trim()) {
-      toast({ title: 'All fields are required', variant: 'destructive' });
+    if (!bank.verified) {
+      toast({ title: 'Verify the bank account first', variant: 'destructive' });
       return;
     }
     setSaving(true);
     try {
+      const bankCode = getBankCode(bank.bank_name);
+      let recipientCode: string | undefined;
+      if (bankCode) {
+        try {
+          const recipient = await createTransferRecipient({
+            name: bank.account_name,
+            account_number: bank.account_number,
+            bank_code: bankCode,
+          });
+          recipientCode = recipient.recipient_code;
+        } catch { /* non-critical — beneficiary can exist without recipient code */ }
+      }
       await createNdiBeneficiary({
         companyId,
-        name: form.name.trim(),
-        bankName: form.bankName.trim(),
-        accountNumber: form.accountNumber.trim(),
+        name: customName.trim() || bank.account_name,
+        bankName: bank.bank_name,
+        accountNumber: bank.account_number,
+        bankCode: bankCode ?? undefined,
+        paystackRecipientCode: recipientCode,
         createdBy: profile?.id ?? '',
       });
       toast({ title: 'Beneficiary added' });
       onOpenChange(false);
-      setForm({ name: '', bankName: '', accountNumber: '' });
+      reset();
       onAdded();
     } catch (err) {
       toast({ title: 'Failed', description: errorMessage(err), variant: 'destructive' });
@@ -1106,22 +1296,26 @@ function AddBeneficiaryDialog({ open, onOpenChange, companyId, profile, toast, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Beneficiary</DialogTitle>
-          <DialogDescription>A person or organization NDI sends disbursements to.</DialogDescription>
+          <DialogDescription>Select a bank, enter the account number, and we'll verify it via Paystack.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Beneficiary name" /></div>
-          <div><Label>Bank Name</Label><Input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="Bank name" /></div>
-          <div><Label>Account Number</Label><Input value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} placeholder="1234567890" /></div>
+          <BankAccountField value={bank} onChange={setBank} provider="paystack" disabled={saving} />
+          {bank.verified && (
+            <div>
+              <Label>Display name (optional)</Label>
+              <Input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder={bank.account_name || 'Leave blank to use verified name'} />
+            </div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !bank.verified}>
             {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            Add
+            Add Beneficiary
           </Button>
         </DialogFooter>
       </DialogContent>
