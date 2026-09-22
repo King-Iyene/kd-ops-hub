@@ -1,6 +1,5 @@
 -- NDI Finance — standalone tables for Niger Delta Innovate's financial
--- tracking. Completely independent from Principal Disbursements
--- (principal_wallet_dva / principal_wallet_ledger / personal_transfers).
+-- tracking. Completely independent from Principal Disbursements.
 -- These tables share NO foreign keys or views with Principal Disbursements.
 
 -- NDI dedicated virtual account registration
