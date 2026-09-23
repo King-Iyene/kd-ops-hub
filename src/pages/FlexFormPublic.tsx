@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, Table2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -235,6 +235,101 @@ export default function FlexFormPublic() {
   );
 }
 
+function SearchablePersonPicker({ people, value, onChange }: {
+  people: { id: string; full_name: string }[];
+  value: string | undefined;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = search
+    ? people.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
+    : people;
+
+  const selected = people.find((p) => p.id === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        <span className={selected ? '' : 'text-muted-foreground'}>{selected ? selected.full_name : 'Select a name...'}</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" className="opacity-50"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          <div className="p-2">
+            <input
+              type="text"
+              placeholder="Search names..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto px-1 pb-1">
+            {filtered.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No results</div>}
+            {filtered.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => { onChange(p.id); setOpen(false); setSearch(''); }}
+                className={`w-full text-left px-3 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground ${p.id === value ? 'bg-accent/50 font-medium' : ''}`}
+              >
+                {p.full_name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchableMultiPerson({ people, ids, onChange }: {
+  people: { id: string; full_name: string }[];
+  ids: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const filtered = search
+    ? people.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
+    : people;
+  return (
+    <div className="border border-border rounded-md p-2.5">
+      <input
+        type="text"
+        placeholder="Search names..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring mb-2"
+      />
+      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+        {filtered.length === 0 && <div className="text-sm text-muted-foreground px-1">No results</div>}
+        {filtered.map((p) => (
+          <label key={p.id} className="flex items-center gap-2 cursor-pointer">
+            <Checkbox checked={ids.includes(p.id)} onCheckedChange={(v) => onChange(v ? [...ids, p.id] : ids.filter((i) => i !== p.id))} />
+            <span className="text-sm">{p.full_name}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, onNoOptions, onTaskOptionsLoaded }: {
   field: PublicField;
   value: unknown;
@@ -298,25 +393,15 @@ function FieldInput({ field, value, onChange, token, personId, hasPersonFilter, 
     }
     case 'person':
       return (
-        <Select value={(value as string) || undefined} onValueChange={onChange}>
-          <SelectTrigger><SelectValue placeholder="Select a name..." /></SelectTrigger>
-          <SelectContent>
-            {(field.options.people || []).map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <SearchablePersonPicker
+          people={field.options.people || []}
+          value={(value as string) || undefined}
+          onChange={onChange}
+        />
       );
     case 'multi_person': {
       const ids = Array.isArray(value) ? (value as string[]) : [];
-      return (
-        <div className="space-y-1.5 border border-border rounded-md p-2.5 max-h-48 overflow-y-auto">
-          {(field.options.people || []).map((p) => (
-            <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={ids.includes(p.id)} onCheckedChange={(v) => onChange(v ? [...ids, p.id] : ids.filter((i) => i !== p.id))} />
-              <span className="text-sm">{p.full_name}</span>
-            </label>
-          ))}
-        </div>
-      );
+      return <SearchableMultiPerson people={field.options.people || []} ids={ids} onChange={onChange} />;
     }
     case 'task_link':
       if (!hasPersonFilter) {
