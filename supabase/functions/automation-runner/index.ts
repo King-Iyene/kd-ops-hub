@@ -30,7 +30,7 @@ interface AutomationCondition {
 
 interface AutomationAction {
   id: string;
-  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification';
+  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification' | 'delay' | 'conditional' | 'log_message';
   config: Record<string, any>;
 }
 
@@ -354,6 +354,28 @@ async function executeAction(
         return { success: true, durationMs: Date.now() - start };
       }
 
+      case 'delay': {
+        const { amount = 5, unit = 'minutes' } = action.config;
+        const multipliers: Record<string, number> = { seconds: 1000, minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
+        const ms = Math.min(Number(amount) * (multipliers[unit] ?? 60_000), 30_000);
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        return { success: true, durationMs: Date.now() - start };
+      }
+
+      case 'log_message': {
+        const extra = { 'table.name': context.tableMeta?.name ?? context.tableName };
+        const message = resolvePlaceholders(action.config.message ?? '', context.record, context.fieldMap, context.reverseFieldMap, extra);
+        const level = action.config.level ?? 'info';
+        console[level === 'error' ? 'error' : level === 'warning' ? 'warn' : 'log'](`[Automation Log] ${message}`);
+        return { success: true, durationMs: Date.now() - start };
+      }
+
+      case 'conditional': {
+        const conditions = action.config.conditions as AutomationCondition[] ?? [];
+        const conditionsMet = evaluateConditions(context.record, conditions, context.fieldMap, action.config.logic ?? 'AND');
+        return { success: true, durationMs: Date.now() - start };
+      }
+
       default:
         return { success: false, error: `Unknown action type: ${action.type}`, durationMs: Date.now() - start };
     }
@@ -587,9 +609,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       const actionResults: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }> = [];
+      let skipRemaining = false;
 
       for (const action of automation.actions) {
-        const result = await executeAction(action, {
+        if (skipRemaining) break;
+
+        const ctx = {
           record: record ?? {},
           oldRecord,
           supabase,
@@ -599,7 +624,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
           fieldMap,
           reverseFieldMap,
           tableMeta: { name: tableMeta2?.name ?? table.pg_table_name },
-        });
+        };
+
+        if (action.type === 'conditional') {
+          const conditions = action.config.conditions as AutomationCondition[] ?? [];
+          const conditionsMet = evaluateConditions(record ?? {}, conditions, fieldMap, action.config.logic ?? 'AND');
+          actionResults.push({ actionId: action.id, type: action.type, success: true, durationMs: 0 });
+          if (!conditionsMet) {
+            skipRemaining = true;
+          }
+          continue;
+        }
+
+        const result = await executeAction(action, ctx);
         actionResults.push({ actionId: action.id, type: action.type, ...result });
       }
 
