@@ -585,16 +585,7 @@ function ActionConfigForm({
       return (
         <div className="space-y-2">
           <HelpTip text={ACTION_HELP.log_message} />
-          <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Message</label>
-            <textarea
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] resize-none"
-              rows={3}
-              placeholder="Record {{record.Name}} was updated. Status: {{record.Status}}"
-              value={c.message ?? ''}
-              onChange={(e) => set('message', e.target.value)}
-            />
-          </div>
+          <InputWithPlaceholders label="Message" value={c.message ?? ''} onChange={(v) => set('message', v)} placeholder="Record {{record.Name}} was updated. Status: {{record.Status}}" fields={fields} multiline />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Log level</label>
             <select
