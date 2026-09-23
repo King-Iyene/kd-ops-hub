@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
   ChevronLeft,
@@ -63,6 +63,7 @@ export function AppSidebar() {
   const signOut = useAuthStore((s) => s.signOut);
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
+  const navigate = useNavigate();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
@@ -256,6 +257,17 @@ export function AppSidebar() {
       return g ? [...g.titles] : [];
     });
     return navItems.filter((n) => groupTitles.includes(n.title));
+  }
+
+  function enterHub(hub: SidebarHub) {
+    setActiveHub(hub.key);
+    const items = getHubItems(hub);
+    const alreadyInHub = items.some(
+      (n) => location.pathname === n.url || (n.url !== '/' && location.pathname.startsWith(n.url)),
+    );
+    if (!alreadyInHub && items.length > 0) {
+      navigate(items[0].url);
+    }
   }
 
   function isHubActive(hub: SidebarHub) {
@@ -455,7 +467,7 @@ export function AppSidebar() {
                   return (
                     <button
                       key={hub.key}
-                      onClick={() => setActiveHub(hub.key)}
+                      onClick={() => enterHub(hub)}
                       className={cn(
                         'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-left kd-transition group/hub',
                         'border border-transparent',
@@ -517,7 +529,7 @@ export function AppSidebar() {
                         tooltip={hub.label}
                         isActive={active}
                         className="relative"
-                        onClick={() => { setActiveHub(hub.key); setOpen(true); }}
+                        onClick={() => { enterHub(hub); setOpen(true); }}
                       >
                         <div className="flex items-center justify-center w-full py-0.5 group/icon">
                           <Icon className={cn(
