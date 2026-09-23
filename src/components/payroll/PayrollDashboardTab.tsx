@@ -19,7 +19,7 @@ import { formatNaira, formatNairaCompact, daysUntil } from '@/lib/format';
 import { displayName } from '@/lib/name';
 import { PayrollLifecycleRail } from '@/components/payroll/PayrollLifecycleRail';
 import { realStepIndex } from '@/lib/payroll-run';
-import { ALL_COMPANIES } from '@/components/ui-kit/CompanySwitcher';
+import { ALL_COMPANIES } from '@/components/ui-kit/company-constants';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { cn, initials } from '@/lib/utils';
 

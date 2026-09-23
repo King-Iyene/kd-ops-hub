@@ -62,8 +62,7 @@ const KNOWN_ROLES: RoleOption[] = [
 
 // Canonical target field library — the destinations users can map into.
 // Grouped so the mapping UI is readable when a CSV has 50+ columns.
-// eslint-disable-next-line react-refresh/only-export-components
-export const KDOPS_FIELDS = [
+const KDOPS_FIELDS = [
   { key: 'first_name',          label: 'First name',            group: 'Identity', required: true },
   { key: 'last_name',           label: 'Last name',             group: 'Identity', required: true },
   { key: 'email',               label: 'Email',                 group: 'Identity', required: true },

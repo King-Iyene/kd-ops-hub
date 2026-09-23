@@ -27,7 +27,7 @@ interface VehicleStat {
 
 type AnalyticsRange = '8w' | '6m' | '12m';
 
-export function KpiCard({
+function KpiCard({
   label, icon, value, subtext, warn,
 }: {
   label: string;
@@ -424,15 +424,5 @@ function FleetAnalyticsDashboard({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const SERVICE_TYPES = [
-  'Oil Change',
-  'Tyre Rotation',
-  'Brake Service',
-  'Full Service',
-  'Air Filter',
-  'Transmission Service',
-  'Custom',
-];
 
 export default FleetAnalyticsDashboard;

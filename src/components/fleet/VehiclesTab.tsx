@@ -33,7 +33,7 @@ import {
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 import { Loader2, Plus, Car, Pencil, Trash2, AlertTriangle, Wrench, FileText, History, User, Fuel, Ban, CalendarOff, CheckSquare, ClipboardCheck } from 'lucide-react';
 import { type FieldStaff, type Vehicle, type MaintenanceRecord } from '@/lib/fleet-utils';
-import { SERVICE_TYPES } from '@/components/fleet/FleetAnalyticsDashboard';
+import { SERVICE_TYPES } from '@/components/fleet/fleet-constants';
 import { addMonths } from '@/components/fleet/fleet-utils';
 
 function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: number; lastRefuel: string | null }) {

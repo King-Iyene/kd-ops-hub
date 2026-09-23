@@ -107,7 +107,7 @@ import { AnomalyReviewDialog } from '@/components/fleet/AnomalyReviewDialog';
 import { addMonths } from '@/components/fleet/fleet-utils';
 import { LogExternalPurchaseDialog } from '@/components/fleet/LogExternalPurchaseDialog';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
-import { SERVICE_TYPES } from '@/components/fleet/FleetAnalyticsDashboard';
+import { SERVICE_TYPES } from '@/components/fleet/fleet-constants';
 import {
   type FieldStaff,
   type VehicleSummary,
