@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer, GitBranch } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer, GitBranch, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -40,6 +40,7 @@ const ACTION_HELP: Record<AutomationAction['type'], string> = {
   send_notification: 'Sends an in-app notification to selected team members.',
   delay: 'Pauses the automation for a set duration before running the next action. Great for follow-up emails or scheduled reminders.',
   conditional: 'Branches the automation based on a condition. If the condition is true, runs the "Then" actions; otherwise runs the "Else" actions.',
+  log_message: 'Logs a message to the automation run history for debugging. Use {{record.FieldName}} for dynamic values.',
 };
 
 const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: string; text: string; darkText: string }> = {
@@ -60,6 +61,7 @@ const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeo
   { type: 'send_notification', label: 'Send Notification', icon: Bell },
   { type: 'delay', label: 'Delay', icon: Timer },
   { type: 'conditional', label: 'Conditional', icon: GitBranch },
+  { type: 'log_message', label: 'Log Message', icon: MessageSquare },
 ];
 
 const CONDITION_OPERATORS: { value: AutomationConditionOp; label: string; needsValue: boolean }[] = [
@@ -574,6 +576,36 @@ function ActionConfigForm({
                 {p.label}
               </button>
             ))}
+          </div>
+        </div>
+      );
+    }
+
+    case 'log_message': {
+      return (
+        <div className="space-y-2">
+          <HelpTip text={ACTION_HELP.log_message} />
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Message</label>
+            <textarea
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] resize-none"
+              rows={3}
+              placeholder="Record {{record.Name}} was updated. Status: {{record.Status}}"
+              value={c.message ?? ''}
+              onChange={(e) => set('message', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Log level</label>
+            <select
+              className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+              value={c.level ?? 'info'}
+              onChange={(e) => set('level', e.target.value)}
+            >
+              <option value="info">Info</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+            </select>
           </div>
         </div>
       );
