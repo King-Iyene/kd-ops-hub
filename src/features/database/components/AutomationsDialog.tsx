@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -63,6 +63,21 @@ function actionId() {
 
 function conditionId() {
   return `cond_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function useCompanyProfiles() {
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('id, full_name')
+      .neq('is_anonymised', true)
+      .order('full_name')
+      .then(({ data }) => {
+        if (data) setProfiles(data);
+      });
+  }, []);
+  return profiles;
 }
 
 function useIsDark() {
@@ -222,10 +237,12 @@ function ActionConfigForm({
   action,
   onChange,
   fields,
+  profiles,
 }: {
   action: AutomationAction;
   onChange: (config: Record<string, any>) => void;
   fields: { id: string; name: string }[];
+  profiles: { id: string; full_name: string }[];
 }) {
   const c = action.config;
   const set = (key: string, val: any) => onChange({ ...c, [key]: val });
@@ -337,22 +354,66 @@ function ActionConfigForm({
         </div>
       );
 
-    case 'create_record':
+    case 'create_record': {
+      const pairs: { field_id: string; value: string }[] = c.field_pairs ?? [];
+      const addPair = () => onChange({ ...c, field_pairs: [...pairs, { field_id: '', value: '' }] });
+      const updatePair = (i: number, key: string, val: string) => {
+        const next = [...pairs];
+        next[i] = { ...next[i], [key]: val };
+        onChange({ ...c, field_pairs: next });
+      };
+      const removePair = (i: number) => onChange({ ...c, field_pairs: pairs.filter((_, j) => j !== i) });
       return (
         <div className="space-y-2">
-          <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Define field/value pairs (JSON object)</p>
-          <div>
-            <textarea
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] min-h-[60px] resize-y font-mono placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-              value={c.fields_json ?? '{}'}
-              onChange={(e) => set('fields_json', e.target.value)}
-              placeholder='{"field_name": "value"}'
-            />
-          </div>
+          <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block">Fields to set</label>
+          {pairs.length === 0 && (
+            <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">No fields configured — click below to add.</p>
+          )}
+          {pairs.map((pair, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <select
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                value={pair.field_id}
+                onChange={(e) => updatePair(i, 'field_id', e.target.value)}
+              >
+                <option value="">Select field...</option>
+                {fields.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+              <span className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">=</span>
+              <input
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                value={pair.value}
+                onChange={(e) => updatePair(i, 'value', e.target.value)}
+                placeholder="Value"
+              />
+              <button
+                className="shrink-0 p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#9CA3AF] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                onClick={() => removePair(i)}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+            onClick={addPair}
+          >
+            <Plus size={11} /> Add field
+          </button>
         </div>
       );
+    }
 
-    case 'send_notification':
+    case 'send_notification': {
+      const recipientIds: string[] = Array.isArray(c.recipients) ? c.recipients : [];
+      const toggleRecipient = (uid: string) => {
+        const next = recipientIds.includes(uid)
+          ? recipientIds.filter((r: string) => r !== uid)
+          : [...recipientIds, uid];
+        set('recipients', next);
+      };
       return (
         <div className="space-y-2">
           <InputRow label="Title" value={c.title ?? ''} onChange={(v) => set('title', v)} placeholder="Notification title" />
@@ -366,16 +427,36 @@ function ActionConfigForm({
             />
           </div>
           <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Recipient user IDs (comma-separated)</label>
-            <input
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-              value={Array.isArray(c.recipients) ? c.recipients.join(', ') : (c.recipients ?? '')}
-              onChange={(e) => set('recipients', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
-              placeholder="user-uuid-1, user-uuid-2"
-            />
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] flex items-center gap-1.5 mb-1.5">
+              <Users size={11} /> Recipients
+            </label>
+            {profiles.length === 0 ? (
+              <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">Loading team members...</p>
+            ) : (
+              <div className="max-h-[120px] overflow-y-auto rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,25%,13%)]">
+                {profiles.map((p) => (
+                  <label
+                    key={p.id}
+                    className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={recipientIds.includes(p.id)}
+                      onChange={() => toggleRecipient(p.id)}
+                      className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,25%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
+                    />
+                    <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">{p.full_name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {recipientIds.length > 0 && (
+              <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] mt-1">{recipientIds.length} recipient{recipientIds.length !== 1 ? 's' : ''} selected</p>
+            )}
           </div>
         </div>
       );
+    }
 
     default:
       return null;
@@ -492,6 +573,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   const deleteAutomation = useDeleteAutomation();
 
   const isDark = useIsDark();
+  const profiles = useCompanyProfiles();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showActionPicker, setShowActionPicker] = useState(false);
   const [testRunning, setTestRunning] = useState(false);
@@ -720,22 +802,49 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
           <div className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden bg-white dark:bg-[hsl(220,30%,10%)]">
             {!draft ? (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <Zap size={32} className="mx-auto mb-3 text-[#D1D5DB] dark:text-[hsl(220,25%,25%)]" />
-                  <p className="text-xs-plus text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Select an automation or create a new one</p>
+                <div className="text-center px-8">
+                  <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: isDark ? 'hsl(220,25%,15%)' : '#EBF5FF' }}>
+                    <Zap size={22} className="text-[#2D7FF9]" />
+                  </div>
+                  <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] mb-1">No automation selected</p>
+                  <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Select an automation from the list or create a new one to get started.</p>
                 </div>
               </div>
             ) : (
               <div className="p-4 space-y-5">
-                {/* Name */}
-                <div>
-                  <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Name</label>
-                  <input
-                    className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
-                    value={draft.name}
-                    onChange={(e) => updateDraft({ name: e.target.value })}
-                  />
+                {/* Header with name + close */}
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Name</label>
+                    <input
+                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                      value={draft.name}
+                      onChange={(e) => updateDraft({ name: e.target.value })}
+                    />
+                  </div>
+                  <button
+                    className="mt-5 p-1.5 rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] transition-colors"
+                    onClick={() => handleOpenChange(false)}
+                    title="Close"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
+
+                {/* Unsaved changes banner */}
+                {dirty && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md text-xs" style={{ backgroundColor: isDark ? 'hsl(45,30%,12%)' : '#FFFBEB', color: isDark ? '#FCD34D' : '#92400E' }}>
+                    <AlertTriangle size={13} />
+                    <span>You have unsaved changes</span>
+                    <button
+                      className="ml-auto px-2.5 py-0.5 rounded text-2xs font-medium transition-colors"
+                      style={{ backgroundColor: '#2D7FF9', color: '#fff' }}
+                      onClick={handleSave}
+                    >
+                      Save now
+                    </button>
+                  </div>
+                )}
 
                 {/* Trigger */}
                 <div>
@@ -839,10 +948,12 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       const meta = ACTION_TYPES.find((t) => t.type === action.type);
                       const Icon = meta?.icon ?? Bell;
                       return (
-                        <div key={action.id} className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] p-3 bg-white dark:bg-[hsl(220,25%,13%)]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <GripVertical size={12} className="text-[#D1D5DB] dark:text-[hsl(220,25%,25%)] shrink-0" />
-                            <Icon size={13} className="text-[#2D7FF9] shrink-0" />
+                        <div key={action.id} className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden">
+                          <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}>
+                            <GripVertical size={12} className="text-[#D1D5DB] dark:text-[hsl(220,25%,25%)] shrink-0 cursor-grab" />
+                            <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
+                              <Icon size={12} className="text-[#2D7FF9]" />
+                            </div>
                             <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
                               {idx + 1}. {meta?.label ?? action.type}
                             </span>
@@ -854,11 +965,14 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                               <Trash2 size={12} />
                             </button>
                           </div>
-                          <ActionConfigForm
-                            action={action}
-                            onChange={(config) => updateActionConfig(action.id, config)}
-                            fields={fieldOptions}
-                          />
+                          <div className="p-3">
+                            <ActionConfigForm
+                              action={action}
+                              onChange={(config) => updateActionConfig(action.id, config)}
+                              fields={fieldOptions}
+                              profiles={profiles}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -866,35 +980,34 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 </div>
 
                 {/* Save / Delete / Test buttons */}
-                <div className="flex items-center gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+                <div className="flex items-center gap-2 pt-3 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
                   <Button
                     size="sm"
-                    className="h-8 px-4 text-xs"
-                    style={{ backgroundColor: '#2D7FF9' }}
+                    className="h-8 px-4 text-xs gap-1.5"
+                    style={{ backgroundColor: dirty ? '#2D7FF9' : (isDark ? 'hsl(220,25%,20%)' : '#E5E7EB'), color: dirty ? '#fff' : (isDark ? 'hsl(220,20%,55%)' : '#6B7280') }}
                     onClick={handleSave}
                   >
-                    Save{dirty ? ' *' : ''}
+                    <Save size={12} /> Save
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-xs"
+                    className="h-8 px-3 text-xs gap-1.5"
                     style={{ color: '#2D7FF9', borderColor: isDark ? 'hsl(220,25%,25%)' : '#DBEAFE' }}
                     onClick={handleTestRun}
                     disabled={testRunning}
                   >
-                    <Play size={11} className="mr-1" /> {testRunning ? 'Running...' : 'Test Run'}
+                    <Play size={11} /> {testRunning ? 'Running...' : 'Test Run'}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-xs text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
+                    className="h-8 px-3 text-xs gap-1.5 text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
                     onClick={handleDelete}
                   >
-                    <Trash2 size={12} className="mr-1" /> Delete
+                    <Trash2 size={12} /> Delete
                   </Button>
 
-                  {/* Run stats */}
                   {draft.run_count != null && draft.run_count > 0 && (
                     <span className="ml-auto text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                       {draft.run_count} runs

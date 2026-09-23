@@ -236,7 +236,18 @@ async function executeAction(
           if (base) targetSchema = base.schema_name;
         }
 
-        const insertData = createFields ?? recordData ?? {};
+        let insertData = createFields ?? recordData ?? {};
+
+        const fieldPairs: { field_id: string; value: string }[] = action.config.field_pairs;
+        if (Array.isArray(fieldPairs) && fieldPairs.length > 0) {
+          const pairData: Record<string, unknown> = {};
+          for (const pair of fieldPairs) {
+            if (!pair.field_id) continue;
+            const col = context.fieldMap.get(pair.field_id) ?? pair.field_id;
+            pairData[col] = pair.value;
+          }
+          insertData = pairData;
+        }
 
         const { error } = await context.supabase
           .schema(targetSchema)
