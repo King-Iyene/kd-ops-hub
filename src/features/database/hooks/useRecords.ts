@@ -30,6 +30,7 @@ export function fireAutomations(event: string, baseId: string, tableId: string, 
     body: { event, baseId, tableId, record, oldRecord },
   }).catch((err) => {
     logWarn('Database', 'Automation failed:', err?.message ?? err);
+    toast.warning('An automation failed to run. Check automation run history for details.');
   });
 }
 
@@ -173,7 +174,7 @@ const fieldsMetaCache = new Map<string, { fields: any[]; fieldMap: Map<string, a
 
 async function resolveFieldsMeta(tableId: string) {
   const cached = fieldsMetaCache.get(tableId);
-  if (cached && Date.now() - cached.ts < 30_000) {
+  if (cached && Date.now() - cached.ts < 300_000) {
     return { fieldsMeta: cached.fields, fieldMap: cached.fieldMap };
   }
 

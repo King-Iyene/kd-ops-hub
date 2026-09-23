@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation, useAutomationRuns } from '../hooks';
@@ -85,16 +85,24 @@ function conditionId() {
   return `cond_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+let _profilesCache: { data: { id: string; full_name: string }[]; ts: number } | null = null;
+
 function useCompanyProfiles() {
-  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>(_profilesCache?.data ?? []);
   useEffect(() => {
+    if (_profilesCache && Date.now() - _profilesCache.ts < 300_000) {
+      setProfiles(_profilesCache.data);
+      return;
+    }
     supabase
       .from('profiles')
       .select('id, full_name')
       .neq('is_anonymised', true)
       .order('full_name')
       .then(({ data }) => {
-        if (data) setProfiles(data);
+        const result = data ?? [];
+        _profilesCache = { data: result, ts: Date.now() };
+        setProfiles(result);
       });
   }, []);
   return profiles;
@@ -347,12 +355,9 @@ function ActionConfigForm({
               <option value="record_id">Triggering record ID</option>
             </select>
             {c.value_source === 'static' || !c.value_source ? (
-              <input
-                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-                value={c.value ?? ''}
-                onChange={(e) => set('value', e.target.value)}
-                placeholder="Enter value"
-              />
+              <div className="mt-1.5">
+                <InputWithPlaceholders label="" value={c.value ?? ''} onChange={(v) => set('value', v)} placeholder="Enter value or use {{record.FieldName}}" fields={fields} />
+              </div>
             ) : c.value_source === 'field' ? (
               <select
                 className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
@@ -398,12 +403,9 @@ function ActionConfigForm({
                 ))}
               </select>
               <span className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">=</span>
-              <input
-                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-                value={pair.value}
-                onChange={(e) => updatePair(i, 'value', e.target.value)}
-                placeholder="Value"
-              />
+              <div className="flex-1 min-w-0">
+                <InputWithPlaceholders label="" value={pair.value} onChange={(v) => updatePair(i, 'value', v)} placeholder="Value or {{record.Field}}" fields={fields} />
+              </div>
               <button
                 className="shrink-0 p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#9CA3AF] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
                 onClick={() => removePair(i)}
@@ -586,11 +588,11 @@ function PlaceholderPicker({ fields, onInsert }: { fields: { id: string; name: s
     <div className="relative inline-block" ref={ref}>
       <button
         type="button"
-        className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+        className="flex items-center gap-1 text-2xs font-medium text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors px-1.5 py-0.5 rounded border border-[#2D7FF9]/20 hover:border-[#2D7FF9]/40 hover:bg-[#2D7FF9]/5"
         onClick={() => setOpen(!open)}
         title="Insert dynamic placeholder"
       >
-        <Copy size={10} /> Insert variable
+        <span className="text-3xs font-bold opacity-70">{'{{}}'}</span> Insert variable
       </button>
       {open && (
         <div className="absolute left-0 top-5 z-50 bg-white dark:bg-[hsl(220,25%,13%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shadow-lg py-1 w-56 max-h-[200px] overflow-y-auto">
@@ -648,8 +650,8 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">{label}</label>
+      <div className={`flex items-center ${label ? 'justify-between' : 'justify-end'} mb-1`}>
+        {label && <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">{label}</label>}
         <PlaceholderPicker fields={fields} onInsert={handleInsert} />
       </div>
       {multiline ? (
@@ -921,6 +923,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-6xl p-0 gap-0 overflow-hidden" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Automations</DialogTitle>
+        <DialogDescription className="sr-only">Manage automations for this table</DialogDescription>
         <div className="flex h-full">
           {/* ---- Left sidebar ---- */}
           <div className="w-[260px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
