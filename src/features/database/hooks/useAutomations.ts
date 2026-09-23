@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { Automation } from '../types';
+import type { Automation, AutomationRun } from '../types';
 
 export function useAutomations(tableId: string | null) {
   return useQuery({
@@ -82,5 +82,24 @@ export function useDeleteAutomation() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['automations', vars.table_id] });
     },
+  });
+}
+
+export function useAutomationRuns(automationId: string | null, limit = 50) {
+  return useQuery({
+    queryKey: ['automation-runs', automationId, limit],
+    queryFn: async () => {
+      if (!automationId) return [];
+      const { data, error } = await supabase
+        .schema('nc_meta')
+        .from('automation_runs')
+        .select('*')
+        .eq('automation_id', automationId)
+        .order('started_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as AutomationRun[];
+    },
+    enabled: !!automationId,
   });
 }

@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, X, Filter } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from '../hooks';
+import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation, useAutomationRuns } from '../hooks';
 import { useFields } from '../hooks';
-import type { Automation, AutomationAction, AutomationCondition, AutomationConditionOp } from '../types';
+import type { Automation, AutomationAction, AutomationCondition, AutomationConditionOp, AutomationRun } from '../types';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -313,6 +313,61 @@ function ActionConfigForm({
   }
 }
 
+const RUN_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
+  success: { icon: CheckCircle2, color: '#10B981', label: 'Success' },
+  error: { icon: XCircle, color: '#EF4444', label: 'Error' },
+  partial: { icon: AlertTriangle, color: '#F59E0B', label: 'Partial' },
+  running: { icon: Clock, color: '#3B82F6', label: 'Running' },
+  skipped: { icon: X, color: '#6B7280', label: 'Skipped' },
+};
+
+function RunHistoryPanel({ automationId }: { automationId: string }) {
+  const { data: runs = [], isLoading } = useAutomationRuns(automationId, 20);
+
+  if (isLoading) {
+    return <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] py-2">Loading history...</p>;
+  }
+
+  if (runs.length === 0) {
+    return (
+      <div className="py-4 text-center rounded-lg border border-dashed border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+        <History size={18} className="mx-auto mb-1 text-[#D1D5DB] dark:text-[hsl(220,25%,25%)]" />
+        <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">No runs yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+      {runs.map((run) => {
+        const cfg = RUN_STATUS_CONFIG[run.status] ?? RUN_STATUS_CONFIG.error;
+        const StatusIcon = cfg.icon;
+        const time = new Date(run.started_at);
+        const timeStr = time.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        return (
+          <div key={run.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] text-xs">
+            <StatusIcon size={13} style={{ color: cfg.color }} className="shrink-0" />
+            <span className="text-[#374151] dark:text-[hsl(220,25%,88%)] truncate flex-1">
+              {run.trigger_event}
+              {run.record_id && <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] ml-1">({run.record_id.slice(0, 8)}...)</span>}
+            </span>
+            {run.duration_ms != null && (
+              <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{run.duration_ms}ms</span>
+            )}
+            <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{timeStr}</span>
+            {run.error_message && (
+              <span className="text-[#EF4444] text-2xs truncate max-w-[120px]" title={run.error_message}>
+                {run.error_message}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function InputRow({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
@@ -501,6 +556,9 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       >
                         {TRIGGER_LABELS[a.trigger_type]}
                       </span>
+                      {a.run_count != null && a.run_count > 0 && (
+                        <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{a.run_count} runs</span>
+                      )}
                       <button
                         className="shrink-0 w-6 h-3.5 rounded-full relative transition-colors ml-auto"
                         style={{ backgroundColor: a.enabled ? '#2D7FF9' : (isDark ? 'hsl(220,25%,25%)' : '#D1D5DB') }}
@@ -689,6 +747,25 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   >
                     <Trash2 size={12} className="mr-1" /> Delete
                   </Button>
+
+                  {/* Run stats */}
+                  {draft.run_count != null && draft.run_count > 0 && (
+                    <span className="ml-auto text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+                      {draft.run_count} runs
+                      {draft.last_run_at && (
+                        <> · Last: {new Date(draft.last_run_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                {/* Run History */}
+                <div className="pt-2">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <History size={12} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
+                    <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Run History</label>
+                  </div>
+                  <RunHistoryPanel automationId={draft.id} />
                 </div>
               </div>
             )}

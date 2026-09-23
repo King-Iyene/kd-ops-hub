@@ -21,7 +21,7 @@ export type { LinkMeta, PaginatedLinkedRecords } from './useLinks';
 export { useSharedView, useCreateSharedView, useUpdateSharedView, useDeleteSharedView } from './useSharedViews';
 export { useApiKeys, useCreateApiKey, useRevokeApiKey } from './useApiKeys';
 export { useComments, useCreateComment, useUpdateComment, useDeleteComment } from './useComments';
-export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation } from './useAutomations';
+export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation, useAutomationRuns } from './useAutomations';
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';
 export { useAuditLog } from './useAuditLog';

@@ -379,6 +379,25 @@ export interface Automation {
   actions: AutomationAction[];
   created_at: string;
   updated_at: string;
+  last_run_at?: string;
+  run_count?: number;
+  last_error?: string;
+  schedule_cron?: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  automation_id: string;
+  trigger_event: string;
+  record_id: string | null;
+  status: 'running' | 'success' | 'partial' | 'error' | 'skipped';
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+  action_results: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }>;
+  error_message: string | null;
+  context: Record<string, any>;
+  created_at: string;
 }
 
 export interface AuditLogEntry {

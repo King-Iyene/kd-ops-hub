@@ -2,8 +2,13 @@
  * Automation Runner Edge Function
  *
  * Executes automation actions when triggered by database events.
- * Called via webhook from Supabase Realtime or directly from the client
- * when a record event occurs (create, update, delete).
+ * Called from the client when a record event occurs (create, update, delete).
+ *
+ * Features:
+ * - Condition evaluation with transition semantics (record_matches_conditions)
+ * - Run history logging to nc_meta.automation_runs
+ * - update_record action with link-field and self-reference support
+ * - field_changed trigger type
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -100,21 +105,20 @@ async function executeAction(
     supabase: ReturnType<typeof createClient>;
     schemaName: string;
     tableName: string;
+    tableId: string;
     fieldMap: Map<string, string>;
   },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; durationMs: number }> {
+  const start = Date.now();
   try {
     switch (action.type) {
       case 'send_webhook': {
         const { url, method = 'POST', headers = {} } = action.config;
-        if (!url) return { success: false, error: 'No webhook URL configured' };
+        if (!url) return { success: false, error: 'No webhook URL configured', durationMs: Date.now() - start };
 
         const response = await fetch(url, {
           method,
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-          },
+          headers: { 'Content-Type': 'application/json', ...headers },
           body: JSON.stringify({
             event: 'automation_trigger',
             record: context.record,
@@ -124,78 +128,210 @@ async function executeAction(
           signal: AbortSignal.timeout(10_000),
         });
 
-        return { success: response.ok, error: response.ok ? undefined : `HTTP ${response.status}` };
+        return { success: response.ok, error: response.ok ? undefined : `HTTP ${response.status}`, durationMs: Date.now() - start };
       }
 
       case 'update_record': {
-        const { field_id, value, target_table_id } = action.config;
-        if (!field_id) return { success: false, error: 'No field configured' };
+        const {
+          field_id,
+          value,
+          target_table_id,
+          record_id: configRecordId,
+          fields: updateFields,
+        } = action.config;
 
-        const colName = context.fieldMap.get(field_id) ?? field_id;
-        const recordId = context.record.id;
-        if (!recordId) return { success: false, error: 'No record ID' };
+        const recordId = configRecordId === '{{record.id}}' || !configRecordId
+          ? context.record.id
+          : configRecordId;
 
-        if (target_table_id && target_table_id !== '') {
-          const { data: targetTable } = await context.supabase
+        if (!recordId) return { success: false, error: 'No record ID', durationMs: Date.now() - start };
+
+        const effectiveTableId = target_table_id || context.tableId;
+        let targetSchema = context.schemaName;
+        let targetTable = context.tableName;
+
+        if (target_table_id && target_table_id !== context.tableId) {
+          const { data: tbl } = await context.supabase
             .schema('nc_meta')
             .from('tables')
-            .select('pg_table_name')
+            .select('pg_table_name, base_id')
             .eq('id', target_table_id)
             .single();
+          if (!tbl) return { success: false, error: 'Target table not found', durationMs: Date.now() - start };
+          targetTable = tbl.pg_table_name;
 
-          if (!targetTable) return { success: false, error: 'Target table not found' };
-
-          const targetFieldMap = await resolveFieldMap(context.supabase, target_table_id);
-          const targetCol = targetFieldMap.get(field_id) ?? field_id;
-
-          const { error } = await context.supabase
-            .schema(context.schemaName)
-            .from(targetTable.pg_table_name)
-            .update({ [targetCol]: value })
-            .eq('id', recordId);
-
-          return { success: !error, error: error?.message };
+          const { data: base } = await context.supabase
+            .schema('nc_meta')
+            .from('bases')
+            .select('schema_name')
+            .eq('id', tbl.base_id)
+            .single();
+          if (base) targetSchema = base.schema_name;
         }
 
+        const targetFieldMap = effectiveTableId !== context.tableId
+          ? await resolveFieldMap(context.supabase, effectiveTableId)
+          : context.fieldMap;
+
+        let updates: Record<string, any> = {};
+
+        if (updateFields && typeof updateFields === 'object') {
+          for (const [fid, val] of Object.entries(updateFields)) {
+            const col = targetFieldMap.get(fid) ?? fid;
+            updates[col] = val;
+          }
+        } else if (field_id) {
+          const col = targetFieldMap.get(field_id) ?? field_id;
+          updates[col] = value;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return { success: false, error: 'No fields to update', durationMs: Date.now() - start };
+        }
+
+        updates.updated_at = new Date().toISOString();
+
         const { error } = await context.supabase
-          .schema(context.schemaName)
-          .from(context.tableName)
-          .update({ [colName]: value })
+          .schema(targetSchema)
+          .from(targetTable)
+          .update(updates)
           .eq('id', recordId);
 
-        return { success: !error, error: error?.message };
+        return { success: !error, error: error?.message, durationMs: Date.now() - start };
       }
 
       case 'create_record': {
-        const { data: recordData } = action.config;
-        if (!recordData) return { success: false, error: 'No record data configured' };
+        const { target_table_id, fields: createFields, data: recordData } = action.config;
+
+        let targetSchema = context.schemaName;
+        let targetTable = context.tableName;
+
+        if (target_table_id && target_table_id !== context.tableId) {
+          const { data: tbl } = await context.supabase
+            .schema('nc_meta')
+            .from('tables')
+            .select('pg_table_name, base_id')
+            .eq('id', target_table_id)
+            .single();
+          if (!tbl) return { success: false, error: 'Target table not found', durationMs: Date.now() - start };
+          targetTable = tbl.pg_table_name;
+
+          const { data: base } = await context.supabase
+            .schema('nc_meta')
+            .from('bases')
+            .select('schema_name')
+            .eq('id', tbl.base_id)
+            .single();
+          if (base) targetSchema = base.schema_name;
+        }
+
+        const insertData = createFields ?? recordData ?? {};
 
         const { error } = await context.supabase
-          .schema(context.schemaName)
-          .from(context.tableName)
-          .insert(recordData);
+          .schema(targetSchema)
+          .from(targetTable)
+          .insert(insertData);
 
-        return { success: !error, error: error?.message };
+        return { success: !error, error: error?.message, durationMs: Date.now() - start };
       }
 
       case 'send_notification': {
         const { message } = action.config;
         console.log(`[Automation Notification] ${message ?? 'No message'}`);
-        return { success: true };
+        return { success: true, durationMs: Date.now() - start };
       }
 
       case 'send_email': {
         const { to, subject, body } = action.config;
         console.log(`[Automation Email] To: ${to}, Subject: ${subject}, Body: ${body}`);
-        return { success: true };
+        return { success: true, durationMs: Date.now() - start };
       }
 
       default:
-        return { success: false, error: `Unknown action type: ${action.type}` };
+        return { success: false, error: `Unknown action type: ${action.type}`, durationMs: Date.now() - start };
     }
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return { success: false, error: (err as Error).message, durationMs: Date.now() - start };
   }
+}
+
+async function logRun(
+  supabase: ReturnType<typeof createClient>,
+  automationId: string,
+  triggerEvent: string,
+  recordId: string | null,
+  status: string,
+  startedAt: Date,
+  actionResults: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }>,
+  errorMessage?: string,
+  context?: Record<string, any>,
+) {
+  const finishedAt = new Date();
+  const durationMs = finishedAt.getTime() - startedAt.getTime();
+
+  try {
+    await supabase.schema('nc_meta').from('automation_runs').insert({
+      automation_id: automationId,
+      trigger_event: triggerEvent,
+      record_id: recordId,
+      status,
+      started_at: startedAt.toISOString(),
+      finished_at: finishedAt.toISOString(),
+      duration_ms: durationMs,
+      action_results: actionResults,
+      error_message: errorMessage,
+      context: context ?? {},
+    });
+
+    await supabase.schema('nc_meta').from('automations').update({
+      last_run_at: finishedAt.toISOString(),
+      run_count: supabase.rpc ? undefined : undefined,
+      last_error: errorMessage ?? null,
+    }).eq('id', automationId);
+
+    // Increment run_count with raw SQL via RPC isn't available, so do a read-then-write
+    const { data: auto } = await supabase
+      .schema('nc_meta')
+      .from('automations')
+      .select('run_count')
+      .eq('id', automationId)
+      .single();
+    if (auto) {
+      await supabase.schema('nc_meta').from('automations').update({
+        run_count: (auto.run_count ?? 0) + 1,
+        last_run_at: finishedAt.toISOString(),
+        last_error: errorMessage ?? null,
+      }).eq('id', automationId);
+    }
+  } catch (err) {
+    console.error('Failed to log automation run:', err);
+  }
+}
+
+async function checkTransition(
+  supabase: ReturnType<typeof createClient>,
+  automationId: string,
+  recordId: string,
+  nowMatches: boolean,
+): Promise<boolean> {
+  const { data: existing } = await supabase
+    .schema('nc_meta')
+    .from('automation_condition_state')
+    .select('matched')
+    .eq('automation_id', automationId)
+    .eq('record_id', recordId)
+    .maybeSingle();
+
+  const previouslyMatched = existing?.matched ?? false;
+
+  // Upsert the new state
+  await supabase.schema('nc_meta').from('automation_condition_state').upsert(
+    { automation_id: automationId, record_id: recordId, matched: nowMatches, checked_at: new Date().toISOString() },
+    { onConflict: 'automation_id,record_id' },
+  );
+
+  // Transition: was false, now true
+  return !previouslyMatched && nowMatches;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -219,12 +355,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   const bearer = authHeader.slice(7);
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: `Bearer ${bearer}` } },
-  });
-  const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
-  if (authError || !userData?.user) {
-    return json({ success: false, error: 'Invalid or expired session' }, 401, req);
+  // Allow service role key as bearer for cron/internal calls
+  const isServiceCall = bearer === serviceRoleKey;
+
+  if (!isServiceCall) {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${bearer}` } },
+    });
+    const { data: userData, error: authError } = await userClient.auth.getUser(bearer);
+    if (authError || !userData?.user) {
+      return json({ success: false, error: 'Invalid or expired session' }, 401, req);
+    }
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -236,7 +377,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { event, baseId, tableId, record, oldRecord } = body;
 
     if (!event || !baseId || !tableId) {
-      return json({ success: false, error: 'Missing required fields: event, baseId, tableId' }, 400);
+      return json({ success: false, error: 'Missing required fields: event, baseId, tableId' }, 400, req);
     }
 
     const triggerMap: Record<string, string> = {
@@ -246,13 +387,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     };
     const triggerType = triggerMap[event];
     if (!triggerType) {
-      return json({ success: false, error: `Unknown event type: ${event}` }, 400);
+      return json({ success: false, error: `Unknown event type: ${event}` }, 400, req);
     }
 
-    // Fetch ALL enabled automations for this table (including record_matches_conditions)
+    // Fetch ALL enabled automations for this table
     const triggerTypes = [triggerType];
     if (triggerType === 'record_created' || triggerType === 'record_updated') {
       triggerTypes.push('record_matches_conditions');
+    }
+    if (triggerType === 'record_updated') {
+      triggerTypes.push('field_changed');
     }
 
     const { data: automations, error: autoErr } = await supabase
@@ -283,14 +427,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (!base || !table) {
-      return json({ success: false, error: 'Could not resolve base/table' }, 404);
+      return json({ success: false, error: 'Could not resolve base/table' }, 404, req);
     }
 
     const fieldMap = await resolveFieldMap(supabase, tableId);
 
-    const results: Array<{ automationId: string; name: string; actions: Array<{ actionId: string; success: boolean; error?: string }> }> = [];
+    const results: Array<{ automationId: string; name: string; status: string; actions: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }> }> = [];
 
     for (const automation of automations as Automation[]) {
+      const runStart = new Date();
+      const conditions = automation.trigger_config.conditions as AutomationCondition[] | undefined;
+      const logic = (automation.trigger_config.logic as string) ?? 'AND';
+
       // field_changed: skip if watched field didn't change
       if (automation.trigger_type === 'field_changed' && automation.trigger_config.field_id) {
         const watchedCol = fieldMap.get(automation.trigger_config.field_id) ?? automation.trigger_config.field_id;
@@ -299,16 +447,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
 
-      // record_matches_conditions: evaluate conditions against the record
+      // record_matches_conditions: evaluate with TRANSITION semantic
       if (automation.trigger_type === 'record_matches_conditions') {
-        const conditions = automation.trigger_config.conditions as AutomationCondition[] | undefined;
-        const logic = (automation.trigger_config.logic as string) ?? 'AND';
-        if (!evaluateConditions(record ?? {}, conditions ?? [], fieldMap, logic)) {
+        const nowMatches = evaluateConditions(record ?? {}, conditions ?? [], fieldMap, logic);
+        const recordId = record?.id;
+
+        if (recordId) {
+          const isTransition = await checkTransition(supabase, automation.id, recordId, nowMatches);
+          if (!isTransition) {
+            continue; // Not a transition — skip
+          }
+        } else if (!nowMatches) {
           continue;
         }
       }
 
-      const actionResults: Array<{ actionId: string; success: boolean; error?: string }> = [];
+      // For other trigger types with conditions, just evaluate directly
+      if (automation.trigger_type !== 'record_matches_conditions' && conditions && conditions.length > 0) {
+        if (!evaluateConditions(record ?? {}, conditions, fieldMap, logic)) {
+          continue;
+        }
+      }
+
+      const actionResults: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }> = [];
 
       for (const action of automation.actions) {
         const result = await executeAction(action, {
@@ -317,14 +478,38 @@ Deno.serve(async (req: Request): Promise<Response> => {
           supabase,
           schemaName: base.schema_name,
           tableName: table.pg_table_name,
+          tableId,
           fieldMap,
         });
-        actionResults.push({ actionId: action.id, ...result });
+        actionResults.push({ actionId: action.id, type: action.type, ...result });
       }
+
+      const allSuccess = actionResults.every(r => r.success);
+      const anySuccess = actionResults.some(r => r.success);
+      const runStatus = actionResults.length === 0 ? 'success'
+        : allSuccess ? 'success'
+        : anySuccess ? 'partial'
+        : 'error';
+
+      const errorMsg = actionResults.filter(r => !r.success).map(r => r.error).join('; ') || undefined;
+
+      // Log run asynchronously — don't block the response
+      logRun(
+        supabase,
+        automation.id,
+        event,
+        record?.id ?? null,
+        runStatus,
+        runStart,
+        actionResults,
+        errorMsg,
+        { record_id: record?.id },
+      );
 
       results.push({
         automationId: automation.id,
         name: automation.name,
+        status: runStatus,
         actions: actionResults,
       });
     }
@@ -336,6 +521,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   } catch (err) {
     console.error('Automation runner error:', err);
-    return json({ success: false, error: (err as Error).message }, 500);
+    return json({ success: false, error: (err as Error).message }, 500, req);
   }
 });
