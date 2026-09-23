@@ -468,7 +468,7 @@ function GridViewInner({
     });
     document.body.appendChild(preview);
     e.dataTransfer.setDragImage(preview, 10, 10);
-    setTimeout(() => document.body.removeChild(preview), 0);
+    requestAnimationFrame(() => document.body.removeChild(preview));
   }, []);
 
   const handleRowDragOver = useCallback((e: React.DragEvent, idx: number) => {
