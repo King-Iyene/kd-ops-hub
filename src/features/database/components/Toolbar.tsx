@@ -1028,6 +1028,17 @@ export function Toolbar() {
     if (searchOpen) searchRef.current?.focus();
   }, [searchOpen]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
   return (
     <>
       <div className="flex items-center justify-between h-[40px] px-3 bg-white dark:bg-zinc-900 border-b border-[#E5E5E5] dark:border-zinc-700/60 shrink-0">
@@ -1138,26 +1149,6 @@ export function Toolbar() {
             <Cable size={14} />
             <span className="hidden sm:inline">Integrations</span>
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-2xs text-zinc-500 dark:text-zinc-400 gap-1 px-2 hover:text-primary"
-            onClick={() => setRefreshAttOpen(true)}
-            aria-label="Refresh Attachments"
-          >
-            <RefreshCw size={14} />
-            <span className="hidden sm:inline">Refresh Att.</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
-            onClick={() => setTrashOpen(true)}
-            aria-label="Trash"
-          >
-            <Trash2 size={14} />
-            <span className="hidden sm:inline">Trash</span>
-          </Button>
           <div className="relative">
             <Button
               variant="ghost"
@@ -1267,6 +1258,19 @@ export function Toolbar() {
                     }}
                   >
                     <ScanSearch size={14} className="text-warning" /> Find duplicates
+                  </button>
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700/50 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                    onClick={() => { setRefreshAttOpen(true); setMoreOpen(false); }}
+                  >
+                    <RefreshCw size={14} className="text-zinc-400 dark:text-zinc-500" /> Refresh attachments
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-500 dark:text-red-400"
+                    onClick={() => { setTrashOpen(true); setMoreOpen(false); }}
+                  >
+                    <Trash2 size={14} /> Trash
                   </button>
                 </div>
               </>
