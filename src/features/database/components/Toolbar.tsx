@@ -1078,7 +1078,12 @@ export function Toolbar() {
               className={`h-7 text-xs-plus gap-1 ${groupByLevels.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setColorOpen(false); }}
             >
-              <Layers size={14} /> Group{groupByLevels.length > 0 ? ` (${groupByLevels.length})` : ''}
+              <Layers size={14} /> Group
+              {groupByLevels.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-3xs font-bold leading-none">
+                  {groupByLevels.length}
+                </span>
+              )}
             </Button>
             {groupOpen && <GroupPanel onClose={() => setGroupOpen(false)} />}
           </div>
@@ -1089,7 +1094,12 @@ export function Toolbar() {
               className={`h-7 text-xs-plus gap-1 ${sorts.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
             >
-              <ArrowUpDown size={14} /> Sort{sorts.length > 0 ? ` (${sorts.length})` : ''}
+              <ArrowUpDown size={14} /> Sort
+              {sorts.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-3xs font-bold leading-none">
+                  {sorts.length}
+                </span>
+              )}
             </Button>
             {sortOpen && <SortPanel onClose={() => setSortOpen(false)} />}
           </div>
@@ -1100,7 +1110,12 @@ export function Toolbar() {
               className={`h-7 text-xs-plus gap-1 ${rowColorRules.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setColorOpen(!colorOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
             >
-              <Palette size={14} /> Color{rowColorRules.length > 0 ? ` (${rowColorRules.length})` : ''}
+              <Palette size={14} /> Color
+              {rowColorRules.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-3xs font-bold leading-none">
+                  {rowColorRules.length}
+                </span>
+              )}
             </Button>
             {colorOpen && <ColorPanel onClose={() => setColorOpen(false)} />}
           </div>
