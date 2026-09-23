@@ -2098,6 +2098,8 @@ function GridViewInner({
               : <span className="flex items-center gap-3 font-medium" style={{ color: GRID_COLORS.primary }}>
                   <span>Sum: {selectionStats.sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   <span>Avg: {selectionStats.avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <span>Min: {Math.min(...selectionStats.nums).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <span>Max: {Math.max(...selectionStats.nums).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   <span>Count: {selectionStats.nums.length}</span>
                 </span>
           )}
@@ -2107,7 +2109,18 @@ function GridViewInner({
             </span>
           )}
           {!isLoadingMore && hasMore && (
-            <span>{records.length} of {totalCount} loaded</span>
+            <span>
+              {records.length} of {totalCount} loaded
+              {onLoadMore && (
+                <button
+                  className="ml-1.5 font-medium hover:underline"
+                  style={{ color: GRID_COLORS.primary }}
+                  onClick={onLoadMore}
+                >
+                  Load more
+                </button>
+              )}
+            </span>
           )}
         </div>
       </div>

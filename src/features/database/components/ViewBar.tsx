@@ -104,6 +104,7 @@ function SortableViewTab({
       {...attributes}
       {...listeners}
       onClick={onSelect}
+      onDoubleClick={() => { setRenameText(view.name); setRenamingId(view.id); }}
       onContextMenu={onContextMenu}
       className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isActive ? 'text-[#2D7FF9] border-b-2 border-b-[#2D7FF9]' : 'text-[#6A7184] dark:text-[hsl(220,25%,55%)] border-b-2 border-b-transparent'}`}
       style={style}

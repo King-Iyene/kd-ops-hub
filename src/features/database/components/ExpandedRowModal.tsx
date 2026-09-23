@@ -1029,7 +1029,7 @@ export function ExpandedRowModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative bg-white dark:bg-[hsl(220,20%,10%)] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] animate-[panelSlideDown_150ms_ease-out]"
+        className="relative bg-white dark:bg-[hsl(220,20%,10%)] rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] animate-[panelSlideDown_150ms_ease-out]"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] shrink-0">
@@ -1043,6 +1043,7 @@ export function ExpandedRowModal({
                   onClick={goToPrev}
                   disabled={!hasPrev}
                   className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title="Previous record (Alt+Left)"
                 >
                   <ChevronLeft size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
@@ -1053,6 +1054,7 @@ export function ExpandedRowModal({
                   onClick={goToNext}
                   disabled={!hasNext}
                   className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title="Next record (Alt+Right)"
                 >
                   <ChevronRight size={16} className="text-[#6A7184] dark:text-[#9AA2AF]" />
                 </button>
