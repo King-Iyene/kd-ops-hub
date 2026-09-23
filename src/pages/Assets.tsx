@@ -28,7 +28,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 // CITA capital allowance rates by category (initial %, annual %)
 const CATEGORY_META: Record<string, { label: string; initial: number; annual: number; life: number }> = {

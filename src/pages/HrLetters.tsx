@@ -23,7 +23,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 type LetterType = 'confirmation' | 'promotion' | 'employment_verification' | 'reference' | 'termination' | 'salary_review' | 'warning' | 'custom';
 type LetterStatus = 'draft' | 'issued' | 'revoked';

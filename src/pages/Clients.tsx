@@ -52,7 +52,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { AuroraHero } from '@/components/AuroraHero';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';

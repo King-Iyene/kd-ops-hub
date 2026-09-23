@@ -29,7 +29,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 
 type EmpType = 'full_time' | 'part_time' | 'contract' | 'intern';

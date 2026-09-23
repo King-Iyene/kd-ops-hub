@@ -25,7 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 type IncidentType = 'verbal_warning' | 'written_warning' | 'final_warning' | 'query' | 'suspension' | 'termination' | 'counselling' | 'other';
 

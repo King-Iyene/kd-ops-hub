@@ -110,7 +110,8 @@ import { FilePreviewTrigger } from '@/components/FilePreview';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { StatCard } from '@/components/ui-kit/StatCard';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 

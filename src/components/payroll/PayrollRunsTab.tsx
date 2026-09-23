@@ -37,7 +37,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
-import { PayrollLifecycleRail, realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { PayrollLifecycleRail } from '@/components/payroll/PayrollLifecycleRail';
+import { realStepIndex } from '@/lib/payroll-run';
 import { PayrollRunTimeline } from '@/components/payroll/PayrollRunTimeline';
 import { assignPayslipFilenames, payslipZipFilename } from '@/lib/payslip-zip';
 import { findPostApprovalAdjustments, type AdjustmentLike } from '@/lib/payroll-post-approval';

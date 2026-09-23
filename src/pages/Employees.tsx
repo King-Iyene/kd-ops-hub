@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { AuroraHero } from '@/components/AuroraHero';
 
 import { supabase } from '@/lib/supabase';

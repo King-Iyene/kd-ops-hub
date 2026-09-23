@@ -25,7 +25,8 @@ import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
   Banknote, Gift, AlertTriangle, Building2, ReceiptText,
 } from 'lucide-react';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import {
   MobileCard,

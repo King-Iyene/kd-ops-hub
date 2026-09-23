@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { realStepIndex } from '@/lib/payroll-run';
 
 /**
  * The payroll progress rail is the one thing on the screen that answers

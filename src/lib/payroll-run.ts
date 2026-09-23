@@ -61,3 +61,11 @@ export interface PayrollRun {
     include_ewa?: boolean;
   } | null;
 }
+
+export function realStepIndex(status: string): number {
+  if (status === 'draft') return 0;
+  if (status === 'pending_approval') return 1;
+  if (status === 'approved' || status === 'processing') return 2;
+  if (status === 'paid') return 3;
+  return -1;
+}

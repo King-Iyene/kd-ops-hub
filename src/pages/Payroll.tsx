@@ -57,7 +57,7 @@ import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedul
 import { PayrollRunsTab } from '@/components/payroll/PayrollRunsTab';
 import { AnnualSummaryTab } from '@/components/payroll/AnnualSummaryTab';
 import { PayrollDialogs } from '@/components/payroll/PayrollDialogs';
-import { useFieldErrors } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { PayrollDashboardTab } from '@/components/payroll/PayrollDashboardTab';
 import { PayrollGroupsTab } from '@/components/payroll/PayrollGroupsTab';
 import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';

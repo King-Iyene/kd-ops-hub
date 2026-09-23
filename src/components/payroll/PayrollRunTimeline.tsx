@@ -1,6 +1,6 @@
 import { Check, Clock, Lock } from 'lucide-react';
 import { formatDateTime } from '@/lib/format';
-import { realStepIndex } from '@/components/payroll/PayrollLifecycleRail';
+import { realStepIndex } from '@/lib/payroll-run';
 import { cn } from '@/lib/utils';
 
 export interface RunTimelineInput {

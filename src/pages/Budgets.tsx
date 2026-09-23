@@ -11,7 +11,8 @@ import {
   Unlock,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';

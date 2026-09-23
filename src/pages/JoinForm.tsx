@@ -12,7 +12,8 @@ import {
   Facebook,
   Twitter,
 } from 'lucide-react';
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
 import { NIGERIAN_BANKS, getBankCode, fetchBanks } from '@/lib/nigerian-banks';

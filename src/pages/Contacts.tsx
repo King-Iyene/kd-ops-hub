@@ -17,7 +17,8 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { FieldError, useFieldErrors } from '@/components/ui-kit/FieldError';
+import { FieldError } from '@/components/ui-kit/FieldError';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
