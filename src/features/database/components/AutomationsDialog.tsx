@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -358,7 +358,15 @@ function ActionConfigForm({
         </div>
       );
 
-    case 'update_record':
+    case 'update_record': {
+      const updates: { field_id: string; value: string }[] = c.field_updates ?? (c.field_id ? [{ field_id: c.field_id, value: c.value ?? '' }] : []);
+      const addUpdate = () => onChange({ ...c, field_updates: [...updates, { field_id: '', value: '' }] });
+      const updateField = (i: number, key: string, val: string) => {
+        const next = [...updates];
+        next[i] = { ...next[i], [key]: val };
+        onChange({ ...c, field_updates: next });
+      };
+      const removeUpdate = (i: number) => onChange({ ...c, field_updates: updates.filter((_, j) => j !== i) });
       return (
         <div className="space-y-2">
           <HelpTip text={ACTION_HELP.update_record} />
@@ -381,49 +389,43 @@ function ActionConfigForm({
               />
             )}
           </div>
-          <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Field to update</label>
-            <select
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
-              value={c.field_id ?? ''}
-              onChange={(e) => set('field_id', e.target.value)}
-            >
-              <option value="">Select field...</option>
-              {fields.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Value</label>
-            <select
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
-              value={c.value_source ?? 'static'}
-              onChange={(e) => set('value_source', e.target.value)}
-            >
-              <option value="static">Static value</option>
-              <option value="field">Copy from another field</option>
-              <option value="record_id">Triggering record ID</option>
-            </select>
-            {c.value_source === 'static' || !c.value_source ? (
-              <div className="mt-1.5">
-                <InputWithPlaceholders label="" value={c.value ?? ''} onChange={(v) => set('value', v)} placeholder="Enter value or use {{record.FieldName}}" fields={fields} />
-              </div>
-            ) : c.value_source === 'field' ? (
+          <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block">Fields to update</label>
+          {updates.length === 0 && (
+            <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">No fields configured — click below to add.</p>
+          )}
+          {updates.map((u, i) => (
+            <div key={i} className="flex items-center gap-1.5">
               <select
-                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
-                value={c.source_field_id ?? ''}
-                onChange={(e) => set('source_field_id', e.target.value)}
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                value={u.field_id}
+                onChange={(e) => updateField(i, 'field_id', e.target.value)}
               >
-                <option value="">Select source field...</option>
+                <option value="">Select field...</option>
                 {fields.map((f) => (
                   <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
               </select>
-            ) : null}
-          </div>
+              <span className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">=</span>
+              <div className="flex-1 min-w-0">
+                <InputWithPlaceholders label="" value={u.value} onChange={(v) => updateField(i, 'value', v)} placeholder="Value or {{record.Field}}" fields={fields} />
+              </div>
+              <button
+                className="shrink-0 p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#9CA3AF] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                onClick={() => removeUpdate(i)}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+            onClick={addUpdate}
+          >
+            <Plus size={11} /> Add field
+          </button>
         </div>
       );
+    }
 
     case 'create_record': {
       const pairs: { field_id: string; value: string }[] = c.field_pairs ?? [];
@@ -1083,6 +1085,26 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     setDraft(null);
   }, [selected, tableId, deleteAutomation]);
 
+  const handleDuplicate = useCallback(async () => {
+    if (!selected || !tableId || !baseId) return;
+    const result = await createAutomation.mutateAsync({
+      base_id: baseId,
+      table_id: tableId,
+      trigger_type: selected.trigger_type,
+    });
+    await updateAutomation.mutateAsync({
+      id: result.id,
+      table_id: tableId,
+      name: `${selected.name} (copy)`,
+      trigger_type: selected.trigger_type,
+      trigger_config: selected.trigger_config,
+      actions: selected.actions.map((a) => ({ ...a, id: actionId() })),
+      enabled: false,
+    });
+    setSelectedId(result.id);
+    setDraft(null);
+  }, [selected, tableId, baseId, createAutomation, updateAutomation]);
+
   const handleToggle = useCallback(async (a: Automation) => {
     if (!tableId) return;
     await updateAutomation.mutateAsync({ id: a.id, table_id: tableId, enabled: !a.enabled });
@@ -1112,6 +1134,21 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
       return { ...prev, actions: prev.actions.filter((a) => a.id !== actId) };
     });
   }, []);
+
+  const moveAction = useCallback((actId: string, direction: 'up' | 'down') => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const idx = prev.actions.findIndex((a) => a.id === actId);
+      if (idx < 0) return prev;
+      const target = direction === 'up' ? idx - 1 : idx + 1;
+      if (target < 0 || target >= prev.actions.length) return prev;
+      const next = [...prev.actions];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...prev, actions: next };
+    });
+  }, []);
+
+  const [collapsedActions, setCollapsedActions] = useState<Set<string>>(new Set());
 
   const handleTestRun = useCallback(async () => {
     if (!draft || !tableId || !baseId) return;
@@ -1478,32 +1515,55 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     {draft.actions.map((action, idx) => {
                       const meta = ACTION_TYPES.find((t) => t.type === action.type);
                       const Icon = meta?.icon ?? Bell;
+                      const isCollapsed = collapsedActions.has(action.id);
                       return (
                         <div key={action.id} className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden">
-                          <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}>
-                            <GripVertical size={12} className="text-[#D1D5DB] dark:text-[hsl(220,25%,25%)] shrink-0 cursor-grab" />
+                          <div
+                            className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                            style={{ borderBottom: isCollapsed ? 'none' : `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}
+                            onClick={() => setCollapsedActions((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(action.id)) next.delete(action.id); else next.add(action.id);
+                              return next;
+                            })}
+                          >
+                            <ChevronUp size={12} className={`text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                             <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
                               <Icon size={12} className="text-[#2D7FF9]" />
                             </div>
-                            <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
+                            <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex-1 truncate">
                               {idx + 1}. {meta?.label ?? action.type}
                             </span>
-                            <button
-                              className="ml-auto p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
-                              onClick={() => removeAction(action.id)}
-                              title="Remove action"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                              {idx > 0 && (
+                                <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'up')} title="Move up">
+                                  <ArrowUp size={11} />
+                                </button>
+                              )}
+                              {idx < draft.actions.length - 1 && (
+                                <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'down')} title="Move down">
+                                  <ArrowDown size={11} />
+                                </button>
+                              )}
+                              <button
+                                className="p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                                onClick={() => removeAction(action.id)}
+                                title="Remove action"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
-                          <div className="p-3">
-                            <ActionConfigForm
-                              action={action}
-                              onChange={(config) => updateActionConfig(action.id, config)}
-                              fields={fieldOptions}
-                              profiles={profiles}
-                            />
-                          </div>
+                          {!isCollapsed && (
+                            <div className="p-3">
+                              <ActionConfigForm
+                                action={action}
+                                onChange={(config) => updateActionConfig(action.id, config)}
+                                fields={fieldOptions}
+                                profiles={profiles}
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1530,6 +1590,16 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     disabled={testRunning}
                   >
                     <Play size={11} /> {testRunning ? 'Running...' : 'Test Run'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5"
+                    style={{ color: '#6A7184', borderColor: isDark ? 'hsl(220,25%,25%)' : '#E5E5E5' }}
+                    onClick={handleDuplicate}
+                    title="Duplicate this automation"
+                  >
+                    <CopyPlus size={12} /> Duplicate
                   </Button>
                   <Button
                     variant="outline"
