@@ -282,6 +282,28 @@ function ActionConfigForm({
         <div className="space-y-2">
           <HelpTip text={ACTION_HELP.send_email} />
           <InputWithPlaceholders label="To" value={c.to ?? ''} onChange={(v) => set('to', v)} placeholder="email@example.com or {{record.Email}}" fields={fields} />
+          {c._showCc && (
+            <InputWithPlaceholders label="CC" value={c.cc ?? ''} onChange={(v) => set('cc', v)} placeholder="cc@example.com" fields={fields} />
+          )}
+          {c._showBcc && (
+            <InputWithPlaceholders label="BCC" value={c.bcc ?? ''} onChange={(v) => set('bcc', v)} placeholder="bcc@example.com" fields={fields} />
+          )}
+          {c._showReplyTo && (
+            <InputWithPlaceholders label="Reply-To" value={c.reply_to ?? ''} onChange={(v) => set('reply_to', v)} placeholder="reply@example.com" fields={fields} />
+          )}
+          {(!c._showCc || !c._showBcc || !c._showReplyTo) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {!c._showCc && (
+                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showCc', true)}>+ CC</button>
+              )}
+              {!c._showBcc && (
+                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showBcc', true)}>+ BCC</button>
+              )}
+              {!c._showReplyTo && (
+                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showReplyTo', true)}>+ Reply-To</button>
+              )}
+            </div>
+          )}
           <InputWithPlaceholders label="Subject" value={c.subject ?? ''} onChange={(v) => set('subject', v)} placeholder="Subject line with {{record.Name}}" fields={fields} />
           <InputWithPlaceholders label="Body" value={c.body ?? ''} onChange={(v) => set('body', v)} placeholder="Hi {{record.Name}}, your status is now {{record.Status}}..." fields={fields} multiline />
         </div>
@@ -291,7 +313,7 @@ function ActionConfigForm({
       return (
         <div className="space-y-2">
           <HelpTip text={ACTION_HELP.send_webhook} />
-          <InputRow label="URL" value={c.url ?? ''} onChange={(v) => set('url', v)} placeholder="https://example.com/webhook" />
+          <InputWithPlaceholders label="URL" value={c.url ?? ''} onChange={(v) => set('url', v)} placeholder="https://example.com/webhook" fields={fields} />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Method</label>
             <select
@@ -304,7 +326,35 @@ function ActionConfigForm({
               ))}
             </select>
           </div>
-          <InputRow label="Headers (JSON)" value={c.headers ?? ''} onChange={(v) => set('headers', v)} placeholder='{"Authorization":"Bearer ..."}' />
+          <InputWithPlaceholders label="Headers (JSON)" value={c.headers ?? ''} onChange={(v) => set('headers', v)} placeholder='{"Authorization":"Bearer {{record.api_key}}"}' fields={fields} />
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Body</label>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="flex items-center gap-1.5 text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] cursor-pointer">
+                <input
+                  type="radio"
+                  name={`webhook-body-${action.id}`}
+                  className="accent-[#2D7FF9]"
+                  checked={c.body_type !== 'custom'}
+                  onChange={() => set('body_type', 'auto')}
+                />
+                Send full record
+              </label>
+              <label className="flex items-center gap-1.5 text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] cursor-pointer">
+                <input
+                  type="radio"
+                  name={`webhook-body-${action.id}`}
+                  className="accent-[#2D7FF9]"
+                  checked={c.body_type === 'custom'}
+                  onChange={() => set('body_type', 'custom')}
+                />
+                Custom JSON
+              </label>
+            </div>
+            {c.body_type === 'custom' && (
+              <InputWithPlaceholders label="" value={c.custom_body ?? ''} onChange={(v) => set('custom_body', v)} placeholder={'{"name": "{{record.Name}}", "status": "{{record.Status}}"}'} fields={fields} multiline />
+            )}
+          </div>
         </div>
       );
 
@@ -636,7 +686,11 @@ function VariablePicker({ fields, onInsert }: {
       setPos({ top, left });
       setSearch('');
       setFocusIdx(0);
-      setTimeout(() => searchRef.current?.focus(), 50);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          searchRef.current?.focus({ preventScroll: true });
+        });
+      });
     }
   }, [open]);
 
@@ -716,6 +770,7 @@ function VariablePicker({ fields, onInsert }: {
           ref={dropdownRef}
           className="absolute z-[9999] rounded-xl border border-[#E5E5E5] dark:border-[hsl(220,25%,20%)] shadow-xl bg-white dark:bg-[hsl(220,25%,11%)] w-[280px] overflow-hidden"
           style={{ top: pos.top, left: pos.left, animation: 'fadeInScale 120ms ease-out' }}
+          onFocusCapture={(e) => e.stopPropagation()}
         >
           <style>{`@keyframes fadeInScale { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }`}</style>
           <div className="px-2.5 pt-2.5 pb-1.5">
