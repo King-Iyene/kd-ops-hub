@@ -106,7 +106,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
     insurance_type: 'third_party',
   });
 
-  const fetchVehicles = useCallback(async function fetchVehicles() {
+  const fetchVehicles = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.from('vehicles').select(LIFECYCLE_COLS).order('name').limit(2000);

@@ -101,7 +101,7 @@ export function DriverTrainingPanel({ staff }: Props) {
     notes: '',
   });
 
-  const fetchRecords = useCallback(async function fetchRecords() {
+  const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase

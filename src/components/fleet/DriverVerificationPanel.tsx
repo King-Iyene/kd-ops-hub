@@ -75,7 +75,7 @@ export function DriverVerificationPanel() {
   const [editForm, setEditForm] = useState({ nin: '', driver_license_number: '', driver_license_expiry: '' });
   const [saving, setSaving] = useState(false);
 
-  const fetchDrivers = useCallback(async function fetchDrivers() {
+  const fetchDrivers = useCallback(async () => {
     try {
       // A "driver" here means an employee actually assigned to a vehicle —
       // not every active field_staff account. Start from vehicle assignments,

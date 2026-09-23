@@ -108,7 +108,7 @@ const Fleet = () => {
     }));
   };
 
-  const fetchData = useCallback(async function fetchData() {
+  const fetchData = useCallback(async () => {
     if (!hasFetchedRef.current) setLoading(true);
     setLoadError(false);
     try {
