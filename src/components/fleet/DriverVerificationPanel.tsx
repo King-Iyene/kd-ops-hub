@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -75,7 +75,7 @@ export function DriverVerificationPanel() {
   const [editForm, setEditForm] = useState({ nin: '', driver_license_number: '', driver_license_expiry: '' });
   const [saving, setSaving] = useState(false);
 
-  async function fetchDrivers() {
+  const fetchDrivers = useCallback(async function fetchDrivers() {
     try {
       // A "driver" here means an employee actually assigned to a vehicle —
       // not every active field_staff account. Start from vehicle assignments,
@@ -147,9 +147,9 @@ export function DriverVerificationPanel() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { fetchDrivers(); }, []);
+  useEffect(() => { fetchDrivers(); }, [fetchDrivers]);
 
   function openEditDialog(driver: DriverProfile) {
     setEditDriver(driver);

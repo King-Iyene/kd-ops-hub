@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldAlert, CalendarClock, Siren, AlertTriangle, Save, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +43,7 @@ export default function AutopilotTab() {
   const [schedule, setSchedule] = useState<PaymentScheduleRecommendation[]>([]);
   const [openAnomalyCounts, setOpenAnomalyCounts] = useState({ total: 0, critical: 0, high: 0 });
 
-  const load = async (currentRules: Record<string, PenaltyRule>) => {
+  const load = useCallback(async (currentRules: Record<string, PenaltyRule>) => {
     setLoading(true);
     try {
       const [exposureRes, scheduleRes, anomalyRes] = await Promise.all([
@@ -59,14 +59,13 @@ export default function AutopilotTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     const stored = loadPenaltyRules();
     setRules(stored);
     load(stored);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const totalExposure = exposure.reduce((s, r) => s + r.estimated_penalty_ngn, 0);
 

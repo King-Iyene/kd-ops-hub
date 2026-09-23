@@ -34,7 +34,7 @@
 //     blasting recipients. Always immediate, regardless of the schedule
 //     toggle.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Mail,
   MessageSquare,
@@ -375,7 +375,7 @@ export default function Communications() {
     [recipientSource, manualRecipients, pickedRecipients, channel],
   );
 
-  const loadFromSource = async (src: Exclude<RecipientSource, 'manual'>, ch: Channel) => {
+  const loadFromSource = useCallback(async (src: Exclude<RecipientSource, 'manual'>, ch: Channel) => {
     setPickerLoading(true);
     setPickedRecipients([]);
     try {
@@ -415,21 +415,16 @@ export default function Communications() {
     } finally {
       setPickerLoading(false);
     }
-  };
+  }, [deptFilter, toast]);
 
-  // Re-pull whenever the department filter changes while Employees is
-  // active, or the channel changes (email needs addresses, SMS/WhatsApp
-  // need phone numbers — an entirely different column).
   useEffect(() => {
     setManualText('');
     if (recipientSource !== 'manual') void loadFromSource(recipientSource, channel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel]);
+  }, [channel, recipientSource, loadFromSource]);
 
   useEffect(() => {
     if (recipientSource === 'employees') void loadFromSource('employees', channel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deptFilter]);
+  }, [deptFilter, recipientSource, channel, loadFromSource]);
 
   // ─── Body resolution (template or custom) — Email only ────────────────
   const activeTemplate = useMemo(

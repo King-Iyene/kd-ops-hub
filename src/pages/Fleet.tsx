@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import { useAuthStore } from '@/store/authStore';
@@ -108,7 +108,7 @@ const Fleet = () => {
     }));
   };
 
-  async function fetchData() {
+  const fetchData = useCallback(async function fetchData() {
     if (!hasFetchedRef.current) setLoading(true);
     setLoadError(false);
     try {
@@ -184,12 +184,11 @@ const Fleet = () => {
       hasFetchedRef.current = true;
       setLoading(false);
     }
-  }
+  }, [profile?.id, profile?.role, externalFuelPrice]);
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchData]);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 

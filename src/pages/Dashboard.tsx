@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { AuroraHero } from '@/components/AuroraHero';
@@ -222,13 +222,6 @@ const Dashboard = () => {
   const [celebrations, setCelebrations] = useState<{ id: string; name: string; type: 'birthday' | 'anniversary'; date: string; detail: string }[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside effect; fetchDashboard is initialized before the effect first runs
-    fetchDashboard();
-    refreshApprovals();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     if (!profile?.id || !isPersonal) return;
 
     const loadPersonalKPIs = () => {
@@ -284,7 +277,7 @@ const Dashboard = () => {
     };
   }, [profile?.id, isPersonal]);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     try {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -438,7 +431,12 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isPersonal]);
+
+  useEffect(() => {
+    fetchDashboard();
+    refreshApprovals();
+  }, [fetchDashboard, refreshApprovals]);
 
   const totalPlanned = budgetUtil.reduce((s, b) => s + b.planned, 0);
   const totalActual = budgetUtil.reduce((s, b) => s + b.actual, 0);

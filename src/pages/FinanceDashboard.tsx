@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { errorMessage } from '@/lib/db-errors';
 import {
@@ -95,7 +95,7 @@ export default function FinanceDashboard() {
   const [renewals, setRenewals] = useState<UpcomingRenewal[]>([]);
   const [budgets, setBudgets] = useState<BudgetUtilization[]>([]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [pulseRes, deptRes, trendRes, complianceRes, renewalsRes, budgetsRes] = await Promise.all([
@@ -117,12 +117,11 @@ export default function FinanceDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const bandStyle = pulse ? RUNWAY_BAND_TONE[pulse.runway_band] : RUNWAY_BAND_TONE.unknown;
 

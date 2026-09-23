@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -106,7 +106,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
     insurance_type: 'third_party',
   });
 
-  async function fetchVehicles() {
+  const fetchVehicles = useCallback(async function fetchVehicles() {
     setLoading(true);
     try {
       const { data, error } = await supabase.from('vehicles').select(LIFECYCLE_COLS).order('name').limit(2000);
@@ -127,9 +127,9 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { fetchVehicles(); }, []);
+  useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
 
   function openEdit(v: VehicleLifecycle) {
     setEditVehicle(v);

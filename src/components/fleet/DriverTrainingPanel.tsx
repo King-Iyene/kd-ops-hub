@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -101,7 +101,7 @@ export function DriverTrainingPanel({ staff }: Props) {
     notes: '',
   });
 
-  async function fetchRecords() {
+  const fetchRecords = useCallback(async function fetchRecords() {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -117,9 +117,9 @@ export function DriverTrainingPanel({ staff }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { fetchRecords(); }, []);
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
   async function handleAdd() {
     if (!form.driver_id || !form.training_date) return;
