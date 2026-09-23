@@ -3,9 +3,9 @@ import {
   Building2, Wallet, Plus, Trash2, History, Download, Send,
   Loader2, CheckCircle2, XCircle, ShieldAlert, RefreshCw,
   Users as UsersIcon, FileText, Printer, Search, Filter,
-  Clock, ArrowUpRight, ArrowDownLeft, Edit2, MoreHorizontal,
-  Calendar, TrendingUp, TrendingDown, DollarSign, AlertTriangle,
-  Eye, Copy, ChevronDown,
+  Clock, ArrowUpRight, ArrowDownLeft, Edit2,
+  Calendar, TrendingUp, TrendingDown, AlertTriangle,
+  Copy, ChevronDown,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuthStore } from '@/store/authStore';
@@ -560,68 +560,24 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
     return contacts;
   }, [transfers, bMap]);
 
-  // Monthly cash flow analytics
-  const cashFlow = useMemo(() => {
-    const months = new Map<string, { credits: number; debits: number; count: number }>();
-    for (const t of transfers) {
-      const d = new Date(t.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const entry = months.get(key) ?? { credits: 0, debits: 0, count: 0 };
-      if (t.status === 'success') entry.debits += Number(t.amount_ngn);
-      entry.count++;
-      months.set(key, entry);
-    }
-    return Array.from(months.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
-      .map(([month, v]) => ({ month, ...v }));
-  }, [transfers]);
-
-  // Category breakdown for current month
-  const categorySpend = useMemo(() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonth = transfers.filter((t) => new Date(t.created_at) >= monthStart && t.status === 'success');
-    const catMap = new Map<string, number>();
-    for (const t of thisMonth) {
-      catMap.set(t.category, (catMap.get(t.category) ?? 0) + Number(t.amount_ngn));
-    }
-    return Array.from(catMap.entries())
-      .map(([cat, amount]) => ({ category: cat, label: ndiCategoryLabel(cat), amount }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [transfers]);
-
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-4">
-      {/* Summary stat cards — minimal Mercury-style */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Available</p>
-            <p className={`text-lg font-bold tabular-nums ${balance >= 0 ? '' : 'text-red-500'}`}>{formatNaira(balance)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Sent this month</p>
-            <p className="text-lg font-bold tabular-nums">{formatNaira(stats.sentThisMonth)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Pending</p>
-            <p className="text-lg font-bold tabular-nums text-amber-500">{stats.pendingCount} <span className="text-xs font-normal text-muted-foreground">· {formatNaira(stats.pendingAmount)}</span></p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">This month</p>
-            <p className="text-lg font-bold tabular-nums">{transfers.filter((t) => new Date(t.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length} <span className="text-xs font-normal text-muted-foreground">transfers</span></p>
-            {stats.failedThisMonth > 0 && <p className="text-[10px] text-red-400 mt-0.5">{stats.failedThisMonth} failed</p>}
-          </CardContent>
-        </Card>
+      {/* Summary metrics strip */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Available', value: formatNaira(balance), color: balance >= 0 ? 'text-foreground' : 'text-red-500' },
+          { label: 'Sent this month', value: formatNaira(stats.sentThisMonth), color: 'text-foreground' },
+          { label: 'Pending', value: `${stats.pendingCount}`, sub: formatNaira(stats.pendingAmount), color: 'text-amber-500' },
+          { label: 'This month', value: `${transfers.filter((t) => new Date(t.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length}`, sub: stats.failedThisMonth > 0 ? `${stats.failedThisMonth} failed` : 'transfers', color: 'text-foreground', subColor: stats.failedThisMonth > 0 ? 'text-red-400' : undefined },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border border-border/60 px-3 py-2.5">
+            <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider truncate">{s.label}</p>
+            <p className={`text-sm font-bold tabular-nums mt-0.5 ${s.color}`}>{s.value}</p>
+            {s.sub && <p className={`text-[10px] tabular-nums ${s.subColor ?? 'text-muted-foreground'}`}>{s.sub}</p>}
+          </div>
+        ))}
       </div>
 
       {/* Actions bar */}
@@ -662,55 +618,6 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
             </button>
           ))}
         </div>
-      )}
-
-      {/* Category spend breakdown (this month) */}
-      {categorySpend.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Spend by category this month</h4>
-            <div className="space-y-2">
-              {categorySpend.map((cat) => {
-                const maxAmount = Math.max(...categorySpend.map((c) => c.amount), 1);
-                const pct = (cat.amount / maxAmount) * 100;
-                return (
-                  <div key={cat.category} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{cat.label}</span>
-                      <span className="text-muted-foreground tabular-nums">{formatNaira(cat.amount)}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: accentColor }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Monthly cash flow (if enough data) */}
-      {cashFlow.length >= 2 && (
-        <Card>
-          <CardContent className="p-4">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Monthly outflow trend</h4>
-            <div className="flex items-end gap-2 h-24">
-              {cashFlow.map((m) => {
-                const maxDebit = Math.max(...cashFlow.map((c) => c.debits), 1);
-                const h = Math.max((m.debits / maxDebit) * 100, 4);
-                const monthLabel = new Date(`${m.month}-01`).toLocaleDateString('en-NG', { month: 'short' });
-                return (
-                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-2xs text-muted-foreground tabular-nums">{formatNaira(m.debits)}</span>
-                    <div className="w-full rounded-t" style={{ height: `${h}%`, backgroundColor: accentColor, opacity: 0.8 }} />
-                    <span className="text-2xs text-muted-foreground">{monthLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Filters */}
@@ -778,40 +685,24 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
                       {rows.map((t) => {
                         const b = t.beneficiary_id ? bMap.get(t.beneficiary_id) : null;
                         const name = b?.name ?? t.description ?? 'Transfer';
-                        const initial = name.charAt(0).toUpperCase();
-                        const statusColors: Record<string, string> = {
-                          success: 'bg-emerald-500/10 text-emerald-500',
-                          pending: 'bg-amber-500/10 text-amber-500',
-                          processing: 'bg-blue-500/10 text-blue-500',
-                          failed: 'bg-red-500/10 text-red-400',
-                          reversed: 'bg-gray-500/10 text-gray-400',
+                        const statusDot: Record<string, string> = {
+                          success: 'bg-emerald-500', pending: 'bg-amber-500', processing: 'bg-blue-500', failed: 'bg-red-500', reversed: 'bg-gray-400',
                         };
                         return (
-                          <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setReceiptRow(t)}>
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ backgroundColor: `${accentColor}15`, color: accentColor }}>
-                              {initial}
-                            </div>
+                          <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setReceiptRow(t)}>
+                            <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot[t.status] ?? 'bg-gray-400'}`} />
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium truncate">{name}</p>
-                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[t.status] ?? 'bg-muted text-muted-foreground'}`}>
-                                  {t.status}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {ndiCategoryLabel(t.category)}
-                                <span className="mx-1.5 opacity-30">·</span>
-                                {new Date(t.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
-                              </p>
+                              <p className="text-[13px] font-medium truncate">{name}</p>
                             </div>
-                            <div className="text-right shrink-0 flex items-center gap-2">
-                              <span className="text-sm font-medium tabular-nums text-red-400">−{formatNaira(t.amount_ngn)}</span>
-                              {(t.status === 'pending' || t.status === 'processing') && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" title="Check status" onClick={(e) => { e.stopPropagation(); verifyStatus(t); }} disabled={verifyingId === t.id}>
-                                  {verifyingId === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                                </Button>
-                              )}
-                            </div>
+                            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                              {new Date(t.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="text-[13px] font-medium tabular-nums shrink-0 w-[90px] text-right text-red-400">−{formatNaira(t.amount_ngn)}</span>
+                            {(t.status === 'pending' || t.status === 'processing') ? (
+                              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title="Check status" onClick={(e) => { e.stopPropagation(); verifyStatus(t); }} disabled={verifyingId === t.id}>
+                                {verifyingId === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              </Button>
+                            ) : <div className="w-6 shrink-0" />}
                           </div>
                         );
                       })}
@@ -1694,67 +1585,41 @@ function AnalyticsTab({ companyId, accentColor, toast }: { companyId: string; ac
         </Button>
       </div>
 
-      {/* Overview metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Total inflow</p>
-            <p className="text-lg font-bold tabular-nums text-green-600">{formatNaira(overallStats.totalCredits)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Total outflow</p>
-            <p className="text-lg font-bold tabular-nums text-red-500">{formatNaira(overallStats.totalDebits)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Avg transfer size</p>
-            <p className="text-lg font-bold tabular-nums">{formatNaira(overallStats.avgTransfer)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Success rate</p>
-            <p className="text-lg font-bold tabular-nums">{overallStats.successRate.toFixed(0)}%</p>
-            <p className="text-2xs text-muted-foreground">{overallStats.totalTransfers} total transfers</p>
-          </CardContent>
-        </Card>
+      {/* Overview metrics — compact */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Total inflow', value: formatNaira(overallStats.totalCredits), color: 'text-emerald-500' },
+          { label: 'Total outflow', value: formatNaira(overallStats.totalDebits), color: 'text-red-400' },
+          { label: 'Avg transfer', value: formatNaira(overallStats.avgTransfer) },
+          { label: 'Success rate', value: `${overallStats.successRate.toFixed(0)}%`, sub: `${overallStats.totalTransfers} transfers` },
+        ].map((m) => (
+          <div key={m.label} className="rounded-lg border border-border/60 px-3 py-2.5">
+            <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider truncate">{m.label}</p>
+            <p className={`text-sm font-bold tabular-nums mt-0.5 ${m.color ?? 'text-foreground'}`}>{m.value}</p>
+            {m.sub && <p className="text-[10px] text-muted-foreground">{m.sub}</p>}
+          </div>
+        ))}
       </div>
 
-      {/* Week-over-week */}
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-3">Week over week</h4>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">This week</p>
-              <p className="text-xl font-bold tabular-nums">{formatNaira(weekComparison.thisWeekTotal)}</p>
-              <p className="text-xs text-muted-foreground">{weekComparison.thisWeekCount} transfers</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Last week</p>
-              <p className="text-xl font-bold tabular-nums text-muted-foreground">{formatNaira(weekComparison.lastWeekTotal)}</p>
-              <p className="text-xs text-muted-foreground">{weekComparison.lastWeekCount} transfers</p>
-            </div>
+      {/* Week-over-week — inline */}
+      <div className="rounded-lg border border-border/60 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">This week</p>
+          <p className="text-base font-bold tabular-nums">{formatNaira(weekComparison.thisWeekTotal)} <span className="text-[10px] font-normal text-muted-foreground">({weekComparison.thisWeekCount} txns)</span></p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">Last week</p>
+          <p className="text-base font-bold tabular-nums text-muted-foreground">{formatNaira(weekComparison.lastWeekTotal)} <span className="text-[10px] font-normal">({weekComparison.lastWeekCount})</span></p>
+        </div>
+        {weekComparison.lastWeekTotal > 0 && (
+          <div className="flex items-center gap-1.5">
+            {weekComparison.change > 0 ? <TrendingUp className="h-3.5 w-3.5 text-red-400" /> : weekComparison.change < 0 ? <TrendingDown className="h-3.5 w-3.5 text-green-500" /> : null}
+            <span className={`text-xs font-semibold ${weekComparison.change > 0 ? 'text-red-400' : weekComparison.change < 0 ? 'text-green-500' : 'text-muted-foreground'}`}>
+              {weekComparison.change > 0 ? '+' : ''}{weekComparison.change.toFixed(1)}%
+            </span>
           </div>
-          {weekComparison.lastWeekTotal > 0 && (
-            <div className="mt-3 pt-3 border-t">
-              <div className="flex items-center gap-2">
-                {weekComparison.change > 0 ? (
-                  <TrendingUp className="h-4 w-4 text-red-400" />
-                ) : weekComparison.change < 0 ? (
-                  <TrendingDown className="h-4 w-4 text-green-500" />
-                ) : null}
-                <span className={`text-sm font-medium ${weekComparison.change > 0 ? 'text-red-400' : weekComparison.change < 0 ? 'text-green-500' : ''}`}>
-                  {weekComparison.change > 0 ? '+' : ''}{weekComparison.change.toFixed(1)}% vs last week
-                </span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       {/* Monthly cash flow chart */}
       {monthlyCashFlow.length > 0 && (
@@ -1898,11 +1763,18 @@ function GrantReportTab({ companyId, accentColor, toast }: { companyId: string; 
         <p className="text-xs text-muted-foreground">Generated {new Date(report.generatedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCardSimple label="Total Credits" value={formatNaira(report.totalCredits)} color="text-green-600" />
-        <SummaryCardSimple label="Total Debits" value={formatNaira(report.totalDebits)} color="text-red-500" />
-        <SummaryCardSimple label="Net Balance" value={formatNaira(report.balance)} color={report.balance >= 0 ? 'text-green-600' : 'text-red-500'} />
-        <SummaryCardSimple label="Transactions" value={String(report.transactionCount)} />
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Total Credits', value: formatNaira(report.totalCredits), color: 'text-emerald-500' },
+          { label: 'Total Debits', value: formatNaira(report.totalDebits), color: 'text-red-400' },
+          { label: 'Net Balance', value: formatNaira(report.balance), color: report.balance >= 0 ? 'text-emerald-500' : 'text-red-400' },
+          { label: 'Transactions', value: String(report.transactionCount) },
+        ].map((m) => (
+          <div key={m.label} className="rounded-lg border border-border/60 px-3 py-2.5">
+            <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider truncate">{m.label}</p>
+            <p className={`text-sm font-bold tabular-nums mt-0.5 ${m.color ?? 'text-foreground'}`}>{m.value}</p>
+          </div>
+        ))}
       </div>
 
       <Card>
@@ -1992,13 +1864,3 @@ function GrantReportTab({ companyId, accentColor, toast }: { companyId: string; 
   );
 }
 
-function SummaryCardSimple({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-3 text-center">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-lg font-bold tabular-nums ${color ?? ''}`}>{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
