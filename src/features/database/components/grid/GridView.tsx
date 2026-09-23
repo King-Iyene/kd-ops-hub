@@ -927,6 +927,13 @@ function GridViewInner({
         return;
       }
 
+      // --- Ctrl+N: add new row ---
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        onAddRow();
+        return;
+      }
+
       // --- Ctrl+C: copy rows, range, or single cell ---
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
         e.preventDefault();

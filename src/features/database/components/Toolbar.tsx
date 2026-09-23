@@ -1050,6 +1050,7 @@ export function Toolbar() {
               size="sm"
               className="h-7 text-xs-plus text-zinc-500 dark:text-zinc-400 gap-1"
               onClick={() => { setHideOpen(!hideOpen); setFilterOpen(false); setSortOpen(false); setGroupOpen(false); setColorOpen(false); }}
+              title="Hide fields"
             >
               <EyeOff size={14} /> Hide fields
             </Button>
@@ -1061,6 +1062,7 @@ export function Toolbar() {
               size="sm"
               className={`h-7 text-xs-plus gap-1 ${totalFilterCount > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setFilterOpen(!filterOpen); setSortOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
+              title="Filter (Ctrl+Shift+F)"
             >
               <Filter size={14} /> Filter
               {totalFilterCount > 0 && (
@@ -1077,6 +1079,7 @@ export function Toolbar() {
               size="sm"
               className={`h-7 text-xs-plus gap-1 ${groupByLevels.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setGroupOpen(!groupOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setColorOpen(false); }}
+              title="Group"
             >
               <Layers size={14} /> Group
               {groupByLevels.length > 0 && (
@@ -1093,6 +1096,7 @@ export function Toolbar() {
               size="sm"
               className={`h-7 text-xs-plus gap-1 ${sorts.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setSortOpen(!sortOpen); setFilterOpen(false); setHideOpen(false); setGroupOpen(false); setColorOpen(false); }}
+              title="Sort"
             >
               <ArrowUpDown size={14} /> Sort
               {sorts.length > 0 && (
@@ -1109,6 +1113,7 @@ export function Toolbar() {
               size="sm"
               className={`h-7 text-xs-plus gap-1 ${rowColorRules.length > 0 ? 'text-primary' : 'text-zinc-500 dark:text-zinc-400'}`}
               onClick={() => { setColorOpen(!colorOpen); setFilterOpen(false); setSortOpen(false); setHideOpen(false); setGroupOpen(false); }}
+              title="Row coloring"
             >
               <Palette size={14} /> Color
               {rowColorRules.length > 0 && (
@@ -1150,6 +1155,7 @@ export function Toolbar() {
               className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
+              title="Search (Ctrl+F)"
             >
               <Search size={14} />
             </Button>
