@@ -713,7 +713,7 @@ function GridViewInner({
 
   // Build a flat list of items for grouped view: headers at various depths + record rows
   type FlatItem =
-    | { type: 'header'; groupKey: string; groupValue: string; count: number; depth: number; fieldName: string; field: FieldMeta & { width: number }; summaryRecords: RecordRow[] }
+    | { type: 'header'; groupKey: string; groupValue: string; count: number; depth: number; fieldName: string; field: FieldMeta & { width: number }; summaryRecords: RecordRow[]; summaryParts: string[] }
     | { type: 'row'; record: RecordRow; rowNum: number };
 
   const flatItems = useMemo<FlatItem[] | null>(() => {
@@ -744,6 +744,14 @@ function GridViewInner({
       for (const k of sortedKeys) {
         const groupRecs = map.get(k)!;
         const groupKey = parentKey ? `${parentKey}|${field.id}:${k}` : `${field.id}:${k}`;
+        const headerSummaryParts: string[] = [];
+        for (const f of fieldsWithWidths) {
+          const fn = summaryFunctions[f.id];
+          if (fn && fn !== 'none') {
+            const val = computeSummary(fn, groupRecs, f.pg_column_name, f);
+            if (val) headerSummaryParts.push(`${SUMMARY_LABELS[fn]}: ${val}`);
+          }
+        }
         items.push({
           type: 'header',
           groupKey,
@@ -753,6 +761,7 @@ function GridViewInner({
           fieldName: field.name,
           field,
           summaryRecords: groupRecs,
+          summaryParts: headerSummaryParts,
         });
         if (!collapsedGroups.has(groupKey)) {
           buildLevel(groupRecs, depth + 1, groupKey);
@@ -764,7 +773,7 @@ function GridViewInner({
 
     buildLevel(records, 0, '');
     return items;
-  }, [groupFields, groupByLevels, records, collapsedGroups]);
+  }, [groupFields, groupByLevels, records, collapsedGroups, fieldsWithWidths, summaryFunctions]);
 
   const collapseAll = useCallback(() => {
     if (!flatItems) return;
@@ -1549,15 +1558,7 @@ function GridViewInner({
                   const pillBg = choiceColor || (hashColor ? hashColor + '20' : undefined);
                   const pillText = choiceColor ? '#FFFFFF' : hashColor;
 
-                  // Compute summary for numeric fields if configured
-                  const summaryParts: string[] = [];
-                  for (const f of fieldsWithWidths) {
-                    const fn = summaryFunctions[f.id];
-                    if (fn && fn !== 'none') {
-                      const val = computeSummary(fn, item.summaryRecords, f.pg_column_name, f);
-                      if (val) summaryParts.push(`${SUMMARY_LABELS[fn]}: ${val}`);
-                    }
-                  }
+                  const summaryParts = item.summaryParts;
 
                   return (
                     <div
