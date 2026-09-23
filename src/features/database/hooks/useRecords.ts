@@ -565,7 +565,7 @@ export function useRecords(params: UseRecordsParams) {
       let query = supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'estimated' });
 
       // Apply linked record filter results
       if (linkFilterIncludeIds !== null) {
@@ -743,7 +743,7 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
       let q = supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'estimated' });
 
       if (infLinkIncludeIds !== null) {
         if (infLinkIncludeIds.length === 0) {
@@ -872,7 +872,7 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
       const { count, error } = await supabase
         .schema(ctx.schemaName)
         .from(ctx.tableName)
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'estimated', head: true });
       if (error) throw error;
       return count ?? 0;
     },

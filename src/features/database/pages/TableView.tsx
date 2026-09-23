@@ -40,6 +40,25 @@ const CreateFieldDialog = lazy(() => import('../components/CreateFieldDialog').t
 const FindReplaceDialog = lazy(() => import('../components/FindReplaceDialog').then(m => ({ default: m.FindReplaceDialog })));
 const PrintView = lazy(() => import('../components/PrintView').then(m => ({ default: m.PrintView })));
 
+function ViewSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse p-4 gap-3">
+      <div className="flex gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-8 rounded bg-[#E5E5E5]/60 dark:bg-[hsl(220,25%,18%)] flex-1" />
+        ))}
+      </div>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex gap-3">
+          {Array.from({ length: 5 }).map((_, j) => (
+            <div key={j} className="h-6 rounded bg-[#E5E5E5]/40 dark:bg-[hsl(220,25%,16%)] flex-1" />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LinkedRecordExpandModal() {
   const linkedRecordExpand = useDatabaseUI((s) => s.linkedRecordExpand);
   const setLinkedRecordExpand = useDatabaseUI((s) => s.setLinkedRecordExpand);
@@ -588,7 +607,7 @@ export function TableView() {
               Retry
             </button>
           </div>
-        ) : <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#2D7FF9] border-t-transparent rounded-full animate-spin" /></div>}>{renderView()}</Suspense>}
+        ) : <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>}
       </div>
       <Suspense fallback={null}>
         {!!expandedRecord && (

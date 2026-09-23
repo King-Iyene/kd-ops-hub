@@ -75,7 +75,7 @@ export default function SharedViewPage() {
       const { count, error } = await supabase
         .schema(base!.schema_name)
         .from(table!.pg_table_name)
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'estimated', head: true });
       if (error) throw error;
       return count ?? 0;
     },

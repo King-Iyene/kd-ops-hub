@@ -122,7 +122,7 @@ export function useLinkDisplayLookup(
             const { count: atColCount } = await supabase
               .schema('nc_meta')
               .from('fields')
-              .select('id', { count: 'exact', head: true })
+              .select('id', { count: 'estimated', head: true })
               .eq('table_id', tableId)
               .eq('pg_column_name', 'airtable_id');
             if (atColCount && atColCount > 0) {

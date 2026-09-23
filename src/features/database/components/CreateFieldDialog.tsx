@@ -35,43 +35,44 @@ interface FieldTypeOption {
   value: UIType;
   label: string;
   group: string;
+  desc: string;
 }
 
 const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
-  { value: 'SingleLineText', label: 'Single Line Text', group: 'Text' },
-  { value: 'LongText', label: 'Long Text', group: 'Text' },
-  { value: 'Email', label: 'Email', group: 'Text' },
-  { value: 'PhoneNumber', label: 'Phone Number', group: 'Text' },
-  { value: 'URL', label: 'URL', group: 'Text' },
-  { value: 'Number', label: 'Number', group: 'Numeric' },
-  { value: 'Decimal', label: 'Decimal', group: 'Numeric' },
-  { value: 'Currency', label: 'Currency', group: 'Numeric' },
-  { value: 'Percent', label: 'Percent', group: 'Numeric' },
-  { value: 'Rating', label: 'Rating', group: 'Numeric' },
-  { value: 'Duration', label: 'Duration', group: 'Numeric' },
-  { value: 'Date', label: 'Date', group: 'Date & Time' },
-  { value: 'DateTime', label: 'Date & Time', group: 'Date & Time' },
-  { value: 'Year', label: 'Year', group: 'Date & Time' },
-  { value: 'Time', label: 'Time', group: 'Date & Time' },
-  { value: 'SingleSelect', label: 'Single Select', group: 'Selection' },
-  { value: 'MultiSelect', label: 'Multi Select', group: 'Selection' },
-  { value: 'Checkbox', label: 'Checkbox', group: 'Selection' },
-  { value: 'Formula', label: 'Formula', group: 'Computed' },
-  { value: 'Lookup', label: 'Lookup', group: 'Computed' },
-  { value: 'Rollup', label: 'Rollup', group: 'Computed' },
-  { value: 'Count', label: 'Count', group: 'Computed' },
-  { value: 'User', label: 'People', group: 'Relations' },
-  { value: 'Links', label: 'Links', group: 'Relations' },
-  { value: 'LinkedTasks', label: 'Linked Tasks', group: 'Relations' },
-  { value: 'Attachment', label: 'Attachment', group: 'Other' },
-  { value: 'JSON', label: 'JSON', group: 'Other' },
-  { value: 'Button', label: 'Button', group: 'Other' },
-  { value: 'Barcode', label: 'Barcode', group: 'Other' },
-  { value: 'AutoNumber', label: 'Auto Number', group: 'System' },
-  { value: 'CreatedTime', label: 'Created Time', group: 'System' },
-  { value: 'LastModifiedTime', label: 'Last Modified Time', group: 'System' },
-  { value: 'CreatedBy', label: 'Created By', group: 'System' },
-  { value: 'LastModifiedBy', label: 'Last Modified By', group: 'System' },
+  { value: 'SingleLineText', label: 'Single Line Text', group: 'Text', desc: 'A short text value' },
+  { value: 'LongText', label: 'Long Text', group: 'Text', desc: 'Multi-line text with rich formatting' },
+  { value: 'Email', label: 'Email', group: 'Text', desc: 'A valid email address' },
+  { value: 'PhoneNumber', label: 'Phone Number', group: 'Text', desc: 'A phone number' },
+  { value: 'URL', label: 'URL', group: 'Text', desc: 'A clickable web link' },
+  { value: 'Number', label: 'Number', group: 'Numeric', desc: 'An integer value' },
+  { value: 'Decimal', label: 'Decimal', group: 'Numeric', desc: 'A number with decimal places' },
+  { value: 'Currency', label: 'Currency', group: 'Numeric', desc: 'A monetary amount with symbol' },
+  { value: 'Percent', label: 'Percent', group: 'Numeric', desc: 'A percentage value' },
+  { value: 'Rating', label: 'Rating', group: 'Numeric', desc: 'A star rating (1–5)' },
+  { value: 'Duration', label: 'Duration', group: 'Numeric', desc: 'Hours, minutes, and seconds' },
+  { value: 'Date', label: 'Date', group: 'Date & Time', desc: 'A calendar date' },
+  { value: 'DateTime', label: 'Date & Time', group: 'Date & Time', desc: 'A date with time' },
+  { value: 'Year', label: 'Year', group: 'Date & Time', desc: 'A four-digit year' },
+  { value: 'Time', label: 'Time', group: 'Date & Time', desc: 'A time of day' },
+  { value: 'SingleSelect', label: 'Single Select', group: 'Selection', desc: 'Pick one option from a list' },
+  { value: 'MultiSelect', label: 'Multi Select', group: 'Selection', desc: 'Pick multiple options from a list' },
+  { value: 'Checkbox', label: 'Checkbox', group: 'Selection', desc: 'A true/false toggle' },
+  { value: 'Formula', label: 'Formula', group: 'Computed', desc: 'Computed from other fields' },
+  { value: 'Lookup', label: 'Lookup', group: 'Computed', desc: 'Pull a field from a linked record' },
+  { value: 'Rollup', label: 'Rollup', group: 'Computed', desc: 'Summarize values from linked records' },
+  { value: 'Count', label: 'Count', group: 'Computed', desc: 'Count linked records' },
+  { value: 'User', label: 'People', group: 'Relations', desc: 'Assign team members' },
+  { value: 'Links', label: 'Links', group: 'Relations', desc: 'Link to records in another table' },
+  { value: 'LinkedTasks', label: 'Linked Tasks', group: 'Relations', desc: 'Link to ClickUp tasks' },
+  { value: 'Attachment', label: 'Attachment', group: 'Other', desc: 'Upload files and images' },
+  { value: 'JSON', label: 'JSON', group: 'Other', desc: 'Structured JSON data' },
+  { value: 'Button', label: 'Button', group: 'Other', desc: 'A clickable action button' },
+  { value: 'Barcode', label: 'Barcode', group: 'Other', desc: 'A barcode or QR code value' },
+  { value: 'AutoNumber', label: 'Auto Number', group: 'System', desc: 'Auto-incrementing ID' },
+  { value: 'CreatedTime', label: 'Created Time', group: 'System', desc: 'When the record was created' },
+  { value: 'LastModifiedTime', label: 'Last Modified Time', group: 'System', desc: 'When the record was last changed' },
+  { value: 'CreatedBy', label: 'Created By', group: 'System', desc: 'Who created the record' },
+  { value: 'LastModifiedBy', label: 'Last Modified By', group: 'System', desc: 'Who last changed the record' },
 ];
 
 const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Computed', 'Other', 'System'];
@@ -586,15 +587,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                             key={opt.value}
                             type="button"
                             className={cn(
-                              'w-full flex items-center gap-2 px-3 py-1.5 text-xs-plus text-left transition-colors',
+                              'w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors',
                               uiType === opt.value
                                 ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
                                 : 'text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]',
                             )}
                             onClick={() => handleTypeChange(opt.value)}
                           >
-                            <Icon size={14} className={uiType === opt.value ? 'text-[#2D7FF9]' : 'text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]'} />
-                            {opt.label}
+                            <Icon size={14} className={cn('shrink-0', uiType === opt.value ? 'text-[#2D7FF9]' : 'text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]')} />
+                            <div className="min-w-0">
+                              <div className="text-xs-plus leading-tight">{opt.label}</div>
+                              <div className={cn('text-3xs leading-tight', uiType === opt.value ? 'text-[#2D7FF9]/70' : 'text-[#9AA2AF] dark:text-[hsl(220,20%,50%)]')}>{opt.desc}</div>
+                            </div>
                           </button>
                         );
                       })}

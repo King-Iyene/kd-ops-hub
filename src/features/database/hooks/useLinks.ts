@@ -739,7 +739,7 @@ export function useLinkedRecordsPaginated(
       let query = supabase
         .schema(meta!.schemaName)
         .from(meta!.tableName)
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'estimated', head: true });
 
       if (search && searchColumn) {
         query = query.ilike(searchColumn, `%${search}%`);
