@@ -81,20 +81,50 @@ function evaluateConditions(record: Record<string, any>, conditions: AutomationC
   return conditions.every(c => evaluateCondition(record, c, fieldMap));
 }
 
-async function resolveFieldMap(supabase: ReturnType<typeof createClient>, tableId: string): Promise<Map<string, string>> {
+function resolvePlaceholders(
+  text: string,
+  record: Record<string, any>,
+  fieldMap: Map<string, string>,
+  reverseFieldMap: Map<string, string>,
+  extra: Record<string, string> = {},
+): string {
+  if (!text || typeof text !== 'string') return text ?? '';
+  return text.replace(/\{\{([^}]+)\}\}/g, (_match, expr: string) => {
+    const trimmed = expr.trim();
+    if (trimmed === 'now') return new Date().toISOString();
+    if (extra[trimmed]) return extra[trimmed];
+    if (trimmed.startsWith('record.')) {
+      const fieldName = trimmed.slice(7);
+      if (fieldName === 'id') return record.id ?? '';
+      // Try by field name first (user-facing), then by column name
+      const colByName = reverseFieldMap.get(fieldName);
+      if (colByName && record[colByName] !== undefined) return String(record[colByName]);
+      if (record[fieldName] !== undefined) return String(record[fieldName]);
+      // Try field_id lookup
+      const colById = fieldMap.get(fieldName);
+      if (colById && record[colById] !== undefined) return String(record[colById]);
+      return '';
+    }
+    return '';
+  });
+}
+
+async function resolveFieldMap(supabase: ReturnType<typeof createClient>, tableId: string): Promise<{ fieldMap: Map<string, string>; reverseFieldMap: Map<string, string> }> {
   const { data: fields } = await supabase
     .schema('nc_meta')
     .from('fields')
-    .select('id, pg_column_name')
+    .select('id, name, pg_column_name')
     .eq('table_id', tableId);
 
-  const map = new Map<string, string>();
+  const fieldMap = new Map<string, string>();
+  const reverseFieldMap = new Map<string, string>();
   if (fields) {
     for (const f of fields) {
-      map.set(f.id, f.pg_column_name);
+      fieldMap.set(f.id, f.pg_column_name);
+      reverseFieldMap.set(f.name, f.pg_column_name);
     }
   }
-  return map;
+  return { fieldMap, reverseFieldMap };
 }
 
 async function executeAction(
@@ -107,6 +137,8 @@ async function executeAction(
     tableName: string;
     tableId: string;
     fieldMap: Map<string, string>;
+    reverseFieldMap: Map<string, string>;
+    tableMeta?: { name?: string };
   },
 ): Promise<{ success: boolean; error?: string; durationMs: number }> {
   const start = Date.now();
@@ -174,7 +206,7 @@ async function executeAction(
         }
 
         const targetFieldMap = effectiveTableId !== context.tableId
-          ? await resolveFieldMap(context.supabase, effectiveTableId)
+          ? (await resolveFieldMap(context.supabase, effectiveTableId)).fieldMap
           : context.fieldMap;
 
         let updates: Record<string, any> = {};
@@ -238,7 +270,7 @@ async function executeAction(
 
         // Resolve field map for the target table (may differ from source)
         const targetFieldMap = (target_table_id && target_table_id !== context.tableId)
-          ? await resolveFieldMap(context.supabase, target_table_id)
+          ? (await resolveFieldMap(context.supabase, target_table_id)).fieldMap
           : context.fieldMap;
 
         let insertData = createFields ?? recordData ?? {};
@@ -263,8 +295,10 @@ async function executeAction(
       }
 
       case 'send_notification': {
-        const { message, title: notifTitle, recipients } = action.config;
-        const notifText = message ?? 'Automation triggered';
+        const { recipients } = action.config;
+        const extra = { 'table.name': context.tableMeta?.name ?? context.tableName };
+        const notifTitle = resolvePlaceholders(action.config.title ?? 'Automation', context.record, context.fieldMap, context.reverseFieldMap, extra);
+        const notifText = resolvePlaceholders(action.config.message ?? 'Automation triggered', context.record, context.fieldMap, context.reverseFieldMap, extra);
 
         // Insert into the real notifications table so NotificationBell picks it up
         const recipientIds: string[] = Array.isArray(recipients) ? recipients : [];
@@ -278,7 +312,7 @@ async function executeAction(
           user_id: uid,
           type: 'automation',
           module: 'automation',
-          title: notifTitle ?? 'Automation',
+          title: notifTitle,
           body: notifText,
           read: false,
         }));
@@ -288,8 +322,35 @@ async function executeAction(
       }
 
       case 'send_email': {
-        const { to, subject, body } = action.config;
-        console.log(`[Automation Email] To: ${to}, Subject: ${subject}, Body: ${body}`);
+        const extra = { 'table.name': context.tableMeta?.name ?? context.tableName };
+        const to = resolvePlaceholders(action.config.to ?? '', context.record, context.fieldMap, context.reverseFieldMap, extra);
+        const subject = resolvePlaceholders(action.config.subject ?? '', context.record, context.fieldMap, context.reverseFieldMap, extra);
+        const body = resolvePlaceholders(action.config.body ?? '', context.record, context.fieldMap, context.reverseFieldMap, extra);
+
+        if (!to) return { success: false, error: 'No recipient email after placeholder resolution', durationMs: Date.now() - start };
+
+        const resendKey = Deno.env.get('RESEND_API_KEY');
+        if (!resendKey) {
+          console.log(`[Automation Email - no RESEND_API_KEY] To: ${to}, Subject: ${subject}, Body: ${body}`);
+          return { success: true, durationMs: Date.now() - start };
+        }
+
+        const resp = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: Deno.env.get('RESEND_FROM_EMAIL') ?? 'KD Ops <notifications@ops.kdsquares.com>',
+            to: [to],
+            subject: subject || 'Automation Notification',
+            html: `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">${body.replace(/\n/g, '<br/>')}</div>`,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.text();
+          return { success: false, error: `Resend ${resp.status}: ${err.slice(0, 200)}`, durationMs: Date.now() - start };
+        }
         return { success: true, durationMs: Date.now() - start };
       }
 
@@ -478,7 +539,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ success: false, error: 'Could not resolve base/table' }, 404, req);
     }
 
-    const fieldMap = await resolveFieldMap(supabase, tableId);
+    const { fieldMap, reverseFieldMap } = await resolveFieldMap(supabase, tableId);
+
+    // Fetch table name for {{table.name}} placeholder
+    const { data: tableMeta2 } = await supabase
+      .schema('nc_meta')
+      .from('tables')
+      .select('name')
+      .eq('id', tableId)
+      .maybeSingle();
 
     const results: Array<{ automationId: string; name: string; status: string; actions: Array<{ actionId: string; type: string; success: boolean; error?: string; durationMs: number }> }> = [];
 
@@ -528,6 +597,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           tableName: table.pg_table_name,
           tableId,
           fieldMap,
+          reverseFieldMap,
+          tableMeta: { name: tableMeta2?.name ?? table.pg_table_name },
         });
         actionResults.push({ actionId: action.id, type: action.type, ...result });
       }

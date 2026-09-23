@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +18,25 @@ const TRIGGER_LABELS: Record<Automation['trigger_type'], string> = {
   field_changed: 'Field Changed',
   scheduled: 'Scheduled',
   record_matches_conditions: 'When Record Matches Conditions',
+  webhook_inflow: 'Incoming Webhook',
+};
+
+const TRIGGER_HELP: Record<Automation['trigger_type'], string> = {
+  record_created: 'Fires when a new row is added to this table.',
+  record_updated: 'Fires when any field on an existing row changes.',
+  record_deleted: 'Fires when a row is removed from this table.',
+  field_changed: 'Fires only when a specific field\'s value changes.',
+  scheduled: 'Runs on a cron schedule (e.g. every hour, daily).',
+  record_matches_conditions: 'Fires when a record transitions from NOT matching to matching your conditions.',
+  webhook_inflow: 'Fires when an external service sends a POST to a unique webhook URL. Great for integrating with Zapier, Make, Stripe, etc.',
+};
+
+const ACTION_HELP: Record<AutomationAction['type'], string> = {
+  send_email: 'Sends a real email via Resend. Use {{record.FieldName}} placeholders for dynamic content.',
+  send_webhook: 'Sends an HTTP request to an external URL with the record data. Use for Slack, Discord, Zapier, etc.',
+  update_record: 'Updates a field on the triggering record or a specific record.',
+  create_record: 'Creates a new row in this table (or another table) with the values you set.',
+  send_notification: 'Sends an in-app notification to selected team members.',
 };
 
 const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: string; text: string; darkText: string }> = {
@@ -27,6 +46,7 @@ const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: s
   field_changed: { bg: '#EDE9FE', darkBg: 'hsl(263,40%,18%)', text: '#5B21B6', darkText: '#C4B5FD' },
   scheduled: { bg: '#FEF3C7', darkBg: 'hsl(45,40%,18%)', text: '#92400E', darkText: '#FCD34D' },
   record_matches_conditions: { bg: '#FCE7F3', darkBg: 'hsl(330,40%,18%)', text: '#9D174D', darkText: '#F9A8D4' },
+  webhook_inflow: { bg: '#E0F2FE', darkBg: 'hsl(200,40%,18%)', text: '#0369A1', darkText: '#7DD3FC' },
 };
 
 const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeof Mail }[] = [
@@ -251,23 +271,17 @@ function ActionConfigForm({
     case 'send_email':
       return (
         <div className="space-y-2">
-          <InputRow label="To" value={c.to ?? ''} onChange={(v) => set('to', v)} placeholder="email@example.com" />
-          <InputRow label="Subject" value={c.subject ?? ''} onChange={(v) => set('subject', v)} placeholder="Subject line" />
-          <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Body</label>
-            <textarea
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] min-h-[60px] resize-y placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-              value={c.body ?? ''}
-              onChange={(e) => set('body', e.target.value)}
-              placeholder="Email body..."
-            />
-          </div>
+          <HelpTip text={ACTION_HELP.send_email} />
+          <InputWithPlaceholders label="To" value={c.to ?? ''} onChange={(v) => set('to', v)} placeholder="email@example.com or {{record.Email}}" fields={fields} />
+          <InputWithPlaceholders label="Subject" value={c.subject ?? ''} onChange={(v) => set('subject', v)} placeholder="Subject line with {{record.Name}}" fields={fields} />
+          <InputWithPlaceholders label="Body" value={c.body ?? ''} onChange={(v) => set('body', v)} placeholder="Hi {{record.Name}}, your status is now {{record.Status}}..." fields={fields} multiline />
         </div>
       );
 
     case 'send_webhook':
       return (
         <div className="space-y-2">
+          <HelpTip text={ACTION_HELP.send_webhook} />
           <InputRow label="URL" value={c.url ?? ''} onChange={(v) => set('url', v)} placeholder="https://example.com/webhook" />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Method</label>
@@ -288,6 +302,7 @@ function ActionConfigForm({
     case 'update_record':
       return (
         <div className="space-y-2">
+          <HelpTip text={ACTION_HELP.update_record} />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Record to update</label>
             <select
@@ -365,6 +380,7 @@ function ActionConfigForm({
       const removePair = (i: number) => onChange({ ...c, field_pairs: pairs.filter((_, j) => j !== i) });
       return (
         <div className="space-y-2">
+          <HelpTip text={ACTION_HELP.create_record} />
           <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block">Fields to set</label>
           {pairs.length === 0 && (
             <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">No fields configured — click below to add.</p>
@@ -416,16 +432,9 @@ function ActionConfigForm({
       };
       return (
         <div className="space-y-2">
-          <InputRow label="Title" value={c.title ?? ''} onChange={(v) => set('title', v)} placeholder="Notification title" />
-          <div>
-            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Message</label>
-            <textarea
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] min-h-[60px] resize-y placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
-              value={c.message ?? ''}
-              onChange={(e) => set('message', e.target.value)}
-              placeholder="Notification message..."
-            />
-          </div>
+          <HelpTip text={ACTION_HELP.send_notification} />
+          <InputWithPlaceholders label="Title" value={c.title ?? ''} onChange={(v) => set('title', v)} placeholder="Notification title" fields={fields} />
+          <InputWithPlaceholders label="Message" value={c.message ?? ''} onChange={(v) => set('message', v)} placeholder="Notification message with {{record.Name}}..." fields={fields} multiline />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] flex items-center gap-1.5 mb-1.5">
               <Users size={11} /> Recipients
@@ -550,6 +559,125 @@ function InputRow({ label, value, onChange, placeholder }: { label: string; valu
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
       />
+    </div>
+  );
+}
+
+function PlaceholderPicker({ fields, onInsert }: { fields: { id: string; name: string }[]; onInsert: (placeholder: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const builtIn = [
+    { label: 'Record ID', value: '{{record.id}}' },
+    { label: 'Current Date', value: '{{now}}' },
+    { label: 'Table Name', value: '{{table.name}}' },
+  ];
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        type="button"
+        className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+        onClick={() => setOpen(!open)}
+        title="Insert dynamic placeholder"
+      >
+        <Copy size={10} /> Insert variable
+      </button>
+      {open && (
+        <div className="absolute left-0 top-5 z-50 bg-white dark:bg-[hsl(220,25%,13%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shadow-lg py-1 w-56 max-h-[200px] overflow-y-auto">
+          <p className="px-3 py-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider">Built-in</p>
+          {builtIn.map((b) => (
+            <button
+              key={b.value}
+              className="w-full text-left px-3 py-1.5 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] flex items-center justify-between"
+              onClick={() => { onInsert(b.value); setOpen(false); }}
+            >
+              <span>{b.label}</span>
+              <code className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{b.value}</code>
+            </button>
+          ))}
+          {fields.length > 0 && (
+            <>
+              <p className="px-3 py-1 mt-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">Fields</p>
+              {fields.map((f) => (
+                <button
+                  key={f.id}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] flex items-center justify-between"
+                  onClick={() => { onInsert(`{{record.${f.name}}}`); setOpen(false); }}
+                >
+                  <span>{f.name}</span>
+                  <code className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{`{{record.${f.name}}}`}</code>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InputWithPlaceholders({ label, value, onChange, placeholder, fields, multiline }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+  fields: { id: string; name: string }[]; multiline?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const handleInsert = (ph: string) => {
+    const el = inputRef.current;
+    if (el) {
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? value.length;
+      const next = value.slice(0, start) + ph + value.slice(end);
+      onChange(next);
+      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + ph.length; el.focus(); });
+    } else {
+      onChange(value + ph);
+    }
+  };
+
+  const cls = "w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">{label}</label>
+        <PlaceholderPicker fields={fields} onInsert={handleInsert} />
+      </div>
+      {multiline ? (
+        <textarea
+          ref={inputRef as any}
+          className={cls + ' min-h-[60px] resize-y'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          ref={inputRef as any}
+          className={cls}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      )}
+    </div>
+  );
+}
+
+function HelpTip({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-md text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] leading-relaxed">
+      <Info size={11} className="shrink-0 mt-0.5 text-[#2D7FF9]" />
+      <span>{text}</span>
     </div>
   );
 }
@@ -791,11 +919,11 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden" style={{ height: 'min(680px, 85vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
+      <DialogContent className="sm:max-w-6xl p-0 gap-0 overflow-hidden" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Automations</DialogTitle>
         <div className="flex h-full">
           {/* ---- Left sidebar ---- */}
-          <div className="w-[220px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
+          <div className="w-[260px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
             <div className="px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center justify-between">
               <span className="text-xs-plus font-semibold flex items-center gap-1.5 text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 <Zap size={14} className="text-[#2D7FF9]" /> Automations
@@ -945,6 +1073,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       <option key={t} value={t}>{TRIGGER_LABELS[t]}</option>
                     ))}
                   </select>
+                  <HelpTip text={TRIGGER_HELP[draft.trigger_type]} />
                 </div>
 
                 {/* Trigger-specific config */}
@@ -992,6 +1121,49 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {draft.trigger_type === 'webhook_inflow' && (
+                  <div className="space-y-2">
+                    <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">
+                      <Webhook size={11} className="inline mr-1" /> Webhook URL
+                    </label>
+                    {draft.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          readOnly
+                          className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] outline-none select-all"
+                          value={`${(window as any).__SUPABASE_URL ?? import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-inflow?automation_id=${draft.id}`}
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                        />
+                        <button
+                          className="shrink-0 px-2.5 py-1.5 rounded-md text-2xs font-medium bg-[#2D7FF9] text-white hover:bg-[#1a5fd4] transition-colors"
+                          onClick={() => {
+                            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-inflow?automation_id=${draft.id}`;
+                            navigator.clipboard.writeText(url);
+                          }}
+                        >
+                          <Copy size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-2xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] italic">Save the automation first to generate a webhook URL.</p>
+                    )}
+                    <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+                      Send a POST request to this URL with a JSON body. The body will be available as the record data in your actions.
+                    </p>
+                    {(draft.trigger_config as any).secret && (
+                      <div>
+                        <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Secret (optional)</label>
+                        <input
+                          className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                          value={(draft.trigger_config as any).secret ?? ''}
+                          onChange={(e) => updateDraft({ trigger_config: { ...draft.trigger_config, secret: e.target.value } })}
+                          placeholder="Shared secret for HMAC verification"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -374,7 +374,7 @@ export interface Automation {
   table_id: string;
   name: string;
   enabled: boolean;
-  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled' | 'record_matches_conditions';
+  trigger_type: 'record_created' | 'record_updated' | 'record_deleted' | 'field_changed' | 'scheduled' | 'record_matches_conditions' | 'webhook_inflow';
   trigger_config: Record<string, any>;
   actions: AutomationAction[];
   created_at: string;
