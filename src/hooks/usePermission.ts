@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/store/authStore';
-import { isPermissionDenied, hasExplicitPermission } from '@/components/RoleGuard';
+import { isPermissionDenied, hasExplicitPermission } from '@/components/permission-utils';
 import { hasRole, type Role } from '@/lib/roles';
 
 /**

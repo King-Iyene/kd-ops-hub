@@ -3,7 +3,8 @@
 // finance-facing fixed-asset register and the operations-facing project
 // tracker that both lean on the same underlying data.
 import { Car } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function FleetOpsSection() {
   return (

@@ -12,7 +12,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim, fmtNairaTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim, fmtNairaTick } from '@/components/chart-kit-constants';
 import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale, ClipboardCheck, Beaker, StickyNote, Receipt } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';

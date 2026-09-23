@@ -2,12 +2,14 @@ import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus, ChevronRight, Loader2, Expand, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType, ConditionalFormatRule } from '@/features/database/types';
+import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
 import { GridCell } from './GridCell';
-import { getCellRenderer, LinksCellRenderer } from './cell-renderers';
+import { LinksCellRenderer } from './cell-renderers';
+import { getCellRenderer } from './cell-renderer-map';
 import { EditFieldDialog } from '../EditFieldDialog';
 import { BulkActionsBar } from './BulkActionsBar';
 import { GridSkeleton } from './GridSkeleton';
@@ -189,42 +191,6 @@ function computeSummary(
   return '';
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function evaluateCondition(
-  record: RecordRow,
-  rule: ConditionalFormatRule,
-  fields: FieldMeta[],
-): boolean {
-  const field = fields.find((f) => f.id === rule.field_id);
-  if (!field) return false;
-  const val = record[field.pg_column_name];
-  const strVal = val == null ? '' : String(val);
-  const ruleVal = rule.value == null ? '' : String(rule.value);
-  switch (rule.operator) {
-    case 'is':
-      return strVal === ruleVal;
-    case 'isNot':
-      return strVal !== ruleVal;
-    case 'contains':
-      return strVal.toLowerCase().includes(ruleVal.toLowerCase());
-    case 'doesNotContain':
-      return !strVal.toLowerCase().includes(ruleVal.toLowerCase());
-    case 'isEmpty':
-      return val == null || strVal === '';
-    case 'isNotEmpty':
-      return val != null && strVal !== '';
-    case 'gt':
-      return parseFloat(strVal) > parseFloat(ruleVal);
-    case 'lt':
-      return parseFloat(strVal) < parseFloat(ruleVal);
-    case 'gte':
-      return parseFloat(strVal) >= parseFloat(ruleVal);
-    case 'lte':
-      return parseFloat(strVal) <= parseFloat(ruleVal);
-    default:
-      return false;
-  }
-}
 
 function getDefaultSummary(uiType: UIType): SummaryFunction {
   if (NUMERIC_TYPES.includes(uiType)) return 'sum';

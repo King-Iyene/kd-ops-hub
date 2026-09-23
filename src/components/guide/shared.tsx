@@ -1,20 +1,8 @@
-/* eslint-disable react-refresh/only-export-components */
 import { type ElementType, type ReactNode, useState } from 'react';
 import { Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { roleBadgeClass, roleLabel } from '@/lib/roles';
-
-export type Role = 'everyone' | 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
-
-export const ROLE_CONFIG: Record<Role, { label: string; className: string }> = {
-  everyone: { label: 'Everyone', className: 'bg-primary/10 text-primary border-primary/20' },
-  super_admin: { label: roleLabel('super_admin'), className: roleBadgeClass('super_admin') },
-  admin: { label: roleLabel('admin'), className: roleBadgeClass('admin') },
-  finance: { label: roleLabel('finance'), className: roleBadgeClass('finance') },
-  operations: { label: roleLabel('operations'), className: roleBadgeClass('operations') },
-  field_staff: { label: 'Field Team', className: roleBadgeClass('field_staff') },
-};
+import { ROLE_CONFIG, type Role } from './guide-constants';
 
 export function RoleBadges({ roles }: { roles: Role[] }) {
   return (
@@ -116,11 +104,6 @@ export function SectionIntro({ icon: Icon, title, blurb }: { icon: ElementType; 
 }
 
 // ── Video embed ─────────────────────────────────────────────────────────
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string)?.trim() ?? '';
-
-export function guideVideoUrl(filename: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/guide-videos/${filename}`;
-}
 
 export function VideoEmbed({
   src, title, caption,

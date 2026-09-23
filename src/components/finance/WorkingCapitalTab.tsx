@@ -11,8 +11,9 @@ import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchWorkingCapitalData, type WorkingCapitalResult, type WcBand } from '@/lib/working-capital';
-import { fmtCompact } from '@/lib/chart-theme';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
+import { fmtCompact } from '@/lib/chart-theme-constants';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 
 const BAND_STYLE: Record<WcBand, { tone: string; label: string }> = {
   strong:   { tone: 'bg-success/15 text-success border-success/30',   label: 'Strong' },

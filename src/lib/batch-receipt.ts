@@ -1,6 +1,6 @@
 import { formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
 import { receiptTheme as R } from '@/lib/receipt-theme';
-import { statusLabel } from '@/components/ui-kit/StatusBadge';
+import { statusLabel } from '@/components/ui-kit/status-utils';
 import { escapeHtml } from '@/lib/html';
 
 interface BatchReceiptParams {

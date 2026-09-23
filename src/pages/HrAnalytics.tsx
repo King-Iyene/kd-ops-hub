@@ -17,7 +17,8 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import HrDataExport from '@/components/hr/HrDataExport';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
-import { chartPalette, chartTheme, GlassTooltip, axisTick } from '@/components/ChartKit';
+import { GlassTooltip } from '@/components/ChartKit';
+import { chartPalette, chartTheme, axisTick } from '@/components/chart-kit-constants';
 
 /**
  * HR Analytics dashboard — headcount, attrition, salary, tenure, gender split,

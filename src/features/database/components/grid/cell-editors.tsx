@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Paperclip, Star, Check, X } from 'lucide-react';
@@ -10,7 +9,7 @@ import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
-import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderers';
+import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderer-map';
 import { toLocalDateString, getTimezone, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
@@ -1290,14 +1289,13 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
-export interface UserValue {
+interface UserValue {
   id?: string;
   email?: string;
   name?: string;
 }
 
-/** Normalize a User/People cell value (single object, array, or plain text) to an array. */
-export function normalizeUserValue(value: unknown): UserValue[] {
+function normalizeUserValue(value: unknown): UserValue[] {
   if (value == null || value === '') return [];
   if (Array.isArray(value)) return value.filter(Boolean) as UserValue[];
   if (typeof value === 'object') return [value as UserValue];
@@ -1611,70 +1609,3 @@ export function LinkedTasksCellEditor({ value, onCommit, onCancel }: CellEditorP
   );
 }
 
-export function getCellEditor(uiType: string) {
-  switch (uiType) {
-    case 'SingleLineText':
-      return TextCellEditor;
-    case 'LongText':
-      return LongTextCellEditor;
-    case 'Number':
-      return NumberCellEditor;
-    case 'Decimal':
-      return DecimalCellEditor;
-    case 'Percent':
-      return PercentCellEditor;
-    case 'Currency':
-      return CurrencyCellEditor;
-    case 'Date':
-      return DateCellEditor;
-    case 'Year':
-      return YearCellEditor;
-    case 'DateTime':
-      return DateTimeCellEditor;
-    case 'Time':
-      return TimeCellEditor;
-    case 'Duration':
-      return DurationCellEditor;
-    case 'Email':
-      return EmailCellEditor;
-    case 'URL':
-      return URLCellEditor;
-    case 'PhoneNumber':
-      return PhoneNumberCellEditor;
-    case 'Rating':
-      return RatingCellEditor;
-    case 'SingleSelect':
-      return SelectCellEditor;
-    case 'MultiSelect':
-      return MultiSelectCellEditor;
-    case 'Attachment':
-      return AttachmentCellEditor;
-    case 'Links':
-      return LinksCellEditor;
-    case 'Barcode':
-      return TextCellEditor;
-    case 'JSON':
-      return LongTextCellEditor;
-    case 'User':
-      return UserCellEditor;
-    case 'LinkedTasks':
-      return LinkedTasksCellEditor;
-    case 'Button':
-      return null;
-    case 'Checkbox':
-      return null;
-    case 'Formula':
-    case 'Lookup':
-    case 'Rollup':
-    case 'Count':
-    case 'AutoNumber':
-    case 'ID':
-    case 'CreatedTime':
-    case 'LastModifiedTime':
-    case 'CreatedBy':
-    case 'LastModifiedBy':
-      return null;
-    default:
-      return TextCellEditor;
-  }
-}

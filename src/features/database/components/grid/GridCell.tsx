@@ -1,8 +1,8 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
-import { getCellRenderer } from './cell-renderers';
-import { getCellEditor } from './cell-editors';
+import { getCellRenderer } from './cell-renderer-map';
+import { getCellEditor } from './cell-editor-map';
 import type { GridColorTokens } from '../../hooks/useGridColors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

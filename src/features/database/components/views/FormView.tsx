@@ -11,8 +11,8 @@ import { useUpdateView } from '../../hooks/useViews';
 import { useSharedView, useCreateSharedView } from '../../hooks/useSharedViews';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
-import { normalizeLinkedTasks } from '../grid/cell-renderers';
-import { normalizeUserValue } from '../grid/cell-editors';
+import { normalizeLinkedTasks } from '../grid/cell-renderer-map';
+import { normalizeUserValue } from '../grid/cell-editor-map';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 

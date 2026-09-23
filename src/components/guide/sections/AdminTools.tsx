@@ -5,7 +5,8 @@
 // KDOps behaves — who can approve what, what gets logged, and how
 // money moves at the company level.
 import { ShieldCheck } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function AdminToolsSection() {
   return (

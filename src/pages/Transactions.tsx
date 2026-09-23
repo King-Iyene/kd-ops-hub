@@ -48,7 +48,7 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-import { statusLabel } from '@/components/ui-kit/StatusBadge';
+import { statusLabel } from '@/components/ui-kit/status-utils';
 
 interface Transaction {
   id: string;

@@ -18,7 +18,8 @@ import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme, chartPalette } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme, chartPalette } from '@/components/chart-kit-constants';
 
 // ─── Types & helpers ───────────────────────────────────────────────────
 

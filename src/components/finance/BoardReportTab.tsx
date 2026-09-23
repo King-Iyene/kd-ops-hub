@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { fetchBoardReportData, type BoardReportData, type HighlightTone } from '@/lib/board-report';
-import { fmtCompact } from '@/lib/chart-theme';
+import { fmtCompact } from '@/lib/chart-theme-constants';
 import { errorMessage } from '@/lib/db-errors';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 

@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Scatter, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip,
 } from 'recharts';
-import { ChartGradients, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
+import { ChartGradients } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { Users2, UserMinus, Rows3, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ import {
   type CostComparisonResult,
   type CompensationBand,
 } from '@/lib/talent-cost';
-import { SERIES, fmtMillions } from '@/lib/chart-theme';
+import { SERIES, fmtMillions } from '@/lib/chart-theme-constants';
 
 const TERMINATION_TYPE_LABEL: Record<string, string> = {
   resignation: 'Resignation', dismissal: 'Dismissal', redundancy: 'Redundancy',

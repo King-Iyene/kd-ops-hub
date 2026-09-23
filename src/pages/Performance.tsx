@@ -36,7 +36,8 @@ import { useToast } from '@/hooks/use-toast';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { chartTheme, axisTick, chartAnim, ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 
 const COMPETENCIES = [
   { key: 'delivery',       label: 'Delivery & Results' },

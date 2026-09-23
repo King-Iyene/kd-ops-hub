@@ -36,7 +36,8 @@ import {
   Tooltip as ChartTooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme } from '@/components/chart-kit-constants';
 import { PayrollLifecycleRail } from '@/components/payroll/PayrollLifecycleRail';
 import { realStepIndex } from '@/lib/payroll-run';
 import { PayrollRunTimeline } from '@/components/payroll/PayrollRunTimeline';

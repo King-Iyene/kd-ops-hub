@@ -3,8 +3,9 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip, Legend,
 } from 'recharts';
-import { SERIES, fmtMillions } from '@/lib/chart-theme';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
+import { SERIES, fmtMillions } from '@/lib/chart-theme-constants';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

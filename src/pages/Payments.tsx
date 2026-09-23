@@ -36,7 +36,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
-import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import { statusLabel } from '@/components/ui-kit/status-utils';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 

@@ -25,7 +25,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, fmtNairaTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, fmtNairaTick } from '@/components/chart-kit-constants';
 import { cn } from '@/lib/utils';
 import {
   bandForRunwayWeeks,

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { AuroraHero } from '@/components/AuroraHero';
-import { ChartGradients, GlassTooltip, chartAnim } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartAnim } from '@/components/chart-kit-constants';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -60,7 +61,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import { toneClass, toneFor } from '@/components/ui-kit/StatusBadge';
+import { toneClass, toneFor } from '@/components/ui-kit/status-utils';
 import { cn } from '@/lib/utils';
 
 interface DashboardStats {

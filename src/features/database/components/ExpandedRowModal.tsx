@@ -6,7 +6,7 @@ import { LinkCellRenderer } from './grid/LinkCellRenderer';
 import { LookupCellRenderer, RollupCellRenderer } from './grid/LookupRollupCellRenderer';
 import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
-import { getCellRenderer } from './grid/cell-renderers';
+import { getCellRenderer } from './grid/cell-renderer-map';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
 import { toLocalDateString, utcIsoToOrgWallClock, orgWallClockToUtcIso } from '@/lib/format';

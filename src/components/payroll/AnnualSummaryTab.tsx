@@ -9,7 +9,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme } from '@/components/chart-kit-constants';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

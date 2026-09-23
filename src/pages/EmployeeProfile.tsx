@@ -70,7 +70,7 @@ import { confirm } from '@/hooks/use-confirm';
 import { startImpersonation } from '@/lib/impersonation';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
-import { type PermissionsMap } from '@/components/PermissionsEditor';
+import { type PermissionsMap } from '@/components/permissions-config';
 import { type BankAccountValue } from '@/components/BankAccountField';
 import { notifyRoles } from '@/lib/notify';
 

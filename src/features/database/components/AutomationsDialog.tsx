@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -578,6 +578,9 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   const [showActionPicker, setShowActionPicker] = useState(false);
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const actionPickerRef = useRef<HTMLDivElement>(null);
 
   const [draft, setDraft] = useState<Automation | null>(null);
 
@@ -595,6 +598,18 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     if (!dirty) return true;
     return window.confirm('You have unsaved changes. Discard them?');
   }, [dirty]);
+
+  // Close action picker on outside click
+  useEffect(() => {
+    if (!showActionPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (actionPickerRef.current && !actionPickerRef.current.contains(e.target as Node)) {
+        setShowActionPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showActionPicker]);
 
   const selectAutomation = useCallback((a: Automation | null) => {
     if (!confirmIfDirty()) return;
@@ -614,18 +629,53 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     selectAutomation(result);
   }, [tableId, baseId, createAutomation, selectAutomation]);
 
+  const validateDraft = useCallback((d: Automation): string[] => {
+    const errors: string[] = [];
+    if (!d.name.trim()) errors.push('Automation name is required');
+    if (d.trigger_type === 'field_changed' && !d.trigger_config?.field_id) {
+      errors.push('Field Changed trigger requires a watched field');
+    }
+    if (d.trigger_type === 'scheduled' && !d.trigger_config?.cron) {
+      errors.push('Scheduled trigger requires a cron expression');
+    }
+    for (const act of d.actions) {
+      const label = ACTION_TYPES.find(t => t.type === act.type)?.label ?? act.type;
+      if (act.type === 'send_webhook' && !act.config.url) {
+        errors.push(`${label}: URL is required`);
+      }
+      if (act.type === 'send_email' && !act.config.to) {
+        errors.push(`${label}: recipient email is required`);
+      }
+      if (act.type === 'update_record' && !act.config.field_id) {
+        errors.push(`${label}: select a field to update`);
+      }
+    }
+    return errors;
+  }, []);
+
   const handleSave = useCallback(async () => {
-    if (!draft || !tableId) return;
-    await updateAutomation.mutateAsync({
-      id: draft.id,
-      table_id: tableId,
-      name: draft.name,
-      enabled: draft.enabled,
-      trigger_type: draft.trigger_type,
-      trigger_config: draft.trigger_config,
-      actions: draft.actions,
-    });
-  }, [draft, tableId, updateAutomation]);
+    if (!draft || !tableId || saving) return;
+    const errors = validateDraft(draft);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+    setValidationErrors([]);
+    setSaving(true);
+    try {
+      await updateAutomation.mutateAsync({
+        id: draft.id,
+        table_id: tableId,
+        name: draft.name,
+        enabled: draft.enabled,
+        trigger_type: draft.trigger_type,
+        trigger_config: draft.trigger_config,
+        actions: draft.actions,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [draft, tableId, updateAutomation, saving, validateDraft]);
 
   const handleDelete = useCallback(async () => {
     if (!selected || !tableId) return;
@@ -641,7 +691,8 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   const updateDraft = useCallback((patch: Partial<Automation>) => {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
-  }, []);
+    if (validationErrors.length > 0) setValidationErrors([]);
+  }, [validationErrors.length]);
 
   const addAction = useCallback((type: AutomationAction['type']) => {
     const newAction: AutomationAction = { id: actionId(), type, config: {} };
@@ -668,18 +719,45 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     setTestRunning(true);
     setTestResult(null);
     try {
+      // Fetch the table's schema name and pg_table_name to get a real sample record
+      const { data: tblMeta } = await supabase
+        .schema('nc_meta' as any)
+        .from('tables')
+        .select('pg_table_name, base_id')
+        .eq('id', tableId)
+        .single();
+      let sampleRecord: Record<string, any> = { id: `test-${Date.now()}` };
+      if (tblMeta) {
+        const { data: baseMeta } = await supabase
+          .schema('nc_meta' as any)
+          .from('bases')
+          .select('schema_name')
+          .eq('id', tblMeta.base_id)
+          .single();
+        if (baseMeta) {
+          const { data: rows } = await supabase
+            .schema(baseMeta.schema_name as any)
+            .from(tblMeta.pg_table_name)
+            .select('*')
+            .limit(1)
+            .maybeSingle();
+          if (rows) sampleRecord = rows;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('automation-runner', {
         body: {
           event: draft.trigger_type === 'record_created' ? 'record.created' : 'record.updated',
           baseId,
           tableId,
-          record: { id: 'test-run-' + Date.now() },
+          record: sampleRecord,
           oldRecord: {},
           _testAutomationId: draft.id,
         },
       });
       if (error) throw error;
-      setTestResult({ ok: true, message: `Test completed: ${JSON.stringify(data).slice(0, 200)}` });
+      const resultSummary = data?.results?.map((r: any) => `${r.name}: ${r.status}`).join(', ') ?? JSON.stringify(data).slice(0, 200);
+      setTestResult({ ok: true, message: `Test completed — ${resultSummary}` });
     } catch (err: any) {
       setTestResult({ ok: false, message: err.message ?? 'Test failed' });
     } finally {
@@ -831,6 +909,15 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   </button>
                 </div>
 
+                {/* Validation errors */}
+                {validationErrors.length > 0 && (
+                  <div className="px-3 py-2 rounded-md text-xs space-y-0.5" style={{ backgroundColor: isDark ? 'hsl(0,30%,12%)' : '#FEF2F2', color: isDark ? '#FCA5A5' : '#991B1B' }}>
+                    {validationErrors.map((err, i) => (
+                      <p key={i} className="flex items-center gap-1.5"><XCircle size={11} className="shrink-0" /> {err}</p>
+                    ))}
+                  </div>
+                )}
+
                 {/* Unsaved changes banner */}
                 {dirty && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-md text-xs" style={{ backgroundColor: isDark ? 'hsl(45,30%,12%)' : '#FFFBEB', color: isDark ? '#FCD34D' : '#92400E' }}>
@@ -912,7 +999,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Actions ({draft.actions.length})</label>
-                    <div className="relative">
+                    <div className="relative" ref={actionPickerRef}>
                       <Button
                         size="sm"
                         className="h-6 px-2 text-2xs gap-1"
@@ -986,8 +1073,9 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     className="h-8 px-4 text-xs gap-1.5"
                     style={{ backgroundColor: dirty ? '#2D7FF9' : (isDark ? 'hsl(220,25%,20%)' : '#E5E7EB'), color: dirty ? '#fff' : (isDark ? 'hsl(220,20%,55%)' : '#6B7280') }}
                     onClick={handleSave}
+                    disabled={saving}
                   >
-                    <Save size={12} /> Save
+                    <Save size={12} /> {saving ? 'Saving...' : 'Save'}
                   </Button>
                   <Button
                     variant="outline"

@@ -19,7 +19,8 @@ import {
   evaluateFormula, isFormulaError, formatNumericValue, FLEX_NUMBER_FORMATS,
   type FormulaValue, type FlexNumberFormat,
 } from '@/lib/flexFormula';
-import { chartTheme, axisTick, chartAnim, GlassTooltip } from '@/components/ChartKit';
+import { GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

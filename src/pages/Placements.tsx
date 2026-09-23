@@ -47,7 +47,8 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-import { chartTheme, chartPalette, ChartGradients, GlassTooltip, axisTick, chartAnim, fmtNairaTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, chartPalette, axisTick, chartAnim, fmtNairaTick } from '@/components/chart-kit-constants';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

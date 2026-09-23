@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as ReTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { PieChart as PieChartIcon, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { errorMessage } from '@/lib/db-errors';
 import { fetchRevenueConcentration, type ConcentrationResult, type ConcentrationBand } from '@/lib/revenue-concentration';
-import { SERIES, fmtCompact } from '@/lib/chart-theme';
+import { SERIES, fmtCompact } from '@/lib/chart-theme-constants';
 
 const BAND_STYLE: Record<ConcentrationBand, { tone: string; label: string; Icon: typeof ShieldCheck }> = {
   diversified:   { tone: 'bg-success/15 text-success border-success/30',   label: 'Diversified',   Icon: ShieldCheck },

@@ -13,7 +13,8 @@ import {
   MobileCardRow,
 } from '@/components/ui-kit/MobileCard';
 import { formatNaira } from '@/lib/format';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme } from '@/components/chart-kit-constants';
 
 interface StationRow {
   name: string;

@@ -3,8 +3,9 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip, Cell,
 } from 'recharts';
-import { SERIES, fmtMillions } from '@/lib/chart-theme';
-import { ChartGradients, GlassTooltip, chartTheme, axisTick, chartAnim } from '@/components/ChartKit';
+import { SERIES, fmtMillions } from '@/lib/chart-theme-constants';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { chartTheme, axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { Coins, Activity, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';

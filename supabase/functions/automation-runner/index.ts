@@ -236,6 +236,11 @@ async function executeAction(
           if (base) targetSchema = base.schema_name;
         }
 
+        // Resolve field map for the target table (may differ from source)
+        const targetFieldMap = (target_table_id && target_table_id !== context.tableId)
+          ? await resolveFieldMap(context.supabase, target_table_id)
+          : context.fieldMap;
+
         let insertData = createFields ?? recordData ?? {};
 
         const fieldPairs: { field_id: string; value: string }[] = action.config.field_pairs;
@@ -243,7 +248,7 @@ async function executeAction(
           const pairData: Record<string, unknown> = {};
           for (const pair of fieldPairs) {
             if (!pair.field_id) continue;
-            const col = context.fieldMap.get(pair.field_id) ?? pair.field_id;
+            const col = targetFieldMap.get(pair.field_id) ?? pair.field_id;
             pairData[col] = pair.value;
           }
           insertData = pairData;
@@ -410,7 +415,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   try {
     const body = await req.json();
-    const { event, baseId, tableId, record, oldRecord } = body;
+    const { event, baseId, tableId, record, oldRecord, _testAutomationId } = body;
 
     if (!event || !baseId || !tableId) {
       return json({ success: false, error: 'Missing required fields: event, baseId, tableId' }, 400, req);
@@ -435,13 +440,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       triggerTypes.push('field_changed');
     }
 
-    const { data: automations, error: autoErr } = await supabase
+    let automationQuery = supabase
       .schema('nc_meta')
       .from('automations')
       .select('*')
-      .eq('table_id', tableId)
-      .in('trigger_type', triggerTypes)
-      .eq('enabled', true);
+      .eq('table_id', tableId);
+
+    if (_testAutomationId) {
+      // Test run: only run the specific automation, regardless of enabled state
+      automationQuery = automationQuery.eq('id', _testAutomationId);
+    } else {
+      automationQuery = automationQuery.in('trigger_type', triggerTypes).eq('enabled', true);
+    }
+
+    const { data: automations, error: autoErr } = await automationQuery;
 
     if (autoErr) throw autoErr;
     if (!automations || automations.length === 0) {

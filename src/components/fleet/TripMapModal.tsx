@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
@@ -10,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { formatDate, formatTime } from '@/lib/format';
 import { Loader2, RotateCcw, Play, Pause, AlertTriangle, Gauge, Zap, ParkingCircle, Map as MapIcon } from 'lucide-react';
 import { type TripLog, type BreadcrumbRow, type TripEvent, formatCoords, formatDuration, haversineKm, reverseGeocode, computeIdleMinutes } from '@/lib/fleet-utils';
+import { isCoordString, geocodeResultCache } from './trip-map-utils';
 
 const EVENT_LABEL: Record<string, string> = {
   speeding:      'Speeding',
@@ -135,13 +135,6 @@ interface TripMapModalProps {
   loading: boolean;
   onClose: () => void;
 }
-
-export function isCoordString(s: string) {
-  return /[°]\s*[NSns]/.test(s);
-}
-
-// Module-level cache — each unique coordinate string is geocoded at most once per session.
-export const geocodeResultCache = new Map<string, string>();
 
 export function LocationCell({ location, lat, lng, showCoords = false }: {
   location: string; lat: number | null; lng: number | null; showCoords?: boolean

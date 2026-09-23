@@ -44,7 +44,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { useCompanySettings } from '@/queries';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme } from '@/components/chart-kit-constants';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';

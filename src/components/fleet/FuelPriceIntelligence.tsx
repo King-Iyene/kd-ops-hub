@@ -8,7 +8,8 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, Fuel, Zap, Target } from 'lucide-react';
 import { formatNaira } from '@/lib/format';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme } from '@/components/chart-kit-constants';
 
 interface StationWeekly {
   station: string;

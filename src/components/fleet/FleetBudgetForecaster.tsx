@@ -9,7 +9,8 @@ import {
 } from 'recharts';
 import { Calculator, Info } from 'lucide-react';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
-import { ChartGradients, GlassTooltip, axisTick, chartTheme, fmtNairaTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartTheme, fmtNairaTick } from '@/components/chart-kit-constants';
 
 interface MonthData {
   month: string;

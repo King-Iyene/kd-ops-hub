@@ -5,7 +5,8 @@
 // live query against the router, so it can drift if forgotten.
 import { Users, Shield, ShieldCheck, ShieldAlert, KeyRound, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { SectionIntro, RoleBadges, Callout, RefTable, RefSection, VideoEmbed, guideVideoUrl, type Role } from '@/components/guide/shared';
+import { SectionIntro, RoleBadges, Callout, RefTable, RefSection, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl, type Role } from '@/components/guide/guide-constants';
 
 const ROLE_SUMMARY: { role: Role; blurb: string }[] = [
   { role: 'super_admin', blurb: 'Full access to every page in the platform, including the 8 pages no other role can see: Settings, Finance Dashboard, Principal Disbursements, Assistant Admin, Employees, Placements, Approval Workflows, and Audit Log. The only role that can simulate other roles ("View As") for testing.' },

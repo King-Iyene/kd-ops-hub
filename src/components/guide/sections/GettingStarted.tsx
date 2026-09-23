@@ -3,7 +3,8 @@
 // phone or desktop, understanding the two dashboard variants, and setting
 // up a profile (including notification preferences and 2FA).
 import { LogIn } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function GettingStartedSection() {
   return (

@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Plus, GripVertical, MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
-import { getCellRenderer } from '../grid/cell-renderers';
+import { getCellRenderer } from '../grid/cell-renderer-map';
 
 interface KanbanViewProps {
   fields: FieldMeta[];

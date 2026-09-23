@@ -3,7 +3,8 @@
 // offboarding, disciplinary process, formal letters, grievances, succession
 // planning, and workforce analytics.
 import { Users } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function PeopleOpsSection() {
   return (

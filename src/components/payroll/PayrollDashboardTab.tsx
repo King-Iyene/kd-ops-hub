@@ -8,7 +8,8 @@ import {
   Tooltip,
   XAxis,
 } from 'recharts';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim } from '@/components/chart-kit-constants';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

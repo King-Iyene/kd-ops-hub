@@ -1,7 +1,8 @@
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
+import { PermissionsEditor } from '@/components/PermissionsEditor';
+import { ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/permissions-config';
 import { confirm } from '@/hooks/use-confirm';
 
 interface Props {

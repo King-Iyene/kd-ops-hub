@@ -5,7 +5,8 @@
 // described here (second approver, transfer caps, locks) is a real
 // system behavior, not a suggestion.
 import { Wallet } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function FinanceOpsSection() {
   return (

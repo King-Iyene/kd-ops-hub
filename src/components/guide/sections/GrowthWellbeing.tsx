@@ -2,7 +2,8 @@
 // culture: goals, performance reviews, training, the handbook, benefits,
 // surveys, and referrals. Knowledge Base is documented in its own section.
 import { GraduationCap } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function GrowthWellbeingSection() {
   return (

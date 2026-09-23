@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
-import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme, fmtNairaTick } from '@/components/ChartKit';
+import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
+import { axisTick, chartAnim, chartTheme, fmtNairaTick } from '@/components/chart-kit-constants';
 import { formatNaira, formatNairaCompact } from '@/lib/format';
 import { Fuel, TrendingUp, Gauge, Zap, AlertTriangle, BarChart2 } from 'lucide-react';
 import type { VehicleSummary, FieldStaff } from '@/lib/fleet-utils';

@@ -2,7 +2,8 @@
 // normal day, regardless of role: clocking in, tasks, leave, timesheets,
 // documents, messaging, the AI assistant, and the knowledge base behind it.
 import { CalendarCheck2 } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 export function EverydayWorkSection() {
   return (

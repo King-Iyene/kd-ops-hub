@@ -2,7 +2,8 @@
 // the questions people actually raise (access, deletes, approvals), plus a
 // short technical pointer for developers touching this codebase.
 import { HelpCircle, Code } from 'lucide-react';
-import { SectionIntro, RefSection, RefTable, VideoEmbed, guideVideoUrl } from '@/components/guide/shared';
+import { SectionIntro, RefSection, RefTable, VideoEmbed } from '@/components/guide/shared';
+import { guideVideoUrl } from '@/components/guide/guide-constants';
 
 interface QA {
   q: string;
