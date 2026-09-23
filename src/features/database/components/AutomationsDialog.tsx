@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -38,6 +38,7 @@ const ACTION_HELP: Record<AutomationAction['type'], string> = {
   update_record: 'Updates a field on the triggering record or a specific record.',
   create_record: 'Creates a new row in this table (or another table) with the values you set.',
   send_notification: 'Sends an in-app notification to selected team members.',
+  delay: 'Pauses the automation for a set duration before running the next action. Great for follow-up emails or scheduled reminders.',
 };
 
 const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: string; text: string; darkText: string }> = {
@@ -56,6 +57,7 @@ const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeo
   { type: 'update_record', label: 'Update Record', icon: FileEdit },
   { type: 'create_record', label: 'Create Record', icon: FilePlus },
   { type: 'send_notification', label: 'Send Notification', icon: Bell },
+  { type: 'delay', label: 'Delay', icon: Timer },
 ];
 
 const CONDITION_OPERATORS: { value: AutomationConditionOp; label: string; needsValue: boolean }[] = [
@@ -517,6 +519,59 @@ function ActionConfigForm({
             {recipientIds.length > 0 && (
               <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] mt-1">{recipientIds.length} recipient{recipientIds.length !== 1 ? 's' : ''} selected</p>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    case 'delay': {
+      const DELAY_PRESETS = [
+        { label: '1 minute', seconds: 60 },
+        { label: '5 minutes', seconds: 300 },
+        { label: '15 minutes', seconds: 900 },
+        { label: '1 hour', seconds: 3600 },
+        { label: '1 day', seconds: 86400 },
+      ];
+      return (
+        <div className="space-y-2">
+          <HelpTip text={ACTION_HELP.delay} />
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Duration</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                className="w-20 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                value={c.amount ?? 5}
+                onChange={(e) => set('amount', Math.max(1, parseInt(e.target.value) || 1))}
+              />
+              <select
+                className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                value={c.unit ?? 'minutes'}
+                onChange={(e) => set('unit', e.target.value)}
+              >
+                <option value="seconds">seconds</option>
+                <option value="minutes">minutes</option>
+                <option value="hours">hours</option>
+                <option value="days">days</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {DELAY_PRESETS.map((p) => (
+              <button
+                key={p.seconds}
+                className="px-2 py-0.5 rounded-full text-3xs font-medium border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] transition-colors hover:bg-[#EBF0FF] dark:hover:bg-[hsl(220,25%,15%)]"
+                onClick={() => {
+                  if (p.seconds < 60) onChange({ ...c, amount: p.seconds, unit: 'seconds' });
+                  else if (p.seconds < 3600) onChange({ ...c, amount: p.seconds / 60, unit: 'minutes' });
+                  else if (p.seconds < 86400) onChange({ ...c, amount: p.seconds / 3600, unit: 'hours' });
+                  else onChange({ ...c, amount: p.seconds / 86400, unit: 'days' });
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
       );
@@ -1149,6 +1204,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   }, []);
 
   const [collapsedActions, setCollapsedActions] = useState<Set<string>>(new Set());
+  const [sidebarSearch, setSidebarSearch] = useState('');
 
   const handleTestRun = useCallback(async () => {
     if (!draft || !tableId || !baseId) return;
@@ -1248,6 +1304,20 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
               </Button>
             </div>
 
+            {automations.length > 3 && (
+              <div className="px-2 py-1.5 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+                <div className="relative">
+                  <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" />
+                  <input
+                    className="w-full pl-7 pr-2 py-1 rounded-md bg-[#F4F4F5] dark:bg-[hsl(220,25%,14%)] border-none text-2xs text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                    placeholder="Search automations..."
+                    value={sidebarSearch}
+                    onChange={(e) => setSidebarSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto py-1">
               {isLoading && (
                 <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] px-3 py-4 text-center">Loading...</p>
@@ -1261,7 +1331,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 </div>
               )}
 
-              {automations.map((a) => {
+              {automations.filter((a) => !sidebarSearch.trim() || a.name.toLowerCase().includes(sidebarSearch.toLowerCase()) || TRIGGER_LABELS[a.trigger_type].toLowerCase().includes(sidebarSearch.toLowerCase())).map((a) => {
                 const badge = TRIGGER_BADGES[a.trigger_type];
                 const isSelected = a.id === selectedId;
                 return (
