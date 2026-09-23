@@ -696,8 +696,13 @@ function VariablePicker({ fields, onInsert }: {
 
   const systemVars: VariableItem[] = useMemo(() => [
     { label: 'Record ID', value: '{{record.id}}', description: 'Unique row identifier', icon: Hash, category: 'system' },
-    { label: 'Current Date', value: '{{now}}', description: 'Timestamp when automation runs', icon: Calendar, category: 'system' },
+    { label: 'Current Date', value: '{{now}}', description: 'ISO timestamp when automation runs', icon: Calendar, category: 'system' },
+    { label: 'Date Only', value: '{{now.date}}', description: 'Today\'s date (YYYY-MM-DD)', icon: Calendar, category: 'system' },
+    { label: 'Time Only', value: '{{now.time}}', description: 'Current time (HH:MM:SS)', icon: Clock, category: 'system' },
     { label: 'Table Name', value: '{{table.name}}', description: 'Name of this table', icon: Type, category: 'system' },
+    { label: 'Base Name', value: '{{base.name}}', description: 'Name of this base', icon: List, category: 'system' },
+    { label: 'Automation Name', value: '{{automation.name}}', description: 'Name of this automation', icon: Zap, category: 'system' },
+    { label: 'Trigger Type', value: '{{trigger.type}}', description: 'What triggered this run', icon: Play, category: 'system' },
   ], []);
 
   const fieldVars: VariableItem[] = useMemo(() =>
