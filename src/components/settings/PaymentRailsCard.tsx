@@ -17,7 +17,7 @@
 // mechanism in the whole flip flow — we never trust the toggle to
 // enable something the target provider hasn't proven itself for.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import { useCompanySettings } from '@/queries';
@@ -117,9 +117,20 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [reason, setReason] = useState('');
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);  // eslint-disable-line react-hooks/exhaustive-deps -- mount-only load
+  const refreshBalances = useCallback(async () => {
+    setBalancesLoading(true);
+    try {
+      const [ps, fw] = await Promise.all([
+        getProviderBalance('paystack').catch(() => ({ available: null })),
+        getProviderBalance('flutterwave').catch(() => ({ available: null })),
+      ]);
+      setBalances({ paystack: ps.available, flutterwave: fw.available });
+    } finally {
+      setBalancesLoading(false);
+    }
+  }, []);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const { data: history } = await supabase.from('provider_switches')
@@ -133,20 +144,9 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [refreshBalances]);
 
-  async function refreshBalances() {
-    setBalancesLoading(true);
-    try {
-      const [ps, fw] = await Promise.all([
-        getProviderBalance('paystack').catch(() => ({ available: null })),
-        getProviderBalance('flutterwave').catch(() => ({ available: null })),
-      ]);
-      setBalances({ paystack: ps.available, flutterwave: fw.available });
-    } finally {
-      setBalancesLoading(false);
-    }
-  }
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   function openSwitchDialog(toProvider: Provider) {
     setDialogTargetProvider(toProvider);

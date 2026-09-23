@@ -230,8 +230,7 @@ export function NotificationBell() {
     fetchNotifications(profile.id);
     subscribeRealtime(profile.id);
     return () => unsubscribeRealtime();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id]);
+  }, [profile?.id, fetchNotifications, subscribeRealtime, unsubscribeRealtime]);
 
   const handleClick = (n: any) => {
     if (!n.read) markAsRead(n.id);
