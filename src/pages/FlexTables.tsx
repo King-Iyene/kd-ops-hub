@@ -678,7 +678,7 @@ export default function FlexTables() {
   useEffect(() => {
     (async () => {
       const [profRes, taskRes] = await Promise.all([
-        supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).in('role', ['operations', 'admin', 'super_admin']).order('full_name').limit(500),
+        supabase.from('profiles_directory').select('id, full_name, email').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
         // No parent_id filter — subtasks are included too, so they can be
         // linked from a table just like top-level tasks (grouped under
         // their parent in the picker).
