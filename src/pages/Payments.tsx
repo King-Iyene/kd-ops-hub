@@ -176,7 +176,7 @@ const Payments = () => {
     }
   }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     const now = new Date();
     // Date-only strings for the paid-total RPC (it indexes on payment_date).
     const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -208,7 +208,7 @@ const Payments = () => {
       processingCount: processingRes.count || 0,
       thisMonthAmount: Number(paidRes.data ?? 0),
     });
-  };
+  }, []);
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -365,7 +365,7 @@ const Payments = () => {
   };
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
-  useEffect(() => { fetchBatches(); fetchStats(); }, [fetchBatches, statusFilter, page, effectiveRole]);
+  useEffect(() => { fetchBatches(); fetchStats(); }, [fetchBatches, fetchStats, statusFilter, page, effectiveRole]);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 

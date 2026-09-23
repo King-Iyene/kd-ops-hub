@@ -271,7 +271,7 @@ ${renderedHtml}
         </div>
 
         {/* Live preview */}
-        <div className="border rounded-md overflow-auto max-h-[420px] p-6 bg-white text-slate-900">
+        <div className="border rounded-md overflow-auto max-h-[420px] p-6 bg-white dark:bg-white text-slate-900 dark:text-slate-900">
           <div
             className="prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedHtml) }}

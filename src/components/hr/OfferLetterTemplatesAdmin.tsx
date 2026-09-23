@@ -307,7 +307,7 @@ export const OfferLetterTemplatesAdmin = () => {
                 <div className="mt-3">
                   <Label className="text-xs text-muted-foreground">Live preview (sample vars)</Label>
                   <div
-                    className="mt-1 border rounded-md p-4 bg-white text-slate-900 max-h-[300px] overflow-auto"
+                    className="mt-1 border rounded-md p-4 bg-white dark:bg-white text-slate-900 dark:text-slate-900 max-h-[300px] overflow-auto"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewHtml) }}
                   />
                 </div>

@@ -129,7 +129,7 @@ function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; childre
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-6 mb-3 flex items-center gap-2">
-      <ChevronRight size={14} className="text-zinc-400" />
+      <ChevronRight size={14} className="text-muted-foreground" />
       {children}
     </h3>
   );

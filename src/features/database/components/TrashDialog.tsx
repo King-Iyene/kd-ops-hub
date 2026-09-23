@@ -149,7 +149,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
 
         {/* Search */}
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search trashed records..."
             value={search}
@@ -161,7 +161,7 @@ export function TrashDialog({ open, onOpenChange, baseId }: TrashDialogProps) {
         {/* List */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-zinc-400">
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 size={20} className="animate-spin mr-2" />
               Loading...
             </div>

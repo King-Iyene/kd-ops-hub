@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Save,
@@ -96,7 +96,7 @@ export default function AssistantAdmin() {
 
   const isSuperAdmin = profile?.role === 'super_admin';
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     const [{ data: cfg }, { data: kb }, { data: usageRows }] = await Promise.all([
       supabase.from('chatbot_config').select('id, system_prompt, text_model, vision_model, daily_message_limit, enable_web_search, enable_fx_rates, enable_platform_query, is_enabled, updated_at').limit(1).single(),
@@ -129,11 +129,11 @@ export default function AssistantAdmin() {
     }
     setUsage([...agg.values()].sort((a, b) => b.total_messages - a.total_messages));
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (isSuperAdmin) fetchAll();
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, fetchAll]);
 
   const saveConfig = async () => {
     if (!config) return;

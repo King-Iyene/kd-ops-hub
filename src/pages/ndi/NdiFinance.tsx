@@ -685,11 +685,11 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
                         const b = t.beneficiary_id ? bMap.get(t.beneficiary_id) : null;
                         const name = b?.name ?? t.description ?? 'Transfer';
                         const statusDot: Record<string, string> = {
-                          success: 'bg-emerald-500', pending: 'bg-amber-500', processing: 'bg-blue-500', failed: 'bg-red-500', reversed: 'bg-gray-400',
+                          success: 'bg-emerald-500', pending: 'bg-amber-500', processing: 'bg-blue-500', failed: 'bg-red-500', reversed: 'bg-slate-400',
                         };
                         return (
                           <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setReceiptRow(t)}>
-                            <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot[t.status] ?? 'bg-gray-400'}`} />
+                            <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDot[t.status] ?? 'bg-slate-400'}`} />
                             <div className="min-w-0 flex-1">
                               <p className="text-[13px] font-medium truncate">{name}</p>
                             </div>

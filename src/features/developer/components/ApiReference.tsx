@@ -596,7 +596,7 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
         <span className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block max-w-[40%] truncate">
           {endpoint.description}
         </span>
-        {open ? <ChevronDown size={14} className="text-zinc-400 shrink-0" /> : <ChevronRight size={14} className="text-zinc-400 shrink-0" />}
+        {open ? <ChevronDown size={14} className="text-muted-foreground shrink-0" /> : <ChevronRight size={14} className="text-muted-foreground shrink-0" />}
       </button>
 
       {open && (
@@ -643,7 +643,7 @@ function EndpointCard({ endpoint, moduleId }: { endpoint: Endpoint; moduleId: st
                               Required
                             </Badge>
                           ) : (
-                            <span className="text-3xs text-zinc-400">Optional</span>
+                            <span className="text-3xs text-muted-foreground">Optional</span>
                           )}
                         </TableCell>
                         <TableCell className="text-2xs text-zinc-600 dark:text-zinc-400 py-2">{f.description}</TableCell>
@@ -725,7 +725,7 @@ export default function ApiReference() {
       <aside className="hidden lg:block w-64 shrink-0">
         <div className="sticky top-28 space-y-3">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search endpoints..."
               value={search}

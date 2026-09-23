@@ -192,7 +192,7 @@ export function VehicleInspectionForm({
                             ? 'bg-success text-white'
                             : s === 'fail'
                             ? 'bg-destructive text-white'
-                            : 'bg-gray-400 text-white'
+                            : 'bg-muted-foreground text-white'
                           : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                       )}
                       title={s === 'pass' ? 'Pass' : s === 'fail' ? 'Fail' : 'N/A'}

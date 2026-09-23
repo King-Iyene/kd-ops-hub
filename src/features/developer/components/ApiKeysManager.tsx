@@ -294,7 +294,7 @@ export default function ApiKeysManager() {
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-zinc-400">
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 size={20} className="animate-spin mr-2" />
               Loading keys...
             </div>
@@ -335,7 +335,7 @@ export default function ApiKeysManager() {
                   >
                     <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
                       <div className="flex items-center gap-2">
-                        <Shield size={14} className="text-zinc-400" />
+                        <Shield size={14} className="text-muted-foreground" />
                         {key.name}
                       </div>
                     </TableCell>

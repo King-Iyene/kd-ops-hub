@@ -877,17 +877,17 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
             <button onClick={() => onNavigate?.('reference')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Code2 size={14} className="text-blue-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">API Reference</span>
-              <ExternalLink size={10} className="ml-auto text-zinc-400" />
+              <ExternalLink size={10} className="ml-auto text-muted-foreground" />
             </button>
             <button onClick={() => onNavigate?.('explorer')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Terminal size={14} className="text-emerald-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">API Explorer</span>
-              <ExternalLink size={10} className="ml-auto text-zinc-400" />
+              <ExternalLink size={10} className="ml-auto text-muted-foreground" />
             </button>
             <button onClick={() => onNavigate?.('guides')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 transition-colors text-left">
               <Zap size={14} className="text-amber-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">Integration Guides</span>
-              <ExternalLink size={10} className="ml-auto text-zinc-400" />
+              <ExternalLink size={10} className="ml-auto text-muted-foreground" />
             </button>
             <a
               href="mailto:code@kdsquares.com"
@@ -895,7 +895,7 @@ export default function Troubleshooting({ onNavigate }: { onNavigate?: (tab: str
             >
               <HelpCircle size={14} className="text-purple-500" />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">Contact code@kdsquares.com</span>
-              <ExternalLink size={10} className="ml-auto text-zinc-400" />
+              <ExternalLink size={10} className="ml-auto text-muted-foreground" />
             </a>
           </div>
         </CardContent>
