@@ -364,7 +364,7 @@ export interface AutomationCondition {
 
 export interface AutomationAction {
   id: string;
-  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification' | 'delay';
+  type: 'send_email' | 'send_webhook' | 'update_record' | 'create_record' | 'send_notification' | 'delay' | 'conditional';
   config: Record<string, any>;
 }
 

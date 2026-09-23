@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer, GitBranch } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -39,6 +39,7 @@ const ACTION_HELP: Record<AutomationAction['type'], string> = {
   create_record: 'Creates a new row in this table (or another table) with the values you set.',
   send_notification: 'Sends an in-app notification to selected team members.',
   delay: 'Pauses the automation for a set duration before running the next action. Great for follow-up emails or scheduled reminders.',
+  conditional: 'Branches the automation based on a condition. If the condition is true, runs the "Then" actions; otherwise runs the "Else" actions.',
 };
 
 const TRIGGER_BADGES: Record<Automation['trigger_type'], { bg: string; darkBg: string; text: string; darkText: string }> = {
@@ -58,6 +59,7 @@ const ACTION_TYPES: { type: AutomationAction['type']; label: string; icon: typeo
   { type: 'create_record', label: 'Create Record', icon: FilePlus },
   { type: 'send_notification', label: 'Send Notification', icon: Bell },
   { type: 'delay', label: 'Delay', icon: Timer },
+  { type: 'conditional', label: 'Conditional', icon: GitBranch },
 ];
 
 const CONDITION_OPERATORS: { value: AutomationConditionOp; label: string; needsValue: boolean }[] = [
@@ -572,6 +574,89 @@ function ActionConfigForm({
                 {p.label}
               </button>
             ))}
+          </div>
+        </div>
+      );
+    }
+
+    case 'conditional': {
+      const conditions: AutomationCondition[] = c.conditions ?? [];
+      const thenActions: string[] = c.then_actions ?? [];
+      const elseActions: string[] = c.else_actions ?? [];
+      return (
+        <div className="space-y-3">
+          <HelpTip text={ACTION_HELP.conditional} />
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">If condition</label>
+            {conditions.map((cond, ci) => (
+              <div key={ci} className="flex items-center gap-2 mb-1.5">
+                <select
+                  className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                  value={cond.field_id}
+                  onChange={(e) => {
+                    const next = [...conditions];
+                    next[ci] = { ...next[ci], field_id: e.target.value };
+                    onChange({ ...c, conditions: next });
+                  }}
+                >
+                  <option value="">Select field</option>
+                  {fields?.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+                <select
+                  className="w-32 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                  value={cond.operator}
+                  onChange={(e) => {
+                    const next = [...conditions];
+                    next[ci] = { ...next[ci], operator: e.target.value as AutomationConditionOp };
+                    onChange({ ...c, conditions: next });
+                  }}
+                >
+                  {CONDITION_OPERATORS.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
+                </select>
+                {CONDITION_OPERATORS.find((op) => op.value === cond.operator)?.needsValue !== false && (
+                  <input
+                    className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                    placeholder="Value"
+                    value={String(cond.value ?? '')}
+                    onChange={(e) => {
+                      const next = [...conditions];
+                      next[ci] = { ...next[ci], value: e.target.value };
+                      onChange({ ...c, conditions: next });
+                    }}
+                  />
+                )}
+                <button
+                  className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400"
+                  onClick={() => onChange({ ...c, conditions: conditions.filter((_, i) => i !== ci) })}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              className="text-2xs text-[#2D7FF9] hover:underline"
+              onClick={() => onChange({ ...c, conditions: [...conditions, { field_id: '', operator: 'equals' as AutomationConditionOp, value: '' }] })}
+            >
+              + Add condition
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-2">
+              <div className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1 flex items-center gap-1">
+                <CheckCircle2 size={12} /> Then (if true)
+              </div>
+              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+                {thenActions.length === 0 ? 'Actions after this one will run.' : `${thenActions.length} action(s) configured.`}
+              </p>
+            </div>
+            <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/10 p-2">
+              <div className="text-2xs font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-1">
+                <XCircle size={12} /> Else (if false)
+              </div>
+              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+                {elseActions.length === 0 ? 'Remaining actions will be skipped.' : `${elseActions.length} action(s) configured.`}
+              </p>
+            </div>
           </div>
         </div>
       );
