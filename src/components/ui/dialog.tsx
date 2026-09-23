@@ -55,6 +55,8 @@ const DialogContent = React.forwardRef<
     >
       {/* Mobile drag handle hint */}
       <div className="md:hidden mx-auto -mt-2 mb-1 h-1 w-8 rounded-full bg-muted-foreground/25 shrink-0" aria-hidden />
+      {/* Fallback sr-only title so Radix never warns about missing DialogTitle */}
+      <DialogPrimitive.Title className="sr-only">Dialog</DialogPrimitive.Title>
       {children}
       {!hideClose && (
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground/70 opacity-80 ring-offset-background transition-all hover:bg-muted hover:text-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">

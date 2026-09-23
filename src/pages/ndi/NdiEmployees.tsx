@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Users, Building2, Loader2, Briefcase, ArrowRight,
+  Users, Building2, Loader2, ArrowRight,
   Search, Mail, FolderOpen, UserPlus,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';

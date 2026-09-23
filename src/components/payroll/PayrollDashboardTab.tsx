@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3, AlertTriangle, CheckCircle2, Clock, FileText, Settings2, CalendarDays, UserCog } from 'lucide-react';
+import { ArrowRight, Wallet, Users2, CalendarClock, Layers, BarChart3, AlertTriangle, CheckCircle2, Clock, FileText, CalendarDays, UserCog } from 'lucide-react';
 import {
   Bar,
   BarChart,

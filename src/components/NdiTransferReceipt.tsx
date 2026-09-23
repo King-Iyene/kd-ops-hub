@@ -12,8 +12,8 @@ import { errorMessage } from '@/lib/db-errors';
 
 const TEAL = '#112B34';
 const CYAN = '#A3F2F5';
-const TEAL_90 = '#112B34e6';
-const CYAN_20 = '#A3F2F533';
+const _TEAL_90 = '#112B34e6';
+const _CYAN_20 = '#A3F2F533';
 const CYAN_08 = '#A3F2F514';
 const CYAN_40 = '#A3F2F566';
 

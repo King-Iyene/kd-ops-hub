@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Building2, Wallet, Plus, Trash2, History, Download, Send,
+  Building2, Plus, Trash2, History, Download, Send,
   Loader2, CheckCircle2, XCircle, ShieldAlert, RefreshCw,
   Users as UsersIcon, FileText, Printer, Search, Filter,
-  Clock, ArrowUpRight, ArrowDownLeft, Edit2,
+  ArrowUpRight, ArrowDownLeft, Edit2,
   Calendar, TrendingUp, TrendingDown, AlertTriangle,
   Copy, ChevronDown,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuthStore } from '@/store/authStore';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +21,7 @@ import { useCompanies } from '@/queries';
 import { formatNaira, formatDateTime } from '@/lib/format';
 import {
   fetchNdiAccount, createNdiAccount, deleteNdiAccount,
-  fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv, reconcileNdiDva, fetchPaystackBalance,
+  fetchNdiBalance, fetchNdiLedger, insertNdiLedgerEntry, exportNdiLedgerCsv, reconcileNdiDva,
   fetchNdiBeneficiaries, createNdiBeneficiary, updateNdiBeneficiary, deactivateNdiBeneficiary,
   fetchAllNdiTransfers, exportNdiTransfersCsv,
   generateNdiGrantReport,
@@ -741,7 +740,7 @@ function TransfersSection({ companyId, accentColor, profile, toast }: {
 }
 
 
-function StatusBadge({ status }: { status: string }) {
+function _StatusBadge({ status }: { status: string }) {
   const map: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
     success: { variant: 'default', label: 'Success' },
     pending: { variant: 'secondary', label: 'Pending' },

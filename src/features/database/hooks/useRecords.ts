@@ -878,7 +878,7 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   });
 }
 
-function updateInfiniteCache<T>(
+function updateInfiniteCache<_T>(
   qc: ReturnType<typeof useQueryClient>,
   queryKeyPrefix: string[],
   updater: (records: RecordRow[]) => RecordRow[],

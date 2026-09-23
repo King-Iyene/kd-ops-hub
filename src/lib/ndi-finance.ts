@@ -11,7 +11,6 @@ import {
   initiateTransferIdempotent,
   verifyTransfer,
   generateKdopsRef,
-  buildNarration,
   paystackTransferFee,
   totalChargeFor,
   friendlyPaystackError,

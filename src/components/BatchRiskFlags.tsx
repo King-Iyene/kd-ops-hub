@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -43,6 +43,9 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
   const [flags, setFlags] = useState<BatchRiskFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [acknowledged, setAcknowledged] = useState(false);
+  const onAckRef = useRef(onAcknowledgedChange);
+  onAckRef.current = onAcknowledgedChange;
+  const stableOnAck = useCallback((v: boolean) => onAckRef.current?.(v), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,13 +70,13 @@ export function BatchRiskFlags({ batchId, onAcknowledgedChange, readOnly }: Prop
   useEffect(() => {
     if (!loading && flags.length === 0) {
       setAcknowledged(true);
-      onAcknowledgedChange?.(true);
+      stableOnAck(true);
     }
-  }, [loading, flags.length, onAcknowledgedChange]);
+  }, [loading, flags.length, stableOnAck]);
 
   const handleToggle = (next: boolean) => {
     setAcknowledged(next);
-    onAcknowledgedChange?.(next);
+    stableOnAck(next);
   };
 
   if (loading) {
