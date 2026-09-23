@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -76,15 +76,12 @@ export function ContractorFormDialog({
   const [submitting, setSubmitting] = useState(false);
   type Field = 'first_name' | 'last_name' | 'bank';
   const { errors, setError, clearError, clearAll } = useFieldErrors<Field>();
+  const clearAllRef = useRef(clearAll);
+  clearAllRef.current = clearAll;
 
-  // Seed (or reset) internal form state whenever the dialog opens — for
-  // "edit", from the contractor being edited; for "add" (editing === null),
-  // back to blank. Note edit mode only seeds first/last name + amount + bank
-  // + tags — the other fields (email, phone, LinkedIn, onboarded date) are
-  // add-only, matching handleSave's `...(!editing ? {...} : {})` payload.
   useEffect(() => {
-    if (!open) { clearAll(); return; }
-    clearAll();
+    clearAllRef.current();
+    if (!open) return;
     if (editing) {
       setForm({
         ...EMPTY_FORM,
@@ -104,7 +101,7 @@ export function ContractorFormDialog({
       setBank(EMPTY_BANK);
       setSelectedTagIds([]);
     }
-  }, [open, editing, clearAll]);
+  }, [open, editing]);
 
   const handleSave = async () => {
     clearAll();

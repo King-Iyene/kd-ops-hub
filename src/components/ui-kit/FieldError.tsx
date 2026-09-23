@@ -26,7 +26,10 @@ export function useFieldErrors<T extends string>() {
       return next;
     });
 
-  const clearAll = useCallback(() => setErrors({}), []);
+  const clearAll = useCallback(
+    () => setErrors(prev => (Object.keys(prev).length === 0 ? prev : {})),
+    [],
+  );
 
   const hasErrors = Object.keys(errors).length > 0;
 
