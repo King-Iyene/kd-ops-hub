@@ -1250,6 +1250,18 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     }
   }, [draft, tableId, updateAutomation, saving, validateDraft]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, handleSave]);
+
   const handleDelete = useCallback(async () => {
     if (!selected || !tableId) return;
     await deleteAutomation.mutateAsync({ id: selected.id, table_id: tableId });
@@ -1477,7 +1489,12 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                         {TRIGGER_LABELS[a.trigger_type]}
                       </span>
                       {a.run_count != null && a.run_count > 0 && (
-                        <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{a.run_count} runs</span>
+                        <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" title={a.last_run_at ? `Last: ${new Date(a.last_run_at).toLocaleString()}` : undefined}>
+                          {a.run_count} run{a.run_count !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {a.last_error && (
+                        <span className="text-3xs text-red-400" title={a.last_error}>⚠</span>
                       )}
                       <button
                         className="shrink-0 w-6 h-3.5 rounded-full relative transition-colors ml-auto"
