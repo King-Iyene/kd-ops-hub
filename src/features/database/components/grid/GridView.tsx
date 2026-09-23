@@ -379,17 +379,23 @@ function GridViewInner({
   const setFrozenColumns = useDatabaseUI((s) => s.setFrozenColumns);
 
   const updateFieldMutation = useUpdateField();
+  const updateFieldRef = useRef(updateFieldMutation.mutate);
+  updateFieldRef.current = updateFieldMutation.mutate;
   const handleFieldUpdate = useCallback(
     (fieldId: string, tableId: string, updates: any) => {
-      updateFieldMutation.mutate({ id: fieldId, table_id: tableId, updates: { options: updates } });
+      updateFieldRef.current({ id: fieldId, table_id: tableId, updates: { options: updates } });
     },
-    [updateFieldMutation],
+    [],
   );
 
   const parentRef = useRef<HTMLDivElement>(null);
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const [summaryDropdown, setSummaryDropdown] = useState<string | null>(null);
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow; fieldId?: string } | null>(null);
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [dragRowId, setDragRowId] = useState<string | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
@@ -428,21 +434,22 @@ function GridViewInner({
 
   const toggleSelectAll = useCallback(() => {
     setSelectedRowIds((prev) => {
-      if (prev.size === records.length) return new Set();
-      return new Set(records.map((r) => r.id));
+      const recs = recordsRef.current;
+      if (prev.size === recs.length) return new Set();
+      return new Set(recs.map((r) => r.id));
     });
-  }, [records]);
+  }, []);
 
   const handleRowDragStart = useCallback((e: React.DragEvent, recordId: string) => {
     setDragRowId(recordId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', recordId);
 
-    // Custom drag preview: a small offscreen chip showing the row number and
-    // its primary-field value, instead of the browser's default full-row snapshot.
-    const rowIdx = records.findIndex((r) => r.id === recordId);
-    const rowRecord = rowIdx >= 0 ? records[rowIdx] : undefined;
-    const primaryField = fields.find((f) => f.is_primary);
+    const recs = recordsRef.current;
+    const flds = fieldsRef.current;
+    const rowIdx = recs.findIndex((r) => r.id === recordId);
+    const rowRecord = rowIdx >= 0 ? recs[rowIdx] : undefined;
+    const primaryField = flds.find((f) => f.is_primary);
     const label = rowRecord && primaryField ? rowRecord[primaryField.pg_column_name] : undefined;
     const preview = document.createElement('div');
     preview.textContent = `#${rowIdx + 1}${label ? ` ${String(label)}` : ''}`;
@@ -462,7 +469,7 @@ function GridViewInner({
     document.body.appendChild(preview);
     e.dataTransfer.setDragImage(preview, 10, 10);
     setTimeout(() => document.body.removeChild(preview), 0);
-  }, [records, fields]);
+  }, []);
 
   const handleRowDragOver = useCallback((e: React.DragEvent, idx: number) => {
     if (dragRowId === null) return;
@@ -808,8 +815,10 @@ function GridViewInner({
     return () => scrollEl.removeEventListener('scroll', handleScroll);
   }, [onLoadMore, hasMore, isLoadingMore, rowHeightPx]);
 
+  const resizeRaf = useRef(0);
   const handleResize = useCallback((fieldId: string, width: number) => {
-    setFieldWidth(fieldId, width);
+    cancelAnimationFrame(resizeRaf.current);
+    resizeRaf.current = requestAnimationFrame(() => setFieldWidth(fieldId, width));
   }, [setFieldWidth]);
 
   // Helper: serialize a cell value to plain text

@@ -231,6 +231,8 @@ function InlineSelectEditor({
           <ChevronDown size={14} />
         </button>
         {open && (
+          <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] bg-white dark:bg-[hsl(220,20%,10%)] shadow-lg">
             <div className="p-1.5">
               <input
@@ -259,6 +261,7 @@ function InlineSelectEditor({
               );
             })}
           </div>
+          </>
         )}
       </div>
     </div>
@@ -307,6 +310,8 @@ function InlineMultiSelectEditor({
           <ChevronDown size={14} />
         </button>
         {open && (
+          <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[240px] overflow-auto rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] bg-white dark:bg-[hsl(220,20%,10%)] shadow-lg">
             <div className="p-1.5">
               <input
@@ -336,6 +341,7 @@ function InlineMultiSelectEditor({
               );
             })}
           </div>
+          </>
         )}
       </div>
     </div>
