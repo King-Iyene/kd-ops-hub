@@ -17092,6 +17092,14 @@ export type Database = {
         Returns: Json
       }
       hook_send_auth_email: { Args: { event: Json }; Returns: Json }
+      increment_automation_run_count: {
+        Args: {
+          p_automation_id: string
+          p_last_error?: string
+          p_last_run_at: string
+        }
+        Returns: undefined
+      }
       increment_chatbot_usage: {
         Args: {
           p_messages?: number
