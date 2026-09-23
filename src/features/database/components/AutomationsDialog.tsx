@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation, useAutomationRuns } from '../hooks';
 import { useFields } from '../hooks';
 import type { Automation, AutomationAction, AutomationCondition, AutomationConditionOp, AutomationRun } from '../types';
@@ -80,6 +81,15 @@ function useIsDark() {
     return () => { mq.removeEventListener('change', handler); observer.disconnect(); };
   }, []);
   return isDark;
+}
+
+function isDraftDirty(draft: Automation | null, saved: Automation | null): boolean {
+  if (!draft || !saved) return false;
+  if (draft.name !== saved.name) return true;
+  if (draft.trigger_type !== saved.trigger_type) return true;
+  if (JSON.stringify(draft.trigger_config) !== JSON.stringify(saved.trigger_config)) return true;
+  if (JSON.stringify(draft.actions) !== JSON.stringify(saved.actions)) return true;
+  return false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -321,6 +331,52 @@ const RUN_STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: stri
   skipped: { icon: X, color: '#6B7280', label: 'Skipped' },
 };
 
+function RunHistoryRow({ run }: { run: AutomationRun }) {
+  const [expanded, setExpanded] = useState(false);
+  const cfg = RUN_STATUS_CONFIG[run.status] ?? RUN_STATUS_CONFIG.error;
+  const StatusIcon = cfg.icon;
+  const time = new Date(run.started_at);
+  const timeStr = time.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const hasDetails = (run.action_results && run.action_results.length > 0) || run.error_message;
+
+  return (
+    <div>
+      <button
+        className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] text-xs w-full text-left"
+        onClick={() => hasDetails && setExpanded(!expanded)}
+      >
+        {hasDetails && (
+          <ChevronRight size={10} className={`shrink-0 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        )}
+        <StatusIcon size={13} style={{ color: cfg.color }} className="shrink-0" />
+        <span className="text-[#374151] dark:text-[hsl(220,25%,88%)] truncate flex-1">
+          {run.trigger_event}
+          {run.record_id && <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] ml-1">({run.record_id.slice(0, 8)}...)</span>}
+        </span>
+        {run.duration_ms != null && (
+          <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{run.duration_ms}ms</span>
+        )}
+        <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{timeStr}</span>
+      </button>
+      {expanded && (
+        <div className="ml-6 mt-1 space-y-1 text-2xs">
+          {run.error_message && (
+            <p className="text-[#EF4444] px-2 py-1 rounded bg-[#FEF2F2] dark:bg-[hsl(0,30%,12%)]">{run.error_message}</p>
+          )}
+          {run.action_results?.map((r: any, i: number) => (
+            <div key={i} className="px-2 py-1 rounded bg-[#F3F4F6] dark:bg-[hsl(220,25%,14%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+              <span className="font-medium text-[#374151] dark:text-[hsl(220,25%,80%)]">{r.action_type ?? `Action ${i + 1}`}</span>
+              {r.status && <span className="ml-1.5">{r.status === 'success' ? '✓' : r.status === 'error' ? '✗' : r.status}</span>}
+              {r.duration_ms != null && <span className="ml-1.5 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{r.duration_ms}ms</span>}
+              {r.error && <p className="text-[#EF4444] mt-0.5">{r.error}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RunHistoryPanel({ automationId }: { automationId: string }) {
   const { data: runs = [], isLoading } = useAutomationRuns(automationId, 20);
 
@@ -338,32 +394,8 @@ function RunHistoryPanel({ automationId }: { automationId: string }) {
   }
 
   return (
-    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-      {runs.map((run) => {
-        const cfg = RUN_STATUS_CONFIG[run.status] ?? RUN_STATUS_CONFIG.error;
-        const StatusIcon = cfg.icon;
-        const time = new Date(run.started_at);
-        const timeStr = time.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        return (
-          <div key={run.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] text-xs">
-            <StatusIcon size={13} style={{ color: cfg.color }} className="shrink-0" />
-            <span className="text-[#374151] dark:text-[hsl(220,25%,88%)] truncate flex-1">
-              {run.trigger_event}
-              {run.record_id && <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] ml-1">({run.record_id.slice(0, 8)}...)</span>}
-            </span>
-            {run.duration_ms != null && (
-              <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{run.duration_ms}ms</span>
-            )}
-            <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-2xs shrink-0">{timeStr}</span>
-            {run.error_message && (
-              <span className="text-[#EF4444] text-2xs truncate max-w-[120px]" title={run.error_message}>
-                {run.error_message}
-              </span>
-            )}
-          </div>
-        );
-      })}
+    <div className="space-y-1.5 max-h-[240px] overflow-y-auto">
+      {runs.map((run) => <RunHistoryRow key={run.id} run={run} />)}
     </div>
   );
 }
@@ -403,10 +435,13 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   const isDark = useIsDark();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showActionPicker, setShowActionPicker] = useState(false);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const [draft, setDraft] = useState<Automation | null>(null);
 
   const selected = useMemo(() => automations.find((a) => a.id === selectedId) ?? null, [automations, selectedId]);
+  const dirty = isDraftDirty(draft, selected);
 
   const selectedVersion = selected?.updated_at ?? selected?.id;
   useEffect(() => {
@@ -415,11 +450,18 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     }
   }, [selectedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const confirmIfDirty = useCallback((): boolean => {
+    if (!dirty) return true;
+    return window.confirm('You have unsaved changes. Discard them?');
+  }, [dirty]);
+
   const selectAutomation = useCallback((a: Automation | null) => {
+    if (!confirmIfDirty()) return;
     setSelectedId(a?.id ?? null);
     setDraft(a ? { ...a, actions: [...a.actions] } : null);
     setShowActionPicker(false);
-  }, []);
+    setTestResult(null);
+  }, [confirmIfDirty]);
 
   const handleCreate = useCallback(async () => {
     if (!tableId || !baseId) return;
@@ -480,6 +522,37 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     });
   }, []);
 
+  const handleTestRun = useCallback(async () => {
+    if (!draft || !tableId || !baseId) return;
+    setTestRunning(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('automation-runner', {
+        body: {
+          event: draft.trigger_type === 'record_created' ? 'record.created' : 'record.updated',
+          baseId,
+          tableId,
+          record: { id: 'test-run-' + Date.now() },
+          oldRecord: {},
+          _testAutomationId: draft.id,
+        },
+      });
+      if (error) throw error;
+      setTestResult({ ok: true, message: `Test completed: ${JSON.stringify(data).slice(0, 200)}` });
+    } catch (err: any) {
+      setTestResult({ ok: false, message: err.message ?? 'Test failed' });
+    } finally {
+      setTestRunning(false);
+    }
+  }, [draft, tableId, baseId]);
+
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen && dirty) {
+      if (!window.confirm('You have unsaved changes. Discard them?')) return;
+    }
+    onOpenChange(nextOpen);
+  }, [dirty, onOpenChange]);
+
   const fieldOptions = useMemo(() => fields.map((f: any) => ({ id: f.id, name: f.name })), [fields]);
 
   const conditions = useMemo(() => {
@@ -498,7 +571,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden" style={{ height: 'min(680px, 85vh)' }}>
         <div className="flex h-full">
           {/* ---- Left sidebar ---- */}
@@ -729,7 +802,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   </div>
                 </div>
 
-                {/* Save / Delete buttons */}
+                {/* Save / Delete / Test buttons */}
                 <div className="flex items-center gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
                   <Button
                     size="sm"
@@ -737,7 +810,17 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     style={{ backgroundColor: '#2D7FF9' }}
                     onClick={handleSave}
                   >
-                    Save
+                    Save{dirty ? ' *' : ''}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    style={{ color: '#2D7FF9', borderColor: isDark ? 'hsl(220,25%,25%)' : '#DBEAFE' }}
+                    onClick={handleTestRun}
+                    disabled={testRunning}
+                  >
+                    <Play size={11} className="mr-1" /> {testRunning ? 'Running...' : 'Test Run'}
                   </Button>
                   <Button
                     variant="outline"
@@ -758,6 +841,13 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     </span>
                   )}
                 </div>
+
+                {/* Test run result */}
+                {testResult && (
+                  <div className={`px-3 py-2 rounded-md text-xs ${testResult.ok ? 'bg-[#D1FAE5] dark:bg-[hsl(152,30%,12%)] text-[#065F46] dark:text-[#6EE7B7]' : 'bg-[#FEE2E2] dark:bg-[hsl(0,30%,12%)] text-[#991B1B] dark:text-[#FCA5A5]'}`}>
+                    {testResult.message}
+                  </div>
+                )}
 
                 {/* Run History */}
                 <div className="pt-2">
