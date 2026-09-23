@@ -135,14 +135,18 @@ async function executeAction(
         const {
           field_id,
           value,
+          value_source,
+          source_field_id,
           target_table_id,
           record_id: configRecordId,
+          custom_record_id,
           fields: updateFields,
         } = action.config;
 
-        const recordId = configRecordId === '{{record.id}}' || !configRecordId
+        const effectiveRecordId = configRecordId === '_custom' ? custom_record_id : configRecordId;
+        const recordId = effectiveRecordId === '{{record.id}}' || !effectiveRecordId
           ? context.record.id
-          : configRecordId;
+          : effectiveRecordId;
 
         if (!recordId) return { success: false, error: 'No record ID', durationMs: Date.now() - start };
 
@@ -182,7 +186,14 @@ async function executeAction(
           }
         } else if (field_id) {
           const col = targetFieldMap.get(field_id) ?? field_id;
-          updates[col] = value;
+          let resolvedValue = value;
+          if (value_source === 'field' && source_field_id) {
+            const srcCol = context.fieldMap.get(source_field_id) ?? source_field_id;
+            resolvedValue = context.record[srcCol];
+          } else if (value_source === 'record_id') {
+            resolvedValue = context.record.id;
+          }
+          updates[col] = resolvedValue;
         }
 
         if (Object.keys(updates).length === 0) {
@@ -236,9 +247,28 @@ async function executeAction(
       }
 
       case 'send_notification': {
-        const { message } = action.config;
-        console.log(`[Automation Notification] ${message ?? 'No message'}`);
-        return { success: true, durationMs: Date.now() - start };
+        const { message, title: notifTitle, recipients } = action.config;
+        const notifText = message ?? 'Automation triggered';
+
+        // Insert into the real notifications table so NotificationBell picks it up
+        const recipientIds: string[] = Array.isArray(recipients) ? recipients : [];
+        if (recipientIds.length === 0) {
+          // No specific recipients — log only
+          console.log(`[Automation Notification] ${notifText}`);
+          return { success: true, durationMs: Date.now() - start };
+        }
+
+        const rows = recipientIds.map((uid: string) => ({
+          user_id: uid,
+          type: 'automation',
+          module: 'automation',
+          title: notifTitle ?? 'Automation',
+          body: notifText,
+          read: false,
+        }));
+
+        const { error: nErr } = await context.supabase.from('notifications').insert(rows);
+        return { success: !nErr, error: nErr?.message, durationMs: Date.now() - start };
       }
 
       case 'send_email': {
@@ -283,26 +313,21 @@ async function logRun(
       context: context ?? {},
     });
 
-    await supabase.schema('nc_meta').from('automations').update({
-      last_run_at: finishedAt.toISOString(),
-      run_count: supabase.rpc ? undefined : undefined,
-      last_error: errorMessage ?? null,
-    }).eq('id', automationId);
-
-    // Increment run_count with raw SQL via RPC isn't available, so do a read-then-write
-    const { data: auto } = await supabase
-      .schema('nc_meta')
-      .from('automations')
-      .select('run_count')
-      .eq('id', automationId)
-      .single();
-    if (auto) {
-      await supabase.schema('nc_meta').from('automations').update({
-        run_count: (auto.run_count ?? 0) + 1,
-        last_run_at: finishedAt.toISOString(),
-        last_error: errorMessage ?? null,
-      }).eq('id', automationId);
-    }
+    // Atomic increment via rpc to avoid race conditions on run_count
+    await supabase.rpc('increment_automation_run_count', {
+      p_automation_id: automationId,
+      p_last_run_at: finishedAt.toISOString(),
+      p_last_error: errorMessage ?? null,
+    }).then(({ error: rpcErr }) => {
+      if (rpcErr) {
+        // Fallback: non-atomic update if RPC doesn't exist yet
+        return supabase.schema('nc_meta').from('automations').update({
+          run_count: 1, // At least mark it ran
+          last_run_at: finishedAt.toISOString(),
+          last_error: errorMessage ?? null,
+        }).eq('id', automationId);
+      }
+    });
   } catch (err) {
     console.error('Failed to log automation run:', err);
   }

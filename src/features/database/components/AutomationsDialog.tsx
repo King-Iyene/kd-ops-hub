@@ -272,6 +272,25 @@ function ActionConfigForm({
       return (
         <div className="space-y-2">
           <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Record to update</label>
+            <select
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+              value={c.record_id ?? '{{record.id}}'}
+              onChange={(e) => set('record_id', e.target.value)}
+            >
+              <option value="{{record.id}}">Triggering record (current row)</option>
+              <option value="_custom">Specific record ID...</option>
+            </select>
+            {c.record_id === '_custom' && (
+              <input
+                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                value={c.custom_record_id ?? ''}
+                onChange={(e) => set('custom_record_id', e.target.value)}
+                placeholder="Paste record UUID"
+              />
+            )}
+          </div>
+          <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Field to update</label>
             <select
               className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
@@ -284,7 +303,37 @@ function ActionConfigForm({
               ))}
             </select>
           </div>
-          <InputRow label="Value" value={c.value ?? ''} onChange={(v) => set('value', v)} placeholder="New value (or record ID for link fields)" />
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Value</label>
+            <select
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+              value={c.value_source ?? 'static'}
+              onChange={(e) => set('value_source', e.target.value)}
+            >
+              <option value="static">Static value</option>
+              <option value="field">Copy from another field</option>
+              <option value="record_id">Triggering record ID</option>
+            </select>
+            {c.value_source === 'static' || !c.value_source ? (
+              <input
+                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                value={c.value ?? ''}
+                onChange={(e) => set('value', e.target.value)}
+                placeholder="Enter value"
+              />
+            ) : c.value_source === 'field' ? (
+              <select
+                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+                value={c.source_field_id ?? ''}
+                onChange={(e) => set('source_field_id', e.target.value)}
+              >
+                <option value="">Select source field...</option>
+                {fields.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            ) : null}
+          </div>
         </div>
       );
 
@@ -306,6 +355,7 @@ function ActionConfigForm({
     case 'send_notification':
       return (
         <div className="space-y-2">
+          <InputRow label="Title" value={c.title ?? ''} onChange={(v) => set('title', v)} placeholder="Notification title" />
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Message</label>
             <textarea
@@ -313,6 +363,15 @@ function ActionConfigForm({
               value={c.message ?? ''}
               onChange={(e) => set('message', e.target.value)}
               placeholder="Notification message..."
+            />
+          </div>
+          <div>
+            <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Recipient user IDs (comma-separated)</label>
+            <input
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+              value={Array.isArray(c.recipients) ? c.recipients.join(', ') : (c.recipients ?? '')}
+              onChange={(e) => set('recipients', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+              placeholder="user-uuid-1, user-uuid-2"
             />
           </div>
         </div>
@@ -572,7 +631,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden" style={{ height: 'min(680px, 85vh)' }}>
+      <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden" style={{ height: 'min(680px, 85vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Automations</DialogTitle>
         <div className="flex h-full">
           {/* ---- Left sidebar ---- */}
@@ -658,7 +717,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
           </div>
 
           {/* ---- Right panel ---- */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-white dark:bg-[hsl(220,30%,10%)]">
+          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden bg-white dark:bg-[hsl(220,30%,10%)]">
             {!draft ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
