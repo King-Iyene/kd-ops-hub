@@ -897,6 +897,7 @@ function GridViewInner({
       } = keyboardStateRef.current;
       // Don't intercept keys when focus is in an input, textarea, or dialog
       const target = e.target as HTMLElement;
+      if (!target || typeof target.closest !== 'function') return;
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
@@ -1209,6 +1210,7 @@ function GridViewInner({
   const dragAnchorRef = useRef<{ row: number; col: number } | null>(null);
 
   const resolveCellCoords = useCallback((target: HTMLElement): { row: number; col: number } | null => {
+    if (!target || typeof target.closest !== 'function') return null;
     const cellEl = target.closest('[data-cell-id]') as HTMLElement | null;
     if (!cellEl) return null;
     const cellId = cellEl.getAttribute('data-cell-id');
@@ -1227,6 +1229,7 @@ function GridViewInner({
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
       const target = e.target as HTMLElement;
+      if (!target || typeof target.closest !== 'function') return;
       if (target.closest('.cursor-cell') || target.closest('.cursor-grab') || target.closest('input[type="checkbox"]') || target.closest('button')) return;
       const coords = resolveCellCoords(target);
       if (!coords) return;
