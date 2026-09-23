@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, HelpCircle, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -565,65 +566,272 @@ function InputRow({ label, value, onChange, placeholder }: { label: string; valu
   );
 }
 
-function PlaceholderPicker({ fields, onInsert }: { fields: { id: string; name: string }[]; onInsert: (placeholder: string) => void }) {
+const FIELD_ICON_MAP: Record<string, typeof Type> = {
+  text: Type, long_text: Type, rich_text: Type,
+  number: Hash, decimal: Hash, currency: Hash, percent: Hash, autonumber: Hash,
+  date: Calendar, datetime: Calendar, created_at: Calendar, updated_at: Calendar,
+  checkbox: ToggleLeft, boolean: ToggleLeft,
+  select: List, multi_select: List,
+  link: Link2, url: Link2,
+  attachment: Paperclip, file: Paperclip,
+  email: AtSign, phone: Phone,
+  rating: Star,
+  geo: MapPin, location: MapPin,
+  image: Image,
+  json: Braces, formula: Code2,
+};
+
+function getFieldIcon(name: string) {
+  const lower = name.toLowerCase();
+  for (const [key, Icon] of Object.entries(FIELD_ICON_MAP)) {
+    if (lower.includes(key)) return Icon;
+  }
+  return Type;
+}
+
+interface VariableItem {
+  label: string;
+  value: string;
+  description?: string;
+  icon: typeof Type;
+  category: 'system' | 'field';
+}
+
+function VariablePicker({ fields, onInsert }: {
+  fields: { id: string; name: string }[];
+  onInsert: (placeholder: string) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [focusIdx, setFocusIdx] = useState(0);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) {
+        setOpen(false); setSearch('');
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const builtIn = [
-    { label: 'Record ID', value: '{{record.id}}' },
-    { label: 'Current Date', value: '{{now}}' },
-    { label: 'Table Name', value: '{{table.name}}' },
-  ];
+  useEffect(() => {
+    if (open && btnRef.current) {
+      const btnRect = btnRef.current.getBoundingClientRect();
+      const dialog = btnRef.current.closest('[role="dialog"]');
+      const dialogRect = dialog?.getBoundingClientRect() ?? { top: 0, left: 0 };
+      const dropdownW = 280;
+      let left = btnRect.right - dropdownW - dialogRect.left;
+      if (left < 4) left = btnRect.left - dialogRect.left;
+      let top = btnRect.bottom + 4 - dialogRect.top;
+      const dropdownH = 340;
+      if (btnRect.bottom + dropdownH > window.innerHeight - 8) top = btnRect.top - dropdownH - 4 - dialogRect.top;
+      setPos({ top, left });
+      setSearch('');
+      setFocusIdx(0);
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  const systemVars: VariableItem[] = useMemo(() => [
+    { label: 'Record ID', value: '{{record.id}}', description: 'Unique row identifier', icon: Hash, category: 'system' },
+    { label: 'Current Date', value: '{{now}}', description: 'Timestamp when automation runs', icon: Calendar, category: 'system' },
+    { label: 'Table Name', value: '{{table.name}}', description: 'Name of this table', icon: Type, category: 'system' },
+  ], []);
+
+  const fieldVars: VariableItem[] = useMemo(() =>
+    fields.map((f) => ({
+      label: f.name,
+      value: `{{record.${f.name}}}`,
+      icon: getFieldIcon(f.name),
+      category: 'field' as const,
+    })),
+    [fields]
+  );
+
+  const allVars = useMemo(() => [...systemVars, ...fieldVars], [systemVars, fieldVars]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allVars;
+    const q = search.toLowerCase();
+    return allVars.filter((v) => v.label.toLowerCase().includes(q) || v.value.toLowerCase().includes(q));
+  }, [allVars, search]);
+
+  const systemFiltered = filtered.filter((v) => v.category === 'system');
+  const fieldFiltered = filtered.filter((v) => v.category === 'field');
+
+  useEffect(() => { setFocusIdx(0); }, [search]);
+
+  const handleSelect = useCallback((item: VariableItem) => {
+    onInsert(item.value);
+    setOpen(false);
+    setSearch('');
+  }, [onInsert]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusIdx((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && filtered[focusIdx]) {
+      e.preventDefault();
+      handleSelect(filtered[focusIdx]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+      setSearch('');
+    }
+  }, [filtered, focusIdx, handleSelect]);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    const active = listRef.current.querySelector('[data-active="true"]');
+    if (active) (active as HTMLElement).scrollIntoView({ block: 'nearest' });
+  }, [focusIdx]);
 
   return (
     <div className="relative inline-block" ref={ref}>
       <button
+        ref={btnRef}
         type="button"
-        className="flex items-center gap-1 text-2xs font-medium text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors px-1.5 py-0.5 rounded border border-[#2D7FF9]/20 hover:border-[#2D7FF9]/40 hover:bg-[#2D7FF9]/5"
+        className="group flex items-center gap-1.5 text-2xs font-medium transition-all duration-150 px-2 py-1 rounded-md bg-[#2D7FF9]/8 hover:bg-[#2D7FF9]/15 text-[#2D7FF9] dark:bg-[#2D7FF9]/12 dark:hover:bg-[#2D7FF9]/20 border border-[#2D7FF9]/15 hover:border-[#2D7FF9]/30"
         onClick={() => setOpen(!open)}
-        title="Insert dynamic placeholder"
+        title="Insert dynamic variable"
       >
-        <span className="text-3xs font-bold opacity-70">{'{{}}'}</span> Insert variable
+        <Braces size={11} className="opacity-70 group-hover:opacity-100 transition-opacity" />
+        <span>Variable</span>
+        <ChevronDown size={10} className={`opacity-50 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute left-0 top-5 z-50 bg-white dark:bg-[hsl(220,25%,13%)] rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] shadow-lg py-1 w-56 max-h-[200px] overflow-y-auto">
-          <p className="px-3 py-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider">Built-in</p>
-          {builtIn.map((b) => (
-            <button
-              key={b.value}
-              className="w-full text-left px-3 py-1.5 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] flex items-center justify-between"
-              onClick={() => { onInsert(b.value); setOpen(false); }}
-            >
-              <span>{b.label}</span>
-              <code className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{b.value}</code>
-            </button>
-          ))}
-          {fields.length > 0 && (
-            <>
-              <p className="px-3 py-1 mt-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">Fields</p>
-              {fields.map((f) => (
-                <button
-                  key={f.id}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] flex items-center justify-between"
-                  onClick={() => { onInsert(`{{record.${f.name}}}`); setOpen(false); }}
-                >
-                  <span>{f.name}</span>
-                  <code className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">{`{{record.${f.name}}}`}</code>
-                </button>
-              ))}
-            </>
-          )}
-        </div>
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          className="absolute z-[9999] rounded-xl border border-[#E5E5E5] dark:border-[hsl(220,25%,20%)] shadow-xl bg-white dark:bg-[hsl(220,25%,11%)] w-[280px] overflow-hidden"
+          style={{ top: pos.top, left: pos.left, animation: 'fadeInScale 120ms ease-out' }}
+        >
+          <style>{`@keyframes fadeInScale { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }`}</style>
+          <div className="px-2.5 pt-2.5 pb-1.5">
+            <div className="relative">
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" />
+              <input
+                ref={searchRef}
+                className="w-full pl-7 pr-2.5 py-1.5 rounded-lg bg-[#F4F4F5] dark:bg-[hsl(220,25%,14%)] border border-transparent focus:border-[#2D7FF9]/30 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)] transition-colors"
+                placeholder="Search variables..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          </div>
+          <div ref={listRef} className="max-h-[240px] overflow-y-auto px-1.5 pb-1.5">
+            {filtered.length === 0 && (
+              <p className="text-xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] text-center py-4">No matching variables</p>
+            )}
+            {systemFiltered.length > 0 && (
+              <>
+                <p className="px-2 pt-2 pb-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider">System</p>
+                {systemFiltered.map((item) => {
+                  const idx = filtered.indexOf(item);
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.value}
+                      data-active={idx === focusIdx}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2.5 transition-colors ${
+                        idx === focusIdx
+                          ? 'bg-[#2D7FF9]/10 dark:bg-[#2D7FF9]/15'
+                          : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]'
+                      }`}
+                      onClick={() => handleSelect(item)}
+                      onMouseEnter={() => setFocusIdx(idx)}
+                    >
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-[#EBF0FF] dark:bg-[#2D7FF9]/15">
+                        <Icon size={12} className="text-[#2D7FF9]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] block truncate">{item.label}</span>
+                        {item.description && <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] block truncate">{item.description}</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+            {fieldFiltered.length > 0 && (
+              <>
+                <p className={`px-2 pb-1 text-3xs font-semibold text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] uppercase tracking-wider ${systemFiltered.length > 0 ? 'pt-2 mt-1 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]' : 'pt-2'}`}>
+                  Fields <span className="text-3xs font-normal normal-case opacity-60">({fieldFiltered.length})</span>
+                </p>
+                {fieldFiltered.map((item) => {
+                  const idx = filtered.indexOf(item);
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.value}
+                      data-active={idx === focusIdx}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2.5 transition-colors ${
+                        idx === focusIdx
+                          ? 'bg-[#2D7FF9]/10 dark:bg-[#2D7FF9]/15'
+                          : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]'
+                      }`}
+                      onClick={() => handleSelect(item)}
+                      onMouseEnter={() => setFocusIdx(idx)}
+                    >
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-[#F4F4F5] dark:bg-[hsl(220,25%,15%)]">
+                        <Icon size={12} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
+                      </div>
+                      <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+          <div className="px-3 py-1.5 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center gap-3 text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">
+            <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,15%)] font-mono text-3xs">↑↓</kbd> navigate</span>
+            <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,15%)] font-mono text-3xs">↵</kbd> insert</span>
+            <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,15%)] font-mono text-3xs">esc</kbd> close</span>
+          </div>
+        </div>,
+        btnRef.current?.closest('[role="dialog"]') ?? document.body
       )}
+    </div>
+  );
+}
+
+function VariableChip({ text }: { text: string }) {
+  const inner = text.slice(2, -2);
+  const isSystem = !inner.startsWith('record.');
+  const displayName = isSystem ? inner : inner.replace('record.', '');
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-3xs font-medium ${
+      isSystem
+        ? 'bg-[#EBF0FF] text-[#2D7FF9] dark:bg-[#2D7FF9]/15 dark:text-[#60A5FA]'
+        : 'bg-[#F0FDF4] text-[#15803D] dark:bg-[#16A34A]/15 dark:text-[#4ADE80]'
+    }`}>
+      <Braces size={8} className="opacity-60" />
+      {displayName}
+    </span>
+  );
+}
+
+function UsedVariables({ value }: { value: string }) {
+  const vars = useMemo(() => {
+    const matches = value.match(/\{\{[^}]+\}\}/g);
+    return matches ? [...new Set(matches)] : [];
+  }, [value]);
+  if (vars.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {vars.map((v) => <VariableChip key={v} text={v} />)}
     </div>
   );
 }
@@ -633,7 +841,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
   fields: { id: string; name: string }[]; multiline?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-  const handleInsert = (ph: string) => {
+  const handleInsert = useCallback((ph: string) => {
     const el = inputRef.current;
     if (el) {
       const start = el.selectionStart ?? value.length;
@@ -644,7 +852,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
     } else {
       onChange(value + ph);
     }
-  };
+  }, [value, onChange]);
 
   const cls = "w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]";
 
@@ -652,7 +860,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
     <div>
       <div className={`flex items-center ${label ? 'justify-between' : 'justify-end'} mb-1`}>
         {label && <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">{label}</label>}
-        <PlaceholderPicker fields={fields} onInsert={handleInsert} />
+        <VariablePicker fields={fields} onInsert={handleInsert} />
       </div>
       {multiline ? (
         <textarea
@@ -671,6 +879,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
           placeholder={placeholder}
         />
       )}
+      <UsedVariables value={value} />
     </div>
   );
 }
@@ -921,10 +1130,10 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-6xl p-0 gap-0 overflow-hidden" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
+      <DialogContent className="sm:max-w-6xl p-0 gap-0" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Automations</DialogTitle>
         <DialogDescription className="sr-only">Manage automations for this table</DialogDescription>
-        <div className="flex h-full">
+        <div className="flex h-full overflow-hidden rounded-xl">
           {/* ---- Left sidebar ---- */}
           <div className="w-[260px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
             <div className="px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center justify-between">
