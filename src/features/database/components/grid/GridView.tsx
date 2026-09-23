@@ -1321,6 +1321,10 @@ function GridViewInner({
         >
           <Plus size={14} /> Add row
         </button>
+        <div className="flex gap-4 mt-2" style={{ color: GRID_COLORS.muted, fontSize: 11 }}>
+          <span><kbd className="px-1 py-0.5 rounded border text-3xs" style={{ borderColor: GRID_COLORS.border }}>Ctrl+N</kbd> New row</span>
+          <span><kbd className="px-1 py-0.5 rounded border text-3xs" style={{ borderColor: GRID_COLORS.border }}>?</kbd> Shortcuts</span>
+        </div>
       </div>
     );
   }

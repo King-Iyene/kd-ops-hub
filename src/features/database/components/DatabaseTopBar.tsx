@@ -168,45 +168,57 @@ export function DatabaseTopBar() {
       </Dialog>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <HelpCircle size={16} className="text-[#2D7FF9]" />
-              Keyboard Shortcuts
+              Help &amp; Shortcuts
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-1 pt-2">
-            {[
-              ['Arrow keys', 'Navigate cells'],
-              ['Enter', 'Edit selected cell'],
-              ['Escape', 'Stop editing / deselect'],
-              ['Tab / Shift+Tab', 'Move to next / previous cell'],
-              ['Delete / Backspace', 'Clear cell value'],
-              ['Ctrl+C', 'Copy cell value'],
-              ['Ctrl+V', 'Paste into cell'],
-              ['Space', 'Expand selected record'],
-              ['Shift+Enter', 'Insert new row below'],
-              ['Ctrl+D', 'Fill down (copy value from cell above)'],
-              ['Home / End', 'Jump to first / last cell in row'],
-              ['Ctrl+Home / Ctrl+End', 'Jump to first / last cell in table'],
-              ['PgUp / PgDn', 'Scroll one page up / down'],
-              ['Ctrl+Z', 'Undo last change'],
-              ['Ctrl+Shift+Z', 'Redo last change'],
-              ['Ctrl+C', 'Copy cell value'],
-              ['Ctrl+V', 'Paste into cell'],
-              ['Click + drag', 'Select cell range'],
-              ['Shift+Arrow', 'Extend cell selection'],
-              ['Right-click row', 'Row context menu'],
-              ['Right-click column', 'Column context menu'],
-              ['Drag column header', 'Reorder columns'],
-            ].map(([shortcut, desc]) => (
-              <div key={shortcut} className="flex items-center justify-between py-1.5 px-1">
-                <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">{desc}</span>
-                <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] font-mono">
-                  {shortcut}
-                </kbd>
+          <div className="space-y-4 pt-2">
+            <div className="rounded-lg border border-[#2D7FF9]/20 bg-[#2D7FF9]/5 dark:bg-[#2D7FF9]/10 p-3">
+              <p className="text-xs font-semibold text-[#2D7FF9] mb-1.5">Quick tips</p>
+              <ul className="text-2xs text-[#374151] dark:text-[hsl(220,25%,80%)] space-y-1 list-disc pl-3.5">
+                <li>Click the <strong>+</strong> at the end of the header row to add a new field</li>
+                <li>Right-click any column header or row for context menus</li>
+                <li>Use <strong>Integrations</strong> in the toolbar for automations, webhooks, and API keys</li>
+                <li>Switch views (Grid, Kanban, Gallery, Calendar, etc.) from the view tabs below the table bar</li>
+                <li>Use <strong>Filter</strong>, <strong>Sort</strong>, and <strong>Group</strong> to organize your data</li>
+                <li>Expand any record by clicking the row expand icon or pressing <strong>Space</strong></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] mb-1.5">Keyboard shortcuts</p>
+              <div className="space-y-0.5">
+                {[
+                  ['Arrow keys', 'Navigate cells'],
+                  ['Enter', 'Edit selected cell'],
+                  ['Escape', 'Stop editing / deselect'],
+                  ['Tab / Shift+Tab', 'Move to next / previous cell'],
+                  ['Delete / Backspace', 'Clear cell value'],
+                  ['Ctrl+C / Ctrl+V', 'Copy / paste cell value'],
+                  ['Space', 'Expand selected record'],
+                  ['Shift+Enter', 'Insert new row below'],
+                  ['Ctrl+D', 'Fill down'],
+                  ['Home / End', 'First / last cell in row'],
+                  ['Ctrl+Home / End', 'First / last cell in table'],
+                  ['PgUp / PgDn', 'Scroll one page'],
+                  ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo'],
+                  ['Ctrl+N', 'New record'],
+                  ['Ctrl+F', 'Find in table'],
+                  ['Ctrl+H', 'Search & replace'],
+                  ['Ctrl+P', 'Print view'],
+                  ['?', 'Show this help'],
+                ].map(([shortcut, desc]) => (
+                  <div key={shortcut} className="flex items-center justify-between py-1 px-1">
+                    <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">{desc}</span>
+                    <kbd className="px-2 py-0.5 rounded bg-[#F4F4F5] dark:bg-[hsl(220,25%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] font-mono whitespace-nowrap">
+                      {shortcut}
+                    </kbd>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
