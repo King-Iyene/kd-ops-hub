@@ -252,11 +252,21 @@ function SearchablePersonPicker({ people, value, onChange }: {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filtered = search
-    ? people.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
-    : people;
+  const unique = useMemo(() => {
+    const seen = new Set<string>();
+    return people.filter((p) => {
+      const key = p.full_name.replace(/\s+/g, ' ').trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [people]);
 
-  const selected = people.find((p) => p.id === value);
+  const filtered = search
+    ? unique.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
+    : unique;
+
+  const selected = unique.find((p) => p.id === value);
 
   return (
     <div ref={ref} className="relative">
@@ -305,9 +315,18 @@ function SearchableMultiPerson({ people, ids, onChange }: {
   onChange: (ids: string[]) => void;
 }) {
   const [search, setSearch] = useState('');
+  const unique = useMemo(() => {
+    const seen = new Set<string>();
+    return people.filter((p) => {
+      const key = p.full_name.replace(/\s+/g, ' ').trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [people]);
   const filtered = search
-    ? people.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
-    : people;
+    ? unique.filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
+    : unique;
   return (
     <div className="border border-border rounded-md p-2.5">
       <input

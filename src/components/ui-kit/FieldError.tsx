@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export function FieldError({ message, className }: { message?: string; className?: string }) {
@@ -26,7 +26,7 @@ export function useFieldErrors<T extends string>() {
       return next;
     });
 
-  const clearAll = () => setErrors({});
+  const clearAll = useCallback(() => setErrors({}), []);
 
   const hasErrors = Object.keys(errors).length > 0;
 

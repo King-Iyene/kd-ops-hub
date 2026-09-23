@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAutomation, useAutomationRuns } from '../hooks';
@@ -573,6 +573,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden" style={{ height: 'min(680px, 85vh)' }}>
+        <DialogTitle className="sr-only">Automations</DialogTitle>
         <div className="flex h-full">
           {/* ---- Left sidebar ---- */}
           <div className="w-[220px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
@@ -608,9 +609,11 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 const badge = TRIGGER_BADGES[a.trigger_type];
                 const isSelected = a.id === selectedId;
                 return (
-                  <button
+                  <div
                     key={a.id}
-                    className="w-full text-left px-3 py-2 transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    className="w-full text-left px-3 py-2 transition-colors cursor-pointer"
                     style={{
                       backgroundColor: isSelected
                         ? (isDark ? 'hsl(220,25%,15%)' : '#EBF0FF')
@@ -618,6 +621,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       opacity: a.enabled ? 1 : 0.6,
                     }}
                     onClick={() => selectAutomation(a)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAutomation(a); } }}
                   >
                     <p className="text-xs font-medium truncate text-[#374151] dark:text-[hsl(220,25%,88%)]">
                       {a.name}
@@ -647,7 +651,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                         />
                       </button>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
