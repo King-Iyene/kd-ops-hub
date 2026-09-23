@@ -54,8 +54,7 @@ export default function CashTimingTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const chartData = useMemo(() => {
     if (!board) return [];

@@ -33,8 +33,7 @@ export default function VendorSpendTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const barData = useMemo(() => {
     if (!data) return [];

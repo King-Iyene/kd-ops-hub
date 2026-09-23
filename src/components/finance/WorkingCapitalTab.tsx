@@ -81,8 +81,7 @@ export default function WorkingCapitalTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const waterfallData = useMemo(() => {
     if (!data) return [];

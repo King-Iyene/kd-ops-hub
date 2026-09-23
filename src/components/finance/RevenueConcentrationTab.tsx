@@ -42,8 +42,7 @@ export default function RevenueConcentrationTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const pieData = useMemo(() => {
     if (!data || data.clients.length === 0) return [];

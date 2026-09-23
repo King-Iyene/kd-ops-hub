@@ -718,8 +718,7 @@ function RunPayslipsSection({
     // any time the run changes for ANY reason (generated, re-generated,
     // disbursed, etc.) — payslips used to only load once per drawer-open,
     // so "Generate payslips" left this list stale until a full page reload.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, refreshKey]);
+  }, [runId, refreshKey, toast]);
 
   const viewPayslip = async (slip: any) => {
     if (!slip.storage_path) {

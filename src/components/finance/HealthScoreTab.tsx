@@ -109,8 +109,7 @@ export default function HealthScoreTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   return (
     <div className="space-y-3 sm:space-y-6">

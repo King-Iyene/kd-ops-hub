@@ -36,8 +36,7 @@ export default function CashConversionTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const band = data ? BAND_STYLE[data.band] : null;
 

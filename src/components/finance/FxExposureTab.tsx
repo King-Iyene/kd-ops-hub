@@ -29,8 +29,7 @@ export default function FxExposureTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const trendData = useMemo(
     () => (board ? board.history.map((h) => ({ label: h.valid_from.slice(0, 10).slice(5), rate: h.rate })) : []),

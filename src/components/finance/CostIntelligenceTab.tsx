@@ -74,8 +74,7 @@ export default function CostIntelligenceTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const scenario: ScenarioResult | null = useMemo(() => {
     if (!baseline) return null;

@@ -63,8 +63,7 @@ export default function BoardReportTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const totalCtc = report ? report.departments.reduce((s, d) => s + d.total_ctc_ngn, 0) : 0;
   const recentTrend = report ? report.trend.slice(-6) : [];

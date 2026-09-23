@@ -93,8 +93,7 @@ export default function TalentCostTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const attrition = useMemo(
     () => terminations.map((t) => computeAttritionCost(t, replacementMonths[0])),

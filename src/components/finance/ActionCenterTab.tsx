@@ -66,8 +66,7 @@ export default function ActionCenterTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const goto = (href: string) => {
     if (href.startsWith('/finance?tab=')) {

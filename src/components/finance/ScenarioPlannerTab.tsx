@@ -98,8 +98,7 @@ export default function ScenarioPlannerTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [toast]);
 
   const addAdjustment = useCallback(() => {
     setAdjustments(prev => [...prev, defaultAdj()]);

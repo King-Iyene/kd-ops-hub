@@ -161,8 +161,7 @@ export default function ProfitLossTab() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthsBack]);
+  }, [monthsBack, toast]);
 
   const totals = useMemo(() => {
     const t = { revenue: 0, payroll: 0, subscriptions: 0, expenses: 0, transfers: 0, other: 0, totalCost: 0, netIncome: 0 };
