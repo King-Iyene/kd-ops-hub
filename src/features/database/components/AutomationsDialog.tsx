@@ -604,8 +604,8 @@ function ActionConfigForm({
 
     case 'conditional': {
       const conditions: AutomationCondition[] = c.conditions ?? [];
-      const thenActions: string[] = c.then_actions ?? [];
-      const elseActions: string[] = c.else_actions ?? [];
+      const _thenActions: string[] = c.then_actions ?? [];
+      const _elseActions: string[] = c.else_actions ?? [];
       return (
         <div className="space-y-3">
           <HelpTip text={ACTION_HELP.conditional} />
@@ -780,7 +780,7 @@ function RunHistoryPanel({ automationId }: { automationId: string }) {
   );
 }
 
-function InputRow({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function _InputRow({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
       <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">{label}</label>
