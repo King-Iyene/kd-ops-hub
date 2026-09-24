@@ -663,21 +663,34 @@ function ActionConfigForm({
               + Add condition
             </button>
           </div>
+          {conditions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Match</label>
+              <select
+                className="px-2 py-1 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                value={c.logic ?? 'AND'}
+                onChange={(e) => onChange({ ...c, logic: e.target.value })}
+              >
+                <option value="AND">ALL conditions (AND)</option>
+                <option value="OR">ANY condition (OR)</option>
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-2">
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-2.5">
               <div className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1 flex items-center gap-1">
                 <CheckCircle2 size={12} /> Then (if true)
               </div>
-              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
-                {thenActions.length === 0 ? 'Actions after this one will run.' : `${thenActions.length} action(s) configured.`}
+              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] leading-relaxed">
+                All actions below this step will run normally.
               </p>
             </div>
-            <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/10 p-2">
+            <div className="rounded-lg border border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/10 p-2.5">
               <div className="text-2xs font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-1">
                 <XCircle size={12} /> Else (if false)
               </div>
-              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
-                {elseActions.length === 0 ? 'Remaining actions will be skipped.' : `${elseActions.length} action(s) configured.`}
+              <p className="text-3xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] leading-relaxed">
+                All remaining actions will be skipped.
               </p>
             </div>
           </div>
