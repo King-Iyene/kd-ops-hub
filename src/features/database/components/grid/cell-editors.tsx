@@ -479,7 +479,7 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
           <Star
             size={16}
             fill={i < rating ? '#F59E0B' : 'none'}
-            color={i < rating ? '#F59E0B' : '#E5E5E5'}
+            color={i < rating ? '#F59E0B' : '#9CA3AF'}
             strokeWidth={1.5}
           />
         </button>

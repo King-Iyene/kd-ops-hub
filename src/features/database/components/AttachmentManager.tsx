@@ -182,11 +182,7 @@ export function AttachmentManager({
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileRef.current?.click()}
-              className="flex flex-col items-center justify-center gap-2 py-8 rounded-lg cursor-pointer transition-colors"
-              style={{
-                border: `2px dashed ${dragOver ? '#2D7FF9' : '#E5E5E5'}`,
-                backgroundColor: dragOver ? 'rgba(51,102,255,0.04)' : 'transparent',
-              }}
+              className={`flex flex-col items-center justify-center gap-2 py-8 rounded-lg cursor-pointer transition-colors border-2 border-dashed ${dragOver ? 'border-[#2D7FF9] bg-[rgba(51,102,255,0.04)]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,22%)] bg-transparent'}`}
             >
               <Upload size={24} className={dragOver ? 'text-[#2D7FF9]' : 'text-[#9AA2AF]'} />
               <span className="text-sm text-[#6A7184] dark:text-[hsl(220,20%,60%)]">

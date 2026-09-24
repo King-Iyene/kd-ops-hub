@@ -344,10 +344,9 @@ export function DatabaseSidebar() {
                           <button
                             key={c}
                             type="button"
-                            className="w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                            className={`w-5 h-5 rounded-full transition-all hover:scale-110 ${base.color === c ? 'ring-2 ring-[#2D7FF9] ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border-2 border-transparent'}`}
                             style={{
                               backgroundColor: c,
-                              borderColor: base.color === c ? '#374151' : 'transparent',
                             }}
                             onClick={(e) => {
                               e.stopPropagation();

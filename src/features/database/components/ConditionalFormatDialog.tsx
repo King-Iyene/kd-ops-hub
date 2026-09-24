@@ -134,11 +134,9 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                   {CF_COLOR_PALETTE.map((p) => (
                     <button
                       key={p.color}
-                      className="w-5 h-5 rounded border"
+                      className={`w-5 h-5 rounded ${rule.color === p.color ? 'ring-2 ring-[#2D7FF9] ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]'}`}
                       style={{
                         backgroundColor: p.color,
-                        borderColor: rule.color === p.color ? '#374151' : '#E5E5E5',
-                        borderWidth: rule.color === p.color ? 2 : 1,
                       }}
                       title={p.name}
                       onClick={() => updateRule(rule.id, { color: p.color })}

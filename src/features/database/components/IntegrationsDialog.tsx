@@ -479,7 +479,7 @@ Headers:
                   <tr key={type} className="text-zinc-600 dark:text-zinc-400">
                     <td className="px-3 py-1.5">{data}</td>
                     <td className="px-3 py-1.5 font-medium text-zinc-800 dark:text-zinc-200">{type}</td>
-                    <td className="px-3 py-1.5 font-mono text-3xs text-zinc-500">{example}</td>
+                    <td className="px-3 py-1.5 font-mono text-3xs text-zinc-500 dark:text-zinc-400">{example}</td>
                   </tr>
                 ))}
               </tbody>
