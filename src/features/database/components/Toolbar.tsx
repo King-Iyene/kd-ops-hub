@@ -384,6 +384,8 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
   };
 
   return (
+    <>
+    <div className="fixed inset-0 z-30" onClick={onClose} />
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[480px] max-h-[420px] overflow-y-auto animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Filters</span>
@@ -444,6 +446,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -598,6 +601,8 @@ function SortPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
+    <>
+    <div className="fixed inset-0 z-30" onClick={onClose} />
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Sort</span>
@@ -631,6 +636,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
         + Add sort
       </button>
     </div>
+    </>
   );
 }
 
@@ -660,6 +666,8 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
   const availableFields = groupableFields.filter((f) => !usedFieldIds.has(f.id));
 
   return (
+    <>
+    <div className="fixed inset-0 z-30" onClick={onClose} />
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[320px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Group by</span>
@@ -730,6 +738,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
         </>
       )}
     </div>
+    </>
   );
 }
 
@@ -792,6 +801,8 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
     : orderedFields;
 
   return (
+    <>
+    <div className="fixed inset-0 z-30" onClick={onClose} />
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[280px] max-h-[360px] flex flex-col animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Fields</span>
@@ -852,6 +863,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         ))}
       </div>
     </div>
+    </>
   );
 }
 
@@ -897,6 +909,8 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
+    <>
+    <div className="fixed inset-0 z-30" onClick={onClose} />
     <div className="absolute left-0 top-full z-40 mt-1 bg-white dark:bg-[hsl(220,20%,13%)] border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded-lg shadow-lg p-3 min-w-[440px] animate-[panelSlideDown_150ms_ease-out]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#374151] dark:text-[hsl(220,20%,88%)]">Row coloring</span>
@@ -960,6 +974,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
         + Add color rule
       </button>
     </div>
+    </>
   );
 }
 
@@ -1175,7 +1190,7 @@ export function Toolbar() {
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-zinc-500 dark:text-zinc-400 gap-1"
-              onClick={() => { if (!moreOpen) setExportNeeded(true); setMoreOpen(!moreOpen); closeAllPanels(); }}
+              onClick={() => { setMoreOpen(!moreOpen); closeAllPanels(); }}
               aria-label="More options"
             >
               <MoreHorizontal size={14} />
@@ -1222,8 +1237,10 @@ export function Toolbar() {
                     onClick={() => {
                       if (fieldsData && recordsData?.records) {
                         exportToCsv(fieldsData, recordsData.records, tableName);
+                        setMoreOpen(false);
+                      } else {
+                        setExportNeeded(true);
                       }
-                      setMoreOpen(false);
                     }}
                   >
                     <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download CSV
@@ -1245,8 +1262,10 @@ export function Toolbar() {
                         a.download = `${tableName || 'export'}.json`;
                         a.click();
                         URL.revokeObjectURL(url);
+                        setMoreOpen(false);
+                      } else {
+                        setExportNeeded(true);
                       }
-                      setMoreOpen(false);
                     }}
                   >
                     <Download size={14} className="text-zinc-400 dark:text-zinc-500" /> Download JSON
