@@ -929,16 +929,15 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
         return (
           <span
             key={i}
-            className="inline-flex items-center px-2 rounded-sm text-xs font-medium truncate cursor-pointer hover:opacity-80 transition-opacity"
+            className="inline-flex items-center px-2 rounded-full text-xs font-medium truncate cursor-pointer hover:opacity-80 transition-opacity"
             title={label}
             onClick={(e) => { e.stopPropagation(); expandRow(); }}
             style={{
               height: 22,
               lineHeight: '22px',
-              backgroundColor: `${colors.primary}18`,
-              color: colors.linkText,
-              maxWidth: 120,
-              border: `1px solid ${colors.primary}30`,
+              backgroundColor: colors.linkPillBg,
+              color: colors.linkPillText,
+              maxWidth: 140,
             }}
           >
             {label}
