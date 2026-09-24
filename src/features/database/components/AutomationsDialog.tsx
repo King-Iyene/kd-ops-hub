@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, ChevronUp, Timer, GitBranch, MessageSquare } from 'lucide-react';
+import { Zap, Plus, Trash2, GripVertical, Mail, Globe, FileEdit, FilePlus, Bell, ChevronDown, ChevronRight, X, Filter, History, CheckCircle2, XCircle, AlertTriangle, Clock, Play, Save, Users, Webhook, Copy, Info, Search, Hash, Type, Calendar, ToggleLeft, Link2, Paperclip, Star, AtSign, MapPin, Phone, Image, Code2, List, Braces, CopyPlus, ArrowUp, ArrowDown, Timer, GitBranch, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -1417,7 +1417,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-6xl p-0 gap-0" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
+      <DialogContent className="sm:max-w-6xl p-0 gap-0" style={{ height: 'min(820px, 90vh)' }} onPointerDownOutside={(e) => { if (dirty) e.preventDefault(); }} onInteractOutside={(e) => { if (dirty) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (dirty) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Automations</DialogTitle>
         <DialogDescription className="sr-only">Manage automations for this table</DialogDescription>
         <div className="flex h-full overflow-hidden rounded-xl">
@@ -1453,6 +1453,30 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
             )}
 
             <div className="flex-1 overflow-y-auto py-1">
+              {/* Abandoned automations cleanup */}
+              {!isLoading && automations.filter((a) => a.name === 'Untitled automation' && a.actions.length === 0).length > 0 && (
+                <div className="mx-2 mb-1.5 px-2.5 py-2 rounded-lg text-2xs flex items-center gap-2" style={{ backgroundColor: isDark ? 'hsl(45,30%,12%)' : '#FFFBEB', color: isDark ? '#FCD34D' : '#92400E' }}>
+                  <AlertTriangle size={11} className="shrink-0" />
+                  <span className="flex-1">
+                    {automations.filter((a) => a.name === 'Untitled automation' && a.actions.length === 0).length} empty draft{automations.filter((a) => a.name === 'Untitled automation' && a.actions.length === 0).length !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    className="shrink-0 px-2 py-0.5 rounded text-3xs font-medium transition-colors hover:opacity-80"
+                    style={{ backgroundColor: isDark ? 'hsl(45,30%,20%)' : '#FEF3C7' }}
+                    onClick={async () => {
+                      const abandoned = automations.filter((a) => a.name === 'Untitled automation' && a.actions.length === 0);
+                      if (!window.confirm(`Delete ${abandoned.length} empty "Untitled automation" draft${abandoned.length !== 1 ? 's' : ''}?`)) return;
+                      for (const a of abandoned) {
+                        if (a.id === selectedId) { setSelectedId(null); setDraft(null); }
+                        await deleteAutomation.mutateAsync({ id: a.id, table_id: tableId! });
+                      }
+                    }}
+                  >
+                    Clean up
+                  </button>
+                </div>
+              )}
+
               {isLoading && (
                 <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] px-3 py-4 text-center">Loading...</p>
               )}
@@ -1468,41 +1492,47 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
               {automations.filter((a) => !sidebarSearch.trim() || a.name.toLowerCase().includes(sidebarSearch.toLowerCase()) || TRIGGER_LABELS[a.trigger_type].toLowerCase().includes(sidebarSearch.toLowerCase())).map((a) => {
                 const badge = TRIGGER_BADGES[a.trigger_type];
                 const isSelected = a.id === selectedId;
+                const isAbandoned = a.name === 'Untitled automation' && a.actions.length === 0;
                 return (
                   <div
                     key={a.id}
                     role="button"
                     tabIndex={0}
-                    className="w-full text-left px-3 py-2 transition-colors cursor-pointer"
+                    className="w-full text-left px-2.5 py-2 mx-1 mb-0.5 rounded-lg transition-all cursor-pointer group/card"
                     style={{
                       backgroundColor: isSelected
-                        ? (isDark ? 'hsl(220,25%,15%)' : '#EBF0FF')
+                        ? (isDark ? 'hsl(217,40%,16%)' : '#EBF0FF')
                         : 'transparent',
-                      opacity: a.enabled ? 1 : 0.6,
+                      borderLeft: isSelected ? '2px solid #2D7FF9' : '2px solid transparent',
+                      opacity: a.enabled ? 1 : 0.55,
                     }}
                     onClick={() => selectAutomation(a)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAutomation(a); } }}
                   >
-                    <p className="text-xs font-medium truncate text-[#374151] dark:text-[hsl(220,25%,88%)]">
-                      {a.name}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span
-                        className="px-1.5 py-0.5 rounded text-3xs font-medium"
-                        style={{ backgroundColor: isDark ? badge.darkBg : badge.bg, color: isDark ? badge.darkText : badge.text }}
-                      >
-                        {TRIGGER_LABELS[a.trigger_type]}
-                      </span>
-                      {a.run_count != null && a.run_count > 0 && (
-                        <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" title={a.last_run_at ? `Last: ${new Date(a.last_run_at).toLocaleString()}` : undefined}>
-                          {a.run_count} run{a.run_count !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                      {a.last_error && (
-                        <span className="text-3xs text-red-400" title={a.last_error}>⚠</span>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? badge.darkBg : badge.bg }}>
+                        <Zap size={12} style={{ color: isDark ? badge.darkText : badge.text }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${isAbandoned ? 'italic text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]' : 'text-[#374151] dark:text-[hsl(220,25%,88%)]'}`}>
+                          {a.name}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className="px-1.5 py-px rounded text-3xs font-medium"
+                            style={{ backgroundColor: isDark ? badge.darkBg : badge.bg, color: isDark ? badge.darkText : badge.text }}
+                          >
+                            {TRIGGER_LABELS[a.trigger_type]}
+                          </span>
+                          {a.actions.length > 0 && (
+                            <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">
+                              {a.actions.length} action{a.actions.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <button
-                        className="shrink-0 w-6 h-3.5 rounded-full relative transition-colors ml-auto"
+                        className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
                         style={{ backgroundColor: a.enabled ? '#2D7FF9' : (isDark ? 'hsl(220,25%,25%)' : '#D1D5DB') }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1511,11 +1541,31 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                         title={a.enabled ? 'Disable' : 'Enable'}
                       >
                         <span
-                          className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white dark:bg-[hsl(220,25%,88%)] shadow transition-transform"
-                          style={{ left: a.enabled ? '12px' : '2px' }}
+                          className="absolute top-0.5 w-3 h-3 rounded-full bg-white dark:bg-[hsl(220,25%,88%)] shadow transition-transform"
+                          style={{ left: a.enabled ? '14px' : '2px' }}
                         />
                       </button>
                     </div>
+                    {/* Stats row */}
+                    {(a.run_count != null && a.run_count > 0 || a.last_error) && (
+                      <div className="flex items-center gap-2 mt-1.5 pl-9 text-3xs">
+                        {a.run_count != null && a.run_count > 0 && (
+                          <span className="flex items-center gap-0.5 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">
+                            <Play size={8} /> {a.run_count} run{a.run_count !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {a.last_run_at && (
+                          <span className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">
+                            {new Date(a.last_run_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        {a.last_error && (
+                          <span className="flex items-center gap-0.5 text-red-400" title={a.last_error}>
+                            <AlertTriangle size={8} /> Error
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1536,18 +1586,37 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
               </div>
             ) : (
               <div className="p-4 space-y-5">
-                {/* Header with name + close */}
-                <div className="flex items-start gap-2">
+                {/* Editor header */}
+                <div className="flex items-center gap-3 pb-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? TRIGGER_BADGES[draft.trigger_type].darkBg : TRIGGER_BADGES[draft.trigger_type].bg }}>
+                    <Zap size={16} style={{ color: isDark ? TRIGGER_BADGES[draft.trigger_type].darkText : TRIGGER_BADGES[draft.trigger_type].text }} />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Name</label>
                     <input
-                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                      className="w-full px-1 py-0.5 -ml-1 rounded text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] bg-transparent border border-transparent hover:border-[#E5E5E5] dark:hover:border-[hsl(220,25%,25%)] focus:border-[#2D7FF9] outline-none transition-colors"
                       value={draft.name}
                       onChange={(e) => updateDraft({ name: e.target.value })}
+                      placeholder="Automation name..."
                     />
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span
+                        className="px-1.5 py-px rounded text-3xs font-medium"
+                        style={{ backgroundColor: isDark ? TRIGGER_BADGES[draft.trigger_type].darkBg : TRIGGER_BADGES[draft.trigger_type].bg, color: isDark ? TRIGGER_BADGES[draft.trigger_type].darkText : TRIGGER_BADGES[draft.trigger_type].text }}
+                      >
+                        {TRIGGER_LABELS[draft.trigger_type]}
+                      </span>
+                      <span className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]">
+                        {draft.actions.length} action{draft.actions.length !== 1 ? 's' : ''}
+                      </span>
+                      {draft.enabled && (
+                        <span className="flex items-center gap-0.5 text-3xs font-medium text-[#10B981]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" /> Active
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
-                    className="mt-5 p-1.5 rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] transition-colors"
+                    className="p-1.5 rounded-md hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] transition-colors"
                     onClick={() => handleOpenChange(false)}
                     title="Close"
                   >
@@ -1720,101 +1789,124 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    {draft.actions.map((action, idx) => {
-                      const meta = ACTION_TYPES.find((t) => t.type === action.type);
-                      const Icon = meta?.icon ?? Bell;
-                      const isCollapsed = collapsedActions.has(action.id);
-                      return (
-                        <div
-                          key={action.id}
-                          className={`rounded-lg border bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden transition-opacity ${dragActionId === action.id ? 'opacity-40 border-[#2D7FF9]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]'}`}
-                          draggable
-                          onDragStart={(e) => {
-                            setDragActionId(action.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                            e.dataTransfer.setData('text/plain', action.id);
-                          }}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            if (!dragActionId || dragActionId === action.id) return;
-                            setDraft((prev) => {
-                              if (!prev) return prev;
-                              const fromIdx = prev.actions.findIndex((a) => a.id === dragActionId);
-                              const toIdx = prev.actions.findIndex((a) => a.id === action.id);
-                              if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
-                              const next = [...prev.actions];
-                              const [moved] = next.splice(fromIdx, 1);
-                              next.splice(toIdx, 0, moved);
-                              return { ...prev, actions: next };
-                            });
-                          }}
-                          onDragEnd={() => setDragActionId(null)}
-                        >
+                  <div className="relative">
+                    {/* Vertical connecting line */}
+                    {draft.actions.length > 1 && (
+                      <div
+                        className="absolute left-[19px] top-4 bottom-4 w-px"
+                        style={{ backgroundColor: isDark ? 'hsl(220,25%,22%)' : '#E5E5E5' }}
+                      />
+                    )}
+
+                    <div className="space-y-2">
+                      {draft.actions.map((action, idx) => {
+                        const meta = ACTION_TYPES.find((t) => t.type === action.type);
+                        const Icon = meta?.icon ?? Bell;
+                        const isCollapsed = collapsedActions.has(action.id);
+                        return (
                           <div
-                            className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
-                            style={{ borderBottom: isCollapsed ? 'none' : `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}
-                            onClick={() => setCollapsedActions((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(action.id)) next.delete(action.id); else next.add(action.id);
-                              return next;
-                            })}
+                            key={action.id}
+                            className="relative"
+                            draggable
+                            onDragStart={(e) => {
+                              setDragActionId(action.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', action.id);
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (!dragActionId || dragActionId === action.id) return;
+                              setDraft((prev) => {
+                                if (!prev) return prev;
+                                const fromIdx = prev.actions.findIndex((a) => a.id === dragActionId);
+                                const toIdx = prev.actions.findIndex((a) => a.id === action.id);
+                                if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+                                const next = [...prev.actions];
+                                const [moved] = next.splice(fromIdx, 1);
+                                next.splice(toIdx, 0, moved);
+                                return { ...prev, actions: next };
+                              });
+                            }}
+                            onDragEnd={() => setDragActionId(null)}
                           >
-                            <GripVertical size={12} className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 cursor-grab active:cursor-grabbing" />
-                            <ChevronUp size={12} className={`text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-                            <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
-                              <Icon size={12} className="text-[#2D7FF9]" />
-                            </div>
-                            <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex-1 truncate">
-                              {idx + 1}. {meta?.label ?? action.type}
-                            </span>
-                            <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
-                              {idx > 0 && (
-                                <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'up')} title="Move up">
-                                  <ArrowUp size={11} />
-                                </button>
-                              )}
-                              {idx < draft.actions.length - 1 && (
-                                <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'down')} title="Move down">
-                                  <ArrowDown size={11} />
-                                </button>
-                              )}
-                              <button
-                                className="p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
-                                onClick={() => removeAction(action.id)}
-                                title="Remove action"
+                            <div className={`ml-10 rounded-lg border bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden transition-all ${dragActionId === action.id ? 'opacity-40 border-[#2D7FF9] scale-[0.98]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]'}`}>
+                              {/* Step number circle on the connecting line */}
+                              <div
+                                className="absolute left-[12px] top-3 w-[15px] h-[15px] rounded-full flex items-center justify-center text-3xs font-bold z-10 border-2"
+                                style={{
+                                  backgroundColor: isDark ? 'hsl(220,30%,10%)' : '#fff',
+                                  borderColor: '#2D7FF9',
+                                  color: '#2D7FF9',
+                                }}
                               >
-                                <Trash2 size={12} />
-                              </button>
+                                {idx + 1}
+                              </div>
+                              <div
+                                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
+                                style={{ borderBottom: isCollapsed ? 'none' : `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}
+                                onClick={() => setCollapsedActions((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(action.id)) next.delete(action.id); else next.add(action.id);
+                                  return next;
+                                })}
+                              >
+                                <GripVertical size={12} className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 cursor-grab active:cursor-grabbing" />
+                                <ChevronRight size={12} className={`text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
+                                  <Icon size={12} className="text-[#2D7FF9]" />
+                                </div>
+                                <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex-1 truncate">
+                                  {meta?.label ?? action.type}
+                                </span>
+                                <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                                  {idx > 0 && (
+                                    <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'up')} title="Move up">
+                                      <ArrowUp size={11} />
+                                    </button>
+                                  )}
+                                  {idx < draft.actions.length - 1 && (
+                                    <button className="p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,15%)] text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] transition-colors" onClick={() => moveAction(action.id, 'down')} title="Move down">
+                                      <ArrowDown size={11} />
+                                    </button>
+                                  )}
+                                  <button
+                                    className="p-1 rounded hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#991B1B] dark:hover:text-[#FCA5A5] transition-colors"
+                                    onClick={() => removeAction(action.id)}
+                                    title="Remove action"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                              {!isCollapsed && (
+                                <div className="p-3">
+                                  <ActionConfigForm
+                                    action={action}
+                                    onChange={(config) => updateActionConfig(action.id, config)}
+                                    fields={fieldOptions}
+                                    profiles={profiles}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
-                          {!isCollapsed && (
-                            <div className="p-3">
-                              <ActionConfigForm
-                                action={action}
-                                onChange={(config) => updateActionConfig(action.id, config)}
-                                fields={fieldOptions}
-                                profiles={profiles}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
-                {/* Save / Delete / Test buttons */}
+                {/* Actions toolbar */}
                 <div className="flex items-center gap-2 pt-3 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
                   <Button
                     size="sm"
-                    className="h-8 px-4 text-xs gap-1.5"
+                    className="h-8 px-4 text-xs gap-1.5 shadow-sm"
                     style={{ backgroundColor: dirty ? '#2D7FF9' : (isDark ? 'hsl(220,25%,20%)' : '#E5E7EB'), color: dirty ? '#fff' : (isDark ? 'hsl(220,20%,55%)' : '#6B7280') }}
                     onClick={handleSave}
                     disabled={saving}
                   >
-                    <Save size={12} /> {saving ? 'Saving...' : 'Save'}
+                    <Save size={12} /> {saving ? 'Saving...' : dirty ? 'Save changes' : 'Saved'}
                   </Button>
                   <Button
                     variant="outline"
@@ -1824,7 +1916,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     onClick={handleTestRun}
                     disabled={testRunning}
                   >
-                    <Play size={11} /> {testRunning ? 'Running...' : 'Test Run'}
+                    <Play size={11} /> {testRunning ? 'Running...' : 'Test'}
                   </Button>
                   <Button
                     variant="outline"
@@ -1834,25 +1926,28 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     onClick={handleDuplicate}
                     title="Duplicate this automation"
                   >
-                    <CopyPlus size={12} /> Duplicate
+                    <CopyPlus size={12} />
                   </Button>
+
+                  <div className="flex-1" />
+
+                  {draft.run_count != null && draft.run_count > 0 && (
+                    <span className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
+                      {draft.run_count} run{draft.run_count !== 1 ? 's' : ''}
+                      {draft.last_run_at && (
+                        <> · {new Date(draft.last_run_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>
+                      )}
+                    </span>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-8 px-3 text-xs gap-1.5 text-[#991B1B] dark:text-[#FCA5A5] border-[#FEE2E2] dark:border-[hsl(0,40%,18%)] hover:bg-[#FEE2E2] dark:hover:bg-[hsl(0,40%,18%)]"
                     onClick={handleDelete}
                   >
-                    <Trash2 size={12} /> Delete
+                    <Trash2 size={12} />
                   </Button>
-
-                  {draft.run_count != null && draft.run_count > 0 && (
-                    <span className="ml-auto text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
-                      {draft.run_count} runs
-                      {draft.last_run_at && (
-                        <> · Last: {new Date(draft.last_run_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>
-                      )}
-                    </span>
-                  )}
                 </div>
 
                 {/* Test run result */}
