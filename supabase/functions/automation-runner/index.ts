@@ -224,6 +224,8 @@ async function executeAction(
             resolvedValue = context.record[srcCol];
           } else if (value_source === 'record_id') {
             resolvedValue = context.record.id;
+          } else if (typeof resolvedValue === 'string' && resolvedValue.includes('{{')) {
+            resolvedValue = resolvePlaceholders(resolvedValue, context.record, context.fieldMap, context.reverseFieldMap);
           }
           updates[col] = resolvedValue;
         }
