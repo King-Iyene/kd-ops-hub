@@ -1336,6 +1336,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     });
   }, []);
 
+  const [dragActionId, setDragActionId] = useState<string | null>(null);
   const [collapsedActions, setCollapsedActions] = useState<Set<string>>(new Set());
   const [sidebarSearch, setSidebarSearch] = useState('');
 
@@ -1725,7 +1726,32 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       const Icon = meta?.icon ?? Bell;
                       const isCollapsed = collapsedActions.has(action.id);
                       return (
-                        <div key={action.id} className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden">
+                        <div
+                          key={action.id}
+                          className={`rounded-lg border bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden transition-opacity ${dragActionId === action.id ? 'opacity-40 border-[#2D7FF9]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]'}`}
+                          draggable
+                          onDragStart={(e) => {
+                            setDragActionId(action.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', action.id);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (!dragActionId || dragActionId === action.id) return;
+                            setDraft((prev) => {
+                              if (!prev) return prev;
+                              const fromIdx = prev.actions.findIndex((a) => a.id === dragActionId);
+                              const toIdx = prev.actions.findIndex((a) => a.id === action.id);
+                              if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+                              const next = [...prev.actions];
+                              const [moved] = next.splice(fromIdx, 1);
+                              next.splice(toIdx, 0, moved);
+                              return { ...prev, actions: next };
+                            });
+                          }}
+                          onDragEnd={() => setDragActionId(null)}
+                        >
                           <div
                             className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none"
                             style={{ borderBottom: isCollapsed ? 'none' : `1px solid ${isDark ? 'hsl(220,25%,18%)' : '#E5E5E5'}` }}
@@ -1735,6 +1761,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                               return next;
                             })}
                           >
+                            <GripVertical size={12} className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 cursor-grab active:cursor-grabbing" />
                             <ChevronUp size={12} className={`text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                             <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
                               <Icon size={12} className="text-[#2D7FF9]" />

@@ -1083,6 +1083,9 @@ export function ExpandedRowModal({
               {field.name}
               {field.is_required && <span className="text-red-400">*</span>}
             </label>
+            {field.description && (
+              <p className="text-3xs text-[#9CA3AF] dark:text-[hsl(220,20%,50%)] mb-1 -mt-0.5 leading-snug">{field.description}</p>
+            )}
             <div className="text-sm text-[#374151] dark:text-[hsl(220,20%,88%)] min-h-[28px] flex items-center">
               {renderEditor(field)}
             </div>
