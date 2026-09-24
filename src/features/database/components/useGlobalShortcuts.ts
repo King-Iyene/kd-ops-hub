@@ -51,6 +51,13 @@ export function useGlobalShortcuts({
         onOpenReplace?.();
         return;
       }
+
+      // Ctrl+P to print
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        window.print();
+        return;
+      }
     },
     [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace],
   );
