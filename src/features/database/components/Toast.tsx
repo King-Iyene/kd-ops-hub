@@ -3,9 +3,6 @@ import { X } from 'lucide-react';
 import { useToastStore } from './toast-store';
 import type { ToastItem } from './toast-store';
 
-export type { ToastItem } from './toast-store';
-export { useToastStore, toast } from './toast-store';
-
 const BORDER_COLORS: Record<ToastItem['type'], string> = {
   success: '#22C55E',
   error: '#EF4444',

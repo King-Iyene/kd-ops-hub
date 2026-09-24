@@ -4,9 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useNotificationStore, installToastBridge } from './notification-store';
 import type { NotificationType } from './notification-store';
 
-export type { NotificationType, NotificationItem } from './notification-store';
-export { useNotificationStore, installToastBridge } from './notification-store';
-
 // --- Helpers ---
 
 const ICONS: Record<NotificationType, typeof Edit3> = {

@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { useDatabaseUI } from '../lib/store';
 import { useFields, useRecords, useUpdateRecord } from '../hooks';
-import { toast } from '../components/Toast';
+import { toast } from '../components/toast-store';
 
 
 interface SearchReplaceDialogProps {

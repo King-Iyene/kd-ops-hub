@@ -6,7 +6,6 @@ import {
   type PermissionsMap,
   PERMISSION_ROLE_GATES,
   PERMISSION_GROUPS,
-  ROLE_DEFAULT_PERMISSIONS,
 } from './permissions-config';
 
 

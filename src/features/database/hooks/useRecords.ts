@@ -2,7 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
-import { toast } from '../components/Toast';
+import { toast } from '../components/toast-store';
 import { useUndoStore } from '../lib/undo';
 
 /**
