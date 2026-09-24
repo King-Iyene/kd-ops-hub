@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check, ExternalLink, Mail } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import { RecordHistoryPanel } from './RecordHistoryPanel';
 import { LinkCellRenderer } from './grid/LinkCellRenderer';
@@ -86,6 +86,77 @@ function InlineTextEditor({
       }}
       className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
     />
+  );
+}
+
+function InlineUrlEditor({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+}) {
+  const [text, setText] = useState(value ?? '');
+  useEffect(() => { setText(value ?? ''); }, [value]);
+  const hasValue = text.trim().length > 0;
+  const href = hasValue && !/^https?:\/\//i.test(text) ? `https://${text}` : text;
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="url"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onCommit(text)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
+        placeholder="https://example.com"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      />
+      {hasValue && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          title="Open URL"
+        >
+          <ExternalLink size={14} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function InlineEmailEditor({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+}) {
+  const [text, setText] = useState(value ?? '');
+  useEffect(() => { setText(value ?? ''); }, [value]);
+  const hasValue = text.trim().length > 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="email"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onCommit(text)}
+        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
+        placeholder="name@example.com"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      />
+      {hasValue && (
+        <a
+          href={`mailto:${text}`}
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          title="Send email"
+        >
+          <Mail size={14} />
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -962,6 +1033,12 @@ export function ExpandedRowModal({
           </button>
         );
       }
+      case 'URL':
+        return <InlineUrlEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
+      case 'Email':
+        return <InlineEmailEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
+      case 'Phone':
+        return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       default:
         return <InlineTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
     }
