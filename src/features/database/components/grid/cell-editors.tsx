@@ -901,8 +901,7 @@ export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellE
       <div
         ref={ref}
         tabIndex={0}
-        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs outline-none"
-        style={{ color: '#6A7184' }}
+        className="flex items-center gap-1 px-2 h-full cursor-pointer text-xs outline-none text-[#6A7184] dark:text-[hsl(220,20%,55%)]"
         onClick={() => setOpen(true)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') onCancel();

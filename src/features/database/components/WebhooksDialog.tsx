@@ -218,8 +218,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     </p>
                   </div>
                   <button
-                    className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
-                    style={{ backgroundColor: wh.is_active ? '#2D7FF9' : '#D1D5DB' }}
+                    className={`shrink-0 w-7 h-4 rounded-full relative transition-colors ${wh.is_active ? 'bg-[#2D7FF9]' : 'bg-[#D1D5DB] dark:bg-[hsl(220,20%,30%)]'}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggle(wh);

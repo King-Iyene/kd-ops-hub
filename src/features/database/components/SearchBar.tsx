@@ -45,8 +45,7 @@ export function SearchBar() {
   if (!open && !searchQuery) {
     return (
       <button
-        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-muted"
-        style={{ color: '#6A7184' }}
+        className="h-7 px-2 rounded text-xs flex items-center gap-1 hover:bg-muted text-[#6A7184] dark:text-[hsl(220,20%,55%)]"
         onClick={handleOpen}
       >
         <Search size={14} />
@@ -59,7 +58,7 @@ export function SearchBar() {
       className="flex items-center h-7 rounded border px-2 gap-1.5"
       style={{ borderColor: '#2D7FF9', width: 240 }}
     >
-      <Search size={13} style={{ color: '#9AA2AF' }} className="shrink-0" />
+      <Search size={13} className="shrink-0 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" />
       <input
         ref={inputRef}
         value={localValue}
