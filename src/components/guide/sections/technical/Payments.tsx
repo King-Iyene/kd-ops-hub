@@ -1,10 +1,33 @@
 import { RefTable, RefSection } from '@/components/guide/shared';
-import { CreditCard, RefreshCw, Database } from 'lucide-react';
+import { CreditCard, RefreshCw, Database, Shield } from 'lucide-react';
 
 export function TechPaymentsSection() {
   return (
     <>
       <h2 className="text-xl font-semibold mb-1">Payments & Paystack</h2>
+
+      <RefSection icon={Shield} title="IP whitelisting & proxy">
+        <p className="text-sm text-muted-foreground mb-3">
+          Following a security incident in September 2026, Paystack IP whitelisting is enforced on the KD Squares account.
+          All Paystack API calls from edge functions route through a dedicated Fly.io proxy that provides a static, whitelisted IPv4 address.
+          <strong className="text-foreground"> Do not disable the IP whitelist</strong> — if Paystack calls fail, fix the proxy chain instead.
+        </p>
+        <RefTable
+          cols={['Setting', 'Value']}
+          rows={[
+            { a: 'Proxy URL',                b: 'https://kdops-paystack-proxy.fly.dev' },
+            { a: 'Proxy code',               b: 'paystack-proxy/index.js (deployed to Fly.io via GitHub Actions)' },
+            { a: 'Proxy-aware fetch wrapper', b: 'supabase/functions/_shared/paystack-fetch.ts' },
+            { a: 'Proxy auth',               b: 'Shared secret in X-Proxy-Key header (PROXY_KEY on Fly.io, PAYSTACK_PROXY_KEY on Supabase)' },
+            { a: 'IPv4 enforcement',          b: 'family: 4 in Node.js HTTPS options — prevents IPv6 resolution bypassing the dedicated IP' },
+            { a: 'Edge functions using proxy', b: 'paystack-transfer · paystack-reconciliation · paystack-webhook · batch-worker · provider-switch' },
+            { a: 'Health check',             b: '/health → {"ok":true}' },
+            { a: 'Outbound IP check',        b: '/diag/ip → shows the actual egress IPv4 (compare with Paystack whitelist)' },
+            { a: 'Full setup & troubleshooting', b: 'docs/paystack-proxy-setup.md in the repo' },
+          ]}
+        />
+      </RefSection>
+
       <RefSection icon={CreditCard} title="Paystack integration">
         <RefTable
           cols={['Setting', 'Value']}

@@ -116,6 +116,7 @@ export function TechSecuritySection() {
           rows={[
             { a: 'Content Security Policy',   b: 'Active in index.html — restricts scripts, connects, iframes to known origins' },
             { a: 'Edge function CORS',        b: 'Locked to ops.kdsquares.com + localhost ports (no wildcard *)' },
+            { a: 'Paystack IP whitelisting',  b: 'Enforced since Sep 2026 — all API calls route through a Fly.io proxy with a dedicated, whitelisted IPv4. See Technical Reference → Payments & Paystack for details.' },
             { a: 'Paystack webhook auth',     b: 'HMAC-SHA512 signature verified on every webhook delivery' },
             { a: 'Error reporting',           b: 'window.onerror + ErrorBoundary forward to window.Sentry if configured' },
           ]}
