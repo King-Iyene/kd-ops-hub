@@ -1,0 +1,72 @@
+name: Deploy Paystack Proxy to Fly.io
+
+# ─── SETUP ───────────────────────────────────────────────────────────────────
+#
+# Deploys the Paystack API proxy to Fly.io on push to main.
+# The proxy gives Supabase Edge Functions a static egress IP
+# for Paystack's IP whitelist.
+#
+# Required GitHub Secrets (repo → Settings → Secrets and variables → Actions):
+#
+#   FLY_API_TOKEN  — Fly.io deploy token. Get it from:
+#                    https://fly.io/dashboard → Tokens → Create deploy token
+#
+#   PROXY_KEY      — Shared secret between Edge Functions and the proxy.
+#                    Generate: go to https://generate.plus/en/hex and copy
+#                    a 64-char hex string (or any strong password, min 16 chars).
+#                    Must also be set in Supabase as PAYSTACK_PROXY_KEY.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'paystack-proxy/**'
+      - '.github/workflows/deploy-paystack-proxy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Create the app if it doesn't exist yet (first-time deploy)
+      - name: Ensure Fly.io app exists
+        working-directory: paystack-proxy
+        run: |
+          flyctl apps list | grep -q kdops-paystack-proxy || \
+            flyctl apps create kdops-paystack-proxy --org personal
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # Set the proxy auth secret before deploy so the app starts correctly
+      - name: Set PROXY_KEY secret
+        working-directory: paystack-proxy
+        run: flyctl secrets set PROXY_KEY="${{ secrets.PROXY_KEY }}" --app kdops-paystack-proxy --stage
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy to Fly.io
+        working-directory: paystack-proxy
+        run: flyctl deploy --remote-only --app kdops-paystack-proxy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # Print the static IP — copy this to Paystack's IP whitelist
+      - name: Show static IPs (whitelist these on Paystack)
+        working-directory: paystack-proxy
+        run: |
+          echo "══════════════════════════════════════════════════"
+          echo "  STATIC IPs — ADD THESE TO PAYSTACK WHITELIST"
+          echo "══════════════════════════════════════════════════"
+          flyctl ips list --app kdops-paystack-proxy
+          echo "══════════════════════════════════════════════════"
+          echo "  Proxy URL: https://kdops-paystack-proxy.fly.dev"
+          echo "══════════════════════════════════════════════════"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
