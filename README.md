@@ -88,6 +88,17 @@ SQL migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/
 
 > **Important**: Each migration file must have a **unique 14-digit timestamp prefix**. Duplicate timestamps will cause `supabase db push` to fail. All migrations should be idempotent (`CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` before `CREATE POLICY`, etc.).
 
+### Paystack API Access (IP Whitelisting + Proxy)
+
+Paystack enforces **IP whitelisting** on the KD Squares account following a security incident. Supabase Edge Functions have no static outbound IP, so all Paystack API calls route through a dedicated **Fly.io proxy** (`kdops-paystack-proxy`) that provides a stable, whitelisted IPv4 address.
+
+- Proxy URL: `https://kdops-paystack-proxy.fly.dev`
+- Proxy code: `paystack-proxy/index.js`
+- Proxy-aware fetch wrapper: `supabase/functions/_shared/paystack-fetch.ts`
+- Deploy workflow: `.github/workflows/deploy-paystack-proxy.yml`
+
+> **Do not disable Paystack's IP whitelist** to work around failures — fix the proxy chain instead. See [docs/paystack-proxy-setup.md](docs/paystack-proxy-setup.md) for full setup, architecture, and troubleshooting.
+
 ---
 
 ## Project Structure
@@ -111,7 +122,12 @@ src/
 ├── store/             # Zustand stores (authStore, viewAsStore)
 └── main.tsx           # App entry — Sentry init, global error hooks
 supabase/
+├── functions/
+│   ├── _shared/       # Shared helpers (paystack-fetch.ts proxy wrapper, etc.)
+│   └── */index.ts     # Individual edge functions
 └── migrations/        # SQL migration files
+paystack-proxy/
+└── index.js           # Fly.io proxy for Paystack IP whitelisting
 vercel.json            # Vercel config + security headers
 ```
 
@@ -170,7 +186,9 @@ npm audit          # Check for dependency vulnerabilities
 
 **Blank screen / auth loop**: Check that `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set correctly.
 
-**Payments not processing**: Ensure Paystack Edge Functions are deployed to Supabase and `VITE_PAYSTACK_PUBLIC_KEY` matches the key the Edge Functions use on the server side.
+**Payments not processing / "Your IP address is not allowed"**: The Paystack proxy chain is likely broken. See [docs/paystack-proxy-setup.md](docs/paystack-proxy-setup.md) for the full troubleshooting checklist. The most common cause is a mismatch between the proxy's actual outbound IP and the IP whitelisted on Paystack — visit `https://kdops-paystack-proxy.fly.dev/diag/ip` to check.
+
+**Payments not processing (other)**: Ensure Paystack Edge Functions are deployed to Supabase and `VITE_PAYSTACK_PUBLIC_KEY` matches the key the Edge Functions use on the server side.
 
 **Transactions view missing columns**: Run the latest migrations in `supabase/migrations/` — particularly `20260622000000_transactions_view_remove_transfers.sql`.
 

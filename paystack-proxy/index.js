@@ -1,11 +1,27 @@
 /**
- * Paystack API Proxy — runs on Fly.io to provide a static egress IP.
+ * Paystack API Proxy — Fly.io static-IP egress for Supabase Edge Functions.
  *
- * Supabase Edge Functions call this proxy instead of api.paystack.co directly.
- * Paystack's IP whitelist accepts the Fly.io VM's static IP.
+ * WHY THIS EXISTS:
+ * After a security breach (2026-09), Paystack IP whitelisting was enabled on
+ * the KD Squares account. Supabase Edge Functions (Deno Deploy) have no static
+ * egress IP, so all Paystack API calls must route through this proxy, which
+ * runs on a Fly.io VM with a dedicated IPv4 address whitelisted on Paystack.
  *
- * Security: requires a shared secret in the X-Proxy-Key header.
- * The proxy ONLY forwards to api.paystack.co — nothing else.
+ * DO NOT remove or bypass Paystack's IP whitelist to work around connectivity
+ * issues — it is a required security control. If Paystack calls fail with
+ * "Your IP address is not allowed", the proxy chain is broken; fix the proxy,
+ * don't disable the whitelist. See docs/paystack-proxy-setup.md.
+ *
+ * SECURITY:
+ * - Requires a shared secret (PROXY_KEY) in the X-Proxy-Key header.
+ * - ONLY forwards to api.paystack.co — no other targets.
+ * - Uses family:4 to force IPv4 DNS resolution so traffic exits through the
+ *   dedicated IPv4 address, not a shared IPv6 address.
+ *
+ * ENDPOINTS:
+ *   /health     — liveness check (no auth)
+ *   /diag/ip    — reports the proxy's actual outbound IPv4 (no auth, for debugging)
+ *   /paystack/* — proxied Paystack API calls (requires X-Proxy-Key)
  */
 
 const http = require("http");

@@ -1,9 +1,15 @@
 /**
  * Proxy-aware fetch for Paystack API calls.
  *
- * If PAYSTACK_PROXY_URL and PAYSTACK_PROXY_KEY are set, all requests to
- * api.paystack.co are routed through the Fly.io proxy (which has a static
- * IP whitelisted on Paystack). Otherwise falls back to direct fetch.
+ * Routes all Paystack requests through the Fly.io static-IP proxy when
+ * PAYSTACK_PROXY_URL and PAYSTACK_PROXY_KEY are set as Supabase Edge
+ * Function secrets. This is REQUIRED in production — Paystack's IP whitelist
+ * blocks direct calls from Supabase Edge Functions (Deno Deploy has no
+ * static egress IP). The direct-fetch fallback exists only as a rollout
+ * safety net for local development; in production it will fail with
+ * "Your IP address is not allowed to make this call".
+ *
+ * See docs/paystack-proxy-setup.md for full setup and troubleshooting.
  */
 
 const PAYSTACK_BASE = "https://api.paystack.co";
