@@ -284,6 +284,12 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
 }
 
 Deno.serve(async (req) => {
+  // ── TEMPORARY: proxy env-var diagnostics (remove after confirming proxy works) ──
+  const _pUrl = Deno.env.get("PAYSTACK_PROXY_URL");
+  const _pKey = Deno.env.get("PAYSTACK_PROXY_KEY");
+  console.log(`[PROXY-DIAG] PAYSTACK_PROXY_URL=${_pUrl ? "SET(" + _pUrl.length + " chars)" : "UNDEFINED"} PAYSTACK_PROXY_KEY=${_pKey ? "SET(" + _pKey.length + " chars)" : "UNDEFINED"}`);
+  // ── END TEMPORARY ──
+
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
