@@ -28,6 +28,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Diagnostic: show outbound IPv4 (temporary — remove after confirming)
+  if (req.url === "/diag/ip") {
+    try {
+      const ipRes = await new Promise((resolve, reject) => {
+        https.get("https://api.ipify.org?format=json", { family: 4 }, (r) => {
+          let d = "";
+          r.on("data", (c) => (d += c));
+          r.on("end", () => resolve(JSON.parse(d)));
+        }).on("error", reject);
+      });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ outbound_ipv4: ipRes.ip }));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // Auth check
   if (req.headers["x-proxy-key"] !== PROXY_KEY) {
     res.writeHead(401, { "Content-Type": "application/json" });
@@ -64,9 +83,13 @@ const server = http.createServer(async (req, res) => {
     method: req.method,
     headers: forwardHeaders,
     timeout: 30000,
+    family: 4,
   };
 
+  console.log(`[proxy] → ${req.method} ${url.pathname} (family: 4)`);
+
   const proxyReq = https.request(options, (proxyRes) => {
+    console.log(`[proxy] ← ${proxyRes.statusCode} ${url.pathname}`);
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res);
   });
