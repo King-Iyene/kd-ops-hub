@@ -32,6 +32,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { paystackProxyFetch } from "../_shared/paystack-fetch.ts";
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
@@ -239,7 +240,7 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
   const secret = await getPaystackSecret();
 
   for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
-    const res = await fetch(`${PAYSTACK_BASE}${path}`, {
+    const res = await paystackProxyFetch(`${PAYSTACK_BASE}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${secret}`,

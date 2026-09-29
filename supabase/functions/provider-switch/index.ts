@@ -20,6 +20,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { paystackProxyFetch } from "../_shared/paystack-fetch.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 const PAYSTACK_BASE = "https://api.paystack.co";
@@ -80,7 +81,7 @@ async function probePaystack(mode: "test" | "live"): Promise<{ ok: boolean; bala
 
 async function probePaystackWith(secret: string): Promise<{ ok: boolean; balance?: number; error?: string }> {
   try {
-    const res = await fetch(`${PAYSTACK_BASE}/balance`, {
+    const res = await paystackProxyFetch(`${PAYSTACK_BASE}/balance`, {
       headers: { Authorization: `Bearer ${secret}` },
       signal: AbortSignal.timeout(20_000),
     });

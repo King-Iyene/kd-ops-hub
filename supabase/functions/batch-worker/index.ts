@@ -35,6 +35,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { constantTimeEquals } from "../_shared/timing.ts";
+import { paystackProxyFetch } from "../_shared/paystack-fetch.ts";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config
@@ -144,7 +145,7 @@ async function paystackPost(
   body: unknown,
 ): Promise<any> {
   for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
-    const res = await fetch(`${PAYSTACK_BASE}${path}`, {
+    const res = await paystackProxyFetch(`${PAYSTACK_BASE}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${secret}`,
@@ -306,7 +307,7 @@ async function loadPaystackBanks(secret: string): Promise<BankRow[]> {
   if (_bankCache && (now - _bankCacheAt) < BANK_CACHE_TTL_MS) return _bankCache;
 
   try {
-    const res = await fetch('https://api.paystack.co/bank?country=nigeria&perPage=300', {
+    const res = await paystackProxyFetch('https://api.paystack.co/bank?country=nigeria&perPage=300', {
       headers: { Authorization: `Bearer ${secret}` },
       signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
@@ -389,7 +390,7 @@ function getBankCode(name: string | null | undefined): string | null {
  */
 async function verifyPaystackTransfer(secret: string, reference: string): Promise<any | null> {
   try {
-    const res = await fetch(`${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
+    const res = await paystackProxyFetch(`${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${secret}` },
       signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });

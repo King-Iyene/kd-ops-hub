@@ -29,6 +29,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { paystackProxyFetch } from "../_shared/paystack-fetch.ts";
 
 type Supabase = ReturnType<typeof createClient>;
 
@@ -458,7 +459,7 @@ Deno.serve(async (req) => {
     try {
       const secret = await getPaystackSecret();
       if (secret) {
-        const feeRes = await fetch(
+        const feeRes = await paystackProxyFetch(
           `https://api.paystack.co/transfer/verify/${encodeURIComponent(reference)}`,
           { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS) },
         );

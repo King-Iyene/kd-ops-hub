@@ -23,6 +23,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { constantTimeEquals } from "../_shared/timing.ts";
+import { paystackProxyFetch } from "../_shared/paystack-fetch.ts";
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
@@ -135,7 +136,7 @@ Deno.serve(async (req) => {
 
       for (const it of items) {
         try {
-          const res = await fetch(
+          const res = await paystackProxyFetch(
             `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
             { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(PAYSTACK_FETCH_TIMEOUT_MS) },
           );
@@ -315,7 +316,7 @@ Deno.serve(async (req) => {
         if (wait > 0) await new Promise((r) => setTimeout(r, wait));
         try {
           lastCallAt = Date.now();
-          const res = await fetch(
+          const res = await paystackProxyFetch(
             `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
             { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(PAYSTACK_FETCH_TIMEOUT_MS) },
           );
