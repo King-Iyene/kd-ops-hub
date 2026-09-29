@@ -11,6 +11,7 @@ const PAYSTACK_BASE = "https://api.paystack.co";
 export function getPaystackProxyConfig(): { proxyUrl: string; proxyKey: string } | null {
   const proxyUrl = Deno.env.get("PAYSTACK_PROXY_URL");
   const proxyKey = Deno.env.get("PAYSTACK_PROXY_KEY");
+  console.log(`[paystack-proxy] env check: PAYSTACK_PROXY_URL=${proxyUrl ? proxyUrl.substring(0, 20) + "..." : "MISSING"}, PAYSTACK_PROXY_KEY=${proxyKey ? proxyKey.substring(0, 6) + "..." : "MISSING"}`);
   if (proxyUrl && proxyKey) return { proxyUrl: proxyUrl.replace(/\/$/, ""), proxyKey };
   return null;
 }
