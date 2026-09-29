@@ -24,7 +24,7 @@ export function paystackProxyFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const proxy = getPaystackProxyConfig();
-  console.log(`[paystack-proxy] config=${proxy ? "ACTIVE → " + proxy.proxyUrl : "NOT SET — direct fetch"}`);
+  console.log(`[paystack-proxy] v2 config=${proxy ? "ACTIVE → " + proxy.proxyUrl : "NOT SET — direct fetch"}`);
 
   if (!proxy) {
     // No proxy configured — direct call (will fail if IP-whitelisted)
