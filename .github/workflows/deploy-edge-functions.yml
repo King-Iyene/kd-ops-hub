@@ -52,6 +52,13 @@ jobs:
           rm -f supabase.deb
           supabase --version
 
+      - name: Set Paystack proxy secrets
+        run: |
+          supabase secrets set \
+            PAYSTACK_PROXY_URL="${{ secrets.PAYSTACK_PROXY_URL }}" \
+            PAYSTACK_PROXY_KEY="${{ secrets.PROXY_KEY }}" \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
       - name: Deploy paystack-transfer
         run: supabase functions deploy paystack-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
