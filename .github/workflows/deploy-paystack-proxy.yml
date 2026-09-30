@@ -51,22 +51,44 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+      # Allocate a static EGRESS IP so outbound traffic has a stable address.
+      # This is idempotent — if one already exists for lhr it prints a warning and continues.
+      - name: Ensure static egress IP (lhr)
+        working-directory: paystack-proxy
+        run: |
+          echo "Checking for existing egress IPs..."
+          EXISTING=$(flyctl ips list --app kdops-paystack-proxy 2>&1 | grep -i egress || true)
+          if [ -z "$EXISTING" ]; then
+            echo "No egress IP found — allocating one in lhr..."
+            flyctl ips allocate-egress --app kdops-paystack-proxy -r lhr -y
+          else
+            echo "Egress IP already allocated:"
+            echo "$EXISTING"
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
       - name: Deploy to Fly.io
         working-directory: paystack-proxy
         run: flyctl deploy --remote-only --app kdops-paystack-proxy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      # Print the static IP — copy this to Paystack's IP whitelist
-      - name: Show static IPs (whitelist these on Paystack)
+      # Print ALL IPs including the egress IP — the EGRESS IPv4 is what Paystack needs
+      - name: Show IPs (whitelist the EGRESS IPv4 on Paystack)
         working-directory: paystack-proxy
         run: |
           echo "══════════════════════════════════════════════════"
-          echo "  STATIC IPs — ADD THESE TO PAYSTACK WHITELIST"
+          echo "  ALL IPs (look for 'egress' type)"
           echo "══════════════════════════════════════════════════"
           flyctl ips list --app kdops-paystack-proxy
+          echo ""
           echo "══════════════════════════════════════════════════"
-          echo "  Proxy URL: https://kdops-paystack-proxy.fly.dev"
+          echo "  ⚠️  WHITELIST THE EGRESS IPv4 ON PAYSTACK"
+          echo "  (NOT the v4/v6 public IPs — those are inbound)"
+          echo "══════════════════════════════════════════════════"
+          echo "  After deploy, verify with:"
+          echo "  curl https://kdops-paystack-proxy.fly.dev/diag/ip"
           echo "══════════════════════════════════════════════════"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
