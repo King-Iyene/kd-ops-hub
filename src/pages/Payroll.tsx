@@ -1279,6 +1279,182 @@ const Payroll = () => {
     load();
   };
 
+  const confirmAndPay = async (run: PayrollRun) => {
+    if (!run.company_id) {
+      toast({ title: 'Missing company', description: 'This auto-draft has no company assigned.', variant: 'destructive' });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Confirm & Pay',
+      description: `This will compute salary figures for ${run.period}, approve the run, and schedule disbursement. Payslips will be generated automatically.`,
+    });
+    if (!ok) return;
+
+    setWorking(true);
+    try {
+      const [y, m] = run.period.split('-');
+      const year = parseInt(y, 10);
+      const month = parseInt(m, 10);
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59);
+      const periodStart = start.toISOString().slice(0, 10);
+
+      const excludedRes = await (supabase as any)
+        .from('payslip_adjustments')
+        .select('employee_id')
+        .eq('payroll_run_id', run.id)
+        .eq('kind', 'exclude');
+      const excludedEmployeeIds = new Set(
+        ((excludedRes.data || []) as { employee_id: string }[]).map((r) => r.employee_id),
+      );
+
+      const [contractorRes, expensesRes, employeeRes, deductionsRes, advancesRes] = await Promise.all([
+        supabase.from('payment_batches').select('total_amount, payment_date, status')
+          .eq('batch_type', 'contractor').in('status', ['processed', 'funded']).is('deleted_at', null)
+          .gte('payment_date', start.toISOString()).lte('payment_date', end.toISOString()),
+        supabase.from('expenses').select('amount_ngn, date, status')
+          .eq('status', 'approved').is('deleted_at', null)
+          .gte('date', start.toISOString()).lte('date', end.toISOString()),
+        supabase.from('profiles')
+          .select('id, full_name, first_name, last_name, email, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employment_type, pay_group_id, start_date, tax_id, tin, pension_pin, nhf_number, nhis_enabled, nhis_number')
+          .eq('status', 'active').neq('role', 'driver'),
+        supabase.from('employee_deductions').select('id, entity_id, entity_type, amount_ngn, total_deductible_amount, amount_deducted_to_date')
+          .eq('status', 'active').lte('start_date', periodStart).or(`end_date.is.null,end_date.gte.${periodStart}`),
+        supabase.from('employee_advances').select('id, employee_id, deduction_per_month, outstanding_ngn')
+          .eq('status', 'active').lte('start_period', run.period),
+      ]);
+
+      const apCompanyPayGroupIds = await fetchCompanyPayGroupIds(run.company_id);
+      const companyEmployees = ((employeeRes.data || []) as any[]).filter(
+        (e) => e.pay_group_id && apCompanyPayGroupIds.has(e.pay_group_id),
+      );
+      const filteredEmployees = companyEmployees.filter((e: any) => !excludedEmployeeIds.has(e.id));
+
+      const totalContractor = (contractorRes.data || []).reduce((s, r: any) => s + Number(r.total_amount || 0), 0) || 0;
+      const totalExpenses = (expensesRes.data || []).reduce((s, r: any) => s + Number(r.amount_ngn || 0), 0) || 0;
+      const totalEmployee = filteredEmployees.reduce((s, r: any) => s + Number(r.salary_ngn || 0), 0) || 0;
+      const empCount = filteredEmployees.length;
+
+      const paye = filteredEmployees.reduce((s: number, r: any) => {
+        if (r.paye_enabled === false) return s;
+        const useComps = !!r.use_salary_components;
+        const basic = Number(r.basic_ngn || 0);
+        const housing = Number(r.housing_ngn || 0);
+        const transport = Number(r.transport_ngn || 0);
+        const other = Number(r.other_allowances_ngn || 0);
+        const gross = useComps ? (basic + housing + transport + other) : Number(r.salary_ngn || 0);
+        return s + computePayslip({
+          grossMonthlyNgn: gross,
+          pensionEnabled: companySettings?.pension_enabled !== false && r.pension_enabled !== false,
+          payeEnabled: companySettings?.paye_enabled !== false,
+          nhfEnabled: companySettings?.nhf_enabled === true && r.nhf_enabled === true,
+          voluntaryPensionPct: Number(r.voluntary_pension_pct || 0),
+          useComponents: useComps,
+          basicMonthlyNgn: basic,
+          housingMonthlyNgn: housing,
+          transportMonthlyNgn: transport,
+          otherAllowancesMonthlyNgn: other,
+        }).payeMonthlyNgn;
+      }, 0);
+
+      const pensionBaseFor = (r: any) => {
+        const useComps = !!r.use_salary_components;
+        return useComps
+          ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0)
+          : Number(r.salary_ngn || 0);
+      };
+      const nhfBaseFor = (r: any) =>
+        r.use_salary_components ? Number(r.basic_ngn || 0) : Number(r.salary_ngn || 0);
+      const companyPensionOn = companySettings?.pension_enabled !== false;
+      const companyNhfOn = companySettings?.nhf_enabled === true;
+      const pension = filteredEmployees.reduce(
+        (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
+      const nhf = filteredEmployees.reduce(
+        (s: number, r: any) => s + (companyNhfOn && r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
+      const employerPension = filteredEmployees.reduce(
+        (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
+      const qualifyingDeductions = (deductionsRes.data || []).filter((d: any) =>
+        d.total_deductible_amount == null ||
+        Number(d.amount_deducted_to_date || 0) < Number(d.total_deductible_amount),
+      );
+      const totalDeductions = qualifyingDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn || 0), 0);
+      const totalAdvanceRepayments = (advancesRes.data || []).reduce(
+        (s: number, a: any) => s + advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn), 0);
+      const includeNsitf = (companySettings as any)?.nsitf_enabled !== false;
+      const nsitfCharge = includeNsitf ? totalEmployee * NSITF_RATE : 0;
+      const companyNhisOn = companySettings?.nhis_enabled === true;
+      const nhisEmployer = companyNhisOn
+        ? filteredEmployees.reduce((s: number, r: any) => s + (r.nhis_enabled === true ? nhfBaseFor(r) * NHIS_EMPLOYER_RATE : 0), 0) : 0;
+
+      const discretionaryRequested = totalDeductions + totalAdvanceRepayments;
+      const discretionaryAvailable = Math.max(0, totalEmployee);
+      const discretionaryApplied = Math.min(discretionaryRequested, discretionaryAvailable);
+      const burn = totalEmployee + employerPension + nsitfCharge + nhisEmployer - discretionaryApplied;
+
+      const runOptions: Record<string, boolean> = {
+        include_paye: true, include_pension: true, include_nhf: true,
+        include_nhis: true, include_dev_levy: true, include_advances: true,
+        include_deductions: true, include_ewa: true,
+      };
+
+      const { error: upsertErr } = await supabase.rpc('upsert_payroll_draft', {
+        p_period: run.period,
+        p_segment_id: run.payroll_segment_id || null,
+        p_total_contractor_ngn: totalContractor,
+        p_total_employee_ngn: totalEmployee,
+        p_total_expenses_ngn: totalExpenses,
+        p_paye_ngn: paye,
+        p_pension_ngn: pension,
+        p_nhf_ngn: nhf,
+        p_employer_pension_ngn: employerPension,
+        p_total_burn_ngn: burn,
+        p_created_by: profile?.id || null,
+        p_company_id: run.company_id,
+        p_run_options: runOptions,
+        p_period_type: run.period_type || 'monthly',
+        p_employee_count: empCount,
+        p_bonuses_json: null,
+        p_allowances_json: null,
+      });
+      if (upsertErr) throw upsertErr;
+
+      toast({ title: 'Figures computed', description: `${empCount} employees, ${formatNaira(burn)} total burn` });
+
+      const { error: submitErr } = await supabase
+        .from('payroll_runs').update({ status: 'pending_approval' }).eq('id', run.id);
+      if (submitErr) throw submitErr;
+
+      const { error: approveErr } = await supabase.rpc('approve_payroll_run', { p_run_id: run.id });
+      if (approveErr) throw approveErr;
+
+      await supabase.rpc('auto_populate_filings_from_payroll', { p_payroll_run_id: run.id });
+
+      burst({ palette: 'success', count: 70 });
+      const anomalyCount = await scanPayrollRunAnomaliesSafe(run.id);
+
+      if (canGeneratePayslipsPerm) {
+        await generatePayslips({ ...run, status: 'approved', total_burn_ngn: burn, total_employee_ngn: totalEmployee, employee_count: empCount });
+      }
+
+      toast({
+        title: 'Auto-pay complete',
+        description: `${monthLabel(run.period)} — computed, approved, and scheduled for disbursement.` +
+          (anomalyCount > 0 ? ` ${anomalyCount} anomal${anomalyCount === 1 ? 'y' : 'ies'} flagged.` : ''),
+      });
+
+      await logAudit(
+        'payroll_auto_pay' as never,
+        `Auto-pay confirmed for ${monthLabel(run.period)} (${formatNaira(burn)} total burn, ${empCount} employees)`,
+        profile,
+      );
+    } catch (err: unknown) {
+      toast({ title: 'Auto-pay failed', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setWorking(false);
+      load();
+    }
+  };
+
   const openAdjustments = async (run: PayrollRun) => {
     setAdjustRun(run);
     setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: false });
@@ -2729,6 +2905,7 @@ const Payroll = () => {
             printRun={printRun}
             actOnAdvance={actOnAdvance}
             isSelfApprovalBlocked={isSelfApprovalBlocked}
+            confirmAndPay={confirmAndPay}
             companies={companies}
             showCompany={isAllCompanies && companies.length > 1}
           />

@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   UserMinus,
   UserCheck,
+  Zap,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -109,6 +110,7 @@ interface PayrollRunsTabProps {
   printRun: (run: PayrollRun) => void;
   actOnAdvance: (id: string, action: 'approve' | 'reject' | 'paid') => void;
   isSelfApprovalBlocked: (run: PayrollRun) => boolean;
+  confirmAndPay: (run: PayrollRun) => void;
   segments: { id: string; name: string }[];
   /** All companies, for labelling which company a run belongs to. */
   companies?: Company[];
@@ -204,6 +206,7 @@ export const PayrollRunsTab = ({
   printRun,
   actOnAdvance,
   isSelfApprovalBlocked,
+  confirmAndPay,
   segments,
   companies,
   showCompany,
@@ -227,6 +230,76 @@ export const PayrollRunsTab = ({
       .sort((a, b) => b.count - a.count);
   }, [runs, segments]);
   const visibleRuns = segmentFilter === '__all__' ? runs : runs.filter((r) => (r.payroll_segment_id || '__unfiltered__') === segmentFilter);
+
+  const autoPayDrafts = useMemo(
+    () => runs.filter((r) => isUncomputedAutoDraft(r) && r.pay_schedule_id),
+    [runs],
+  );
+
+  interface AutoPayInfo {
+    run: PayrollRun;
+    scheduleName: string;
+    payGroups: { id: string; name: string }[];
+    employeeCount: number;
+  }
+  const [autoPayRuns, setAutoPayRuns] = useState<AutoPayInfo[]>([]);
+  const [autoPayDismissed, setAutoPayDismissed] = useState<Set<string>>(new Set());
+  const [autoPayBusy, setAutoPayBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (autoPayDrafts.length === 0) { setAutoPayRuns([]); return; }
+    const scheduleIds = [...new Set(autoPayDrafts.map((r) => r.pay_schedule_id!))];
+    (async () => {
+      const { data: schedules } = await supabase
+        .from('pay_schedules')
+        .select('id, name, auto_pay')
+        .in('id', scheduleIds);
+      const autoPayScheduleIds = new Set(
+        ((schedules || []) as { id: string; name: string; auto_pay: boolean }[])
+          .filter((s) => s.auto_pay)
+          .map((s) => s.id),
+      );
+      const scheduleNameMap = new Map(
+        ((schedules || []) as { id: string; name: string }[]).map((s) => [s.id, s.name]),
+      );
+      const eligibleRuns = autoPayDrafts.filter((r) => autoPayScheduleIds.has(r.pay_schedule_id!));
+      if (eligibleRuns.length === 0) { setAutoPayRuns([]); return; }
+
+      const { data: groups } = await supabase
+        .from('pay_groups')
+        .select('id, name, pay_schedule_id')
+        .in('pay_schedule_id', [...autoPayScheduleIds])
+        .eq('is_active', true);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('pay_group_id')
+        .eq('status', 'active')
+        .neq('role', 'driver');
+      const countByGroup = new Map<string, number>();
+      for (const p of (profiles || []) as { pay_group_id: string | null }[]) {
+        if (p.pay_group_id) countByGroup.set(p.pay_group_id, (countByGroup.get(p.pay_group_id) ?? 0) + 1);
+      }
+      const groupsBySchedule = new Map<string, { id: string; name: string }[]>();
+      for (const g of (groups || []) as { id: string; name: string; pay_schedule_id: string }[]) {
+        const list = groupsBySchedule.get(g.pay_schedule_id) ?? [];
+        list.push({ id: g.id, name: g.name });
+        groupsBySchedule.set(g.pay_schedule_id, list);
+      }
+
+      setAutoPayRuns(eligibleRuns.map((run) => {
+        const pg = groupsBySchedule.get(run.pay_schedule_id!) ?? [];
+        const empCount = pg.reduce((s, g) => s + (countByGroup.get(g.id) ?? 0), 0);
+        return {
+          run,
+          scheduleName: scheduleNameMap.get(run.pay_schedule_id!) ?? 'Schedule',
+          payGroups: pg,
+          employeeCount: empCount,
+        };
+      }));
+    })();
+  }, [autoPayDrafts]);
+
+  const pendingAutoPay = autoPayRuns.filter((a) => !autoPayDismissed.has(a.run.id));
 
   return (
     <div className="space-y-3 sm:space-y-6">
@@ -252,6 +325,78 @@ export const PayrollRunsTab = ({
           >
             <X className="h-3.5 w-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Auto-pay verification panel — appears when the schedule cron has
+          created shell drafts for schedules that have auto_pay enabled.
+          The admin confirms once; the system computes, approves and
+          schedules disbursement in one click. */}
+      {pendingAutoPay.length > 0 && (
+        <div className="space-y-3 kd-animate-slide-up">
+          {pendingAutoPay.map(({ run, scheduleName, payGroups, employeeCount }) => (
+            <div
+              key={run.id}
+              className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06]"
+            >
+              <div className="px-5 py-5 sm:px-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        <Zap className="h-4 w-4" />
+                      </span>
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Auto-pay ready</span>
+                    </div>
+                    <p className="font-bold text-sm tracking-tight">
+                      {monthLabel(run.period, run.period_type)} — {scheduleName}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {employeeCount} employee{employeeCount !== 1 ? 's' : ''} across{' '}
+                      {payGroups.map((g) => g.name).join(', ') || 'linked pay groups'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-3">
+                      {['Compute', 'Submit', 'Approve', 'Disburse'].map((step, i) => (
+                        <span key={step} className="flex items-center gap-1.5">
+                          {i > 0 && <ChevronRight className="h-3 w-3 text-emerald-500/40" />}
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-3xs font-semibold text-emerald-700 dark:text-emerald-300">
+                            {step}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAutoPayDismissed((s) => new Set([...s, run.id]))}
+                      disabled={working || autoPayBusy === run.id}
+                    >
+                      Hold
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm gap-1.5"
+                      disabled={working || autoPayBusy === run.id}
+                      onClick={async () => {
+                        setAutoPayBusy(run.id);
+                        await confirmAndPay(run);
+                        setAutoPayBusy(null);
+                      }}
+                    >
+                      {autoPayBusy === run.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Zap className="h-3.5 w-3.5" />
+                      )}
+                      Confirm & Pay
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

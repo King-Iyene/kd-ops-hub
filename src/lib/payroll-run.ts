@@ -50,6 +50,7 @@ export interface PayrollRun {
   last_disbursement_attempted_at?: string | null;
   last_disbursement_error?: string | null;
   is_auto_generated?: boolean;
+  pay_schedule_id?: string | null;
   run_options?: {
     include_paye?: boolean;
     include_pension?: boolean;
