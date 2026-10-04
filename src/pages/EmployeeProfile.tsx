@@ -1182,13 +1182,10 @@ const EmployeeProfile = () => {
   // ── Compensation (derived from monthly gross) ────────────────────────────
   const hasSalary = !!employee.salary_ngn;
   const salary    = employee.salary_ngn || 0;
-  // Each statutory deduction has a per-employee toggle. Defaults match
-  // Nigerian regulatory baseline: PAYE + Pension on, NHF + NHIS off
-  // (NHF and NHIS only become mandatory in specific cases).
-  const payeOn    = employee.paye_enabled !== false;    // default true
-  const pensionOn = employee.pension_enabled !== false; // default true
-  const nhfOn     = employee.nhf_enabled === true;      // default false
-  const nhisOn    = employee.nhis_enabled === true;     // default false
+  const payeOn    = employee.paye_enabled === true;
+  const pensionOn = employee.pension_enabled === true;
+  const nhfOn     = employee.nhf_enabled === true;
+  const nhisOn    = employee.nhis_enabled === true;
 
   const payslipBreakdown = hasSalary
     ? computePayslip({

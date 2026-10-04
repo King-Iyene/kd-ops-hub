@@ -1,11 +1,11 @@
-import { Loader2, Shield } from 'lucide-react';
+import { Loader2, Shield, FileText, Building2, Home, HeartPulse, PiggyBank } from 'lucide-react';
 import type { EmployeeData, EditSection } from './types';
 import { MaskedNin } from '@/components/ui-kit/MaskedNin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -20,27 +20,84 @@ interface Props {
   canManage: boolean;
 }
 
+const STATUTORY_ROWS = [
+  {
+    key: 'paye' as const,
+    label: 'PAYE Tax',
+    rate: 'NTA 2025 progressive bands (0–25%)',
+    numberField: 'tax_id',
+    flagField: 'paye_enabled',
+    defaultFlag: false,
+    placeholder: 'Tax ID / TIN — e.g. 12345678-0001',
+    icon: FileText,
+    color: 'text-blue-500 dark:text-blue-400',
+    bg: 'bg-blue-500/10 dark:bg-blue-500/15',
+  },
+  {
+    key: 'pension' as const,
+    label: 'Pension (RSA)',
+    rate: '8% employee · 10% employer',
+    numberField: 'pension_pin',
+    flagField: 'pension_enabled',
+    defaultFlag: false,
+    placeholder: 'RSA PIN — e.g. PEN100000000000',
+    icon: PiggyBank,
+    color: 'text-emerald-500 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+  },
+  {
+    key: 'nhf' as const,
+    label: 'NHF (Housing Fund)',
+    rate: '2.5% of basic',
+    numberField: 'nhf_number',
+    flagField: 'nhf_enabled',
+    defaultFlag: false,
+    placeholder: 'NHF contribution number',
+    icon: Home,
+    color: 'text-amber-500 dark:text-amber-400',
+    bg: 'bg-amber-500/10 dark:bg-amber-500/15',
+  },
+  {
+    key: 'nhis' as const,
+    label: 'NHIS / HMO',
+    rate: 'Mandatory for orgs 10+',
+    numberField: 'nhis_number',
+    flagField: 'nhis_enabled',
+    defaultFlag: false,
+    placeholder: 'NHIS enrollment number',
+    icon: HeartPulse,
+    color: 'text-rose-500 dark:text-rose-400',
+    bg: 'bg-rose-500/10 dark:bg-rose-500/15',
+  },
+] as const;
+
 export default function StatutoryTab({
   employee, form, patch, editingSection, sectionSaving,
   startEdit, cancelEdit, saveSection, canManage,
 }: Props) {
   return (
     <div className="mt-4 space-y-4">
-      <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3 text-sm text-indigo-900 flex items-start gap-2">
-        <Shield className="h-4 w-4 mt-0.5 shrink-0" />
-        <div>
-          <p className="font-medium">Nigerian statutory identity & benefits</p>
-          <p className="text-xs text-indigo-800/80">
-            These numbers are required for PAYE filing, pension remittance, NHF, and NHIS.
-            Only admins see or edit this data. Toggle deduction flags per employee.
+      <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm flex items-start gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+          <Shield className="h-4 w-4 text-primary" />
+        </div>
+        <div className="pt-0.5">
+          <p className="font-medium text-foreground">Nigerian statutory identity & benefits</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Required for PAYE filing, pension remittance, NHF, and NHIS. Only admins see or edit this data.
           </p>
         </div>
       </div>
 
-      {/* Identity numbers */}
+      {/* ── Identity numbers ─────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Identity Numbers</CardTitle>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <CardTitle className="text-base">Identity Numbers</CardTitle>
+          </div>
           {canManage && editingSection !== 'identity' && (
             <Button size="sm" variant="outline" onClick={() => startEdit('identity')}>Edit</Button>
           )}
@@ -99,17 +156,22 @@ export default function StatutoryTab({
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted-foreground">TIN</dt>
-                <dd className="font-mono">{employee.tin || <span className="text-muted-foreground">Not set</span>}</dd>
+                <dd className="font-mono">{employee.tin || <span className="text-muted-foreground italic text-xs">Not set</span>}</dd>
               </div>
             </dl>
           )}
         </CardContent>
       </Card>
 
-      {/* Statutory benefits with toggles */}
+      {/* ── Statutory benefits ───────────────────────────────── */}
       <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Statutory Benefits</CardTitle>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <CardTitle className="text-base">Statutory Benefits</CardTitle>
+          </div>
           {canManage && editingSection !== 'statutory' && (
             <Button size="sm" variant="outline" onClick={() => startEdit('statutory')}>Edit</Button>
           )}
@@ -120,12 +182,12 @@ export default function StatutoryTab({
                 size="sm"
                 onClick={() => saveSection('Statutory benefits', {
                   pension_pin: form.pension_pin || null,
-                  pension_enabled: form.pension_enabled ?? true,
+                  pension_enabled: form.pension_enabled ?? false,
                   nhf_number: form.nhf_number || null,
                   nhf_enabled: form.nhf_enabled ?? false,
                   nhis_number: form.nhis_number || null,
                   nhis_enabled: form.nhis_enabled ?? false,
-                  paye_enabled: form.paye_enabled ?? true,
+                  paye_enabled: form.paye_enabled ?? false,
                   tax_id: form.tax_id || null,
                   voluntary_pension_pct: Math.max(0, form.voluntary_pension_pct ?? 0),
                 })}
@@ -137,127 +199,128 @@ export default function StatutoryTab({
             </div>
           )}
         </CardHeader>
-        <CardContent className="space-y-5">
-          {([
-            {
-              key: 'paye' as const,
-              label: 'PAYE Tax',
-              rate: 'NTA 2025 progressive bands (0–25%)',
-              numberField: 'tax_id',
-              flagField: 'paye_enabled',
-              defaultFlag: true,
-              placeholder: 'Tax ID / TIN — e.g. 12345678-0001',
-            },
-            {
-              key: 'pension' as const,
-              label: 'Pension (RSA)',
-              rate: '8% employee · 10% employer',
-              numberField: 'pension_pin',
-              flagField: 'pension_enabled',
-              defaultFlag: true,
-              placeholder: 'RSA PIN — e.g. PEN100000000000',
-            },
-            {
-              key: 'nhf' as const,
-              label: 'NHF (Housing Fund)',
-              rate: '2.5% of basic',
-              numberField: 'nhf_number',
-              flagField: 'nhf_enabled',
-              defaultFlag: false,
-              placeholder: 'NHF contribution number',
-            },
-            {
-              key: 'nhis' as const,
-              label: 'NHIS / HMO',
-              rate: 'Mandatory for orgs 10+',
-              numberField: 'nhis_number',
-              flagField: 'nhis_enabled',
-              defaultFlag: false,
-              placeholder: 'NHIS enrollment number',
-            },
-          ]).map((row) => {
+        <CardContent className="space-y-0">
+          {STATUTORY_ROWS.map((row, i) => {
             const isOn = editingSection === 'statutory'
               ? ((form as any)[row.flagField] ?? row.defaultFlag)
               : ((employee as any)[row.flagField] ?? row.defaultFlag);
             const num = editingSection === 'statutory'
               ? ((form as any)[row.numberField] || '')
               : ((employee as any)[row.numberField] || '');
+            const Icon = row.icon;
+
             return (
-              <div key={row.key} className="flex flex-col gap-2 pb-4 border-b last:border-0 last:pb-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-sm">{row.label}</p>
-                    <p className="text-xs text-muted-foreground">{row.rate}</p>
-                  </div>
-                  <Badge className={cn(
-                    'text-xs',
-                    isOn
-                      ? 'bg-success/10 text-success hover:bg-success/10'
-                      : 'bg-muted text-muted-foreground hover:bg-muted',
-                  )}>
-                    {isOn ? 'Active' : 'Inactive'}
-                  </Badge>
+              <div
+                key={row.key}
+                className={cn(
+                  'flex items-start gap-3 py-4',
+                  i > 0 && 'border-t border-border/50',
+                )}
+              >
+                <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl shrink-0 mt-0.5', row.bg)}>
+                  <Icon className={cn('h-4 w-4', row.color)} />
                 </div>
-                {editingSection === 'statutory' ? (
-                  <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-                    <div className="space-y-1">
-                      <Label htmlFor={`statutory-ref-${row.key}`} className="text-xs">Reference number</Label>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{row.label}</p>
+                      <p className="text-xs text-muted-foreground">{row.rate}</p>
+                    </div>
+                    {editingSection === 'statutory' ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={cn('text-xs', isOn ? 'text-success' : 'text-muted-foreground')}>
+                          {isOn ? 'On' : 'Off'}
+                        </span>
+                        <Switch
+                          checked={isOn}
+                          onCheckedChange={(v) => patch({ [row.flagField]: v } as any)}
+                        />
+                      </div>
+                    ) : (
+                      <div className={cn(
+                        'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full shrink-0',
+                        isOn
+                          ? 'bg-success/10 text-success'
+                          : 'bg-muted text-muted-foreground',
+                      )}>
+                        <span className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          isOn ? 'bg-success' : 'bg-muted-foreground/50',
+                        )} />
+                        {isOn ? 'Active' : 'Inactive'}
+                      </div>
+                    )}
+                  </div>
+
+                  {editingSection === 'statutory' ? (
+                    <div className="mt-2">
+                      <Label htmlFor={`statutory-ref-${row.key}`} className="text-xs text-muted-foreground">
+                        Reference number
+                      </Label>
                       <Input
                         id={`statutory-ref-${row.key}`}
                         value={num}
                         onChange={(e) => patch({ [row.numberField]: e.target.value } as any)}
                         placeholder={row.placeholder}
+                        className="mt-1 h-8 text-sm"
                       />
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={isOn ? 'default' : 'outline'}
-                      onClick={() => patch({ [row.flagField]: !isOn } as any)}
-                    >
-                      {isOn ? 'Turn off' : 'Turn on'}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-sm font-mono text-muted-foreground">
-                    {num || <span className="italic">No number on file</span>}
-                  </p>
-                )}
+                  ) : (
+                    <p className={cn(
+                      'text-xs mt-1',
+                      num ? 'font-mono text-muted-foreground' : 'text-muted-foreground/60 italic',
+                    )}>
+                      {num || 'No reference number'}
+                    </p>
+                  )}
+                </div>
               </div>
             );
           })}
 
-          {/* AVC — Additional Voluntary Contribution (PRA 2014 s.4.3) */}
-          <div className="flex flex-col gap-2 pt-4 border-t">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-medium text-sm">AVC (Voluntary Pension)</p>
-                <p className="text-xs text-muted-foreground">PRA 2014 s.4.3 — deducted pre-tax on pension base</p>
-              </div>
+          {/* ── AVC — Additional Voluntary Contribution ── */}
+          <div className="flex items-start gap-3 py-4 border-t border-border/50">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 dark:bg-violet-500/15 shrink-0 mt-0.5">
+              <PiggyBank className="h-4 w-4 text-violet-500 dark:text-violet-400" />
             </div>
-            {editingSection === 'statutory' ? (
-              <div className="flex items-end gap-3">
-                <div className="space-y-1 w-32">
-                  <Label htmlFor="voluntary_pension_pct" className="text-xs">Rate (%)</Label>
-                  <Input
-                    id="voluntary_pension_pct"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={form.voluntary_pension_pct ?? 0}
-                    onChange={(e) => patch({ voluntary_pension_pct: Number(e.target.value) || 0 })}
-                  />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">AVC (Voluntary Pension)</p>
+                  <p className="text-xs text-muted-foreground">PRA 2014 s.4.3 — deducted pre-tax on pension base</p>
                 </div>
-                <p className="text-xs text-muted-foreground pb-2">% of pension base, in addition to mandatory 8%</p>
               </div>
-            ) : (
-              <p className="text-sm font-mono text-muted-foreground">
-                {(employee.voluntary_pension_pct ?? 0) > 0
-                  ? `${employee.voluntary_pension_pct}%`
-                  : <span className="italic">Not set (0%)</span>}
-              </p>
-            )}
+              {editingSection === 'statutory' ? (
+                <div className="flex items-end gap-3 mt-2">
+                  <div className="space-y-1 w-28">
+                    <Label htmlFor="voluntary_pension_pct" className="text-xs text-muted-foreground">Rate (%)</Label>
+                    <Input
+                      id="voluntary_pension_pct"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={form.voluntary_pension_pct ?? 0}
+                      onChange={(e) => patch({ voluntary_pension_pct: Number(e.target.value) || 0 })}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground pb-2">of pension base, in addition to mandatory 8%</p>
+                </div>
+              ) : (
+                <p className={cn(
+                  'text-xs mt-1',
+                  (employee.voluntary_pension_pct ?? 0) > 0
+                    ? 'font-mono text-muted-foreground'
+                    : 'text-muted-foreground/60 italic',
+                )}>
+                  {(employee.voluntary_pension_pct ?? 0) > 0
+                    ? `${employee.voluntary_pension_pct}%`
+                    : 'Not set (0%)'}
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
