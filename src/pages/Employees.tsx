@@ -214,7 +214,7 @@ const Employees = () => {
       .order('created_at', { ascending: false });
 
     if (!showInactive) {
-      query = query.eq('status', 'active');
+      query = query.in('status', ['active', 'invited']);
     }
     if (roleFilter !== 'all') {
       query = query.eq('role', roleFilter);
@@ -359,19 +359,40 @@ const Employees = () => {
       if (inviteErr) throw inviteErr;
 
       // Step 2 — pre-seed the invited profile so the employee shows up with
-      // status='invited' before accepting.
-      await supabase.rpc('seed_invited_profile', {
-        p_email: form.email.trim().toLowerCase(),
+      // status='invited' before accepting. The RPC silently returns if a
+      // profile with this email already exists, so check for that case and
+      // surface it to the admin instead of proceeding as if it worked.
+      const normalizedEmail = form.email.trim().toLowerCase();
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, status')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (existingProfile) {
+        const statusLabel = existingProfile.status === 'invited' ? 'an invited' : existingProfile.status === 'active' ? 'an active' : 'an inactive';
+        toast({
+          title: 'Employee already exists',
+          description: `${existingProfile.full_name || normalizedEmail} is already ${statusLabel} employee with this email. Search for "${existingProfile.full_name || normalizedEmail}" in the employee list.`,
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      const { error: seedErr } = await supabase.rpc('seed_invited_profile', {
+        p_email: normalizedEmail,
         p_full_name: fullName,
         p_phone: form.phone || null,
         p_role: form.role,
       });
+      if (seedErr) throw seedErr;
 
       // Step 3 — send the OTP magic-link invite email. Supabase auto-creates
       // the auth user on click and the DB trigger handles role assignment.
       const redirect = `${window.location.origin}/reset-password`;
       const { error: otpErr } = await supabase.auth.signInWithOtp({
-        email: form.email.trim().toLowerCase(),
+        email: normalizedEmail,
         options: {
           shouldCreateUser: true,
           emailRedirectTo: redirect,
