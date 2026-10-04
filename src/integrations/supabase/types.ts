@@ -8532,6 +8532,7 @@ export type Database = {
           created_at: string
           employee_id: string | null
           employee_name: string
+          excluded: boolean
           gross_ngn: number
           id: string
           net_ngn: number
@@ -8547,6 +8548,7 @@ export type Database = {
           created_at?: string
           employee_id?: string | null
           employee_name: string
+          excluded?: boolean
           gross_ngn?: number
           id?: string
           net_ngn?: number
@@ -8562,6 +8564,7 @@ export type Database = {
           created_at?: string
           employee_id?: string | null
           employee_name?: string
+          excluded?: boolean
           gross_ngn?: number
           id?: string
           net_ngn?: number
@@ -9033,6 +9036,7 @@ export type Database = {
           employee_email: string | null
           employee_id: string | null
           employee_name: string
+          excluded: boolean
           generated_by: string | null
           gross_ngn: number
           id: string
@@ -9058,6 +9062,7 @@ export type Database = {
           employee_email?: string | null
           employee_id?: string | null
           employee_name: string
+          excluded?: boolean
           generated_by?: string | null
           gross_ngn?: number
           id?: string
@@ -9083,6 +9088,7 @@ export type Database = {
           employee_email?: string | null
           employee_id?: string | null
           employee_name?: string
+          excluded?: boolean
           generated_by?: string | null
           gross_ngn?: number
           id?: string

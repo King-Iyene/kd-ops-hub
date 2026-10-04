@@ -362,9 +362,13 @@ const Payroll = () => {
   };
 
   const deleteSegment = async (segmentId: string, name: string) => {
-    // Soft-deactivate rather than hard delete — payroll_runs.payroll_segment_id
-    // references this row, and past runs should keep showing which segment
-    // they used even after it's retired from the picker.
+    const ok = await confirm({
+      title: 'Remove segment?',
+      body: `"${name}" will no longer appear in the segment picker. Past runs that used it will keep their reference for records.`,
+      confirm: 'Remove',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     const { error } = await (supabase as any).from('payroll_segments').update({ is_active: false }).eq('id', segmentId);
     if (error) {
       toast({ title: 'Could not remove segment', description: error.message, variant: 'destructive' });
@@ -1333,6 +1337,16 @@ const Payroll = () => {
   };
 
   const removeAdjustment = async (id: string) => {
+    const adj = adjustList.find((a) => a.id === id);
+    const ok = await confirm({
+      title: 'Remove adjustment?',
+      body: adj
+        ? `This will delete the ${adj.type} adjustment${adj.employee_name ? ` for ${adj.employee_name}` : ''} (${formatNaira(Math.abs(Number(adj.amount_ngn ?? 0)))}). Re-generate payslips afterwards to recalculate.`
+        : 'This will permanently delete this adjustment.',
+      confirm: 'Remove',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     const { error } = await (supabase as any).from('payslip_adjustments').delete().eq('id', id);
     if (error) { toast({ title: 'Could not remove', description: error.message, variant: 'destructive' }); return; }
     setAdjustList((l) => l.filter((a) => a.id !== id));
@@ -2092,7 +2106,7 @@ const Payroll = () => {
     try {
       const { data: slips, error } = await supabase
         .from('payslips')
-        .select('id, employee_id, employee_name, net_ngn')
+        .select('id, employee_id, employee_name, net_ngn, excluded')
         .eq('payroll_run_id', run.id);
       if (error) throw error;
       if (!slips || slips.length === 0) {
@@ -2152,6 +2166,16 @@ const Payroll = () => {
   };
 
   const doCancelSchedule = async (run: PayrollRun) => {
+    const scheduledLabel = run.scheduled_disburse_at
+      ? new Date(run.scheduled_disburse_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'the scheduled time';
+    const ok = await confirm({
+      title: 'Cancel scheduled disbursement?',
+      body: `This will cancel the salary payout for ${run.period} that is scheduled for ${scheduledLabel}. You can reschedule or disburse manually afterwards.`,
+      confirm: 'Cancel schedule',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const { error } = await supabase.rpc('cancel_scheduled_payroll_disbursement', { p_run_id: run.id });
       if (error) throw error;

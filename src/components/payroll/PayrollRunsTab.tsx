@@ -23,6 +23,8 @@ import {
   History,
   AlertCircle,
   AlertTriangle,
+  UserMinus,
+  UserCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -687,24 +689,29 @@ function RunPayslipsSection({
   runId,
   period,
   refreshKey,
+  runStatus,
 }: {
   runId: string;
   /** Used to name the downloaded archive, e.g. payslips-2026-11.zip. */
   period?: string | null;
   refreshKey?: string | null;
+  runStatus?: string;
 }) {
   const { toast } = useToast();
   const [payslips, setPayslips] = useState<any[] | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [preview, setPreview] = useState<PayslipPreviewState | null>(null);
   const [zipProgress, setZipProgress] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const canExclude = runStatus === 'approved';
 
   useEffect(() => {
     let cancelled = false;
     setPayslips(null);
     supabase
       .from('payslips')
-      .select('id, employee_id, employee_name, net_ngn, gross_ngn, storage_path')
+      .select('id, employee_id, employee_name, net_ngn, gross_ngn, storage_path, excluded')
       .eq('payroll_run_id', runId)
       .order('employee_name', { ascending: true })
       .then(({ data, error }) => {
@@ -715,11 +722,28 @@ function RunPayslipsSection({
         setPayslips((data as any[]) || []);
       });
     return () => { cancelled = true; };
-    // refreshKey (the run's updated_at) intentionally re-triggers this fetch
-    // any time the run changes for ANY reason (generated, re-generated,
-    // disbursed, etc.) — payslips used to only load once per drawer-open,
-    // so "Generate payslips" left this list stale until a full page reload.
   }, [runId, refreshKey, toast]);
+
+  const toggleExclude = async (slip: any) => {
+    const newVal = !slip.excluded;
+    setTogglingId(slip.id);
+    const { error } = await supabase
+      .from('payslips')
+      .update({ excluded: newVal })
+      .eq('id', slip.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setPayslips((prev) =>
+      prev?.map((s) => (s.id === slip.id ? { ...s, excluded: newVal } : s)) ?? null
+    );
+    toast({
+      title: newVal ? 'Employee excluded' : 'Employee included',
+      description: `${slip.employee_name} will ${newVal ? 'not' : ''} be paid when you disburse.`,
+    });
+  };
 
   const viewPayslip = async (slip: any) => {
     if (!slip.storage_path) {
@@ -850,6 +874,10 @@ function RunPayslipsSection({
   }
   if (payslips.length === 0) return null;
 
+  const activeSlips = payslips.filter((s) => !s.excluded);
+  const excludedSlips = payslips.filter((s) => s.excluded);
+  const activeNet = activeSlips.reduce((sum, s) => sum + Number(s.net_ngn || 0), 0);
+
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -866,21 +894,63 @@ function RunPayslipsSection({
           {zipProgress ?? 'Download all'}
         </button>
       </div>
+
+      {canExclude && excludedSlips.length > 0 && (
+        <div className="mb-2 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <UserMinus className="h-4 w-4 shrink-0 text-amber-500" />
+          <div className="flex-1 text-xs">
+            <span className="font-semibold text-amber-600 dark:text-amber-400">{excludedSlips.length} excluded</span>
+            <span className="text-muted-foreground"> — will not be paid on disbursement. </span>
+            <span className="font-medium tabular-nums">{formatNaira(activeNet)}</span>
+            <span className="text-muted-foreground"> to disburse to {activeSlips.length} {activeSlips.length === 1 ? 'employee' : 'employees'}.</span>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border border-border/60 divide-y divide-border/50">
         {payslips.map((slip) => (
-          <button
+          <div
             key={slip.id}
-            type="button"
-            onClick={() => viewPayslip(slip)}
-            disabled={openingId === slip.id}
-            className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-sm text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors disabled:opacity-60"
+            className={cn(
+              'flex items-center gap-2 px-2.5 py-2 text-sm transition-colors',
+              slip.excluded && 'opacity-50'
+            )}
           >
-            <span className="font-medium truncate">{slip.employee_name}</span>
-            <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-              <span className="tabular-nums text-foreground">{formatNaira(slip.net_ngn)}</span>
-              {openingId === slip.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
-            </span>
-          </button>
+            {canExclude && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggleExclude(slip); }}
+                disabled={togglingId === slip.id}
+                title={slip.excluded ? 'Include in disbursement' : 'Exclude from disbursement'}
+                className={cn(
+                  'shrink-0 flex items-center justify-center h-7 w-7 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  slip.excluded
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
+                    : 'border-border/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                )}
+              >
+                {togglingId === slip.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : slip.excluded ? (
+                  <UserMinus className="h-3.5 w-3.5" />
+                ) : (
+                  <UserCheck className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => viewPayslip(slip)}
+              disabled={openingId === slip.id}
+              className="flex-1 flex items-center justify-between gap-2 text-left hover:bg-muted/40 rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors disabled:opacity-60"
+            >
+              <span className={cn('font-medium truncate', slip.excluded && 'line-through')}>{slip.employee_name}</span>
+              <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <span className={cn('tabular-nums', slip.excluded ? 'text-muted-foreground line-through' : 'text-foreground')}>{formatNaira(slip.net_ngn)}</span>
+                {openingId === slip.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
+              </span>
+            </button>
+          </div>
         ))}
       </div>
       <PayslipPreviewDialog slip={preview} onClose={() => setPreview(null)} />
@@ -998,7 +1068,7 @@ function RunDetailDrawer({
             <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} companyId={r.company_id} />
           </div>
 
-          <RunPayslipsSection runId={r.id} period={r.period} refreshKey={r.updated_at} />
+          <RunPayslipsSection runId={r.id} period={r.period} refreshKey={r.updated_at} runStatus={r.status} />
 
           <div>
             <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>

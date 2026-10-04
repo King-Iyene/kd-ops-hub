@@ -1105,6 +1105,14 @@ function HolidaysManager() {
   };
 
   const removeHoliday = async (id: string) => {
+    const h = items.find((x) => x.id === id);
+    const ok = await confirm({
+      title: 'Delete holiday?',
+      body: `"${h?.name || 'This holiday'}" will be permanently removed. Pay schedules that reference it will no longer skip this date.`,
+      confirm: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     await supabase.from('public_holidays').delete().eq('id', id);
     setItems((prev) => prev.filter((x) => x.id !== id));
   };

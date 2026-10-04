@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Users, UserPlus, UserMinus, Pencil, Search, X } from 'lucide-react';
+import { ArrowRight, Users, UserPlus, UserMinus, Pencil, Search, X, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
 import { displayName } from '@/lib/name';
-import { initials } from '@/lib/utils';
+import { cn, initials } from '@/lib/utils';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -295,6 +295,11 @@ function ManageMembersDialog({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [pendingAdds, setPendingAdds] = useState<AvailableEmployee[]>([]);
+  const [pendingRemoves, setPendingRemoves] = useState<Set<string>>(new Set());
+
+  const hasChanges = pendingAdds.length > 0 || pendingRemoves.size > 0;
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -314,42 +319,69 @@ function ManageMembersDialog({
     })();
   }, []);
 
-  const memberIds = new Set(currentMembers.map((m) => m.id));
+  const effectiveMembers = [
+    ...currentMembers.filter((m) => !pendingRemoves.has(m.id)),
+    ...pendingAdds.map((e) => ({ id: e.id, name: e.name, photo_url: e.photo_url, basic_ngn: 0, housing_ngn: 0, transport_ngn: 0, other_allowances_ngn: 0, salary_ngn: 0, use_salary_components: false, pension_enabled: true } as Member)),
+  ];
+  const effectiveIds = new Set(effectiveMembers.map((m) => m.id));
+  const pendingAddIds = new Set(pendingAdds.map((e) => e.id));
 
   const filtered = available.filter((e) => {
-    if (memberIds.has(e.id)) return false;
+    if (effectiveIds.has(e.id)) return false;
     if (!search.trim()) return true;
     return e.name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const addMember = async (emp: AvailableEmployee) => {
-    setSaving(true);
-    const { error } = await supabase.from('profiles').update({ pay_group_id: group.id }).eq('id', emp.id);
-    if (error) {
-      toast({ title: 'Failed to add member', description: error.message, variant: 'destructive' });
-      setSaving(false);
-      return;
+  const stageAdd = (emp: AvailableEmployee) => {
+    if (pendingRemoves.has(emp.id)) {
+      setPendingRemoves((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
+    } else {
+      setPendingAdds((prev) => [...prev, emp]);
     }
-    setCurrentMembers((prev) => [...prev, { id: emp.id, name: emp.name, photo_url: emp.photo_url, basic_ngn: 0, housing_ngn: 0, transport_ngn: 0, other_allowances_ngn: 0, salary_ngn: 0, use_salary_components: false, pension_enabled: true }]);
-    toast({ title: `${emp.name} added to ${group.name}` });
-    setSaving(false);
   };
 
-  const removeMember = async (member: Member) => {
-    setSaving(true);
-    const { error } = await supabase.from('profiles').update({ pay_group_id: null }).eq('id', member.id);
-    if (error) {
-      toast({ title: 'Failed to remove member', description: error.message, variant: 'destructive' });
-      setSaving(false);
-      return;
+  const stageRemove = (memberId: string) => {
+    if (pendingAddIds.has(memberId)) {
+      setPendingAdds((prev) => prev.filter((e) => e.id !== memberId));
+    } else {
+      setPendingRemoves((prev) => new Set(prev).add(memberId));
     }
-    setCurrentMembers((prev) => prev.filter((m) => m.id !== member.id));
-    toast({ title: `${member.name} removed from ${group.name}` });
-    setSaving(false);
   };
+
+  const saveChanges = async () => {
+    setSaving(true);
+    let failed = 0;
+
+    for (const emp of pendingAdds) {
+      const { error } = await supabase.from('profiles').update({ pay_group_id: group.id }).eq('id', emp.id);
+      if (error) failed++;
+    }
+
+    for (const id of pendingRemoves) {
+      const { error } = await supabase.from('profiles').update({ pay_group_id: null }).eq('id', id);
+      if (error) failed++;
+    }
+
+    setSaving(false);
+
+    if (failed > 0) {
+      toast({ title: 'Some changes failed', description: `${failed} update(s) could not be saved.`, variant: 'destructive' });
+    } else {
+      const parts: string[] = [];
+      if (pendingAdds.length > 0) parts.push(`${pendingAdds.length} added`);
+      if (pendingRemoves.size > 0) parts.push(`${pendingRemoves.size} removed`);
+      toast({ title: `Members updated`, description: parts.join(', ') });
+    }
+
+    setPendingAdds([]);
+    setPendingRemoves(new Set());
+    onSaved();
+  };
+
+  const changeCount = pendingAdds.length + pendingRemoves.size;
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) { onSaved(); } }}>
+    <Dialog open onOpenChange={(v) => { if (!v) { if (!hasChanges) { onSaved(); } else { _onClose(); } } }}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Edit members — {group.name}</DialogTitle>
@@ -359,33 +391,37 @@ function ManageMembersDialog({
         {/* Current members */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Current members ({currentMembers.length})
+            Current members ({effectiveMembers.length})
           </p>
           <div className="max-h-[200px] overflow-y-auto space-y-1">
-            {currentMembers.length === 0 && (
+            {effectiveMembers.length === 0 && (
               <p className="text-xs text-muted-foreground py-2">No members in this group.</p>
             )}
-            {currentMembers.map((m) => (
-              <div key={m.id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Avatar className="h-6 w-6">
-                    {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
-                    <AvatarFallback className="text-3xs">{initials(m.name)}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm truncate">{m.name}</span>
+            {effectiveMembers.map((m) => {
+              const isNew = pendingAddIds.has(m.id);
+              return (
+                <div key={m.id} className={cn('flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50', isNew && 'bg-emerald-500/10')}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-6 w-6">
+                      {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
+                      <AvatarFallback className="text-3xs">{initials(m.name)}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm truncate">{m.name}</span>
+                    {isNew && <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-400">new</span>}
+                  </div>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    disabled={saving}
+                    onClick={() => stageRemove(m.id)}
+                    aria-label={`Remove ${m.name}`}
+                  >
+                    <UserMinus className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  disabled={saving}
-                  onClick={() => removeMember(m)}
-                  aria-label={`Remove ${m.name}`}
-                >
-                  <UserMinus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -435,7 +471,7 @@ function ManageMembersDialog({
                     variant="ghost"
                     className="text-primary hover:text-primary hover:bg-primary/10 shrink-0"
                     disabled={saving}
-                    onClick={() => addMember(emp)}
+                    onClick={() => stageAdd(emp)}
                     aria-label={`Add ${emp.name}`}
                   >
                     <UserPlus className="h-3.5 w-3.5" />
@@ -445,6 +481,34 @@ function ManageMembersDialog({
             )}
           </div>
         </div>
+
+        {/* Save / cancel footer */}
+        {hasChanges && (
+          <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-3 mt-2">
+            <p className="text-xs text-muted-foreground">
+              {changeCount} unsaved {changeCount === 1 ? 'change' : 'changes'}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPendingAdds([]); setPendingRemoves(new Set()); }}
+                disabled={saving}
+              >
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={saveChanges}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Save changes
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

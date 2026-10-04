@@ -1008,7 +1008,11 @@ export const PayrollDialogs = ({
           </>
         }
       >
-          {disburseTarget && (
+          {disburseTarget && (() => {
+            const activeSlips = disburseTarget.payslips.filter((p: any) => !p.excluded);
+            const excludedCount = disburseTarget.payslips.length - activeSlips.length;
+            const activeTotal = activeSlips.reduce((s: number, p: any) => s + Number(p.net_ngn || 0), 0);
+            return (
             <div className="space-y-4">
               <div className="rounded-lg border p-4 space-y-2">
                 <div className="flex justify-between text-sm">
@@ -1016,13 +1020,19 @@ export const PayrollDialogs = ({
                   <span className="font-medium">{monthLabel(disburseTarget.run.period)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Employees</span>
-                  <span className="font-medium">{disburseTarget.payslips.length}</span>
+                  <span className="text-muted-foreground">Employees to pay</span>
+                  <span className="font-medium">{activeSlips.length}</span>
                 </div>
+                {excludedCount > 0 && (
+                  <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400">
+                    <span>Excluded</span>
+                    <span className="font-medium">{excludedCount} employee{excludedCount !== 1 ? 's' : ''} skipped</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-semibold">
                   <span>Total disbursement</span>
-                  <span className="currency text-success">
-                    {formatNaira(disburseTarget.payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0))}
+                  <span className="currency text-success tabular-nums">
+                    {formatNaira(activeTotal)}
                   </span>
                 </div>
               </div>
@@ -1090,7 +1100,8 @@ export const PayrollDialogs = ({
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
       </ResponsiveDialog>
 
       <ResponsiveDialog
@@ -1104,8 +1115,15 @@ export const PayrollDialogs = ({
           </>
         }
       >
+          {confirmPaidRun && (
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3.5 py-2.5 mb-3 text-sm tabular-nums">
+              <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span className="font-semibold">{monthLabel(confirmPaidRun.period)}</span></div>
+              <div className="flex justify-between mt-1"><span className="text-muted-foreground">Employees</span><span className="font-semibold">{confirmPaidRun.employee_count ?? '—'}</span></div>
+              <div className="flex justify-between mt-1"><span className="text-muted-foreground">Net to disburse</span><span className="font-semibold">{formatNaira(confirmPaidRun.total_employee_ngn - confirmPaidRun.paye_ngn - confirmPaidRun.pension_ngn - confirmPaidRun.nhf_ngn)}</span></div>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground leading-relaxed">
-            ⚠️ This records that salaries for {confirmPaidRun ? monthLabel(confirmPaidRun.period) : ''} were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
+            This records that salaries were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
           </p>
       </ResponsiveDialog>
 
