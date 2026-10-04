@@ -651,8 +651,7 @@ const Employees = () => {
   };
 
   const toggleStatus = async (e: Employee) => {
-    if (e.status === 'invited') return;
-    const next = e.status === 'active' ? 'inactive' : 'active';
+    const next = e.status === 'active' || e.status === 'invited' ? 'inactive' : 'active';
     const { error } = await supabase
       .from('profiles')
       .update({ status: next })
@@ -882,7 +881,7 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {employees.map((e) => (
-                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-white/[0.02] dark:hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={e.status !== 'invited' ? 0 : undefined} role={e.status !== 'invited' ? 'link' : undefined} onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)} onKeyDown={(ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && e.status !== 'invited') { ev.preventDefault(); navigate(`/employees/${e.id}`); } }} onAuxClick={(ev) => { if (ev.button === 1 && e.status !== 'invited') { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
+                    <TableRow key={e.id} className="group kd-transition cursor-pointer hover:bg-white/[0.02] dark:hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" tabIndex={0} role="link" onClick={() => navigate(`/employees/${e.id}`)} onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); navigate(`/employees/${e.id}`); } }} onAuxClick={(ev) => { if (ev.button === 1) { window.open(`/employees/${e.id}`, '_blank'); ev.preventDefault(); } }}>
                       <TableCell className="font-medium py-2.5">
                         <div className="flex items-center gap-3 min-w-0">
                           <EmployeeAvatar
@@ -890,11 +889,7 @@ const Employees = () => {
                             name={displayName(e.first_name, e.last_name, e.full_name)}
                           />
                           <div className="min-w-0">
-                            {e.status !== 'invited' ? (
-                              <Link to={`/employees/${e.id}`} className="truncate block font-semibold text-foreground group-hover:text-primary kd-transition" title={displayName(e.first_name, e.last_name, e.full_name)} onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
-                            ) : (
-                              <div className="truncate font-semibold text-foreground" title={displayName(e.first_name, e.last_name, e.full_name)}>{displayName(e.first_name, e.last_name, e.full_name)}</div>
-                            )}
+                            <Link to={`/employees/${e.id}`} className="truncate block font-semibold text-foreground group-hover:text-primary kd-transition" title={displayName(e.first_name, e.last_name, e.full_name)} onClick={(ev) => ev.preventDefault()}>{displayName(e.first_name, e.last_name, e.full_name)}</Link>
                             {e.tags && e.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {e.tags.map((tid) => {
@@ -980,13 +975,13 @@ const Employees = () => {
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {isAdmin && e.status === 'active' && (
+                          {isAdmin && (e.status === 'active' || e.status === 'invited') && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 hover:text-destructive"
                               onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
-                              title="Deactivate"
+                              title={e.status === 'invited' ? 'Cancel invite' : 'Deactivate'}
                             >
                               <UserX className="h-3.5 w-3.5" />
                             </Button>
@@ -1016,9 +1011,9 @@ const Employees = () => {
                 {employees.map((e) => (
                   <a
                     key={e.id}
-                    href={e.status !== 'invited' ? `/employees/${e.id}` : undefined}
+                    href={`/employees/${e.id}`}
                     className="flex items-center gap-3 px-4 py-3.5 active:bg-white/[0.04] hover:bg-white/[0.02] kd-transition cursor-pointer no-underline block"
-                    onClick={(ev) => { ev.preventDefault(); if (e.status !== 'invited') navigate(`/employees/${e.id}`); }}
+                    onClick={(ev) => { ev.preventDefault(); navigate(`/employees/${e.id}`); }}
                   >
                     <EmployeeAvatar
                       photoUrl={e.photo_url ?? null}
@@ -1041,11 +1036,12 @@ const Employees = () => {
                         })()}
                       </p>
                     </div>
-                    {e.status === 'invited' ? (
-                      <span className="text-2xs font-medium text-warning">Invited</span>
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {e.status === 'invited' && (
+                        <span className="text-2xs font-medium text-warning">Invited</span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
+                    </div>
                   </a>
                 ))}
               </div>

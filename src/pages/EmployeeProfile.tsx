@@ -771,7 +771,7 @@ const EmployeeProfile = () => {
   const handleDeactivate = async () => {
     if (!id || !employee) return;
     setActioning(true);
-    const next = employee.status === 'active' ? 'inactive' : 'active';
+    const next = employee.status === 'active' || employee.status === 'invited' ? 'inactive' : 'active';
     const { error } = await supabase.from('profiles').update({ status: next }).eq('id', id);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -1327,10 +1327,12 @@ const EmployeeProfile = () => {
                 className={
                   employee.status === 'active'
                     ? 'bg-success/10 text-success hover:bg-success/10'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100 dark:bg-slate-500/10 dark:text-slate-300 dark:hover:bg-slate-500/10'
+                    : employee.status === 'invited'
+                      ? 'bg-warning/10 text-warning hover:bg-warning/10'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-100 dark:bg-slate-500/10 dark:text-slate-300 dark:hover:bg-slate-500/10'
                 }
               >
-                {employee.status === 'active' ? 'Active' : 'Inactive'}
+                {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
               </Badge>
               {/* WhatsApp deep-link in the profile header — most KD
                   Squares ops conversations happen on WhatsApp, so the
@@ -1371,9 +1373,14 @@ const EmployeeProfile = () => {
                   Edit Statutory
                 </DropdownMenuItem>
               )}
-              {canManage && currentUser?.id !== id && (
+              {canManage && currentUser?.id !== id && employee.status !== 'inactive' && (
                 <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
-                  Deactivate
+                  {employee.status === 'invited' ? 'Cancel invite' : 'Deactivate'}
+                </DropdownMenuItem>
+              )}
+              {canManage && currentUser?.id !== id && employee.status === 'inactive' && (
+                <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
+                  Reactivate
                 </DropdownMenuItem>
               )}
               {isSuperAdmin && currentUser?.id !== id && employee?.status === 'active' && (
