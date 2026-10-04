@@ -1077,7 +1077,7 @@ const Employees = () => {
           }
         }}
       >
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {editing ? 'Edit Employee' : sendInvite ? 'Invite New Employee' : 'Add Employee'}

@@ -894,7 +894,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit pay group' : 'New pay group'}</DialogTitle>
           </DialogHeader>
@@ -1955,7 +1955,7 @@ export function PayrollSchedules() {
 
       {/* ── Create / Edit dialog ────────────────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit pay schedule' : 'New pay schedule'}</DialogTitle>
           </DialogHeader>
