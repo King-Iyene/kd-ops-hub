@@ -140,7 +140,7 @@ const Payroll = () => {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [adjustForm, setAdjustForm] = useState<{ employee_id: string; kind: string; description: string; amount: string; taxable: boolean }>({
-    employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true,
+    employee_id: '', kind: 'bonus', description: '', amount: '', taxable: false,
   });
   const { errors: adjustErrors, setError: setAdjustError, clearError: clearAdjustError, clearAll: clearAdjustErrors } = useFieldErrors<'employee_id' | 'description' | 'amount'>();
   // Manager queue of salary-advance requests awaiting action.
@@ -1281,7 +1281,7 @@ const Payroll = () => {
 
   const openAdjustments = async (run: PayrollRun) => {
     setAdjustRun(run);
-    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true });
+    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: false });
     setAdjustLoading(true);
     const [{ data: adj }, { data: emps }] = await Promise.all([
       (supabase as any).from('payslip_adjustments').select('*').eq('payroll_run_id', run.id).order('created_at', { ascending: true }),
@@ -1324,7 +1324,7 @@ const Payroll = () => {
     setAdjustSaving(false);
     if (error) { toast({ title: 'Could not add adjustment', description: error.message, variant: 'destructive' }); return; }
     setAdjustList((l) => [...l, data]);
-    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true });
+    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: false });
     clearAdjustErrors();
     void logAudit(
       'payslip_adjustment_added' as never,
