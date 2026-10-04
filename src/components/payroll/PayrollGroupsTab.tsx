@@ -1,12 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Users, UserPlus, UserMinus, Pencil, Search, X, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Users, UserPlus, UserMinus, Pencil, Search, X, Check, Loader2, AlertTriangle, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import { formatNaira } from '@/lib/format';
 import { displayName } from '@/lib/name';
@@ -14,7 +18,7 @@ import { cn, initials } from '@/lib/utils';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PENSION_EMPLOYEE_RATE } from '@/lib/tax';
+import { PENSION_EMPLOYEE_RATE, PENSION_EMPLOYER_RATE } from '@/lib/tax';
 
 interface Member {
   id: string;
@@ -166,6 +170,20 @@ export function PayrollGroupsTab() {
     );
   }
 
+  const totalGross = groups.reduce((s, g) => s + g.monthlyCost, 0);
+  const totalMembers = groups.reduce((s, g) => s + g.members.length, 0);
+  const totalHousing = groups.reduce((s, g) => s + g.housing, 0);
+  const totalTransport = groups.reduce((s, g) => s + g.transport, 0);
+  const totalPensionEmployee = groups.reduce((s, g) => s + g.pension, 0);
+  const totalPensionEmployer = groups.reduce((s, g) => {
+    return s + g.members.reduce((ms, m) => {
+      if (!m.pension_enabled) return ms;
+      const base = m.use_salary_components ? m.basic_ngn + m.housing_ngn + m.transport_ngn : m.salary_ngn;
+      return ms + base * PENSION_EMPLOYER_RATE;
+    }, 0);
+  }, 0);
+  const totalEmployerCost = totalGross + totalPensionEmployer;
+
   return (
     <>
     <div className="flex items-center justify-between gap-2 -mt-1 mb-1">
@@ -175,6 +193,34 @@ export function PayrollGroupsTab() {
         view is for browsing and editing membership of groups that already exist.
       </p>
     </div>
+
+    {/* ── Monthly total summary ─────────────────────────────── */}
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-4 mb-4">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+          <Wallet className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Monthly Payroll Total</p>
+          <p className="text-2xs text-muted-foreground">
+            {totalMembers} employee{totalMembers === 1 ? '' : 's'} across {groups.length} group{groups.length === 1 ? '' : 's'}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryTile label="Gross salaries" value={totalGross} />
+        <SummaryTile label="Employer pension (10%)" value={totalPensionEmployer} />
+        <SummaryTile label="Total employer cost" value={totalEmployerCost} accent />
+        <SummaryTile label="Employee pension (8%)" value={totalPensionEmployee} subtle />
+      </div>
+      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/40">
+        <AllowanceChip label="Housing" value={totalHousing} color="hsl(220,80%,45%)" />
+        <AllowanceChip label="Transport" value={totalTransport} color="hsl(150,60%,38%)" />
+        <AllowanceChip label="Pension (employee)" value={totalPensionEmployee} color="hsl(270,55%,50%)" />
+        <AllowanceChip label="Pension (employer)" value={totalPensionEmployer} color="hsl(330,55%,50%)" />
+      </div>
+    </div>
+
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((g) => (
         <Card key={g.id} className="overflow-hidden">
@@ -276,6 +322,7 @@ interface AvailableEmployee {
   photo_url: string | null;
   pay_group_id: string | null;
   current_group_name: string | null;
+  salary_ngn: number;
 }
 
 function ManageMembersDialog({
@@ -297,6 +344,7 @@ function ManageMembersDialog({
 
   const [pendingAdds, setPendingAdds] = useState<AvailableEmployee[]>([]);
   const [pendingRemoves, setPendingRemoves] = useState<Set<string>>(new Set());
+  const [confirmMove, setConfirmMove] = useState<AvailableEmployee | null>(null);
 
   const hasChanges = pendingAdds.length > 0 || pendingRemoves.size > 0;
 
@@ -304,16 +352,22 @@ function ManageMembersDialog({
     (async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, photo_url, pay_group_id, pay_groups:pay_group_id(name)')
+        .select('id, full_name, first_name, last_name, email, photo_url, pay_group_id, salary_ngn, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, use_salary_components, pay_groups:pay_group_id(name)')
         .eq('status', 'active')
         .order('full_name');
-      const employees: AvailableEmployee[] = ((data || []) as any[]).map((e) => ({
-        id: e.id,
-        name: displayName(e.first_name, e.last_name, e.full_name || e.email),
-        photo_url: e.photo_url || null,
-        pay_group_id: e.pay_group_id,
-        current_group_name: e.pay_groups?.name || null,
-      }));
+      const employees: AvailableEmployee[] = ((data || []) as any[]).map((e: any) => {
+        const gross = e.use_salary_components
+          ? Number(e.basic_ngn || 0) + Number(e.housing_ngn || 0) + Number(e.transport_ngn || 0) + Number(e.other_allowances_ngn || 0)
+          : Number(e.salary_ngn || 0);
+        return {
+          id: e.id,
+          name: displayName(e.first_name, e.last_name, e.full_name || e.email),
+          photo_url: e.photo_url || null,
+          pay_group_id: e.pay_group_id,
+          current_group_name: e.pay_groups?.name || null,
+          salary_ngn: gross,
+        };
+      });
       setAvailable(employees);
       setLoading(false);
     })();
@@ -321,7 +375,7 @@ function ManageMembersDialog({
 
   const effectiveMembers = [
     ...currentMembers.filter((m) => !pendingRemoves.has(m.id)),
-    ...pendingAdds.map((e) => ({ id: e.id, name: e.name, photo_url: e.photo_url, basic_ngn: 0, housing_ngn: 0, transport_ngn: 0, other_allowances_ngn: 0, salary_ngn: 0, use_salary_components: false, pension_enabled: true } as Member)),
+    ...pendingAdds.map((e) => ({ id: e.id, name: e.name, photo_url: e.photo_url, basic_ngn: 0, housing_ngn: 0, transport_ngn: 0, other_allowances_ngn: 0, salary_ngn: e.salary_ngn, use_salary_components: false, pension_enabled: false } as Member)),
   ];
   const effectiveIds = new Set(effectiveMembers.map((m) => m.id));
   const pendingAddIds = new Set(pendingAdds.map((e) => e.id));
@@ -332,11 +386,19 @@ function ManageMembersDialog({
     return e.name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const stageAdd = (emp: AvailableEmployee) => {
+  const doStageAdd = (emp: AvailableEmployee) => {
     if (pendingRemoves.has(emp.id)) {
       setPendingRemoves((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
     } else {
       setPendingAdds((prev) => [...prev, emp]);
+    }
+  };
+
+  const stageAdd = (emp: AvailableEmployee) => {
+    if (emp.pay_group_id && emp.pay_group_id !== group.id) {
+      setConfirmMove(emp);
+    } else {
+      doStageAdd(emp);
     }
   };
 
@@ -399,6 +461,9 @@ function ManageMembersDialog({
             )}
             {effectiveMembers.map((m) => {
               const isNew = pendingAddIds.has(m.id);
+              const memberGross = m.use_salary_components
+                ? m.basic_ngn + m.housing_ngn + m.transport_ngn + m.other_allowances_ngn
+                : m.salary_ngn;
               return (
                 <div key={m.id} className={cn('flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50', isNew && 'bg-emerald-500/10')}>
                   <div className="flex items-center gap-2 min-w-0">
@@ -406,8 +471,15 @@ function ManageMembersDialog({
                       {m.photo_url && <AvatarImage src={m.photo_url} alt={m.name} />}
                       <AvatarFallback className="text-3xs">{initials(m.name)}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm truncate">{m.name}</span>
-                    {isNew && <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-400">new</span>}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm truncate">{m.name}</span>
+                        {isNew && <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-400">new</span>}
+                      </div>
+                      <span className="text-2xs text-muted-foreground tabular-nums">
+                        {memberGross > 0 ? formatNaira(memberGross) + '/mo' : 'No salary'}
+                      </span>
+                    </div>
                   </div>
                   <Button
                     size="icon-sm"
@@ -460,9 +532,17 @@ function ManageMembersDialog({
                       <AvatarFallback className="text-3xs">{initials(emp.name)}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <span className="text-sm truncate block">{emp.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm truncate">{emp.name}</span>
+                        <span className="text-2xs text-muted-foreground tabular-nums shrink-0">
+                          {emp.salary_ngn > 0 ? formatNaira(emp.salary_ngn) : 'No salary'}
+                        </span>
+                      </div>
                       {emp.current_group_name && (
-                        <span className="text-2xs text-muted-foreground">Currently in {emp.current_group_name}</span>
+                        <span className="text-2xs text-amber-500 dark:text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Currently in {emp.current_group_name}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -510,6 +590,45 @@ function ManageMembersDialog({
           </div>
         )}
       </DialogContent>
+
+      {/* ── Dual-group confirmation ──────────────────────────── */}
+      <AlertDialog open={!!confirmMove} onOpenChange={(v) => { if (!v) setConfirmMove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Move to {group.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                <span className="font-medium text-foreground">{confirmMove?.name}</span> is currently
+                in <span className="font-medium text-foreground">{confirmMove?.current_group_name}</span>.
+              </span>
+              <span className="block">
+                Adding them here will <span className="font-medium text-foreground">move</span> them
+                out of their current group. They can only belong to one pay group at a time — if they
+                stay in two groups, they risk being paid twice in a payroll run.
+              </span>
+              {confirmMove && confirmMove.salary_ngn > 0 && (
+                <span className="block text-sm font-medium tabular-nums">
+                  Monthly salary: {formatNaira(confirmMove.salary_ngn)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmMove) doStageAdd(confirmMove);
+                setConfirmMove(null);
+              }}
+            >
+              Move to {group.name}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
@@ -530,5 +649,22 @@ function AllowanceChip({ label, value, color }: { label: string; value: number; 
     >
       {label} · {formatNaira(value)}
     </span>
+  );
+}
+
+function SummaryTile({ label, value, accent, subtle }: { label: string; value: number; accent?: boolean; subtle?: boolean }) {
+  return (
+    <div className={cn(
+      'rounded-lg px-3 py-2.5',
+      accent ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50',
+    )}>
+      <p className={cn('text-2xs', subtle ? 'text-muted-foreground/70' : 'text-muted-foreground')}>{label}</p>
+      <p className={cn(
+        'text-base font-bold tabular-nums mt-0.5',
+        accent ? 'text-primary' : subtle ? 'text-muted-foreground' : 'text-foreground',
+      )}>
+        {formatNaira(value)}
+      </p>
+    </div>
   );
 }
