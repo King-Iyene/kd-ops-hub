@@ -49,6 +49,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { errorMessage } from '@/lib/db-errors';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -623,6 +624,11 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   };
 
   const remove = async (g: PayGroup) => {
+    if (!(await confirm({
+      title: `Delete "${g.name}"?`,
+      description: `This will permanently delete the pay group "${g.name}". Employees currently assigned to it will be unassigned. This cannot be undone.`,
+      variant: 'destructive',
+    }))) return;
     const { error } = await supabase.from('pay_groups').delete().eq('id', g.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });

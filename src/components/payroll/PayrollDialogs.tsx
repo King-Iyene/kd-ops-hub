@@ -619,42 +619,7 @@ export const PayrollDialogs = ({
                   </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Allowances</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Housing (% of basic)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        placeholder="0"
-                        value={form.housing_allowance_pct || ''}
-                        onChange={(e) => setForm({ ...form, housing_allowance_pct: Number(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Transport / employee (₦)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={form.transport_per_emp || ''}
-                        onChange={(e) => setForm({ ...form, transport_per_emp: Number(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Meal subsidy / employee (₦)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={form.meal_per_emp || ''}
-                        onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                </div>
+                {/* Allowances are configured per-employee in their profile / pay group — not per run */}
 
                 {/* ── Deduction toggles ────────────────────────────────── */}
                 <div className="space-y-2 pt-1">
