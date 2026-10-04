@@ -218,8 +218,8 @@ export function PayrollDashboardTab({
 
       {/* ── Hero + KPIs ───────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-12 kd-animate-slide-up">
-        {/* Hero run summary — takes 8 of 12 cols */}
-        <Card className="lg:col-span-8 overflow-hidden border-0 bg-gradient-to-br from-[hsl(220,90%,14%)] via-[hsl(220,95%,10%)] to-[hsl(220,90%,7%)] text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] relative group">
+        {/* Hero run summary — takes 7 of 12 cols */}
+        <Card className="lg:col-span-7 overflow-hidden border-0 bg-gradient-to-br from-[hsl(220,90%,14%)] via-[hsl(220,95%,10%)] to-[hsl(220,90%,7%)] text-white shadow-2xl shadow-primary/20 ring-1 ring-white/[0.08] relative group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_-20%,hsl(186,100%,40%,0.12),transparent_70%)] pointer-events-none" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,hsl(220,90%,30%,0.08),transparent_50%)] pointer-events-none" />
           <CardContent className="p-5 sm:p-7 space-y-5 sm:space-y-6 relative">
@@ -262,8 +262,8 @@ export function PayrollDashboardTab({
           </CardContent>
         </Card>
 
-        {/* Right KPI column — 4 of 12 cols, 2×2 grid */}
-        <div className="lg:col-span-4 grid grid-cols-2 gap-3">
+        {/* Right KPI column — 5 of 12 cols, 2×2 grid */}
+        <div className="lg:col-span-5 grid grid-cols-2 gap-3">
           <StatTile
             icon={<Wallet className="h-4 w-4" />}
             label="Paid this month"
@@ -541,7 +541,7 @@ function StatTile({
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="text-2xs text-muted-foreground font-medium leading-tight uppercase tracking-wider">{label}</p>
+          <p className="text-2xs text-muted-foreground font-medium leading-tight uppercase tracking-wide">{label}</p>
           <p className="text-lg font-extrabold tabular-nums leading-none mt-1.5 tracking-tight">{value}</p>
           {hint && <p className="text-2xs text-muted-foreground mt-1 font-medium">{hint}</p>}
         </div>
