@@ -524,7 +524,7 @@ export const PayrollRunsTab = ({
                     type="button"
                     onClick={() => setOpenId(r.id)}
                     className={cn(
-                      'relative flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all duration-200 hover:bg-muted/40 group/run',
+                      'relative flex w-full items-center gap-3 px-4 py-3.5 text-left transition-all duration-200 hover:bg-muted/40 group/run',
                       isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
                     )}
                   >
@@ -865,8 +865,8 @@ function RunPayslipsSection({
   if (payslips === null) {
     return (
       <div>
-        <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-          <FileText className="h-3 w-3" /> Payslips
+        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+          <FileText className="h-3.5 w-3.5" /> Payslips
         </div>
         <div className="text-xs text-muted-foreground">Loading…</div>
       </div>
@@ -880,9 +880,9 @@ function RunPayslipsSection({
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-          <FileText className="h-3 w-3" /> Payslips ({payslips.length})
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <FileText className="h-3.5 w-3.5" /> Payslips ({payslips.length})
         </div>
         <button
           type="button"
@@ -1037,9 +1037,9 @@ function RunDetailDrawer({
           </p>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-5 py-5">
           {r.last_disbursement_error && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3.5 py-3">
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3.5 py-3 mb-5">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
               <div className="text-xs text-destructive">
                 <p className="font-semibold">Last disbursement attempt needs attention</p>
@@ -1059,57 +1059,63 @@ function RunDetailDrawer({
           )}
           <PostApprovalChangesNotice run={r} />
 
-          <div>
-            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-              <Users2 className="h-3 w-3" /> Who gets paid
+          {/* --- WHO GETS PAID --- */}
+          <div className="pb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-2">
+              <Users2 className="h-3.5 w-3.5" /> Who gets paid
             </div>
-            <div className="text-sm font-medium">{segmentName}</div>
-            <div className="text-xs text-muted-foreground mt-0.5 mb-1.5">{r.employee_count ?? 0} employees in this run</div>
+            <div className="text-sm font-semibold">{segmentName}</div>
+            <div className="text-xs text-muted-foreground mt-1 mb-2">{r.employee_count ?? 0} employees in this run</div>
             <PayrollRosterPreview payrollSegmentId={r.payroll_segment_id} companyId={r.company_id} />
           </div>
 
-          <RunPayslipsSection runId={r.id} period={r.period} refreshKey={r.updated_at} runStatus={r.status} />
+          {/* --- PAYSLIPS --- */}
+          <div className="border-t border-border/30 pt-6 pb-6">
+            <RunPayslipsSection runId={r.id} period={r.period} refreshKey={r.updated_at} runStatus={r.status} />
+          </div>
 
-          <div>
-            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Bonuses &amp; adjustments</div>
+          {/* --- BONUSES & ADJUSTMENTS --- */}
+          <div className="border-t border-border/30 pt-6 pb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5">Bonuses &amp; adjustments</div>
             {bonusTotal > 0 ? (
               <div className="text-sm"><span className="font-medium">Company-wide:</span> {formatNaira(bonusTotal)}</div>
             ) : (
               <div className="text-sm text-muted-foreground">No company-wide bonus on this run</div>
             )}
             {r.status !== 'paid' && canGeneratePayslipsPerm && (
-              <button onClick={() => openAdjustments(r)} className="text-xs font-semibold text-primary mt-1 inline-flex items-center gap-1">
+              <button onClick={() => openAdjustments(r)} className="text-xs font-semibold text-primary mt-2 inline-flex items-center gap-1 hover:underline">
                 <Plus className="h-3 w-3" /> Add bonus or per-employee adjustment
               </button>
             )}
           </div>
 
-          <div>
-            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Money ledger</div>
-            <div className="rounded-md border border-border/60 overflow-hidden text-sm">
-              <div className="flex justify-between px-2.5 py-1.5"><span>Gross pay</span><span className="tabular-nums">{formatNaira(r.total_employee_ngn)}</span></div>
-              <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>PAYE (tax)</span><span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span></div>
-              <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>Pension (employee)</span><span className="tabular-nums">− {formatNaira(r.pension_ngn)}</span></div>
-              <div className="flex justify-between px-2.5 py-1.5 text-xs text-muted-foreground border-t border-border/50"><span>NHF</span><span className="tabular-nums">− {formatNaira(r.nhf_ngn)}</span></div>
-              <div className="flex justify-between px-2.5 py-1.5 font-semibold bg-muted/40 border-t border-border/50"><span>Net pay to disburse</span><span className="tabular-nums">{formatNaira(netPay)}</span></div>
+          {/* --- MONEY LEDGER --- */}
+          <div className="border-t border-border/30 pt-6 pb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5">Money ledger</div>
+            <div className="rounded-lg border border-border/60 overflow-hidden text-sm">
+              <div className="flex justify-between px-3 py-2.5"><span>Gross pay</span><span className="font-semibold tabular-nums">{formatNaira(r.total_employee_ngn)}</span></div>
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>PAYE (tax)</span><span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span></div>
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>Pension (employee)</span><span className="tabular-nums">− {formatNaira(r.pension_ngn)}</span></div>
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>NHF</span><span className="tabular-nums">− {formatNaira(r.nhf_ngn)}</span></div>
+              <div className="flex justify-between px-3 py-2.5 font-semibold bg-muted/40 border-t border-border/40"><span>Net pay to disburse</span><span className="tabular-nums">{formatNaira(netPay)}</span></div>
             </div>
             {(r.total_contractor_ngn > 0 || r.total_expenses_ngn > 0) && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {r.total_contractor_ngn > 0 && <span>Contractors: <span className="tabular-nums text-foreground">{formatNaira(r.total_contractor_ngn)}</span></span>}
                 {r.total_expenses_ngn > 0 && <span>Expenses: <span className="tabular-nums text-foreground">{formatNaira(r.total_expenses_ngn)}</span></span>}
               </div>
             )}
-            <p className="text-2xs text-muted-foreground mt-1.5">
+            <p className="text-2xs text-muted-foreground mt-2">
               Employer cost on top of gross (employer pension): {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
             </p>
           </div>
 
           {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && (
-            <div>
-              <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                <Landmark className="h-3 w-3" /> Statutory deadlines once paid
+            <div className="border-t border-border/30 pt-6 pb-6">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-2">
+                <Landmark className="h-3.5 w-3.5" /> Statutory deadlines once paid
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border border-border/60 bg-muted/20 px-3.5 py-3">
                 {[
                   { label: 'PAYE', due: '10th of next month', authority: 'FIRS / State IRS' },
                   { label: 'Pension', due: '7 working days of payday', authority: 'PFA / PenCom' },
@@ -1117,21 +1123,22 @@ function RunDetailDrawer({
                 ].map((d) => (
                   <div key={d.label} className="text-xs">
                     <p className="font-semibold text-foreground">{d.label}</p>
-                    <p className="text-muted-foreground">{d.due}</p>
-                    <p className="text-muted-foreground/70">{d.authority}</p>
+                    <p className="text-muted-foreground mt-0.5">{d.due}</p>
+                    <p className="text-muted-foreground/70 mt-0.5">{d.authority}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div>
-            <div className="text-2xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-              <History className="h-3 w-3" /> History
+          {/* --- HISTORY --- */}
+          <div className="border-t border-border/30 pt-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-2">
+              <History className="h-3.5 w-3.5" /> History
             </div>
             <PayrollRunTimeline run={r} />
             {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && !r.approved_by && (
-              <p className="mt-2 text-2xs text-muted-foreground">
+              <p className="mt-2.5 text-2xs text-muted-foreground">
                 Approver not recorded on this run.
               </p>
             )}

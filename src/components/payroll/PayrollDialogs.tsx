@@ -430,20 +430,22 @@ export const PayrollDialogs = ({
                   </Label>
 
                   {segmentPayGroups.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         type="button"
                         onClick={() => selectPayGroupQuickFilter('')}
                         className={cn(
-                          'flex flex-col items-start gap-2.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
+                          'flex items-start gap-3.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
                           !currentPayGroupId ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
                         )}
                       >
-                        <span className={cn('flex h-8 w-8 items-center justify-center rounded-[9px]', !currentPayGroupId ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                        <span className={cn('flex h-9 w-9 items-center justify-center rounded-lg shrink-0', !currentPayGroupId ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
                           <LayoutGrid className="h-4 w-4" />
                         </span>
-                        <span className="block text-sm font-semibold leading-tight">All Pay Groups</span>
-                        <span className="block text-2xs text-muted-foreground -mt-1.5">Everyone active — pick a specific group for cleaner runs</span>
+                        <div className="min-w-0">
+                          <span className="block text-sm font-semibold leading-snug">All Pay Groups</span>
+                          <span className="block text-2xs text-muted-foreground mt-0.5">Everyone active</span>
+                        </div>
                       </button>
                       {segmentPayGroups.map((g, i) => {
                         const selected = currentPayGroupId === g.id;
@@ -454,36 +456,32 @@ export const PayrollDialogs = ({
                             type="button"
                             onClick={() => selectPayGroupQuickFilter(g.id)}
                             className={cn(
-                              'flex flex-col items-start gap-2.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
+                              'flex items-start gap-3.5 rounded-xl border-2 px-4 py-4 text-left kd-transition',
                               selected ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40 hover:bg-muted/30',
                             )}
                           >
                             <span className={cn(
-                              'flex h-8 w-8 items-center justify-center rounded-[9px]',
+                              'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
                               selected ? 'bg-primary text-primary-foreground' : PG_CARD_ICON_COLOURS[i % PG_CARD_ICON_COLOURS.length],
                             )}>
                               <Users2 className="h-4 w-4" />
                             </span>
-                            <span className="block text-sm font-semibold leading-tight truncate w-full">{g.name}</span>
-                            <span className="block text-2xs text-muted-foreground -mt-1.5">
-                              {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
-                            </span>
-                            {/* How big this run is, which is the other half of
-                                the decision and was previously only knowable by
-                                starting the run and looking at the total. Gross
-                                pay, so it is deliberately "about" — the figure
-                                the run lands on also depends on bonuses and
-                                deductions entered later. */}
-                            {g.monthlyGrossNgn > 0 && (
-                              <span className="block text-2xs font-semibold tabular-nums text-foreground/70 -mt-1">
-                                about {formatNairaCompact(g.monthlyGrossNgn)} gross a month
+                            <div className="min-w-0">
+                              <span className="block text-sm font-semibold leading-snug">{g.name}</span>
+                              <span className="block text-2xs text-muted-foreground mt-0.5">
+                                {[freq, `${g.memberCount} ${g.memberCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
                               </span>
-                            )}
-                            {g.payableCount < g.memberCount && (
-                              <span className="block text-3xs text-warning -mt-1">
-                                only {g.payableCount} of {g.memberCount} have a salary set
-                              </span>
-                            )}
+                              {g.monthlyGrossNgn > 0 && (
+                                <span className="block text-2xs font-semibold tabular-nums text-foreground/70 mt-0.5">
+                                  ~{formatNairaCompact(g.monthlyGrossNgn)}/mo gross
+                                </span>
+                              )}
+                              {g.payableCount < g.memberCount && (
+                                <span className="block text-3xs text-warning mt-0.5">
+                                  only {g.payableCount} of {g.memberCount} have a salary set
+                                </span>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
