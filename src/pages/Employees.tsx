@@ -10,6 +10,7 @@ import {
   Mail,
   AlertTriangle,
   UserX,
+  UserPlus,
   Check,
   Upload,
   ChevronRight,
@@ -160,6 +161,7 @@ const Employees = () => {
     start_date: new Date().toISOString().slice(0, 10),
   });
 
+  const [sendInvite, setSendInvite] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Employee | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -430,6 +432,85 @@ const Employees = () => {
     } catch (err: unknown) {
       toast({
         title: 'Invite failed',
+        description: errorMessage(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const addDirectEmployee = async () => {
+    const fullName = `${form.first_name} ${form.last_name}`.trim();
+    let valid = true;
+    clearFieldErrors();
+    if (!form.first_name.trim()) {
+      setFieldError('first_name', 'First name is required');
+      valid = false;
+    }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setFieldError('email', 'Enter a valid email address');
+      valid = false;
+    }
+    if (form.role === 'super_admin' && !isSuperAdmin) {
+      setFieldError('role', 'Only a Super Admin can assign the Super Admin role');
+      valid = false;
+    }
+    if (!valid) return;
+    setSubmitting(true);
+    try {
+      const placeholderEmail = form.email.trim().toLowerCase()
+        || `${form.first_name.trim().toLowerCase()}.${(form.last_name.trim() || 'employee').toLowerCase()}.${crypto.randomUUID().slice(0, 8)}@payroll.internal`;
+
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, status')
+        .eq('email', placeholderEmail)
+        .maybeSingle();
+
+      if (existingProfile) {
+        const statusLabel = existingProfile.status === 'invited' ? 'an invited' : existingProfile.status === 'active' ? 'an active' : 'an inactive';
+        toast({
+          title: 'Employee already exists',
+          description: `${existingProfile.full_name || placeholderEmail} is already ${statusLabel} employee.`,
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      const { error: seedErr } = await supabase.rpc('seed_invited_profile', {
+        p_email: placeholderEmail,
+        p_full_name: fullName,
+        p_phone: form.phone || null,
+        p_role: form.role,
+      });
+      if (seedErr) throw seedErr;
+
+      const { error: activateErr } = await supabase
+        .from('profiles')
+        .update({ status: 'active' })
+        .eq('email', placeholderEmail);
+      if (activateErr) throw activateErr;
+
+      toast({
+        title: 'Employee added',
+        description: `${fullName} has been added for payroll. No login invite was sent.`,
+      });
+
+      await logAudit(
+        'employee_added',
+        `Direct-added ${fullName} (${placeholderEmail}) as ${roleLabel(form.role)} — payroll only, no invite`,
+        profile,
+      );
+      dispatchPlatformWebhook('employee.created', { email: placeholderEmail, full_name: fullName, role: form.role });
+      clearFieldErrors();
+      setShowForm(false);
+      resetForm();
+      fetchEmployees();
+    } catch (err: unknown) {
+      toast({
+        title: 'Failed to add employee',
         description: errorMessage(err),
         variant: 'destructive',
       });
@@ -972,18 +1053,21 @@ const Employees = () => {
             setEditing(null);
             resetForm();
             clearFieldErrors();
+            setSendInvite(true);
           }
         }}
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>
-              {editing ? 'Edit Employee' : 'Invite New Employee'}
+              {editing ? 'Edit Employee' : sendInvite ? 'Invite New Employee' : 'Add Employee'}
             </DialogTitle>
             <DialogDescription>
               {editing
                 ? 'Update their role, name or phone. Email stays read-only.'
-                : 'We will email them a secure one-time link to set their password and join KDOps.'}
+                : sendInvite
+                  ? 'We will email them a secure one-time link to set their password and join KDOps.'
+                  : 'Add them directly for payroll — no login invite will be sent.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1007,13 +1091,13 @@ const Employees = () => {
                 />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">
-                <Label>Email <span className="text-destructive">*</span></Label>
+                <Label>Email {sendInvite && !editing && <span className="text-destructive">*</span>}</Label>
                 <Input
                   type="email"
                   autoComplete="email"
                   value={form.email}
                   onChange={(e) => { setForm({ ...form, email: e.target.value }); clearFieldError('email'); }}
-                  placeholder="teammate@kdsquares.com"
+                  placeholder={sendInvite ? 'teammate@kdsquares.com' : 'Optional — auto-generated if blank'}
                   aria-invalid={!!fieldErrors.email}
                 />
                 <FieldError message={fieldErrors.email} />
@@ -1124,6 +1208,25 @@ const Employees = () => {
                 </span>
               </div>
             )}
+            {!editing && isAdmin && (
+              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="send-invite-toggle" className="text-sm font-medium cursor-pointer">
+                    Send login invite
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {sendInvite
+                      ? 'Employee will receive an email to set up their account.'
+                      : 'Employee added for payroll only — no email sent.'}
+                  </p>
+                </div>
+                <Switch
+                  id="send-invite-toggle"
+                  checked={sendInvite}
+                  onCheckedChange={setSendInvite}
+                />
+              </div>
+            )}
             {editing && availableTags.length > 0 && (
               <div className="space-y-1">
                 <Label>Tags</Label>
@@ -1184,7 +1287,7 @@ const Employees = () => {
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save changes
               </Button>
-            ) : (
+            ) : sendInvite ? (
               <Button
                 onClick={inviteEmployee}
                 disabled={
@@ -1196,6 +1299,14 @@ const Employees = () => {
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Mail className="mr-2 h-4 w-4" /> Send invite
+              </Button>
+            ) : (
+              <Button
+                onClick={addDirectEmployee}
+                disabled={submitting || !form.first_name.trim() || !isAdmin}
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <UserPlus className="mr-2 h-4 w-4" /> Add employee
               </Button>
             )}
           </DialogFooter>
