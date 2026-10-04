@@ -162,6 +162,7 @@ const Employees = () => {
   });
 
   const [sendInvite, setSendInvite] = useState(true);
+  const [emailOwner, setEmailOwner] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Employee | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -314,6 +315,24 @@ const Employees = () => {
       start_date: new Date().toISOString().slice(0, 10),
     });
     setShowForm(true);
+  };
+
+  const checkEmailExists = async (email: string) => {
+    setEmailOwner(null);
+    clearFieldError('email');
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, status')
+      .eq('email', trimmed)
+      .maybeSingle();
+    if (data) {
+      const name = data.full_name || trimmed;
+      const status = data.status === 'invited' ? 'invited' : data.status === 'active' ? 'active' : 'inactive';
+      setEmailOwner(name);
+      setFieldError('email', `${name} is already an ${status} employee with this email`);
+    }
   };
 
   // Invite flow:
@@ -1054,6 +1073,7 @@ const Employees = () => {
             resetForm();
             clearFieldErrors();
             setSendInvite(true);
+            setEmailOwner(null);
           }
         }}
       >
@@ -1096,7 +1116,8 @@ const Employees = () => {
                   type="email"
                   autoComplete="email"
                   value={form.email}
-                  onChange={(e) => { setForm({ ...form, email: e.target.value }); clearFieldError('email'); }}
+                  onChange={(e) => { setForm({ ...form, email: e.target.value }); clearFieldError('email'); setEmailOwner(null); }}
+                  onBlur={() => { if (!editing) checkEmailExists(form.email); }}
                   placeholder={sendInvite ? 'teammate@kdsquares.com' : 'Optional — auto-generated if blank'}
                   aria-invalid={!!fieldErrors.email}
                 />
@@ -1294,7 +1315,8 @@ const Employees = () => {
                   submitting ||
                   !form.first_name.trim() ||
                   !form.email.trim() ||
-                  !isAdmin
+                  !isAdmin ||
+                  !!emailOwner
                 }
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1303,7 +1325,7 @@ const Employees = () => {
             ) : (
               <Button
                 onClick={addDirectEmployee}
-                disabled={submitting || !form.first_name.trim() || !isAdmin}
+                disabled={submitting || !form.first_name.trim() || !isAdmin || !!emailOwner}
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <UserPlus className="mr-2 h-4 w-4" /> Add employee
