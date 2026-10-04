@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarClock,
@@ -1765,9 +1765,8 @@ export function PayrollSchedules() {
                       const next = rows[0];
                       const isExpanded = expanded === s.id;
                       return (
-                        <>
+                        <Fragment key={s.id}>
                           <TableRow
-                            key={s.id}
                             className="cursor-pointer hover:bg-muted/40"
                             onClick={() => setExpanded(isExpanded ? null : s.id)}
                           >
@@ -1927,7 +1926,7 @@ export function PayrollSchedules() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </TableBody>

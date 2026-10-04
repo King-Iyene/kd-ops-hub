@@ -43,13 +43,18 @@ export function InfoHint({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           aria-label="More info"
           onClick={(e) => {
             if (stopPropagation) e.stopPropagation();
-            // Don't navigate / submit / collapse — this is a hint icon.
             e.preventDefault();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+            }
           }}
           className={cn(
             'inline-flex items-center justify-center rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 cursor-help kd-transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
@@ -58,7 +63,7 @@ export function InfoHint({
           style={{ width: size + 4, height: size + 4 }}
         >
           <Info style={{ width: size, height: size }} />
-        </button>
+        </span>
       </TooltipTrigger>
       <TooltipContent side={side}>
         {children}
