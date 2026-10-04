@@ -79,6 +79,7 @@ export interface PaySchedule {
   processing_lead_days: number;
   cutoff_lead_days: number;
   auto_approve: boolean;
+  auto_pay: boolean;
   notify_roles: string[];
   is_active: boolean;
   created_at: string;
@@ -127,6 +128,7 @@ const EMPTY_FORM: FormState = {
   processing_lead_days: 5,
   cutoff_lead_days: 2,
   auto_approve: false,
+  auto_pay: false,
   notify_roles: ['finance', 'admin', 'super_admin'],
   is_active: true,
   schedule_kind: 'regular' as ScheduleKind,
@@ -1216,10 +1218,22 @@ function HolidaysManager() {
 function PayScheduleForm({
   form,
   setForm,
+  editingId,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  editingId?: string;
 }) {
+  const [linkedGroups, setLinkedGroups] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!editingId) { setLinkedGroups([]); return; }
+    supabase
+      .from('pay_groups')
+      .select('id, name')
+      .eq('pay_schedule_id', editingId)
+      .eq('is_active', true)
+      .then(({ data }) => setLinkedGroups(data ?? []));
+  }, [editingId]);
   const needsSecondAnchor = form.frequency === 'semimonthly';
   const isWeekBased = form.frequency === 'biweekly' || form.frequency === 'weekly';
   const isOffCycle = form.schedule_kind === 'off_cycle';
@@ -1416,21 +1430,78 @@ function PayScheduleForm({
         </div>
       </div>
 
-      <div className="flex items-start gap-3 rounded-lg border border-border/60 px-4 py-3 bg-muted/30">
-        <div className="flex-1">
-          <p className="text-sm font-medium flex items-center gap-1.5">
-            <Zap className="h-4 w-4 text-amber-500" />
-            Auto-approve drafts
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            If enabled, auto-generated drafts are immediately approved — no manual review.
-            Use only when you trust the data is always correct.
-          </p>
+      {/* ── Auto-pay ─────────────────────────────────────────────── */}
+      <div className={cn(
+        'rounded-xl border-2 p-4 space-y-3 transition-colors',
+        form.auto_pay
+          ? 'border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/[0.07]'
+          : 'border-border/60 bg-muted/30',
+      )}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-xl shrink-0',
+              form.auto_pay ? 'bg-emerald-500/15' : 'bg-muted',
+            )}>
+              <Zap className={cn('h-4 w-4', form.auto_pay ? 'text-emerald-500' : 'text-muted-foreground')} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Auto-pay</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Runs are auto-computed, verified, and disbursed on pay day.
+                You always get a preview to hold or cancel before funds move.
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={form.auto_pay}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, auto_pay: v }))}
+          />
         </div>
-        <Switch
-          checked={form.auto_approve}
-          onCheckedChange={(v) => setForm((f) => ({ ...f, auto_approve: v }))}
-        />
+
+        {form.auto_pay && (
+          <div className="pl-12 space-y-3">
+            <div className="flex items-center gap-1 text-xs flex-wrap">
+              {['Compute', 'Verify', 'Approve', 'Disburse'].map((step, i) => (
+                <Fragment key={step}>
+                  {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <Check className="h-3 w-3" />
+                    {step}
+                  </span>
+                </Fragment>
+              ))}
+            </div>
+
+            {editingId && linkedGroups.length > 0 && (
+              <div className="rounded-lg border border-border/40 bg-background/50 p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  Pay groups on this schedule
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {linkedGroups.map((g) => (
+                    <span key={g.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {editingId && linkedGroups.length === 0 && (
+              <p className="text-xs text-muted-foreground/70 italic">
+                No pay groups linked yet — assign groups in the Pay Groups tab.
+              </p>
+            )}
+
+            {!editingId && (
+              <p className="text-xs text-muted-foreground/70 italic">
+                Link pay groups after creating this schedule.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border-t border-border/40" />
@@ -1593,7 +1664,7 @@ export function PayrollSchedules() {
     setLoading(true);
     const { data } = await supabase
       .from('pay_schedules')
-      .select('id, name, frequency, anchor_day, second_anchor_day, day_adjustment, processing_lead_days, cutoff_lead_days, auto_approve, notify_roles, is_active, schedule_kind, linked_schedule_id, allowance_context')
+      .select('id, name, frequency, anchor_day, second_anchor_day, day_adjustment, processing_lead_days, cutoff_lead_days, auto_approve, auto_pay, notify_roles, is_active, schedule_kind, linked_schedule_id, allowance_context')
       .order('created_at', { ascending: true });
     const list = (data as PaySchedule[]) ?? [];
     setSchedules(list);
@@ -1620,7 +1691,7 @@ export function PayrollSchedules() {
       name: s.name, frequency: s.frequency, anchor_day: s.anchor_day,
       second_anchor_day: s.second_anchor_day, day_adjustment: s.day_adjustment,
       processing_lead_days: s.processing_lead_days, cutoff_lead_days: s.cutoff_lead_days,
-      auto_approve: s.auto_approve, notify_roles: s.notify_roles, is_active: s.is_active,
+      auto_approve: s.auto_approve, auto_pay: s.auto_pay ?? false, notify_roles: s.notify_roles, is_active: s.is_active,
       schedule_kind: s.schedule_kind ?? 'regular',
       linked_schedule_id: s.linked_schedule_id ?? null,
       allowance_context: s.allowance_context ?? null,
@@ -1898,9 +1969,9 @@ export function PayrollSchedules() {
                                         <dd className="font-medium">{s.cutoff_lead_days}d before</dd>
                                       </div>
                                       <div className="flex justify-between">
-                                        <dt className="text-muted-foreground">Auto-approve drafts</dt>
-                                        <dd className={cn('font-medium', s.auto_approve ? 'text-warning' : 'text-muted-foreground')}>
-                                          {s.auto_approve ? 'Yes' : 'No (manual review)'}
+                                        <dt className="text-muted-foreground">Auto-pay</dt>
+                                        <dd className={cn('font-medium', s.auto_pay ? 'text-emerald-500' : 'text-muted-foreground')}>
+                                          {s.auto_pay ? 'Enabled' : 'Off (manual)'}
                                         </dd>
                                       </div>
                                       <div className="flex justify-between">
@@ -1959,7 +2030,7 @@ export function PayrollSchedules() {
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit pay schedule' : 'New pay schedule'}</DialogTitle>
           </DialogHeader>
-          <PayScheduleForm form={form} setForm={setForm} />
+          <PayScheduleForm form={form} setForm={setForm} editingId={editing?.id} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
