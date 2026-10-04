@@ -7975,6 +7975,7 @@ export type Database = {
           anchor_day: number
           auto_approve: boolean
           auto_disburse_hour_local: number
+          auto_pay: boolean
           auto_schedule_disbursement: boolean
           created_at: string
           created_by: string | null
@@ -7996,6 +7997,7 @@ export type Database = {
           anchor_day?: number
           auto_approve?: boolean
           auto_disburse_hour_local?: number
+          auto_pay?: boolean
           auto_schedule_disbursement?: boolean
           created_at?: string
           created_by?: string | null
@@ -8017,6 +8019,7 @@ export type Database = {
           anchor_day?: number
           auto_approve?: boolean
           auto_disburse_hour_local?: number
+          auto_pay?: boolean
           auto_schedule_disbursement?: boolean
           created_at?: string
           created_by?: string | null
