@@ -556,11 +556,37 @@ Deno.serve(async (req) => {
           dbRecipientCode = (ptRow as any).paystack_recipient_code;
         } else {
           // Check batch_items first, then fall back to ndi_transfers (NDI module).
-          const { data: biRow } = await serviceClient
+          let biRow: any = null;
+          const { data: biByRef } = await serviceClient
             .from("batch_items")
             .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
             .eq("paystack_reference", params.reference)
             .maybeSingle();
+          biRow = biByRef;
+
+          // Fallback: if no batch_item matched by reference, the item may
+          // never have been dispatched (e.g. timeout during initial run).
+          // The reference is deterministic: kdops_<first20 hex of UUID>.
+          // Extract the ID prefix and match by it.
+          if (!biRow && String(params.reference).startsWith("kdops_")) {
+            const hex = String(params.reference).slice(6); // 20 hex chars, no dashes
+            // Reconstruct the dashed UUID prefix (8-4-4-4 groups)
+            const dashedPrefix = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}`;
+            const { data: candidates } = await serviceClient
+              .from("batch_items")
+              .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
+              .is("paystack_reference", null)
+              .filter("id", "like", `${dashedPrefix}%`);
+            if (candidates && candidates.length === 1) {
+              biRow = candidates[0];
+              // Stamp the reference so future calls find it directly.
+              await serviceClient
+                .from("batch_items")
+                .update({ paystack_reference: params.reference })
+                .eq("id", (biRow as any).id);
+              console.log(`[transfer] stamped reference ${params.reference} on orphaned batch_item ${(biRow as any).id}`);
+            }
+          }
 
           const sourceRow = biRow ?? (await (async () => {
             const { data: ndiRow } = await serviceClient
