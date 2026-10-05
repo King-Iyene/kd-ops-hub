@@ -1012,6 +1012,19 @@ const Payroll = () => {
   // submitted has been seen by an approver and deleting it silently
   // would erase that audit step. Use Recall first to send a pending
   // run back to draft, then Delete.
+  const renameRun = async (runId: string, name: string) => {
+    const val = name || null;
+    const { error } = await supabase
+      .from('payroll_runs')
+      .update({ custom_name: val })
+      .eq('id', runId);
+    if (error) {
+      toast({ title: 'Could not rename run', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setRuns((prev) => prev.map((r) => (r.id === runId ? { ...r, custom_name: val } : r)));
+  };
+
   const deleteDraft = async (run: PayrollRun) => {
     if (run.status !== 'draft') {
       toast({
@@ -2932,6 +2945,7 @@ const Payroll = () => {
             actOnAdvance={actOnAdvance}
             isSelfApprovalBlocked={isSelfApprovalBlocked}
             confirmAndPay={confirmAndPay}
+            renameRun={renameRun}
             companies={companies}
             showCompany={isAllCompanies && companies.length > 1}
           />

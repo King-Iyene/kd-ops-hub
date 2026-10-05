@@ -111,6 +111,7 @@ interface PayrollRunsTabProps {
   actOnAdvance: (id: string, action: 'approve' | 'reject' | 'paid') => void;
   isSelfApprovalBlocked: (run: PayrollRun) => boolean;
   confirmAndPay: (run: PayrollRun) => void;
+  renameRun: (runId: string, name: string) => void;
   segments: { id: string; name: string }[];
   /** All companies, for labelling which company a run belongs to. */
   companies?: Company[];
@@ -207,6 +208,7 @@ export const PayrollRunsTab = ({
   actOnAdvance,
   isSelfApprovalBlocked,
   confirmAndPay,
+  renameRun,
   segments,
   companies,
   showCompany,
@@ -676,7 +678,10 @@ export const PayrollRunsTab = ({
                     <span className={cn('absolute inset-y-1.5 left-0 w-[3px] rounded-r-full transition-all', STATUS_ACCENT[r.status] ?? 'bg-muted-foreground/40')} />
                     <div className="min-w-0 flex-1 pl-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-sm tracking-tight">{monthLabel(r.period, r.period_type)}</span>
+                        <span className="font-bold text-sm tracking-tight">{r.custom_name || monthLabel(r.period, r.period_type)}</span>
+                        {r.custom_name && (
+                          <span className="text-2xs text-muted-foreground">{monthLabel(r.period, r.period_type)}</span>
+                        )}
                         {showCompany && (
                           <CompanyBadge company={companies?.find((c) => c.id === r.company_id)} />
                         )}
@@ -774,6 +779,7 @@ export const PayrollRunsTab = ({
         exportRun={exportRun}
         exportBankFile={exportBankFile}
         printRun={printRun}
+        onRename={renameRun}
       />
     </div>
   );
@@ -1129,6 +1135,7 @@ function RunDetailDrawer({
   exportRun,
   exportBankFile,
   printRun,
+  onRename,
 }: {
   run: PayrollRun | null;
   onClose: () => void;
@@ -1155,7 +1162,11 @@ function RunDetailDrawer({
   exportRun: (run: PayrollRun) => void;
   exportBankFile: (run: PayrollRun) => void;
   printRun: (run: PayrollRun) => void;
+  onRename: (runId: string, name: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
   if (!run) return null;
   const r = run;
   const segmentName = r.payroll_segment_id
@@ -1170,8 +1181,60 @@ function RunDetailDrawer({
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="px-5 pt-5 pb-4 space-y-3 text-left border-b border-border/40 bg-muted/30">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <SheetTitle>{monthLabel(r.period, r.period_type)}</SheetTitle>
+            <div className="min-w-0 flex-1">
+              {editing ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    className="flex-1 min-w-0 rounded-md border border-border bg-background px-2 py-1 text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onRename(r.id, draft.trim());
+                        setEditing(false);
+                      } else if (e.key === 'Escape') {
+                        setEditing(false);
+                      }
+                    }}
+                    placeholder={monthLabel(r.period, r.period_type)}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => {
+                      onRename(r.id, draft.trim());
+                      setEditing(false);
+                    }}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => setEditing(false)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <SheetTitle className="flex items-center gap-1.5 group/title">
+                  <span className="truncate">{r.custom_name || monthLabel(r.period, r.period_type)}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setDraft(r.custom_name || ''); setEditing(true); }}
+                    className="shrink-0 opacity-0 group-hover/title:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    aria-label="Rename run"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                </SheetTitle>
+              )}
+              {r.custom_name && !editing && (
+                <p className="text-2xs text-muted-foreground mt-0.5">{monthLabel(r.period, r.period_type)}</p>
+              )}
               <p className="text-xl font-extrabold tabular-nums tracking-tight mt-1.5">{formatNaira(r.total_burn_ngn)}</p>
             </div>
             <StatusBadge status={r.status} />
