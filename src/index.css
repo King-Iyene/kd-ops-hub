@@ -30,9 +30,10 @@ input[type=number] {
     --primary: 200 100% 29%;
     --primary-foreground: 0 0% 100%;
 
-    /* Cyan — #00ECFF */
-    --secondary: 186 100% 50%;
-    --secondary-foreground: 201 100% 12%;
+    /* Secondary — muted cool-gray; the old neon cyan (#00ECFF) was too
+       loud for a professional fintech surface. */
+    --secondary: 200 18% 93%;
+    --secondary-foreground: 200 30% 25%;
 
     --muted: 210 20% 96%;
     --muted-foreground: 210 10% 40%;
@@ -57,18 +58,18 @@ input[type=number] {
     --sidebar-accent: 200 100% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 200 80% 20%;
-    --sidebar-ring: 186 100% 50%;
+    --sidebar-ring: 200 60% 45%;
 
-    --success: 152 60% 40%;
+    --success: 152 55% 38%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 38 75% 48%;
     --warning-foreground: 0 0% 100%;
     --info: 200 100% 40%;
     --info-foreground: 0 0% 100%;
 
     /* KD brand custom */
     --kd-gold: 41 62% 58%;
-    --kd-cyan: 186 100% 50%;
+    --kd-cyan: 186 45% 48%;
 
     /* ─── Role identity colors ─────────────────────────────────────────────
        One hue per role, used ONLY for "whose account is this" (badges,
@@ -102,10 +103,10 @@ input[type=number] {
        animations (logo glow breathe, grid drift) to match: brisk in the
        morning, unhurried at night. */
     /* Default (afternoon) — confident daylight baseline */
-    --tod-aurora-1: 200 100% 45%;   /* primary cyan-teal */
-    --tod-aurora-2: 186 100% 50%;   /* bright cyan */
-    --tod-aurora-3: 200 100% 30%;   /* deep teal */
-    --tod-glow:     186 100% 50%;
+    --tod-aurora-1: 200 70% 40%;    /* primary teal */
+    --tod-aurora-2: 186 55% 45%;    /* muted cyan */
+    --tod-aurora-3: 200 80% 28%;    /* deep teal */
+    --tod-glow:     186 55% 45%;
     --tod-pulse:    3.5s;
     --tod-drift:    14s;
     --tod-greeting: 'Good afternoon';
@@ -120,10 +121,10 @@ input[type=number] {
      aqua-teal, still the brand's blue-green family) instead of reusing
      afternoon's exactly is what actually makes it read as different. */
   html[data-tod="morning"] {
-    --tod-aurora-1: 178 90% 48%;    /* fresh aqua-teal */
-    --tod-aurora-2: 172 100% 62%;   /* brightest, coolest cyan of the four */
-    --tod-aurora-3: 185 85% 40%;    /* clear teal */
-    --tod-glow:     172 100% 62%;
+    --tod-aurora-1: 178 60% 42%;    /* fresh aqua-teal */
+    --tod-aurora-2: 172 55% 50%;    /* cool cyan, desaturated */
+    --tod-aurora-3: 185 55% 36%;    /* clear teal */
+    --tod-glow:     172 55% 50%;
     --tod-pulse:    2.6s;
     --tod-drift:    10s;
     --tod-greeting: 'Good morning';
@@ -174,8 +175,8 @@ input[type=number] {
     --primary: 200 80% 55%;
     --primary-foreground: 201 100% 8%;
 
-    --secondary: 186 80% 45%;
-    --secondary-foreground: 201 100% 8%;
+    --secondary: 200 18% 18%;
+    --secondary-foreground: 200 15% 80%;
 
     --muted: 200 22% 16%;
     --muted-foreground: 200 15% 64%;
@@ -192,7 +193,7 @@ input[type=number] {
        clearly visible resting-state border without going as bright as
        --border (used for stronger dividers). */
     --input: 200 20% 26%;
-    --ring: 186 100% 55%;
+    --ring: 200 55% 50%;
 
     /* Sidebar in dark mode keeps the dark-on-dark aesthetic with a touch
        more contrast against the body so navigation always reads. */
@@ -203,10 +204,10 @@ input[type=number] {
     --sidebar-accent: 200 50% 14%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 200 30% 14%;
-    --sidebar-ring: 186 100% 55%;
+    --sidebar-ring: 200 50% 48%;
 
-    --success: 152 55% 45%;
-    --warning: 38 90% 55%;
+    --success: 152 50% 42%;
+    --warning: 38 72% 52%;
     --info: 200 90% 55%;
 
     /* Role identity colors — same hues as light mode, lightness bumped for
@@ -578,7 +579,7 @@ input[type=number] {
   }
 
   .kd-gradient-brand {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 60%, hsl(186 100% 40%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 60%, hsl(186 45% 38%) 100%);
   }
 
   .kd-gradient-gold {
@@ -602,7 +603,7 @@ input[type=number] {
 
   /* Text gradient */
   .kd-text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(186 100% 35%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(186 40% 35%) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
