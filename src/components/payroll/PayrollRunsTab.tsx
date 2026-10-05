@@ -1304,20 +1304,42 @@ function RunDetailDrawer({
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5">Money ledger</div>
             <div className="rounded-lg border border-border/60 overflow-hidden text-sm">
               <div className="flex justify-between px-3 py-2.5"><span>Gross pay</span><span className="font-semibold tabular-nums">{formatNaira(r.total_employee_ngn)}</span></div>
-              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>PAYE (tax)</span><span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span></div>
-              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>Pension (employee)</span><span className="tabular-nums">− {formatNaira(r.pension_ngn)}</span></div>
-              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40"><span>NHF</span><span className="tabular-nums">− {formatNaira(r.nhf_ngn)}</span></div>
-              <div className="flex justify-between px-3 py-2.5 font-semibold bg-muted/40 border-t border-border/40"><span>Net pay to disburse</span><span className="tabular-nums">{formatNaira(netPay)}</span></div>
-            </div>
-            {(r.total_contractor_ngn > 0 || r.total_expenses_ngn > 0) && (
-              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {r.total_contractor_ngn > 0 && <span>Contractors: <span className="tabular-nums text-foreground">{formatNaira(r.total_contractor_ngn)}</span></span>}
-                {r.total_expenses_ngn > 0 && <span>Expenses: <span className="tabular-nums text-foreground">{formatNaira(r.total_expenses_ngn)}</span></span>}
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40">
+                <div className="flex flex-col"><span>PAYE (tax)</span><span className="text-2xs text-muted-foreground/60">deducted from employee</span></div>
+                <span className="tabular-nums">− {formatNaira(r.paye_ngn)}</span>
               </div>
-            )}
-            <p className="text-2xs text-muted-foreground mt-2">
-              Employer cost on top of gross (employer pension): {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
-            </p>
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40">
+                <div className="flex flex-col"><span>Pension — employee (8%)</span><span className="text-2xs text-muted-foreground/60">deducted from employee</span></div>
+                <span className="tabular-nums">− {formatNaira(r.pension_ngn)}</span>
+              </div>
+              <div className="flex justify-between px-3 py-2 text-xs text-muted-foreground border-t border-border/40">
+                <div className="flex flex-col"><span>NHF</span><span className="text-2xs text-muted-foreground/60">deducted from employee</span></div>
+                <span className="tabular-nums">− {formatNaira(r.nhf_ngn)}</span>
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-emerald-500/10 border-t border-border/40">
+                <div className="flex flex-col">
+                  <span className="text-emerald-700 dark:text-emerald-400">Net pay to disburse</span>
+                  <span className="text-2xs font-normal text-muted-foreground">This is what employees receive</span>
+                </div>
+                <span className="tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(netPay)}</span>
+              </div>
+              <div className="border-t border-border/40">
+                <div className="px-3 py-1.5 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">
+                  Employer-side costs (for your records only)
+                </div>
+                <div className="flex justify-between px-3 py-1.5 text-xs text-muted-foreground">
+                  <span>Pension — employer (10%)</span>
+                  <span className="tabular-nums">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-primary/10 border-t border-border/40">
+                <div className="flex flex-col">
+                  <span>Total company cost</span>
+                  <span className="text-2xs font-normal text-muted-foreground">Net pay + employer pension + NSITF</span>
+                </div>
+                <span className="tabular-nums text-primary">{formatNaira(r.total_burn_ngn)}</span>
+              </div>
+            </div>
           </div>
 
           {(r.status === 'approved' || r.status === 'processing' || r.status === 'paid') && (

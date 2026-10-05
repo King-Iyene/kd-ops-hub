@@ -708,18 +708,18 @@ export const PayrollDialogs = ({
                       { label: 'Gross salaries', value: computedPreview.totalEmployee },
                       ...(computedPreview.bonusTotal > 0 ? [{ label: 'Bonuses', value: computedPreview.bonusTotal }] : []),
                       ...(computedPreview.totalAllowances > 0 ? [{ label: 'Allowances', value: computedPreview.totalAllowances }] : []),
-                      { label: 'PAYE tax', value: computedPreview.paye, muted: true },
-                      { label: 'Pension — employee', value: computedPreview.pension, muted: true },
-                      { label: 'Pension — employer', value: computedPreview.employerPension, muted: true },
-                      { label: 'NHF', value: computedPreview.nhf, muted: true },
-                      { label: 'NSITF', value: computedPreview.nsitfCharge, muted: true },
-                      ...(computedPreview.nhisEmployee > 0 ? [{ label: 'NHIS — employee', value: computedPreview.nhisEmployee, muted: true }] : []),
-                      ...(computedPreview.nhisEmployer > 0 ? [{ label: 'NHIS — employer', value: computedPreview.nhisEmployer, muted: true }] : []),
-                      ...(computedPreview.totalDeductions > 0 ? [{ label: 'Deductions (offsets burn)', value: -computedPreview.totalDeductions, muted: true }] : []),
-                      ...(computedPreview.totalAdvanceRepayments > 0 ? [{ label: 'Advance repayments (offsets burn)', value: -computedPreview.totalAdvanceRepayments, muted: true }] : []),
+                      { label: 'PAYE tax', value: computedPreview.paye, muted: true, sub: 'deducted from employee' },
+                      { label: 'Pension — employee (8%)', value: computedPreview.pension, muted: true, sub: 'deducted from employee' },
+                      { label: 'NHF', value: computedPreview.nhf, muted: true, sub: 'deducted from employee' },
+                      ...(computedPreview.nhisEmployee > 0 ? [{ label: 'NHIS — employee (5%)', value: computedPreview.nhisEmployee, muted: true, sub: 'deducted from employee' }] : []),
+                      ...(computedPreview.totalDeductions > 0 ? [{ label: 'Recurring deductions', value: -computedPreview.totalDeductions, muted: true }] : []),
+                      ...(computedPreview.totalAdvanceRepayments > 0 ? [{ label: 'Advance repayments', value: -computedPreview.totalAdvanceRepayments, muted: true }] : []),
                     ].map((line) => (
                       <div key={line.label} className="flex items-center justify-between px-4 py-2">
-                        <span className={cn('text-xs', line.muted ? 'text-muted-foreground' : 'text-foreground')}>{line.label}</span>
+                        <div className="flex flex-col">
+                          <span className={cn('text-xs', line.muted ? 'text-muted-foreground' : 'text-foreground')}>{line.label}</span>
+                          {line.sub && <span className="text-2xs text-muted-foreground/60">{line.sub}</span>}
+                        </div>
                         <span className={cn('text-xs font-medium currency tabular-nums', line.muted && 'text-muted-foreground')}>{formatNaira(line.value)}</span>
                       </div>
                     ))}
@@ -728,34 +728,31 @@ export const PayrollDialogs = ({
                     <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay to employees</span>
                     <span className="text-base font-bold currency tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(computedPreview.totalNetPay)}</span>
                   </div>
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold">Total burn this run</span>
-                      <span className="text-2xs text-muted-foreground">Includes employer-side costs employees don't see</span>
-                    </div>
-                    <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
-                  </div>
-                </div>
-
-                {(computedPreview.totalContractor > 0 || computedPreview.totalExpenses > 0) && (
-                  <div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
-                    <div className="px-4 py-2 text-2xs text-muted-foreground border-b border-border/60">
-                      Other company disbursements this calendar month — for context only, not part of this
-                      payroll run and not included in "Total burn" above.
-                    </div>
-                    <div className="divide-y divide-border/40">
+                  {(computedPreview.employerPension > 0 || computedPreview.nsitfCharge > 0 || computedPreview.nhisEmployer > 0) && (
+                    <div className="border-t border-border/60">
+                      <div className="px-4 py-1.5 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">
+                        Employer-side costs (for your records — not deducted from employees)
+                      </div>
                       {[
-                        ...(computedPreview.totalContractor > 0 ? [{ label: 'Contractor payouts', value: computedPreview.totalContractor }] : []),
-                        ...(computedPreview.totalExpenses > 0 ? [{ label: 'Approved expenses', value: computedPreview.totalExpenses }] : []),
+                        ...(computedPreview.employerPension > 0 ? [{ label: 'Pension — employer (10%)', value: computedPreview.employerPension }] : []),
+                        ...(computedPreview.nsitfCharge > 0 ? [{ label: 'NSITF (1%)', value: computedPreview.nsitfCharge }] : []),
+                        ...(computedPreview.nhisEmployer > 0 ? [{ label: 'NHIS — employer (10%)', value: computedPreview.nhisEmployer }] : []),
                       ].map((line) => (
-                        <div key={line.label} className="flex items-center justify-between px-4 py-2">
+                        <div key={line.label} className="flex items-center justify-between px-4 py-1.5">
                           <span className="text-xs text-muted-foreground">{line.label}</span>
                           <span className="text-xs font-medium currency tabular-nums text-muted-foreground">{formatNaira(line.value)}</span>
                         </div>
                       ))}
                     </div>
+                  )}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">Total company cost</span>
+                      <span className="text-2xs text-muted-foreground">Net pay + employer pension + NSITF</span>
+                    </div>
+                    <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
                   </div>
-                )}
+                </div>
 
                 {complianceChecks && complianceChecks.length > 0 && (
                   <CompliancePanel checks={complianceChecks} />
