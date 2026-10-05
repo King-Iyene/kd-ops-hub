@@ -411,7 +411,7 @@ export const PayrollRunsTab = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
-            label: 'Net pay to disburse',
+            label: latest?.status === 'paid' ? 'Net pay (paid)' : 'Net pay',
             value: latest ? formatNaira(latest.total_employee_ngn - latest.paye_ngn - latest.pension_ngn - latest.nhf_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Run payroll to get started',
             icon: Banknote,
@@ -483,7 +483,7 @@ export const PayrollRunsTab = ({
                 <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-blue-200 bg-clip-text text-transparent">
                   {formatNaira(latest.total_employee_ngn - latest.paye_ngn - latest.pension_ngn - latest.nhf_ngn)}
                 </p>
-                <p className="text-xs text-white/45 mt-1 font-medium tracking-wide">Net pay to disburse · {latest.employee_count ?? 0} employees</p>
+                <p className="text-xs text-white/45 mt-1 font-medium tracking-wide">{latest.status === 'paid' ? 'Net pay paid' : 'Net pay'} · {latest.employee_count ?? 0} employees</p>
               </div>
               <StatusBadge status={latest.status} />
             </div>
@@ -1240,7 +1240,7 @@ function RunDetailDrawer({
               {r.custom_name && !editing && (
                 <p className="text-2xs text-muted-foreground mt-0.5">{monthLabel(r.period, r.period_type)}</p>
               )}
-              <p className="text-2xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mt-2">Net pay to disburse</p>
+              <p className="text-2xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mt-2">{r.status === 'paid' ? 'Net pay paid' : 'Net pay'}</p>
               <p className="text-xl font-extrabold tabular-nums tracking-tight">{formatNaira(netPay)}</p>
               <p className="text-2xs text-muted-foreground mt-0.5">Total company cost: {formatNaira(r.total_burn_ngn)} — see Money ledger</p>
             </div>
@@ -1323,8 +1323,8 @@ function RunDetailDrawer({
               </div>
               <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-emerald-500/10 border-t border-border/40">
                 <div className="flex flex-col">
-                  <span className="text-emerald-700 dark:text-emerald-400">Net pay to disburse</span>
-                  <span className="text-2xs font-normal text-muted-foreground">This is what employees receive</span>
+                  <span className="text-emerald-700 dark:text-emerald-400">{r.status === 'paid' ? 'Net pay paid' : 'Net pay'}</span>
+                  <span className="text-2xs font-normal text-muted-foreground">{r.status === 'paid' ? 'What employees received' : 'What employees will receive'}</span>
                 </div>
                 <span className="tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(netPay)}</span>
               </div>

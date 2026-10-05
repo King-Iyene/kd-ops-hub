@@ -242,7 +242,7 @@ export function PayrollDashboardTab({
                       {formatNairaCompact(netPay(heroRun))}
                     </p>
                     <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">
-                      Net pay to disburse · {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'}
+                      {heroRun.status === 'paid' ? 'Net pay paid' : 'Net pay'} · {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'}
                     </p>
                   </div>
                   {heroRun.status !== 'paid' && (

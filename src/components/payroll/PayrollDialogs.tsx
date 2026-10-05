@@ -1204,7 +1204,7 @@ export const PayrollDialogs = ({
                 </div>
               )}
               <div className="flex items-center justify-between px-3.5 py-3 bg-emerald-500/10">
-                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay to disburse</span>
+                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay</span>
                 <span className="text-base font-bold currency tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(confirmApproveRun.total_employee_ngn - confirmApproveRun.paye_ngn - confirmApproveRun.pension_ngn - confirmApproveRun.nhf_ngn)}</span>
               </div>
               <div className="flex items-center justify-between px-3.5 py-2">
