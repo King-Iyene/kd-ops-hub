@@ -413,7 +413,7 @@ const SettingsPage = () => {
       />
 
       <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
-        <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-24 md:self-start md:pt-2 overflow-x-auto md:overflow-visible">
+        <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-[4.5rem] md:self-start md:pt-0 overflow-x-auto md:overflow-y-auto md:max-h-[calc(100vh-5.5rem)]">
           {/* Grouped into sections (was one flat list of 12 items with a
               single "Configuration" label — impossible to scan at a glance).
               Grouping is presentation-only: every TabsTrigger keeps its same
