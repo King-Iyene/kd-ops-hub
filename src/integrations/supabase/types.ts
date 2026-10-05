@@ -8666,6 +8666,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -8704,6 +8705,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          custom_name?: string | null
           cutoff_date?: string | null
           deductions_settled_at?: string | null
           employee_count?: number | null
@@ -8742,6 +8744,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          custom_name?: string | null
           cutoff_date?: string | null
           deductions_settled_at?: string | null
           employee_count?: number | null
@@ -16430,6 +16433,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -16516,6 +16520,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -16981,6 +16986,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -17139,6 +17145,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -17346,6 +17353,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
@@ -17860,6 +17868,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_name: string | null
           cutoff_date: string | null
           deductions_settled_at: string | null
           employee_count: number | null
