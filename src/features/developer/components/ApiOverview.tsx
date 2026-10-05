@@ -37,7 +37,7 @@ const modules = [
     description: 'Manage employee records, profiles, departments and org charts.',
     endpoints: ['No REST endpoint', 'Webhooks: employee.*'],
     restAvailable: false,
-    color: 'from-blue-500 to-blue-600',
+    color: 'from-blue-700 to-blue-800',
   },
   {
     name: 'Contractors',
@@ -45,7 +45,7 @@ const modules = [
     description: 'Track contractors, contracts, and engagement history.',
     endpoints: ['No REST endpoint', 'Webhooks: contractor.*'],
     restAvailable: false,
-    color: 'from-cyan-500 to-cyan-600',
+    color: 'from-cyan-700 to-cyan-800',
   },
   {
     name: 'Tasks',
@@ -53,7 +53,7 @@ const modules = [
     description: 'Create, assign, and track tasks across projects.',
     endpoints: ['No REST endpoint', 'Webhooks: task.*'],
     restAvailable: false,
-    color: 'from-emerald-500 to-emerald-600',
+    color: 'from-emerald-700 to-emerald-800',
   },
   {
     name: 'Leave',
@@ -61,7 +61,7 @@ const modules = [
     description: 'Leave requests, balances, approvals and calendars.',
     endpoints: ['No REST endpoint', 'Webhooks: leave.*'],
     restAvailable: false,
-    color: 'from-violet-500 to-violet-600',
+    color: 'from-violet-700 to-violet-800',
   },
   {
     name: 'Expenses',
@@ -69,7 +69,7 @@ const modules = [
     description: 'Submit and approve expense claims with receipt uploads.',
     endpoints: ['No REST endpoint', 'Webhooks: expense.*'],
     restAvailable: false,
-    color: 'from-orange-500 to-orange-600',
+    color: 'from-orange-700 to-orange-800',
   },
   {
     name: 'Payroll',
@@ -77,7 +77,7 @@ const modules = [
     description: 'Payroll runs, salary slips, and compensation data.',
     endpoints: ['No REST endpoint', 'Webhooks: payroll.*'],
     restAvailable: false,
-    color: 'from-green-500 to-green-600',
+    color: 'from-green-700 to-green-800',
   },
   {
     name: 'Fleet & Fuel',
@@ -85,7 +85,7 @@ const modules = [
     description: 'Vehicle tracking, fuel requests, and maintenance logs.',
     endpoints: ['No REST endpoint', 'Webhooks: fuel_request.*, trip.*'],
     restAvailable: false,
-    color: 'from-amber-500 to-amber-600',
+    color: 'from-amber-700 to-amber-800',
   },
   {
     name: 'Invoices',
@@ -93,7 +93,7 @@ const modules = [
     description: 'Generate, send, and track invoices and line items.',
     endpoints: ['No REST endpoint', 'Webhooks: invoice.*'],
     restAvailable: false,
-    color: 'from-rose-500 to-rose-600',
+    color: 'from-rose-700 to-rose-800',
   },
   {
     name: 'Clients',
@@ -101,7 +101,7 @@ const modules = [
     description: 'Client profiles, contacts, and relationship management.',
     endpoints: ['No REST endpoint', 'Webhooks: client.*'],
     restAvailable: false,
-    color: 'from-indigo-500 to-indigo-600',
+    color: 'from-indigo-700 to-indigo-800',
   },
   {
     name: 'Recruitment',
@@ -109,7 +109,7 @@ const modules = [
     description: 'Job openings, applicant tracking, and hiring pipelines.',
     endpoints: ['No REST endpoint', 'Webhooks: applicant.*, opening.*'],
     restAvailable: false,
-    color: 'from-pink-500 to-pink-600',
+    color: 'from-pink-700 to-pink-800',
   },
   {
     name: 'Database (Custom)',
@@ -117,7 +117,7 @@ const modules = [
     description: 'Query your custom tables and records via the data API.',
     endpoints: ['GET /bases', 'GET .../tables', 'GET .../records'],
     restAvailable: true,
-    color: 'from-purple-500 to-purple-600',
+    color: 'from-purple-700 to-purple-800',
   },
   {
     name: 'Payments',
@@ -125,7 +125,7 @@ const modules = [
     description: 'Payment batches, transaction history, and disbursements.',
     endpoints: ['No REST endpoint', 'Webhooks: payment.*, batch.*'],
     restAvailable: false,
-    color: 'from-teal-500 to-teal-600',
+    color: 'from-teal-700 to-teal-800',
   },
 ];
 
@@ -182,7 +182,7 @@ export default function ApiOverview({
   return (
     <div className="space-y-10 pb-12">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 md:p-12 shadow-2xl shadow-blue-600/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[hsl(200,80%,22%)] via-[hsl(200,65%,28%)] to-[hsl(210,55%,20%)] p-8 md:p-12 shadow-2xl shadow-primary/20">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjA1Ij48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnYtMmgtNHY2aDR2LTJ6bTAtOGgydi0yaDJ2LTJoLTR2NHptLTYgMGgydi0yaDJ2LTRoLTR2NnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
@@ -195,7 +195,7 @@ export default function ApiOverview({
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4">
             KDOps Platform API
           </h1>
-          <p className="text-base md:text-lg text-blue-100/90 leading-relaxed mb-8">
+          <p className="text-base md:text-lg text-white/80 leading-relaxed mb-8">
             A REST API for your custom database tables, plus real-time webhooks
             for activity across every module &mdash; employees, tasks, finance,
             fleet, HR, and clients. Authenticate with API keys, subscribe to
@@ -206,7 +206,7 @@ export default function ApiOverview({
             <Button
               onClick={() => onNavigate('explorer')}
               size="lg"
-              className="bg-white text-indigo-700 hover:bg-blue-50 font-semibold shadow-lg shadow-black/10"
+              className="bg-white text-primary hover:bg-white/90 font-semibold shadow-lg shadow-black/10"
             >
               Try the API Explorer
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -244,7 +244,7 @@ export default function ApiOverview({
             <Card key={s.step} className="relative overflow-hidden group">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm font-bold shadow-md shadow-blue-500/20">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[hsl(200,80%,22%)] to-[hsl(200,65%,28%)] text-white text-sm font-bold shadow-md shadow-primary/20">
                     {s.step}
                   </span>
                   <s.icon className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />

@@ -23,7 +23,7 @@ export function DeveloperHub() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/20">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-[hsl(200,80%,22%)] to-[hsl(200,65%,28%)] shadow-lg shadow-primary/20">
                 <Terminal size={20} className="text-white" />
               </div>
               <div>

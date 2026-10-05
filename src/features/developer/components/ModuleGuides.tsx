@@ -966,7 +966,7 @@ function ModuleContent({ module: mod }: { module: ModuleDef }) {
     <>
       {/* Overview Card */}
       <Card className="border-zinc-200 dark:border-zinc-700/80 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 px-5 py-4">
+        <div className="bg-gradient-to-r from-[hsl(200,80%,22%)] to-[hsl(200,65%,28%)] px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-white/20">
               <Icon size={22} className="text-white" />

@@ -558,7 +558,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
           onClick={() => setExpanded(!expanded)}
           className="w-full text-left p-5 flex items-start gap-4"
         >
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 flex items-center justify-center text-lg">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/8 dark:bg-primary/15 flex items-center justify-center text-lg">
             {recipe.emoji}
           </div>
           <div className="flex-1 min-w-0">
