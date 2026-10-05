@@ -23,7 +23,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
-  Banknote, Gift, AlertTriangle, Building2, ReceiptText, HandCoins, RotateCcw,
+  Banknote, Gift, AlertTriangle, Building2, ReceiptText, HandCoins,
 } from 'lucide-react';
 import { FieldError } from '@/components/ui-kit/FieldError';
 import { useFieldErrors } from '@/hooks/useFieldErrors';
@@ -41,7 +41,7 @@ import { BeneficiaryCsvImport, type ImportedBeneficiary } from '@/components/Ben
 import { heyreachDisplayStatus } from '@/lib/heyreach-status';
 import { computePayslip } from '@/lib/tax';
 
-type BatchType = 'contractor' | 'employee_salary' | 'employee_allowance' | 'employee_reimbursement' | 'advance' | 'prize';
+type BatchType = 'contractor' | 'employee_salary' | 'employee_allowance' | 'advance' | 'prize';
 
 // Paystack's `transfer/bulk` endpoint caps each call at 100 items;
 // our dispatcher loops single-call transfers so the same ceiling
@@ -102,33 +102,21 @@ interface Employee {
   other_allowances_ngn: number | null;
 }
 
-const BATCH_TYPES: {
+interface BatchTypeConfig {
   type: BatchType;
   icon: React.ReactNode;
   label: string;
   desc: string;
   color: string;
-}[] = [
-  {
-    type: 'contractor',
-    icon: <Building2 className="h-5 w-5" />,
-    label: 'Contractor Payment',
-    desc: 'Partners & vendors',
-    color: 'text-blue-600',
-  },
+}
+
+const EMPLOYEE_BATCH_TYPES: BatchTypeConfig[] = [
   {
     type: 'employee_salary',
     icon: <Banknote className="h-5 w-5" />,
     label: 'Employee Salary',
     desc: 'Monthly payroll',
     color: 'text-emerald-600',
-  },
-  {
-    type: 'employee_allowance',
-    icon: <HandCoins className="h-5 w-5" />,
-    label: 'Employee Allowance',
-    desc: 'Housing, transport, etc.',
-    color: 'text-teal-600',
   },
   {
     type: 'advance',
@@ -145,13 +133,23 @@ const BATCH_TYPES: {
     color: 'text-purple-600',
   },
   {
-    type: 'employee_reimbursement',
-    icon: <RotateCcw className="h-5 w-5" />,
-    label: 'Reimbursement',
-    desc: 'Expense reimbursements',
-    color: 'text-cyan-600',
+    type: 'employee_allowance',
+    icon: <HandCoins className="h-5 w-5" />,
+    label: 'Employee Allowance',
+    desc: 'Housing, transport, etc.',
+    color: 'text-teal-600',
   },
 ];
+
+const CONTRACTOR_BATCH_TYPE: BatchTypeConfig = {
+  type: 'contractor',
+  icon: <Building2 className="h-5 w-5" />,
+  label: 'Contractor Payment',
+  desc: 'Partners & vendors',
+  color: 'text-blue-600',
+};
+
+const ALL_BATCH_TYPES: BatchTypeConfig[] = [CONTRACTOR_BATCH_TYPE, ...EMPLOYEE_BATCH_TYPES];
 
 const emptyBank: BankAccountValue = {
   bank_name: '',
@@ -192,7 +190,6 @@ const NewPaymentBatch = () => {
     if (canContractor) out.push('contractor');
     if (canSalary)     out.push('employee_salary');
     if (canSalary)     out.push('employee_allowance');
-    if (canSalary)     out.push('employee_reimbursement');
     if (canAdvance)    out.push('advance');
     if (canBonus)      out.push('prize');
     return out;
@@ -536,7 +533,7 @@ const NewPaymentBatch = () => {
     );
   }, [employees, employeeSearchTerm]);
 
-  const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'employee_allowance' || batchType === 'employee_reimbursement' || batchType === 'advance' || batchType === 'prize';
+  const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'employee_allowance' || batchType === 'advance' || batchType === 'prize';
 
   const addAdHoc = () => {
     let adHocValid = true;
@@ -817,55 +814,49 @@ const NewPaymentBatch = () => {
         <Card>
           <CardHeader><CardTitle>Payment Type &amp; Details</CardTitle></CardHeader>
           <CardContent className="space-y-6">
-            {/* Batch type selector */}
+            {/* Batch type selector — grouped into Employee and Contractor */}
             <div>
               <Label className="text-sm mb-3 block">What type of payment is this?</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {BATCH_TYPES.filter((t) => allowedBatchTypes.includes(t.type)).map((t) => (
+              {(() => {
+                const visibleEmployee = EMPLOYEE_BATCH_TYPES.filter((t) => allowedBatchTypes.includes(t.type));
+                const showContractor = allowedBatchTypes.includes('contractor');
+                const autoFill = (t: BatchTypeConfig) => {
+                  setBatchType(t.type);
+                  if (!batchName) {
+                    const now = new Date();
+                    const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                    const monthShort = now.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
+                    const next25Month = now.getDate() <= 25 ? now.getMonth() : now.getMonth() + 1;
+                    const next25 = new Date(now.getFullYear(), next25Month, 25).toISOString().slice(0, 10);
+                    const today = now.toISOString().slice(0, 10);
+                    if (t.type === 'employee_salary') {
+                      setBatchName(`Salary Run — ${monthLong}`);
+                      setPeriod(monthShort);
+                      setPaymentDate(next25);
+                    } else if (t.type === 'contractor') {
+                      setBatchName(`Contractor Payment — ${monthLong}`);
+                      setPeriod(monthShort);
+                      setPaymentDate(today);
+                    } else if (t.type === 'advance') {
+                      setBatchName(`Salary Advance — ${monthLong}`);
+                      setPeriod(monthShort);
+                      setPaymentDate(today);
+                    } else if (t.type === 'prize') {
+                      setBatchName(`Bonus — ${monthLong}`);
+                      setPeriod(monthShort);
+                      setPaymentDate(today);
+                    } else if (t.type === 'employee_allowance') {
+                      setBatchName(`Allowance — ${monthLong}`);
+                      setPeriod(monthShort);
+                      setPaymentDate(today);
+                    }
+                  }
+                };
+                const typeButton = (t: BatchTypeConfig) => (
                   <button
                     key={t.type}
                     type="button"
-                    onClick={() => {
-                      setBatchType(t.type);
-                      // Auto-fill batch name + period + payment date for whichever
-                      // type was picked, so the operator never sees an empty form.
-                      // Only runs when the operator hasn't already started typing.
-                      if (!batchName) {
-                        const now = new Date();
-                        const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-                        const monthShort = now.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
-                        // The next upcoming 25th — THIS month's if it hasn't
-                        // passed yet, otherwise next month's. Previously this
-                        // always jumped a full month ahead (now.getMonth() + 1
-                        // unconditionally), so picking "Employee Salary" on
-                        // any day 1-25 silently pre-filled a payment date a
-                        // month later than intended — the root cause of
-                        // salary batches carrying a payment_date weeks after
-                        // they were actually dispatched.
-                        const next25Month = now.getDate() <= 25 ? now.getMonth() : now.getMonth() + 1;
-                        const next25 = new Date(now.getFullYear(), next25Month, 25)
-                          .toISOString().slice(0, 10);
-                        const today = now.toISOString().slice(0, 10);
-
-                        if (t.type === 'employee_salary') {
-                          setBatchName(`Salary Run — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(next25);
-                        } else if (t.type === 'contractor') {
-                          setBatchName(`Contractor Payment — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(today);
-                        } else if (t.type === 'advance') {
-                          setBatchName(`Salary Advance — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(today);
-                        } else if (t.type === 'prize') {
-                          setBatchName(`Bonus — ${monthLong}`);
-                          setPeriod(monthShort);
-                          setPaymentDate(today);
-                        }
-                      }
-                    }}
+                    onClick={() => autoFill(t)}
                     className={cn(
                       'flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all duration-200',
                       batchType === t.type
@@ -881,8 +872,28 @@ const NewPaymentBatch = () => {
                       <p className="text-xs-plus text-muted-foreground/60 mt-1 leading-snug">{t.desc}</p>
                     </div>
                   </button>
-                ))}
-              </div>
+                );
+                return (
+                  <div className="space-y-5">
+                    {visibleEmployee.length > 0 && (
+                      <div>
+                        <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60 mb-2.5 px-0.5">Employee payments</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {visibleEmployee.map(typeButton)}
+                        </div>
+                      </div>
+                    )}
+                    {showContractor && (
+                      <div>
+                        <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/60 mb-2.5 px-0.5">Contractor payments</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {typeButton(CONTRACTOR_BATCH_TYPE)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {allowedBatchTypes.length === 0 && (
                 <div className="rounded-lg border border-dashed border-warning/40 bg-warning/5 px-4 py-6 text-center">
                   <p className="text-sm font-medium text-warning">No batch types unlocked</p>
