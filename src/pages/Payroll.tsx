@@ -2684,9 +2684,10 @@ const Payroll = () => {
         (r.payroll_segment_id || null) === segId,
     );
     if (!match) return null;
-    // Editing that very draft is the normal path, not a clash. A draft by
-    // anyone is fine too — the server still allows overwriting those.
-    if (match.status === 'draft') return null;
+    // Drafts can always be overwritten. Paid runs stay in the ledger but
+    // a new draft is allowed alongside them (the DB unique indexes and
+    // RPC guard both exclude paid rows now).
+    if (match.status === 'draft' || match.status === 'paid') return null;
     return { period: match.period, status: match.status, id: match.id };
   }, [runs, form.period, form.payroll_segment_id, selectedCompanyId]);
 
