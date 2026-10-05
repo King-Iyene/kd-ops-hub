@@ -217,15 +217,22 @@ export const formatTime = (
  * what was intended, with no indication anything had gone wrong.
  */
 export function orgWallClockToUtcIso(wallClock: string): string {
-  const tz = getTimezone();
-  // Read the wall-clock string as a literal UTC instant first (a "guess"),
-  // then ask what `tz`'s own wall clock reads at that same instant — the
-  // gap between the two is exactly `tz`'s UTC offset at that moment
-  // (correct even for DST-observing zones, not just fixed-offset ones).
-  // Offsets are extracted via formatToParts + Date.UTC — never by handing a
-  // locale-formatted string back to `new Date(string)`, which silently
-  // re-parses using the BROWSER's own local timezone and reintroduces
-  // exactly the bug this function exists to avoid.
+  return wallClockToUtcIso(wallClock, getTimezone());
+}
+
+export function utcIsoToOrgWallClock(iso: string): string {
+  return utcIsoToWallClock(iso, getTimezone());
+}
+
+/** Browser's IANA timezone (e.g. "America/New_York"). */
+export const getBrowserTimezone = (): string =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/**
+ * Convert a "YYYY-MM-DDTHH:mm" wall-clock string in ANY IANA timezone to a
+ * UTC ISO instant. Generalisation of orgWallClockToUtcIso().
+ */
+export function wallClockToUtcIso(wallClock: string, tz: string): string {
   const guess = new Date(`${wallClock}:00Z`);
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -240,13 +247,10 @@ export function orgWallClockToUtcIso(wallClock: string): string {
 }
 
 /**
- * Inverse of orgWallClockToUtcIso(): a UTC ISO instant -> "YYYY-MM-DDTHH:mm"
- * wall-clock string in the org's timezone, ready to pre-fill a
- * datetime-local input without silently converting to the browser's own
- * timezone first.
+ * Convert a UTC ISO instant to "YYYY-MM-DDTHH:mm" wall-clock in ANY IANA tz.
+ * Generalisation of utcIsoToOrgWallClock().
  */
-export function utcIsoToOrgWallClock(iso: string): string {
-  const tz = getTimezone();
+export function utcIsoToWallClock(iso: string, tz: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
     hour12: false,
@@ -257,23 +261,16 @@ export function utcIsoToOrgWallClock(iso: string): string {
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
-/** Browser's IANA timezone (e.g. "America/New_York"). */
-export const getBrowserTimezone = (): string =>
-  Intl.DateTimeFormat().resolvedOptions().timeZone;
-
 /**
- * Given a wall-clock string interpreted in the org's timezone, return a
- * human-readable string of the same instant in the browser's local timezone.
- * Returns null when the two timezones are the same (no conversion needed).
+ * Given a wall-clock string in `fromTz`, return a human-readable string of
+ * the same instant in `toTz`. Returns null when the two are identical.
  */
-export function orgWallClockToLocalDisplay(wallClock: string): string | null {
-  const orgTz = getTimezone();
-  const browserTz = getBrowserTimezone();
-  if (orgTz === browserTz) return null;
-  const utcIso = orgWallClockToUtcIso(wallClock);
+export function wallClockToTzDisplay(wallClock: string, fromTz: string, toTz: string): string | null {
+  if (fromTz === toTz) return null;
+  const utcIso = wallClockToUtcIso(wallClock, fromTz);
   const dt = new Date(utcIso);
   return dt.toLocaleString('en-US', {
-    timeZone: browserTz,
+    timeZone: toTz,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -282,6 +279,15 @@ export function orgWallClockToLocalDisplay(wallClock: string): string | null {
     hour12: true,
     timeZoneName: 'short',
   });
+}
+
+/** Short display label for an IANA timezone (e.g. "WAT", "EDT"). */
+export function tzAbbrev(tz: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    timeZoneName: 'short',
+  }).formatToParts(new Date());
+  return parts.find((p) => p.type === 'timeZoneName')?.value ?? tz;
 }
 
 /** USD amount from whole dollars: "$18,500.00". */

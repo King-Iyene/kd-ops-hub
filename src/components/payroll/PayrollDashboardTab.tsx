@@ -100,8 +100,16 @@ export function PayrollDashboardTab({
   }, [trend]);
 
   const heroRun = useMemo(() => {
-    const active = runs.find((r) => r.status !== 'paid');
-    return active || runs[0] || null;
+    const priority: Record<string, number> = {
+      processing: 0,
+      approved: 1,
+      pending_approval: 2,
+      draft: 3,
+    };
+    const active = runs
+      .filter((r) => r.status !== 'paid')
+      .sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9));
+    return active[0] || runs[0] || null;
   }, [runs]);
 
   const paidThisMonth = useMemo(() => {

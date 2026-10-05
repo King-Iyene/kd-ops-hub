@@ -3,7 +3,7 @@ import { Loader2, Plus, Send, AlertCircle, AlertTriangle, Trash2, X, Clock, Chec
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
-import { formatNaira, formatNairaCompact, getTimezone, getBrowserTimezone, utcIsoToOrgWallClock, orgWallClockToLocalDisplay } from '@/lib/format';
+import { formatNaira, formatNairaCompact, getTimezone, getBrowserTimezone, utcIsoToWallClock, wallClockToTzDisplay, tzAbbrev } from '@/lib/format';
 import { CompliancePanel } from '@/components/payroll/CompliancePanel';
 import type { ComplianceCheck } from '@/lib/payroll-compliance';
 import { Button } from '@/components/ui/button';
@@ -211,6 +211,8 @@ export interface PayrollDialogsProps {
   setScheduleMode: (v: boolean) => void;
   scheduleAt: string;
   setScheduleAt: (v: string) => void;
+  scheduleTz: string;
+  setScheduleTz: (v: string) => void;
   scheduling: boolean;
   doSchedule: () => void;
 
@@ -296,6 +298,8 @@ export const PayrollDialogs = ({
   setScheduleMode,
   scheduleAt,
   setScheduleAt,
+  scheduleTz,
+  setScheduleTz,
   scheduling,
   doSchedule,
   confirmPaidRun,
@@ -1103,26 +1107,58 @@ export const PayrollDialogs = ({
 
               {scheduleMode ? (
                 <div className="space-y-2">
-                  <Label htmlFor="payroll-schedule-at">Disburse at ({getTimezone()} time)</Label>
-                  <Input
-                    id="payroll-schedule-at"
-                    type="datetime-local"
-                    value={scheduleAt}
-                    min={utcIsoToOrgWallClock(new Date(Date.now() + 5 * 60 * 1000).toISOString())}
-                    onChange={(e) => setScheduleAt(e.target.value)}
-                  />
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label htmlFor="payroll-schedule-at">Disburse at</Label>
+                      <Input
+                        id="payroll-schedule-at"
+                        type="datetime-local"
+                        value={scheduleAt}
+                        min={utcIsoToWallClock(new Date(Date.now() + 5 * 60 * 1000).toISOString(), scheduleTz)}
+                        onChange={(e) => setScheduleAt(e.target.value)}
+                      />
+                    </div>
+                    <div className="w-[160px]">
+                      <Label htmlFor="payroll-schedule-tz" className="sr-only">Timezone</Label>
+                      <select
+                        id="payroll-schedule-tz"
+                        value={scheduleTz}
+                        onChange={(e) => {
+                          setScheduleTz(e.target.value);
+                          setScheduleAt('');
+                        }}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        {(() => {
+                          const orgTz = getTimezone();
+                          const browserTz = getBrowserTimezone();
+                          const options = [
+                            { value: orgTz, label: `${tzAbbrev(orgTz)} — ${orgTz.replace(/_/g, ' ')}` },
+                          ];
+                          if (browserTz !== orgTz) {
+                            options.push({ value: browserTz, label: `${tzAbbrev(browserTz)} — ${browserTz.replace(/_/g, ' ')}` });
+                          }
+                          return options.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ));
+                        })()}
+                      </select>
+                    </div>
+                  </div>
                   {scheduleAt && (() => {
-                    const localDisplay = orgWallClockToLocalDisplay(scheduleAt);
-                    if (!localDisplay) return null;
+                    const orgTz = getTimezone();
+                    const browserTz = getBrowserTimezone();
+                    const otherTz = scheduleTz === orgTz ? browserTz : orgTz;
+                    const display = wallClockToTzDisplay(scheduleAt, scheduleTz, otherTz);
+                    if (!display) return null;
                     return (
                       <p className="text-xs font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1">
                         <Clock className="h-3 w-3 flex-shrink-0" />
-                        That's {localDisplay} your time ({getBrowserTimezone().replace(/_/g, ' ')})
+                        That's {display} ({otherTz.replace(/_/g, ' ')})
                       </p>
                     );
                   })()}
                   <p className="text-xs text-muted-foreground">
-                    Pick the time in your company's timezone ({getTimezone()}).{' '}
                     KDOps will automatically dispatch transfers for every employee's net salary
                     at this time — no one needs to be online. Approvers can cancel the schedule
                     any time before it fires, from this run's row on the Runs tab.

@@ -31,8 +31,8 @@ import {
   formatDateTime,
   formatNaira,
   getTimezone,
-  orgWallClockToUtcIso,
-  utcIsoToOrgWallClock,
+  wallClockToUtcIso,
+  utcIsoToWallClock,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildPaymentInstructions, instructionsToCsv } from '@/lib/bank-payment';
@@ -124,6 +124,7 @@ const Payroll = () => {
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleAt, setScheduleAt] = useState('');
+  const [scheduleTz, setScheduleTz] = useState(getTimezone());
   const [scheduling, setScheduling] = useState(false);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
   const [confirmApproveRun, setConfirmApproveRun] = useState<PayrollRun | null>(null);
@@ -2363,13 +2364,7 @@ const Payroll = () => {
     if (!disburseTarget || !scheduleAt) return;
     setScheduling(true);
     try {
-      // scheduleAt is a wall-clock "YYYY-MM-DDTHH:mm" the operator picked
-      // meaning the ORG's timezone (shown on the input, Settings -> Company
-      // -> Platform timezone) — NOT the browser's own system timezone.
-      // Plain new Date(scheduleAt) would silently assume the latter, and
-      // schedule the wrong absolute instant for anyone whose device isn't
-      // also set to the org's timezone.
-      const atIso = orgWallClockToUtcIso(scheduleAt);
+      const atIso = wallClockToUtcIso(scheduleAt, scheduleTz);
       const { error } = await supabase.rpc('schedule_payroll_disbursement', {
         p_run_id: disburseTarget.run.id,
         p_at: atIso,
@@ -2450,11 +2445,7 @@ const Payroll = () => {
     await openDisburse(run);
     setScheduleMode(true);
     if (run.scheduled_disburse_at) {
-      // datetime-local inputs want "YYYY-MM-DDTHH:mm" — in the ORG's
-      // timezone (matching what doSchedule() writes), not the browser's own
-      // system timezone, which d.getHours()/getMinutes() etc. would have
-      // silently used instead.
-      setScheduleAt(utcIsoToOrgWallClock(run.scheduled_disburse_at));
+      setScheduleAt(utcIsoToWallClock(run.scheduled_disburse_at, scheduleTz));
     }
   };
 
@@ -3059,6 +3050,8 @@ const Payroll = () => {
         setScheduleMode={setScheduleMode}
         scheduleAt={scheduleAt}
         setScheduleAt={setScheduleAt}
+        scheduleTz={scheduleTz}
+        setScheduleTz={setScheduleTz}
         scheduling={scheduling}
         doSchedule={doSchedule}
         confirmPaidRun={confirmPaidRun}

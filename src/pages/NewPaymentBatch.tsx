@@ -23,7 +23,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
-  Banknote, Gift, AlertTriangle, Building2, ReceiptText,
+  Banknote, Gift, AlertTriangle, Building2, ReceiptText, HandCoins, RotateCcw,
 } from 'lucide-react';
 import { FieldError } from '@/components/ui-kit/FieldError';
 import { useFieldErrors } from '@/hooks/useFieldErrors';
@@ -124,6 +124,13 @@ const BATCH_TYPES: {
     color: 'text-emerald-600',
   },
   {
+    type: 'employee_allowance',
+    icon: <HandCoins className="h-5 w-5" />,
+    label: 'Employee Allowance',
+    desc: 'Housing, transport, etc.',
+    color: 'text-teal-600',
+  },
+  {
     type: 'advance',
     icon: <ReceiptText className="h-5 w-5" />,
     label: 'Salary Advance',
@@ -136,6 +143,13 @@ const BATCH_TYPES: {
     label: 'Bonus',
     desc: '13th month, performance',
     color: 'text-purple-600',
+  },
+  {
+    type: 'employee_reimbursement',
+    icon: <RotateCcw className="h-5 w-5" />,
+    label: 'Reimbursement',
+    desc: 'Expense reimbursements',
+    color: 'text-cyan-600',
   },
 ];
 
