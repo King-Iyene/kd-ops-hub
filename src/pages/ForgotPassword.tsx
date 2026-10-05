@@ -28,7 +28,7 @@ const ForgotPassword = () => {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Password reset failed', description: error.message, variant: 'destructive' });
       setLoading(false);
       return;
     }
