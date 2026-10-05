@@ -1329,20 +1329,22 @@ function RunDetailDrawer({
                 <span className="tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(netPay)}</span>
               </div>
               <div className="border-t border-border/40">
-                <div className="px-3 py-1.5 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">
-                  Employer-side costs (for your records only)
-                </div>
-                <div className="flex justify-between px-3 py-1.5 text-xs text-muted-foreground">
-                  <span>Pension — employer (10%)</span>
-                  <span className="tabular-nums">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-primary/10 border-t border-border/40">
-                <div className="flex flex-col">
+                <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-primary/10">
                   <span>Total company cost</span>
-                  <span className="text-2xs font-normal text-muted-foreground">Net pay + employer pension</span>
+                  <span className="tabular-nums text-primary">{formatNaira(r.total_burn_ngn)}</span>
                 </div>
-                <span className="tabular-nums text-primary">{formatNaira(r.total_burn_ngn)}</span>
+                <div className="px-3 py-1 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">Breakdown</div>
+                {[
+                  { label: 'Net pay to employees', value: netPay },
+                  ...((r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE)) > 0
+                    ? [{ label: 'Pension — employer (10%)', value: r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE) }]
+                    : []),
+                ].map((line) => (
+                  <div key={line.label} className="flex justify-between px-3 py-1.5 text-xs text-muted-foreground">
+                    <span>{line.label}</span>
+                    <span className="tabular-nums">{formatNaira(line.value)}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

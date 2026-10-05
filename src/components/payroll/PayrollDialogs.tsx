@@ -732,29 +732,23 @@ export const PayrollDialogs = ({
                     <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay to employees</span>
                     <span className="text-base font-bold currency tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(computedPreview.totalNetPay)}</span>
                   </div>
-                  {(computedPreview.employerPension > 0 || computedPreview.nsitfCharge > 0 || computedPreview.nhisEmployer > 0) && (
-                    <div className="border-t border-border/60">
-                      <div className="px-4 py-1.5 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">
-                        Employer-side costs (for your records — not deducted from employees)
-                      </div>
-                      {[
-                        ...(computedPreview.employerPension > 0 ? [{ label: 'Pension — employer (10%)', value: computedPreview.employerPension }] : []),
-                        ...(computedPreview.nsitfCharge > 0 ? [{ label: 'NSITF (1%)', value: computedPreview.nsitfCharge }] : []),
-                        ...(computedPreview.nhisEmployer > 0 ? [{ label: 'NHIS — employer (10%)', value: computedPreview.nhisEmployer }] : []),
-                      ].map((line) => (
-                        <div key={line.label} className="flex items-center justify-between px-4 py-1.5">
-                          <span className="text-xs text-muted-foreground">{line.label}</span>
-                          <span className="text-xs font-medium currency tabular-nums text-muted-foreground">{formatNaira(line.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
-                    <div className="flex flex-col">
+                  <div className="border-t border-border/60">
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
                       <span className="text-sm font-semibold">Total company cost</span>
-                      <span className="text-2xs text-muted-foreground">Net pay + employer pension</span>
+                      <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
                     </div>
-                    <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
+                    <div className="px-4 py-1 text-2xs text-muted-foreground/60 uppercase tracking-wider font-semibold">Breakdown</div>
+                    {[
+                      { label: 'Net pay to employees', value: computedPreview.totalNetPay },
+                      ...(computedPreview.employerPension > 0 ? [{ label: 'Pension — employer (10%)', value: computedPreview.employerPension }] : []),
+                      ...(computedPreview.nsitfCharge > 0 ? [{ label: 'NSITF (1%)', value: computedPreview.nsitfCharge }] : []),
+                      ...(computedPreview.nhisEmployer > 0 ? [{ label: 'NHIS — employer (10%)', value: computedPreview.nhisEmployer }] : []),
+                    ].map((line) => (
+                      <div key={line.label} className="flex items-center justify-between px-4 py-1.5">
+                        <span className="text-xs text-muted-foreground">{line.label}</span>
+                        <span className="text-xs font-medium currency tabular-nums text-muted-foreground">{formatNaira(line.value)}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
