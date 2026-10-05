@@ -120,7 +120,7 @@ export const flexApi = {
     db.from('flex_fields').update(payload).eq('id', id),
   deleteField: (id: string) => db.from('flex_fields').delete().eq('id', id),
 
-  listRecords: (tableId: string) => db.from('flex_records').select('*').eq('table_id', tableId).order('created_at', { ascending: true }),
+  listRecords: (tableId: string) => db.from('flex_records').select('*').eq('table_id', tableId).order('created_at', { ascending: true }).limit(5000),
   createRecord: (tableId: string, data: Record<string, unknown>, createdBy: string | null) =>
     db.from('flex_records').insert({ table_id: tableId, data, created_by: createdBy }).select().single(),
   updateRecord: (id: string, data: Record<string, unknown>) =>

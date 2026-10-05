@@ -280,7 +280,7 @@ const Expenses = () => {
         .select('*, profiles:submitted_by(full_name, first_name, last_name)')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(5000);
+        .limit(1000);
       if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
       const [expensesRes, budgetsRes, itemsRes] = await Promise.all([
         query,
@@ -289,7 +289,7 @@ const Expenses = () => {
           .select('id, name, period_start, period_end, status, locked, total_amount_ngn')
           .eq('status', 'approved')
           .is('deleted_at', null),
-        supabase.from('budget_items').select('budget_id, category').limit(20000),
+        supabase.from('budget_items').select('budget_id, category').limit(5000),
       ]);
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;

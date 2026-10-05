@@ -219,7 +219,7 @@ const Payments = () => {
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .range(page * 1000, (page + 1) * 1000 - 1);
+        .range(page * 250, (page + 1) * 250 - 1);
 
       if (statusFilter !== 'all') {
         // 'pending' is a VIRTUAL tab covering the whole pre-dispatch pipeline
@@ -632,7 +632,7 @@ const Payments = () => {
               Previous
             </Button>
             <span className="text-xs text-muted-foreground">Page {page + 1}</span>
-            <Button variant="outline" size="sm" disabled={batches.length < 1000} onClick={() => setPage(page + 1)}>
+            <Button variant="outline" size="sm" disabled={batches.length < 250} onClick={() => setPage(page + 1)}>
               Next
             </Button>
           </div>
