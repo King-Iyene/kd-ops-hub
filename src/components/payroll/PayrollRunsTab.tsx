@@ -122,6 +122,7 @@ interface PayrollRunsTabProps {
       than no colour-coding at all, and a colour-only cue is unreadable to
       anyone who cannot distinguish the two brand colours. */
   showCompany?: boolean;
+  initialOpenId?: string | null;
 }
 
 // An Autopilot-created shell: pay_schedules' cron drops a ₦0 draft on the
@@ -212,8 +213,10 @@ export const PayrollRunsTab = ({
   segments,
   companies,
   showCompany,
+  initialOpenId,
 }: PayrollRunsTabProps) => {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  useEffect(() => { if (initialOpenId) setOpenId(initialOpenId); }, [initialOpenId]);
   const openRun = runs.find((r) => r.id === openId) ?? null;
 
   // Pay-group filter chips — derived from whichever segments actually

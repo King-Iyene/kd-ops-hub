@@ -28,7 +28,15 @@ interface PayrollRunLite {
   period: string;
   employee_count?: number;
   total_burn_ngn: number;
+  total_employee_ngn: number;
+  paye_ngn: number;
+  pension_ngn: number;
+  nhf_ngn: number;
   status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
+}
+
+function netPay(r: PayrollRunLite): number {
+  return r.total_employee_ngn - r.paye_ngn - r.pension_ngn - r.nhf_ngn;
 }
 
 interface WhoGetsPaidRow {
@@ -101,7 +109,7 @@ export function PayrollDashboardTab({
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     return runs
       .filter((r) => r.status === 'paid' && r.period.startsWith(thisMonth))
-      .reduce((sum, r) => sum + (r.total_burn_ngn || 0), 0);
+      .reduce((sum, r) => sum + netPay(r), 0);
   }, [runs]);
 
   useEffect(() => {
@@ -231,10 +239,10 @@ export function PayrollDashboardTab({
                       {heroRun.status === 'draft' ? 'Draft run' : monthLabel(heroRun.period)}
                     </p>
                     <p className="text-3xl sm:text-4xl md:text-5xl font-black mt-2 tabular-nums tracking-tighter bg-gradient-to-r from-white via-white to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(0,200,255,0.15)]">
-                      {formatNairaCompact(heroRun.total_burn_ngn)}
+                      {formatNairaCompact(netPay(heroRun))}
                     </p>
                     <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">
-                      {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'} · {monthLabel(heroRun.period)}
+                      Net pay to disburse · {heroRun.employee_count ?? '—'} employee{heroRun.employee_count === 1 ? '' : 's'}
                     </p>
                   </div>
                   {heroRun.status !== 'paid' && (
@@ -328,7 +336,7 @@ export function PayrollDashboardTab({
                   <p className="text-xs font-bold">{monthLabel(r.period)} draft</p>
                   <p className="text-2xs text-muted-foreground">Review the numbers and submit for approval</p>
                 </div>
-                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(netPay(r))}</p>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 group-hover/item:translate-x-0.5 transition-transform" />
               </button>
             ))}
@@ -341,7 +349,7 @@ export function PayrollDashboardTab({
                   <p className="text-xs font-bold">{monthLabel(r.period)} awaiting approval</p>
                   <p className="text-2xs text-muted-foreground">Ready for review — approve to lock it in</p>
                 </div>
-                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(r.total_burn_ngn)}</p>
+                <p className="text-sm font-extrabold tabular-nums shrink-0 tracking-tight">{formatNairaCompact(netPay(r))}</p>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 group-hover/item:translate-x-0.5 transition-transform" />
               </button>
             ))}

@@ -1186,16 +1186,30 @@ export const PayrollDialogs = ({
                 <span className="text-sm font-semibold tabular-nums">{confirmApproveRun.employee_count ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-sm text-muted-foreground">PAYE tax</span>
-                <span className="text-sm font-semibold currency tabular-nums">{formatNaira(confirmApproveRun.paye_ngn)}</span>
+                <span className="text-sm text-muted-foreground">Gross pay</span>
+                <span className="text-sm font-semibold currency tabular-nums">{formatNaira(confirmApproveRun.total_employee_ngn)}</span>
               </div>
-              <div className="flex items-center justify-between px-3.5 py-2.5">
-                <span className="text-sm text-muted-foreground">Pension (employee)</span>
-                <span className="text-sm font-semibold currency tabular-nums">{formatNaira(confirmApproveRun.pension_ngn)}</span>
+              <div className="flex items-center justify-between px-3.5 py-2">
+                <span className="text-xs text-muted-foreground">PAYE tax</span>
+                <span className="text-xs currency tabular-nums text-muted-foreground">− {formatNaira(confirmApproveRun.paye_ngn)}</span>
               </div>
-              <div className="flex items-center justify-between px-3.5 py-3 bg-muted/40">
-                <span className="text-sm font-semibold">Total burn this run</span>
-                <span className="text-base font-bold currency tabular-nums">{formatNaira(confirmApproveRun.total_burn_ngn)}</span>
+              <div className="flex items-center justify-between px-3.5 py-2">
+                <span className="text-xs text-muted-foreground">Pension (employee)</span>
+                <span className="text-xs currency tabular-nums text-muted-foreground">− {formatNaira(confirmApproveRun.pension_ngn)}</span>
+              </div>
+              {confirmApproveRun.nhf_ngn > 0 && (
+                <div className="flex items-center justify-between px-3.5 py-2">
+                  <span className="text-xs text-muted-foreground">NHF</span>
+                  <span className="text-xs currency tabular-nums text-muted-foreground">− {formatNaira(confirmApproveRun.nhf_ngn)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between px-3.5 py-3 bg-emerald-500/10">
+                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay to disburse</span>
+                <span className="text-base font-bold currency tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(confirmApproveRun.total_employee_ngn - confirmApproveRun.paye_ngn - confirmApproveRun.pension_ngn - confirmApproveRun.nhf_ngn)}</span>
+              </div>
+              <div className="flex items-center justify-between px-3.5 py-2">
+                <span className="text-2xs text-muted-foreground">Total company cost</span>
+                <span className="text-xs currency tabular-nums text-muted-foreground">{formatNaira(confirmApproveRun.total_burn_ngn)}</span>
               </div>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">

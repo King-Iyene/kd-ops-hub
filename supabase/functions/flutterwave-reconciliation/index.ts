@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const scheduled = body?.scheduled === true;
+    const batchId: string | null = body?.batch_id ?? null;
 
     let triggeredBy: string | null = null;
 
@@ -97,13 +98,18 @@ Deno.serve(async (req) => {
       .single();
     const runId = runRow?.id as string | undefined;
 
-    const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
-    const { data: stuck, error: fetchErr } = await service
+    let query = service
       .from("batch_items")
       .select("id, flutterwave_reference, full_name, status, batch_id")
       .in("status", ["pending", "retry"])
-      .not("flutterwave_reference", "is", null)
-      .lt("created_at", cutoff)
+      .not("flutterwave_reference", "is", null);
+    if (batchId) {
+      query = query.eq("batch_id", batchId);
+    } else {
+      const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
+      query = query.lt("created_at", cutoff);
+    }
+    const { data: stuck, error: fetchErr } = await query
       .order("created_at", { ascending: true })
       .limit(MAX_ITEMS_PER_RUN);
     if (fetchErr) throw fetchErr;

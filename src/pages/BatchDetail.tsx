@@ -860,8 +860,8 @@ const BatchDetail = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const authHeader = { Authorization: `Bearer ${session?.access_token}` };
       const [psResult, fwResult] = await Promise.allSettled([
-        supabase.functions.invoke('paystack-reconciliation', { body: {}, headers: authHeader }),
-        supabase.functions.invoke('flutterwave-reconciliation', { body: {}, headers: authHeader }),
+        supabase.functions.invoke('paystack-reconciliation', { body: { batch_id: id }, headers: authHeader }),
+        supabase.functions.invoke('flutterwave-reconciliation', { body: { batch_id: id }, headers: authHeader }),
       ]);
 
       let synced = 0;

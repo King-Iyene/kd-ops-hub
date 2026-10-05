@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const scheduled = body?.scheduled === true;
+    const batchId: string | null = body?.batch_id ?? null;
 
     let triggeredBy: string | null = null;
 
@@ -111,18 +112,23 @@ Deno.serve(async (req) => {
     try {
       const secret = await getPaystackSecret(service);
 
-      // ── Pass 1: resolve stuck items (pending/retry older than threshold) ──
-      // NOTE: batch_items has no updated_at column, so we filter on created_at.
-      // A batch that sat in draft for hours before Process was clicked will
-      // have its items eagerly verified; acceptable trade-off. Proper fix
-      // requires adding batch_items.updated_at with a trigger — deferred.
-      const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
-      const { data: stuckItems, error: fetchErr } = await service
+      // ── Pass 1: resolve stuck items ──
+      // When batch_id is provided (manual reconcile from BatchDetail), skip
+      // the age threshold — the user is staring at the batch and wants it
+      // resolved NOW. Otherwise apply the 1-hour threshold for scheduled /
+      // global sweeps to avoid hitting Paystack for items still in flight.
+      let query = service
         .from("batch_items")
         .select("id, paystack_reference, full_name, status, batch_id, amount_ngn")
         .in("status", ["pending", "retry"])
-        .not("paystack_reference", "is", null)
-        .lt("created_at", cutoff)
+        .not("paystack_reference", "is", null);
+      if (batchId) {
+        query = query.eq("batch_id", batchId);
+      } else {
+        const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
+        query = query.lt("created_at", cutoff);
+      }
+      const { data: stuckItems, error: fetchErr } = await query
         .order("created_at", { ascending: true })
         .limit(MAX_ITEMS_PER_RUN);
       if (fetchErr) throw fetchErr;

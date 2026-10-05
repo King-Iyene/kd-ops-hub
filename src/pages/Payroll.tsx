@@ -110,6 +110,7 @@ const Payroll = () => {
   // Highlight + scroll to a specific run when arriving from PaymentSchedule.
   const [payrollTab, setPayrollTab] = useState('dashboard');
   const [highlightedRunId, setHighlightedRunId] = useState<string | null>(null);
+  const [initialOpenRunId, setInitialOpenRunId] = useState<string | null>(null);
   const runRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
   const [loading, setLoading] = useState(true);
@@ -2907,7 +2908,10 @@ const Payroll = () => {
               const run = visibleRuns.find((r) => r.id === runId);
               if (!run) return;
               if (run.status === 'draft') editDraft(run);
-              else if (run.status === 'pending_approval') setConfirmApproveRun(run);
+              else {
+                setInitialOpenRunId(runId);
+                setPayrollTab('runs');
+              }
             }}
             onGoToTab={setPayrollTab}
           />
@@ -2963,6 +2967,7 @@ const Payroll = () => {
             renameRun={renameRun}
             companies={companies}
             showCompany={isAllCompanies && companies.length > 1}
+            initialOpenId={initialOpenRunId}
           />
         </TabsContent>
 
