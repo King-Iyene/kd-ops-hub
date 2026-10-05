@@ -26,7 +26,7 @@ export function ReactivateContractorDialog({ contractor, profile, onClose, onRea
     if (!contractor) return;
     const { error } = await supabase.from('contractors').update({ status: 'active' }).eq('id', contractor.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Reactivation failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit('contractor_edited', `Contractor "${contractor.full_name}" reactivated`, profile);

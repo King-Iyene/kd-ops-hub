@@ -246,7 +246,7 @@ const Payments = () => {
       }
 
       const { data, error } = await query;
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      if (error) toast({ title: 'Batch load failed', description: error.message, variant: 'destructive' });
       const fetched = (data as PaymentBatch[]) || [];
 
       const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
@@ -295,7 +295,7 @@ const Payments = () => {
       // Without this catch, any exception above (a network blip, a rejected
       // RPC call) leaves loading stuck true forever — the page shows an
       // endless skeleton with no error and no way to retry.
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Batch load failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -359,7 +359,7 @@ const Payments = () => {
       fetchBatches();
       fetchStats();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Batch delete failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setDeletingBatch(false);
     }

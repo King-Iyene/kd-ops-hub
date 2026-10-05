@@ -151,7 +151,7 @@ export function ContractorFormDialog({
       onOpenChange(false);
       onSaved();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Contractor save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

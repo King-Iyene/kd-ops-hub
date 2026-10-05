@@ -694,7 +694,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       setRepairMaintenanceItemId('');
       onRefresh();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Repair request failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -835,7 +835,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       await refreshMyReceiptDebt();
       onRefresh();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Receipt upload failed', description: errorMessage(err), variant: 'destructive' });
     }
     setSubmittingRepairReceipt(false);
   };
@@ -1127,7 +1127,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .eq('status', 'pending')
       .select('id');
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Fuel approval failed', description: error.message, variant: 'destructive' });
       return;
     }
     if (!claimed || claimed.length === 0) {
@@ -1293,7 +1293,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       })
       .eq('id', r.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Budget exception failed', description: error.message, variant: 'destructive' });
       return;
     }
     // Update linked expense
@@ -1368,7 +1368,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .eq('status', 'approved')
       .select('id');
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Payment send failed', description: error.message, variant: 'destructive' });
       return;
     }
     if (!claimed || claimed.length === 0) {
@@ -1683,7 +1683,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .in('status', ['receipt_uploaded', 'payment_sent'])
       .select('id');
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Fuel completion failed', description: error.message, variant: 'destructive' });
       return;
     }
     if (!claimed || claimed.length === 0) {
@@ -1712,7 +1712,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .update({ status: 'payment_sent', receipt_url: null, admin_note: note.trim() || null })
       .eq('id', r.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Receipt resubmission failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit('fuel_receipt_resubmission_requested', `Receipt resubmission requested for ${r.employee_name}${note.trim() ? `: ${note.trim()}` : ''}`, profile);
@@ -1752,7 +1752,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .eq('status', 'pending')
       .select('id');
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Fuel rejection failed', description: error.message, variant: 'destructive' });
       return;
     }
     if (!claimed || claimed.length === 0) {
@@ -1797,7 +1797,7 @@ export function FuelTab({ staff, vehicles, fuelRequests, isAdmin, profile, onRef
       .update({ status: 'pending', rejection_reason: null })
       .eq('id', r.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Fuel unreject failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit('fuel_request_unrejected', `Fuel request for ${r.employee_name} moved back to pending (${formatNaira(r.amount_ngn || 0)})`, profile);

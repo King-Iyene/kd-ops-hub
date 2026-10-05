@@ -763,7 +763,7 @@ const NewPaymentBatch = () => {
       if (!isEditMode) dispatchPlatformWebhook('batch.created', { name: batchName, total_amount: totalAmount, beneficiary_count: items.length, status: submit ? 'pending_approval' : 'draft' });
       navigate(isEditMode ? `/payments/${editId}` : '/payments');
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Batch save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

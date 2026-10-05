@@ -706,7 +706,7 @@ function Placements() {
       .select('id, month, gross_amount_ngn, gross_amount_usd, fx_rate_used, commission_ngn, net_employee_ngn, period_start, period_end, hours_worked, days_worked, client_paid, client_paid_at, client_paid_ref, operator_paid, operator_paid_at, operator_paid_ref, fx_rate_edit_reason')
       .eq('placement_id', p.id)
       .order('month', { ascending: false });
-    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    if (error) toast({ title: 'Payment load failed', description: error.message, variant: 'destructive' });
     setPayments((data as PlacementPayment[]) || []);
     setLoadingPayments(false);
   }

@@ -265,7 +265,7 @@ export function InspectionHistory({ vehicles }: Props) {
       setConfirmDeleteId(null);
       fetchInspections();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Inspection delete failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setDeletingInspection(false);
     }

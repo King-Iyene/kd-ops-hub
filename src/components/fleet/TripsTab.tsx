@@ -824,7 +824,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
       issues: tripForm.issues || null,
     });
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Trip log save failed', description: error.message, variant: 'destructive' });
     } else {
       if (tripForm.vehicle_id) {
         const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);

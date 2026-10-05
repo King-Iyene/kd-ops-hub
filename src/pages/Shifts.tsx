@@ -189,7 +189,7 @@ export default function Shifts() {
 
     setSavingAssignment(false);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Assignment save failed', description: error.message, variant: 'destructive' });
       return;
     }
     toast({ title: editingAssignment ? 'Assignment updated' : 'Shift assigned' });
@@ -200,7 +200,7 @@ export default function Shifts() {
   const deleteAssignment = async (id: string) => {
     const { error } = await supabase.from('shift_assignments').delete().eq('id', id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Assignment delete failed', description: error.message, variant: 'destructive' });
       return;
     }
     toast({ title: 'Assignment removed' });
@@ -244,7 +244,7 @@ export default function Shifts() {
 
     setSavingShift(false);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Shift save failed', description: error.message, variant: 'destructive' });
       return;
     }
     toast({ title: editingShift ? 'Shift type updated' : 'Shift type created' });
@@ -258,7 +258,7 @@ export default function Shifts() {
       .update({ is_active: !shift.is_active })
       .eq('id', shift.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Shift toggle failed', description: error.message, variant: 'destructive' });
       return;
     }
     toast({ title: `${shift.name} ${shift.is_active ? 'deactivated' : 'activated'}` });

@@ -368,7 +368,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       onRefresh?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create work order';
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      toast({ title: 'Work order save failed', description: msg, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -428,7 +428,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       onRefresh?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update';
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      toast({ title: 'Work order completion failed', description: msg, variant: 'destructive' });
     } finally {
       setMarkingDone(false);
     }
@@ -449,7 +449,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
       onRefresh?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete';
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      toast({ title: 'Work order delete failed', description: msg, variant: 'destructive' });
     } finally {
       setDeleting(false);
     }

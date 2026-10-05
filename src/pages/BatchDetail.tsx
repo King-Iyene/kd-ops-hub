@@ -416,7 +416,7 @@ const BatchDetail = () => {
         .in('status', ['draft', 'rejected'])
         .select('id, status');
       if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Batch submission failed', description: error.message, variant: 'destructive' });
       } else if (!updated || updated.length === 0) {
         toast({
           title: 'Batch state has changed',

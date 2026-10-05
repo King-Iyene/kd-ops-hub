@@ -220,7 +220,7 @@ export default function WebhooksManager() {
       toast({ title: editingId ? 'Webhook updated' : 'Webhook created' });
     },
     onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Webhook save failed', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -243,7 +243,7 @@ export default function WebhooksManager() {
       toast({ title: 'Webhook deleted' });
     },
     onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Webhook delete failed', description: err.message, variant: 'destructive' });
     },
   });
 

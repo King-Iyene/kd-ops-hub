@@ -331,7 +331,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       reset();
       load();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Vehicle save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -390,7 +390,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       .update({ out_of_service_until: outOfServiceDate || null })
       .eq('id', settingOutOfService.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Out-of-service update failed', description: error.message, variant: 'destructive' });
       return;
     }
     if (outOfServiceDate && settingOutOfService.assigned_driver_id) {
@@ -1022,7 +1022,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
       created_by: profile?.id,
     });
     setSubmitting(false);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Service item save failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Service item added' });
     setShowAdd(false);
     resetAdd();
@@ -1051,7 +1051,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
       due_date: isRecurring ? nextDueDate : item.due_date,
       due_mileage_km: isRecurring ? nextDueMileage : item.due_mileage_km,
     }).eq('id', item.id);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Service completion failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Marked as done' + (isRecurring ? ' — next due date set' : '') });
     loadRecords();
   };

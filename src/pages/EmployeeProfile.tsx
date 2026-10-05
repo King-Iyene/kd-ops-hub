@@ -774,7 +774,7 @@ const EmployeeProfile = () => {
     const next = employee.status === 'active' || employee.status === 'invited' ? 'inactive' : 'active';
     const { error } = await supabase.from('profiles').update({ status: next }).eq('id', id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Status update failed', description: error.message, variant: 'destructive' });
       setActioning(false);
       return;
     }
@@ -1017,7 +1017,7 @@ const EmployeeProfile = () => {
 
   const deactivateDeduction = async (deductionId: string) => {
     const { error } = await supabase.from('employee_deductions').update({ status: 'paused' }).eq('id', deductionId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Deduction pause failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Deduction paused' });
     load();
   };
@@ -1054,7 +1054,7 @@ const EmployeeProfile = () => {
 
   const deactivateEarning = async (earningId: string) => {
     const { error } = await supabase.from('employee_earnings').update({ status: 'paused' }).eq('id', earningId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Earning pause failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Earning paused' });
     load();
   };
@@ -1119,7 +1119,7 @@ const EmployeeProfile = () => {
 
   const toggleDependentFlag = async (dep: any, field: 'is_beneficiary' | 'is_hmo_enrolled') => {
     const { error } = await supabase.from('employee_dependents').update({ [field]: !dep[field] }).eq('id', dep.id);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Dependent update failed', description: error.message, variant: 'destructive' }); return; }
     load();
   };
 

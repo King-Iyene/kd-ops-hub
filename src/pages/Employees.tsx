@@ -260,7 +260,7 @@ const Employees = () => {
       supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.employee').order('name'),
     ]);
     if (employeesRes.error) {
-      toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
+      toast({ title: 'Failed to load employees', description: employeesRes.error.message, variant: 'destructive' });
     }
     setEmployees((employeesRes.data as Employee[]) || []);
     setTotalCount(employeesRes.count ?? 0);
@@ -644,7 +644,7 @@ const Employees = () => {
       resetForm();
       fetchEmployees();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Employee save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -657,7 +657,7 @@ const Employees = () => {
       .update({ status: next })
       .eq('id', e.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Status update failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit(
@@ -673,7 +673,7 @@ const Employees = () => {
   const reactivateEmployee = async (e: Employee) => {
     const { error } = await supabase.from('profiles').update({ status: 'active' }).eq('id', e.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Reactivation failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit('employee_edited', `Employee "${e.full_name}" reactivated`, profile);

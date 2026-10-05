@@ -353,7 +353,7 @@ const ContractorProfile = () => {
     const next = contractor.status === 'active' ? 'inactive' : 'active';
     const { error } = await supabase.from('contractors').update({ status: next }).eq('id', id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Status update failed', description: error.message, variant: 'destructive' });
       setActioning(false);
       return;
     }
@@ -444,7 +444,7 @@ const ContractorProfile = () => {
 
   const deactivateDeduction = async (deductionId: string) => {
     const { error } = await supabase.from('employee_deductions').update({ status: 'paused' }).eq('id', deductionId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Deduction pause failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Deduction paused' });
     load();
   };

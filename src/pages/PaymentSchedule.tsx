@@ -401,7 +401,7 @@ export default function PaymentSchedule() {
       .update(payload)
       .eq('id', editingSchedule.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Schedule update failed', description: error.message, variant: 'destructive' });
       setSaving(false);
       return;
     }
@@ -419,7 +419,7 @@ export default function PaymentSchedule() {
       .update({ status: next })
       .eq('id', s.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Schedule toggle failed', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit(
@@ -438,7 +438,7 @@ export default function PaymentSchedule() {
       .delete()
       .eq('id', confirmDelete.id);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Schedule delete failed', description: error.message, variant: 'destructive' });
       setConfirmDelete(null);
       return;
     }

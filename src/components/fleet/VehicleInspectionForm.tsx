@@ -122,7 +122,7 @@ export function VehicleInspectionForm({
       setItems(DEFAULT_CHECKLIST.map((c) => ({ ...c, status: 'pass' as const })));
       setDefectNotes('');
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Inspection save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

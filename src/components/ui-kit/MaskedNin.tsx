@@ -64,7 +64,7 @@ export function MaskedNin({ profileId, last4, className, buttonClassName, canRev
         toast({ title: 'NIN not available', description: 'Encrypted value not found.', variant: 'destructive' });
       }
     } catch {
-      toast({ title: 'Error', description: 'Failed to decrypt NIN.', variant: 'destructive' });
+      toast({ title: 'NIN decrypt failed', description: 'Failed to decrypt NIN.', variant: 'destructive' });
     }
     setLoading(false);
   };

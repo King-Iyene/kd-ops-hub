@@ -97,7 +97,7 @@ function GeofencesTab() {
       created_by: profile?.id,
     });
     setSubmitting(false);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    if (error) { toast({ title: 'Geofence save failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Geofence created' });
     setShowForm(false);
     setForm({ name: '', center_lat: '', center_lng: '', radius_meters: '500', color: '#3b82f6', description: '' });

@@ -851,7 +851,7 @@ export function WhatsAppGroupsTab() {
       reset();
       load();
     } catch (err: unknown) {
-      toast({ title: 'Error', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'Group save failed', description: errorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }

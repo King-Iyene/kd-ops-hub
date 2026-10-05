@@ -398,7 +398,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       fetchIncidents();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to submit incident report';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Incident report failed', description: message, variant: 'destructive' });
     } finally {
       setCreating(false);
       setUploadingPhotos(false);
@@ -423,7 +423,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Update failed';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Resolution status update failed', description: message, variant: 'destructive' });
     } finally {
       setUpdatingStatus(false);
     }
@@ -443,7 +443,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Update failed';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Insurance status update failed', description: message, variant: 'destructive' });
     } finally {
       setUpdatingStatus(false);
     }
@@ -461,7 +461,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Update failed';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Repair cost update failed', description: message, variant: 'destructive' });
     } finally {
       setUpdatingStatus(false);
     }
@@ -478,7 +478,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Update failed';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Resolution notes save failed', description: message, variant: 'destructive' });
     } finally {
       setUpdatingStatus(false);
     }
@@ -498,7 +498,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
       fetchIncidents();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to delete';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Incident delete failed', description: message, variant: 'destructive' });
     } finally {
       setDeleting(false);
     }
