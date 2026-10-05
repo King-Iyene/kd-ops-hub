@@ -348,12 +348,12 @@ export const PayrollDialogs = ({
                 Cancel
               </Button>
               {draftStep === LAST_STEP - 1 ? (
-                <Button onClick={draftRun} disabled={working}>
+                <Button onClick={draftRun} disabled={working || !!existingRunConflict}>
                   {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Continue to review
                 </Button>
               ) : (
-                <Button onClick={() => setDraftStep(draftStep + 1)} disabled={draftStep === 0 && !form.period}>
+                <Button onClick={() => setDraftStep(draftStep + 1)} disabled={(draftStep === 0 && !form.period) || !!existingRunConflict}>
                   Continue
                 </Button>
               )}
@@ -425,17 +425,17 @@ export const PayrollDialogs = ({
                     </div>
                   )}
                   {existingRunConflict && (
-                    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
                       <div className="text-xs">
                         <p className="font-semibold text-foreground">
-                          A payroll run for this period and pay group already exists
+                          A {form.period} payroll run{!form.payroll_segment_id ? ' (All Pay Groups)' : ' for this pay group'} is {CONFLICT_STATUS_COPY[existingRunConflict.status] ?? existingRunConflict.status}
                         </p>
                         <p className="mt-0.5 text-muted-foreground">
-                          It is {CONFLICT_STATUS_COPY[existingRunConflict.status] ?? existingRunConflict.status}.
-                          Open it from the Runs tab instead — or recall it to draft first if the
-                          figures need to change. Saving here will be refused rather than
-                          overwriting it.
+                          Open it from the Runs tab, or recall it to draft first if figures need to change.
+                          {segmentPayGroups.length > 1 && !form.payroll_segment_id && (
+                            ' To run a separate payroll for different employees, select a specific pay group below.'
+                          )}
                         </p>
                       </div>
                     </div>
