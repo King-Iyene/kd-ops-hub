@@ -2248,18 +2248,21 @@ const Payroll = () => {
             // notify module explicitly excludes email today. Best-effort; the
             // helper swallows failures so a template outage never blocks
             // payslip generation or downstream payroll actions.
+            const otherDed = empDevLevy + empUnpaidLeaveDeduction +
+              empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotalCapped;
             notifyPayslipReady({
               employeeEmail: e.email,
               employeeName: empName,
               period: monthLabel(run.period),
               grossFormatted: formatNaira(empGrossTotal),
-              deductionsFormatted: formatNaira(
-                empPaye + empPension + empAvc + empNhf + empNhis + empDevLevy +
-                empUnpaidLeaveDeduction +
-                empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotalCapped,
-              ),
               netFormatted: formatNaira(empNet),
               payslipUrl: payslipViewUrl,
+              paye: empPaye ? formatNaira(empPaye) : undefined,
+              pension: empPension ? formatNaira(empPension) : undefined,
+              nhf: empNhf ? formatNaira(empNhf) : undefined,
+              nhis: empNhis ? formatNaira(empNhis) : undefined,
+              avc: empAvc ? formatNaira(empAvc) : undefined,
+              otherDeductions: otherDed ? formatNaira(otherDed) : undefined,
             });
           }
         } catch (empErr: unknown) {

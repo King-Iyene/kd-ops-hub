@@ -111,9 +111,14 @@ export async function notifyPayslipReady(args: {
   employeeName: string;
   period: string;
   grossFormatted: string;
-  deductionsFormatted: string;
   netFormatted: string;
   payslipUrl: string;
+  paye?: string;
+  pension?: string;
+  nhf?: string;
+  nhis?: string;
+  avc?: string;
+  otherDeductions?: string;
 }): Promise<void> {
   if (!args.employeeEmail) return;
   const { data: cs } = await supabase
@@ -128,7 +133,12 @@ export async function notifyPayslipReady(args: {
       employee_name: args.employeeName,
       period: args.period,
       gross: args.grossFormatted,
-      deductions: args.deductionsFormatted,
+      paye: args.paye ?? '',
+      pension: args.pension ?? '',
+      nhf: args.nhf ?? '',
+      nhis: args.nhis ?? '',
+      avc: args.avc ?? '',
+      other_deductions: args.otherDeductions ?? '',
       net: args.netFormatted,
       payslip_url: args.payslipUrl,
       company_name: (cs as any)?.company_name ?? 'KD Squares',
