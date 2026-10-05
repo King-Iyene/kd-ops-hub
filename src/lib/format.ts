@@ -257,6 +257,33 @@ export function utcIsoToOrgWallClock(iso: string): string {
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
+/** Browser's IANA timezone (e.g. "America/New_York"). */
+export const getBrowserTimezone = (): string =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/**
+ * Given a wall-clock string interpreted in the org's timezone, return a
+ * human-readable string of the same instant in the browser's local timezone.
+ * Returns null when the two timezones are the same (no conversion needed).
+ */
+export function orgWallClockToLocalDisplay(wallClock: string): string | null {
+  const orgTz = getTimezone();
+  const browserTz = getBrowserTimezone();
+  if (orgTz === browserTz) return null;
+  const utcIso = orgWallClockToUtcIso(wallClock);
+  const dt = new Date(utcIso);
+  return dt.toLocaleString('en-US', {
+    timeZone: browserTz,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  });
+}
+
 /** USD amount from whole dollars: "$18,500.00". */
 export const formatUsd = (amount: number | null | undefined): string => {
   if (amount == null) return '—';

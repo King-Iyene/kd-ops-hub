@@ -3,7 +3,7 @@ import { Loader2, Plus, Send, AlertCircle, AlertTriangle, Trash2, X, Clock, Chec
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
-import { formatNaira, formatNairaCompact, getTimezone, utcIsoToOrgWallClock } from '@/lib/format';
+import { formatNaira, formatNairaCompact, getTimezone, getBrowserTimezone, utcIsoToOrgWallClock, orgWallClockToLocalDisplay } from '@/lib/format';
 import { CompliancePanel } from '@/components/payroll/CompliancePanel';
 import type { ComplianceCheck } from '@/lib/payroll-compliance';
 import { Button } from '@/components/ui/button';
@@ -1111,9 +1111,18 @@ export const PayrollDialogs = ({
                     min={utcIsoToOrgWallClock(new Date(Date.now() + 5 * 60 * 1000).toISOString())}
                     onChange={(e) => setScheduleAt(e.target.value)}
                   />
+                  {scheduleAt && (() => {
+                    const localDisplay = orgWallClockToLocalDisplay(scheduleAt);
+                    if (!localDisplay) return null;
+                    return (
+                      <p className="text-xs font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        That's {localDisplay} your time ({getBrowserTimezone().replace(/_/g, ' ')})
+                      </p>
+                    );
+                  })()}
                   <p className="text-xs text-muted-foreground">
-                    Times here are in your company's configured timezone ({getTimezone()}), not
-                    necessarily this device's own — set in Settings → Company → Platform timezone.
+                    Pick the time in your company's timezone ({getTimezone()}).{' '}
                     KDOps will automatically dispatch transfers for every employee's net salary
                     at this time — no one needs to be online. Approvers can cancel the schedule
                     any time before it fires, from this run's row on the Runs tab.
