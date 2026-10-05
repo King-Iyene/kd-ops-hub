@@ -1,6 +1,8 @@
 export interface BonusLine {
   type: string;
   amount: number;
+  mode?: 'flat' | 'pct';
+  employee_ids?: string[];
 }
 
 export interface AllowancesSnapshot {

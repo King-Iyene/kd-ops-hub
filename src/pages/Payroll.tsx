@@ -449,10 +449,10 @@ const Payroll = () => {
   }, [searchParams, runs]);
 
   const addBonus = () =>
-    setForm((f) => ({ ...f, bonuses: [...f.bonuses, { type: 'Performance Bonus', amount: 0 }] }));
+    setForm((f) => ({ ...f, bonuses: [...f.bonuses, { type: 'Performance Bonus', amount: 0, mode: 'flat' as const }] }));
   const removeBonus = (i: number) =>
     setForm((f) => ({ ...f, bonuses: f.bonuses.filter((_, idx) => idx !== i) }));
-  const updateBonus = (i: number, field: 'type' | 'amount', val: any) =>
+  const updateBonus = (i: number, field: string, val: any) =>
     setForm((f) => ({
       ...f,
       bonuses: f.bonuses.map((b, idx) => (idx === i ? { ...b, [field]: val } : b)),
@@ -480,6 +480,7 @@ const Payroll = () => {
   const [deductionEligibility, setDeductionEligibility] = useState<{
     total: number; paye: number; pension: number; nhf: number; nhis: number; devLevy: boolean;
   } | null>(null);
+  const [bonusEmployees, setBonusEmployees] = useState<{ id: string; name: string; salary: number }[]>([]);
   const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
   const [complianceChecks, setComplianceChecks] = useState<ComplianceCheck[]>([]);
 
@@ -554,7 +555,7 @@ const Payroll = () => {
     (async () => {
       const { data: emps } = await supabase
         .from('profiles')
-        .select('id, pay_group_id, salary_ngn, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, tax_id, tin')
+        .select('id, first_name, last_name, full_name, email, pay_group_id, salary_ngn, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, tax_id, tin')
         .eq('status', 'active')
         .neq('role', 'driver');
       if (cancelled) return;
@@ -562,17 +563,24 @@ const Payroll = () => {
         segmentPayGroups.filter((g) => g.company_id === selectedCompanyId).map((g) => g.id),
       );
       const inCompany = ((emps || []) as any[]).filter(
-        (e) => e.pay_group_id && companyPgIds.has(e.pay_group_id) && Number(e.salary_ngn || 0) > 0,
+        (e: any) => e.pay_group_id && companyPgIds.has(e.pay_group_id) && Number(e.salary_ngn || 0) > 0,
       );
       const total = inCompany.length;
       setDeductionEligibility({
         total,
-        paye: inCompany.filter((e) => e.paye_enabled !== false && (e.tax_id || e.tin)).length,
-        pension: inCompany.filter((e) => e.pension_enabled !== false).length,
-        nhf: inCompany.filter((e) => e.nhf_enabled === true).length,
-        nhis: inCompany.filter((e) => e.nhis_enabled === true).length,
+        paye: inCompany.filter((e: any) => e.paye_enabled !== false && (e.tax_id || e.tin)).length,
+        pension: inCompany.filter((e: any) => e.pension_enabled !== false).length,
+        nhf: inCompany.filter((e: any) => e.nhf_enabled === true).length,
+        nhis: inCompany.filter((e: any) => e.nhis_enabled === true).length,
         devLevy: !!(companySettings as any)?.development_levy_enabled,
       });
+      setBonusEmployees(
+        inCompany.map((e: any) => ({
+          id: e.id,
+          name: displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed'),
+          salary: Number(e.salary_ngn || 0),
+        })).sort((a: any, b: any) => a.name.localeCompare(b.name)),
+      );
     })();
     return () => { cancelled = true; };
   }, [draftStep, selectedCompanyId, segmentPayGroups, companySettings]);
@@ -758,7 +766,17 @@ const Payroll = () => {
         (s: number, r: any) => s + (companyNhfOn && r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
       const employerPension = filteredEmployees.reduce(
         (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
-      const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
+      const bonusTotal = form.bonuses.reduce((s, b) => {
+        const amt = Number(b.amount || 0);
+        if (amt <= 0) return s;
+        const targets = b.employee_ids?.length
+          ? filteredEmployees.filter((e: any) => b.employee_ids!.includes(e.id))
+          : filteredEmployees;
+        if (b.mode === 'pct') {
+          return s + targets.reduce((t: number, e: any) => t + Number(e.salary_ngn || 0) * (amt / 100), 0);
+        }
+        return s + amt * targets.length;
+      }, 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
       const transportAllowance = empCount * form.transport_per_emp;
       const mealSubsidy = empCount * form.meal_per_emp;
@@ -1830,9 +1848,18 @@ const Payroll = () => {
           const recurTaxable    = empRecurringEarnings.filter((r: any) => r.is_taxable !== false).reduce((s: number, r: any) => s + Number(r.amount_ngn || 0), 0);
           const recurNonTaxable = empRecurringEarnings.filter((r: any) => r.is_taxable === false).reduce((s: number, r: any) => s + Number(r.amount_ngn || 0), 0);
 
-          const earningsAddTotal   = taxableEarningsAdd + nonTaxEarningsAdd + recurTaxable + recurNonTaxable;
+          const earningsAddTotalAdj = taxableEarningsAdd + nonTaxEarningsAdd + recurTaxable + recurNonTaxable;
           const adjDeductTotal     = adjDeductions.reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
-          const bonusSum    = adjEarnings.filter((a: any) => a.kind === 'bonus').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+          const adjBonusSum = adjEarnings.filter((a: any) => a.kind === 'bonus').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+          const runBonusSum = (run.bonuses_json || []).reduce((s: number, bl: any) => {
+            const amt = Number(bl.amount || 0);
+            if (amt <= 0) return s;
+            const targeted = bl.employee_ids?.length ? bl.employee_ids.includes(e.id) : true;
+            if (!targeted) return s;
+            return s + (bl.mode === 'pct' ? empGross * (amt / 100) : amt);
+          }, 0);
+          const bonusSum    = adjBonusSum + runBonusSum;
+          const earningsAddTotal = earningsAddTotalAdj + runBonusSum;
           const overtimeSum = adjEarnings.filter((a: any) => a.kind === 'overtime').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
           const allowanceLines = [
             ...adjEarnings.filter((a: any) => a.kind === 'allowance').map((a: any) => ({ description: a.description, amount_ngn: Number(a.amount_ngn || 0) })),
@@ -1867,7 +1894,7 @@ const Payroll = () => {
             }
           }
 
-          const taxableEarningsExtra = taxableEarningsAdd + recurTaxable;
+          const taxableEarningsExtra = taxableEarningsAdd + recurTaxable + runBonusSum;
           // Statutory deductions driven by company + employee profile only
           // (no run-level toggle — employee profile is the source of truth).
           const effPensionOn = companySettings?.pension_enabled !== false && e.pension_enabled !== false;
@@ -2957,6 +2984,7 @@ const Payroll = () => {
         selectPayGroupQuickFilter={selectPayGroupQuickFilter}
         computedPreview={computedPreview}
         deductionEligibility={deductionEligibility}
+        bonusEmployees={bonusEmployees}
         finishDraftReview={finishDraftReview}
         submitDraftForApprovalNow={submitDraftForApprovalNow}
         segmentDialog={segmentDialog}

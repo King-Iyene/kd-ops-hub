@@ -143,7 +143,7 @@ export interface PayrollDialogsProps {
   segments: PayrollSegment[];
   addBonus: () => void;
   removeBonus: (i: number) => void;
-  updateBonus: (i: number, field: 'type' | 'amount', val: any) => void;
+  updateBonus: (i: number, field: string, val: any) => void;
   draftStep: number;
   setDraftStep: (n: number) => void;
   selectPayGroupQuickFilter: (groupId: string) => void;
@@ -155,6 +155,7 @@ export interface PayrollDialogsProps {
     totalExpenses: number; burn: number; totalNetPay: number;
   } | null;
   deductionEligibility: DeductionEligibility | null;
+  bonusEmployees: { id: string; name: string; salary: number }[];
   finishDraftReview: () => void;
   /** Statutory readiness for the roster this run actually covers. */
   complianceChecks?: ComplianceCheck[];
@@ -248,6 +249,7 @@ export const PayrollDialogs = ({
   selectPayGroupQuickFilter,
   computedPreview,
   deductionEligibility,
+  bonusEmployees,
   finishDraftReview,
   complianceChecks,
   existingRunConflict,
@@ -543,32 +545,73 @@ export const PayrollDialogs = ({
                 <p className="text-xs text-muted-foreground -mt-2">Anything on top of base salary this run — bonuses, or blanket allowances.</p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>Bonuses &amp; Extras <span className="font-normal text-muted-foreground">— company-wide, applies to everyone</span></Label>
+                    <Label>Bonuses &amp; Extras</Label>
                   </div>
-                  <p className="text-2xs text-muted-foreground -mt-1">
-                    Need to pay a bonus to just one or a few people instead of everyone? Draft this run first, then use <strong>Adjustments</strong> on it — that's per-employee.
-                  </p>
-                  {form.bonuses.map((b, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
-                        <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        className="w-36"
-                        min={0}
-                        placeholder="₦ Amount"
-                        value={b.amount || ''}
-                        onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
-                      />
-                      <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                  {form.bonuses.map((b, i) => {
+                    const isPct = b.mode === 'pct';
+                    const hasSelection = b.employee_ids && b.employee_ids.length > 0;
+                    return (
+                      <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-2.5 space-y-2">
+                        <div className="flex gap-2 items-center">
+                          <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
+                            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <div className="flex items-center rounded-md border border-border/60 overflow-hidden text-2xs">
+                            <button type="button" className={cn('px-2 py-1', !isPct && 'bg-primary text-primary-foreground')} onClick={() => updateBonus(i, 'mode', 'flat')}>₦ Flat</button>
+                            <button type="button" className={cn('px-2 py-1', isPct && 'bg-primary text-primary-foreground')} onClick={() => updateBonus(i, 'mode', 'pct')}>% Salary</button>
+                          </div>
+                          <Input
+                            type="number"
+                            className="w-32"
+                            min={0}
+                            max={isPct ? 100 : undefined}
+                            placeholder={isPct ? '% of salary' : '₦ per person'}
+                            value={b.amount || ''}
+                            onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-2xs">
+                            <button type="button" className={cn('font-medium', !hasSelection && 'text-primary underline')} onClick={() => updateBonus(i, 'employee_ids', undefined)}>Everyone</button>
+                            <span className="text-muted-foreground">|</span>
+                            <button type="button" className={cn('font-medium', hasSelection && 'text-primary underline')} onClick={() => { if (!hasSelection) updateBonus(i, 'employee_ids', []); }}>Select employees</button>
+                          </div>
+                          {hasSelection !== undefined && b.employee_ids !== undefined && (
+                            <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
+                              {bonusEmployees.map((emp) => {
+                                const selected = b.employee_ids?.includes(emp.id);
+                                return (
+                                  <button
+                                    key={emp.id}
+                                    type="button"
+                                    className={cn('px-2 py-0.5 rounded-full text-2xs border transition-colors',
+                                      selected ? 'bg-primary/10 border-primary text-primary' : 'border-border/60 text-muted-foreground hover:border-primary/40')}
+                                    onClick={() => {
+                                      const ids = b.employee_ids || [];
+                                      updateBonus(i, 'employee_ids', selected ? ids.filter((id: string) => id !== emp.id) : [...ids, emp.id]);
+                                    }}
+                                  >
+                                    {emp.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {hasSelection && (
+                            <p className="text-2xs text-muted-foreground">{b.employee_ids!.length} of {bonusEmployees.length} selected</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                   <Button size="sm" variant="outline" onClick={addBonus}>
                     <Plus className="mr-1 h-3.5 w-3.5" /> Add bonus
                   </Button>
