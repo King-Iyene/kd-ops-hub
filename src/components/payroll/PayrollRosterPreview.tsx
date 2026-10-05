@@ -14,6 +14,8 @@ import {
 } from '@/lib/payroll-segments';
 import { displayName } from '@/lib/name';
 import { formatNaira } from '@/lib/format';
+import { computePayslip } from '@/lib/tax';
+import { SETTINGS_SINGLETON_ID } from '@/lib/transfer-safety';
 
 type RosterEmployee = SegmentableEmployee & {
   full_name: string | null;
@@ -29,7 +31,17 @@ type RosterEmployee = SegmentableEmployee & {
   housing_ngn: number | null;
   transport_ngn: number | null;
   other_allowances_ngn: number | null;
+  paye_enabled: boolean | null;
+  pension_enabled: boolean | null;
+  nhf_enabled: boolean | null;
+  nhis_enabled: boolean | null;
 };
+
+type CompanySettingsLike = {
+  pension_enabled?: boolean | null;
+  nhf_enabled?: boolean | null;
+  nhis_enabled?: boolean | null;
+} | null;
 
 /**
  * What this person is actually paid a month.
@@ -55,6 +67,27 @@ const grossOf = (e: RosterEmployee): number =>
       + Number(e.transport_ngn || 0)
       + Number(e.other_allowances_ngn || 0)
     : Number(e.salary_ngn || 0);
+
+const netOf = (e: RosterEmployee, cs: CompanySettingsLike): number => {
+  const gross = grossOf(e);
+  if (gross <= 0) return 0;
+  const pensionOn = cs?.pension_enabled !== false && e.pension_enabled !== false;
+  const nhfOn = cs?.nhf_enabled === true && e.nhf_enabled === true;
+  const nhisOn = cs?.nhis_enabled === true && e.nhis_enabled === true;
+  const payeOn = e.paye_enabled !== false;
+  const ps = computePayslip({
+    grossMonthlyNgn: gross,
+    pensionEnabled: pensionOn,
+    nhfEnabled: nhfOn,
+    nhisEnabled: nhisOn,
+    payeEnabled: payeOn,
+    useComponents: !!e.use_salary_components,
+    basicMonthlyNgn: Number(e.basic_ngn || 0),
+    housingMonthlyNgn: Number(e.housing_ngn || 0),
+    transportMonthlyNgn: Number(e.transport_ngn || 0),
+  });
+  return ps.netMonthlyNgn;
+};
 
 type ExclusionReason = 'inactive' | 'driver' | 'no_salary' | 'segment' | 'other_company';
 
@@ -82,6 +115,7 @@ const AVATAR_COLOURS = [
 function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string | null) {
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<RosterEmployee[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettingsLike>(null);
   // pay_group_id -> company_id, so "who gets paid" can be scoped to the
   // company a run is being drafted for — an employee's company is derived
   // from their pay group, there is no separate company field on profiles.
@@ -96,7 +130,7 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
       while (true) {
         const { data } = await supabase
           .from('profiles')
-          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employment_type, pay_group_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
+          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employment_type, pay_group_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, paye_enabled, pension_enabled, nhf_enabled, nhis_enabled')
           .range(from, from + PAGE_SIZE - 1);
         if (cancelled) return;
         const rows = (data || []) as RosterEmployee[];
@@ -116,6 +150,14 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
         const map: Record<string, string> = {};
         for (const g of (data || []) as { id: string; company_id: string }[]) map[g.id] = g.company_id;
         setPayGroupCompanyById(map);
+      });
+    supabase
+      .from('company_settings')
+      .select('pension_enabled, nhf_enabled, nhis_enabled')
+      .eq('id', SETTINGS_SINGLETON_ID)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setCompanySettings(data);
       });
     return () => { cancelled = true; };
   }, []);
@@ -137,9 +179,10 @@ function useRoster(rules: PayrollSegmentFilterRules | null, companyId?: string |
       else included.push(e);
     }
     const missingBankDetails = included.filter((e) => !e.bank_account_number);
-    const totalNgn = included.reduce((s, e) => s + grossOf(e), 0);
-    return { loading, included, excludedByReason, missingBankDetails, totalNgn };
-  }, [employees, rules, loading, companyId, payGroupCompanyById]);
+    const totalGrossNgn = included.reduce((s, e) => s + grossOf(e), 0);
+    const totalNetNgn = included.reduce((s, e) => s + netOf(e, companySettings), 0);
+    return { loading, included, excludedByReason, missingBankDetails, totalGrossNgn, totalNetNgn, companySettings };
+  }, [employees, rules, loading, companyId, payGroupCompanyById, companySettings]);
 }
 
 const empName = (e: RosterEmployee) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
@@ -153,16 +196,17 @@ const avatarColour = (id: string) => {
   return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
 };
 
-function RosterRow({ e }: { e: RosterEmployee }) {
+function RosterRow({ e, cs }: { e: RosterEmployee; cs: CompanySettingsLike }) {
   const name = empName(e);
   const missingBank = !e.bank_account_number;
+  const net = netOf(e, cs);
   return (
     <li className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2.5 gap-y-0 rounded-md px-1.5 py-1.5 hover:bg-muted/60">
       <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-3xs font-bold', avatarColour(e.id))}>
         {initials(name)}
       </span>
       <span className="min-w-0 truncate text-foreground" title={name}>{name}</span>
-      <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(grossOf(e))}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground text-right w-[92px]">{formatNaira(net)}</span>
       {missingBank && (
         <span className="col-start-2 col-span-2 -mt-0.5 flex items-center gap-1 text-2xs text-warning">
           <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -216,7 +260,7 @@ export function PayrollRosterPreview({
   }, [payrollSegmentId, rulesOverride]);
 
   const rules = rulesOverride !== undefined ? rulesOverride : savedRules;
-  const { loading, included, excludedByReason, missingBankDetails, totalNgn } = useRoster(rules, companyId);
+  const { loading, included, excludedByReason, missingBankDetails, totalNetNgn, companySettings: cs } = useRoster(rules, companyId);
 
   if (loading) {
     return <p className="text-xs text-muted-foreground">Checking who matches…</p>;
@@ -241,7 +285,7 @@ export function PayrollRosterPreview({
           <span className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1.5 font-medium text-foreground currency">
-                <Users className="h-3.5 w-3.5" /> {included.length} will be paid · {formatNaira(totalNgn)}
+                <Users className="h-3.5 w-3.5" /> {included.length} will be paid · {formatNaira(totalNetNgn)} net
               </span>
               {totalExcluded > 0 && (
                 <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -291,7 +335,7 @@ export function PayrollRosterPreview({
               <AlertTriangle className="h-3.5 w-3.5" /> Needs attention ({needsAttention.length})
             </p>
             <ul className="space-y-px max-h-64 overflow-y-auto">
-              {needsAttention.map((e) => <RosterRow key={e.id} e={e} />)}
+              {needsAttention.map((e) => <RosterRow key={e.id} e={e} cs={cs} />)}
             </ul>
           </div>
         )}
@@ -302,7 +346,7 @@ export function PayrollRosterPreview({
               <CheckCircle2 className="h-3.5 w-3.5 text-success" /> Ready to pay ({ready.length})
             </p>
             <ul className="space-y-px max-h-64 overflow-y-auto">
-              {ready.map((e) => <RosterRow key={e.id} e={e} />)}
+              {ready.map((e) => <RosterRow key={e.id} e={e} cs={cs} />)}
             </ul>
           </div>
         )}
