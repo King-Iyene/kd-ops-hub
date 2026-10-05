@@ -139,7 +139,7 @@ export interface NarrationParts {
 }
 
 const KIND_LABEL: Record<NarrationKind, string> = {
-  salary: 'Salary',
+  salary: 'Salary Payment',
   bonus: 'Bonus',
   advance: 'Advance',
   contractor: 'Contract Pmt',

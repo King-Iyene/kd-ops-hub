@@ -36,7 +36,7 @@ const NotFound = () => {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-[hsl(var(--tod-aurora-1))] to-[hsl(var(--tod-aurora-2))] text-white font-semibold shadow-lg hover:opacity-90 kd-transition kd-tod-glow"
         >
           <ArrowLeft className="h-4 w-4" />
-          Return to base
+          Go to Dashboard
         </Link>
       </div>
     </AuthAtmosphere>

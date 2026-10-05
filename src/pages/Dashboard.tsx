@@ -454,10 +454,10 @@ const Dashboard = () => {
   const greeting = greetingFor(tod);
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
   const todSubtitle: Record<typeof tod, string> = {
-    morning:   'A fresh slate. Here\'s where things stand today.',
-    afternoon: 'Mid-day check-in. Here\'s what\'s in motion.',
-    evening:   'Winding down. Here\'s your day at a glance.',
-    night:     'The night shift. Here\'s the pulse of the system.',
+    morning:   'Here\'s your operational overview for today.',
+    afternoon: 'Here\'s what\'s in motion across the organisation.',
+    evening:   'Here\'s your end-of-day summary.',
+    night:     'Here\'s your overnight activity at a glance.',
   };
 
   /* ── Personal / field-staff view ───────────────────────────────── */

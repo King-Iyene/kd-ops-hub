@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const BATCH_TYPE_LABEL: Record<string, string> = {
-  employee_salary: 'Salary',
+  employee_salary: 'Monthly Salary',
   employee_allowance: 'Allowance',
   employee_reimbursement: 'Reimbursement',
   contractor: 'Contractor',

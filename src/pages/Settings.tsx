@@ -399,7 +399,7 @@ const SettingsPage = () => {
     <div className="space-y-3 sm:space-y-6 max-w-[1400px] mx-auto">
       <PageHeader
         title="Settings"
-        description="KDOps runs on these knobs. Take care."
+        description="Manage your organisation's payroll, compliance, and platform preferences."
         actions={
           <Button onClick={save} disabled={saving}>
             {saving ? (

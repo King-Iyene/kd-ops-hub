@@ -114,8 +114,8 @@ const EMPLOYEE_BATCH_TYPES: BatchTypeConfig[] = [
   {
     type: 'employee_salary',
     icon: <Banknote className="h-5 w-5" />,
-    label: 'Employee Salary',
-    desc: 'Monthly payroll',
+    label: 'Monthly Salary',
+    desc: 'Regular payroll run',
     color: 'text-emerald-600',
   },
   {
