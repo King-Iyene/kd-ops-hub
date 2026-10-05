@@ -157,7 +157,19 @@ jobs:
         # --include-all re-running an already-applied file is a no-op —
         # safe by construction. The self-heal step above still handles
         # true remote-only orphans (e.g. hotfixes run in the SQL editor).
-        run: supabase db push --include-all
+        run: |
+          supabase db push --include-all 2>&1 | tee /tmp/push_output.txt
+          exit ${PIPESTATUS[0]}
+      - name: Capture push error for issue
+        if: ${{ failure() && steps.push.outcome == 'failure' }}
+        id: capture
+        run: |
+          MSG=$(cat /tmp/push_output.txt 2>/dev/null | tail -60 || echo "No output captured")
+          # Escape for GH output
+          MSG="${MSG//'%'/'%25'}"
+          MSG="${MSG//$'\n'/'%0A'}"
+          MSG="${MSG//$'\r'/'%0D'}"
+          echo "error_log=$MSG" >> "$GITHUB_OUTPUT"
 
       - name: Alert on failure (email via GitHub)
         if: ${{ failure() }}
@@ -172,12 +184,20 @@ jobs:
             const sha  = context.sha.substring(0, 7);
             const url  = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
             const title = `[migration deploy] failed on ${sha}`;
+            const errorLog = `${{ steps.capture.outputs.error_log || 'No error output captured' }}`;
             const body  = [
               `The Supabase migration deploy for commit \`${sha}\` FAILED.`,
               ``,
               `Nothing in \`supabase/migrations/\` has reached production for this push.`,
               ``,
               `Investigate: ${url}`,
+              ``,
+              `<details><summary>Error output</summary>`,
+              ``,
+              '```',
+              errorLog,
+              '```',
+              `</details>`,
               ``,
               `> This issue was opened by the deploy-supabase-migrations workflow.`,
               `> Close it once the underlying failure is resolved and a re-run succeeds.`,
