@@ -259,7 +259,11 @@ export function PayrollDashboardTab({
                       className="bg-white text-[#00283d] hover:bg-white/90 shadow-lg shadow-black/25 hover:shadow-xl hover:shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 font-semibold"
                       onClick={() => onOpenRun(heroRun.id)}
                     >
-                      Review &amp; approve <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      {heroRun.status === 'approved' || heroRun.status === 'processing'
+                        ? 'Disburse'
+                        : heroRun.status === 'pending_approval'
+                          ? 'Approve'
+                          : 'Review & approve'} <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>

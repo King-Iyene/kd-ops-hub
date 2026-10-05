@@ -3,7 +3,7 @@ import { Loader2, Plus, Send, AlertCircle, AlertTriangle, Trash2, X, Clock, Chec
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import type { PayrollSegment } from '@/lib/payroll-segments';
 import type { PayrollSegmentFilterRules } from '@/lib/payroll-segments';
-import { formatNaira, formatNairaCompact, getTimezone, getBrowserTimezone, utcIsoToWallClock, wallClockToTzDisplay, tzAbbrev } from '@/lib/format';
+import { formatNaira, formatNairaCompact, getTimezone, getBrowserTimezone, utcIsoToWallClock, wallClockToTzDisplay, tzAbbrev, COMMON_TIMEZONES } from '@/lib/format';
 import { CompliancePanel } from '@/components/payroll/CompliancePanel';
 import type { ComplianceCheck } from '@/lib/payroll-compliance';
 import { Button } from '@/components/ui/button';
@@ -1118,7 +1118,7 @@ export const PayrollDialogs = ({
                         onChange={(e) => setScheduleAt(e.target.value)}
                       />
                     </div>
-                    <div className="w-[160px]">
+                    <div className="w-[200px]">
                       <Label htmlFor="payroll-schedule-tz" className="sr-only">Timezone</Label>
                       <select
                         id="payroll-schedule-tz"
@@ -1132,15 +1132,21 @@ export const PayrollDialogs = ({
                         {(() => {
                           const orgTz = getTimezone();
                           const browserTz = getBrowserTimezone();
-                          const options = [
-                            { value: orgTz, label: `${tzAbbrev(orgTz)} — ${orgTz.replace(/_/g, ' ')}` },
-                          ];
-                          if (browserTz !== orgTz) {
-                            options.push({ value: browserTz, label: `${tzAbbrev(browserTz)} — ${browserTz.replace(/_/g, ' ')}` });
-                          }
-                          return options.map((o) => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ));
+                          const pinned = [orgTz];
+                          if (browserTz !== orgTz) pinned.push(browserTz);
+                          const rest = COMMON_TIMEZONES.filter((tz) => !pinned.includes(tz));
+                          const fmt = (tz: string) => `${tzAbbrev(tz)} — ${tz.replace(/_/g, ' ')}`;
+                          return (
+                            <>
+                              {pinned.map((tz) => (
+                                <option key={tz} value={tz}>{fmt(tz)}</option>
+                              ))}
+                              <option disabled>────────────</option>
+                              {rest.map((tz) => (
+                                <option key={tz} value={tz}>{fmt(tz)}</option>
+                              ))}
+                            </>
+                          );
                         })()}
                       </select>
                     </div>

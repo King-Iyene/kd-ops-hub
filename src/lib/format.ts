@@ -290,6 +290,23 @@ export function tzAbbrev(tz: string): string {
   return parts.find((p) => p.type === 'timeZoneName')?.value ?? tz;
 }
 
+export const COMMON_TIMEZONES: string[] = [
+  'Pacific/Midway', 'Pacific/Honolulu', 'America/Anchorage',
+  'America/Los_Angeles', 'America/Phoenix', 'America/Denver',
+  'America/Chicago', 'America/New_York', 'America/Halifax',
+  'America/St_Johns', 'America/Sao_Paulo', 'America/Argentina/Buenos_Aires',
+  'Atlantic/Cape_Verde', 'UTC',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Helsinki',
+  'Europe/Istanbul', 'Europe/Moscow',
+  'Africa/Lagos', 'Africa/Cairo', 'Africa/Nairobi',
+  'Africa/Johannesburg', 'Africa/Accra', 'Africa/Casablanca',
+  'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Dhaka',
+  'Asia/Bangkok', 'Asia/Singapore', 'Asia/Shanghai', 'Asia/Hong_Kong',
+  'Asia/Tokyo', 'Asia/Seoul',
+  'Australia/Perth', 'Australia/Sydney', 'Australia/Adelaide',
+  'Pacific/Auckland', 'Pacific/Fiji',
+];
+
 /** USD amount from whole dollars: "$18,500.00". */
 export const formatUsd = (amount: number | null | undefined): string => {
   if (amount == null) return '—';
