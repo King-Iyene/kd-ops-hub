@@ -81,9 +81,9 @@ CREATE INDEX IF NOT EXISTS idx_payment_batches_active_created
 CREATE INDEX IF NOT EXISTS idx_trip_logs_driver_created
   ON public.trip_logs (driver_id, created_at DESC);
 
--- ── contractors: the main listing orders by name ─────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_contractors_name
-  ON public.contractors (name);
+-- ── contractors: the main listing orders by full_name ────────────────────────
+CREATE INDEX IF NOT EXISTS idx_contractors_full_name
+  ON public.contractors (full_name);
 
 -- ── Analyse the most-queried tables so the planner uses the new indexes ──────
 ANALYZE public.flex_records;
