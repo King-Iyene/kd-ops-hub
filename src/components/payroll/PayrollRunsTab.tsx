@@ -480,7 +480,7 @@ export const PayrollRunsTab = ({
                 <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-blue-200 bg-clip-text text-transparent">
                   {formatNaira(latest.total_burn_ngn)}
                 </p>
-                <p className="text-xs text-white/45 mt-2 font-medium tracking-wide">{latest.employee_count ?? 0} employees</p>
+                <p className="text-xs text-white/45 mt-1 font-medium tracking-wide">Total company cost · {latest.employee_count ?? 0} employees</p>
               </div>
               <StatusBadge status={latest.status} />
             </div>
@@ -1235,7 +1235,9 @@ function RunDetailDrawer({
               {r.custom_name && !editing && (
                 <p className="text-2xs text-muted-foreground mt-0.5">{monthLabel(r.period, r.period_type)}</p>
               )}
-              <p className="text-xl font-extrabold tabular-nums tracking-tight mt-1.5">{formatNaira(r.total_burn_ngn)}</p>
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mt-2">Total company cost</p>
+              <p className="text-xl font-extrabold tabular-nums tracking-tight">{formatNaira(r.total_burn_ngn)}</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Gross + employer pension — see Money ledger for breakdown</p>
             </div>
             <StatusBadge status={r.status} />
           </div>

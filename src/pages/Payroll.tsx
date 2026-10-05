@@ -479,6 +479,7 @@ const Payroll = () => {
   } | null>(null);
   const [deductionEligibility, setDeductionEligibility] = useState<{
     total: number; paye: number; pension: number; nhf: number; nhis: number; devLevy: boolean;
+    payeNames: string[]; pensionNames: string[]; nhfNames: string[]; nhisNames: string[];
   } | null>(null);
   const [bonusEmployees, setBonusEmployees] = useState<{ id: string; name: string; salary: number }[]>([]);
   const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
@@ -549,15 +550,19 @@ const Payroll = () => {
 
   // Pre-compute deduction eligibility when entering Step 2 so the read-only
   // summary shows which statutory deductions apply and for how many employees.
+  // Scoped to the segment selected for this run — not the whole company.
   useEffect(() => {
     if (draftStep !== 1 || !selectedCompanyId || selectedCompanyId === ALL_COMPANIES) return;
     let cancelled = false;
     (async () => {
-      const { data: emps } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, full_name, email, pay_group_id, salary_ngn, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, tax_id, tin')
-        .eq('status', 'active')
-        .neq('role', 'driver');
+      const [{ data: emps }, segRules] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, first_name, last_name, full_name, email, pay_group_id, salary_ngn, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, tax_id, tin, department_id, employment_type')
+          .eq('status', 'active')
+          .neq('role', 'driver'),
+        fetchSegmentRules(form.payroll_segment_id || null),
+      ]);
       if (cancelled) return;
       const companyPgIds = new Set(
         segmentPayGroups.filter((g) => g.company_id === selectedCompanyId).map((g) => g.id),
@@ -565,17 +570,27 @@ const Payroll = () => {
       const inCompany = ((emps || []) as any[]).filter(
         (e: any) => e.pay_group_id && companyPgIds.has(e.pay_group_id) && Number(e.salary_ngn || 0) > 0,
       );
-      const total = inCompany.length;
+      const inRun = filterEmployeesForSegment(inCompany, segRules);
+      const empName = (e: any) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
+      const total = inRun.length;
+      const payeList = inRun.filter((e: any) => e.paye_enabled !== false && (e.tax_id || e.tin));
+      const pensionList = inRun.filter((e: any) => e.pension_enabled !== false);
+      const nhfList = inRun.filter((e: any) => e.nhf_enabled === true);
+      const nhisList = inRun.filter((e: any) => e.nhis_enabled === true);
       setDeductionEligibility({
         total,
-        paye: inCompany.filter((e: any) => e.paye_enabled !== false && (e.tax_id || e.tin)).length,
-        pension: inCompany.filter((e: any) => e.pension_enabled !== false).length,
-        nhf: inCompany.filter((e: any) => e.nhf_enabled === true).length,
-        nhis: inCompany.filter((e: any) => e.nhis_enabled === true).length,
+        paye: payeList.length,
+        pension: pensionList.length,
+        nhf: nhfList.length,
+        nhis: nhisList.length,
         devLevy: !!(companySettings as any)?.development_levy_enabled,
+        payeNames: payeList.map(empName).sort(),
+        pensionNames: pensionList.map(empName).sort(),
+        nhfNames: nhfList.map(empName).sort(),
+        nhisNames: nhisList.map(empName).sort(),
       });
       setBonusEmployees(
-        inCompany.map((e: any) => ({
+        inRun.map((e: any) => ({
           id: e.id,
           name: displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed'),
           salary: Number(e.salary_ngn || 0),
@@ -583,7 +598,7 @@ const Payroll = () => {
       );
     })();
     return () => { cancelled = true; };
-  }, [draftStep, selectedCompanyId, segmentPayGroups, companySettings]);
+  }, [draftStep, selectedCompanyId, segmentPayGroups, companySettings, form.payroll_segment_id]);
 
   const draftRun = async () => {
     if (!form.period) return;

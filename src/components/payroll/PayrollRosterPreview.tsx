@@ -266,7 +266,8 @@ export function PayrollRosterPreview({
     return <p className="text-xs text-muted-foreground">Checking who matches…</p>;
   }
 
-  const totalExcluded = Object.values(excludedByReason).reduce((s, l) => s + l.length, 0);
+  const relevantExcluded = excludedByReason.inactive.length + excludedByReason.driver.length + excludedByReason.no_salary.length + excludedByReason.segment.length;
+  const totalExcluded = relevantExcluded + excludedByReason.other_company.length;
   const readyCount = included.length - missingBankDetails.length;
   const readyPct = included.length > 0 ? Math.round((readyCount / included.length) * 100) : 0;
 
@@ -287,9 +288,9 @@ export function PayrollRosterPreview({
               <span className="flex items-center gap-1.5 font-medium text-foreground currency">
                 <Users className="h-3.5 w-3.5" /> {included.length} will be paid · {formatNaira(totalNetNgn)} net
               </span>
-              {totalExcluded > 0 && (
+              {relevantExcluded > 0 && (
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <UserX className="h-3.5 w-3.5" /> {totalExcluded} excluded
+                  <UserX className="h-3.5 w-3.5" /> {relevantExcluded} excluded
                 </span>
               )}
               {missingBankDetails.length > 0 && (
@@ -364,7 +365,7 @@ export function PayrollRosterPreview({
             exactly its job. Who is getting paid is the question this step
             answers; who isn't is a footnote you open only if a number looks
             wrong. */}
-        {totalExcluded > 0 && (
+        {relevantExcluded > 0 && (
           <Collapsible open={excludedOpen} onOpenChange={setExcludedOpen}>
             <CollapsibleTrigger asChild>
               <button
@@ -373,19 +374,16 @@ export function PayrollRosterPreview({
                 aria-expanded={excludedOpen}
               >
                 <UserX className="h-3.5 w-3.5 shrink-0" />
-                View excluded ({totalExcluded})
+                View excluded ({relevantExcluded})
                 <ChevronDown className={cn('ml-auto h-3.5 w-3.5 transition-transform', excludedOpen && 'rotate-180')} />
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2.5 pt-2">
               {(Object.keys(excludedByReason) as ExclusionReason[]).map((reason) => {
+                if (reason === 'other_company') return null;
                 const list = excludedByReason[reason];
                 if (!list.length) return null;
-                // Inactive/driver exclusions are expected and not actionable
-                // during payroll review — naming every former employee is
-                // noise. No-salary/segment/other-company exclusions might mean
-                // a real config problem, so those stay listed by name.
-                const listNames = reason === 'no_salary' || reason === 'segment' || reason === 'other_company';
+                const listNames = reason === 'no_salary' || reason === 'segment';
                 return (
                   <div key={reason}>
                     <p className="mb-1 font-medium text-muted-foreground">{REASON_LABEL[reason]} ({list.length})</p>
@@ -400,7 +398,7 @@ export function PayrollRosterPreview({
             </CollapsibleContent>
           </Collapsible>
         )}
-        {included.length === 0 && totalExcluded === 0 && (
+        {included.length === 0 && relevantExcluded === 0 && (
           <p className="text-muted-foreground">No employees found.</p>
         )}
       </CollapsibleContent>

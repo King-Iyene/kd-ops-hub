@@ -114,6 +114,10 @@ export interface DeductionEligibility {
   nhf: number;
   nhis: number;
   devLevy: boolean;
+  payeNames: string[];
+  pensionNames: string[];
+  nhfNames: string[];
+  nhisNames: string[];
 }
 
 interface SegmentFormState {
@@ -628,17 +632,28 @@ export const PayrollDialogs = ({
                   {deductionEligibility ? (
                     <div className="rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/40 text-xs">
                       {[
-                        { label: 'PAYE (Income Tax)', count: deductionEligibility.paye, note: 'have TIN on file' },
-                        { label: 'Pension (8% + 10%)', count: deductionEligibility.pension, note: 'enrolled' },
-                        { label: 'NHF (2.5%)', count: deductionEligibility.nhf, note: 'opted in' },
-                        { label: 'NHIS (5% + 10%)', count: deductionEligibility.nhis, note: 'opted in' },
-                      ].map(({ label, count, note }) => (
-                        <div key={label} className="flex items-center justify-between px-3 py-2">
-                          <span className="text-foreground">{label}</span>
-                          <span className={cn('tabular-nums', count > 0 ? 'text-foreground' : 'text-muted-foreground')}>
-                            {count} of {deductionEligibility.total} {note}
-                          </span>
-                        </div>
+                        { label: 'PAYE (Income Tax)', count: deductionEligibility.paye, note: 'have TIN on file', names: deductionEligibility.payeNames },
+                        { label: 'Pension (8% + 10%)', count: deductionEligibility.pension, note: 'enrolled', names: deductionEligibility.pensionNames },
+                        { label: 'NHF (2.5%)', count: deductionEligibility.nhf, note: 'opted in', names: deductionEligibility.nhfNames },
+                        { label: 'NHIS (5% + 10%)', count: deductionEligibility.nhis, note: 'opted in', names: deductionEligibility.nhisNames },
+                      ].map(({ label, count, note, names }) => (
+                        <details key={label} className="group">
+                          <summary className="flex items-center justify-between px-3 py-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                            <span className="text-foreground">{label}</span>
+                            <span className={cn('tabular-nums', count > 0 ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                              {count} of {deductionEligibility.total} {note}
+                            </span>
+                          </summary>
+                          {names.length > 0 ? (
+                            <ul className="px-3 pb-2 pt-0.5 flex flex-wrap gap-1">
+                              {names.map((n) => (
+                                <li key={n} className="rounded-full bg-muted px-2 py-0.5 text-2xs text-muted-foreground">{n}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="px-3 pb-2 pt-0.5 text-2xs text-muted-foreground">No employees {note} in this run.</p>
+                          )}
+                        </details>
                       ))}
                       <div className="flex items-center justify-between px-3 py-2">
                         <span className="text-foreground">Development Levy</span>
