@@ -408,8 +408,8 @@ export const PayrollRunsTab = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
-            label: 'Latest total burn',
-            value: latest ? formatNaira(latest.total_burn_ngn) : '—',
+            label: 'Net pay to disburse',
+            value: latest ? formatNaira(latest.total_employee_ngn - latest.paye_ngn - latest.pension_ngn - latest.nhf_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Run payroll to get started',
             icon: Banknote,
             iconBg: 'bg-blue-50 dark:bg-blue-950/40', iconFg: 'text-blue-700 dark:text-blue-300',
@@ -478,9 +478,9 @@ export const PayrollRunsTab = ({
                   {monthLabel(latest.period, latest.period_type)}
                 </p>
                 <p className="kd-display text-3xl sm:text-4xl font-black tabular-nums mt-2 tracking-tighter bg-gradient-to-r from-white via-white to-blue-200 bg-clip-text text-transparent">
-                  {formatNaira(latest.total_burn_ngn)}
+                  {formatNaira(latest.total_employee_ngn - latest.paye_ngn - latest.pension_ngn - latest.nhf_ngn)}
                 </p>
-                <p className="text-xs text-white/45 mt-1 font-medium tracking-wide">Total company cost · {latest.employee_count ?? 0} employees</p>
+                <p className="text-xs text-white/45 mt-1 font-medium tracking-wide">Net pay to disburse · {latest.employee_count ?? 0} employees</p>
               </div>
               <StatusBadge status={latest.status} />
             </div>
@@ -659,8 +659,10 @@ export const PayrollRunsTab = ({
             <div className="divide-y divide-border/40" data-testid="payroll-runs-list">
               {visibleRuns.map((r, idx) => {
                 const prev = visibleRuns[idx + 1];
-                const momPct = prev && prev.total_burn_ngn > 0
-                  ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
+                const curNet = r.total_employee_ngn - r.paye_ngn - r.pension_ngn - r.nhf_ngn;
+                const prevNet = prev ? prev.total_employee_ngn - prev.paye_ngn - prev.pension_ngn - prev.nhf_ngn : 0;
+                const momPct = prev && prevNet > 0
+                  ? ((curNet - prevNet) / prevNet) * 100
                   : null;
                 const isHighlighted = highlightedRunId === r.id;
                 const needsAttention = r.status === 'draft' || (r.status === 'pending_approval' && canApprovePerm && !isSelfApprovalBlocked(r));
@@ -716,7 +718,7 @@ export const PayrollRunsTab = ({
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-extrabold currency tabular-nums tracking-tighter">{formatNaira(r.total_burn_ngn)}</p>
+                      <p className="text-sm font-extrabold currency tabular-nums tracking-tighter">{formatNaira(r.total_employee_ngn - r.paye_ngn - r.pension_ngn - r.nhf_ngn)}</p>
                       <p className="text-2xs text-muted-foreground tabular-nums mt-0.5">
                         {r.employee_count ?? '—'} employee{r.employee_count === 1 ? '' : 's'}
                         {momPct !== null && (
@@ -1235,9 +1237,9 @@ function RunDetailDrawer({
               {r.custom_name && !editing && (
                 <p className="text-2xs text-muted-foreground mt-0.5">{monthLabel(r.period, r.period_type)}</p>
               )}
-              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mt-2">Total company cost</p>
-              <p className="text-xl font-extrabold tabular-nums tracking-tight">{formatNaira(r.total_burn_ngn)}</p>
-              <p className="text-2xs text-muted-foreground mt-0.5">Gross + employer pension — see Money ledger for breakdown</p>
+              <p className="text-2xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mt-2">Net pay to disburse</p>
+              <p className="text-xl font-extrabold tabular-nums tracking-tight">{formatNaira(netPay)}</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Total company cost: {formatNaira(r.total_burn_ngn)} — see Money ledger</p>
             </div>
             <StatusBadge status={r.status} />
           </div>
@@ -1335,7 +1337,7 @@ function RunDetailDrawer({
               <div className="flex justify-between items-center px-3 py-2.5 font-semibold bg-primary/10 border-t border-border/40">
                 <div className="flex flex-col">
                   <span>Total company cost</span>
-                  <span className="text-2xs font-normal text-muted-foreground">Net pay + employer pension + NSITF</span>
+                  <span className="text-2xs font-normal text-muted-foreground">Net pay + employer pension</span>
                 </div>
                 <span className="tabular-nums text-primary">{formatNaira(r.total_burn_ngn)}</span>
               </div>

@@ -748,7 +748,7 @@ export const PayrollDialogs = ({
                   <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold">Total company cost</span>
-                      <span className="text-2xs text-muted-foreground">Net pay + employer pension + NSITF</span>
+                      <span className="text-2xs text-muted-foreground">Net pay + employer pension</span>
                     </div>
                     <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
                   </div>
