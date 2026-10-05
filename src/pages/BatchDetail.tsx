@@ -638,6 +638,15 @@ const BatchDetail = () => {
         );
       }
       const ref = generateKdopsRef(it.id);
+      // Pre-stamp the reference on the batch_item so the edge function can
+      // look it up. batch-worker does this at dispatch time, but items that
+      // were never dispatched (e.g. timeout before reaching them) have a NULL
+      // reference — without this write the edge function returns 400.
+      if (!it.paystack_reference) {
+        await supabase.from('batch_items')
+          .update({ paystack_reference: ref })
+          .eq('id', it.id);
+      }
       const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
       const transfer = await initiateTransferIdempotent({
         recipient_code: recipientCode!,

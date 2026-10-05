@@ -861,11 +861,13 @@ function RunPayslipsSection({
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const canExclude = runStatus === 'approved';
+  const [itemStatusMap, setItemStatusMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
     setPayslips(null);
-    supabase
+    setItemStatusMap({});
+    const loadPayslips = supabase
       .from('payslips')
       .select('id, employee_id, employee_name, net_ngn, gross_ngn, storage_path, excluded')
       .eq('payroll_run_id', runId)
@@ -877,6 +879,28 @@ function RunPayslipsSection({
         }
         setPayslips((data as any[]) || []);
       });
+    // Load per-employee payment status from the linked payment batch
+    const loadStatuses = supabase
+      .from('payment_batches')
+      .select('id')
+      .eq('payroll_run_id', runId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(async ({ data: pb }) => {
+        if (cancelled || !pb) return;
+        const { data: items } = await supabase
+          .from('batch_items')
+          .select('employee_id, status')
+          .eq('batch_id', pb.id);
+        if (cancelled || !items) return;
+        const map: Record<string, string> = {};
+        for (const it of items as any[]) {
+          if (it.employee_id) map[it.employee_id] = it.status;
+        }
+        setItemStatusMap(map);
+      });
+    void Promise.all([loadPayslips, loadStatuses]);
     return () => { cancelled = true; };
   }, [runId, refreshKey, toast]);
 
@@ -1100,7 +1124,15 @@ function RunPayslipsSection({
               disabled={openingId === slip.id}
               className="flex-1 flex items-center justify-between gap-2 text-left hover:bg-muted/40 rounded px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors disabled:opacity-60"
             >
-              <span className={cn('font-medium truncate', slip.excluded && 'line-through')}>{slip.employee_name}</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                {itemStatusMap[slip.employee_id] && (() => {
+                  const s = itemStatusMap[slip.employee_id];
+                  const color = s === 'succeeded' ? 'bg-emerald-500' : s === 'failed' ? 'bg-red-500' : 'bg-amber-500';
+                  const label = s === 'succeeded' ? 'Paid' : s === 'failed' ? 'Failed' : 'Pending';
+                  return <span className={cn('shrink-0 h-2 w-2 rounded-full', color)} title={label} />;
+                })()}
+                <span className={cn('font-medium truncate', slip.excluded && 'line-through')}>{slip.employee_name}</span>
+              </span>
               <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
                 <span className={cn('tabular-nums', slip.excluded ? 'text-muted-foreground line-through' : 'text-foreground')}>{formatNaira(slip.net_ngn)}</span>
                 {openingId === slip.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
