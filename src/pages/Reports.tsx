@@ -57,7 +57,7 @@ interface DateRange {
   end: string;
 }
 
-const CHART_COLORS = ['#006994', '#00ECFF', '#D6AC50', '#22c55e', '#ef4444', '#a855f7', '#f59e0b'];
+const CHART_COLORS = ['#006994', '#4d9eaa', '#D6AC50', '#22c55e', '#ef4444', '#a855f7', '#f59e0b'];
 
 // Default range: start of this year → today.
 const thisYearRange = (): DateRange => {

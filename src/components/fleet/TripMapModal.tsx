@@ -77,7 +77,7 @@ function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
     >
       {trailPath.length > 1 && (
         <>
-          <GPolyline path={trailPath} options={{ strokeColor: '#00ECFF', strokeWeight: 8, strokeOpacity: 0.18 }} />
+          <GPolyline path={trailPath} options={{ strokeColor: '#4d9eaa', strokeWeight: 8, strokeOpacity: 0.18 }} />
           <GPolyline path={trailPath} options={{ strokeColor: '#006994', strokeWeight: 3, strokeOpacity: 0.9 }} />
         </>
       )}

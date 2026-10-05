@@ -540,7 +540,7 @@ const Approvals = () => {
         }
       }
 
-      toast({ title: 'Approved' });
+      toast({ title: 'Request approved' });
       await fetchAll();
       refreshCounts();
       setSelected((prev) => {

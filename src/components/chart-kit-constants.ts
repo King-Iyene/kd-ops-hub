@@ -7,7 +7,7 @@
 
 export const chartTheme = {
   primary:    '#006994',
-  cyan:       '#00ECFF',
+  cyan:       '#4d9eaa',
   gold:       '#D6AC50',
   success:    '#3FAE6F',
   warning:    '#F59E0B',

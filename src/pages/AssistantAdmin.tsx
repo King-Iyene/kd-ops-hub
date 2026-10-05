@@ -203,7 +203,7 @@ export default function AssistantAdmin() {
     const { error } = await supabase.from('chatbot_knowledge').delete().eq('id', row.id);
     if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
     await logAudit('chatbot_kb_deleted', `Knowledge: ${row.title}`, profile);
-    toast({ title: 'Deleted' });
+    toast({ title: 'Knowledge entry deleted' });
     fetchAll();
   };
 
@@ -246,7 +246,7 @@ export default function AssistantAdmin() {
           <Button asChild variant="ghost" size="sm">
             <Link to="/assistant"><ArrowLeft className="h-4 w-4 mr-1.5" /> Back</Link>
           </Button>
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-700 to-indigo-800 flex items-center justify-center shadow-md">
             <Brain className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -368,7 +368,7 @@ export default function AssistantAdmin() {
             <Button onClick={fetchAll} variant="outline">
               <RefreshCw className="h-4 w-4 mr-1.5" /> Reload
             </Button>
-            <Button onClick={saveConfig} disabled={saving} className="bg-gradient-to-br from-violet-500 to-indigo-600 hover:opacity-90">
+            <Button onClick={saveConfig} disabled={saving} className="bg-gradient-to-br from-violet-700 to-indigo-800 hover:opacity-90">
               {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
               Save configuration
             </Button>
@@ -387,7 +387,7 @@ export default function AssistantAdmin() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => openKbForm()} className="bg-gradient-to-br from-violet-500 to-indigo-600 hover:opacity-90">
+              <Button onClick={() => openKbForm()} className="bg-gradient-to-br from-violet-700 to-indigo-800 hover:opacity-90">
                 <Plus className="h-4 w-4 mr-1.5" /> Add knowledge
               </Button>
             </div>
@@ -554,7 +554,7 @@ export default function AssistantAdmin() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowKbDialog(false)}>Cancel</Button>
-            <Button onClick={saveKb} disabled={saving} className="bg-gradient-to-br from-violet-500 to-indigo-600 hover:opacity-90">
+            <Button onClick={saveKb} disabled={saving} className="bg-gradient-to-br from-violet-700 to-indigo-800 hover:opacity-90">
               {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
               Save & embed
             </Button>
