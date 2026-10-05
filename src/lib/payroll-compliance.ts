@@ -63,12 +63,7 @@ export interface ComplianceEmployee {
   nhis_number?: string | null;
 }
 
-export interface ComplianceRunOptions {
-  include_paye?: boolean;
-  include_pension?: boolean;
-  include_nhf?: boolean;
-  include_nhis?: boolean;
-}
+export type ComplianceRunOptions = Record<string, never>;
 
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
@@ -95,17 +90,7 @@ export function buildComplianceChecks(
   // Nigeria Tax Act 2025, effective 1 Jan 2026. Deducted at source and
   // remitted to the state IRS (Rivers State for KD Squares) by the 10th of
   // the following month, referencing the employer/employee Tax ID.
-  if (options.include_paye === false) {
-    checks.push({
-      key: 'paye',
-      label: 'PAYE tax',
-      status: 'off',
-      summary: 'Turned off for this run — no income tax will be deducted.',
-      people: [],
-    });
-  } else {
-    // NRS replaced the old TIN framework with a 13-digit Tax ID from Jan
-    // 2026; either column may hold it depending on when the record was set up.
+  {
     const noTaxId = payable.filter((e) => !e.tax_id && !e.tin).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
       key: 'paye',
@@ -122,15 +107,7 @@ export function buildComplianceChecks(
   // ── Pension ─────────────────────────────────────────────────────────────
   // Pension Reform Act 2014: 8% employee + 10% employer of pensionable
   // emoluments (basic + housing + transport). Mandatory at 15+ employees.
-  if (options.include_pension === false) {
-    checks.push({
-      key: 'pension',
-      label: 'Pension',
-      status: 'off',
-      summary: 'Turned off for this run — no pension will be deducted or matched.',
-      people: [],
-    });
-  } else {
+  {
     const contributing = payable.filter(pensionOn);
     const noPin = contributing.filter((e) => !e.pension_pin).map((e) => ({ id: e.id, name: e.name }));
     const exempt = payable.length - contributing.length;
@@ -150,15 +127,7 @@ export function buildComplianceChecks(
   // Voluntary for private-sector employees since the Business Facilitation
   // Act 2022 amended the NHF Act. Opting out is lawful, so it is never a
   // warning — see the note at the top of this file.
-  if (options.include_nhf === false) {
-    checks.push({
-      key: 'nhf',
-      label: 'NHF',
-      status: 'off',
-      summary: 'Turned off for this run.',
-      people: [],
-    });
-  } else {
+  {
     const contributing = payable.filter(nhfOn);
     const noNumber = contributing.filter((e) => !e.nhf_number).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
@@ -178,7 +147,7 @@ export function buildComplianceChecks(
   // ── NHIS ────────────────────────────────────────────────────────────────
   // NHIA Act 2022 s.26: 5% employee + 10% employer of basic, where enrolled.
   const nhisContributing = payable.filter(nhisOn);
-  if (options.include_nhis !== false && nhisContributing.length > 0) {
+  if (nhisContributing.length > 0) {
     const noNumber = nhisContributing.filter((e) => !e.nhis_number).map((e) => ({ id: e.id, name: e.name }));
     checks.push({
       key: 'nhis',

@@ -45,9 +45,9 @@ describe('buildComplianceChecks — PAYE', () => {
     expect(c.status).toBe('ok');
   });
 
-  it('reports PAYE as off when the run excludes it', () => {
-    const c = find(buildComplianceChecks([emp()], { include_paye: false }), 'paye');
-    expect(c.status).toBe('off');
+  it('always calculates PAYE — statutory deductions are profile-driven', () => {
+    const c = find(buildComplianceChecks([emp()]), 'paye');
+    expect(c.status).toBe('ok');
   });
 });
 

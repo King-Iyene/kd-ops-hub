@@ -100,15 +100,20 @@ interface DraftForm {
   transport_per_emp: number;
   meal_per_emp: number;
   payroll_segment_id: string;
-  // Per-run deduction overrides — all default true (include everything)
-  include_paye: boolean;
-  include_pension: boolean;
-  include_nhf: boolean;
-  include_nhis: boolean;
-  include_dev_levy: boolean;
+  // Non-statutory per-run controls (advances/deductions/EWA are genuine
+  // per-run decisions; statutory deductions are driven by employee profiles)
   include_advances: boolean;
   include_deductions: boolean;
   include_ewa: boolean;
+}
+
+export interface DeductionEligibility {
+  total: number;
+  paye: number;
+  pension: number;
+  nhf: number;
+  nhis: number;
+  devLevy: boolean;
 }
 
 interface SegmentFormState {
@@ -147,8 +152,9 @@ export interface PayrollDialogsProps {
     paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
     nhisEmployee: number; nhisEmployer: number;
     totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
-    totalExpenses: number; burn: number;
+    totalExpenses: number; burn: number; totalNetPay: number;
   } | null;
+  deductionEligibility: DeductionEligibility | null;
   finishDraftReview: () => void;
   /** Statutory readiness for the roster this run actually covers. */
   complianceChecks?: ComplianceCheck[];
@@ -241,6 +247,7 @@ export const PayrollDialogs = ({
   setDraftStep,
   selectPayGroupQuickFilter,
   computedPreview,
+  deductionEligibility,
   finishDraftReview,
   complianceChecks,
   existingRunConflict,
@@ -513,58 +520,8 @@ export const PayrollDialogs = ({
                     </div>
                   </div>
 
-                  {(() => {
-                    // A Pay Group card already sets this same payroll_segment_id
-                    // (via a single-pay-group segment created behind the
-                    // scenes), so a segment that isn't one of those is a real
-                    // custom filter — keep the section open so it's never
-                    // hiding an active, non-obvious selection.
-                    const isRealCustomSegment = !!form.payroll_segment_id && !currentPayGroupId;
-                    const open = advancedSegmentOpen || isRealCustomSegment;
-                    return (
-                      <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3.5 py-3">
-                        <button
-                          type="button"
-                          onClick={() => setAdvancedSegmentOpen((o) => !o)}
-                          className="flex w-full items-center justify-between gap-2 text-left"
-                        >
-                          <span className="flex items-center gap-1.5 text-xs font-semibold">
-                            Need a more specific mix of people?
-                            <InfoHint>For filters a single Pay Group can't express — e.g. exclude directors, or combine a department with a category.</InfoHint>
-                          </span>
-                          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground kd-transition', open && 'rotate-180')} />
-                        </button>
-
-                        {open && (
-                          <div className="space-y-1 mt-3 pt-3 border-t border-border/60">
-                            <div className="flex items-center justify-between">
-                              <Label>Custom segment</Label>
-                              <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
-                                Manage
-                              </Button>
-                            </div>
-                            <Select
-                              value={form.payroll_segment_id || '__all__'}
-                              onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
-                            >
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__all__">All employees (no filter)</SelectItem>
-                                {segments.map((s) => (
-                                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {form.payroll_segment_id && (
-                              <p className="text-xs text-muted-foreground">
-                                {currentSegment?.description || 'Only employees matching this segment will be included.'}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  {/* Custom segment UI removed — pay group cards handle employee
+                      filtering directly; segments are created behind the scenes. */}
 
                   <div className="space-y-1">
                     <Label>Who gets paid <span className="font-normal text-muted-foreground">— everyone matching is included by default</span></Label>
@@ -619,21 +576,44 @@ export const PayrollDialogs = ({
 
                 {/* Allowances are configured per-employee in their profile / pay group — not per run */}
 
-                {/* ── Deduction toggles ────────────────────────────────── */}
+                {/* ── Deduction eligibility (read-only) ─────────────── */}
                 <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between">
-                    <Label>Deductions included in this run</Label>
-                  </div>
+                  <Label>Deductions that will apply this run</Label>
                   <p className="text-2xs text-muted-foreground -mt-1.5">
-                    Turn off any statutory deduction or repayment you don't want applied this run. Changes only affect this payroll — employee and company settings stay the same.
+                    Statutory deductions are driven by each employee's profile — no blanket toggle needed. To skip a deduction for one person this run, use per-employee Adjustments after drafting.
                   </p>
+                  {deductionEligibility ? (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/40 text-xs">
+                      {[
+                        { label: 'PAYE (Income Tax)', count: deductionEligibility.paye, note: 'have TIN on file' },
+                        { label: 'Pension (8% + 10%)', count: deductionEligibility.pension, note: 'enrolled' },
+                        { label: 'NHF (2.5%)', count: deductionEligibility.nhf, note: 'opted in' },
+                        { label: 'NHIS (5% + 10%)', count: deductionEligibility.nhis, note: 'opted in' },
+                      ].map(({ label, count, note }) => (
+                        <div key={label} className="flex items-center justify-between px-3 py-2">
+                          <span className="text-foreground">{label}</span>
+                          <span className={cn('tabular-nums', count > 0 ? 'text-foreground' : 'text-muted-foreground')}>
+                            {count} of {deductionEligibility.total} {note}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-foreground">Development Levy</span>
+                        <span className={cn(deductionEligibility.devLevy ? 'text-foreground' : 'text-muted-foreground')}>
+                          {deductionEligibility.devLevy ? 'Enabled (company setting)' : 'Disabled'}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Loading employee eligibility…</p>
+                  )}
+                </div>
+
+                {/* ── Non-statutory per-run controls ───────────────── */}
+                <div className="space-y-2 pt-1">
+                  <Label>Optional repayments this run</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
                     {([
-                      { key: 'include_paye' as const, label: 'PAYE (Income Tax)' },
-                      { key: 'include_pension' as const, label: 'Pension (8% + 10%)' },
-                      { key: 'include_nhf' as const, label: 'NHF (2.5%)' },
-                      { key: 'include_nhis' as const, label: 'NHIS (5% + 10%)' },
-                      { key: 'include_dev_levy' as const, label: 'Development Levy' },
                       { key: 'include_advances' as const, label: 'Salary Advance Repayments' },
                       { key: 'include_deductions' as const, label: 'Recurring Deductions' },
                       { key: 'include_ewa' as const, label: 'Earned Wage Access (EWA)' },
@@ -650,9 +630,8 @@ export const PayrollDialogs = ({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  KDOps will pull approved expenses and processed payment batches for
-                  this period and estimate PAYE / Pension / NHF. Bonuses and allowances
-                  are added on top and included in the total burn.
+                  KDOps will compute PAYE / Pension / NHF based on each employee's
+                  statutory profile. Bonuses and allowances are added on top.
                 </p>
               </>
             )}
@@ -687,8 +666,15 @@ export const PayrollDialogs = ({
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3 bg-primary/10">
-                    <span className="text-sm font-semibold">Total burn this run</span>
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-500/10 border-t border-border/60">
+                    <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Net pay to employees</span>
+                    <span className="text-base font-bold currency tabular-nums text-emerald-700 dark:text-emerald-400">{formatNaira(computedPreview.totalNetPay)}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">Total burn this run</span>
+                      <span className="text-2xs text-muted-foreground">Includes employer-side costs employees don't see</span>
+                    </div>
                     <span className="text-base font-bold currency tabular-nums text-primary">{formatNaira(computedPreview.burn)}</span>
                   </div>
                 </div>

@@ -157,11 +157,6 @@ const Payroll = () => {
     transport_per_emp: number;
     meal_per_emp: number;
     payroll_segment_id: string;
-    include_paye: boolean;
-    include_pension: boolean;
-    include_nhf: boolean;
-    include_nhis: boolean;
-    include_dev_levy: boolean;
     include_advances: boolean;
     include_deductions: boolean;
     include_ewa: boolean;
@@ -173,11 +168,6 @@ const Payroll = () => {
     transport_per_emp: 0,
     meal_per_emp: 0,
     payroll_segment_id: '',
-    include_paye: true,
-    include_pension: true,
-    include_nhf: true,
-    include_nhis: true,
-    include_dev_levy: true,
     include_advances: true,
     include_deductions: true,
     include_ewa: true,
@@ -485,7 +475,10 @@ const Payroll = () => {
     paye: number; pension: number; employerPension: number; nhf: number; nsitfCharge: number;
     nhisEmployee: number; nhisEmployer: number;
     totalDeductions: number; totalAdvanceRepayments: number; totalContractor: number;
-    totalExpenses: number; burn: number;
+    totalExpenses: number; burn: number; totalNetPay: number;
+  } | null>(null);
+  const [deductionEligibility, setDeductionEligibility] = useState<{
+    total: number; paye: number; pension: number; nhf: number; nhis: number; devLevy: boolean;
   } | null>(null);
   const [savedRun, setSavedRun] = useState<PayrollRun | null>(null);
   const [complianceChecks, setComplianceChecks] = useState<ComplianceCheck[]>([]);
@@ -510,11 +503,6 @@ const Payroll = () => {
       transport_per_emp: 0,
       meal_per_emp: 0,
       payroll_segment_id: '',
-      include_paye: true,
-      include_pension: true,
-      include_nhf: true,
-      include_nhis: true,
-      include_dev_levy: true,
       include_advances: true,
       include_deductions: true,
       include_ewa: true,
@@ -551,11 +539,6 @@ const Payroll = () => {
       transport_per_emp: run.allowances_json?.transport_per_emp || 0,
       meal_per_emp: run.allowances_json?.meal_per_emp || 0,
       payroll_segment_id: run.payroll_segment_id || '',
-      include_paye: ro?.include_paye !== false,
-      include_pension: ro?.include_pension !== false,
-      include_nhf: ro?.include_nhf !== false,
-      include_nhis: ro?.include_nhis !== false,
-      include_dev_levy: ro?.include_dev_levy !== false,
       include_advances: ro?.include_advances !== false,
       include_deductions: ro?.include_deductions !== false,
       include_ewa: ro?.include_ewa !== false,
@@ -563,16 +546,37 @@ const Payroll = () => {
     setDialog(true);
   };
 
-  // Draft a payroll summary for a given yyyy-mm by pulling that month's
-  // approved expenses, processed payment batches (contractor payouts), and
-  // a simple employee cost model based on PAYE/Pension/NHF defaults.
-  // NOTE: Features 1/2/3/6 store extended columns in payroll_runs. Run this
-  // migration before using those features:
-  //   ALTER TABLE payroll_runs
-  //     ADD COLUMN IF NOT EXISTS employee_count integer,
-  //     ADD COLUMN IF NOT EXISTS period_type text DEFAULT 'monthly',
-  //     ADD COLUMN IF NOT EXISTS bonuses_json jsonb,
-  //     ADD COLUMN IF NOT EXISTS allowances_json jsonb;
+  // Pre-compute deduction eligibility when entering Step 2 so the read-only
+  // summary shows which statutory deductions apply and for how many employees.
+  useEffect(() => {
+    if (draftStep !== 1 || !selectedCompanyId || selectedCompanyId === ALL_COMPANIES) return;
+    let cancelled = false;
+    (async () => {
+      const { data: emps } = await supabase
+        .from('profiles')
+        .select('id, pay_group_id, salary_ngn, pension_enabled, paye_enabled, nhf_enabled, nhis_enabled, tax_id, tin')
+        .eq('status', 'active')
+        .neq('role', 'driver');
+      if (cancelled) return;
+      const companyPgIds = new Set(
+        segmentPayGroups.filter((g) => g.company_id === selectedCompanyId).map((g) => g.id),
+      );
+      const inCompany = ((emps || []) as any[]).filter(
+        (e) => e.pay_group_id && companyPgIds.has(e.pay_group_id) && Number(e.salary_ngn || 0) > 0,
+      );
+      const total = inCompany.length;
+      setDeductionEligibility({
+        total,
+        paye: inCompany.filter((e) => e.paye_enabled !== false && (e.tax_id || e.tin)).length,
+        pension: inCompany.filter((e) => e.pension_enabled !== false).length,
+        nhf: inCompany.filter((e) => e.nhf_enabled === true).length,
+        nhis: inCompany.filter((e) => e.nhis_enabled === true).length,
+        devLevy: !!(companySettings as any)?.development_levy_enabled,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [draftStep, selectedCompanyId, segmentPayGroups, companySettings]);
+
   const draftRun = async () => {
     if (!form.period) return;
     if (!selectedCompanyId || selectedCompanyId === ALL_COMPANIES) {
@@ -686,12 +690,7 @@ const Payroll = () => {
           nhis_enabled: r.nhis_enabled,
           nhis_number: r.nhis_number,
         })),
-        {
-          include_paye: form.include_paye,
-          include_pension: form.include_pension,
-          include_nhf: form.include_nhf,
-          include_nhis: form.include_nhis,
-        },
+        {},
       ));
 
       const totalContractor =
@@ -720,8 +719,9 @@ const Payroll = () => {
       //   NHF base     = basic only                   (NHF Act)
       // Otherwise (toggle OFF, default) fall back to gross — preserves
       // today's behavior for everyone whose row hasn't been migrated.
-      // Burn-preview PAYE respects both company/employee toggles AND run-level overrides.
-      const paye = !form.include_paye ? 0 : filteredEmployees.reduce((s: number, r: any) => {
+      // PAYE is per-employee and progressive — driven by each employee's
+      // profile (paye_enabled, pension_enabled, nhf_enabled), not run-level toggles.
+      const paye = filteredEmployees.reduce((s: number, r: any) => {
         if (r.paye_enabled === false) return s;
         const useComps = !!r.use_salary_components;
         const basic = Number(r.basic_ngn || 0);
@@ -731,10 +731,10 @@ const Payroll = () => {
         const gross = useComps ? (basic + housing + transport + other) : Number(r.salary_ngn || 0);
         return s + computePayslip({
           grossMonthlyNgn: gross,
-          pensionEnabled: form.include_pension && companySettings?.pension_enabled !== false && r.pension_enabled !== false,
+          pensionEnabled: companySettings?.pension_enabled !== false && r.pension_enabled !== false,
           payeEnabled: companySettings?.paye_enabled !== false,
-          nhfEnabled: form.include_nhf && companySettings?.nhf_enabled === true && r.nhf_enabled === true,
-          voluntaryPensionPct: form.include_pension ? Number(r.voluntary_pension_pct || 0) : 0,
+          nhfEnabled: companySettings?.nhf_enabled === true && r.nhf_enabled === true,
+          voluntaryPensionPct: Number(r.voluntary_pension_pct || 0),
           useComponents: useComps,
           basicMonthlyNgn: basic,
           housingMonthlyNgn: housing,
@@ -750,8 +750,8 @@ const Payroll = () => {
       };
       const nhfBaseFor = (r: any) =>
         r.use_salary_components ? Number(r.basic_ngn || 0) : Number(r.salary_ngn || 0);
-      const companyPensionOn = form.include_pension && companySettings?.pension_enabled !== false;
-      const companyNhfOn = form.include_nhf && companySettings?.nhf_enabled === true;
+      const companyPensionOn = companySettings?.pension_enabled !== false;
+      const companyNhfOn = companySettings?.nhf_enabled === true;
       const pension = filteredEmployees.reduce(
         (s: number, r: any) => s + (companyPensionOn && r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
       const nhf = filteredEmployees.reduce(
@@ -781,7 +781,7 @@ const Payroll = () => {
       const nsitfCharge = includeNsitf ? totalEmployee * NSITF_RATE : 0;
       // NHIS (NHIA Act 2022 s.26): 5% employee + 10% employer on basic salary.
       // Must be included in burn so the draft cost shown to approvers is accurate.
-      const companyNhisOn = form.include_nhis && companySettings?.nhis_enabled === true;
+      const companyNhisOn = companySettings?.nhis_enabled === true;
       const nhisEmployee = companyNhisOn
         ? filteredEmployees.reduce(
             (s: number, r: any) => s + (r.nhis_enabled === true ? nhfBaseFor(r) * NHIS_EMPLOYEE_RATE : 0), 0)
@@ -836,6 +836,13 @@ const Payroll = () => {
       const discretionaryScale = discretionaryRequested > 0 ? discretionaryApplied / discretionaryRequested : 1;
       const totalDeductionsApplied = totalDeductions * discretionaryScale;
       const totalAdvanceRepaymentsApplied = totalAdvanceRepayments * discretionaryScale;
+      // Net pay = what employees actually receive (gross + bonuses + allowances
+      // minus employee-side statutory deductions and discretionary offsets).
+      // Employer-side costs (employer pension, NSITF, NHIS employer) are excluded.
+      const totalNetPay = Math.max(0,
+        totalEmployee + bonusTotal + totalAllowances
+        - paye - pension - nhf - nhisEmployee
+        - discretionaryApplied);
 
       // Find-or-create, NOT .upsert() — the real unique constraints here are
       // partial indexes:
@@ -850,13 +857,9 @@ const Payroll = () => {
       // indexes exist, the client just can't target them). Select the
       // matching row manually instead and insert or update explicitly.
       const segmentId = form.payroll_segment_id || null;
-      // Persist per-run deduction toggles so payslip generation respects them.
+      // Non-statutory per-run controls only — statutory deductions are now
+      // driven entirely by employee/company profiles (no run-level toggle).
       const runOptions: Record<string, boolean> = {
-        include_paye: form.include_paye,
-        include_pension: form.include_pension,
-        include_nhf: form.include_nhf,
-        include_nhis: form.include_nhis,
-        include_dev_levy: form.include_dev_levy,
         include_advances: form.include_advances,
         include_deductions: form.include_deductions,
         include_ewa: form.include_ewa,
@@ -903,7 +906,7 @@ const Payroll = () => {
         paye, pension, employerPension, nhf, nsitfCharge,
         nhisEmployee, nhisEmployer,
         totalDeductions: totalDeductionsApplied, totalAdvanceRepayments: totalAdvanceRepaymentsApplied,
-        totalContractor, totalExpenses, burn,
+        totalContractor, totalExpenses, burn, totalNetPay,
       });
       setEditingDraftId((savedRow as PayrollRun)?.id || null);
       setDraftStep(2);
@@ -1392,9 +1395,9 @@ const Payroll = () => {
       const burn = totalEmployee + employerPension + nsitfCharge + nhisEmployer - discretionaryApplied;
 
       const runOptions: Record<string, boolean> = {
-        include_paye: true, include_pension: true, include_nhf: true,
-        include_nhis: true, include_dev_levy: true, include_advances: true,
-        include_deductions: true, include_ewa: true,
+        include_advances: true,
+        include_deductions: true,
+        include_ewa: true,
       };
 
       const { error: upsertErr } = await supabase.rpc('upsert_payroll_draft', {
@@ -1532,13 +1535,10 @@ const Payroll = () => {
     setWorking(true);
     setSalaryErrors([]);
     try {
-      // Per-run deduction toggles — NULL / missing = include everything (legacy).
+      // Per-run options — statutory deductions are now always driven by
+      // employee/company profiles. Non-statutory controls (advances,
+      // deductions, EWA) are still per-run toggles.
       const opts = (run as any).run_options as Record<string, boolean> | null;
-      const runIncPaye       = opts?.include_paye       !== false;
-      const runIncPension    = opts?.include_pension     !== false;
-      const runIncNhf        = opts?.include_nhf         !== false;
-      const runIncNhis       = opts?.include_nhis        !== false;
-      const runIncDevLevy    = opts?.include_dev_levy    !== false;
       const runIncAdvances   = opts?.include_advances    !== false;
       const runIncDeductions = opts?.include_deductions  !== false;
       const runIncEwa        = opts?.include_ewa         !== false;
@@ -1868,13 +1868,12 @@ const Payroll = () => {
           }
 
           const taxableEarningsExtra = taxableEarningsAdd + recurTaxable;
-          // Merge company + employee + RUN-LEVEL toggles. Run-level toggle
-          // can turn off a deduction for this specific run even when the
-          // company and employee both have it enabled.
-          const effPensionOn = runIncPension && companySettings?.pension_enabled !== false && e.pension_enabled !== false;
-          const effPayeOn    = runIncPaye && companySettings?.paye_enabled !== false && e.paye_enabled !== false;
-          const effNhfOn     = runIncNhf && companySettings?.nhf_enabled === true && e.nhf_enabled === true;
-          const effNhisOn    = runIncNhis && companySettings?.nhis_enabled === true && e.nhis_enabled === true;
+          // Statutory deductions driven by company + employee profile only
+          // (no run-level toggle — employee profile is the source of truth).
+          const effPensionOn = companySettings?.pension_enabled !== false && e.pension_enabled !== false;
+          const effPayeOn    = companySettings?.paye_enabled !== false && e.paye_enabled !== false;
+          const effNhfOn     = companySettings?.nhf_enabled === true && e.nhf_enabled === true;
+          const effNhisOn    = companySettings?.nhis_enabled === true && e.nhis_enabled === true;
 
           const cumulativeOn = (companySettings as any)?.paye_cumulative_enabled === true;
           const empYtd = ytdByEmployee.get(e.id);
@@ -1911,7 +1910,7 @@ const Payroll = () => {
           const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
           const empRentRelief      = empBreak.rentReliefMonthlyNgn;
           const empLifeAssurance   = empBreak.lifeAssuranceMonthlyNgn;
-          const empDevLevy         = runIncDevLevy && companySettings?.development_levy_enabled
+          const empDevLevy         = companySettings?.development_levy_enabled
             ? Math.round(Number(companySettings.development_levy_annual_ngn || 0) / 12)
             : 0;
           const empGrossTotal = empGross + earningsAddTotal;
@@ -2957,6 +2956,7 @@ const Payroll = () => {
         setDraftStep={setDraftStep}
         selectPayGroupQuickFilter={selectPayGroupQuickFilter}
         computedPreview={computedPreview}
+        deductionEligibility={deductionEligibility}
         finishDraftReview={finishDraftReview}
         submitDraftForApprovalNow={submitDraftForApprovalNow}
         segmentDialog={segmentDialog}
