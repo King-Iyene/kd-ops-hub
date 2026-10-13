@@ -397,14 +397,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               position: 'relative',
               maxWidth: '560px',
               margin: '0 auto',
-              // Subtle brand-tinted dot pattern on the white card —
-              // "engineered paper" feel without overpowering content.
-              // Only tinted/varied when `bold` (Principal Disbursements) —
-              // the default (regular payroll/vendor receipt) keeps the
-              // exact original hardcoded value, unchanged.
-              background: bold
-                ? `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`
-                : `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              background: `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -442,31 +435,18 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               {s.label}
             </div>
 
-            {/* Faint brand-mark watermark, bottom-right of the card — ONLY
-                on the bold (Principal Disbursements) variant. The regular
-                payroll/vendor receipt must render exactly as it did before
-                today's changes. */}
-            {bold && (
-              <img
-                src={logoUrl || '/icon-192.png'}
-                alt=""
-                aria-hidden
-                crossOrigin="anonymous"
-                style={{
-                  position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
-                  objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
-                }}
-              />
-            )}
+            <img
+              src={logoUrl || '/icon-192.png'}
+              alt=""
+              aria-hidden
+              crossOrigin="anonymous"
+              style={{
+                position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
+                objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
+              }}
+            />
 
-            {/* Top accent bar — skipped when bold, since the header band below
-                already carries the brand color much more visibly. */}
-            {!bold && (
-              <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
-            )}
-
-            {/* Header — a solid brand-colored band when bold (the actual
-                "designed receipt" look), plain white/black otherwise. */}
+            {/* Header — solid brand-colored masthead */}
             <div style={{
               padding: '24px 28px 18px',
               display: 'flex',
@@ -475,47 +455,37 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               gap: '16px',
               position: 'relative',
               zIndex: 1,
-              ...(bold
-                ? { background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)` }
-                : { borderBottom: '1px solid #f0f0f0' }),
+              background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              backgroundSize: '20px 20px, 100% 100%',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                {/* Always render the brand emblem — never initials.
-                    The "KS" text fallback was the source of cross-role
-                    inconsistency (one user saw the proper logo, another
-                    saw "KS"). When company_settings.logo_url is empty
-                    or unreadable for the current role, the bundled PWA
-                    icon stands in as a deterministic emblem. White pad
-                    behind it when bold so a transparent/dark logo still
-                    reads clearly on the colored band. */}
-                {bold ? (
-                  <div style={{ background: '#fff', borderRadius: '9px', padding: '3px', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
-                    <img
-                      src={logoUrl || '/icon-192.png'}
-                      alt=""
-                      style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
-                      crossOrigin="anonymous"
-                    />
-                  </div>
-                ) : (
+                <div style={{ background: '#fff', borderRadius: '9px', padding: '3px', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
                   <img
                     src={logoUrl || '/icon-192.png'}
                     alt=""
                     style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
                     crossOrigin="anonymous"
                   />
-                )}
+                </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: bold ? '#fff' : '#111' }}>{shortName}</div>
-                  <div style={{ fontSize: '11px', color: bold ? 'rgba(255,255,255,0.75)' : '#888', marginTop: '1px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{shortName}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>
                     {s.tone === 'failed' ? 'Payment Failed' : s.tone === 'reversed' ? 'Payment Reversed' : s.tone === 'pending' ? 'Payment Pending' : 'Payment Confirmation'}
                   </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: bold ? '#fff' : '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{formatNaira(amount)}</div>
-                <div style={{ fontSize: '10px', color: bold ? 'rgba(255,255,255,0.7)' : '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>{formatNaira(amount)}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
+            </div>
+
+            {/* Brand dot-accent divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0' }}>
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: BRAND, flexShrink: 0 }} />
+              <span style={{ flex: 1, height: '1.5px', background: BRAND }} />
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: BRAND, flexShrink: 0 }} />
             </div>
 
             {/* Transfer details */}
@@ -583,10 +553,37 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               </Section>
             )}
 
+            {/* Verification stamp */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '16px 0 8px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                width: '68px', height: '68px', borderRadius: '50%',
+                border: `2px dashed ${receiptTheme.gold}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transform: 'rotate(-13deg)',
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: receiptTheme.gold }}>
+                    {isSucceeded ? 'Verified' : s.tone === 'failed' ? 'Failed' : 'Pending'}
+                  </div>
+                  <div style={{ fontSize: '6px', color: receiptTheme.mutedLight, marginTop: '1px' }}>KD OPS</div>
+                </div>
+              </div>
+              <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: receiptTheme.mutedLight }}>{certId}</div>
+            </div>
+
+            {/* Wave flourish */}
+            <svg viewBox="0 0 600 24" preserveAspectRatio="none" style={{ width: '100%', height: '24px', display: 'block' }}>
+              <path d="M0 12 Q75 0 150 12 T300 12 T450 12 T600 12 V24 H0 Z" fill={BRAND} opacity={0.07} />
+              <path d="M0 16 Q75 6 150 16 T300 16 T450 16 T600 16" fill="none" stroke={BRAND} strokeWidth={0.8} opacity={0.2} />
+            </svg>
+
             {/* Footer cert ID */}
-            <div style={{ padding: '14px 28px 22px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+            <div style={{ padding: '10px 28px 16px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
                 {certId}
+              </span>
+              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: receiptTheme.gold, border: `1px solid ${receiptTheme.gold}`, padding: '2px 8px' }}>
+                Financial Document
               </span>
             </div>
           </div>

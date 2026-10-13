@@ -1,4 +1,10 @@
 import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import {
+  receiptTheme as RT,
+  docDotDivider,
+  docWaveFlourish,
+  docVerificationStamp,
+} from '@/lib/receipt-theme';
 
 /**
  * World-class Nigerian payslip renderer.
@@ -233,43 +239,57 @@ export const renderPayslipHtml = (
       width: 400px; height: 400px; object-fit: contain;
     }
 
-    /* ─── Header ─────────────────────────────────────────── */
+    /* ─── Header (bold masthead) ────────────────────────── */
     .header {
-      padding: 36px 40px 28px;
-      border-bottom: 1px solid #e5e5e5;
+      background: linear-gradient(135deg, #006994 0%, rgba(0,105,148,0.85) 100%);
+      padding: 32px 40px 28px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+    }
+    .header::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
     }
     .header-top {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: 20px; flex-wrap: wrap;
+      position: relative; z-index: 1;
     }
     .brand { display: flex; align-items: center; gap: 14px; }
     .logo-img {
-      width: 48px; height: 48px; border-radius: 8px; object-fit: contain; flex-shrink: 0;
+      width: 40px; height: 40px; border-radius: 8px; object-fit: contain; flex-shrink: 0;
+      background: rgba(255,255,255,0.15); padding: 3px;
     }
     .brand-text { line-height: 1.3; }
-    .brand-text .co { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-    .brand-text .sub { font-size: 11px; color: #737373; margin-top: 2px; }
+    .brand-text .co { font-size: 14px; font-weight: 700; color: #fff; }
+    .brand-text .sub { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
     .doc-type {
       text-align: right;
+      position: relative; z-index: 1;
     }
     .doc-type .title {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.14em; color: #737373;
+      font-size: 28px; font-weight: 900; text-transform: uppercase;
+      letter-spacing: -0.01em; color: #fff;
+      line-height: 1;
     }
     .doc-type .period {
-      font-size: 15px; font-weight: 700; color: #1a1a1a; margin-top: 2px;
+      font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.8); margin-top: 6px;
     }
     .doc-type .ref {
-      font-size: 10px; color: #a3a3a3; margin-top: 4px;
+      font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 4px;
     }
-    .doc-type .ref b { color: #525252; font-weight: 600; }
+    .doc-type .ref b { color: rgba(255,255,255,0.7); font-weight: 600; }
 
     /* ─── Greeting ───────────────────────────────────────── */
     .greet {
       padding: 22px 40px 0;
     }
     .greet .hi { font-size: 12px; color: #737373; }
-    .greet .name { font-size: 19px; font-weight: 800; color: #1a1a1a; margin-top: 2px; }
+    .greet .name { font-size: 19px; font-weight: 800; color: #006994; margin-top: 2px; }
 
     /* ─── Net hero ────────────────────────────────────────── */
     .net-hero {
@@ -505,9 +525,9 @@ export const renderPayslipHtml = (
     .confidential {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 2px 8px;
-      border: 1px solid #D6AC50;
+      border: 1px solid ${RT.gold};
       font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #D6AC50;
+      letter-spacing: 0.08em; color: ${RT.gold};
     }
     .verify {
       font-family: ui-monospace, 'SF Mono', monospace;
@@ -545,6 +565,8 @@ export const renderPayslipHtml = (
         </div>
       </div>
     </div>
+
+    ${docDotDivider()}
 
     <!-- ── GREETING ── -->
     <div class="greet">
@@ -772,7 +794,12 @@ export const renderPayslipHtml = (
         </div>
       ` : ''}
 
+      ${docDotDivider()}
+      ${docVerificationStamp('Verified', ref)}
+
     </div><!-- /body -->
+
+    ${docWaveFlourish()}
 
     <!-- ── FOOTER ── -->
     <div class="doc-footer">
