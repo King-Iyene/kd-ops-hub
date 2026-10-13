@@ -384,18 +384,33 @@ const NewPaymentBatch = () => {
 
   const toggleContractor = (c: Contractor, checked: boolean) => {
     if (checked) {
-      if (selectedIds.has(c.id)) return;
-      if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
-        toast({
-          title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
-          description: 'Paystack caps a single batch at 100 transfers. Submit this one and create a second batch for the rest.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      setItems((prev) => [
-        ...prev,
-        {
+      setItems((prev) => {
+        if (prev.some((i) => i.contractor_id === c.id)) return prev;
+        if (prev.length >= MAX_RECIPIENTS_PER_BATCH) return prev;
+        return [
+          ...prev,
+          {
+            _key: crypto.randomUUID(),
+            full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+            bank_name: c.bank_name,
+            account_number: c.account_number,
+            amount_ngn: c.default_amount_ngn || 0,
+            reference: '',
+            contractor_id: c.id,
+          },
+        ];
+      });
+    } else {
+      setItems((prev) => prev.filter((i) => i.contractor_id !== c.id));
+    }
+  };
+
+  const selectAllVisible = (visible: Contractor[]) => {
+    setItems((prev) => {
+      const existing = new Set(prev.map((i) => i.contractor_id).filter(Boolean));
+      const toAdd = visible
+        .filter((c) => !existing.has(c.id))
+        .map((c) => ({
           _key: crypto.randomUUID(),
           full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
           bank_name: c.bank_name,
@@ -403,46 +418,13 @@ const NewPaymentBatch = () => {
           amount_ngn: c.default_amount_ngn || 0,
           reference: '',
           contractor_id: c.id,
-        },
-      ]);
-    } else {
-      setItems((prev) => prev.filter((i) => i.contractor_id !== c.id));
-    }
-  };
-
-  const selectAllVisible = (visible: Contractor[]) => {
-    const toAdd = visible
-      .filter((c) => !selectedIds.has(c.id))
-      .map((c) => ({
-        _key: crypto.randomUUID(),
-        full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
-        bank_name: c.bank_name,
-        account_number: c.account_number,
-        amount_ngn: c.default_amount_ngn || 0,
-        reference: '',
-        contractor_id: c.id,
-      }));
-    if (toAdd.length === 0) return;
-    // Trim against the per-batch cap so a wide select-all doesn't
-    // blow past 100 silently. Any leftovers stay unselected and
-    // can go in a follow-up batch.
-    const remaining = MAX_RECIPIENTS_PER_BATCH - items.length;
-    if (remaining <= 0) {
-      toast({
-        title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
-        description: 'Submit this one and create a second batch for the rest.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const trimmed = toAdd.slice(0, remaining);
-    if (trimmed.length < toAdd.length) {
-      toast({
-        title: `Added ${trimmed.length} — batch is now full`,
-        description: `${toAdd.length - trimmed.length} additional recipient${toAdd.length - trimmed.length === 1 ? '' : 's'} skipped. Create a second batch to include them.`,
-      });
-    }
-    setItems((prev) => [...prev, ...trimmed]);
+        }));
+      if (toAdd.length === 0) return prev;
+      const remaining = MAX_RECIPIENTS_PER_BATCH - prev.length;
+      if (remaining <= 0) return prev;
+      const trimmed = toAdd.slice(0, remaining);
+      return [...prev, ...trimmed];
+    });
   };
 
   const clearAllVisible = (visible: Contractor[]) => {
@@ -504,20 +486,23 @@ const NewPaymentBatch = () => {
 
   const toggleEmployee = (e: Employee, checked: boolean) => {
     if (checked) {
-      if (selectedEmployeeIds.has(e.id)) return;
-      setItems((prev) => [
-        ...prev,
-        {
-          _key: crypto.randomUUID(),
-          full_name: empDisplayName(e),
-          bank_name: e.bank_name || '',
-          account_number: e.bank_account_number || '',
-          amount_ngn: batchType === 'employee_salary' ? employeeNetSalary(e) : 0,
-          reference: '',
-          employee_id: e.id,
-          item_type: 'employee',
-        },
-      ]);
+      setItems((prev) => {
+        if (prev.some((i) => i.employee_id === e.id)) return prev;
+        if (prev.length >= MAX_RECIPIENTS_PER_BATCH) return prev;
+        return [
+          ...prev,
+          {
+            _key: crypto.randomUUID(),
+            full_name: empDisplayName(e),
+            bank_name: e.bank_name || '',
+            account_number: e.bank_account_number || '',
+            amount_ngn: batchType === 'employee_salary' ? employeeNetSalary(e) : 0,
+            reference: '',
+            employee_id: e.id,
+            item_type: 'employee',
+          },
+        ];
+      });
     } else {
       setItems((prev) => prev.filter((i) => i.employee_id !== e.id));
     }
@@ -699,7 +684,16 @@ const NewPaymentBatch = () => {
       }
 
       if (persisted.length > 0) {
-        const batchItems = persisted.map((item) => ({
+        // Deduplicate by contractor_id / employee_id / account_number so a
+        // stale-closure double-add can never reach the database.
+        const seen = new Set<string>();
+        const unique = persisted.filter((item) => {
+          const key = item.contractor_id || item.employee_id || item.account_number || item._key;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        const batchItems = unique.map((item) => ({
           batch_id: batchId,
           contractor_id: item.contractor_id || null,
           employee_id: item.employee_id || null,
