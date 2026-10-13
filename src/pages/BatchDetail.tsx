@@ -292,21 +292,6 @@ const BatchDetail = () => {
     setItems(allItems);
     setLoading(false);
 
-    // Sync stale header counts — the payment_batches row may have a
-    // beneficiary_count / total_amount that doesn't match the actual
-    // batch_items (e.g. items added after initial creation).
-    if (b && allItems.length > 0) {
-      const liveTotal = allItems.reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
-      if (b.beneficiary_count !== allItems.length || Number(b.total_amount) !== liveTotal) {
-        supabase
-          .from('payment_batches')
-          .update({ beneficiary_count: allItems.length, total_amount: liveTotal })
-          .eq('id', id)
-          .then(() => {
-            setBatch((prev) => prev ? { ...prev, beneficiary_count: allItems.length, total_amount: liveTotal } : prev);
-          });
-      }
-    }
 
     // Resolve approver names + (when relevant) the eligible second-approver
     // pool. Failures are silent — the rest of the page renders fine without
@@ -1586,8 +1571,8 @@ const BatchDetail = () => {
             const totalCost = succeededAmount + totalFees;
             const cells: Array<{ label: string; value: any; bold?: boolean }> = [
               { label: 'Payment Date', value: formatDate(batch.payment_date) },
-              { label: 'Beneficiaries', value: items.length },
-              { label: 'Total Amount', value: canSeeAmounts ? formatNaira(items.reduce((s, i) => s + Number(i.amount_ngn || 0), 0)) : '₦ ——', bold: true },
+              { label: 'Beneficiaries', value: batch.beneficiary_count },
+              { label: 'Total Amount', value: canSeeAmounts ? formatNaira(batch.total_amount || 0) : '₦ ——', bold: true },
               { label: 'Created', value: formatDate(batch.created_at) },
             ];
             // Show the cost breakdown as soon as anything has succeeded so the
