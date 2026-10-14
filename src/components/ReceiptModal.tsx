@@ -554,22 +554,29 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
             )}
 
             {/* Verification stamp */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '16px 0 8px', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                width: '68px', height: '68px', borderRadius: '50%',
-                border: `2px dashed ${receiptTheme.gold}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transform: 'rotate(-13deg)',
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: receiptTheme.gold }}>
-                    {isSucceeded ? 'Verified' : s.tone === 'failed' ? 'Failed' : 'Pending'}
+            {(() => {
+              const stampColor = isSucceeded ? receiptTheme.success : s.tone === 'failed' ? receiptTheme.failed : receiptTheme.pending;
+              const stampLabel = isSucceeded ? 'Verified' : s.tone === 'failed' ? 'Failed' : 'Pending';
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '16px 0 8px', position: 'relative', zIndex: 1 }}>
+                  <div style={{
+                    width: '72px', height: '72px', borderRadius: '50%',
+                    border: `2.5px dashed ${stampColor}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transform: 'rotate(-13deg)',
+                    boxShadow: `0 0 0 3px ${stampColor}15, 0 0 12px ${stampColor}10`,
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: stampColor }}>
+                        {stampLabel}
+                      </div>
+                      <div style={{ fontSize: '6px', color: receiptTheme.mutedLight, marginTop: '1px' }}>KD OPS</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '6px', color: receiptTheme.mutedLight, marginTop: '1px' }}>KD OPS</div>
+                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: receiptTheme.mutedLight }}>{certId}</div>
                 </div>
-              </div>
-              <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: receiptTheme.mutedLight }}>{certId}</div>
-            </div>
+              );
+            })()}
 
             {/* Wave flourish */}
             <svg viewBox="0 0 600 24" preserveAspectRatio="none" style={{ width: '100%', height: '24px', display: 'block' }}>
@@ -671,16 +678,34 @@ function recipientCanFixThis(raw?: string | null): string | null {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function Section({ title, children, brand }: { title: string; children: React.ReactNode; brand?: string }) {
+function DotDivider({ color = receiptTheme.brand }: { color?: string }) {
   return (
-    // position: relative + zIndex: 1 so the section content sits above the
-    // status watermark that lives at z-index 0 on the white card.
-    <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: brand || receiptTheme.brand, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
-        {title}
-      </div>
-      {children}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 28px' }}>
+      <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ flex: 1, height: '1px', background: color, opacity: 0.35 }} />
+      <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: color, flexShrink: 0 }} />
     </div>
+  );
+}
+
+function Section({ title, children, brand }: { title: string; children: React.ReactNode; brand?: string }) {
+  const accentColor = brand || receiptTheme.brand;
+  return (
+    <>
+      <DotDivider color={accentColor} />
+      <div style={{ padding: '18px 28px', position: 'relative', zIndex: 1 }}>
+        <div style={{
+          fontSize: '10px', fontWeight: 700, color: accentColor,
+          letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px',
+          paddingBottom: '6px', borderBottom: `1px solid ${accentColor}20`,
+          position: 'relative',
+        }}>
+          {title}
+          <span style={{ position: 'absolute', left: 0, bottom: '-1px', width: '24px', height: '2px', background: accentColor }} />
+        </div>
+        {children}
+      </div>
+    </>
   );
 }
 
