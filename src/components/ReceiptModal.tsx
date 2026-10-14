@@ -529,18 +529,13 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
             {item.status === 'failed' && (() => {
               const f = friendlyProviderError(item, item.failure_reason);
               const bankPerspective = bankPerspectiveFor(item.failure_reason);
-              const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
                 <Section brand={BRAND} title="Why this transfer failed">
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
                   </div>
-                  <Row k="Bank's response" v={item.failure_reason || '—'} />
                   {bankPerspective && <Row k="What this means" v={bankPerspective} />}
-                  {recipientCanFix && <Row k="Recipient action" v={recipientCanFix} />}
-                  <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
-                  <Row k="Beneficiary bank" v={item.bank_name || '—'} />
-                  <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
+                  <Row k="Bank's response" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: receiptTheme.muted }}>{item.failure_reason || '—'}</span>} />
                 </Section>
               );
             })()}
