@@ -483,7 +483,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               <div style={{ textAlign: 'right' }}>
                 <div style={{
                   fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1,
-                  color: s.tone === 'failed' ? '#fca5a5' : s.tone === 'pending' ? '#fde68a' : '#fff',
+                  color: s.tone === 'failed' ? '#fca5a5' : s.tone === 'pending' ? '#fde68a' : s.tone === 'success' ? '#a7f3d0' : '#fff',
                 }}>{formatNaira(amount)}</div>
                 <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
@@ -531,18 +531,11 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
                 <Section brand={receiptTheme.failed} title="Transfer Failed">
-                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '14px 16px', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <span style={{ fontSize: '18px', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>&#x26A0;</span>
-                      <div>
-                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
-                        {f.hint && <p style={{ fontSize: '11px', color: '#7f1d1d', margin: '4px 0 0', lineHeight: 1.5 }}>{f.hint}</p>}
-                      </div>
-                    </div>
-                  </div>
+                  <Row k="Reason" v={<span style={{ fontWeight: 600, color: receiptTheme.failed }}>{f.title}</span>} />
+                  {f.hint && <Row k="Details" v={f.hint} />}
                   {bankPerspective && <Row k="What happened" v={bankPerspective} />}
                   {recipientCanFix && <Row k="How to fix" v={recipientCanFix} />}
-                  <Row k="Bank response code" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: receiptTheme.muted }}>{item.failure_reason || '—'}</span>} />
+                  <Row k="Bank response" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: receiptTheme.muted }}>{item.failure_reason || '—'}</span>} />
                   <div style={{ borderTop: `1px solid ${hexToRgba(receiptTheme.failed, 0.12)}`, marginTop: '10px', paddingTop: '10px' }}>
                     <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
                     <Row k="Beneficiary bank" v={item.bank_name || '—'} />
@@ -574,22 +567,22 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               const stampColor = isSucceeded ? receiptTheme.success : s.tone === 'failed' ? receiptTheme.failed : receiptTheme.pending;
               const stampLabel = isSucceeded ? 'Verified' : s.tone === 'failed' ? 'Failed' : 'Pending';
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '16px 0 8px', position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '20px 0 10px', position: 'relative', zIndex: 1 }}>
                   <div style={{
-                    width: '72px', height: '72px', borderRadius: '50%',
+                    width: '96px', height: '96px', borderRadius: '50%',
                     border: `2.5px dashed ${stampColor}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transform: 'rotate(-13deg)',
-                    boxShadow: `0 0 0 3px ${hexToRgba(stampColor, 0.08)}, 0 0 12px ${hexToRgba(stampColor, 0.06)}`,
+                    boxShadow: `0 0 0 4px ${hexToRgba(stampColor, 0.08)}, 0 0 16px ${hexToRgba(stampColor, 0.06)}`,
                   }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: stampColor }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: stampColor }}>
                         {stampLabel}
                       </div>
-                      <div style={{ fontSize: '6px', color: receiptTheme.mutedLight, marginTop: '1px' }}>KD OPS</div>
+                      <div style={{ fontSize: '8px', color: receiptTheme.mutedLight, marginTop: '2px', fontWeight: 600 }}>KD OPS</div>
                     </div>
                   </div>
-                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '8px', color: receiptTheme.mutedLight }}>{certId}</div>
+                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '9px', color: receiptTheme.mutedLight }}>{certId}</div>
                 </div>
               );
             })()}
