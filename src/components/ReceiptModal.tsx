@@ -402,7 +402,9 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               position: 'relative',
               maxWidth: '560px',
               margin: '0 auto',
-              background: `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              background: '#ffffff',
+              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14'><circle cx='7' cy='7' r='1' fill='${BRAND}' fill-opacity='0.06'/></svg>`)}")`,
+              backgroundSize: '14px 14px',
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -460,8 +462,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               gap: '16px',
               position: 'relative',
               zIndex: 1,
-              background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
-              backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              background: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='1' fill='white' fill-opacity='0.12'/></svg>`)}"), linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
               backgroundSize: '20px 20px, 100% 100%',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -566,22 +567,22 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               const stampColor = isSucceeded ? receiptTheme.success : s.tone === 'failed' ? receiptTheme.failed : receiptTheme.pending;
               const stampLabel = isSucceeded ? 'Verified' : s.tone === 'failed' ? 'Failed' : 'Pending';
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '20px 0 10px', position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '24px 0 14px', position: 'relative', zIndex: 1 }}>
                   <div style={{
-                    width: '96px', height: '96px', borderRadius: '50%',
-                    border: `2.5px dashed ${stampColor}`,
+                    width: '120px', height: '120px', borderRadius: '50%',
+                    border: `3px dashed ${stampColor}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transform: 'rotate(-13deg)',
-                    boxShadow: `0 0 0 4px ${hexToRgba(stampColor, 0.08)}, 0 0 16px ${hexToRgba(stampColor, 0.06)}`,
+                    boxShadow: `0 0 0 5px ${hexToRgba(stampColor, 0.08)}, 0 0 20px ${hexToRgba(stampColor, 0.06)}`,
                   }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: stampColor }}>
+                      <div style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: stampColor }}>
                         {stampLabel}
                       </div>
-                      <div style={{ fontSize: '8px', color: receiptTheme.mutedLight, marginTop: '2px', fontWeight: 600 }}>KD OPS</div>
+                      <div style={{ fontSize: '10px', color: receiptTheme.mutedLight, marginTop: '3px', fontWeight: 600 }}>KD OPS</div>
                     </div>
                   </div>
-                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '9px', color: receiptTheme.mutedLight }}>{certId}</div>
+                  <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: receiptTheme.mutedLight }}>{certId}</div>
                 </div>
               );
             })()}
