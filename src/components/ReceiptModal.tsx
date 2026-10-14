@@ -403,8 +403,6 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               maxWidth: '560px',
               margin: '0 auto',
               background: '#ffffff',
-              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14'><circle cx='7' cy='7' r='1' fill='${BRAND}' fill-opacity='0.06'/></svg>`)}")`,
-              backgroundSize: '14px 14px',
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -413,6 +411,16 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               zIndex: 1,
             }}
           >
+            {/* Dot pattern overlay — rendered as real SVG so html2canvas captures it */}
+            <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
+              <defs>
+                <pattern id="kd-dots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+                  <circle cx="7" cy="7" r="1" fill={BRAND} fillOpacity={0.06} />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#kd-dots)" />
+            </svg>
+
             {/* In-card status watermark — faded "SUCCESSFUL" / "FAILED" /
                 "REVERSED" / "PENDING" stamp diagonally across the card body.
                 Sits behind the content (z-index 0) so the receipt rows still
@@ -462,9 +470,17 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               gap: '16px',
               position: 'relative',
               zIndex: 1,
-              background: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='10' cy='10' r='1' fill='white' fill-opacity='0.12'/></svg>`)}"), linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
-              backgroundSize: '20px 20px, 100% 100%',
+              background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              overflow: 'hidden',
             }}>
+              <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
+                <defs>
+                  <pattern id="kd-mast-dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <circle cx="10" cy="10" r="1" fill="white" fillOpacity={0.12} />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#kd-mast-dots)" />
+              </svg>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <div style={{ background: '#fff', borderRadius: '9px', padding: '3px', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
                   <img
