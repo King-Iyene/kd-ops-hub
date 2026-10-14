@@ -530,17 +530,16 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               const bankPerspective = bankPerspectiveFor(item.failure_reason);
               const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
-                <Section brand={receiptTheme.failed} title="Transfer Failed">
-                  <Row k="Reason" v={<span style={{ fontWeight: 600, color: receiptTheme.failed }}>{f.title}</span>} />
-                  {f.hint && <Row k="Details" v={f.hint} />}
-                  {bankPerspective && <Row k="What happened" v={bankPerspective} />}
-                  {recipientCanFix && <Row k="How to fix" v={recipientCanFix} />}
-                  <Row k="Bank response" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: receiptTheme.muted }}>{item.failure_reason || '—'}</span>} />
-                  <div style={{ borderTop: `1px solid ${hexToRgba(receiptTheme.failed, 0.12)}`, marginTop: '10px', paddingTop: '10px' }}>
-                    <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
-                    <Row k="Beneficiary bank" v={item.bank_name || '—'} />
-                    <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
+                <Section brand={BRAND} title="Why this transfer failed">
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
                   </div>
+                  <Row k="Bank's response" v={item.failure_reason || '—'} />
+                  {bankPerspective && <Row k="What this means" v={bankPerspective} />}
+                  {recipientCanFix && <Row k="Recipient action" v={recipientCanFix} />}
+                  <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
+                  <Row k="Beneficiary bank" v={item.bank_name || '—'} />
+                  <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
                 </Section>
               );
             })()}
