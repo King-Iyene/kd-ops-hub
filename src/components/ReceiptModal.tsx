@@ -179,12 +179,17 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
     const node = cardRef.current;
     if (!node) return null;
     const { default: html2canvas } = await import('html2canvas');
-    return html2canvas(node, {
+    const render = html2canvas(node, {
       backgroundColor: '#ffffff',
       scale: 2,
       useCORS: true,
+      allowTaint: true,
       logging: false,
     });
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Render timed out')), 15_000),
+    );
+    return Promise.race([render, timeout]);
   };
 
   const renderToBlob = async (): Promise<Blob | null> => {
@@ -476,7 +481,10 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>{formatNaira(amount)}</div>
+                <div style={{
+                  fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1,
+                  color: s.tone === 'failed' ? '#fca5a5' : s.tone === 'pending' ? '#fde68a' : '#fff',
+                }}>{formatNaira(amount)}</div>
                 <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
             </div>
@@ -522,16 +530,24 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               const bankPerspective = bankPerspectiveFor(item.failure_reason);
               const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
-                <Section brand={BRAND} title="Why this transfer failed">
-                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
+                <Section brand={receiptTheme.failed} title="Transfer Failed">
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '14px 16px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <span style={{ fontSize: '18px', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>&#x26A0;</span>
+                      <div>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
+                        {f.hint && <p style={{ fontSize: '11px', color: '#7f1d1d', margin: '4px 0 0', lineHeight: 1.5 }}>{f.hint}</p>}
+                      </div>
+                    </div>
                   </div>
-                  <Row k="Bank's response" v={item.failure_reason || '—'} />
-                  {bankPerspective && <Row k="What this means" v={bankPerspective} />}
-                  {recipientCanFix && <Row k="Recipient action" v={recipientCanFix} />}
-                  <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
-                  <Row k="Beneficiary bank" v={item.bank_name || '—'} />
-                  <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
+                  {bankPerspective && <Row k="What happened" v={bankPerspective} />}
+                  {recipientCanFix && <Row k="How to fix" v={recipientCanFix} />}
+                  <Row k="Bank response code" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: receiptTheme.muted }}>{item.failure_reason || '—'}</span>} />
+                  <div style={{ borderTop: `1px solid ${hexToRgba(receiptTheme.failed, 0.12)}`, marginTop: '10px', paddingTop: '10px' }}>
+                    <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
+                    <Row k="Beneficiary bank" v={item.bank_name || '—'} />
+                    <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
+                  </div>
                 </Section>
               );
             })()}
@@ -564,7 +580,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
                     border: `2.5px dashed ${stampColor}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transform: 'rotate(-13deg)',
-                    boxShadow: `0 0 0 3px ${stampColor}15, 0 0 12px ${stampColor}10`,
+                    boxShadow: `0 0 0 3px ${hexToRgba(stampColor, 0.08)}, 0 0 12px ${hexToRgba(stampColor, 0.06)}`,
                   }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '7px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: stampColor }}>
@@ -588,9 +604,6 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
             <div style={{ padding: '10px 28px 16px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
                 {certId}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: receiptTheme.gold, border: `1px solid ${receiptTheme.gold}`, padding: '2px 8px' }}>
-                Financial Document
               </span>
             </div>
           </div>
@@ -659,7 +672,7 @@ function bankPerspectiveFor(raw?: string | null): string | null {
   if (/account number invalid|invalid account/.test(r)) return 'Account number is invalid';
   if (/name mismatch|name does not match/.test(r)) return 'Account name does not match bank records';
   if (/transaction not permitted|account.*restricted|account is dormant|frozen/.test(r)) return 'Account is restricted or dormant';
-  if (/cannot resolve account|could not resolve account|unable to resolve|account resolution failed|resolve.*timeout/.test(r)) return 'Account could not be verified';
+  if (/cannot resolve account|could not resolve account|unable to resolve|account resol(?:ution|ve) failed|resolve.*timeout/.test(r)) return 'Account could not be verified';
   if (/balance is not enough|insufficient funds/.test(r)) return 'Sender wallet had insufficient balance';
   return null;
 }
@@ -673,6 +686,8 @@ function recipientCanFixThis(raw?: string | null): string | null {
     return 'Ask beneficiary to confirm exact account name with their bank';
   if (/transaction not permitted|account.*restricted|account is dormant|frozen/.test(r))
     return 'Beneficiary should contact their bank to unblock the account';
+  if (/cannot resolve account|could not resolve account|unable to resolve|account resol(?:ution|ve) failed|resolve.*timeout/.test(r))
+    return 'Wait 10 minutes and retry — if it persists, confirm the account is active';
   return null;
 }
 
@@ -697,7 +712,7 @@ function Section({ title, children, brand }: { title: string; children: React.Re
         <div style={{
           fontSize: '10px', fontWeight: 700, color: accentColor,
           letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px',
-          paddingBottom: '6px', borderBottom: `1px solid ${accentColor}20`,
+          paddingBottom: '6px', borderBottom: `1px solid ${hexToRgba(accentColor, 0.12)}`,
           position: 'relative',
         }}>
           {title}
