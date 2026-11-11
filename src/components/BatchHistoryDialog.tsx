@@ -103,6 +103,7 @@ export function BatchHistoryDialog({ open, onOpenChange, batchId, onRestored }: 
               A snapshot is saved automatically every time this batch's beneficiaries are
               about to change. Restoring replaces the CURRENT list with the selected
               snapshot — the current list is itself saved first, so restoring is undoable too.
+              Snapshots are kept for 30 days.
             </DialogDescription>
           </DialogHeader>
 
