@@ -146,6 +146,33 @@ const Payments = () => {
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
   });
 
+  // Totals strip for the active status tab (Draft, Processing, Done, Partial,
+  // Failed, Cancelled, Rejected) — server-side aggregate so it reflects every
+  // matching batch, not just whatever page of up to 250 rows is loaded.
+  // 'all' and 'pending' (a virtual multi-status tab) are covered by the
+  // PendingPayoutsCard KPI strip already shown above the list, so skip them
+  // here rather than duplicating that.
+  const [statusSummary, setStatusSummary] = useState<{ total: number; count: number } | null>(null);
+
+  useEffect(() => {
+    if (statusFilter === 'all' || statusFilter === 'pending') {
+      setStatusSummary(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc('payment_batches_status_summary', { p_status: statusFilter });
+      if (cancelled) return;
+      if (error) { setStatusSummary(null); return; }
+      const row = Array.isArray(data) ? data[0] : data;
+      setStatusSummary({
+        total: Number((row as any)?.total_amount ?? 0),
+        count: Number((row as any)?.batch_count ?? 0),
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [statusFilter]);
+
   const [reconciling, setReconciling] = useState(false);
   const [confirmReconcile, setConfirmReconcile] = useState(false);
 
@@ -517,6 +544,17 @@ const Payments = () => {
             />
           </div>
         </div>
+
+        {statusSummary && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border/70 bg-muted/20 text-xs">
+            <span className="text-muted-foreground">
+              {statusSummary.count} {statusLabel(statusFilter)?.toLowerCase() || statusFilter} batch{statusSummary.count === 1 ? '' : 'es'}
+            </span>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="font-mono font-semibold tabular-nums">{formatNaira(statusSummary.total)}</span>
+            <span className="text-muted-foreground">total</span>
+          </div>
+        )}
 
         <CardContent className="p-0">
           {loading ? (
