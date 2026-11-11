@@ -105,8 +105,17 @@ jobs:
         # so the objects those migrations created stay intact. Idempotent:
         # repairing an already-reverted version is a no-op.
         #
-        # Failure of this step never blocks the push; if migration list
-        # can't be parsed the push will surface a clearer error itself.
+        # Failure of this step must never block the push. `continue-on-error`
+        # backs up the comment's original intent, which the script alone
+        # could not guarantee: GitHub Actions runs multi-line `run:` blocks
+        # under `bash -e` by default, so a failing command anywhere inside a
+        # `$(...)` substitution (with `pipefail` on) aborted the WHOLE job
+        # before the script's own graceful `exit 0` branches were ever
+        # reached — exactly what happened here when `migration list` below
+        # was run without `--remote` and hit for a non-existent local Docker
+        # stack instead of the real project, taking the entire deploy down
+        # with it (the "Push migrations to production" step was skipped).
+        continue-on-error: true
         run: |
           set -uo pipefail
 
@@ -116,10 +125,13 @@ jobs:
             | grep -oE '^[0-9]{14}' \
             | sort -u)
 
-          # Remote versions from the CLI. `migration list` when linked prints
-          # a table; extract every 14-digit token that appears in the REMOTE
-          # column. We fall back gracefully if the column header ever moves.
-          REMOTE=$(supabase migration list 2>/dev/null \
+          # Remote versions from the CLI. `--remote` is required here — without
+          # it this talks to a local Docker stack that doesn't exist in CI and
+          # fails outright, not just returns empty. `migration list` when
+          # linked prints a table; extract every 14-digit token that appears
+          # in the REMOTE column. We fall back gracefully if the column
+          # header ever moves.
+          REMOTE=$(supabase migration list --remote 2>/dev/null \
             | grep -oE '\b[0-9]{14}\b' \
             | sort -u)
 
@@ -142,6 +154,7 @@ jobs:
             echo "→ Reverting orphan $v"
             supabase migration repair --status reverted "$v" || true
           done
+
 
       - name: Push migrations to production
         id: push
