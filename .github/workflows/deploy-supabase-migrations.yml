@@ -85,9 +85,9 @@ jobs:
         # the second run on a project that's already been repaired is a
         # silent no-op the CLI treats as informational.
         run: |
-          supabase migration repair --status reverted 20260811000000 || true
-          supabase migration repair --status reverted 20260812000000 || true
-          supabase migration repair --status reverted 20260813000000 || true
+          supabase migration repair --status reverted 20260811000000 --remote || true
+          supabase migration repair --status reverted 20260812000000 --remote || true
+          supabase migration repair --status reverted 20260813000000 --remote || true
 
       - name: Self-heal any additional orphan remote versions
         # SELF-HEALING GUARD.
@@ -152,7 +152,7 @@ jobs:
           echo "$ORPHANS"
           for v in $ORPHANS; do
             echo "→ Reverting orphan $v"
-            supabase migration repair --status reverted "$v" || true
+            supabase migration repair --status reverted "$v" --remote || true
           done
 
 
@@ -171,7 +171,7 @@ jobs:
         # safe by construction. The self-heal step above still handles
         # true remote-only orphans (e.g. hotfixes run in the SQL editor).
         run: |
-          supabase db push --include-all 2>&1 | tee /tmp/push_output.txt
+          supabase db push --include-all --remote 2>&1 | tee /tmp/push_output.txt
           exit ${PIPESTATUS[0]}
       - name: Capture push error for issue
         if: ${{ failure() && steps.push.outcome == 'failure' }}
