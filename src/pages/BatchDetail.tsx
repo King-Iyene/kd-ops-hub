@@ -90,6 +90,7 @@ import {
   Search,
   Info,
   Pencil,
+  Copy,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -211,6 +212,7 @@ const BatchDetail = () => {
   const [showProcessConfirm, setShowProcessConfirm] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   // Bulk-cancel-batch dialog state. MUST live at the top with the other
   // useState calls — a previous version had these below the loading /
@@ -898,6 +900,37 @@ const BatchDetail = () => {
       await fetchBatch();
     } finally {
       setReconciling(false);
+    }
+  };
+
+  /**
+   * Duplicate this batch into a brand-new draft batch. Delegates entirely
+   * to duplicate_payment_batch() (one atomic DB transaction) rather than a
+   * client-side delete+insert sequence — the exact pattern that caused the
+   * silent data-loss incident this batch itself was a victim of. The new
+   * batch's beneficiary_count/total_amount are computed from what's
+   * actually copied, so duplicating an already-broken batch (zero real
+   * items) honestly produces a "0 beneficiaries" copy instead of silently
+   * repeating a misleading header count.
+   */
+  const handleDuplicate = async () => {
+    if (!APPROVER_ROLES.includes(profile?.role as any)) {
+      toast({ title: 'Not authorized', variant: 'destructive' });
+      return;
+    }
+    setDuplicating(true);
+    try {
+      const { data: newBatchId, error } = await supabase.rpc('duplicate_payment_batch', {
+        p_source_batch_id: id,
+      });
+      if (error) throw error;
+      await logAudit('batch_created', `Batch "${batch?.name}" duplicated as a new draft`, profile);
+      toast({ title: 'Batch duplicated', description: 'Opening the new draft…' });
+      navigate(`/payments/${newBatchId}`);
+    } catch (err: unknown) {
+      toast({ title: 'Duplicate failed', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -1892,6 +1925,15 @@ const BatchDetail = () => {
               <CalendarClock className="mr-2 h-4 w-4" /> Make recurring
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={handleDuplicate}
+            disabled={duplicating || actionLoading}
+            title="Create a new draft batch with the same beneficiaries"
+          >
+            {duplicating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
+            Duplicate
+          </Button>
           {DELETABLE_STATUSES.includes(batch.status) && (
             <Button
               variant="ghost"
