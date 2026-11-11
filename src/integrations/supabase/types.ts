@@ -17421,6 +17421,13 @@ export type Database = {
         Args: { p_end: string; p_start: string }
         Returns: number
       }
+      payment_batches_status_summary: {
+        Args: { p_status: string }
+        Returns: {
+          batch_count: number
+          total_amount: number
+        }[]
+      }
       pending_batches_list: {
         Args: never
         Returns: {
@@ -17747,6 +17754,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      replace_batch_items: {
+        Args: {
+          p_batch_id: string
+          p_beneficiary_count: number
+          p_items: Json
+          p_total_amount: number
+        }
+        Returns: undefined
       }
       request_ewa: {
         Args: { p_amount_ngn: number; p_reason?: string }
