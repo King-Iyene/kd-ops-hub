@@ -867,6 +867,82 @@ export type Database = {
           },
         ]
       }
+      batch_item_snapshots: {
+        Row: {
+          batch_id: string
+          beneficiary_count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          items: Json
+          reason: string
+          total_amount: number
+        }
+        Insert: {
+          batch_id: string
+          beneficiary_count: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items: Json
+          reason?: string
+          total_amount: number
+        }
+        Update: {
+          batch_id?: string
+          beneficiary_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          reason?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_item_snapshots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "payment_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_item_snapshots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "transactions_view"
+            referencedColumns: ["parent_batch_id"]
+          },
+          {
+            foreignKeyName: "batch_item_snapshots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "batch_item_snapshots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "batch_item_snapshots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_item_snapshots_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batch_items: {
         Row: {
           account_name: string | null
@@ -17823,6 +17899,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      restore_batch_items_snapshot: {
+        Args: { p_snapshot_id: string }
+        Returns: undefined
       }
       restore_leave_balance: {
         Args: {
