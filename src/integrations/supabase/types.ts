@@ -16908,6 +16908,10 @@ export type Database = {
         Returns: undefined
       }
       delete_user_completely: { Args: { user_id: string }; Returns: undefined }
+      duplicate_payment_batch: {
+        Args: { p_source_batch_id: string }
+        Returns: string
+      }
       effective_co_approval_threshold: {
         Args: { p_user_id: string }
         Returns: number
