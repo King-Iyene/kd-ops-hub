@@ -49,6 +49,7 @@ import { RecurringScheduleDialog } from '@/components/RecurringScheduleDialog';
 import { ArchiveBatchDialog } from '@/components/ArchiveBatchDialog';
 import { CancelBatchDialog } from '@/components/CancelBatchDialog';
 import { RenameBatchDialog } from '@/components/RenameBatchDialog';
+import { BatchHistoryDialog } from '@/components/BatchHistoryDialog';
 import { ResolveItemDialog } from '@/components/ResolveItemDialog';
 import { DiagnosisDialog } from '@/components/DiagnosisDialog';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
@@ -91,6 +92,7 @@ import {
   Info,
   Pencil,
   Copy,
+  History,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -213,6 +215,7 @@ const BatchDetail = () => {
   const [showDelete, setShowDelete] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   // Bulk-cancel-batch dialog state. MUST live at the top with the other
   // useState calls — a previous version had these below the loading /
@@ -1934,6 +1937,13 @@ const BatchDetail = () => {
             {duplicating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
             Duplicate
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowHistory(true)}
+            title="View and restore past versions of this batch's beneficiary list"
+          >
+            <History className="mr-2 h-4 w-4" /> History
+          </Button>
           {DELETABLE_STATUSES.includes(batch.status) && (
             <Button
               variant="ghost"
@@ -2497,6 +2507,13 @@ const BatchDetail = () => {
         batchId={id!}
         batchName={batch?.name}
         batchStatus={batch?.status}
+      />
+
+      <BatchHistoryDialog
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        batchId={id!}
+        onRestored={fetchBatch}
       />
 
       {/* Cancel-only dialog. Mark-as-paid was retired — KDOps tracks
