@@ -171,7 +171,7 @@ jobs:
         # safe by construction. The self-heal step above still handles
         # true remote-only orphans (e.g. hotfixes run in the SQL editor).
         run: |
-          supabase db push --include-all --remote 2>&1 | tee /tmp/push_output.txt
+          supabase db push --include-all --remote --yes 2>&1 | tee /tmp/push_output.txt
           exit ${PIPESTATUS[0]}
       - name: Capture push error for issue
         if: ${{ failure() && steps.push.outcome == 'failure' }}
