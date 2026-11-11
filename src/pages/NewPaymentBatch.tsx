@@ -630,9 +630,11 @@ const NewPaymentBatch = () => {
           .eq('id', editId);
         if (error) throw error;
         batchId = editId;
-        // Delete existing items and re-insert fresh ones.
-        const { error: delErr } = await supabase.from('batch_items').delete().eq('batch_id', batchId);
-        if (delErr) throw delErr;
+        // Items are replaced atomically further down via the
+        // replace_batch_items RPC — do NOT delete here. A premature delete
+        // followed by a separate, later insert is exactly what caused a real
+        // incident: the delete committed, the insert failed, and the batch
+        // was left with zero items. See 20261230000000_atomic_replace_batch_items.
       } else {
         const { data: batch, error } = await supabase
           .from('payment_batches')
@@ -708,7 +710,37 @@ const NewPaymentBatch = () => {
           reference: item.reference,
           status: 'pending',
         }));
-        const { data: insertedItems } = await supabase.from('batch_items').insert(batchItems).select();
+
+        let insertedItems: any[] | null = null;
+        if (isEditMode) {
+          // Atomic: delete-old + insert-new + header-counts all happen in one
+          // DB transaction (replace_batch_items). If anything fails, Postgres
+          // rolls the whole thing back — the batch keeps its ORIGINAL items
+          // instead of ending up half-deleted. See
+          // 20261230000000_atomic_replace_batch_items.sql.
+          const { error: replaceErr } = await supabase.rpc('replace_batch_items', {
+            p_batch_id: batchId,
+            p_items: batchItems,
+            p_beneficiary_count: batchItems.length,
+            p_total_amount: totalAmount,
+          });
+          if (replaceErr) throw replaceErr;
+          const { data: refetched, error: refetchErr } = await supabase
+            .from('batch_items')
+            .select('id, employee_id, amount_ngn')
+            .eq('batch_id', batchId);
+          if (refetchErr) throw refetchErr;
+          insertedItems = refetched;
+        } else {
+          const { data: created, error: insertErr } = await supabase.from('batch_items').insert(batchItems).select();
+          if (insertErr) {
+            // Nothing was saved — don't leave an orphaned, item-less batch
+            // header behind for the operator to find later.
+            await supabase.from('payment_batches').delete().eq('id', batchId);
+            throw insertErr;
+          }
+          insertedItems = created;
+        }
 
         // Phase 3 — create employee_advances records for salary advance batches
         if (batchType === 'advance' && submit && insertedItems) {
