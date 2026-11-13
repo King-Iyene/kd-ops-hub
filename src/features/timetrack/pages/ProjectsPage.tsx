@@ -43,26 +43,60 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
   const { toast } = useToast();
   const { data: employees } = useActiveEmployees();
   const { data: projects, isLoading } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
+  const { data: projectFields } = useQuery({
+    queryKey: ['timetrack', 'custom-fields', 'project'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_custom_fields').select('*').eq('applies_to', 'project').eq('is_archived', false);
+      if (error) throw error;
+      return data as TimeCustomField[];
+    },
+  });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeProject | null>(null);
   const [name, setName] = useState('');
   const [managerId, setManagerId] = useState<string>('');
   const [isBillable, setIsBillable] = useState(true);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const openNew = () => { setEditing(null); setName(''); setManagerId(''); setIsBillable(true); setDialogOpen(true); };
-  const openEdit = (p: TimeProject) => { setEditing(p); setName(p.name); setManagerId(p.manager_id ?? ''); setIsBillable(p.is_billable); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setName(''); setManagerId(''); setIsBillable(true); setFieldValues({}); setDialogOpen(true); };
+  const openEdit = async (p: TimeProject) => {
+    setEditing(p); setName(p.name); setManagerId(p.manager_id ?? ''); setIsBillable(p.is_billable);
+    const { data } = await supabase.from('time_custom_field_values').select('custom_field_id, value').eq('entity_type', 'project').eq('entity_id', p.id);
+    const vals: Record<string, string> = {};
+    for (const row of data ?? []) vals[row.custom_field_id] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
+    setFieldValues(vals);
+    setDialogOpen(true);
+  };
 
   const save = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
       const payload = { name: name.trim(), manager_id: managerId || null, is_billable: isBillable };
-      const { error } = editing
-        ? await supabase.from('time_projects').update(payload).eq('id', editing.id)
-        : await supabase.from('time_projects').insert(payload);
-      if (error) throw error;
+      let projectId = editing?.id;
+      if (editing) {
+        const { error } = await supabase.from('time_projects').update(payload).eq('id', editing.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('time_projects').insert(payload).select('id').single();
+        if (error) throw error;
+        projectId = data.id;
+      }
+
+      if (projectId) {
+        for (const f of projectFields ?? []) {
+          const v = fieldValues[f.id];
+          if (v === undefined || v === '') continue;
+          const { error: fErr } = await supabase.from('time_custom_field_values').upsert(
+            { entity_type: 'project', entity_id: projectId, custom_field_id: f.id, value: v },
+            { onConflict: 'custom_field_id,entity_id' },
+          );
+          if (fErr) throw fErr;
+        }
+      }
+
       setDialogOpen(false);
       qc.invalidateQueries({ queryKey: ['timetrack', 'projects'] });
     } catch (err) {
@@ -128,6 +162,23 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
               <Switch checked={isBillable} onCheckedChange={setIsBillable} id="proj-billable" />
               <Label htmlFor="proj-billable">Billable project</Label>
             </div>
+            {(projectFields ?? []).map((f) => (
+              <div key={f.id}>
+                <Label>{f.name}</Label>
+                {f.field_type === 'dropdown' ? (
+                  <Select value={fieldValues[f.id] ?? ''} onValueChange={(v) => setFieldValues({ ...fieldValues, [f.id]: v })}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>{f.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type={f.field_type === 'number' ? 'number' : 'text'}
+                    value={fieldValues[f.id] ?? ''}
+                    onChange={(e) => setFieldValues({ ...fieldValues, [f.id]: e.target.value })}
+                  />
+                )}
+              </div>
+            ))}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
