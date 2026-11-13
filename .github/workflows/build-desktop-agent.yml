@@ -61,6 +61,14 @@ jobs:
           cache: npm
           cache-dependency-path: desktop-agent/package-lock.json
 
+      # node-gyp (used to rebuild the active-win native module for Electron's
+      # ABI) needs a Python with distutils. macOS/ubuntu runner default
+      # Python is 3.12+, which dropped distutils — pin 3.11 everywhere so
+      # the native rebuild step behaves the same on every OS.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install dependencies
         run: npm install
 
@@ -73,6 +81,10 @@ jobs:
           # "Windows protected your PC" warning on first run — expected
           # until certificates are purchased and added as secrets.
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # node-gyp's Visual Studio auto-detection on windows-latest can
+          # fail to recognize the pre-installed VS2022 Build Tools edition;
+          # pinning the version explicitly is the documented workaround.
+          GYP_MSVS_VERSION: 2022
         run: |
           npm run build
           npx electron-builder ${{ matrix.build-args }} --publish=never
