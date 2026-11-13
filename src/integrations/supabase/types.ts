@@ -14459,6 +14459,152 @@ export type Database = {
           },
         ]
       }
+      time_activity_logs: {
+        Row: {
+          app_name: string | null
+          captured_at: string
+          employee_id: string
+          id: string
+          productivity_category: string | null
+          window_title: string | null
+        }
+        Insert: {
+          app_name?: string | null
+          captured_at?: string
+          employee_id: string
+          id?: string
+          productivity_category?: string | null
+          window_title?: string | null
+        }
+        Update: {
+          app_name?: string | null
+          captured_at?: string
+          employee_id?: string
+          id?: string
+          productivity_category?: string | null
+          window_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_activity_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_agent_settings: {
+        Row: {
+          blur_screenshots: boolean
+          capture_interval_minutes: number
+          employee_id: string
+          is_enabled: boolean
+          retention_days: number
+          screenshots_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          blur_screenshots?: boolean
+          capture_interval_minutes?: number
+          employee_id: string
+          is_enabled?: boolean
+          retention_days?: number
+          screenshots_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          blur_screenshots?: boolean
+          capture_interval_minutes?: number
+          employee_id?: string
+          is_enabled?: boolean
+          retention_days?: number
+          screenshots_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_agent_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_approvals: {
         Row: {
           approver_id: string | null
@@ -14564,7 +14710,11 @@ export type Database = {
       time_attendance_entries: {
         Row: {
           clock_in: string
+          clock_in_lat: number | null
+          clock_in_lng: number | null
           clock_out: string | null
+          clock_out_lat: number | null
+          clock_out_lng: number | null
           created_at: string
           employee_id: string
           id: string
@@ -14572,7 +14722,11 @@ export type Database = {
         }
         Insert: {
           clock_in: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
           created_at?: string
           employee_id: string
           id?: string
@@ -14580,7 +14734,11 @@ export type Database = {
         }
         Update: {
           clock_in?: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
           created_at?: string
           employee_id?: string
           id?: string
@@ -15311,6 +15469,33 @@ export type Database = {
           },
         ]
       }
+      time_productivity_rules: {
+        Row: {
+          app_name_contains: string | null
+          category: string
+          created_at: string
+          id: string
+          priority: number
+          title_contains: string | null
+        }
+        Insert: {
+          app_name_contains?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          priority?: number
+          title_contains?: string | null
+        }
+        Update: {
+          app_name_contains?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          priority?: number
+          title_contains?: string | null
+        }
+        Relationships: []
+      }
       time_project_billing_rates: {
         Row: {
           cost_rate_per_hour: number
@@ -15566,6 +15751,66 @@ export type Database = {
           role_key?: string
         }
         Relationships: []
+      }
+      time_screenshots: {
+        Row: {
+          activity_log_id: string | null
+          captured_at: string
+          employee_id: string
+          id: string
+          storage_path: string
+        }
+        Insert: {
+          activity_log_id?: string | null
+          captured_at?: string
+          employee_id: string
+          id?: string
+          storage_path: string
+        }
+        Update: {
+          activity_log_id?: string | null
+          captured_at?: string
+          employee_id?: string
+          id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_screenshots_activity_log_id_fkey"
+            columns: ["activity_log_id"]
+            isOneToOne: false
+            referencedRelation: "time_activity_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_screenshots_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_screenshots_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_screenshots_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_screenshots_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_tags: {
         Row: {
@@ -18851,6 +19096,7 @@ export type Database = {
         Args: { p_ids: string[]; p_table: string }
         Returns: number
       }
+      purge_old_activity_logs: { Args: never; Returns: number }
       purge_old_batch_item_snapshots: {
         Args: { p_retention_days?: number }
         Returns: number
