@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, ShieldCheck } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +32,7 @@ const CAPABILITIES: { key: string; label: string }[] = [
   { key: 'approve_leave', label: 'Approve leave' },
   { key: 'manage_overtime_rules', label: 'Manage overtime rules' },
   { key: 'manage_budgets', label: 'Manage project budgets' },
+  { key: 'manage_activity_tracking', label: 'Manage activity tracking (native agent)' },
 ];
 
 export default function RolesPage() {
@@ -102,11 +104,14 @@ export default function RolesPage() {
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Capability matrix</h3>
-        <Button size="sm" onClick={() => setNewRoleOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New role</Button>
-      </div>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader
+        title="Roles & Permissions"
+        description="A capability matrix for this module — add a new role any time, no code change needed"
+        icon={ShieldCheck}
+        actions={<Button size="sm" onClick={() => setNewRoleOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New role</Button>}
+      />
+      <h3 className="font-semibold">Capability matrix</h3>
       <p className="text-xs text-muted-foreground -mt-4">
         New role types can be added here any time — no code change needed. App-level super_admin/admin always
         have every capability regardless of what's checked below.

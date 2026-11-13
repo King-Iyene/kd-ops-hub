@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Check, X, Unlock } from 'lucide-react';
+import { Loader2, Check, X, Unlock, CheckSquare } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -83,8 +85,22 @@ export default function ApprovalsPage() {
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
+  const counts = {
+    submitted: (approvals ?? []).filter((a) => a.status === 'submitted').length,
+    approved: (approvals ?? []).filter((a) => a.status === 'approved').length,
+    rejected: (approvals ?? []).filter((a) => a.status === 'rejected').length,
+  };
+
   return (
-    <div>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Timesheet Approvals" description="Submitted weeks awaiting a decision, and the history of what's been decided" icon={CheckSquare} />
+
+      <div className="kd-stat-grid kd-stagger-in">
+        <StatCard title="Awaiting approval" value={counts.submitted} tone={counts.submitted > 0 ? 'warning' : 'default'} />
+        <StatCard title="Approved" value={counts.approved} tone="success" />
+        <StatCard title="Rejected" value={counts.rejected} tone={counts.rejected > 0 ? 'danger' : 'default'} />
+      </div>
+
       <Table>
         <TableHeader><TableRow>
           <TableHead>Employee</TableHead><TableHead>Week of</TableHead><TableHead>Total hrs</TableHead>

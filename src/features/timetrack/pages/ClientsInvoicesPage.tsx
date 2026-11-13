@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2, Plus, FileDown } from 'lucide-react';
+import { Loader2, Plus, FileDown, Receipt } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -19,14 +20,17 @@ import type { TimeClient, TimeInvoice } from '../lib/types';
 
 export default function ClientsInvoicesPage() {
   return (
-    <Tabs defaultValue="invoices">
-      <TabsList>
-        <TabsTrigger value="invoices">Invoices</TabsTrigger>
-        <TabsTrigger value="clients">Clients</TabsTrigger>
-      </TabsList>
-      <TabsContent value="invoices" className="mt-4"><InvoicesTab /></TabsContent>
-      <TabsContent value="clients" className="mt-4"><ClientsTab /></TabsContent>
-    </Tabs>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Clients & Invoices" description="Build invoices straight from unbilled time, track status, export to PDF" icon={Receipt} />
+      <Tabs defaultValue="invoices">
+        <TabsList>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="clients">Clients</TabsTrigger>
+        </TabsList>
+        <TabsContent value="invoices" className="mt-4"><InvoicesTab /></TabsContent>
+        <TabsContent value="clients" className="mt-4"><ClientsTab /></TabsContent>
+      </Tabs>
+    </div>
   );
 }
 

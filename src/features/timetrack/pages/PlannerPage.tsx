@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addDays } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarRange } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -60,7 +61,8 @@ export default function PlannerPage() {
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Resource Planner" description="Schedule employees onto projects by the week — planned hours vs. actual, live" icon={CalendarRange} />
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={() => setWeekStart(addDays(weekStart, -7))}>Prev week</Button>
         <span className="text-sm font-medium">Week of {format(weekStart, 'MMM d, yyyy')}</span>

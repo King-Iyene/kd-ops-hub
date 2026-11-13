@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
-import { Play, Square, Plus, Loader2, Trash2, Pencil } from 'lucide-react';
+import { Play, Square, Plus, Loader2, Trash2, Pencil, Timer as TimerIcon } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -170,7 +171,9 @@ export default function TimePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Time Entries" description="Start a timer or log time manually — Day, Week and Calendar views" icon={TimerIcon} />
+
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-center gap-3">
           <Select value={timerProjectId} onValueChange={(v) => { setTimerProjectId(v); setTimerTaskId(''); }} disabled={!!activeEntry}>

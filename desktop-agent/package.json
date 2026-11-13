@@ -1,0 +1,29 @@
+{
+  "name": "kd-ops-timetrack-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native desktop agent for KD Ops Hub Time Tracking — window/app activity capture and optional screenshots. Self-contained; not built or linted by the main web app's toolchain.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "active-win": "^8.2.0",
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.5.0"
+  },
+  "build": {
+    "appId": "com.kdsquares.timetrack-agent",
+    "productName": "KD Ops Time Tracker",
+    "files": ["dist/**/*", "src/renderer/**/*"],
+    "directories": { "output": "release" }
+  }
+}

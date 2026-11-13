@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, DollarSign } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -20,14 +21,17 @@ import type { TimeBillingRate, TimeProjectBillingRate } from '../lib/types';
 
 export default function BillingRatesPage() {
   return (
-    <Tabs defaultValue="global">
-      <TabsList>
-        <TabsTrigger value="global">Employee rates</TabsTrigger>
-        <TabsTrigger value="project">Project overrides</TabsTrigger>
-      </TabsList>
-      <TabsContent value="global" className="mt-4"><GlobalRatesTab /></TabsContent>
-      <TabsContent value="project" className="mt-4"><ProjectRatesTab /></TabsContent>
-    </Tabs>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Billing Rates" description="Revenue and cost rate per employee, with project-level overrides — history is never overwritten" icon={DollarSign} />
+      <Tabs defaultValue="global">
+        <TabsList>
+          <TabsTrigger value="global">Employee rates</TabsTrigger>
+          <TabsTrigger value="project">Project overrides</TabsTrigger>
+        </TabsList>
+        <TabsContent value="global" className="mt-4"><GlobalRatesTab /></TabsContent>
+        <TabsContent value="project" className="mt-4"><ProjectRatesTab /></TabsContent>
+      </Tabs>
+    </div>
   );
 }
 

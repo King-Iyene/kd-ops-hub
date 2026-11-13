@@ -132,6 +132,10 @@ export interface TimeAttendanceEntry {
   clock_in: string;
   clock_out: string | null;
   source: 'web' | 'kiosk';
+  clock_in_lat?: number | null;
+  clock_in_lng?: number | null;
+  clock_out_lat?: number | null;
+  clock_out_lng?: number | null;
 }
 
 export interface TimeOvertimeRule {

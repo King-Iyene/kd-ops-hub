@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, BarChart3 } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { formatNaira } from '@/lib/format';
@@ -44,7 +45,9 @@ function useEntriesInRange(start: string, end: string) {
 
 export default function ReportsPage() {
   return (
-    <Tabs defaultValue="summary">
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Reports" description="Summary, detailed, pivot, finance and live dashboard views — every one CSV-exportable" icon={BarChart3} />
+      <Tabs defaultValue="summary">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="summary">Summary</TabsTrigger>
         <TabsTrigger value="detailed">Detailed</TabsTrigger>
@@ -59,7 +62,8 @@ export default function ReportsPage() {
       <TabsContent value="finance" className="mt-4"><FinanceReport /></TabsContent>
       <TabsContent value="dashboard" className="mt-4"><LiveDashboard /></TabsContent>
       <TabsContent value="raw" className="mt-4"><RawExport /></TabsContent>
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }
 

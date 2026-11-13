@@ -98,7 +98,18 @@ const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
 const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
-const TimeTrackApp      = lazy(() => import('./features/timetrack/TimeTrackApp'));
+const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
+const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
+const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
+const TimeReportsPage   = lazy(() => import('./features/timetrack/pages/ReportsPage'));
+const TimeApprovalsPage = lazy(() => import('./features/timetrack/pages/ApprovalsPage'));
+const TimeLeavePage     = lazy(() => import('./features/timetrack/pages/LeavePage'));
+const TimeAttendancePage = lazy(() => import('./features/timetrack/pages/AttendancePage'));
+const TimePlannerPage   = lazy(() => import('./features/timetrack/pages/PlannerPage'));
+const TimeClientsInvoicesPage = lazy(() => import('./features/timetrack/pages/ClientsInvoicesPage'));
+const TimeBillingRatesPage = lazy(() => import('./features/timetrack/pages/BillingRatesPage'));
+const TimeRolesPage     = lazy(() => import('./features/timetrack/pages/RolesPage'));
+const TimeActivityPage  = lazy(() => import('./features/timetrack/pages/ActivityPage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
@@ -830,19 +841,39 @@ function AppRoutes() {
           }
         />
 
-        {/* Time Tracking module — standalone, self-contained (modules/timetrack).
-            Every active employee gets in; page-level capability checks (not
-            app Role[]) gate the admin-only tabs inside TimeTrackApp itself. */}
-        <Route
-          path="/timetrack/*"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <TimeTrackApp />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
+        {/* Time Tracking module — standalone, self-contained (src/features/timetrack).
+            A real top-level module like CRM/Operations: one route and one
+            sidebar entry per section, no tab-shell. Self-service pages are
+            open to every active employee; page-level capability checks (not
+            app Role[]) gate admin actions within them. The financial/admin
+            pages (rates, invoicing, role management) are additionally
+            restricted at the route level. */}
+        {[
+          { path: '/timetrack', Page: TimeDashboardPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/time', Page: TimeEntriesPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/projects', Page: TimeProjectsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports', Page: TimeReportsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/approvals', Page: TimeApprovalsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/leave', Page: TimeLeavePage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/attendance', Page: TimeAttendancePage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/planner', Page: TimePlannerPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/clients', Page: TimeClientsInvoicesPage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/rates', Page: TimeBillingRatesPage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/roles', Page: TimeRolesPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity', Page: TimeActivityPage, roles: ADMIN_ONLY_ROLES },
+        ].map(({ path, Page, roles }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <RoleGuard roles={roles}>
+                <ErrorBoundary>
+                  <Page />
+                </ErrorBoundary>
+              </RoleGuard>
+            }
+          />
+        ))}
 
         {/* Employee Self-Service Dashboard — all authenticated users. */}
         <Route

@@ -73,6 +73,11 @@ import {
   Code2,
   Globe,
   Clock,
+  FolderKanban,
+  DollarSign,
+  CheckSquare,
+  Palmtree,
+  CalendarRange,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -142,7 +147,19 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Succession',       url: '/succession',        icon: Replace,         roles: ['super_admin', 'admin'] },
   { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Timesheets',       url: '/timesheets',        icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'timesheets.view' },
-  { title: 'Time Tracking',    url: '/timetrack',         icon: Clock,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // Time Tracking — standalone module (own sidebar section, like CRM/Operations).
+  { title: 'Time Dashboard',   url: '/timetrack',         icon: Clock,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Entries',     url: '/timetrack/time',    icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Projects',    url: '/timetrack/projects', icon: FolderKanban,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Reports',     url: '/timetrack/reports', icon: BarChart3,       roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Approvals',   url: '/timetrack/approvals', icon: CheckSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Leave',       url: '/timetrack/leave',   icon: Palmtree,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Attendance',  url: '/timetrack/attendance', icon: CalendarCheck2, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Planner',     url: '/timetrack/planner', icon: CalendarRange,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Clients & Invoices', url: '/timetrack/clients', icon: Receipt, roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Time Billing Rates', url: '/timetrack/rates', icon: DollarSign,     roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Time Roles',       url: '/timetrack/roles',   icon: ShieldCheck,     roles: ['super_admin', 'admin'] },
+  { title: 'Time Activity',    url: '/timetrack/activity', icon: Activity,       roles: ['super_admin', 'admin'] },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin'] },
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -189,7 +206,8 @@ export const NAV_GROUPS = [
   { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },
-  { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets', 'Time Tracking'] },
+  { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets'] },
+  { key: 'timeTracking', label: 'Time Tracking',      titles: ['Time Dashboard', 'Time Entries', 'Time Projects', 'Time Reports', 'Time Approvals', 'Time Leave', 'Time Attendance', 'Time Planner', 'Time Clients & Invoices', 'Time Billing Rates', 'Time Roles', 'Time Activity'] },
   { key: 'talent',     label: 'Talent',               titles: ['Recruitment', 'Onboarding', 'Training', 'Performance', 'Succession'] },
   { key: 'compWell',   label: 'Compensation & Wellbeing', titles: ['Benefits', 'Staff Loans'] },
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2, LogIn, LogOut } from 'lucide-react';
+import { Loader2, LogIn, LogOut, BadgeCheck } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -42,9 +43,24 @@ export default function AttendancePage() {
     enabled: !!profile?.id,
   });
 
+  // Best-effort GPS stamp — never blocks clock-in/out if denied or unavailable.
+  const getPosition = (): Promise<{ lat: number; lng: number } | null> =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000 },
+      );
+    });
+
   const clockIn = async () => {
     try {
-      const { error } = await supabase.from('time_attendance_entries').insert({ employee_id: profile!.id, clock_in: new Date().toISOString() });
+      const pos = await getPosition();
+      const { error } = await supabase.from('time_attendance_entries').insert({
+        employee_id: profile!.id, clock_in: new Date().toISOString(),
+        clock_in_lat: pos?.lat ?? null, clock_in_lng: pos?.lng ?? null,
+      });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-open'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-recent'] });
@@ -56,7 +72,10 @@ export default function AttendancePage() {
   const clockOut = async () => {
     if (!open) return;
     try {
-      const { error } = await supabase.from('time_attendance_entries').update({ clock_out: new Date().toISOString() }).eq('id', open.id);
+      const pos = await getPosition();
+      const { error } = await supabase.from('time_attendance_entries').update({
+        clock_out: new Date().toISOString(), clock_out_lat: pos?.lat ?? null, clock_out_lng: pos?.lng ?? null,
+      }).eq('id', open.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-open'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-recent'] });
@@ -66,7 +85,8 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Attendance" description="Daily clock-in/out — separate from project timers" icon={BadgeCheck} />
       <Card>
         <CardContent className="pt-6 flex items-center gap-3">
           {openLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : open ? (

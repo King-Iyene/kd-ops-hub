@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Check, X } from 'lucide-react';
+import { Loader2, Plus, Check, X, Palmtree } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -87,9 +89,23 @@ export default function LeavePage() {
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
+  const pendingCount = (requests ?? []).filter((r) => r.status === 'pending').length;
+
   return (
-    <div className="space-y-4">
-      <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Request leave</Button>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader
+        title="Leave"
+        description="Request time off, or review and decide requests awaiting approval"
+        icon={Palmtree}
+        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Request leave</Button>}
+      />
+      {canApprove && (
+        <div className="kd-stat-grid kd-stagger-in">
+          <StatCard title="Pending" value={pendingCount} tone={pendingCount > 0 ? 'warning' : 'default'} />
+          <StatCard title="Approved" value={(requests ?? []).filter((r) => r.status === 'approved').length} tone="success" />
+          <StatCard title="Rejected" value={(requests ?? []).filter((r) => r.status === 'rejected').length} tone="danger" />
+        </div>
+      )}
       <Table>
         <TableHeader><TableRow>
           {canApprove && <TableHead>Employee</TableHead>}

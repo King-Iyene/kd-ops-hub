@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban } from 'lucide-react';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -21,16 +22,19 @@ import type { TimeCustomField, TimeProject, TimeTask } from '../lib/types';
 export default function ProjectsPage() {
   const { has } = useTimetrackCapabilities();
   return (
-    <Tabs defaultValue="projects">
-      <TabsList>
-        <TabsTrigger value="projects">Projects &amp; Tasks</TabsTrigger>
-        <TabsTrigger value="tags">Tags</TabsTrigger>
-        <TabsTrigger value="fields">Custom Fields</TabsTrigger>
-      </TabsList>
-      <TabsContent value="projects" className="mt-4"><ProjectsTab canManage={has('manage_projects')} canManageTasks={has('manage_tasks')} /></TabsContent>
-      <TabsContent value="tags" className="mt-4"><TagsTab /></TabsContent>
-      <TabsContent value="fields" className="mt-4"><CustomFieldsTab canManage={has('manage_custom_fields')} /></TabsContent>
-    </Tabs>
+    <div className="space-y-3 sm:space-y-6">
+      <PageHeader title="Projects & Tasks" description="Projects, tasks, tags and custom fields — the structure everything else tracks against" icon={FolderKanban} />
+      <Tabs defaultValue="projects">
+        <TabsList>
+          <TabsTrigger value="projects">Projects &amp; Tasks</TabsTrigger>
+          <TabsTrigger value="tags">Tags</TabsTrigger>
+          <TabsTrigger value="fields">Custom Fields</TabsTrigger>
+        </TabsList>
+        <TabsContent value="projects" className="mt-4"><ProjectsTab canManage={has('manage_projects')} canManageTasks={has('manage_tasks')} /></TabsContent>
+        <TabsContent value="tags" className="mt-4"><TagsTab /></TabsContent>
+        <TabsContent value="fields" className="mt-4"><CustomFieldsTab canManage={has('manage_custom_fields')} /></TabsContent>
+      </Tabs>
+    </div>
   );
 }
 
