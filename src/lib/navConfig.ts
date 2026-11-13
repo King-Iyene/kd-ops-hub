@@ -245,6 +245,15 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     groups: ['moneyOut', 'moneyIn', 'risk'],
   },
   {
+    key: 'timeTracking',
+    label: 'Time Tracking',
+    description: 'Timers, timesheets & billing',
+    icon: 'Clock',
+    color: 'text-teal-400',
+    iconBg: 'bg-teal-500/15',
+    groups: ['timeTracking'],
+  },
+  {
     key: 'people',
     label: 'People & HR',
     description: 'Staff, leave & compliance',
