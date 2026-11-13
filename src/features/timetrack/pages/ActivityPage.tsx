@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2, Plus, Activity, Image as ImageIcon, ShieldCheck } from 'lucide-react';
+import { Loader2, Plus, Activity, Image as ImageIcon, ShieldCheck, Download, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +52,7 @@ export default function ActivityPage() {
         title="Activity"
         description="Native desktop agent: window/app activity capture, optional screenshots — requires the standalone KD Ops Time Tracker install"
         icon={Activity}
+        actions={<GetDesktopAppButton />}
       />
       <Tabs defaultValue="log">
         <TabsList>
@@ -511,5 +512,63 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <Switch checked={checked} onCheckedChange={onChange} />
       {label}
     </label>
+  );
+}
+
+/**
+ * TimeCamp's own equivalent (top bar "download apps" icon) just links to a
+ * marketing page with built installers. We don't have those yet — the
+ * desktop-agent/ Electron app is source-only, not packaged/signed/released
+ * (see desktop-agent/README.md). A fake "Download" link to a non-existent
+ * .exe/.dmg would be worse than this: honest current-state instructions,
+ * updated to a real installer link the moment one exists (GitHub Releases).
+ */
+function GetDesktopAppButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Download className="h-4 w-4 mr-1.5" /> Get desktop app
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>KD Ops Time Tracker (desktop agent)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              There's no installer to download yet — the agent exists as source code only
+              (no packaged/signed .exe or .dmg has been built or released). Here's the
+              honest current state and how to run it today.
+            </p>
+            <div className="rounded-md border border-border/60 p-3 space-y-2">
+              <p className="font-medium">Run it from source (requires Node.js):</p>
+              <pre className="bg-muted rounded p-2 text-xs overflow-x-auto">{`git clone https://github.com/King-Iyene/kd-ops-hub
+cd kd-ops-hub/desktop-agent
+cp .env.example .env   # fill in SUPABASE_URL / SUPABASE_ANON_KEY
+npm install
+npm start`}</pre>
+            </div>
+            <p className="text-muted-foreground">
+              An admin must also enable tracking for that employee first, under
+              <span className="font-medium text-foreground"> Per-employee settings</span> above —
+              the agent refuses to capture anything otherwise, even if it's running.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Packaged one-click installers for Windows/macOS are planned but not built
+              (estimated 3–5 days of packaging/signing work) — this button will link
+              straight to them once a release exists.
+            </p>
+            <a
+              href="https://github.com/King-Iyene/kd-ops-hub/tree/main/desktop-agent"
+              target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-primary text-sm hover:underline"
+            >
+              View the desktop-agent source on GitHub <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
