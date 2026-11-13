@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { Loader2, Plus, Activity, Image as ImageIcon, ShieldCheck, Download, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -55,13 +56,21 @@ export default function ActivityPage() {
         actions={<GetDesktopAppButton />}
       />
       <Tabs defaultValue="log">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="log">Activity log</TabsTrigger>
+          <TabsTrigger value="apps">Sites and apps</TabsTrigger>
+          <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
+          <TabsTrigger value="stats">User statistics</TabsTrigger>
+          <TabsTrigger value="screenshots">Screenshots</TabsTrigger>
           <TabsTrigger value="settings">Per-employee settings</TabsTrigger>
           <TabsTrigger value="rules">Productivity rules</TabsTrigger>
           <TabsTrigger value="policy">Tracking policy</TabsTrigger>
         </TabsList>
         <TabsContent value="log" className="mt-4"><ActivityLogTab /></TabsContent>
+        <TabsContent value="apps" className="mt-4"><SitesAndAppsTab /></TabsContent>
+        <TabsContent value="efficiency" className="mt-4"><EfficiencyTab /></TabsContent>
+        <TabsContent value="stats" className="mt-4"><UserStatisticsTab /></TabsContent>
+        <TabsContent value="screenshots" className="mt-4"><ScreenshotsTab /></TabsContent>
         <TabsContent value="settings" className="mt-4"><AgentSettingsTab /></TabsContent>
         <TabsContent value="rules" className="mt-4"><RulesTab /></TabsContent>
         <TabsContent value="policy" className="mt-4"><PolicyTab /></TabsContent>
@@ -570,5 +579,283 @@ npm start`}</pre>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function useActivityDateRange() {
+  const [start, setStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [end, setEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+  return { start, end, setStart, setEnd };
+}
+
+function ActivityDateRangeBar({ start, end, setStart, setEnd }: {
+  start: string; end: string; setStart: (v: string) => void; setEnd: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-end gap-3 mb-4">
+      <div><Label>From</Label><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></div>
+      <div><Label>To</Label><Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+    </div>
+  );
+}
+
+/** Captures in range joined with each employee's capture interval, so raw tick counts can be
+ * turned into estimated tracked hours (each tick represents roughly one interval of activity). */
+function useLogsWithIntervals(start: string, end: string) {
+  return useQuery({
+    queryKey: ['timetrack', 'activity-logs-range', start, end],
+    queryFn: async () => {
+      const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }] = await Promise.all([
+        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, productivity_category, captured_at')
+          .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
+          .order('captured_at', { ascending: false }).limit(20000),
+        supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),
+      ]);
+      if (logsErr) throw logsErr;
+      if (settingsErr) throw settingsErr;
+      const intervalByEmployee = new Map((settings ?? []).map((s) => [s.employee_id, s.capture_interval_minutes]));
+      return { logs: (logs ?? []) as ActivityLog[], intervalByEmployee };
+    },
+  });
+}
+
+/** TimeCamp's "Sites and Apps" report. The agent currently captures the active window's app name
+ * and title but not a browser's URL/domain, so a true per-site breakdown isn't possible yet —
+ * this aggregates by app only and says so plainly rather than faking a domain split. */
+function SitesAndAppsTab() {
+  const { start, end, setStart, setEnd } = useActivityDateRange();
+  const { data, isLoading } = useLogsWithIntervals(start, end);
+
+  const rows = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of data?.logs ?? []) {
+      const app = l.app_name ?? 'Unknown';
+      const intervalMin = data?.intervalByEmployee.get(l.employee_id) ?? 10;
+      map.set(app, (map.get(app) ?? 0) + intervalMin / 60);
+    }
+    return [...map.entries()].map(([app, hours]) => ({ app, hours })).sort((a, b) => b.hours - a.hours);
+  }, [data]);
+
+  const exportCsv = () => {
+    const csv = toCsv(['App', 'Estimated hours'], rows.map((r) => [r.app, r.hours.toFixed(2)]));
+    downloadCsv(`timetrack-apps-${start}-to-${end}.csv`, csv);
+  };
+
+  return (
+    <div className="space-y-3">
+      <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      <p className="text-xs text-muted-foreground">
+        Hours are estimated from capture ticks × each employee's capture interval — not a true duration.
+        Browser site/domain breakdown isn't captured by the agent yet (it reads the active window's app
+        and title only), so this groups by application, not by website.
+      </p>
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <>
+          <div className="flex justify-end"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button></div>
+          <Table>
+            <TableHeader><TableRow><TableHead>Application</TableHead><TableHead className="text-right">Estimated hours</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {rows.map((r) => <TableRow key={r.app}><TableCell>{r.app}</TableCell><TableCell className="text-right">{r.hours.toFixed(2)}</TableCell></TableRow>)}
+              {rows.length === 0 && <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** TimeCamp's "Efficiency" report — productive vs. neutral vs. unproductive share, per employee. */
+function EfficiencyTab() {
+  const { start, end, setStart, setEnd } = useActivityDateRange();
+  const { data, isLoading } = useLogsWithIntervals(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const rows = useMemo(() => {
+    const map = new Map<string, { productive: number; neutral: number; unproductive: number; uncategorized: number }>();
+    for (const l of data?.logs ?? []) {
+      const row = map.get(l.employee_id) ?? { productive: 0, neutral: 0, unproductive: 0, uncategorized: 0 };
+      if (l.productivity_category === 'productive') row.productive++;
+      else if (l.productivity_category === 'neutral') row.neutral++;
+      else if (l.productivity_category === 'unproductive') row.unproductive++;
+      else row.uncategorized++;
+      map.set(l.employee_id, row);
+    }
+    return [...map.entries()].map(([employeeId, r]) => {
+      const total = r.productive + r.neutral + r.unproductive + r.uncategorized;
+      const efficiency = total > 0 ? (r.productive / total) * 100 : 0;
+      return { employeeId, name: employees?.find((e) => e.id === employeeId)?.full_name ?? employeeId, ...r, total, efficiency };
+    }).sort((a, b) => b.efficiency - a.efficiency);
+  }, [data, employees]);
+
+  return (
+    <div className="space-y-3">
+      <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Employee</TableHead><TableHead className="text-right">Productive</TableHead>
+            <TableHead className="text-right">Neutral</TableHead><TableHead className="text-right">Unproductive</TableHead>
+            <TableHead className="text-right">Captures</TableHead><TableHead className="text-right">Efficiency</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.employeeId}>
+                <TableCell>{r.name}</TableCell>
+                <TableCell className="text-right">{r.productive}</TableCell>
+                <TableCell className="text-right">{r.neutral}</TableCell>
+                <TableCell className="text-right">{r.unproductive}</TableCell>
+                <TableCell className="text-right">{r.total}</TableCell>
+                <TableCell className="text-right">
+                  <Badge variant="outline" className={r.efficiency >= 60 ? CATEGORY_BADGE.productive : r.efficiency >= 30 ? CATEGORY_BADGE.neutral : CATEGORY_BADGE.unproductive}>
+                    {r.efficiency.toFixed(0)}%
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+/** TimeCamp's "User statistics" report — one summary row per employee. */
+function UserStatisticsTab() {
+  const { start, end, setStart, setEnd } = useActivityDateRange();
+  const { data, isLoading } = useLogsWithIntervals(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const rows = useMemo(() => {
+    const map = new Map<string, { captures: number; productive: number; hours: number; days: Set<string>; first: string; last: string }>();
+    for (const l of data?.logs ?? []) {
+      const row = map.get(l.employee_id) ?? { captures: 0, productive: 0, hours: 0, days: new Set<string>(), first: l.captured_at, last: l.captured_at };
+      row.captures++;
+      if (l.productivity_category === 'productive') row.productive++;
+      row.hours += (data?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
+      row.days.add(format(new Date(l.captured_at), 'yyyy-MM-dd'));
+      if (l.captured_at < row.first) row.first = l.captured_at;
+      if (l.captured_at > row.last) row.last = l.captured_at;
+      map.set(l.employee_id, row);
+    }
+    return [...map.entries()].map(([employeeId, r]) => ({
+      employeeId, name: employees?.find((e) => e.id === employeeId)?.full_name ?? employeeId,
+      captures: r.captures, hours: r.hours, activeDays: r.days.size,
+      productivePct: r.captures > 0 ? (r.productive / r.captures) * 100 : 0,
+      first: r.first, last: r.last,
+    })).sort((a, b) => b.hours - a.hours);
+  }, [data, employees]);
+
+  const exportCsv = () => {
+    const csv = toCsv(['Employee', 'Captures', 'Est. hours', 'Active days', 'Productive %'], rows.map((r) => [
+      r.name, String(r.captures), r.hours.toFixed(2), String(r.activeDays), r.productivePct.toFixed(0),
+    ]));
+    downloadCsv(`timetrack-user-statistics-${start}-to-${end}.csv`, csv);
+  };
+
+  return (
+    <div className="space-y-3">
+      <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <>
+          <div className="flex justify-end"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button></div>
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Employee</TableHead><TableHead className="text-right">Captures</TableHead>
+              <TableHead className="text-right">Est. hours</TableHead><TableHead className="text-right">Active days</TableHead>
+              <TableHead className="text-right">Productive %</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.employeeId}>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className="text-right">{r.captures}</TableCell>
+                  <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{r.activeDays}</TableCell>
+                  <TableCell className="text-right">{r.productivePct.toFixed(0)}%</TableCell>
+                </TableRow>
+              ))}
+              {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface ScreenshotRow {
+  id: string;
+  employee_id: string;
+  storage_path: string;
+  captured_at: string;
+}
+
+/** TimeCamp's "Screenshots" report. Thumbnails are loaded lazily via short-lived signed URLs from
+ * the private timetrack-screenshots bucket — never public, matching the RLS on time_screenshots. */
+function ScreenshotsTab() {
+  const { data: employees } = useActiveEmployees();
+  const [employeeId, setEmployeeId] = useState('');
+  const [urls, setUrls] = useState<Record<string, string>>({});
+
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ['timetrack', 'screenshots', employeeId],
+    queryFn: async () => {
+      let q = supabase.from('time_screenshots').select('id, employee_id, storage_path, captured_at').order('captured_at', { ascending: false }).limit(60);
+      if (employeeId) q = q.eq('employee_id', employeeId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as ScreenshotRow[];
+    },
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pending = (rows ?? []).filter((r) => !urls[r.id]);
+      if (pending.length === 0) return;
+      const entries = await Promise.all(pending.map(async (r) => {
+        const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 300);
+        return [r.id, data?.signedUrl ?? ''] as const;
+      }));
+      if (!cancelled) setUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
+  return (
+    <div className="space-y-3">
+      <Select value={employeeId} onValueChange={setEmployeeId}>
+        <SelectTrigger className="w-64"><SelectValue placeholder="All employees" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">All employees</SelectItem>
+          {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {(rows ?? []).map((r) => (
+            <div key={r.id} className="rounded-md border border-border/60 overflow-hidden">
+              {urls[r.id] ? (
+                <img src={urls[r.id]} alt="" className="w-full aspect-video object-cover bg-muted" loading="lazy" />
+              ) : (
+                <div className="w-full aspect-video bg-muted flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              )}
+              <div className="p-2 text-xs text-muted-foreground flex items-center justify-between">
+                <span>{employees?.find((e) => e.id === r.employee_id)?.full_name ?? r.employee_id}</span>
+                <span>{format(new Date(r.captured_at), 'MMM d, HH:mm')}</span>
+              </div>
+            </div>
+          ))}
+          {(rows ?? []).length === 0 && (
+            <p className="col-span-full text-center text-muted-foreground py-6">
+              No screenshots yet — only captured when an employee has screenshots enabled in Per-employee settings.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
