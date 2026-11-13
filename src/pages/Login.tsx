@@ -175,6 +175,7 @@ const Login = () => {
               </Link>
             </div>
           </form>
+          <SsoLoginToggle />
         </div>
 
         <p className="text-center text-white/40 text-xs mt-6">
@@ -184,5 +185,63 @@ const Login = () => {
     </AuthAtmosphere>
   );
 };
+
+// SSO/SAML sign-in. NOTE: this is client-side plumbing only — it calls
+// Supabase's real signInWithSSO() API, but it will fail until an admin
+// (1) enables SSO on the Supabase project (Enterprise add-on) and
+// (2) registers an Identity Provider (Okta/Azure AD/Google Workspace/
+// custom SAML) with its metadata in the Supabase dashboard, mapping it
+// to this email domain. That metadata can only come from the org's own
+// IdP admin — it isn't something that can be built without it. This
+// gets the login screen ready for the moment that's done.
+function SsoLoginToggle() {
+  const [open, setOpen] = useState(false);
+  const [domain, setDomain] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSso = async () => {
+    if (!domain.trim()) return;
+    setLoading(true);
+    setError(null);
+    const { data, error: ssoError } = await supabase.auth.signInWithSSO({ domain: domain.trim() });
+    if (ssoError || !data?.url) {
+      setError(ssoError?.message ?? 'SSO is not yet configured for this domain — ask an admin to set it up in Supabase.');
+      setLoading(false);
+      return;
+    }
+    window.location.href = data.url;
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full text-center text-xs text-white/40 hover:text-white/70 kd-transition mt-4"
+      >
+        Sign in with company SSO instead
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+      <Label htmlFor="sso-domain" className="text-white/70 text-xs">Company SSO domain</Label>
+      <Input
+        id="sso-domain"
+        placeholder="yourcompany.com"
+        value={domain}
+        onChange={(e) => setDomain(e.target.value)}
+        className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+      />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <Button type="button" variant="outline" className="w-full border-white/20 text-white/90" onClick={handleSso} disabled={loading}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Continue with SSO
+      </Button>
+    </div>
+  );
+}
 
 export default Login;

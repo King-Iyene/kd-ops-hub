@@ -110,6 +110,8 @@ const TimeClientsInvoicesPage = lazy(() => import('./features/timetrack/pages/Cl
 const TimeBillingRatesPage = lazy(() => import('./features/timetrack/pages/BillingRatesPage'));
 const TimeRolesPage     = lazy(() => import('./features/timetrack/pages/RolesPage'));
 const TimeActivityPage  = lazy(() => import('./features/timetrack/pages/ActivityPage'));
+const TimeSettingsPage  = lazy(() => import('./features/timetrack/pages/SettingsPage'));
+const TimeKioskPage     = lazy(() => import('./features/timetrack/pages/KioskPage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
@@ -861,6 +863,8 @@ function AppRoutes() {
           { path: '/timetrack/rates', Page: TimeBillingRatesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/roles', Page: TimeRolesPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/activity', Page: TimeActivityPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/settings', Page: TimeSettingsPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/kiosk', Page: TimeKioskPage, roles: ALL_AUTH_ROLES },
         ].map(({ path, Page, roles }) => (
           <Route
             key={path}

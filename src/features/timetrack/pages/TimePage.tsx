@@ -20,7 +20,12 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { fetchActiveProjects, fetchTasksForProject } from '../lib/queries';
+import { enqueue, flushQueue, queueLength } from '../lib/offlineQueue';
 import type { TimeEntry } from '../lib/types';
 
 const LOCAL_KEY = 'timetrack:active-timer';
@@ -103,13 +108,24 @@ export default function TimePage() {
     }
   };
 
-  const stopTimer = async () => {
+  const stopTimer = async (endTime?: string) => {
     if (!activeEntry) return;
     setStopping(true);
     try {
+      if (!navigator.onLine) {
+        enqueue({ type: 'update_entry', entryId: activeEntry.id, payload: { end_time: endTime ?? new Date().toISOString() } });
+        toast({ title: 'Saved offline', description: "No connection — this will sync once you're back online." });
+        localStorage.removeItem(LOCAL_KEY);
+        // Optimistically clear it from the UI now — the server-side row is
+        // still open until the queued update actually syncs, but there's no
+        // reason to make the user stare at a running clock they already stopped.
+        qc.setQueryData(['timetrack', 'active-timer', profile?.id], null);
+        setStopping(false);
+        return;
+      }
       const { error } = await supabase
         .from('time_entries')
-        .update({ end_time: new Date().toISOString() })
+        .update({ end_time: endTime ?? new Date().toISOString() })
         .eq('id', activeEntry.id);
       if (error) throw error;
       localStorage.removeItem(LOCAL_KEY);
@@ -174,6 +190,8 @@ export default function TimePage() {
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Time Entries" description="Start a timer or log time manually — Day, Week and Calendar views" icon={TimerIcon} />
 
+      <OfflineSyncBanner />
+
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-center gap-3">
           <Select value={timerProjectId} onValueChange={(v) => { setTimerProjectId(v); setTimerTaskId(''); }} disabled={!!activeEntry}>
@@ -192,7 +210,7 @@ export default function TimePage() {
           <div className="ml-auto flex items-center gap-3">
             <span className="font-mono text-lg tabular-nums">{activeEntry ? elapsed : '00:00:00'}</span>
             {activeEntry ? (
-              <Button variant="destructive" onClick={stopTimer} disabled={stopping}>
+              <Button variant="destructive" onClick={() => stopTimer()} disabled={stopping}>
                 {stopping ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Square className="h-4 w-4 mr-1.5" />}
                 Stop
               </Button>
@@ -257,6 +275,117 @@ export default function TimePage() {
         entry={editingEntry}
         onSaved={() => { qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] }); qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] }); }}
       />
+
+      <IdlePopup activeEntry={activeEntry ?? null} onStopAtIdleTime={stopTimer} />
+    </div>
+  );
+}
+
+/**
+ * Pure client-side idle detection — no native agent needed. While a timer
+ * is running, tracks real mouse/keyboard activity; past the configured
+ * threshold it offers to stop the timer AT the last-activity time (not
+ * now), so idle minutes don't silently get billed.
+ */
+function IdlePopup({ activeEntry, onStopAtIdleTime }: { activeEntry: TimeEntry | null; onStopAtIdleTime: (endTime?: string) => void }) {
+  const { data: idleSettings } = useQuery({
+    queryKey: ['timetrack', 'idle-settings-public'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_idle_settings').select('idle_threshold_minutes, is_enabled').eq('id', true).single();
+      if (error) throw error;
+      return data as { idle_threshold_minutes: number; is_enabled: boolean };
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const [lastActivity, setLastActivity] = useState(() => Date.now());
+  const [showIdleDialog, setShowIdleDialog] = useState(false);
+  const [idleSince, setIdleSince] = useState<number | null>(null);
+
+  useEffect(() => {
+    const reset = () => setLastActivity(Date.now());
+    window.addEventListener('mousemove', reset);
+    window.addEventListener('keydown', reset);
+    window.addEventListener('scroll', reset);
+    return () => {
+      window.removeEventListener('mousemove', reset);
+      window.removeEventListener('keydown', reset);
+      window.removeEventListener('scroll', reset);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeEntry || !idleSettings?.is_enabled || showIdleDialog) return;
+    const id = setInterval(() => {
+      const idleMs = Date.now() - lastActivity;
+      if (idleMs >= idleSettings.idle_threshold_minutes * 60_000) {
+        setIdleSince(lastActivity);
+        setShowIdleDialog(true);
+      }
+    }, 15_000);
+    return () => clearInterval(id);
+  }, [activeEntry, idleSettings, lastActivity, showIdleDialog]);
+
+  const keepWorking = () => {
+    setLastActivity(Date.now());
+    setShowIdleDialog(false);
+  };
+
+  const discardIdleTime = () => {
+    if (idleSince) onStopAtIdleTime(new Date(idleSince).toISOString());
+    setShowIdleDialog(false);
+    setLastActivity(Date.now());
+  };
+
+  if (!activeEntry) return null;
+
+  return (
+    <AlertDialog open={showIdleDialog} onOpenChange={setShowIdleDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Still working?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your timer has been running with no activity for a while. Keep tracking this time, or stop the
+            timer at the point you went idle?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={keepWorking}>Keep all time — I was working</AlertDialogCancel>
+          <AlertDialogAction onClick={discardIdleTime}>Stop timer at idle point</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function OfflineSyncBanner() {
+  const qc = useQueryClient();
+  const [pending, setPending] = useState(() => queueLength());
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const sync = async () => {
+      if (queueLength() === 0) return;
+      setSyncing(true);
+      const { synced } = await flushQueue();
+      setPending(queueLength());
+      setSyncing(false);
+      if (synced > 0) {
+        qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+        qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
+      }
+    };
+    const onOnline = () => sync();
+    window.addEventListener('online', onOnline);
+    sync(); // try once on mount too, in case we reconnected before this page loaded
+    return () => window.removeEventListener('online', onOnline);
+  }, [qc]);
+
+  if (pending === 0 && !syncing) return null;
+
+  return (
+    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+      {syncing ? 'Syncing offline changes…' : `${pending} change${pending === 1 ? '' : 's'} saved offline, waiting to sync.`}
     </div>
   );
 }
@@ -384,6 +513,19 @@ function ManualEntryDialog({ open, onOpenChange, entry, onSaved }: {
         start_time: `${date}T${startTime}:00`, end_time: `${date}T${endTime}:00`,
         notes: notes || null, is_billable: billable, entry_source: 'manual' as const,
       };
+
+      if (!navigator.onLine) {
+        if (entry) {
+          enqueue({ type: 'update_entry', entryId: entry.id, payload });
+        } else {
+          enqueue({ type: 'insert_entry', payload });
+        }
+        toast({ title: "Saved offline", description: "No connection — this entry will sync automatically once you're back online." });
+        onOpenChange(false);
+        onSaved();
+        return;
+      }
+
       const { error } = entry
         ? await supabase.from('time_entries').update(payload).eq('id', entry.id)
         : await supabase.from('time_entries').insert(payload);

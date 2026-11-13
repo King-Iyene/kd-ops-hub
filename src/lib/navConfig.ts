@@ -78,6 +78,7 @@ import {
   CheckSquare,
   Palmtree,
   CalendarRange,
+  MonitorSmartphone,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -160,6 +161,8 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Time Billing Rates', url: '/timetrack/rates', icon: DollarSign,     roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Time Roles',       url: '/timetrack/roles',   icon: ShieldCheck,     roles: ['super_admin', 'admin'] },
   { title: 'Time Activity',    url: '/timetrack/activity', icon: Activity,       roles: ['super_admin', 'admin'] },
+  { title: 'Time Settings',    url: '/timetrack/settings', icon: Settings,        roles: ['super_admin', 'admin'] },
+  { title: 'Time Kiosk',       url: '/timetrack/kiosk',   icon: MonitorSmartphone, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin'] },
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -207,7 +210,7 @@ export const NAV_GROUPS = [
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },
   { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets'] },
-  { key: 'timeTracking', label: 'Time Tracking',      titles: ['Time Dashboard', 'Time Entries', 'Time Projects', 'Time Reports', 'Time Approvals', 'Time Leave', 'Time Attendance', 'Time Planner', 'Time Clients & Invoices', 'Time Billing Rates', 'Time Roles', 'Time Activity'] },
+  { key: 'timeTracking', label: 'Time Tracking',      titles: ['Time Dashboard', 'Time Entries', 'Time Projects', 'Time Reports', 'Time Approvals', 'Time Leave', 'Time Attendance', 'Time Planner', 'Time Clients & Invoices', 'Time Billing Rates', 'Time Roles', 'Time Activity', 'Time Settings', 'Time Kiosk'] },
   { key: 'talent',     label: 'Talent',               titles: ['Recruitment', 'Onboarding', 'Training', 'Performance', 'Succession'] },
   { key: 'compWell',   label: 'Compensation & Wellbeing', titles: ['Benefits', 'Staff Loans'] },
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },
