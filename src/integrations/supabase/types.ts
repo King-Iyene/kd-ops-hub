@@ -17577,6 +17577,10 @@ export type Database = {
         Args: { p_ids: string[]; p_table: string }
         Returns: number
       }
+      purge_old_batch_item_snapshots: {
+        Args: { p_retention_days?: number }
+        Returns: number
+      }
       purge_old_webhook_idempotency: { Args: never; Returns: number }
       recent_bank_account_changes: {
         Args: { p_user_ids: string[]; p_window_hours?: number }
