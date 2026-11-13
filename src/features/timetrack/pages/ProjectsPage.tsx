@@ -17,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { fetchActiveProjects, fetchTasksForProject, fetchAllTags } from '../lib/queries';
-import type { TimeCustomField, TimeProject, TimeTask } from '../lib/types';
+import type { TimeClient, TimeCustomField, TimeProject, TimeTask } from '../lib/types';
 
 export default function ProjectsPage() {
   const { has } = useTimetrackCapabilities();
@@ -43,6 +43,14 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
   const { toast } = useToast();
   const { data: employees } = useActiveEmployees();
   const { data: projects, isLoading } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
+  const { data: clients } = useQuery({
+    queryKey: ['timetrack', 'clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_clients').select('*').eq('is_archived', false).order('name');
+      if (error) throw error;
+      return data as TimeClient[];
+    },
+  });
   const { data: projectFields } = useQuery({
     queryKey: ['timetrack', 'custom-fields', 'project'],
     queryFn: async () => {
@@ -56,13 +64,14 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
   const [editing, setEditing] = useState<TimeProject | null>(null);
   const [name, setName] = useState('');
   const [managerId, setManagerId] = useState<string>('');
+  const [clientId, setClientId] = useState<string>('');
   const [isBillable, setIsBillable] = useState(true);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const openNew = () => { setEditing(null); setName(''); setManagerId(''); setIsBillable(true); setFieldValues({}); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setName(''); setManagerId(''); setClientId(''); setIsBillable(true); setFieldValues({}); setDialogOpen(true); };
   const openEdit = async (p: TimeProject) => {
-    setEditing(p); setName(p.name); setManagerId(p.manager_id ?? ''); setIsBillable(p.is_billable);
+    setEditing(p); setName(p.name); setManagerId(p.manager_id ?? ''); setClientId(p.client_id ?? ''); setIsBillable(p.is_billable);
     const { data } = await supabase.from('time_custom_field_values').select('custom_field_id, value').eq('entity_type', 'project').eq('entity_id', p.id);
     const vals: Record<string, string> = {};
     for (const row of data ?? []) vals[row.custom_field_id] = typeof row.value === 'string' ? row.value : JSON.stringify(row.value ?? '');
@@ -74,7 +83,7 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const payload = { name: name.trim(), manager_id: managerId || null, is_billable: isBillable };
+      const payload = { name: name.trim(), manager_id: managerId || null, client_id: clientId || null, is_billable: isBillable };
       let projectId = editing?.id;
       if (editing) {
         const { error } = await supabase.from('time_projects').update(payload).eq('id', editing.id);
@@ -130,7 +139,11 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
               </button>
               <div className="flex-1 min-w-0">
                 <p className="font-medium">{p.name} {!p.is_billable && <Badge variant="outline" className="ml-2">non-billable</Badge>}</p>
-                {p.manager_id && <p className="text-xs text-muted-foreground">PM: {employees?.find((e) => e.id === p.manager_id)?.full_name ?? '—'}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {p.manager_id && <>PM: {employees?.find((e) => e.id === p.manager_id)?.full_name ?? '—'}</>}
+                  {p.manager_id && p.client_id && ' · '}
+                  {p.client_id && <>Client: {clients?.find((c) => c.id === p.client_id)?.name ?? '—'}</>}
+                </p>
               </div>
               {canManage && (
                 <div className="flex gap-1 shrink-0">
@@ -157,6 +170,16 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
                   {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Client</Label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger><SelectValue placeholder="None — internal / non-billable to a client" /></SelectTrigger>
+                <SelectContent>
+                  {(clients ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Required for this project's billable time to appear when building an invoice for a client.</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={isBillable} onCheckedChange={setIsBillable} id="proj-billable" />
