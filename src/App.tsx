@@ -98,6 +98,7 @@ const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
 const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
+const TimeTrackApp      = lazy(() => import('./features/timetrack/TimeTrackApp'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
@@ -825,6 +826,20 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <TimesheetsPage />
+            </RoleGuard>
+          }
+        />
+
+        {/* Time Tracking module — standalone, self-contained (modules/timetrack).
+            Every active employee gets in; page-level capability checks (not
+            app Role[]) gate the admin-only tabs inside TimeTrackApp itself. */}
+        <Route
+          path="/timetrack/*"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TimeTrackApp />
+              </ErrorBoundary>
             </RoleGuard>
           }
         />

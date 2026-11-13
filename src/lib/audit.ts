@@ -216,7 +216,8 @@ export type AuditActionType =
   | 'payroll_run_processing'
   | 'payroll_run_paid'
   | 'payroll_run_disbursement_reverted'
-  | 'payroll_run_status_changed';
+  | 'payroll_run_status_changed'
+  | 'timetrack_week_unlocked';
 
 export interface AuditActor {
   id?: string | null;
