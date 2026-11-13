@@ -14459,6 +14459,1280 @@ export type Database = {
           },
         ]
       }
+      time_approvals: {
+        Row: {
+          approver_id: string | null
+          billable_hours: number
+          comment: string | null
+          created_at: string
+          decided_at: string | null
+          employee_id: string
+          id: string
+          locked_at: string | null
+          status: string
+          submitted_at: string | null
+          total_hours: number
+          week_start_date: string
+        }
+        Insert: {
+          approver_id?: string | null
+          billable_hours?: number
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          employee_id: string
+          id?: string
+          locked_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          total_hours?: number
+          week_start_date: string
+        }
+        Update: {
+          approver_id?: string | null
+          billable_hours?: number
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          employee_id?: string
+          id?: string
+          locked_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          total_hours?: number
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_approvals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_approvals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_approvals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_approvals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_attendance_entries: {
+        Row: {
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          source: string
+        }
+        Insert: {
+          clock_in: string
+          clock_out?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          source?: string
+        }
+        Update: {
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_attendance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_attendance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_attendance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_attendance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_billing_rates: {
+        Row: {
+          cost_rate_per_hour: number
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          employee_id: string
+          id: string
+          revenue_rate_per_hour: number
+        }
+        Insert: {
+          cost_rate_per_hour: number
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          effective_to?: string | null
+          employee_id: string
+          id?: string
+          revenue_rate_per_hour: number
+        }
+        Update: {
+          cost_rate_per_hour?: number
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string
+          id?: string
+          revenue_rate_per_hour?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_clients: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          name: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_clients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_custom_field_values: {
+        Row: {
+          custom_field_id: string
+          entity_id: string
+          entity_type: string
+          id: string
+          value: Json | null
+        }
+        Insert: {
+          custom_field_id: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          value?: Json | null
+        }
+        Update: {
+          custom_field_id?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_custom_field_values_custom_field_id_fkey"
+            columns: ["custom_field_id"]
+            isOneToOne: false
+            referencedRelation: "time_custom_fields"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_custom_fields: {
+        Row: {
+          applies_to: string
+          created_at: string
+          field_type: string
+          id: string
+          is_archived: boolean
+          name: string
+          options: Json
+        }
+        Insert: {
+          applies_to: string
+          created_at?: string
+          field_type: string
+          id?: string
+          is_archived?: boolean
+          name: string
+          options?: Json
+        }
+        Update: {
+          applies_to?: string
+          created_at?: string
+          field_type?: string
+          id?: string
+          is_archived?: boolean
+          name?: string
+          options?: Json
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          employee_id: string
+          end_time: string | null
+          entry_source: string
+          id: string
+          invoiced: boolean
+          is_billable: boolean
+          notes: string | null
+          project_id: string
+          start_time: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          employee_id: string
+          end_time?: string | null
+          entry_source?: string
+          id?: string
+          invoiced?: boolean
+          is_billable?: boolean
+          notes?: string | null
+          project_id: string
+          start_time: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          employee_id?: string
+          end_time?: string | null
+          entry_source?: string
+          id?: string
+          invoiced?: boolean
+          is_billable?: boolean
+          notes?: string | null
+          project_id?: string
+          start_time?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "time_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entry_tags: {
+        Row: {
+          tag_id: string
+          time_entry_id: string
+        }
+        Insert: {
+          tag_id: string
+          time_entry_id: string
+        }
+        Update: {
+          tag_id?: string
+          time_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "time_tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entry_tags_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_invoice_entries: {
+        Row: {
+          invoice_id: string
+          time_entry_id: string
+        }
+        Insert: {
+          invoice_id: string
+          time_entry_id: string
+        }
+        Update: {
+          invoice_id?: string
+          time_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_invoice_entries_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "time_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_invoice_entries_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: true
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_invoices: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          line_items: Json
+          status: string
+          subtotal: number
+          total: number
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          line_items?: Json
+          status?: string
+          subtotal?: number
+          total?: number
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          line_items?: Json
+          status?: string
+          subtotal?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "time_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_leave_requests: {
+        Row: {
+          approver_id: string | null
+          comment: string | null
+          decided_at: string | null
+          employee_id: string
+          end_date: string
+          hours_per_day: number | null
+          id: string
+          leave_type_id: string
+          requested_at: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          approver_id?: string | null
+          comment?: string | null
+          decided_at?: string | null
+          employee_id: string
+          end_date: string
+          hours_per_day?: number | null
+          id?: string
+          leave_type_id: string
+          requested_at?: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          approver_id?: string | null
+          comment?: string | null
+          decided_at?: string | null
+          employee_id?: string
+          end_date?: string
+          hours_per_day?: number | null
+          id?: string
+          leave_type_id?: string
+          requested_at?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_leave_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "time_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_leave_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_archived: boolean
+          is_paid: boolean
+          name: string
+          requires_approval: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          is_paid?: boolean
+          name: string
+          requires_approval?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          is_paid?: boolean
+          name?: string
+          requires_approval?: boolean
+        }
+        Relationships: []
+      }
+      time_overtime_rules: {
+        Row: {
+          created_at: string
+          daily_threshold_hours: number
+          id: string
+          multiplier: number
+          scope: string
+          scope_id: string | null
+          weekly_threshold_hours: number
+        }
+        Insert: {
+          created_at?: string
+          daily_threshold_hours?: number
+          id?: string
+          multiplier?: number
+          scope?: string
+          scope_id?: string | null
+          weekly_threshold_hours?: number
+        }
+        Update: {
+          created_at?: string
+          daily_threshold_hours?: number
+          id?: string
+          multiplier?: number
+          scope?: string
+          scope_id?: string | null
+          weekly_threshold_hours?: number
+        }
+        Relationships: []
+      }
+      time_planner_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          project_id: string
+          scheduled_date: string
+          scheduled_hours: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          project_id: string
+          scheduled_date: string
+          scheduled_hours: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          project_id?: string
+          scheduled_date?: string
+          scheduled_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_planner_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_planner_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_project_billing_rates: {
+        Row: {
+          cost_rate_per_hour: number
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          employee_id: string | null
+          id: string
+          project_id: string
+          revenue_rate_per_hour: number
+        }
+        Insert: {
+          cost_rate_per_hour: number
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          effective_to?: string | null
+          employee_id?: string | null
+          id?: string
+          project_id: string
+          revenue_rate_per_hour: number
+        }
+        Update: {
+          cost_rate_per_hour?: number
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string | null
+          id?: string
+          project_id?: string
+          revenue_rate_per_hour?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_project_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_billing_rates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_project_budgets: {
+        Row: {
+          alert_threshold_pct: number
+          budget_amount: number | null
+          budget_hours: number | null
+          budget_type: string
+          created_at: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          alert_threshold_pct?: number
+          budget_amount?: number | null
+          budget_hours?: number | null
+          budget_type: string
+          created_at?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          alert_threshold_pct?: number
+          budget_amount?: number | null
+          budget_hours?: number | null
+          budget_type?: string
+          created_at?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_project_budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_projects: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          is_billable: boolean
+          manager_id: string | null
+          name: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          is_billable?: boolean
+          manager_id?: string | null
+          name: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          is_billable?: boolean
+          manager_id?: string | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "time_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_roles: {
+        Row: {
+          capabilities: Json
+          created_at: string
+          label: string
+          role_key: string
+        }
+        Insert: {
+          capabilities?: Json
+          created_at?: string
+          label: string
+          role_key: string
+        }
+        Update: {
+          capabilities?: Json
+          created_at?: string
+          label?: string
+          role_key?: string
+        }
+        Relationships: []
+      }
+      time_tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      time_tasks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_user_roles: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          employee_id: string
+          role_key: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id: string
+          role_key: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id?: string
+          role_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_user_roles_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "time_roles"
+            referencedColumns: ["role_key"]
+          },
+        ]
+      }
       timesheet_entries: {
         Row: {
           created_at: string | null
@@ -18283,6 +19557,108 @@ export type Database = {
       tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
       tick_webhook_retry_worker: { Args: never; Returns: undefined }
+      time_admin_unlock_week: {
+        Args: { p_approval_id: string; p_reason: string }
+        Returns: undefined
+      }
+      time_build_invoice: {
+        Args: { p_client_id: string; p_end_date: string; p_start_date: string }
+        Returns: string
+      }
+      time_dashboard_today: {
+        Args: never
+        Returns: {
+          active_project_name: string
+          employee_id: string
+          full_name: string
+          hours_today: number
+          is_timer_active: boolean
+        }[]
+      }
+      time_decide_approval: {
+        Args: { p_approval_id: string; p_comment?: string; p_decision: string }
+        Returns: undefined
+      }
+      time_decide_leave_request: {
+        Args: { p_comment?: string; p_decision: string; p_request_id: string }
+        Returns: undefined
+      }
+      time_finance_report: {
+        Args: {
+          p_employee_id?: string
+          p_end_date: string
+          p_project_id?: string
+          p_start_date: string
+        }
+        Returns: {
+          cost: number
+          cost_rate_per_hour: number
+          employee_id: string
+          entry_date: string
+          hours: number
+          is_billable: boolean
+          margin: number
+          project_id: string
+          revenue: number
+          revenue_rate_per_hour: number
+        }[]
+      }
+      time_has_capability: { Args: { p_capability: string }; Returns: boolean }
+      time_is_project_manager: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
+      time_planner_vs_actual: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          actual_hours: number
+          employee_id: string
+          project_id: string
+          scheduled_date: string
+          scheduled_hours: number
+        }[]
+      }
+      time_project_budget_usage: {
+        Args: { p_project_id: string }
+        Returns: {
+          alert_threshold_pct: number
+          budget_amount: number
+          budget_hours: number
+          budget_type: string
+          over_threshold: boolean
+          pct_used: number
+          used_amount: number
+          used_hours: number
+        }[]
+      }
+      time_resolve_billing_rate: {
+        Args: { p_as_of: string; p_employee_id: string; p_project_id: string }
+        Returns: {
+          cost_rate_per_hour: number
+          revenue_rate_per_hour: number
+          source: string
+        }[]
+      }
+      time_set_billing_rate: {
+        Args: {
+          p_cost_rate: number
+          p_effective_from: string
+          p_employee_id: string
+          p_revenue_rate: number
+        }
+        Returns: string
+      }
+      time_set_project_billing_rate: {
+        Args: {
+          p_cost_rate: number
+          p_effective_from: string
+          p_employee_id: string
+          p_project_id: string
+          p_revenue_rate: number
+        }
+        Returns: string
+      }
+      time_submit_week: { Args: { p_week_start: string }; Returns: string }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
