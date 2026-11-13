@@ -15104,6 +15104,59 @@ export type Database = {
           },
         ]
       }
+      time_idle_settings: {
+        Row: {
+          id: boolean
+          idle_threshold_minutes: number
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          idle_threshold_minutes?: number
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          idle_threshold_minutes?: number
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_idle_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_idle_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_idle_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_idle_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_invoice_entries: {
         Row: {
           invoice_id: string
@@ -15206,6 +15259,84 @@ export type Database = {
           {
             foreignKeyName: "time_invoices_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_kiosk_pins: {
+        Row: {
+          employee_id: string
+          pin_hash: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          employee_id: string
+          pin_hash: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          employee_id?: string
+          pin_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_kiosk_pins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_kiosk_pins_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
@@ -15751,6 +15882,62 @@ export type Database = {
           role_key?: string
         }
         Relationships: []
+      }
+      time_rounding_settings: {
+        Row: {
+          id: boolean
+          is_enabled: boolean
+          round_direction: string
+          round_to_minutes: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          is_enabled?: boolean
+          round_direction?: string
+          round_to_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          is_enabled?: boolean
+          round_direction?: string
+          round_to_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_rounding_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_rounding_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_rounding_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_rounding_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_screenshots: {
         Row: {
@@ -19807,6 +19994,7 @@ export type Database = {
         Args: { p_approval_id: string; p_reason: string }
         Returns: undefined
       }
+      time_apply_rounding: { Args: { p_minutes: number }; Returns: number }
       time_build_invoice: {
         Args: { p_client_id: string; p_end_date: string; p_start_date: string }
         Returns: string
@@ -19854,6 +20042,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      time_kiosk_clock: {
+        Args: { p_action: string; p_employee_id: string; p_pin: string }
+        Returns: string
+      }
       time_planner_vs_actual: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: {
@@ -19893,6 +20085,10 @@ export type Database = {
           p_revenue_rate: number
         }
         Returns: string
+      }
+      time_set_kiosk_pin: {
+        Args: { p_employee_id: string; p_pin: string }
+        Returns: undefined
       }
       time_set_project_billing_rate: {
         Args: {
