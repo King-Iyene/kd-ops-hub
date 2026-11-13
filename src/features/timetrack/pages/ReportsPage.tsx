@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
 import { Download, Loader2, BarChart3 } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
@@ -46,24 +46,56 @@ function useEntriesInRange(start: string, end: string) {
 export default function ReportsPage() {
   return (
     <div className="space-y-3 sm:space-y-6">
-      <PageHeader title="Reports" description="Summary, detailed, pivot, finance and live dashboard views — every one CSV-exportable" icon={BarChart3} />
-      <Tabs defaultValue="summary">
+      <PageHeader title="Reports" description="Time, people, finance, computer-activity and live dashboard views — every one CSV-exportable" icon={BarChart3} />
+      <Tabs defaultValue="time">
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="time">Time</TabsTrigger>
+          <TabsTrigger value="people">People</TabsTrigger>
+          <TabsTrigger value="finance">Finance</TabsTrigger>
+          <TabsTrigger value="dashboard">Live Dashboard</TabsTrigger>
+          <TabsTrigger value="raw">Raw export</TabsTrigger>
+        </TabsList>
+        <TabsContent value="time" className="mt-4"><TimeReportsGroup /></TabsContent>
+        <TabsContent value="people" className="mt-4"><PeopleReportsGroup /></TabsContent>
+        <TabsContent value="finance" className="mt-4"><FinanceReport /></TabsContent>
+        <TabsContent value="dashboard" className="mt-4"><LiveDashboard /></TabsContent>
+        <TabsContent value="raw" className="mt-4"><RawExport /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function TimeReportsGroup() {
+  return (
+    <Tabs defaultValue="summary">
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="summary">Summary</TabsTrigger>
         <TabsTrigger value="detailed">Detailed</TabsTrigger>
-        <TabsTrigger value="pivot">Pivot</TabsTrigger>
-        <TabsTrigger value="finance">Finance</TabsTrigger>
-        <TabsTrigger value="dashboard">Live Dashboard</TabsTrigger>
-        <TabsTrigger value="raw">Raw export</TabsTrigger>
+        <TabsTrigger value="byDays">By days</TabsTrigger>
+        <TabsTrigger value="pivot">Pivot Table</TabsTrigger>
       </TabsList>
       <TabsContent value="summary" className="mt-4"><SummaryReport /></TabsContent>
       <TabsContent value="detailed" className="mt-4"><DetailedReport /></TabsContent>
+      <TabsContent value="byDays" className="mt-4"><TimeByDaysReport /></TabsContent>
       <TabsContent value="pivot" className="mt-4"><PivotReport /></TabsContent>
-      <TabsContent value="finance" className="mt-4"><FinanceReport /></TabsContent>
-      <TabsContent value="dashboard" className="mt-4"><LiveDashboard /></TabsContent>
-      <TabsContent value="raw" className="mt-4"><RawExport /></TabsContent>
-      </Tabs>
-    </div>
+    </Tabs>
+  );
+}
+
+function PeopleReportsGroup() {
+  return (
+    <Tabs defaultValue="byTasks">
+      <TabsList className="flex-wrap h-auto">
+        <TabsTrigger value="byTasks">By tasks</TabsTrigger>
+        <TabsTrigger value="byDaysTasks">By days and tasks</TabsTrigger>
+        <TabsTrigger value="byDays">By days</TabsTrigger>
+        <TabsTrigger value="byProjects">By projects</TabsTrigger>
+      </TabsList>
+      <TabsContent value="byTasks" className="mt-4"><PeopleByTasksReport /></TabsContent>
+      <TabsContent value="byDaysTasks" className="mt-4"><PeopleByDaysTasksReport /></TabsContent>
+      <TabsContent value="byDays" className="mt-4"><PeopleByDaysReport /></TabsContent>
+      <TabsContent value="byProjects" className="mt-4"><PeopleByProjectsReport /></TabsContent>
+    </Tabs>
   );
 }
 
@@ -208,6 +240,234 @@ function PivotReport() {
         <Table>
           <TableHeader><TableRow><TableHead>{dims.map((d) => PIVOT_DIMENSIONS.find((pd) => pd.key === d)?.label).join(' / ')}</TableHead><TableHead>Hours</TableHead></TableRow></TableHeader>
           <TableBody>{rows.map(([k, h]) => <TableRow key={k}><TableCell>{k}</TableCell><TableCell>{h.toFixed(2)}</TableCell></TableRow>)}</TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+/** Shared grid builder for every "by days" style report: one row per groupKey, one column per calendar day in range. */
+function buildDayGrid(entries: Entry[], start: string, end: string, rowKeyFn: (e: Entry) => string) {
+  const dates = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) }).map((d) => format(d, 'yyyy-MM-dd'));
+  const rowMap = new Map<string, { cells: Record<string, number>; total: number }>();
+  for (const e of entries) {
+    const rowKey = rowKeyFn(e);
+    const day = format(new Date(e.start_time), 'yyyy-MM-dd');
+    const row = rowMap.get(rowKey) ?? { cells: {}, total: 0 };
+    const hours = (e.duration_minutes ?? 0) / 60;
+    row.cells[day] = (row.cells[day] ?? 0) + hours;
+    row.total += hours;
+    rowMap.set(rowKey, row);
+  }
+  const rows = [...rowMap.entries()].map(([label, r]) => ({ label, ...r })).sort((a, b) => b.total - a.total);
+  return { dates, rows };
+}
+
+function DayGridTable({ dates, rows, rowHeader, onExport }: {
+  dates: string[]; rows: { label: string; cells: Record<string, number>; total: number }[]; rowHeader: string; onExport: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <Button variant="outline" onClick={onExport}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="sticky left-0 bg-background">{rowHeader}</TableHead>
+              {dates.map((d) => <TableHead key={d} className="text-right whitespace-nowrap">{format(new Date(d), 'MMM d')}</TableHead>)}
+              <TableHead className="text-right font-semibold">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.label}>
+                <TableCell className="sticky left-0 bg-background font-medium">{r.label}</TableCell>
+                {dates.map((d) => <TableCell key={d} className="text-right">{r.cells[d] ? r.cells[d].toFixed(2) : '—'}</TableCell>)}
+                <TableCell className="text-right font-semibold">{r.total.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && <TableRow><TableCell colSpan={dates.length + 2} className="text-center text-muted-foreground">No entries in range.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function exportDayGridCsv(filename: string, rowHeader: string, dates: string[], rows: { label: string; cells: Record<string, number>; total: number }[]) {
+  const csv = toCsv([rowHeader, ...dates, 'Total'], rows.map((r) => [r.label, ...dates.map((d) => (r.cells[d] ?? 0).toFixed(2)), r.total.toFixed(2)]));
+  downloadCsv(filename, csv);
+}
+
+/** Time > By days — project/task hours per calendar day, aggregated across everyone. */
+function TimeByDaysReport() {
+  const { start, end, setStart, setEnd } = useDateRange();
+  const { data: entries, isLoading } = useEntriesInRange(start, end);
+
+  const grid = useMemo(
+    () => buildDayGrid(entries ?? [], start, end, (e) => `${e.time_tasks?.time_projects?.name ?? '—'} / ${e.time_tasks?.name ?? '—'}`),
+    [entries, start, end],
+  );
+
+  return (
+    <div>
+      <DateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <DayGridTable dates={grid.dates} rows={grid.rows} rowHeader="Project / Task" onExport={() => exportDayGridCsv(`timetrack-by-days-${start}-to-${end}.csv`, 'Project / Task', grid.dates, grid.rows)} />
+      )}
+    </div>
+  );
+}
+
+/** People > By days — one row per employee, one column per day. */
+function PeopleByDaysReport() {
+  const { start, end, setStart, setEnd } = useDateRange();
+  const { data: entries, isLoading } = useEntriesInRange(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const grid = useMemo(
+    () => buildDayGrid(entries ?? [], start, end, (e) => employees?.find((emp) => emp.id === e.employee_id)?.full_name ?? e.employee_id),
+    [entries, start, end, employees],
+  );
+
+  return (
+    <div>
+      <DateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <DayGridTable dates={grid.dates} rows={grid.rows} rowHeader="Employee" onExport={() => exportDayGridCsv(`timetrack-people-by-days-${start}-to-${end}.csv`, 'Employee', grid.dates, grid.rows)} />
+      )}
+    </div>
+  );
+}
+
+/** People > By days and tasks — one row per employee/task pair, one column per day. */
+function PeopleByDaysTasksReport() {
+  const { start, end, setStart, setEnd } = useDateRange();
+  const { data: entries, isLoading } = useEntriesInRange(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const grid = useMemo(
+    () => buildDayGrid(entries ?? [], start, end, (e) => {
+      const name = employees?.find((emp) => emp.id === e.employee_id)?.full_name ?? e.employee_id;
+      return `${name} — ${e.time_tasks?.name ?? '—'}`;
+    }),
+    [entries, start, end, employees],
+  );
+
+  return (
+    <div>
+      <DateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <DayGridTable dates={grid.dates} rows={grid.rows} rowHeader="Employee — Task" onExport={() => exportDayGridCsv(`timetrack-people-by-days-tasks-${start}-to-${end}.csv`, 'Employee — Task', grid.dates, grid.rows)} />
+      )}
+    </div>
+  );
+}
+
+/** People > By projects — one row per employee, one column per project (no day breakdown). */
+function PeopleByProjectsReport() {
+  const { start, end, setStart, setEnd } = useDateRange();
+  const { data: entries, isLoading } = useEntriesInRange(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const { columns, rows } = useMemo(() => {
+    const colSet = new Set<string>();
+    const rowMap = new Map<string, { cells: Record<string, number>; total: number }>();
+    for (const e of entries ?? []) {
+      const emp = employees?.find((x) => x.id === e.employee_id)?.full_name ?? e.employee_id;
+      const project = e.time_tasks?.time_projects?.name ?? '—';
+      colSet.add(project);
+      const row = rowMap.get(emp) ?? { cells: {}, total: 0 };
+      const hours = (e.duration_minutes ?? 0) / 60;
+      row.cells[project] = (row.cells[project] ?? 0) + hours;
+      row.total += hours;
+      rowMap.set(emp, row);
+    }
+    const cols = [...colSet].sort();
+    const rws = [...rowMap.entries()].map(([label, r]) => ({ label, ...r })).sort((a, b) => b.total - a.total);
+    return { columns: cols, rows: rws };
+  }, [entries, employees]);
+
+  const exportCsv = () => {
+    const csv = toCsv(['Employee', ...columns, 'Total'], rows.map((r) => [r.label, ...columns.map((c) => (r.cells[c] ?? 0).toFixed(2)), r.total.toFixed(2)]));
+    downloadCsv(`timetrack-people-by-projects-${start}-to-${end}.csv`, csv);
+  };
+
+  return (
+    <div>
+      <DateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <div className="overflow-x-auto">
+          <div className="flex justify-end mb-3"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button></div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky left-0 bg-background">Employee</TableHead>
+                {columns.map((c) => <TableHead key={c} className="text-right whitespace-nowrap">{c}</TableHead>)}
+                <TableHead className="text-right font-semibold">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.label}>
+                  <TableCell className="sticky left-0 bg-background font-medium">{r.label}</TableCell>
+                  {columns.map((c) => <TableCell key={c} className="text-right">{r.cells[c] ? r.cells[c].toFixed(2) : '—'}</TableCell>)}
+                  <TableCell className="text-right font-semibold">{r.total.toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+              {rows.length === 0 && <TableRow><TableCell colSpan={columns.length + 2} className="text-center text-muted-foreground">No entries in range.</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** People > By tasks — one row per employee, nested rows per task, total hours (no day breakdown). */
+function PeopleByTasksReport() {
+  const { start, end, setStart, setEnd } = useDateRange();
+  const { data: entries, isLoading } = useEntriesInRange(start, end);
+  const { data: employees } = useActiveEmployees();
+
+  const rows = useMemo(() => {
+    const map = new Map<string, { employee: string; task: string; project: string; hours: number }>();
+    for (const e of entries ?? []) {
+      const employee = employees?.find((x) => x.id === e.employee_id)?.full_name ?? e.employee_id;
+      const task = e.time_tasks?.name ?? '—';
+      const project = e.time_tasks?.time_projects?.name ?? '—';
+      const key = `${employee}:${project}:${task}`;
+      const row = map.get(key) ?? { employee, task, project, hours: 0 };
+      row.hours += (e.duration_minutes ?? 0) / 60;
+      map.set(key, row);
+    }
+    return [...map.values()].sort((a, b) => a.employee.localeCompare(b.employee) || b.hours - a.hours);
+  }, [entries, employees]);
+
+  const exportCsv = () => {
+    const csv = toCsv(['Employee', 'Project', 'Task', 'Hours'], rows.map((r) => [r.employee, r.project, r.task, r.hours.toFixed(2)]));
+    downloadCsv(`timetrack-people-by-tasks-${start}-to-${end}.csv`, csv);
+  };
+
+  return (
+    <div>
+      <DateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} onExport={exportCsv} />
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <Table>
+          <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Project</TableHead><TableHead>Task</TableHead><TableHead className="text-right">Hours</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {rows.map((r, i) => (
+              <TableRow key={i}>
+                <TableCell>{r.employee}</TableCell>
+                <TableCell>{r.project}</TableCell>
+                <TableCell>{r.task}</TableCell>
+                <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No entries in range.</TableCell></TableRow>}
+          </TableBody>
         </Table>
       )}
     </div>
