@@ -1,4 +1,8 @@
 import { supabase } from '@/lib/supabase';
+import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+
+type TimeEntryInsertPayload = TablesInsert<'time_entries'>;
+type TimeEntryUpdatePayload = TablesUpdate<'time_entries'>;
 
 /**
  * Offline tracking with later sync — scoped deliberately: queues the two
@@ -13,8 +17,8 @@ import { supabase } from '@/lib/supabase';
 const QUEUE_KEY = 'timetrack:offline-queue';
 
 export type QueuedWrite =
-  | { id: string; type: 'insert_entry'; payload: Record<string, unknown>; queuedAt: string }
-  | { id: string; type: 'update_entry'; entryId: string; payload: Record<string, unknown>; queuedAt: string };
+  | { id: string; type: 'insert_entry'; payload: TimeEntryInsertPayload; queuedAt: string }
+  | { id: string; type: 'update_entry'; entryId: string; payload: TimeEntryUpdatePayload; queuedAt: string };
 
 export function getQueue(): QueuedWrite[] {
   try {
@@ -34,7 +38,15 @@ function setQueue(queue: QueuedWrite[]) {
   }
 }
 
-export function enqueue(item: Omit<QueuedWrite, 'id' | 'queuedAt'>): void {
+// TS's built-in Omit collapses over a union type (it keys off the
+// intersection of members' keys), which would silently drop `entryId` from
+// the update_entry branch here. Spelling the two branches out explicitly
+// keeps enqueue's input type a real discriminated union.
+type QueuedWriteInput =
+  | { type: 'insert_entry'; payload: TimeEntryInsertPayload }
+  | { type: 'update_entry'; entryId: string; payload: TimeEntryUpdatePayload };
+
+export function enqueue(item: QueuedWriteInput): void {
   const queue = getQueue();
   queue.push({ ...item, id: crypto.randomUUID(), queuedAt: new Date().toISOString() } as QueuedWrite);
   setQueue(queue);

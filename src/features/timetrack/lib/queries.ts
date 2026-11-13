@@ -27,3 +27,22 @@ export async function fetchAllTags(): Promise<TimeTag[]> {
   if (error) throw error;
   return (data ?? []) as TimeTag[];
 }
+
+export interface TaskWithProject extends TimeTask {
+  time_projects: { id: string; name: string } | null;
+}
+
+/** All non-archived tasks across all non-archived projects, project name
+ * joined in — for the "What are you working on?" combobox, which needs the
+ * full project→task tree up front rather than lazily loading one project's
+ * tasks at a time. */
+export async function fetchAllActiveTasks(): Promise<TaskWithProject[]> {
+  const { data, error } = await supabase
+    .from('time_tasks')
+    .select('*, time_projects!inner(id, name, is_archived)')
+    .eq('is_archived', false)
+    .eq('time_projects.is_archived', false)
+    .order('name');
+  if (error) throw error;
+  return (data ?? []) as TaskWithProject[];
+}
