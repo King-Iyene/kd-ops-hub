@@ -67,15 +67,10 @@ AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.time_has_capability(text) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.time_is_project_manager(p_project_id uuid)
-RETURNS boolean
-LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.time_projects WHERE id = p_project_id AND manager_id = auth.uid()
-  );
-$$;
-GRANT EXECUTE ON FUNCTION public.time_is_project_manager(uuid) TO authenticated;
+-- time_is_project_manager() is defined further below, right after
+-- time_projects exists — a LANGUAGE sql function (unlike plpgsql) is
+-- validated against real objects at CREATE time, so it can't forward-
+-- reference a table that doesn't exist yet in this same migration file.
 
 ALTER TABLE public.time_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.time_user_roles ENABLE ROW LEVEL SECURITY;
@@ -132,6 +127,16 @@ CREATE TABLE public.time_projects (
 );
 CREATE INDEX time_projects_client_idx ON public.time_projects(client_id);
 CREATE INDEX time_projects_manager_idx ON public.time_projects(manager_id);
+
+CREATE OR REPLACE FUNCTION public.time_is_project_manager(p_project_id uuid)
+RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.time_projects WHERE id = p_project_id AND manager_id = auth.uid()
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.time_is_project_manager(uuid) TO authenticated;
 
 CREATE TABLE public.time_tasks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
