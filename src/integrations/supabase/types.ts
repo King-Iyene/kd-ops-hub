@@ -20171,16 +20171,6 @@ export type Database = {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }
         Returns: undefined
       }
-      time_leave_balance_summary: {
-        Args: { p_employee_id: string; p_year: number }
-        Returns: {
-          annual_allowance_days: number | null
-          leave_type_id: string
-          leave_type_name: string
-          remaining_days: number | null
-          used_days: number
-        }[]
-      }
       time_finance_report: {
         Args: {
           p_employee_id?: string
@@ -20209,6 +20199,16 @@ export type Database = {
       time_kiosk_clock: {
         Args: { p_action: string; p_employee_id: string; p_pin: string }
         Returns: string
+      }
+      time_leave_balance_summary: {
+        Args: { p_employee_id: string; p_year: number }
+        Returns: {
+          annual_allowance_days: number
+          leave_type_id: string
+          leave_type_name: string
+          remaining_days: number
+          used_days: number
+        }[]
       }
       time_planner_vs_actual: {
         Args: { p_end_date: string; p_start_date: string }
