@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "Native desktop agent for KD Ops Hub Time Tracking — window/app activity capture and optional screenshots. Self-contained; not built or linted by the main web app's toolchain.",
+  "author": "KD Squares",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "prebuild": "node scripts/write-config.js",
+    "build": "npm run prebuild && tsc -p tsconfig.json",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder --publish=never",
+    "release": "npm run build && electron-builder --publish=always"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -24,6 +27,34 @@
     "appId": "com.kdsquares.timetrack-agent",
     "productName": "KD Ops Time Tracker",
     "files": ["dist/**/*", "src/renderer/**/*"],
-    "directories": { "output": "release" }
+    "directories": { "output": "release" },
+    "icon": "build/icon.png",
+    "publish": {
+      "provider": "github",
+      "owner": "King-Iyene",
+      "repo": "kd-ops-hub"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    }
   }
 }

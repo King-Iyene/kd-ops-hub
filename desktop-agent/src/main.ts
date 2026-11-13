@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
-import { supabase } from './supabaseClient';
+import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
 
 const store = new Store<{ refresh_token?: string }>();
@@ -12,6 +12,7 @@ let tray: Tray | null = null;
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 
 async function restoreSession() {
+  if (!supabase) return null;
   const refreshToken = store.get('refresh_token');
   if (!refreshToken) return null;
   const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
@@ -24,8 +25,10 @@ async function restoreSession() {
 }
 
 async function pollSettingsAndTrack(employeeId: string) {
+  if (!supabase) return;
+  const client = supabase;
   const check = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('time_agent_settings')
       .select('is_enabled, capture_interval_minutes, screenshots_enabled, blur_screenshots')
       .eq('employee_id', employeeId)
@@ -35,7 +38,7 @@ async function pollSettingsAndTrack(employeeId: string) {
       mainWindow?.webContents.send('agent-status', { tracking: false });
       return;
     }
-    startTracking(supabase, employeeId, data);
+    startTracking(client, employeeId, data);
     mainWindow?.webContents.send('agent-status', { tracking: true });
   };
   await check();
@@ -62,6 +65,11 @@ app.whenReady().then(async () => {
   ]));
   tray.setToolTip('KD Ops Time Tracker');
 
+  if (configError) {
+    mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('config-error', configError));
+    return;
+  }
+
   const session = await restoreSession();
   if (session?.user) {
     mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('signed-in', session.user.email));
@@ -70,6 +78,7 @@ app.whenReady().then(async () => {
 });
 
 ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; password: string }) => {
+  if (!supabase) return { ok: false, error: configError ?? 'Not configured' };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.session) return { ok: false, error: error?.message ?? 'Sign-in failed' };
   store.set('refresh_token', data.session.refresh_token);
@@ -81,12 +90,12 @@ ipcMain.handle('sign-out', async () => {
   stopTracking();
   if (pollHandle) clearInterval(pollHandle);
   store.delete('refresh_token');
-  await supabase.auth.signOut();
+  await supabase?.auth.signOut();
   return { ok: true };
 });
 
-app.on('window-all-closed', (e: Event) => {
-  // Keep running in the tray — this is a background tracker, closing the
-  // window shouldn't stop capture if the agent is enabled.
-  e.preventDefault();
+app.on('window-all-closed', () => {
+  // Keep running in the tray — this is a background tracker. Deliberately
+  // NOT calling app.quit() here is what keeps it alive after the window
+  // closes; 'window-all-closed' has no preventDefault() in Electron's types.
 });

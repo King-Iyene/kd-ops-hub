@@ -34,12 +34,40 @@ npm start
   uploaded to the private `timetrack-screenshots` Storage bucket.
 - Tray icon — closing the window doesn't stop tracking.
 
+## Installing the app (no Node/checkout required)
+
+Real installers — Windows (`.exe`), macOS (`.dmg`), Linux (`.AppImage`/`.deb`)
+— are built by [`.github/workflows/build-desktop-agent.yml`](../.github/workflows/build-desktop-agent.yml)
+and published as assets on a GitHub Release. Each OS is built **natively on
+its own CI runner** (a macOS `.dmg` cannot be reliably produced on Linux).
+
+To cut a real release: `git tag desktop-agent-v0.1.0 && git push origin desktop-agent-v0.1.0`.
+The workflow also runs on manual dispatch (Actions tab) to produce verification
+builds without tagging a release.
+
+**Required repo configuration** (Settings → Secrets and variables → Actions),
+one-time, before the first real build:
+- `SUPABASE_URL` (Variable) — `https://mseeurrvdcfxdmvqjjki.supabase.co`
+- `SUPABASE_ANON_KEY` (Secret or Variable) — the same public, RLS-gated anon
+  key already used by the web app's `VITE_SUPABASE_ANON_KEY`. This is safe to
+  ship inside a distributed installer (never the service role key) — RLS on
+  the server is what actually gates access, same security model as the web
+  app's bundled JS.
+
+Without `SUPABASE_ANON_KEY` set, the installers still build and install fine,
+but the app shows a "not configured" screen on launch instead of connecting
+— see `src/supabaseClient.ts` / `scripts/write-config.js`.
+
+**Builds are unsigned** — no Apple/Windows code-signing certificates exist
+for this project yet. Users will see an "unidentified developer" (macOS) or
+"Windows protected your PC" (SmartScreen) warning on first run; this is
+expected, not a bug, until certificates are purchased and added as secrets.
+
 ## What's NOT implemented yet (see the Section 10 timeline estimate)
 
-- **Packaging/signing/auto-update** — `electron-builder` config exists but
-  nothing has been code-signed or distributed. Running this today means
-  `npm start` on a machine with Node + this checkout, not installing a
-  built app. Budget 3–5 days for proper packaging across macOS/Windows.
+- **Code signing / auto-update** — builds above are real and installable but
+  unsigned (see above). Auto-update (e.g. `electron-updater`) isn't wired up;
+  a new version today means downloading the new installer again.
 - **Idle detection** — not built. Would use `powerMonitor.getSystemIdleTime()`.
 - **Mobile GPS/geofencing** — explicitly out of scope for this Electron app;
   it's a separate iOS/Android build (see the Section 10 proposal).

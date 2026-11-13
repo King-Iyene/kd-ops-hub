@@ -32,3 +32,10 @@ window.agent.onSignedIn((email) => showSignedIn(email));
 window.agent.onStatus((status) => {
   statusEl.textContent = status.tracking ? 'Tracking active.' : 'Tracking is OFF (ask an admin to enable it for you).';
 });
+window.agent.onConfigError((message) => {
+  loginView.classList.add('hidden');
+  signedInView.classList.add('hidden');
+  const configView = document.getElementById('config-error-view');
+  configView.classList.remove('hidden');
+  document.getElementById('config-error-text').textContent = message;
+});
