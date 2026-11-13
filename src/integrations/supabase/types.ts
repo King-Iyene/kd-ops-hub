@@ -15602,6 +15602,7 @@ export type Database = {
       }
       time_leave_types: {
         Row: {
+          annual_allowance_days: number | null
           created_at: string
           id: string
           is_archived: boolean
@@ -15610,6 +15611,7 @@ export type Database = {
           requires_approval: boolean
         }
         Insert: {
+          annual_allowance_days?: number | null
           created_at?: string
           id?: string
           is_archived?: boolean
@@ -15618,6 +15620,7 @@ export type Database = {
           requires_approval?: boolean
         }
         Update: {
+          annual_allowance_days?: number | null
           created_at?: string
           id?: string
           is_archived?: boolean
@@ -20167,6 +20170,16 @@ export type Database = {
       time_decide_leave_request: {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }
         Returns: undefined
+      }
+      time_leave_balance_summary: {
+        Args: { p_employee_id: string; p_year: number }
+        Returns: {
+          annual_allowance_days: number | null
+          leave_type_id: string
+          leave_type_name: string
+          remaining_days: number | null
+          used_days: number
+        }[]
       }
       time_finance_report: {
         Args: {

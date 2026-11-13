@@ -110,6 +110,7 @@ export interface TimeLeaveType {
   requires_approval: boolean;
   is_paid: boolean;
   is_archived: boolean;
+  annual_allowance_days: number | null;
 }
 
 export interface TimeLeaveRequest {

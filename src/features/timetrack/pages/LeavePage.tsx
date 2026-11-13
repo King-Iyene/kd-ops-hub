@@ -125,6 +125,7 @@ export default function LeavePage() {
           <StatCard title="Rejected" value={(requests ?? []).filter((r) => r.status === 'rejected').length} tone="danger" />
         </div>
       )}
+      {profile?.id && <LeaveBalanceSummary employeeId={profile.id} />}
       <Table>
         <TableHeader><TableRow>
           {canApprove && <TableHead>Employee</TableHead>}
@@ -178,12 +179,54 @@ export default function LeavePage() {
 
       {canManageTypes && (
         <Dialog open={typesOpen} onOpenChange={setTypesOpen}>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>Manage leave types</DialogTitle></DialogHeader>
             <LeaveTypesManager />
           </DialogContent>
         </Dialog>
       )}
+    </div>
+  );
+}
+
+interface LeaveBalanceRow {
+  leave_type_id: string;
+  leave_type_name: string;
+  annual_allowance_days: number | null;
+  used_days: number;
+  remaining_days: number | null;
+}
+
+function LeaveBalanceSummary({ employeeId }: { employeeId: string }) {
+  const year = new Date().getFullYear();
+  const { data: balances, isLoading } = useQuery({
+    queryKey: ['timetrack', 'leave-balances', employeeId, year],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('time_leave_balance_summary', { p_employee_id: employeeId, p_year: year });
+      if (error) throw error;
+      return data as LeaveBalanceRow[];
+    },
+  });
+
+  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
+  if (!balances || balances.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground mb-2">Your {year} leave balance</p>
+      <div className="kd-stat-grid kd-stagger-in">
+        {balances.map((b) => (
+          <div key={b.leave_type_id} className="rounded-md border border-border/60 p-3">
+            <p className="text-xs text-muted-foreground">{b.leave_type_name}</p>
+            <p className="text-lg font-semibold">
+              {b.remaining_days === null ? 'Unlimited' : `${b.remaining_days.toFixed(1)}d left`}
+            </p>
+            {b.annual_allowance_days !== null && (
+              <p className="text-xs text-muted-foreground">{b.used_days.toFixed(1)} of {b.annual_allowance_days.toFixed(0)} days used</p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -238,13 +281,21 @@ function LeaveTypesManager() {
     <div className="space-y-4">
       <Table>
         <TableHeader><TableRow>
-          <TableHead>Name</TableHead><TableHead>Requires approval</TableHead><TableHead>Paid</TableHead><TableHead /></TableRow></TableHeader>
+          <TableHead>Name</TableHead><TableHead>Requires approval</TableHead><TableHead>Paid</TableHead>
+          <TableHead>Annual allowance (days)</TableHead><TableHead /></TableRow></TableHeader>
         <TableBody>
           {(allTypes ?? []).map((t) => (
             <TableRow key={t.id} className={t.is_archived ? 'opacity-50' : ''}>
               <TableCell>{t.name}</TableCell>
               <TableCell><Switch checked={t.requires_approval} disabled={t.is_archived} onCheckedChange={(v) => update(t.id, { requires_approval: v })} /></TableCell>
               <TableCell><Switch checked={t.is_paid} disabled={t.is_archived} onCheckedChange={(v) => update(t.id, { is_paid: v })} /></TableCell>
+              <TableCell>
+                <Input
+                  type="number" className="w-20 h-8" disabled={t.is_archived}
+                  defaultValue={t.annual_allowance_days ?? ''} placeholder="Unlimited"
+                  onBlur={(e) => update(t.id, { annual_allowance_days: e.target.value === '' ? null : Number(e.target.value) })}
+                />
+              </TableCell>
               <TableCell className="text-right">
                 <Button size="sm" variant="ghost" onClick={() => update(t.id, { is_archived: !t.is_archived })}>
                   <Archive className="h-3.5 w-3.5 mr-1" />{t.is_archived ? 'Restore' : 'Archive'}
