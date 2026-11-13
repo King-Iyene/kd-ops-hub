@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Check, X, Palmtree } from 'lucide-react';
+import { Loader2, Plus, Check, X, Palmtree, Settings2, Archive } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,6 +33,8 @@ export default function LeavePage() {
   const { toast } = useToast();
   const { data: employees } = useActiveEmployees();
   const canApprove = has('approve_leave');
+  const canManageTypes = has('manage_leave_types');
+  const [typesOpen, setTypesOpen] = useState(false);
 
   const { data: leaveTypes } = useQuery({
     queryKey: ['timetrack', 'leave-types'],
@@ -87,6 +90,17 @@ export default function LeavePage() {
     }
   };
 
+  const cancelOwn = async (id: string) => {
+    try {
+      const { error } = await supabase.from('time_leave_requests').update({ status: 'cancelled' }).eq('id', id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['timetrack', 'leave-requests'] });
+      toast({ title: 'Request cancelled' });
+    } catch (err) {
+      toast({ title: 'Could not cancel request', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
   const pendingCount = (requests ?? []).filter((r) => r.status === 'pending').length;
@@ -97,7 +111,12 @@ export default function LeavePage() {
         title="Leave"
         description="Request time off, or review and decide requests awaiting approval"
         icon={Palmtree}
-        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Request leave</Button>}
+        actions={
+          <div className="flex gap-2">
+            {canManageTypes && <Button variant="outline" onClick={() => setTypesOpen(true)}><Settings2 className="h-4 w-4 mr-1.5" />Manage leave types</Button>}
+            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Request leave</Button>
+          </div>
+        }
       />
       {canApprove && (
         <div className="kd-stat-grid kd-stagger-in">
@@ -123,6 +142,9 @@ export default function LeavePage() {
                     <Button size="sm" variant="outline" onClick={() => decide(r.id, 'approved')}><Check className="h-3.5 w-3.5" /></Button>
                     <Button size="sm" variant="outline" onClick={() => decide(r.id, 'rejected')}><X className="h-3.5 w-3.5 text-destructive" /></Button>
                   </>
+                )}
+                {r.employee_id === profile?.id && r.status === 'pending' && (
+                  <Button size="sm" variant="ghost" onClick={() => cancelOwn(r.id)}>Cancel</Button>
                 )}
               </TableCell>
             </TableRow>
@@ -153,6 +175,89 @@ export default function LeavePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {canManageTypes && (
+        <Dialog open={typesOpen} onOpenChange={setTypesOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader><DialogTitle>Manage leave types</DialogTitle></DialogHeader>
+            <LeaveTypesManager />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function LeaveTypesManager() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: allTypes, isLoading } = useQuery({
+    queryKey: ['timetrack', 'leave-types-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_leave_types').select('*').order('is_archived').order('name');
+      if (error) throw error;
+      return data as TimeLeaveType[];
+    },
+  });
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['timetrack', 'leave-types-all'] });
+    qc.invalidateQueries({ queryKey: ['timetrack', 'leave-types'] });
+  };
+
+  const update = async (id: string, patch: Partial<TimeLeaveType>) => {
+    try {
+      const { error } = await supabase.from('time_leave_types').update(patch).eq('id', id);
+      if (error) throw error;
+      refresh();
+    } catch (err) {
+      toast({ title: 'Could not update leave type', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  const create = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('time_leave_types').insert({ name: newName.trim() });
+      if (error) throw error;
+      setNewName('');
+      refresh();
+    } catch (err) {
+      toast({ title: 'Could not create leave type', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
+
+  return (
+    <div className="space-y-4">
+      <Table>
+        <TableHeader><TableRow>
+          <TableHead>Name</TableHead><TableHead>Requires approval</TableHead><TableHead>Paid</TableHead><TableHead /></TableRow></TableHeader>
+        <TableBody>
+          {(allTypes ?? []).map((t) => (
+            <TableRow key={t.id} className={t.is_archived ? 'opacity-50' : ''}>
+              <TableCell>{t.name}</TableCell>
+              <TableCell><Switch checked={t.requires_approval} disabled={t.is_archived} onCheckedChange={(v) => update(t.id, { requires_approval: v })} /></TableCell>
+              <TableCell><Switch checked={t.is_paid} disabled={t.is_archived} onCheckedChange={(v) => update(t.id, { is_paid: v })} /></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" variant="ghost" onClick={() => update(t.id, { is_archived: !t.is_archived })}>
+                  <Archive className="h-3.5 w-3.5 mr-1" />{t.is_archived ? 'Restore' : 'Archive'}
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="flex items-end gap-2">
+        <div className="flex-1"><Label>New leave type</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Bereavement" /></div>
+        <Button onClick={create} disabled={saving || !newName.trim()}>{saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}Add</Button>
+      </div>
     </div>
   );
 }
