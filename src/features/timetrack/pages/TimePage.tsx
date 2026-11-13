@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -24,9 +25,10 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { fetchActiveProjects, fetchTasksForProject } from '../lib/queries';
+import { fetchActiveProjects, fetchTasksForProject, fetchAllTags } from '../lib/queries';
 import { enqueue, flushQueue, queueLength } from '../lib/offlineQueue';
-import type { TimeEntry } from '../lib/types';
+import { Badge } from '@/components/ui/badge';
+import type { TimeEntry, TimeTag } from '../lib/types';
 
 const LOCAL_KEY = 'timetrack:active-timer';
 
@@ -153,13 +155,13 @@ export default function TimePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('*, time_tasks(name, time_projects(name))')
+        .select('*, time_tasks(name, time_projects(name)), time_entry_tags(time_tags(id, name))')
         .eq('employee_id', profile!.id)
         .gte('start_time', `${format(rangeStart, 'yyyy-MM-dd')}T00:00:00`)
         .lt('start_time', `${format(addDays(rangeEnd, 1), 'yyyy-MM-dd')}T00:00:00`)
         .order('start_time', { ascending: false });
       if (error) throw error;
-      return data as (TimeEntry & { time_tasks: { name: string; time_projects: { name: string } } })[];
+      return data as (TimeEntry & { time_tasks: { name: string; time_projects: { name: string } }; time_entry_tags: { time_tags: TimeTag }[] })[];
     },
     enabled: !!profile?.id,
   });
@@ -391,7 +393,7 @@ function OfflineSyncBanner() {
 }
 
 function EntryList({ entries, loading, onEdit, onDelete }: {
-  entries: (TimeEntry & { time_tasks?: { name: string; time_projects: { name: string } } })[];
+  entries: (TimeEntry & { time_tasks?: { name: string; time_projects: { name: string } }; time_entry_tags?: { time_tags: TimeTag }[] })[];
   loading: boolean; onEdit: (e: TimeEntry) => void; onDelete: (id: string) => void;
 }) {
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -410,6 +412,13 @@ function EntryList({ entries, loading, onEdit, onDelete }: {
               {e.duration_minutes != null && <> · {(e.duration_minutes / 60).toFixed(2)}h</>}
               {e.notes && <> · {e.notes}</>}
             </p>
+            {e.time_entry_tags && e.time_entry_tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {e.time_entry_tags.map((t) => (
+                  <Badge key={t.time_tags.id} variant="outline" className="text-[10px] px-1.5 py-0">{t.time_tags.name}</Badge>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex gap-1 shrink-0">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -482,11 +491,13 @@ function ManualEntryDialog({ open, onOpenChange, entry, onSaved }: {
   const [endTime, setEndTime] = useState('17:00');
   const [notes, setNotes] = useState('');
   const [billable, setBillable] = useState(false);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const { data: tasks } = useQuery({
     queryKey: ['timetrack', 'tasks', projectId], queryFn: () => fetchTasksForProject(projectId), enabled: !!projectId,
   });
+  const { data: allTags } = useQuery({ queryKey: ['timetrack', 'tags'], queryFn: fetchAllTags });
 
   useEffect(() => {
     if (!open) return;
@@ -498,11 +509,19 @@ function ManualEntryDialog({ open, onOpenChange, entry, onSaved }: {
       setEndTime(entry.end_time ? format(new Date(entry.end_time), 'HH:mm') : '17:00');
       setNotes(entry.notes ?? '');
       setBillable(entry.is_billable);
+      (async () => {
+        const { data } = await supabase.from('time_entry_tags').select('tag_id').eq('time_entry_id', entry.id);
+        setTagIds((data ?? []).map((r) => r.tag_id));
+      })();
     } else {
       setProjectId(''); setTaskId(''); setDate(format(new Date(), 'yyyy-MM-dd'));
-      setStartTime('09:00'); setEndTime('17:00'); setNotes(''); setBillable(false);
+      setStartTime('09:00'); setEndTime('17:00'); setNotes(''); setBillable(false); setTagIds([]);
     }
   }, [open, entry]);
+
+  const toggleTag = (id: string) => {
+    setTagIds((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
+  };
 
   const save = async () => {
     if (!taskId) { toast({ title: 'Pick a project and task', variant: 'destructive' }); return; }
@@ -520,16 +539,34 @@ function ManualEntryDialog({ open, onOpenChange, entry, onSaved }: {
         } else {
           enqueue({ type: 'insert_entry', payload });
         }
-        toast({ title: "Saved offline", description: "No connection — this entry will sync automatically once you're back online." });
+        toast({ title: "Saved offline", description: "No connection — this entry will sync automatically once you're back online. Tags don't sync offline — re-apply them once you're back online." });
         onOpenChange(false);
         onSaved();
         return;
       }
 
-      const { error } = entry
-        ? await supabase.from('time_entries').update(payload).eq('id', entry.id)
-        : await supabase.from('time_entries').insert(payload);
-      if (error) throw error;
+      let entryId = entry?.id;
+      if (entry) {
+        const { error } = await supabase.from('time_entries').update(payload).eq('id', entry.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('time_entries').insert(payload).select('id').single();
+        if (error) throw error;
+        entryId = data.id;
+      }
+
+      // Replace the tag set for this entry: delete then re-insert the current selection.
+      if (entryId) {
+        const { error: delErr } = await supabase.from('time_entry_tags').delete().eq('time_entry_id', entryId);
+        if (delErr) throw delErr;
+        if (tagIds.length > 0) {
+          const { error: insErr } = await supabase.from('time_entry_tags').insert(
+            tagIds.map((tag_id) => ({ time_entry_id: entryId, tag_id }))
+          );
+          if (insErr) throw insErr;
+        }
+      }
+
       onOpenChange(false);
       onSaved();
     } catch (err) {
@@ -562,6 +599,19 @@ function ManualEntryDialog({ open, onOpenChange, entry, onSaved }: {
             <Switch checked={billable} onCheckedChange={setBillable} id="billable-sw" />
             <Label htmlFor="billable-sw">Billable</Label>
           </div>
+          {(allTags ?? []).length > 0 && (
+            <div>
+              <Label className="mb-1.5 block">Tags</Label>
+              <div className="flex flex-wrap gap-3">
+                {(allTags ?? []).map((t) => (
+                  <label key={t.id} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox checked={tagIds.includes(t.id)} onCheckedChange={() => toggleTag(t.id)} />
+                    {t.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
