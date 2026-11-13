@@ -14515,6 +14515,157 @@ export type Database = {
           },
         ]
       }
+      time_agent_policy: {
+        Row: {
+          id: boolean
+          track_window_titles: boolean
+          track_only_when_timer_running: boolean
+          dismiss_overlapping_activities: boolean
+          keep_tracking_last_task: boolean
+          allow_closing_agent: boolean
+          private_tracking_only: boolean
+          private_time_minutes_per_day: number
+          away_time_after_minutes: number
+          away_time_labels: string
+          block_away_time_outside_first_last: boolean
+          choose_task_when_unmatched: boolean
+          no_task_timeout_minutes: number
+          allow_logging_overtime: boolean
+          stop_tracking_when_unused_minutes: number
+          stop_at_daily_limit_weekdays: number[]
+          disable_split_away_time: boolean
+          use_different_settings_for_notebooks: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          track_window_titles?: boolean
+          track_only_when_timer_running?: boolean
+          dismiss_overlapping_activities?: boolean
+          keep_tracking_last_task?: boolean
+          allow_closing_agent?: boolean
+          private_tracking_only?: boolean
+          private_time_minutes_per_day?: number
+          away_time_after_minutes?: number
+          away_time_labels?: string
+          block_away_time_outside_first_last?: boolean
+          choose_task_when_unmatched?: boolean
+          no_task_timeout_minutes?: number
+          allow_logging_overtime?: boolean
+          stop_tracking_when_unused_minutes?: number
+          stop_at_daily_limit_weekdays?: number[]
+          disable_split_away_time?: boolean
+          use_different_settings_for_notebooks?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          track_window_titles?: boolean
+          track_only_when_timer_running?: boolean
+          dismiss_overlapping_activities?: boolean
+          keep_tracking_last_task?: boolean
+          allow_closing_agent?: boolean
+          private_tracking_only?: boolean
+          private_time_minutes_per_day?: number
+          away_time_after_minutes?: number
+          away_time_labels?: string
+          block_away_time_outside_first_last?: boolean
+          choose_task_when_unmatched?: boolean
+          no_task_timeout_minutes?: number
+          allow_logging_overtime?: boolean
+          stop_tracking_when_unused_minutes?: number
+          stop_at_daily_limit_weekdays?: number[]
+          disable_split_away_time?: boolean
+          use_different_settings_for_notebooks?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_agent_policy_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_policy_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_policy_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_agent_policy_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_agent_tracking_hours: {
+        Row: {
+          weekday: number
+          from_time: string
+          to_time: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          weekday: number
+          from_time?: string
+          to_time?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          weekday?: number
+          from_time?: string
+          to_time?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_agent_tracking_hours_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_tracking_hours_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_agent_tracking_hours_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_agent_tracking_hours_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_agent_settings: {
         Row: {
           blur_screenshots: boolean
