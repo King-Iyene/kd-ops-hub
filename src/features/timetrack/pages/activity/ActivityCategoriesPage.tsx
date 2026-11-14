@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Tags } from 'lucide-react';
+import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -9,17 +10,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CATEGORY_BADGE } from './shared';
+import { CATEGORY_BADGE, useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
 
 interface Rule { id: string; app_name_contains: string | null; title_contains: string | null; category: string; priority: number }
+
+const CATEGORY_COLOR: Record<string, string> = {
+  productive: '#10b981', neutral: '#6b7280', unproductive: '#ef4444', blocked: '#dc2626', idle: '#0ea5e9', uncategorized: '#a1a1aa',
+};
 
 /** TimeCamp's "Activity categories" — rules that classify each capture as productive/neutral/unproductive. */
 export default function ActivityCategoriesPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { start, end, setStart, setEnd } = useActivityDateRange();
+  const { data: logData, isLoading: logsLoading } = useLogsWithIntervals(start, end);
   const { data: rules, isLoading } = useQuery({
     queryKey: ['timetrack', 'productivity-rules'],
     queryFn: async () => {
@@ -28,6 +36,18 @@ export default function ActivityCategoriesPage() {
       return data as Rule[];
     },
   });
+
+  const chartData = useMemo(() => {
+    const hours = new Map<string, number>();
+    for (const l of logData?.logs ?? []) {
+      const cat = l.productivity_category ?? 'uncategorized';
+      const intervalMin = logData?.intervalByEmployee.get(l.employee_id) ?? 10;
+      hours.set(cat, (hours.get(cat) ?? 0) + intervalMin / 60);
+    }
+    return ['productive', 'neutral', 'unproductive', 'blocked', 'idle', 'uncategorized']
+      .map((cat) => ({ cat, hours: Number((hours.get(cat) ?? 0).toFixed(1)) }))
+      .filter((r) => r.hours > 0);
+  }, [logData]);
   const [open, setOpen] = useState(false);
   const [appNameContains, setAppNameContains] = useState('');
   const [titleContains, setTitleContains] = useState('');
@@ -69,6 +89,29 @@ export default function ActivityCategoriesPage() {
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Activity categories" description="Rules that classify each capture as productive, neutral, unproductive, or blocked (triggers an admin alert)" icon={Tags} />
+
+      <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
+      <Card>
+        <CardContent className="pt-4">
+          <p className="text-sm font-medium mb-2">Time by category</p>
+          {logsLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : chartData.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No data to display.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="cat" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v: number) => `${v}h`} />
+                <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                  {chartData.map((r) => <Cell key={r.cat} fill={CATEGORY_COLOR[r.cat]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <div className="space-y-3">
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New rule</Button>
