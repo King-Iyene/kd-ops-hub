@@ -14459,6 +14459,93 @@ export type Database = {
           },
         ]
       }
+      time_activity_goals: {
+        Row: {
+          employee_id: string
+          id: string
+          metric: string
+          period: string
+          target_value: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          metric: string
+          period: string
+          target_value: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          metric?: string
+          period?: string
+          target_value?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_activity_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_activity_goals_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_activity_logs: {
         Row: {
           app_name: string | null
@@ -14612,36 +14699,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      time_activity_goals: {
-        Row: {
-          employee_id: string
-          id: string
-          metric: string
-          period: string
-          target_value: number
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          employee_id: string
-          id?: string
-          metric: string
-          period: string
-          target_value: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          employee_id?: string
-          id?: string
-          metric?: string
-          period?: string
-          target_value?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
       }
       time_agent_settings: {
         Row: {
