@@ -1,6 +1,6 @@
 {
   "name": "kd-ops-timetrack-agent",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Native desktop agent for KD Ops Hub Time Tracking — window/app activity capture and optional screenshots. Self-contained; not built or linted by the main web app's toolchain.",
   "author": {
