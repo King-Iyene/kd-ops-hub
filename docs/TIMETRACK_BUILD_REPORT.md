@@ -1,8 +1,25 @@
 # In-house TimeCamp Replacement — Build Report
 
 **Location:** `src/features/timetrack/` inside this repo (`King-Iyene/kd-ops-hub`)
-**Status:** Feature-complete against the full gap list identified from the live TimeCamp
-trial account. All modules below are built, migrated, deployed, and verified in CI.
+**Status:** All modules below are built, migrated, deployed, and verified in CI. One
+real gap remains open, see "Known gap" below — the rest of this report describes
+what's actually shipped.
+
+## Known gap: desktop agent has no published installer (as of 2026-11-14)
+
+The native capture agent (`desktop-agent/`, see "Computer Activities" below) is
+fully built — active-window tracking, idle detection, screenshots, geofencing,
+check-in reporting — and its CI (`.github/workflows/build-desktop-agent.yml`)
+successfully builds Windows/macOS/Linux installers. But the one published release
+tag (`desktop-agent-v1.0.0`) shipped with **zero installer files attached**: the
+release job's `GITHUB_TOKEN` was read-only, so the "attach files" step failed
+silently from the user's point of view (builds still showed green). Fixed that
+permissions bug and bumped to `v1.0.1`, but **cutting the actual release tag is a
+human action** — the automation that maintains this repo is deliberately unable
+to push tags or create/edit releases itself. Until someone runs
+`git tag desktop-agent-v1.0.1 && git push --tags` (or uses GitHub's "Draft a new
+release" UI), `GetDesktopAppButton` / `DesktopAgentHeaderButton` will keep showing
+"no installer published yet" — that's correct, not a bug, until that tag is cut.
 
 ## Why it lives in this repo, not a new one
 
