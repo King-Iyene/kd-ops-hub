@@ -127,6 +127,7 @@ const TimePlannerPage   = lazy(() => import('./features/timetrack/pages/PlannerP
 const TimeClientsInvoicesPage = lazy(() => import('./features/timetrack/pages/ClientsInvoicesPage'));
 const TimeExpensesPage = lazy(() => import('./features/timetrack/pages/ExpensesPage'));
 const TimeExportCenterPage = lazy(() => import('./features/timetrack/pages/ExportCenterPage'));
+const TimeTagsPage = lazy(() => import('./features/timetrack/pages/TagsPage'));
 const TimeBillingRatesPage = lazy(() => import('./features/timetrack/pages/BillingRatesPage'));
 const TimeRolesPage     = lazy(() => import('./features/timetrack/pages/RolesPage'));
 const ActivitiesSummaryPage = lazy(() => import('./features/timetrack/pages/activity/ActivitiesSummaryPage'));
@@ -905,6 +906,7 @@ function AppRoutes() {
           { path: '/timetrack/clients', Page: TimeClientsInvoicesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/expenses', Page: TimeExpensesPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/export-center', Page: TimeExportCenterPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/tags', Page: TimeTagsPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/rates', Page: TimeBillingRatesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/roles', Page: TimeRolesPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/activity/summary', Page: ActivitiesSummaryPage, roles: ADMIN_ONLY_ROLES },
