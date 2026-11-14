@@ -1,8 +1,11 @@
 import { useMemo } from 'react';
+import { format } from 'date-fns';
 import { Loader2, Gauge } from 'lucide-react';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, CATEGORY_BADGE } from './shared';
 
@@ -37,11 +40,91 @@ export default function EfficiencyPage() {
     }).sort((a, b) => b.efficiency - a.efficiency);
   }, [data, employees]);
 
+  const daily = useMemo(() => {
+    const byDay = new Map<string, { productive: number; active: number }>();
+    for (const l of data?.logs ?? []) {
+      if (l.productivity_category === 'idle') continue;
+      const day = format(new Date(l.captured_at), 'yyyy-MM-dd');
+      const d = byDay.get(day) ?? { productive: 0, active: 0 };
+      d.active += 1;
+      if (l.productivity_category === 'productive') d.productive += 1;
+      byDay.set(day, d);
+    }
+    return [...byDay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, d]) => ({ day: format(new Date(day), 'd MMM'), efficiency: d.active > 0 ? Math.round((d.productive / d.active) * 100) : 0 }));
+  }, [data]);
+
+  const { topProductive, topUnproductive } = useMemo(() => {
+    const byApp = new Map<string, { productive: number; unproductive: number; label: string }>();
+    for (const l of data?.logs ?? []) {
+      const label = l.window_title || l.app_name || 'Unknown';
+      const a = byApp.get(label) ?? { productive: 0, unproductive: 0, label };
+      if (l.productivity_category === 'productive') a.productive += 1;
+      if (l.productivity_category === 'unproductive') a.unproductive += 1;
+      byApp.set(label, a);
+    }
+    const all = [...byApp.values()];
+    return {
+      topProductive: all.filter((a) => a.productive > 0).sort((a, b) => b.productive - a.productive).slice(0, 8),
+      topUnproductive: all.filter((a) => a.unproductive > 0).sort((a, b) => b.unproductive - a.unproductive).slice(0, 8),
+    };
+  }, [data]);
+
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Efficiency" description="Productive vs. neutral vs. unproductive capture share, per employee" icon={Gauge} />
       <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+        <>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium mb-2">Daily efficiency</p>
+            {daily.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No data to display.</p> : (
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={daily}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+                  <Tooltip formatter={(v: number) => `${v}%`} />
+                  <Line type="monotone" dataKey="efficiency" stroke="#10b981" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm font-medium mb-3">Top productive activities</p>
+              <div className="space-y-1.5">
+                {topProductive.map((a) => (
+                  <div key={a.label} className="flex items-center justify-between text-sm">
+                    <span className="truncate max-w-[70%]">{a.label}</span>
+                    <Badge variant="outline" className={CATEGORY_BADGE.productive}>{a.productive}</Badge>
+                  </div>
+                ))}
+                {topProductive.length === 0 && <p className="text-sm text-muted-foreground">No productive activity in range.</p>}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm font-medium mb-3">Top unproductive activities</p>
+              <div className="space-y-1.5">
+                {topUnproductive.map((a) => (
+                  <div key={a.label} className="flex items-center justify-between text-sm">
+                    <span className="truncate max-w-[70%]">{a.label}</span>
+                    <Badge variant="outline" className={CATEGORY_BADGE.unproductive}>{a.unproductive}</Badge>
+                  </div>
+                ))}
+                {topUnproductive.length === 0 && <p className="text-sm text-muted-foreground">No unproductive activity in range.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Table>
           <TableHeader><TableRow>
             <TableHead>Employee</TableHead><TableHead className="text-right">Productive</TableHead>
@@ -74,6 +157,7 @@ export default function EfficiencyPage() {
             {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
           </TableBody>
         </Table>
+        </>
       )}
     </div>
   );
