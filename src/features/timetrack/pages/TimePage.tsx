@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import {
-  Play, Square, Loader2, Trash2, Pencil, Copy, Timer as TimerIcon,
-  DollarSign, Tag as TagIcon,
+  Play, Square, Plus, Loader2, Trash2, Copy, Timer as TimerIcon,
+  DollarSign, Tag as TagIcon, MoreVertical,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
@@ -34,9 +34,15 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { fetchActiveProjects, fetchTasksForProject, fetchAllTags, fetchAllActiveTasks } from '../lib/queries';
 import { enqueue, flushQueue, queueLength } from '../lib/offlineQueue';
 import type { TimeEntry, TimeTag } from '../lib/types';
+import type { TablesUpdate } from '@/integrations/supabase/types';
+
+type TimeEntryPatch = TablesUpdate<'time_entries'>;
 
 const LOCAL_KEY = 'timetrack:active-timer';
 
@@ -347,13 +353,26 @@ export default function TimePage() {
         <TabsContent value="day" className="mt-4 space-y-3">
           <p className="text-sm text-muted-foreground">{format(anchorDate, 'EEEE, MMMM d, yyyy')}</p>
           <DayTimeline entries={dayEntries} />
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Working Day</span>
+            {viewingSelf && (
+              <Button
+                variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => { setEditingEntry(null); setDuplicateFrom(null); setManualOpen(true); }}
+                title="Add an entry to this day"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
           <EntryList
             entries={dayEntries}
             loading={entriesLoading}
             readOnly={!viewingSelf}
-            onEdit={(e) => { setEditingEntry(e); setDuplicateFrom(null); setManualOpen(true); }}
+            canRestart={viewingSelf && !activeEntry}
             onDuplicate={(e) => { setEditingEntry(null); setDuplicateFrom(e); setManualOpen(true); }}
             onDelete={deleteEntry}
+            onRestart={(taskId, projectId) => startTimer(taskId, projectId)}
           />
           {(dayEntries.length > 0 || (unassignedMinutes ?? 0) > 0) && (
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
@@ -381,9 +400,10 @@ export default function TimePage() {
                 entries={entriesForDay ?? []}
                 loading={false}
                 readOnly={!viewingSelf}
-                onEdit={(e) => { setEditingEntry(e); setDuplicateFrom(null); setManualOpen(true); }}
+                canRestart={viewingSelf && !activeEntry}
                 onDuplicate={(e) => { setEditingEntry(null); setDuplicateFrom(e); setManualOpen(true); }}
                 onDelete={deleteEntry}
+                onRestart={(taskId, projectId) => startTimer(taskId, projectId)}
               />
             </div>
           ))}
@@ -400,6 +420,7 @@ export default function TimePage() {
         onOpenChange={setManualOpen}
         entry={editingEntry}
         duplicateFrom={duplicateFrom}
+        defaultDate={anchorDate}
         onSaved={() => { qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] }); qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] }); }}
       />
 
@@ -621,20 +642,50 @@ function OfflineSyncBanner() {
   );
 }
 
-function EntryList({ entries, loading, readOnly, onEdit, onDuplicate, onDelete }: {
+/**
+ * Row editing matches TimeCamp's own Timesheet exactly: nothing here opens a
+ * modal — the project dot/name, note, tags and times are all edited in
+ * place, and the only menu is a small kebab with Clone / Delete (TimeCamp's
+ * own row menu has a few more entries — show computer activities for this
+ * entry, show report for this task, change entry's date, open time entry
+ * history — deliberately deferred here, same as the "⋮" settings panel and
+ * "Working Day"-type labeling, rather than silently dropped).
+ */
+function EntryList({ entries, loading, readOnly, canRestart, onDuplicate, onDelete, onRestart }: {
   entries: (TimeEntry & { time_tasks?: { name: string; project_id?: string; time_projects: { name: string } }; time_entry_tags?: { time_tags: TimeTag }[] })[];
-  loading: boolean; readOnly: boolean; onEdit: (e: TimeEntry) => void; onDuplicate: (e: TimeEntry) => void; onDelete: (id: string) => void;
+  loading: boolean; readOnly: boolean; canRestart: boolean;
+  onDuplicate: (e: TimeEntry) => void; onDelete: (id: string) => void; onRestart: (taskId: string, projectId: string) => void;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { data: allTags } = useQuery({ queryKey: ['timetrack', 'tags'], queryFn: fetchAllTags });
 
-  const toggleBillable = async (e: TimeEntry) => {
+  const patchEntry = async (id: string, patch: TimeEntryPatch) => {
     try {
-      const { error } = await supabase.from('time_entries').update({ is_billable: !e.is_billable }).eq('id', e.id);
+      const { error } = await supabase.from('time_entries').update(patch).eq('id', id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
     } catch (err) {
       toast({ title: 'Could not update', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  // Tags live in their own join table, not on time_entries itself — replace
+  // the full tag set for this entry (delete then re-insert the selection),
+  // same pattern ManualEntryDialog uses when saving a manual entry's tags.
+  const applyTags = async (id: string, tagIds: string[]) => {
+    try {
+      const { error: delErr } = await supabase.from('time_entry_tags').delete().eq('time_entry_id', id);
+      if (delErr) throw delErr;
+      if (tagIds.length > 0) {
+        const { error: insErr } = await supabase.from('time_entry_tags').insert(
+          tagIds.map((tag_id) => ({ time_entry_id: id, tag_id }))
+        );
+        if (insErr) throw insErr;
+      }
+      qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+    } catch (err) {
+      toast({ title: 'Could not update tags', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -643,50 +694,161 @@ function EntryList({ entries, loading, readOnly, onEdit, onDuplicate, onDelete }
   return (
     <div className="space-y-1.5">
       {entries.map((e) => (
-        <div key={e.id} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
-          <span
-            className="h-2.5 w-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: colorForId(e.time_tasks?.project_id ?? e.id) }}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="font-medium truncate">
-              {e.time_tasks?.time_projects?.name ?? '—'} · {e.time_tasks?.name ?? '—'}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {e.notes || 'note'}
-              {e.time_entry_tags && e.time_entry_tags.length > 0 && (
-                <span className="inline-flex items-center gap-1 ml-2">
-                  <TagIcon className="h-2.5 w-2.5" />
-                  {e.time_entry_tags.map((t) => t.time_tags.name).join(', ')}
-                </span>
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => !readOnly && toggleBillable(e)}
-            className={`shrink-0 ${e.is_billable ? 'text-primary' : 'text-muted-foreground/40'} ${readOnly ? '' : 'hover:text-primary'}`}
-            title={e.is_billable ? 'Billable' : 'Not billable'}
-          >
-            <DollarSign className="h-4 w-4" />
-          </button>
-          <div className="text-xs text-muted-foreground tabular-nums shrink-0 w-40 text-right">
-            {format(new Date(e.start_time), 'hh:mm a')} – {e.end_time ? format(new Date(e.end_time), 'hh:mm a') : 'running'}
-          </div>
-          <div className="text-xs font-medium tabular-nums shrink-0 w-14 text-right">
-            {e.duration_minutes != null ? `${(e.duration_minutes / 60).toFixed(2)}h` : '—'}
-          </div>
-          {!readOnly && (
-            <div className="flex gap-1 shrink-0">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDuplicate(e)} title="Duplicate"><Copy className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(e)} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(e.id)} title="Delete"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-            </div>
-          )}
-        </div>
+        <EntryRow
+          key={e.id}
+          entry={e}
+          readOnly={readOnly}
+          canRestart={canRestart}
+          allTags={allTags ?? []}
+          onPatch={(patch) => patchEntry(e.id, patch)}
+          onApplyTags={(tagIds) => applyTags(e.id, tagIds)}
+          onDuplicate={() => onDuplicate(e)}
+          onDelete={() => onDelete(e.id)}
+          onRestart={() => onRestart(e.task_id, e.project_id)}
+        />
       ))}
     </div>
+  );
+}
+
+function EntryRow({ entry: e, readOnly, canRestart, allTags, onPatch, onApplyTags, onDuplicate, onDelete, onRestart }: {
+  entry: TimeEntry & { time_tasks?: { name: string; project_id?: string; time_projects: { name: string } }; time_entry_tags?: { time_tags: TimeTag }[] };
+  readOnly: boolean; canRestart: boolean; allTags: TimeTag[];
+  onPatch: (patch: TimeEntryPatch) => void; onApplyTags: (tagIds: string[]) => void;
+  onDuplicate: () => void; onDelete: () => void; onRestart: () => void;
+}) {
+  const [note, setNote] = useState(e.notes ?? '');
+  useEffect(() => setNote(e.notes ?? ''), [e.notes]);
+  const commitNote = () => { if (note !== (e.notes ?? '')) onPatch({ notes: note || null }); };
+
+  const dayKey = format(new Date(e.start_time), 'yyyy-MM-dd');
+  const timeToIso = (hhmm: string, fallback: string) => {
+    if (!hhmm) return fallback;
+    return `${dayKey}T${hhmm}:00`;
+  };
+
+  return (
+    <div className="group flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
+      <span
+        className="h-2.5 w-2.5 rounded-full shrink-0"
+        style={{ backgroundColor: colorForId(e.time_tasks?.project_id ?? e.id) }}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium truncate">
+          {e.time_tasks?.time_projects?.name ?? '—'} · {e.time_tasks?.name ?? '—'}
+        </p>
+        <TagPicker
+          selected={(e.time_entry_tags ?? []).map((t) => t.time_tags)}
+          allTags={allTags}
+          readOnly={readOnly}
+          onApply={onApplyTags}
+        />
+      </div>
+      <input
+        value={note}
+        onChange={(ev) => setNote(ev.target.value)}
+        onBlur={commitNote}
+        onKeyDown={(ev) => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur(); }}
+        placeholder="note"
+        disabled={readOnly}
+        className="w-28 shrink-0 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 outline-none disabled:cursor-default"
+      />
+      <button
+        type="button"
+        disabled={readOnly}
+        onClick={() => !readOnly && onPatch({ is_billable: !e.is_billable })}
+        className={`shrink-0 ${e.is_billable ? 'text-primary' : 'text-muted-foreground/40'} ${readOnly ? '' : 'hover:text-primary'}`}
+        title={e.is_billable ? 'Billable' : 'Not billable'}
+      >
+        <DollarSign className="h-4 w-4" />
+      </button>
+      {!readOnly && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity" title="More">
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={onDuplicate}><Copy className="h-3.5 w-3.5 mr-2" />Clone time entry</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} className="text-destructive"><Trash2 className="h-3.5 w-3.5 mr-2" />Delete time entry</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      <input
+        type="time"
+        defaultValue={format(new Date(e.start_time), 'HH:mm')}
+        disabled={readOnly}
+        onBlur={(ev) => ev.target.value && onPatch({ start_time: timeToIso(ev.target.value, e.start_time) })}
+        className="w-[74px] shrink-0 bg-transparent text-xs tabular-nums text-muted-foreground outline-none disabled:cursor-default"
+      />
+      <span className="text-xs text-muted-foreground shrink-0">–</span>
+      <input
+        type="time"
+        defaultValue={e.end_time ? format(new Date(e.end_time), 'HH:mm') : ''}
+        disabled={readOnly || !e.end_time}
+        onBlur={(ev) => ev.target.value && onPatch({ end_time: timeToIso(ev.target.value, e.end_time ?? e.start_time) })}
+        className="w-[74px] shrink-0 bg-transparent text-xs tabular-nums text-muted-foreground outline-none disabled:cursor-default"
+      />
+      <div className="text-xs font-medium tabular-nums shrink-0 w-14 text-right">
+        {e.duration_minutes != null ? `${(e.duration_minutes / 60).toFixed(2)}h` : '—'}
+      </div>
+      {canRestart && !readOnly && (
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={onRestart} title="Start again">
+          <Play className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Flat checkbox tag picker with search + Apply — TimeCamp groups tags under
+ * collapsible categories (e.g. "Task/Project Status"); our schema has no
+ * tag-group concept, so a flat list is the faithful equivalent here. */
+function TagPicker({ selected, allTags, readOnly, onApply }: {
+  selected: TimeTag[]; allTags: TimeTag[]; readOnly: boolean; onApply: (tagIds: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState<string[]>(selected.map((t) => t.id));
+  useEffect(() => { if (open) setPicked(selected.map((t) => t.id)); }, [open, selected]);
+
+  const filtered = allTags.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()));
+  const toggle = (id: string) => setPicked((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+  const label = selected.length > 0 ? selected.map((t) => t.name).join(', ') : 'Select a tag';
+
+  if (readOnly) {
+    return <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+      {selected.length > 0 && <TagIcon className="h-2.5 w-2.5" />}{label}
+    </p>;
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="text-xs text-muted-foreground hover:text-foreground truncate flex items-center gap-1">
+          <TagIcon className="h-2.5 w-2.5" />{label}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="start">
+        <Input placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="h-8 mb-2" />
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-medium text-muted-foreground">TAGS ({picked.length} selected)</span>
+          <button type="button" className="text-xs text-primary" onClick={() => setPicked(filtered.map((t) => t.id))}>Select all</button>
+        </div>
+        <div className="max-h-48 overflow-y-auto space-y-1">
+          {filtered.length === 0 && <p className="text-xs text-muted-foreground py-2">No tags yet.</p>}
+          {filtered.map((t) => (
+            <label key={t.id} className="flex items-center gap-2 text-sm py-0.5">
+              <Checkbox checked={picked.includes(t.id)} onCheckedChange={() => toggle(t.id)} />
+              {t.name}
+            </label>
+          ))}
+        </div>
+        <Button size="sm" className="w-full mt-2" onClick={() => { onApply(picked); setOpen(false); }}>Apply</Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -738,8 +900,9 @@ function SubmitWeekButton({ weekStart }: { weekStart: Date }) {
   );
 }
 
-function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, onSaved }: {
-  open: boolean; onOpenChange: (v: boolean) => void; entry: TimeEntry | null; duplicateFrom: TimeEntry | null; onSaved: () => void;
+function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDate, onSaved }: {
+  open: boolean; onOpenChange: (v: boolean) => void; entry: TimeEntry | null; duplicateFrom: TimeEntry | null;
+  defaultDate: Date; onSaved: () => void;
 }) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
@@ -765,7 +928,7 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, onSaved }
     if (source) {
       setProjectId(source.project_id);
       setTaskId(source.task_id);
-      setDate(entry ? format(new Date(source.start_time), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+      setDate(entry ? format(new Date(source.start_time), 'yyyy-MM-dd') : format(defaultDate, 'yyyy-MM-dd'));
       setStartTime(format(new Date(source.start_time), 'HH:mm'));
       setEndTime(source.end_time ? format(new Date(source.end_time), 'HH:mm') : '17:00');
       setNotes(source.notes ?? '');
@@ -775,10 +938,10 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, onSaved }
         setTagIds((data ?? []).map((r) => r.tag_id));
       })();
     } else {
-      setProjectId(''); setTaskId(''); setDate(format(new Date(), 'yyyy-MM-dd'));
+      setProjectId(''); setTaskId(''); setDate(format(defaultDate, 'yyyy-MM-dd'));
       setStartTime('09:00'); setEndTime('17:00'); setNotes(''); setBillable(false); setTagIds([]);
     }
-  }, [open, entry, duplicateFrom]);
+  }, [open, entry, duplicateFrom, defaultDate]);
 
   const toggleTag = (id: string) => {
     setTagIds((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
