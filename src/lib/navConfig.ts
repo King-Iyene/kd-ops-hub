@@ -263,7 +263,7 @@ export const NAV_GROUPS = [
   // mechanism the Finance hub already uses for Money Out / Money In /
   // Risk, just applied to Time Tracking's own pages instead of one big
   // 14-item group.
-  { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries'] },
+  { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries', 'Time Expenses'] },
   // Reports > Time is itself three labeled sub-groups in TimeCamp's own
   // nav (Time / People / Other) above a separate Finance hub — same
   // sub-group mechanism as Money Out/In/Risk above, nested one level
@@ -275,7 +275,7 @@ export const NAV_GROUPS = [
   { key: 'timeTrackActivityProductivity', label: 'Productivity & Coaching', titles: ['Activity: Summary', 'Activity: Sites and apps', 'Activity: Categories', 'Activity: Efficiency', 'Activity: Goals'] },
   { key: 'timeTrackActivityVerification', label: 'Work verification', titles: ['Activity: Timeline', 'Activity: User statistics', 'Activity: Remote work detection', 'Activity: Screenshots'] },
   { key: 'timeTrackActivityConfig', label: 'Settings', titles: ['Time Agent & Policy'] },
-  { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Planner', 'Time Billing Rates'] },
+  { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Planner', 'Time Tags', 'Time Export Center', 'Time Integrations', 'Time Billing Rates'] },
   { key: 'timeTrackAttendance',  label: 'Attendance',           titles: ['Time Attendance', 'Time Leave', 'Time Kiosk'] },
   { key: 'timeTrackTeam',        label: 'Team',                 titles: ['Time Approvals', 'Time Roles'] },
   { key: 'timeTrackClients',     label: 'Clients',               titles: ['Time Clients & Invoices'] },
