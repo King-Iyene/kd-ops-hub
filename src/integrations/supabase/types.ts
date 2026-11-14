@@ -15248,87 +15248,6 @@ export type Database = {
         }
         Relationships: []
       }
-      time_expense_categories: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-        }
-        Relationships: []
-      }
-      time_expenses: {
-        Row: {
-          amount: number
-          category_id: string | null
-          client_id: string | null
-          created_at: string
-          currency: string
-          description: string | null
-          employee_id: string
-          expense_date: string
-          id: string
-          is_billable: boolean
-          project_id: string | null
-          receipt_path: string | null
-          review_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          category_id?: string | null
-          client_id?: string | null
-          created_at?: string
-          currency?: string
-          description?: string | null
-          employee_id: string
-          expense_date?: string
-          id?: string
-          is_billable?: boolean
-          project_id?: string | null
-          receipt_path?: string | null
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          category_id?: string | null
-          client_id?: string | null
-          created_at?: string
-          currency?: string
-          description?: string | null
-          employee_id?: string
-          expense_date?: string
-          id?: string
-          is_billable?: boolean
-          project_id?: string | null
-          receipt_path?: string | null
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       time_entries: {
         Row: {
           created_at: string
@@ -15443,6 +15362,165 @@ export type Database = {
             columns: ["time_entry_id"]
             isOneToOne: false
             referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_expense_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      time_expenses: {
+        Row: {
+          amount: number
+          category_id: string | null
+          client_id: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          employee_id: string
+          expense_date: string
+          id: string
+          is_billable: boolean
+          project_id: string | null
+          receipt_path: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          employee_id: string
+          expense_date?: string
+          id?: string
+          is_billable?: boolean
+          project_id?: string | null
+          receipt_path?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          employee_id?: string
+          expense_date?: string
+          id?: string
+          is_billable?: boolean
+          project_id?: string | null
+          receipt_path?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "time_expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "time_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_expenses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_expenses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_expenses_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
