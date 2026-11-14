@@ -15248,6 +15248,87 @@ export type Database = {
         }
         Relationships: []
       }
+      time_expense_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      time_expenses: {
+        Row: {
+          amount: number
+          category_id: string | null
+          client_id: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          employee_id: string
+          expense_date: string
+          id: string
+          is_billable: boolean
+          project_id: string | null
+          receipt_path: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          employee_id: string
+          expense_date?: string
+          id?: string
+          is_billable?: boolean
+          project_id?: string | null
+          receipt_path?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          employee_id?: string
+          expense_date?: string
+          id?: string
+          is_billable?: boolean
+          project_id?: string | null
+          receipt_path?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           created_at: string

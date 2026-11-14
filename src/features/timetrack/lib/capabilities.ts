@@ -6,7 +6,8 @@ export type TimetrackCapability =
   | 'manage_projects' | 'manage_tasks' | 'track_time' | 'view_others_time'
   | 'approve_timesheets' | 'manage_rates' | 'create_invoices' | 'manage_custom_fields'
   | 'manage_clients' | 'manage_planner' | 'manage_leave_types' | 'approve_leave'
-  | 'manage_overtime_rules' | 'manage_budgets' | 'track_time_for_others' | 'manage_activity_tracking';
+  | 'manage_overtime_rules' | 'manage_budgets' | 'track_time_for_others' | 'manage_activity_tracking'
+  | 'manage_expenses';
 
 interface TimeRoleRow {
   role_key: string;

@@ -189,6 +189,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Time Attendance',  url: '/timetrack/attendance', icon: CalendarCheck2, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Planner',     url: '/timetrack/planner', icon: CalendarRange,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Clients & Invoices', url: '/timetrack/clients', icon: Receipt, roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Time Expenses',    url: '/timetrack/expenses', icon: Receipt,       roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Billing Rates', url: '/timetrack/rates', icon: DollarSign,     roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Time Roles',       url: '/timetrack/roles',   icon: ShieldCheck,     roles: ['super_admin', 'admin'] },
   { title: 'Activity: Summary',       url: '/timetrack/activity/summary',     icon: LayoutDashboard, roles: ['super_admin', 'admin'] },
