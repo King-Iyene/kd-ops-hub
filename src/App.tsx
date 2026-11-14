@@ -127,7 +127,16 @@ const TimePlannerPage   = lazy(() => import('./features/timetrack/pages/PlannerP
 const TimeClientsInvoicesPage = lazy(() => import('./features/timetrack/pages/ClientsInvoicesPage'));
 const TimeBillingRatesPage = lazy(() => import('./features/timetrack/pages/BillingRatesPage'));
 const TimeRolesPage     = lazy(() => import('./features/timetrack/pages/RolesPage'));
-const TimeActivityPage  = lazy(() => import('./features/timetrack/pages/ActivityPage'));
+const ActivitiesSummaryPage = lazy(() => import('./features/timetrack/pages/activity/ActivitiesSummaryPage'));
+const SitesAppsPage = lazy(() => import('./features/timetrack/pages/activity/SitesAppsPage'));
+const ActivityCategoriesPage = lazy(() => import('./features/timetrack/pages/activity/ActivityCategoriesPage'));
+const ActivityEfficiencyPage = lazy(() => import('./features/timetrack/pages/activity/EfficiencyPage'));
+const ActivityGoalsPage = lazy(() => import('./features/timetrack/pages/activity/GoalsPage'));
+const ActivityTimelinePage = lazy(() => import('./features/timetrack/pages/activity/TimelinePage'));
+const ActivityUserStatisticsPage = lazy(() => import('./features/timetrack/pages/activity/UserStatisticsPage'));
+const RemoteWorkDetectionPage = lazy(() => import('./features/timetrack/pages/activity/RemoteWorkDetectionPage'));
+const ActivityScreenshotsPage = lazy(() => import('./features/timetrack/pages/activity/ScreenshotsPage'));
+const AgentConfigPage = lazy(() => import('./features/timetrack/pages/activity/AgentConfigPage'));
 const TimeSettingsPage  = lazy(() => import('./features/timetrack/pages/SettingsPage'));
 const TimeKioskPage     = lazy(() => import('./features/timetrack/pages/KioskPage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
@@ -894,7 +903,16 @@ function AppRoutes() {
           { path: '/timetrack/clients', Page: TimeClientsInvoicesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/rates', Page: TimeBillingRatesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/roles', Page: TimeRolesPage, roles: ADMIN_ONLY_ROLES },
-          { path: '/timetrack/activity', Page: TimeActivityPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/summary', Page: ActivitiesSummaryPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/sites-apps', Page: SitesAppsPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/categories', Page: ActivityCategoriesPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/efficiency', Page: ActivityEfficiencyPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/goals', Page: ActivityGoalsPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/timeline', Page: ActivityTimelinePage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/stats', Page: ActivityUserStatisticsPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/remote-work', Page: RemoteWorkDetectionPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/screenshots', Page: ActivityScreenshotsPage, roles: ADMIN_ONLY_ROLES },
+          { path: '/timetrack/activity/config', Page: AgentConfigPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/settings', Page: TimeSettingsPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/kiosk', Page: TimeKioskPage, roles: ALL_AUTH_ROLES },
         ].map(({ path, Page, roles }) => (

@@ -14613,6 +14613,36 @@ export type Database = {
           },
         ]
       }
+      time_activity_goals: {
+        Row: {
+          employee_id: string
+          id: string
+          metric: string
+          period: string
+          target_value: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          metric: string
+          period: string
+          target_value: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          metric?: string
+          period?: string
+          target_value?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       time_agent_settings: {
         Row: {
           blur_screenshots: boolean
