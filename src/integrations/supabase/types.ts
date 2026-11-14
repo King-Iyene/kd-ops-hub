@@ -20671,6 +20671,15 @@ export type Database = {
           used_hours: number
         }[]
       }
+      time_project_report: {
+        Args: {
+          p_employee_ids?: string[]
+          p_end?: string
+          p_project_id: string
+          p_start?: string
+        }
+        Returns: Json
+      }
       time_resolve_billing_rate: {
         Args: { p_as_of: string; p_employee_id: string; p_project_id: string }
         Returns: {
