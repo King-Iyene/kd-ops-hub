@@ -81,17 +81,26 @@ jobs:
           # "Windows protected your PC" warning on first run — expected
           # until certificates are purchased and added as secrets.
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # package.json's build.publish config (provider: github) makes
-          # electron-builder probe the GitHub API to resolve the latest
-          # release even when the CLI is passed --publish=never — this is
-          # a known electron-builder quirk, not a mistake in that config.
-          # Without a token that probe is unauthenticated and shares
-          # GitHub's very low per-IP rate limit across every Actions
-          # runner on Earth; once rate-limited, electron-builder retries
-          # with backoff instead of failing, which is indistinguishable
-          # from a hang (this is exactly what happened on prior runs of
-          # this workflow). Supplying GH_TOKEN authenticates the probe so
-          # it resolves immediately instead of retrying.
+          # Confirmed (via the logs of a cancelled run) root cause of the
+          # multi-hour hangs this workflow has had: @electron/rebuild
+          # rebuilding active-win's native addon gets stuck at the
+          # "preparing" phase on every OS, with no further log output.
+          # active-win depends on @mapbox/node-pre-gyp, which first tries
+          # to download a prebuilt .node binary over the network before
+          # falling back to compiling from source with node-gyp; that
+          # download has no effective timeout, so if it stalls the whole
+          # job just sits there indefinitely instead of failing. Setting
+          # npm_config_build_from_source skips the download and goes
+          # straight to a local node-gyp source build, which only needs
+          # Electron's headers (already fetched successfully — logs show
+          # "installing native dependencies" completing fine before the
+          # hang) and is the standard, documented workaround for this
+          # exact node-pre-gyp failure mode.
+          npm_config_build_from_source: "true"
+          # Also authenticate electron-builder's GitHub API calls (e.g.
+          # resolving the latest release, even with --publish=never) so
+          # they aren't subject to GitHub's much lower unauthenticated
+          # rate limit.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # node-gyp's Visual Studio auto-detection on windows-latest can
           # fail to recognize the pre-installed VS2022 Build Tools edition;
