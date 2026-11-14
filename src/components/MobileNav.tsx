@@ -130,7 +130,20 @@ export function MobileNav() {
         return g ? [...g.titles] : [];
       });
       const items = visibleItems.filter((n) => groupTitles.includes(n.title));
-      return { ...hub, items };
+      // Same sub-grouping the desktop sidebar shows as collapsible labeled
+      // sections within a hub (e.g. Time Tracking's Track/Reports/Manage/…) —
+      // only worth a label when a hub actually has more than one group;
+      // a single-group hub still renders as one flat list.
+      const subGroups = hub.groups
+        .map((gk) => NAV_GROUPS.find((ng) => ng.key === gk))
+        .filter((g): g is (typeof NAV_GROUPS)[number] => !!g)
+        .map((g) => ({
+          key: g.key,
+          label: g.label,
+          items: visibleItems.filter((n) => (g.titles as readonly string[]).includes(n.title)),
+        }))
+        .filter((g) => g.items.length > 0);
+      return { ...hub, items, subGroups };
     }).filter((h) => h.items.length > 0);
   }, [visibleItems]);
 
@@ -339,29 +352,63 @@ export function MobileNav() {
                     )} />
                   </button>
                   {isExpanded && (
-                    <div className="pb-1.5 px-1.5 space-y-0.5">
-                      {hub.items.map((item) => {
-                        const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
-                        return (
-                          <a
-                            key={item.title}
-                            href={item.url}
-                            onClick={(e) => { e.preventDefault(); setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
-                            className={cn(
-                              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
-                              active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
-                            )}
-                          >
-                            <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                            <span className="flex-1 text-left truncate">{item.title}</span>
-                            {item.badge === 'approvals' && approvalTotal > 0 && (
-                              <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
-                                {approvalTotal > 9 ? '9+' : approvalTotal}
-                              </span>
-                            )}
-                          </a>
-                        );
-                      })}
+                    <div className="pb-1.5 px-1.5">
+                      {hub.subGroups.length > 1 ? (
+                        hub.subGroups.map((group) => (
+                          <div key={group.key} className="space-y-0.5 mt-1.5 first:mt-0">
+                            <p className="px-3 pb-1 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground/50">
+                              {group.label}
+                            </p>
+                            {group.items.map((item) => {
+                              const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
+                              return (
+                                <a
+                                  key={item.title}
+                                  href={item.url}
+                                  onClick={(e) => { e.preventDefault(); setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
+                                  className={cn(
+                                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
+                                    active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
+                                  )}
+                                >
+                                  <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                                  <span className="flex-1 text-left truncate">{item.title}</span>
+                                  {item.badge === 'approvals' && approvalTotal > 0 && (
+                                    <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
+                                      {approvalTotal > 9 ? '9+' : approvalTotal}
+                                    </span>
+                                  )}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="space-y-0.5">
+                          {hub.items.map((item) => {
+                            const active = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url));
+                            return (
+                              <a
+                                key={item.title}
+                                href={item.url}
+                                onClick={(e) => { e.preventDefault(); setMoreOpen(false); setExpandedHub(null); navigate(item.url); }}
+                                className={cn(
+                                  'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm kd-transition active:scale-[0.99] no-underline',
+                                  active ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/60',
+                                )}
+                              >
+                                <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                                <span className="flex-1 text-left truncate">{item.title}</span>
+                                {item.badge === 'approvals' && approvalTotal > 0 && (
+                                  <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
+                                    {approvalTotal > 9 ? '9+' : approvalTotal}
+                                  </span>
+                                )}
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

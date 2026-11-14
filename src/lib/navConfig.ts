@@ -210,7 +210,21 @@ export const NAV_GROUPS = [
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
   { key: 'coreHr',     label: 'Core HR',              titles: ['Employees', 'Contractors', 'Placements', 'Attendance'] },
   { key: 'timeLeave',  label: 'Time & Leave',         titles: ['Leave', 'Shifts', 'Timesheets'] },
-  { key: 'timeTracking', label: 'Time Tracking',      titles: ['Time Dashboard', 'Time Entries', 'Time Projects', 'Time Reports', 'Time Approvals', 'Time Leave', 'Time Attendance', 'Time Planner', 'Time Clients & Invoices', 'Time Billing Rates', 'Time Roles', 'Time Activity', 'Time Settings', 'Time Kiosk'] },
+  // Time Tracking is one hub but (per TimeCamp's own left nav, which this
+  // module matches feature-for-feature) several distinct sections, not one
+  // flat list: Track, Reports, Computer Activities, Manage, Attendance,
+  // Team, Clients, each becomes its own collapsible sub-group here — same
+  // mechanism the Finance hub already uses for Money Out / Money In /
+  // Risk, just applied to Time Tracking's own pages instead of one big
+  // 14-item group.
+  { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries'] },
+  { key: 'timeTrackReports',     label: 'Reports',              titles: ['Time Reports'] },
+  { key: 'timeTrackActivities',  label: 'Computer Activities',  titles: ['Time Activity'] },
+  { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Planner', 'Time Billing Rates'] },
+  { key: 'timeTrackAttendance',  label: 'Attendance',           titles: ['Time Attendance', 'Time Leave', 'Time Kiosk'] },
+  { key: 'timeTrackTeam',        label: 'Team',                 titles: ['Time Approvals', 'Time Roles'] },
+  { key: 'timeTrackClients',     label: 'Clients',               titles: ['Time Clients & Invoices'] },
+  { key: 'timeTrackSettings',    label: 'Settings',              titles: ['Time Settings'] },
   { key: 'talent',     label: 'Talent',               titles: ['Recruitment', 'Onboarding', 'Training', 'Performance', 'Succession'] },
   { key: 'compWell',   label: 'Compensation & Wellbeing', titles: ['Benefits', 'Staff Loans'] },
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },
@@ -254,7 +268,10 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     icon: 'Clock',
     color: 'text-teal-400',
     iconBg: 'bg-teal-500/15',
-    groups: ['timeTracking'],
+    groups: [
+      'timeTrackTrack', 'timeTrackReports', 'timeTrackActivities', 'timeTrackManage',
+      'timeTrackAttendance', 'timeTrackTeam', 'timeTrackClients', 'timeTrackSettings',
+    ],
   },
   {
     key: 'people',
