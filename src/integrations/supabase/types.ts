@@ -15248,57 +15248,6 @@ export type Database = {
         }
         Relationships: []
       }
-      time_export_schedules: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          data_type: string
-          day_of_month: number | null
-          day_of_week: number | null
-          format: string
-          frequency: string
-          id: string
-          is_active: boolean
-          last_run_at: string | null
-          lookback_days: number
-          name: string
-          next_run_at: string
-          recipient_email: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          data_type: string
-          day_of_month?: number | null
-          day_of_week?: number | null
-          format?: string
-          frequency: string
-          id?: string
-          is_active?: boolean
-          last_run_at?: string | null
-          lookback_days?: number
-          name: string
-          next_run_at?: string
-          recipient_email: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          data_type?: string
-          day_of_month?: number | null
-          day_of_week?: number | null
-          format?: string
-          frequency?: string
-          id?: string
-          is_active?: boolean
-          last_run_at?: string | null
-          lookback_days?: number
-          name?: string
-          next_run_at?: string
-          recipient_email?: string
-        }
-        Relationships: []
-      }
       time_entries: {
         Row: {
           created_at: string
@@ -15570,6 +15519,86 @@ export type Database = {
           {
             foreignKeyName: "time_expenses_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_export_schedules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_type: string
+          day_of_month: number | null
+          day_of_week: number | null
+          format: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          lookback_days: number
+          name: string
+          next_run_at: string
+          recipient_email: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_type: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          format?: string
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          lookback_days?: number
+          name: string
+          next_run_at?: string
+          recipient_email: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_type?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          format?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          lookback_days?: number
+          name?: string
+          next_run_at?: string
+          recipient_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_export_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_export_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_export_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_export_schedules_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
@@ -20529,6 +20558,7 @@ export type Database = {
       tick_payment_reconciliation: { Args: never; Returns: undefined }
       tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
+      tick_timetrack_export_runner: { Args: never; Returns: undefined }
       tick_webhook_retry_worker: { Args: never; Returns: undefined }
       time_admin_unlock_week: {
         Args: { p_approval_id: string; p_reason: string }
