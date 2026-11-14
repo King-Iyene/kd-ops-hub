@@ -191,7 +191,7 @@ export function AppSidebar() {
         <SidebarMenuButton
           asChild
           isActive={active}
-          tooltip={sidebarCollapsed ? item.title : undefined}
+          tooltip={sidebarCollapsed ? (item.label ?? item.title) : undefined}
           className="relative"
         >
           <NavLink
@@ -217,7 +217,7 @@ export function AppSidebar() {
             />
             {!sidebarCollapsed && (
               <>
-                <span className="flex-1 truncate">{item.title}</span>
+                <span className="flex-1 truncate">{item.label ?? item.title}</span>
                 {showBadge && (
                   <span className={cn(
                     'relative ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',

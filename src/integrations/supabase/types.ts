@@ -20191,6 +20191,31 @@ export type Database = {
           revenue_rate_per_hour: number
         }[]
       }
+      time_finance_entries_report: {
+        Args: {
+          p_end_date: string
+          p_start_date: string
+        }
+        Returns: {
+          cost: number
+          cost_rate_per_hour: number
+          duration_minutes: number
+          employee_id: string
+          employee_name: string
+          id: string
+          invoiced: boolean
+          is_billable: boolean
+          margin: number
+          notes: string | null
+          project_id: string
+          project_name: string
+          revenue: number
+          revenue_rate_per_hour: number
+          start_time: string
+          task_id: string
+          task_name: string
+        }[]
+      }
       time_has_capability: { Args: { p_capability: string }; Returns: boolean }
       time_is_project_manager: {
         Args: { p_project_id: string }

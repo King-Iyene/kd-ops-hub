@@ -101,7 +101,25 @@ const DatabasePage      = lazy(() => import('./features/database/pages/DatabaseP
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
-const TimeReportsPage   = lazy(() => import('./features/timetrack/pages/ReportsPage'));
+// Reports > Time > Time
+const TimeReportsSummaryPage  = lazy(() => import('./features/timetrack/pages/reports/SummaryPage'));
+const TimeReportsDetailedPage = lazy(() => import('./features/timetrack/pages/reports/DetailedPage'));
+const TimeReportsByDaysPage   = lazy(() => import('./features/timetrack/pages/reports/TimeByDaysPage'));
+const TimeReportsPivotPage    = lazy(() => import('./features/timetrack/pages/reports/PivotTablePage'));
+// Reports > Time > People
+const PeopleByTasksPage      = lazy(() => import('./features/timetrack/pages/reports/PeopleByTasksPage'));
+const PeopleByDaysTasksPage  = lazy(() => import('./features/timetrack/pages/reports/PeopleByDaysAndTasksPage'));
+const PeopleByDaysPage       = lazy(() => import('./features/timetrack/pages/reports/PeopleByDaysPage'));
+const PeopleByProjectsPage   = lazy(() => import('./features/timetrack/pages/reports/PeopleByProjectsPage'));
+// Reports > Time > Other
+const LocationReportPage     = lazy(() => import('./features/timetrack/pages/reports/LocationReportPage'));
+const RealTimeDashboardPage  = lazy(() => import('./features/timetrack/pages/reports/RealTimeDashboardPage'));
+// Finance
+const FinanceBillablePage = lazy(() => import('./features/timetrack/pages/reports/BillableNonBillablePage'));
+const FinanceEstimatesPage = lazy(() => import('./features/timetrack/pages/reports/EstimatesPage'));
+const FinanceRevenuesPage = lazy(() => import('./features/timetrack/pages/reports/RevenuesPage'));
+const FinanceCostsPage = lazy(() => import('./features/timetrack/pages/reports/CostsPage'));
+const FinanceMarginPage = lazy(() => import('./features/timetrack/pages/reports/MarginPage'));
 const TimeApprovalsPage = lazy(() => import('./features/timetrack/pages/ApprovalsPage'));
 const TimeLeavePage     = lazy(() => import('./features/timetrack/pages/LeavePage'));
 const TimeAttendancePage = lazy(() => import('./features/timetrack/pages/AttendancePage'));
@@ -854,7 +872,21 @@ function AppRoutes() {
           { path: '/timetrack', Page: TimeDashboardPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/time', Page: TimeEntriesPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/projects', Page: TimeProjectsPage, roles: ALL_AUTH_ROLES },
-          { path: '/timetrack/reports', Page: TimeReportsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/summary', Page: TimeReportsSummaryPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/detailed', Page: TimeReportsDetailedPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/by-days', Page: TimeReportsByDaysPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/pivot', Page: TimeReportsPivotPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/people-by-tasks', Page: PeopleByTasksPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/people-by-days-tasks', Page: PeopleByDaysTasksPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/people-by-days', Page: PeopleByDaysPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/people-by-projects', Page: PeopleByProjectsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/location', Page: LocationReportPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/reports/dashboard', Page: RealTimeDashboardPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/finance/billable', Page: FinanceBillablePage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/finance/estimates', Page: FinanceEstimatesPage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/finance/revenues', Page: FinanceRevenuesPage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/finance/costs', Page: FinanceCostsPage, roles: PAYMENT_ROLES },
+          { path: '/timetrack/finance/margin', Page: FinanceMarginPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/approvals', Page: TimeApprovalsPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/leave', Page: TimeLeavePage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/attendance', Page: TimeAttendancePage, roles: ALL_AUTH_ROLES },

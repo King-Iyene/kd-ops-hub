@@ -271,7 +271,7 @@ export function MobileNav() {
                     )}
                   >
                     <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                    <span className="flex-1 text-left truncate">{item.title}</span>
+                    <span className="flex-1 text-left truncate">{item.label ?? item.title}</span>
                   </a>
                 );
               }) : (
@@ -300,7 +300,7 @@ export function MobileNav() {
                     )}
                   >
                     <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                    <span className="flex-1 text-left truncate">{item.title}</span>
+                    <span className="flex-1 text-left truncate">{item.label ?? item.title}</span>
                     {item.badge === 'approvals' && approvalTotal > 0 && (
                       <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                         {approvalTotal > 9 ? '9+' : approvalTotal}
@@ -372,7 +372,7 @@ export function MobileNav() {
                                   )}
                                 >
                                   <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                                  <span className="flex-1 text-left truncate">{item.title}</span>
+                                  <span className="flex-1 text-left truncate">{item.label ?? item.title}</span>
                                   {item.badge === 'approvals' && approvalTotal > 0 && (
                                     <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                                       {approvalTotal > 9 ? '9+' : approvalTotal}
@@ -398,7 +398,7 @@ export function MobileNav() {
                                 )}
                               >
                                 <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-                                <span className="flex-1 text-left truncate">{item.title}</span>
+                                <span className="flex-1 text-left truncate">{item.label ?? item.title}</span>
                                 {item.badge === 'approvals' && approvalTotal > 0 && (
                                   <span className="h-5 min-w-5 px-1 rounded-full bg-warning text-3xs font-bold text-warning-foreground flex items-center justify-center">
                                     {approvalTotal > 9 ? '9+' : approvalTotal}

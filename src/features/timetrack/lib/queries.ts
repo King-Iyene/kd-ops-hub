@@ -11,6 +11,14 @@ export async function fetchActiveProjects(): Promise<TimeProject[]> {
   return (data ?? []) as TimeProject[];
 }
 
+/** Every project regardless of archived status — for report filter dropdowns
+ * where the person explicitly controls Active/archived via its own filter. */
+export async function fetchAllProjects(): Promise<TimeProject[]> {
+  const { data, error } = await supabase.from('time_projects').select('*').order('name');
+  if (error) throw error;
+  return (data ?? []) as TimeProject[];
+}
+
 export async function fetchTasksForProject(projectId: string): Promise<TimeTask[]> {
   const { data, error } = await supabase
     .from('time_tasks')

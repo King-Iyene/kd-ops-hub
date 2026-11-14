@@ -79,11 +79,20 @@ import {
   Palmtree,
   CalendarRange,
   MonitorSmartphone,
+  Search,
+  MapPin,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
 export type NavItem = {
   title: string;
+  /** Text actually shown in the sidebar/mobile nav. Falls back to `title`
+   *  when omitted. Needed because `title` must be globally unique (it's
+   *  the React key and the string NAV_GROUPS filters on), while TimeCamp
+   *  itself reuses the same visible label ("By days", "Detailed", …) across
+   *  more than one group — disambiguated there only by the group header
+   *  above it. */
+  label?: string;
   url: string;
   icon: typeof LayoutDashboard;
   roles: Role[];
@@ -152,7 +161,26 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Time Dashboard',   url: '/timetrack',         icon: Clock,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Entries',     url: '/timetrack/time',    icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Projects',    url: '/timetrack/projects', icon: FolderKanban,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Time Reports',     url: '/timetrack/reports', icon: BarChart3,       roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // Reports > Time > Time
+  { title: 'Reports: Summary',  label: 'Summary',  url: '/timetrack/reports/summary',  icon: BarChart3, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: Detailed', label: 'Detailed', url: '/timetrack/reports/detailed', icon: Search,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: By days (Time)', label: 'By days', url: '/timetrack/reports/by-days', icon: CalendarDays, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: Pivot Table', label: 'Pivot Table', url: '/timetrack/reports/pivot', icon: Table2, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // Reports > Time > People
+  { title: 'Reports: By tasks',          label: 'By tasks',          url: '/timetrack/reports/people-by-tasks',       icon: Users, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: By days and tasks', label: 'By days and tasks', url: '/timetrack/reports/people-by-days-tasks',  icon: Users, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: By days (People)',  label: 'By days',           url: '/timetrack/reports/people-by-days',        icon: Users, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: By projects',       label: 'By projects',       url: '/timetrack/reports/people-by-projects',    icon: Users, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // Reports > Time > Other
+  { title: 'Reports: Location report',     label: 'Location report',     url: '/timetrack/reports/location',  icon: MapPin,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Reports: Real-time dashboard', label: 'Real-time dashboard', url: '/timetrack/reports/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  // Finance — its own hub, like TimeCamp's own left nav ($ icon, separate
+  // from the Reports > Time hub above.
+  { title: 'Finance: Billable, non-billable', label: 'Billable, non-billable', url: '/timetrack/finance/billable',  icon: Receipt,    roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Finance: Estimates',              label: 'Estimates',              url: '/timetrack/finance/estimates', icon: Gauge,      roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Finance: Revenues',               label: 'Revenues',               url: '/timetrack/finance/revenues',  icon: HandCoins,  roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Finance: Costs',                  label: 'Costs',                  url: '/timetrack/finance/costs',     icon: Wallet,     roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Finance: Margin',                 label: 'Margin',                 url: '/timetrack/finance/margin',    icon: ArrowUpDown, roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Time Approvals',   url: '/timetrack/approvals', icon: CheckSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Leave',       url: '/timetrack/leave',   icon: Palmtree,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Attendance',  url: '/timetrack/attendance', icon: CalendarCheck2, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -218,7 +246,14 @@ export const NAV_GROUPS = [
   // Risk, just applied to Time Tracking's own pages instead of one big
   // 14-item group.
   { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries'] },
-  { key: 'timeTrackReports',     label: 'Reports',              titles: ['Time Reports'] },
+  // Reports > Time is itself three labeled sub-groups in TimeCamp's own
+  // nav (Time / People / Other) above a separate Finance hub — same
+  // sub-group mechanism as Money Out/In/Risk above, nested one level
+  // deeper via SIDEBAR_HUBS' own groups list.
+  { key: 'timeTrackReportsTime',    label: 'Time',   titles: ['Reports: Summary', 'Reports: Detailed', 'Reports: By days (Time)', 'Reports: Pivot Table'] },
+  { key: 'timeTrackReportsPeople',  label: 'People', titles: ['Reports: By tasks', 'Reports: By days and tasks', 'Reports: By days (People)', 'Reports: By projects'] },
+  { key: 'timeTrackReportsOther',   label: 'Other',  titles: ['Reports: Location report', 'Reports: Real-time dashboard'] },
+  { key: 'timeTrackFinance',        label: 'Finance', titles: ['Finance: Billable, non-billable', 'Finance: Estimates', 'Finance: Revenues', 'Finance: Costs', 'Finance: Margin'] },
   { key: 'timeTrackActivities',  label: 'Computer Activities',  titles: ['Time Activity'] },
   { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Planner', 'Time Billing Rates'] },
   { key: 'timeTrackAttendance',  label: 'Attendance',           titles: ['Time Attendance', 'Time Leave', 'Time Kiosk'] },
@@ -269,7 +304,8 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-teal-400',
     iconBg: 'bg-teal-500/15',
     groups: [
-      'timeTrackTrack', 'timeTrackReports', 'timeTrackActivities', 'timeTrackManage',
+      'timeTrackTrack', 'timeTrackReportsTime', 'timeTrackReportsPeople', 'timeTrackReportsOther',
+      'timeTrackFinance', 'timeTrackActivities', 'timeTrackManage',
       'timeTrackAttendance', 'timeTrackTeam', 'timeTrackClients', 'timeTrackSettings',
     ],
   },
