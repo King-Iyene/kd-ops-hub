@@ -13,12 +13,13 @@ export default function EfficiencyPage() {
   const { data: employees } = useActiveEmployees();
 
   const rows = useMemo(() => {
-    const map = new Map<string, { productive: number; neutral: number; unproductive: number; idle: number; uncategorized: number }>();
+    const map = new Map<string, { productive: number; neutral: number; unproductive: number; blocked: number; idle: number; uncategorized: number }>();
     for (const l of data?.logs ?? []) {
-      const row = map.get(l.employee_id) ?? { productive: 0, neutral: 0, unproductive: 0, idle: 0, uncategorized: 0 };
+      const row = map.get(l.employee_id) ?? { productive: 0, neutral: 0, unproductive: 0, blocked: 0, idle: 0, uncategorized: 0 };
       if (l.productivity_category === 'productive') row.productive++;
       else if (l.productivity_category === 'neutral') row.neutral++;
       else if (l.productivity_category === 'unproductive') row.unproductive++;
+      else if (l.productivity_category === 'blocked') row.blocked++;
       else if (l.productivity_category === 'idle') row.idle++;
       else row.uncategorized++;
       map.set(l.employee_id, row);
@@ -26,8 +27,10 @@ export default function EfficiencyPage() {
     return [...map.entries()].map(([employeeId, r]) => {
       // Idle time is excluded from the efficiency share — it's absence, not
       // low-quality work, so folding it in would unfairly tank the score of
-      // someone who simply stepped away for lunch.
-      const activeTotal = r.productive + r.neutral + r.unproductive + r.uncategorized;
+      // someone who simply stepped away for lunch. Blocked time stays IN the
+      // denominator (and out of the numerator) — unlike idle, it's a real
+      // productivity problem, not an absence.
+      const activeTotal = r.productive + r.neutral + r.unproductive + r.blocked + r.uncategorized;
       const total = activeTotal + r.idle;
       const efficiency = activeTotal > 0 ? (r.productive / activeTotal) * 100 : 0;
       return { employeeId, name: employees?.find((e) => e.id === employeeId)?.full_name ?? employeeId, ...r, total, efficiency };
@@ -43,6 +46,7 @@ export default function EfficiencyPage() {
           <TableHeader><TableRow>
             <TableHead>Employee</TableHead><TableHead className="text-right">Productive</TableHead>
             <TableHead className="text-right">Neutral</TableHead><TableHead className="text-right">Unproductive</TableHead>
+            <TableHead className="text-right">Blocked</TableHead>
             <TableHead className="text-right">Idle</TableHead>
             <TableHead className="text-right">Captures</TableHead><TableHead className="text-right">Efficiency</TableHead>
           </TableRow></TableHeader>
@@ -54,6 +58,9 @@ export default function EfficiencyPage() {
                 <TableCell className="text-right">{r.neutral}</TableCell>
                 <TableCell className="text-right">{r.unproductive}</TableCell>
                 <TableCell className="text-right">
+                  {r.blocked > 0 && <Badge variant="outline" className={CATEGORY_BADGE.blocked}>{r.blocked}</Badge>}
+                </TableCell>
+                <TableCell className="text-right">
                   {r.idle > 0 && <Badge variant="outline" className={CATEGORY_BADGE.idle}>{r.idle}</Badge>}
                 </TableCell>
                 <TableCell className="text-right">{r.total}</TableCell>
@@ -64,7 +71,7 @@ export default function EfficiencyPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
           </TableBody>
         </Table>
       )}

@@ -11,7 +11,7 @@ interface AgentSettings {
 interface ProductivityRule {
   app_name_contains: string | null;
   title_contains: string | null;
-  category: 'productive' | 'neutral' | 'unproductive';
+  category: 'productive' | 'neutral' | 'unproductive' | 'blocked';
   priority: number;
 }
 

@@ -31,7 +31,7 @@ export default function ActivityCategoriesPage() {
   const [open, setOpen] = useState(false);
   const [appNameContains, setAppNameContains] = useState('');
   const [titleContains, setTitleContains] = useState('');
-  const [category, setCategory] = useState<'productive' | 'neutral' | 'unproductive'>('productive');
+  const [category, setCategory] = useState<'productive' | 'neutral' | 'unproductive' | 'blocked'>('productive');
   const [priority, setPriority] = useState('100');
   const [saving, setSaving] = useState(false);
 
@@ -68,7 +68,7 @@ export default function ActivityCategoriesPage() {
 
   return (
     <div className="space-y-3 sm:space-y-6">
-      <PageHeader title="Activity categories" description="Rules that classify each capture as productive, neutral, or unproductive" icon={Tags} />
+      <PageHeader title="Activity categories" description="Rules that classify each capture as productive, neutral, unproductive, or blocked (triggers an admin alert)" icon={Tags} />
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <div className="space-y-3">
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New rule</Button>
@@ -104,6 +104,7 @@ export default function ActivityCategoriesPage() {
                   <SelectItem value="productive">Productive</SelectItem>
                   <SelectItem value="neutral">Neutral</SelectItem>
                   <SelectItem value="unproductive">Unproductive</SelectItem>
+                  <SelectItem value="blocked">Blocked (alerts admins)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

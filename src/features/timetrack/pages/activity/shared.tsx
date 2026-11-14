@@ -23,6 +23,7 @@ export const CATEGORY_BADGE: Record<string, string> = {
   neutral: 'bg-muted text-muted-foreground',
   unproductive: 'bg-destructive/15 text-destructive border-destructive/30',
   idle: 'bg-sky-500/15 text-sky-600 border-sky-500/30',
+  blocked: 'bg-red-600/20 text-red-600 border-red-600/40 font-semibold',
 };
 
 /** Best-effort domain for a capture: real URL when the agent could get one
