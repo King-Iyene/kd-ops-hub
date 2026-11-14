@@ -57,7 +57,8 @@ jobs:
           supabase secrets set \
             PAYSTACK_PROXY_URL="${{ secrets.PAYSTACK_PROXY_URL }}" \
             PAYSTACK_PROXY_KEY="${{ secrets.PROXY_KEY }}" \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
+            --yes
 
       - name: Deploy paystack-transfer
         run: supabase functions deploy paystack-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
@@ -176,3 +177,9 @@ jobs:
 
       - name: Deploy automation-runner
         run: supabase functions deploy automation-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      # Cron-only (X-Cron-Secret) hourly tick via tick_timetrack_export_runner(),
+      # see 20261260000000_timetrack_export_center.sql — plus a direct admin
+      # JWT call for the Export Center's "Send now" button.
+      - name: Deploy timetrack-export-runner
+        run: supabase functions deploy timetrack-export-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
