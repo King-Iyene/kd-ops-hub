@@ -20171,6 +20171,28 @@ export type Database = {
         Args: { p_comment?: string; p_decision: string; p_request_id: string }
         Returns: undefined
       }
+      time_finance_entries_report: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          cost: number
+          cost_rate_per_hour: number
+          duration_minutes: number
+          employee_id: string
+          employee_name: string
+          id: string
+          invoiced: boolean
+          is_billable: boolean
+          margin: number
+          notes: string
+          project_id: string
+          project_name: string
+          revenue: number
+          revenue_rate_per_hour: number
+          start_time: string
+          task_id: string
+          task_name: string
+        }[]
+      }
       time_finance_report: {
         Args: {
           p_employee_id?: string
@@ -20189,31 +20211,6 @@ export type Database = {
           project_id: string
           revenue: number
           revenue_rate_per_hour: number
-        }[]
-      }
-      time_finance_entries_report: {
-        Args: {
-          p_end_date: string
-          p_start_date: string
-        }
-        Returns: {
-          cost: number
-          cost_rate_per_hour: number
-          duration_minutes: number
-          employee_id: string
-          employee_name: string
-          id: string
-          invoiced: boolean
-          is_billable: boolean
-          margin: number
-          notes: string | null
-          project_id: string
-          project_name: string
-          revenue: number
-          revenue_rate_per_hour: number
-          start_time: string
-          task_id: string
-          task_name: string
         }[]
       }
       time_has_capability: { Args: { p_capability: string }; Returns: boolean }
