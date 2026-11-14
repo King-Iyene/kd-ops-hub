@@ -14553,6 +14553,7 @@ export type Database = {
           employee_id: string
           id: string
           productivity_category: string | null
+          url: string | null
           window_title: string | null
         }
         Insert: {
@@ -14561,6 +14562,7 @@ export type Database = {
           employee_id: string
           id?: string
           productivity_category?: string | null
+          url?: string | null
           window_title?: string | null
         }
         Update: {
@@ -14569,6 +14571,7 @@ export type Database = {
           employee_id?: string
           id?: string
           productivity_category?: string | null
+          url?: string | null
           window_title?: string | null
         }
         Relationships: [

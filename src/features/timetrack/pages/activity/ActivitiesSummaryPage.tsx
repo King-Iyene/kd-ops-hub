@@ -28,6 +28,7 @@ export default function ActivitiesSummaryPage() {
 
   const productiveCount = (logs ?? []).filter((l) => l.productivity_category === 'productive').length;
   const unproductiveCount = (logs ?? []).filter((l) => l.productivity_category === 'unproductive').length;
+  const idleCount = (logs ?? []).filter((l) => l.productivity_category === 'idle').length;
 
   return (
     <div className="space-y-3 sm:space-y-6">
@@ -41,6 +42,7 @@ export default function ActivitiesSummaryPage() {
         <StatCard title="Captures shown" value={(logs ?? []).length} icon={LayoutDashboard} tone="default" />
         <StatCard title="Productive" value={productiveCount} tone="success" />
         <StatCard title="Unproductive" value={unproductiveCount} tone={unproductiveCount > 0 ? 'danger' : 'default'} />
+        <StatCard title="Idle" value={idleCount} tone="default" />
       </div>
       <Select value={employeeId} onValueChange={setEmployeeId}>
         <SelectTrigger className="w-64"><SelectValue placeholder="All employees" /></SelectTrigger>

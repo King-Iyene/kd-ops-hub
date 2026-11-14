@@ -13,6 +13,7 @@ export interface ActivityLog {
   employee_id: string;
   window_title: string | null;
   app_name: string | null;
+  url: string | null;
   productivity_category: string | null;
   captured_at: string;
 }
@@ -21,7 +22,20 @@ export const CATEGORY_BADGE: Record<string, string> = {
   productive: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
   neutral: 'bg-muted text-muted-foreground',
   unproductive: 'bg-destructive/15 text-destructive border-destructive/30',
+  idle: 'bg-sky-500/15 text-sky-600 border-sky-500/30',
 };
+
+/** Best-effort domain for a capture: real URL when the agent could get one
+ * (macOS only — see the url column's migration for why), else null so
+ * callers can fall back to app/window-title grouping. */
+export function captureDomain(log: Pick<ActivityLog, 'url'>): string | null {
+  if (!log.url) return null;
+  try {
+    return new URL(log.url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
 
 export function useActivityDateRange() {
   const [start, setStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -47,7 +61,7 @@ export function useLogsWithIntervals(start: string, end: string) {
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
       const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }] = await Promise.all([
-        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, productivity_category, captured_at')
+        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at')
           .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
           .order('captured_at', { ascending: false }).limit(20000),
         supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),
