@@ -14726,30 +14726,39 @@ export type Database = {
       }
       time_agent_settings: {
         Row: {
+          app_version: string | null
           blur_screenshots: boolean
           capture_interval_minutes: number
           employee_id: string
           is_enabled: boolean
+          last_login_at: string | null
+          login_count: number
           retention_days: number
           screenshots_enabled: boolean
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          app_version?: string | null
           blur_screenshots?: boolean
           capture_interval_minutes?: number
           employee_id: string
           is_enabled?: boolean
+          last_login_at?: string | null
+          login_count?: number
           retention_days?: number
           screenshots_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          app_version?: string | null
           blur_screenshots?: boolean
           capture_interval_minutes?: number
           employee_id?: string
           is_enabled?: boolean
+          last_login_at?: string | null
+          login_count?: number
           retention_days?: number
           screenshots_enabled?: boolean
           updated_at?: string
@@ -20562,6 +20571,10 @@ export type Database = {
       tick_webhook_retry_worker: { Args: never; Returns: undefined }
       time_admin_unlock_week: {
         Args: { p_approval_id: string; p_reason: string }
+        Returns: undefined
+      }
+      time_agent_checkin: {
+        Args: { p_app_version: string }
         Returns: undefined
       }
       time_apply_rounding: { Args: { p_minutes: number }; Returns: number }
