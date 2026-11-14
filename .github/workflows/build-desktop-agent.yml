@@ -49,6 +49,11 @@ jobs:
           - os: macos-latest
             build-args: --mac
     runs-on: ${{ matrix.os }}
+    # Hard cap so a hang (this job has had two already, both well past an
+    # hour) fails loud and fast instead of silently burning CI time —
+    # every real run of this job to date, successful or not, has settled
+    # one way or the other well under 20 minutes.
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: desktop-agent
