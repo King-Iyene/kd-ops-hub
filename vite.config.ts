@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  preview: {
+    // Render serves the built app with `npm start` on its own hostname.
+    allowedHosts: true,
+  },
   plugins: [
     react(),
     // Progressive Web App — installs to home screen on iOS/Android,
