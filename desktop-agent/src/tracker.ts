@@ -20,13 +20,88 @@ interface IdlePolicy {
   stop_tracking_when_unused_minutes: number;
 }
 
+interface OfficeLocation {
+  lat: number;
+  lon: number;
+  radius_meters: number;
+}
+
+interface GeoLookup {
+  ip: string | null;
+  lat: number | null;
+  lon: number | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+}
+
 const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 5, stop_tracking_when_unused_minutes: 5 };
+// ipapi.co's free tier allows 1,000 lookups/day/IP with no key. A real IP
+// rarely moves within a workday, so looking it up every 5 minutes (not every
+// tick) is both honest-enough freshness and comfortably inside that limit
+// even for a short capture_interval_minutes.
+const GEO_LOOKUP_INTERVAL_MS = 5 * 60_000;
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let rules: ProductivityRule[] = [];
 let rulesLoadedAt = 0;
 let idlePolicy: IdlePolicy = DEFAULT_IDLE_POLICY;
 let idlePolicyLoadedAt = 0;
+let officeLocations: OfficeLocation[] = [];
+let officeLocationsLoadedAt = 0;
+let lastGeoLookup: GeoLookup | null = null;
+let lastGeoLookupAt = 0;
+
+// Haversine distance in meters between two lat/lon points.
+function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function refreshOfficeLocations(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from('time_office_locations')
+    .select('lat, lon, radius_meters')
+    .eq('is_active', true);
+  if (!error && data) {
+    officeLocations = data as OfficeLocation[];
+    officeLocationsLoadedAt = Date.now();
+  }
+}
+
+// Best-effort IP geolocation — city-level approximation, NOT device GPS
+// (desktops have no GPS hardware). A network error, rate limit, or offline
+// agent just means this tick's row carries no geo data; it never blocks or
+// fails the tick itself.
+async function lookupIpGeolocation(): Promise<GeoLookup | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5_000);
+    const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      ip?: string; latitude?: number; longitude?: number; city?: string; region?: string; country_name?: string; error?: boolean;
+    };
+    if (json.error || typeof json.latitude !== 'number' || typeof json.longitude !== 'number') return null;
+    return {
+      ip: json.ip ?? null,
+      lat: json.latitude,
+      lon: json.longitude,
+      city: json.city ?? null,
+      region: json.region ?? null,
+      country: json.country_name ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function classify(appName: string, title: string): string | null {
   const now = Date.now();
@@ -104,6 +179,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, sett
 
   refreshRules(supabase);
   refreshIdlePolicy(supabase);
+  refreshOfficeLocations(supabase);
 
   const tick = async () => {
     try {
@@ -139,9 +215,33 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, sett
       const url = activeWindow.platform === 'macos' ? activeWindow.url ?? null : null;
       const category = isAway ? 'idle' : classify(appName, title);
 
+      if (Date.now() - lastGeoLookupAt > GEO_LOOKUP_INTERVAL_MS) {
+        lastGeoLookup = await lookupIpGeolocation();
+        lastGeoLookupAt = Date.now();
+      }
+      let isOutsideGeofence: boolean | null = null;
+      if (lastGeoLookup?.lat != null && lastGeoLookup?.lon != null && officeLocationsLoadedAt > 0 && officeLocations.length > 0) {
+        isOutsideGeofence = !officeLocations.some(
+          (o) => distanceMeters(lastGeoLookup!.lat!, lastGeoLookup!.lon!, o.lat, o.lon) <= o.radius_meters,
+        );
+      }
+
       const { data: inserted, error } = await supabase
         .from('time_activity_logs')
-        .insert({ employee_id: employeeId, window_title: title, app_name: appName, url, productivity_category: category })
+        .insert({
+          employee_id: employeeId,
+          window_title: title,
+          app_name: appName,
+          url,
+          productivity_category: category,
+          ip_address: lastGeoLookup?.ip ?? null,
+          geo_lat: lastGeoLookup?.lat ?? null,
+          geo_lon: lastGeoLookup?.lon ?? null,
+          geo_city: lastGeoLookup?.city ?? null,
+          geo_region: lastGeoLookup?.region ?? null,
+          geo_country: lastGeoLookup?.country ?? null,
+          is_outside_geofence: isOutsideGeofence,
+        })
         .select('id')
         .single();
 

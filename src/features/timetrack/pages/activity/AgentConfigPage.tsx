@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ShieldCheck, Settings } from 'lucide-react';
+import { Loader2, ShieldCheck, Settings, MapPin, Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -33,9 +33,11 @@ export default function AgentConfigPage() {
         <TabsList>
           <TabsTrigger value="settings">Per-employee settings</TabsTrigger>
           <TabsTrigger value="policy">Tracking policy</TabsTrigger>
+          <TabsTrigger value="geofencing">Geofencing</TabsTrigger>
         </TabsList>
         <TabsContent value="settings" className="mt-4"><AgentSettingsTab /></TabsContent>
         <TabsContent value="policy" className="mt-4"><PolicyTab /></TabsContent>
+        <TabsContent value="geofencing" className="mt-4"><GeofencingTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -270,5 +272,131 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <Switch checked={checked} onCheckedChange={onChange} />
       {label}
     </label>
+  );
+}
+
+interface OfficeLocation {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  radius_meters: number;
+  is_active: boolean;
+}
+
+/**
+ * Real IP-based geofencing config: admins define office center-points + a
+ * radius; the desktop agent's best-effort IP geolocation (city-level — NOT
+ * device GPS, desktops have none) is compared against these on Remote work
+ * detection. Honest about the limitation in the description below, same as
+ * the rest of this product's location-adjacent features.
+ */
+function GeofencingTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: offices, isLoading } = useQuery({
+    queryKey: ['timetrack', 'office-locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_office_locations').select('*').order('created_at');
+      if (error) throw error;
+      return data as OfficeLocation[];
+    },
+  });
+
+  const [form, setForm] = useState({ name: '', lat: '', lon: '', radius_meters: '500' });
+  const [saving, setSaving] = useState(false);
+
+  const addOffice = async () => {
+    const lat = Number(form.lat);
+    const lon = Number(form.lon);
+    const radius = Number(form.radius_meters) || 500;
+    if (!form.name.trim() || Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      toast({ title: 'Enter a name and a valid latitude/longitude', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('time_office_locations').insert({ name: form.name.trim(), lat, lon, radius_meters: radius });
+      if (error) throw error;
+      setForm({ name: '', lat: '', lon: '', radius_meters: '500' });
+      qc.invalidateQueries({ queryKey: ['timetrack', 'office-locations'] });
+      toast({ title: 'Office location added' });
+    } catch (err) {
+      toast({ title: 'Could not add office location', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (office: OfficeLocation, isActive: boolean) => {
+    try {
+      const { error } = await supabase.from('time_office_locations').update({ is_active: isActive }).eq('id', office.id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['timetrack', 'office-locations'] });
+    } catch (err) {
+      toast({ title: 'Could not update office location', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  const removeOffice = async (office: OfficeLocation) => {
+    try {
+      const { error } = await supabase.from('time_office_locations').delete().eq('id', office.id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['timetrack', 'office-locations'] });
+      toast({ title: 'Office location removed' });
+    } catch (err) {
+      toast({ title: 'Could not remove office location', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><MapPin className="h-4 w-4" />Office locations</CardTitle>
+        <CardDescription>
+          The agent looks up each employee's approximate location from their IP address (city-level — desktops have no
+          GPS hardware, so this is NOT device GPS). A capture outside every active radius below is flagged "outside
+          geofence" on the Remote work detection report. With no office locations configured, that flag is simply never set.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid sm:grid-cols-5 gap-3 items-end max-w-3xl">
+          <div className="sm:col-span-2"><Label>Name</Label><Input placeholder="HQ" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div><Label>Latitude</Label><Input placeholder="37.7749" value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} /></div>
+          <div><Label>Longitude</Label><Input placeholder="-122.4194" value={form.lon} onChange={(e) => setForm({ ...form, lon: e.target.value })} /></div>
+          <div><Label>Radius (m)</Label><Input type="number" min={1} value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: e.target.value })} /></div>
+        </div>
+        <Button onClick={addOffice} disabled={saving} size="sm">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Plus className="h-4 w-4 mr-1.5" />}
+          Add office location
+        </Button>
+
+        {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Name</TableHead><TableHead>Latitude</TableHead><TableHead>Longitude</TableHead>
+              <TableHead>Radius (m)</TableHead><TableHead>Active</TableHead><TableHead />
+            </TableRow></TableHeader>
+            <TableBody>
+              {(offices ?? []).map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell>{o.lat}</TableCell>
+                  <TableCell>{o.lon}</TableCell>
+                  <TableCell>{o.radius_meters}</TableCell>
+                  <TableCell><Switch checked={o.is_active} onCheckedChange={(v) => toggleActive(o, v)} /></TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeOffice(o)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(offices ?? []).length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No office locations configured — geofence flagging is off.</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }

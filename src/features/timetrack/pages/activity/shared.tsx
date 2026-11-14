@@ -16,6 +16,10 @@ export interface ActivityLog {
   url: string | null;
   productivity_category: string | null;
   captured_at: string;
+  geo_city?: string | null;
+  geo_region?: string | null;
+  geo_country?: string | null;
+  is_outside_geofence?: boolean | null;
 }
 
 export const CATEGORY_BADGE: Record<string, string> = {
@@ -62,7 +66,7 @@ export function useLogsWithIntervals(start: string, end: string) {
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
       const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }] = await Promise.all([
-        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at')
+        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence')
           .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
           .order('captured_at', { ascending: false }).limit(20000),
         supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),

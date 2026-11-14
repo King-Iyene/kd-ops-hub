@@ -14546,12 +14546,55 @@ export type Database = {
           },
         ]
       }
+      time_office_locations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          lat: number
+          lon: number
+          name: string
+          radius_meters: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          lat: number
+          lon: number
+          name: string
+          radius_meters?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          lat?: number
+          lon?: number
+          name?: string
+          radius_meters?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_activity_logs: {
         Row: {
           app_name: string | null
           captured_at: string
           employee_id: string
+          geo_city: string | null
+          geo_country: string | null
+          geo_lat: number | null
+          geo_lon: number | null
+          geo_region: string | null
           id: string
+          ip_address: string | null
+          is_outside_geofence: boolean | null
           productivity_category: string | null
           url: string | null
           window_title: string | null
@@ -14560,7 +14603,14 @@ export type Database = {
           app_name?: string | null
           captured_at?: string
           employee_id: string
+          geo_city?: string | null
+          geo_country?: string | null
+          geo_lat?: number | null
+          geo_lon?: number | null
+          geo_region?: string | null
           id?: string
+          ip_address?: string | null
+          is_outside_geofence?: boolean | null
           productivity_category?: string | null
           url?: string | null
           window_title?: string | null
@@ -14569,7 +14619,14 @@ export type Database = {
           app_name?: string | null
           captured_at?: string
           employee_id?: string
+          geo_city?: string | null
+          geo_country?: string | null
+          geo_lat?: number | null
+          geo_lon?: number | null
+          geo_region?: string | null
           id?: string
+          ip_address?: string | null
+          is_outside_geofence?: boolean | null
           productivity_category?: string | null
           url?: string | null
           window_title?: string | null
