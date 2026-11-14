@@ -7,11 +7,17 @@ name: Build desktop agent installers
 # Each OS builds its own installer NATIVELY on its own runner — this is the
 # standard, reliable way to cross-platform-package Electron apps (a macOS
 # .dmg genuinely cannot be built on Linux; trying to cross-compile it is
-# fragile and unsupported upstream). electron-builder also rebuilds the
-# active-win native module for each OS/arch here, which needs real internet
-# access to nodejs.org/electronjs.org — unavailable in some sandboxed
-# environments, which is exactly why this runs in CI rather than being
-# faked as a local build.
+# fragile and unsupported upstream), which is exactly why this runs in CI
+# rather than being faked as a local build.
+#
+# active-win (desktop-agent's only native dependency) is an N-API addon,
+# whose whole point is ABI stability across Node/Electron versions without
+# recompilation — `npm install` already fetches the correct prebuilt binary
+# for it via node-pre-gyp. electron-builder's own native-rebuild step
+# (`npmRebuild`, on by default) is redundant for N-API modules and is
+# disabled in desktop-agent/package.json's build config; see that key for
+# why, and for how this was diagnosed (the rebuild step hung identically,
+# with zero output, on all three OSes).
 #
 # Required repo configuration (Settings → Secrets and variables → Actions):
 #   - SUPABASE_URL          (Variable — safe to be plaintext; derivable from
@@ -49,10 +55,9 @@ jobs:
           - os: macos-latest
             build-args: --mac
     runs-on: ${{ matrix.os }}
-    # Hard cap so a hang (this job has had two already, both well past an
-    # hour) fails loud and fast instead of silently burning CI time —
-    # every real run of this job to date, successful or not, has settled
-    # one way or the other well under 20 minutes.
+    # Hard cap so any future hang fails loud and fast instead of silently
+    # burning CI time, rather than a safety net against a known issue —
+    # see the npmRebuild note above for the hang this job used to hit.
     timeout-minutes: 20
     defaults:
       run:
@@ -66,10 +71,11 @@ jobs:
           cache: npm
           cache-dependency-path: desktop-agent/package-lock.json
 
-      # node-gyp (used to rebuild the active-win native module for Electron's
-      # ABI) needs a Python with distutils. macOS/ubuntu runner default
-      # Python is 3.12+, which dropped distutils — pin 3.11 everywhere so
-      # the native rebuild step behaves the same on every OS.
+      # Safety net for `npm install`'s own node-pre-gyp step for active-win:
+      # it only needs to compile (via node-gyp, which needs a Python with
+      # distutils — dropped in the macOS/ubuntu runners' default 3.12+) if
+      # its prebuilt-binary download ever fails. Pinning 3.11 keeps that
+      # fallback path working the same on every OS if it's ever hit.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -86,30 +92,11 @@ jobs:
           # "Windows protected your PC" warning on first run — expected
           # until certificates are purchased and added as secrets.
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # This job has hung at the IDENTICAL point three times running —
-          # @electron/rebuild logs "preparing moduleName=active-win" and then
-          # nothing, ever, on all three OSes — with two different fixes
-          # (npm_config_build_from_source, then package.json's
-          # build.buildDependenciesFromSource) both confirmed via logs to
-          # have actually taken effect (buildFromSource=true both times)
-          # and NEITHER changing the outcome at all. That rules out the
-          # prebuilt-vs-source download path as the cause: whatever's stuck
-          # happens before or regardless of that fork, with zero log output
-          # either way, so there's nothing left to infer from the log as
-          # it stands — these DEBUG/verbose flags are so the next run's
-          # (cancelled, if needed) log actually shows what it's doing
-          # instead of going silent at "preparing".
-          DEBUG: 'electron-rebuild,electron-notarize'
-          npm_config_loglevel: verbose
           # Also authenticate electron-builder's GitHub API calls (e.g.
           # resolving the latest release, even with --publish=never) so
           # they aren't subject to GitHub's much lower unauthenticated
           # rate limit.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # node-gyp's Visual Studio auto-detection on windows-latest can
-          # fail to recognize the pre-installed VS2022 Build Tools edition;
-          # pinning the version explicitly is the documented workaround.
-          GYP_MSVS_VERSION: 2022
         run: |
           npm run build
           npx electron-builder ${{ matrix.build-args }} --publish=never

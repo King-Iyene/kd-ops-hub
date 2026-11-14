@@ -36,7 +36,7 @@
     "files": ["dist/**/*", "src/renderer/**/*"],
     "directories": { "output": "release" },
     "icon": "build/icon.png",
-    "buildDependenciesFromSource": true,
+    "npmRebuild": false,
     "publish": {
       "provider": "github",
       "owner": "King-Iyene",
