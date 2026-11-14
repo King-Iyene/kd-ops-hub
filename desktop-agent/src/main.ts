@@ -5,6 +5,21 @@ import * as path from 'path';
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
 
+// Reports this install into time_agent_settings (app_version, last_login_at,
+// login_count) so the web app's User Statistics page — which reads those
+// columns — has something real to show instead of permanent nulls. Called
+// once per sign-in / session-restore, not on every settings poll tick, so
+// login_count means what it says. Best-effort: a failure here must never
+// block sign-in or tracking.
+async function reportCheckin() {
+  if (!supabase) return;
+  try {
+    await supabase.rpc('time_agent_checkin', { p_app_version: app.getVersion() });
+  } catch {
+    // Non-fatal — the agent still tracks even if this one upsert fails.
+  }
+}
+
 const store = new Store<{ refresh_token?: string }>();
 
 let mainWindow: BrowserWindow | null = null;
@@ -74,6 +89,7 @@ app.whenReady().then(async () => {
   if (session?.user) {
     mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('signed-in', session.user.email));
     pollSettingsAndTrack(session.user.id);
+    void reportCheckin();
   }
 });
 
@@ -83,6 +99,7 @@ ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; passw
   if (error || !data.session) return { ok: false, error: error?.message ?? 'Sign-in failed' };
   store.set('refresh_token', data.session.refresh_token);
   pollSettingsAndTrack(data.session.user.id);
+  void reportCheckin();
   return { ok: true, email: data.session.user.email };
 });
 
