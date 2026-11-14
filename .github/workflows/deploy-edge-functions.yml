@@ -61,125 +61,125 @@ jobs:
             --yes
 
       - name: Deploy paystack-transfer
-        run: supabase functions deploy paystack-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy paystack-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy paystack-webhook
-        run: supabase functions deploy paystack-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy paystack-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy paystack-reconciliation
-        run: supabase functions deploy paystack-reconciliation --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy paystack-reconciliation --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy send-email
-        run: supabase functions deploy send-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy send-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy send-push
-        run: supabase functions deploy send-push --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy send-push --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy vapid-keys
-        run: supabase functions deploy vapid-keys --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy vapid-keys --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy fx-rate-sync
-        run: supabase functions deploy fx-rate-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy fx-rate-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # All KD Ops functions run with --no-verify-jwt: they authenticate in
       # code (cron secret / webhook signature / user JWT + role check), which
       # is Supabase's recommended pattern. Keep this flag on every deploy so a
       # redeploy never silently re-enables the JWT gate and breaks cron jobs.
       - name: Deploy batch-worker
-        run: supabase functions deploy batch-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy batch-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy payroll-scheduler
-        run: supabase functions deploy payroll-scheduler --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy payroll-scheduler --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy heyreach-sync
-        run: supabase functions deploy heyreach-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy heyreach-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy data-retention-runner
-        run: supabase functions deploy data-retention-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy data-retention-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy fleet-alerts
-        run: supabase functions deploy fleet-alerts --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy fleet-alerts --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy export-transfer-audit
-        run: supabase functions deploy export-transfer-audit --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy export-transfer-audit --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy record-failed-login
-        run: supabase functions deploy record-failed-login --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy record-failed-login --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy bulk-email-sender
-        run: supabase functions deploy bulk-email-sender --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy bulk-email-sender --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy chatbot-chat
-        run: supabase functions deploy chatbot-chat --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy chatbot-chat --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy chatbot-embed
-        run: supabase functions deploy chatbot-embed --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy chatbot-embed --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # ── Flutterwave provider (dormant until Settings toggle is flipped) ──
       # Mirror of the Paystack trio + the super_admin-only provider-switch
       # handler. All four run with --no-verify-jwt: auth happens inside each
       # function (JWT + role check, or webhook signature for the receiver).
       - name: Deploy flutterwave-transfer
-        run: supabase functions deploy flutterwave-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy flutterwave-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy flutterwave-webhook
-        run: supabase functions deploy flutterwave-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy flutterwave-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy flutterwave-reconciliation
-        run: supabase functions deploy flutterwave-reconciliation --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy flutterwave-reconciliation --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy provider-switch
-        run: supabase functions deploy provider-switch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy provider-switch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # ── Receipt OCR — primary scanner via Google Document AI ──
       - name: Deploy extract-receipt
-        run: supabase functions deploy extract-receipt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy extract-receipt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy payroll-disburse
-        run: supabase functions deploy payroll-disburse --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy payroll-disburse --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy campaign-scheduler
-        run: supabase functions deploy campaign-scheduler --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy campaign-scheduler --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy message-campaign-sender
-        run: supabase functions deploy message-campaign-sender --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy message-campaign-sender --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # Auth happens in code (verifies caller is an active super_admin) —
       # --no-verify-jwt so the platform doesn't 401 the CORS preflight
       # OPTIONS request before the function's own handler ever runs.
       - name: Deploy impersonate-user
-        run: supabase functions deploy impersonate-user --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy impersonate-user --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # ── Database platform (NocoDB-style) ──
       - name: Deploy ddl-executor
-        run: supabase functions deploy ddl-executor --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy ddl-executor --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy data-api
-        run: supabase functions deploy data-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy data-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # ── Developer module: public REST API + webhooks ──
       - name: Deploy rest-api
-        run: supabase functions deploy rest-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy rest-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy webhook-dispatcher
-        run: supabase functions deploy webhook-dispatcher --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy webhook-dispatcher --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # Cron-only (X-Cron-Secret) — ticked once a minute by pg_cron via
       # tick_webhook_retry_worker(), see 20261220500000_webhook_retry.sql.
       - name: Deploy webhook-retry-worker
-        run: supabase functions deploy webhook-retry-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy webhook-retry-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy webhook-replay
-        run: supabase functions deploy webhook-replay --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy webhook-replay --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy webhook-proxy
-        run: supabase functions deploy webhook-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy webhook-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       - name: Deploy automation-runner
-        run: supabase functions deploy automation-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy automation-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
       # Cron-only (X-Cron-Secret) hourly tick via tick_timetrack_export_runner(),
       # see 20261260000000_timetrack_export_center.sql — plus a direct admin
       # JWT call for the Export Center's "Send now" button.
       - name: Deploy timetrack-export-runner
-        run: supabase functions deploy timetrack-export-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        run: supabase functions deploy timetrack-export-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
