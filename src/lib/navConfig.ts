@@ -85,6 +85,7 @@ import {
   History,
   Tags,
   Image as ImageIcon,
+  Plug,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -193,6 +194,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Time Expenses',    url: '/timetrack/expenses', icon: Receipt,       roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Export Center', url: '/timetrack/export-center', icon: FileDown, roles: ['super_admin', 'admin'] },
   { title: 'Time Tags',       url: '/timetrack/tags',    icon: Tags,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Time Integrations', url: '/timetrack/integrations', icon: Plug,     roles: ['super_admin', 'admin'] },
   { title: 'Time Billing Rates', url: '/timetrack/rates', icon: DollarSign,     roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Time Roles',       url: '/timetrack/roles',   icon: ShieldCheck,     roles: ['super_admin', 'admin'] },
   { title: 'Activity: Summary',       url: '/timetrack/activity/summary',     icon: LayoutDashboard, roles: ['super_admin', 'admin'] },

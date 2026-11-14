@@ -8,6 +8,7 @@ import {
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { useTimetrackCapabilities } from '../lib/capabilities';
@@ -130,14 +131,19 @@ export default function TimePage() {
     }
     setStarting(true);
     try {
-      const { error } = await supabase.from('time_entries').insert({
-        employee_id: profile!.id, task_id: useTaskId, project_id: useProjectId, start_time: new Date().toISOString(),
+      const startTime = new Date().toISOString();
+      const { data, error } = await supabase.from('time_entries').insert({
+        employee_id: profile!.id, task_id: useTaskId, project_id: useProjectId, start_time: startTime,
         notes: (note ?? startNote) || null, entry_source: 'timer',
-      });
+      }).select('id').single();
       if (error) throw error;
       setStartNote('');
       qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+      dispatchPlatformWebhook('time_entry.started', {
+        entry_id: data?.id, employee_id: profile!.id, task_id: useTaskId, project_id: useProjectId,
+        start_time: startTime, entry_source: 'timer',
+      });
     } catch (err) {
       toast({ title: 'Could not start timer', description: errorMessage(err), variant: 'destructive' });
     } finally {
@@ -160,14 +166,19 @@ export default function TimePage() {
         setStopping(false);
         return;
       }
+      const finalEndTime = endTime ?? new Date().toISOString();
       const { error } = await supabase
         .from('time_entries')
-        .update({ end_time: endTime ?? new Date().toISOString() })
+        .update({ end_time: finalEndTime })
         .eq('id', activeEntry.id);
       if (error) throw error;
       localStorage.removeItem(LOCAL_KEY);
       qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+      dispatchPlatformWebhook('time_entry.stopped', {
+        entry_id: activeEntry.id, employee_id: profile!.id,
+        start_time: activeEntry.start_time, end_time: finalEndTime,
+      });
     } catch (err) {
       toast({ title: 'Could not stop timer', description: errorMessage(err), variant: 'destructive' });
     } finally {
@@ -973,10 +984,12 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
       if (entry) {
         const { error } = await supabase.from('time_entries').update(payload).eq('id', entry.id);
         if (error) throw error;
+        dispatchPlatformWebhook('time_entry.updated', { entry_id: entry.id, ...payload });
       } else {
         const { data, error } = await supabase.from('time_entries').insert(payload).select('id').single();
         if (error) throw error;
         entryId = data.id;
+        dispatchPlatformWebhook('time_entry.created', { entry_id: entryId, ...payload });
       }
 
       // Replace the tag set for this entry: delete then re-insert the current selection.

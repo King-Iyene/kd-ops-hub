@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Telescope, Zap, BookOpen, Key, Webhook, Terminal, Plug, Lightbulb, AlertTriangle, BookMarked } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,8 +14,12 @@ const Recipes = lazy(() => import('./Recipes'));
 const Troubleshooting = lazy(() => import('./Troubleshooting'));
 const ModuleGuides = lazy(() => import('./ModuleGuides'));
 
+const VALID_TABS = ['overview', 'explorer', 'reference', 'keys', 'webhooks', 'guides', 'recipes', 'modules', 'troubleshooting'];
+
 export function DeveloperHub() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'overview');
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">

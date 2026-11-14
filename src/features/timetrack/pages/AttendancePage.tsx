@@ -5,6 +5,7 @@ import { Loader2, LogIn, LogOut, BadgeCheck, ChevronLeft, ChevronRight, MapPin }
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
+import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useTimetrackCapabilities } from '../lib/capabilities';
@@ -60,13 +61,18 @@ export default function AttendancePage() {
   const clockIn = async () => {
     try {
       const pos = await getPosition();
+      const clockInTime = new Date().toISOString();
       const { error } = await supabase.from('time_attendance_entries').insert({
-        employee_id: profile!.id, clock_in: new Date().toISOString(),
+        employee_id: profile!.id, clock_in: clockInTime,
         clock_in_lat: pos?.lat ?? null, clock_in_lng: pos?.lng ?? null,
       });
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-open'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-recent'] });
+      dispatchPlatformWebhook('timesheet.attendance_clocked_in', {
+        employee_id: profile!.id, clock_in: clockInTime,
+        clock_in_lat: pos?.lat ?? null, clock_in_lng: pos?.lng ?? null,
+      });
     } catch (err) {
       toast({ title: 'Could not clock in', description: errorMessage(err), variant: 'destructive' });
     }
@@ -76,12 +82,18 @@ export default function AttendancePage() {
     if (!open) return;
     try {
       const pos = await getPosition();
+      const clockOutTime = new Date().toISOString();
       const { error } = await supabase.from('time_attendance_entries').update({
-        clock_out: new Date().toISOString(), clock_out_lat: pos?.lat ?? null, clock_out_lng: pos?.lng ?? null,
+        clock_out: clockOutTime, clock_out_lat: pos?.lat ?? null, clock_out_lng: pos?.lng ?? null,
       }).eq('id', open.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-open'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'attendance-recent'] });
+      dispatchPlatformWebhook('timesheet.attendance_clocked_out', {
+        employee_id: profile!.id, attendance_id: open.id,
+        clock_in: open.clock_in, clock_out: clockOutTime,
+        clock_out_lat: pos?.lat ?? null, clock_out_lng: pos?.lng ?? null,
+      });
     } catch (err) {
       toast({ title: 'Could not clock out', description: errorMessage(err), variant: 'destructive' });
     }

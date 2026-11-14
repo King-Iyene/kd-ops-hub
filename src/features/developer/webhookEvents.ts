@@ -26,6 +26,7 @@ export const EVENT_GROUPS: { module: string; color: string; events: string[] }[]
   { module: 'Recruitment', color: 'bg-pink-500/15 text-pink-400 border-pink-500/30', events: ['applicant.created', 'applicant.stage_changed', 'applicant.hired', 'applicant.rejected', 'opening.created', 'opening.closed'] },
   { module: 'Payments', color: 'bg-green-500/15 text-green-400 border-green-500/30', events: ['payment.completed', 'payment.failed', 'payment.pending', 'batch.created', 'batch.approved', 'batch.processed'] },
   { module: 'Database', color: 'bg-slate-500/15 text-slate-400 border-slate-500/30', events: ['record.created', 'record.updated', 'record.deleted', 'record.bulk_created'] },
+  { module: 'Time Tracking', color: 'bg-sky-500/15 text-sky-400 border-sky-500/30', events: ['time_entry.started', 'time_entry.stopped', 'time_entry.created', 'time_entry.updated', 'timesheet.attendance_clocked_in', 'timesheet.attendance_clocked_out'] },
 ];
 
 export const ALL_EVENTS = EVENT_GROUPS.flatMap((g) => g.events);
