@@ -192,6 +192,12 @@ export default function TimePage() {
 
   const [view, setView] = useState<'day' | 'week' | 'calendar'>('day');
   const [anchorDate, setAnchorDate] = useState(new Date());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Selection is scoped to whatever's currently on screen — switching the
+  // view or navigating to a different day/week clears it rather than
+  // silently carrying over a selection the user can no longer see.
+  useEffect(() => { setSelectedIds(new Set()); }, [view, anchorDate]);
 
   const weekStart = startOfWeek(anchorDate, { weekStartsOn: 1 });
   const rangeStart = view === 'week' ? weekStart : view === 'day' ? anchorDate : startOfWeek(anchorDate, { weekStartsOn: 1 });
@@ -269,8 +275,43 @@ export default function TimePage() {
       const { error } = await supabase.from('time_entries').delete().eq('id', id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+      setSelectedIds((prev) => { if (!prev.has(id)) return prev; const next = new Set(prev); next.delete(id); return next; });
     } catch (err) {
       toast({ title: 'Could not delete', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...ids]);
+    });
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} selected ${ids.length === 1 ? 'entry' : 'entries'}?`)) return;
+    try {
+      const { error } = await supabase.from('time_entries').delete().in('id', ids);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+      setSelectedIds(new Set());
+    } catch (err) {
+      toast({ title: 'Could not delete selected entries', description: errorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -295,6 +336,19 @@ export default function TimePage() {
       />
 
       <OfflineSyncBanner />
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+          <span className="font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+            <Button variant="destructive" size="sm" onClick={bulkDelete}>
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
 
       {!viewingSelf && (
         <p className="text-xs text-muted-foreground">
@@ -384,6 +438,9 @@ export default function TimePage() {
             onDuplicate={(e) => { setEditingEntry(null); setDuplicateFrom(e); setManualOpen(true); }}
             onDelete={deleteEntry}
             onRestart={(taskId, projectId) => startTimer(taskId, projectId)}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
           />
           {(dayEntries.length > 0 || (unassignedMinutes ?? 0) > 0) && (
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
@@ -415,10 +472,13 @@ export default function TimePage() {
                 onDuplicate={(e) => { setEditingEntry(null); setDuplicateFrom(e); setManualOpen(true); }}
                 onDelete={deleteEntry}
                 onRestart={(taskId, projectId) => startTimer(taskId, projectId)}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleSelectAll={toggleSelectAll}
               />
             </div>
           ))}
-          {viewingSelf && <SubmitWeekButton weekStart={weekStart} />}
+          {viewingSelf && <SubmitWeekButton weekStart={weekStart} totalMinutes={totalMinutes} />}
         </TabsContent>
 
         <TabsContent value="calendar" className="mt-4">
@@ -662,10 +722,11 @@ function OfflineSyncBanner() {
  * history — deliberately deferred here, same as the "⋮" settings panel and
  * "Working Day"-type labeling, rather than silently dropped).
  */
-function EntryList({ entries, loading, readOnly, canRestart, onDuplicate, onDelete, onRestart }: {
+function EntryList({ entries, loading, readOnly, canRestart, onDuplicate, onDelete, onRestart, selectedIds, onToggleSelect, onToggleSelectAll }: {
   entries: (TimeEntry & { time_tasks?: { name: string; project_id?: string; time_projects: { name: string } }; time_entry_tags?: { time_tags: TimeTag }[] })[];
   loading: boolean; readOnly: boolean; canRestart: boolean;
   onDuplicate: (e: TimeEntry) => void; onDelete: (id: string) => void; onRestart: (taskId: string, projectId: string) => void;
+  selectedIds: Set<string>; onToggleSelect: (id: string) => void; onToggleSelectAll: (ids: string[]) => void;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -702,8 +763,18 @@ function EntryList({ entries, loading, readOnly, canRestart, onDuplicate, onDele
 
   if (loading) return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   if (entries.length === 0) return <p className="text-sm text-muted-foreground py-4">No entries.</p>;
+
+  const ids = entries.map((e) => e.id);
+  const allSelected = ids.length > 0 && ids.every((id) => selectedIds.has(id));
+
   return (
     <div className="space-y-1.5">
+      {!readOnly && (
+        <label className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground cursor-pointer select-none">
+          <Checkbox checked={allSelected} onCheckedChange={() => onToggleSelectAll(ids)} />
+          Select all
+        </label>
+      )}
       {entries.map((e) => (
         <EntryRow
           key={e.id}
@@ -716,17 +787,20 @@ function EntryList({ entries, loading, readOnly, canRestart, onDuplicate, onDele
           onDuplicate={() => onDuplicate(e)}
           onDelete={() => onDelete(e.id)}
           onRestart={() => onRestart(e.task_id, e.project_id)}
+          selected={selectedIds.has(e.id)}
+          onToggleSelect={() => onToggleSelect(e.id)}
         />
       ))}
     </div>
   );
 }
 
-function EntryRow({ entry: e, readOnly, canRestart, allTags, onPatch, onApplyTags, onDuplicate, onDelete, onRestart }: {
+function EntryRow({ entry: e, readOnly, canRestart, allTags, onPatch, onApplyTags, onDuplicate, onDelete, onRestart, selected, onToggleSelect }: {
   entry: TimeEntry & { time_tasks?: { name: string; project_id?: string; time_projects: { name: string } }; time_entry_tags?: { time_tags: TimeTag }[] };
   readOnly: boolean; canRestart: boolean; allTags: TimeTag[];
   onPatch: (patch: TimeEntryPatch) => void; onApplyTags: (tagIds: string[]) => void;
   onDuplicate: () => void; onDelete: () => void; onRestart: () => void;
+  selected: boolean; onToggleSelect: () => void;
 }) {
   const [note, setNote] = useState(e.notes ?? '');
   useEffect(() => setNote(e.notes ?? ''), [e.notes]);
@@ -739,7 +813,8 @@ function EntryRow({ entry: e, readOnly, canRestart, allTags, onPatch, onApplyTag
   };
 
   return (
-    <div className="group flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 text-sm">
+    <div className={`group flex items-center gap-3 rounded-md border px-3 py-2 text-sm ${selected ? 'border-primary/50 bg-primary/5' : 'border-border/60'}`}>
+      {!readOnly && <Checkbox checked={selected} onCheckedChange={onToggleSelect} className="shrink-0" />}
       <span
         className="h-2.5 w-2.5 rounded-full shrink-0"
         style={{ backgroundColor: colorForId(e.time_tasks?.project_id ?? e.id) }}
@@ -888,9 +963,10 @@ function CalendarGrid({ rangeStart, dayGroups, onPickDay }: {
   );
 }
 
-function SubmitWeekButton({ weekStart }: { weekStart: Date }) {
+function SubmitWeekButton({ weekStart, totalMinutes }: { weekStart: Date; totalMinutes: number }) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const isEmpty = totalMinutes <= 0;
   const submit = async () => {
     setSubmitting(true);
     try {
@@ -904,10 +980,13 @@ function SubmitWeekButton({ weekStart }: { weekStart: Date }) {
     }
   };
   return (
-    <Button onClick={submit} disabled={submitting}>
-      {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-      Submit week for approval
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button onClick={submit} disabled={submitting || isEmpty}>
+        {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+        Submit week for approval
+      </Button>
+      {isEmpty && <span className="text-xs text-muted-foreground">Log some time this week before submitting.</span>}
+    </div>
   );
 }
 
