@@ -15,7 +15,7 @@ import { useReportLookups } from './useReportData';
 
 /** Generic "All X" + searchable multi-pick popover — used for People,
  * Projects, and Tags, matching TimeCamp's own filter dropdowns. */
-function MultiSelectFilter({
+export function MultiSelectFilter({
   label, allLabel, options, selected, onChange,
 }: {
   label: string;

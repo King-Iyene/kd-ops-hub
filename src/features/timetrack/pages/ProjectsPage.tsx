@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban, Play, FileBarChart } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useTimetrackCapabilities } from '../lib/capabilities';
 import { useActiveEmployees } from '@/queries/useEmployees';
+import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,6 +43,7 @@ export default function ProjectsPage() {
 function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canManageTasks: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { data: employees } = useActiveEmployees();
   const { data: projects, isLoading } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
   const { data: clients } = useQuery({
@@ -145,12 +148,17 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
                   {p.client_id && <>Client: {clients?.find((c) => c.id === p.client_id)?.name ?? '—'}</>}
                 </p>
               </div>
-              {canManage && (
-                <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={() => archive(p)}><Archive className="h-3.5 w-3.5" /></Button>
-                </div>
-              )}
+              <div className="flex gap-1 shrink-0">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/timetrack/projects/${p.id}/report`)}>
+                  <FileBarChart className="h-3.5 w-3.5 mr-1.5" /> Go to report
+                </Button>
+                {canManage && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => archive(p)}><Archive className="h-3.5 w-3.5" /></Button>
+                  </>
+                )}
+              </div>
             </div>
             {expanded === p.id && <TasksList projectId={p.id} canManage={canManageTasks || canManage} />}
           </CardContent>
@@ -216,8 +224,37 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
 function TasksList({ projectId, canManage }: { projectId: string; canManage: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { profile } = useAuthStore();
   const { data: tasks } = useQuery({ queryKey: ['timetrack', 'tasks', projectId], queryFn: () => fetchTasksForProject(projectId) });
   const [newTask, setNewTask] = useState('');
+  const { data: activeEntry } = useQuery({
+    queryKey: ['timetrack', 'active-timer', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_entries').select('id, task_id').eq('employee_id', profile!.id).is('end_time', null).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.id,
+  });
+
+  const startTimerFor = async (t: TimeTask) => {
+    if (activeEntry) {
+      toast({ title: 'A timer is already running', description: 'Stop your current timer on the Timesheet page before starting another.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('time_entries').insert({
+        employee_id: profile!.id, task_id: t.id, project_id: projectId,
+        start_time: new Date().toISOString(), entry_source: 'timer',
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
+      qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
+      toast({ title: `Timer started on "${t.name}"` });
+    } catch (err) {
+      toast({ title: 'Could not start timer', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
 
   const addTask = async () => {
     if (!newTask.trim()) return;
@@ -245,7 +282,17 @@ function TasksList({ projectId, canManage }: { projectId: string; canManage: boo
     <div className="ml-6 mt-3 space-y-1.5 border-l border-border/60 pl-4">
       {(tasks ?? []).map((t) => (
         <div key={t.id} className="flex items-center justify-between text-sm py-1">
-          <span>{t.name}</span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost" size="icon" className="h-6 w-6"
+              title={activeEntry?.task_id === t.id ? 'Timer running' : 'Start timer on this task'}
+              disabled={!!activeEntry}
+              onClick={() => startTimerFor(t)}
+            >
+              <Play className={`h-3.5 w-3.5 ${activeEntry?.task_id === t.id ? 'text-emerald-500' : ''}`} />
+            </Button>
+            <span>{t.name}</span>
+          </div>
           {canManage && <Button variant="ghost" size="sm" onClick={() => archiveTask(t)}>Archive</Button>}
         </div>
       ))}

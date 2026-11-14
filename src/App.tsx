@@ -114,6 +114,7 @@ const PeopleByProjectsPage   = lazy(() => import('./features/timetrack/pages/rep
 // Reports > Time > Other
 const LocationReportPage     = lazy(() => import('./features/timetrack/pages/reports/LocationReportPage'));
 const RealTimeDashboardPage  = lazy(() => import('./features/timetrack/pages/reports/RealTimeDashboardPage'));
+const ProjectReportPage      = lazy(() => import('./features/timetrack/pages/reports/ProjectReportPage'));
 // Finance
 const FinanceBillablePage = lazy(() => import('./features/timetrack/pages/reports/BillableNonBillablePage'));
 const FinanceEstimatesPage = lazy(() => import('./features/timetrack/pages/reports/EstimatesPage'));
@@ -885,6 +886,7 @@ function AppRoutes() {
           { path: '/timetrack', Page: TimeDashboardPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/time', Page: TimeEntriesPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/projects', Page: TimeProjectsPage, roles: ALL_AUTH_ROLES },
+          { path: '/timetrack/projects/:projectId/report', Page: ProjectReportPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/reports/summary', Page: TimeReportsSummaryPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/reports/detailed', Page: TimeReportsDetailedPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/reports/by-days', Page: TimeReportsByDaysPage, roles: ALL_AUTH_ROLES },
