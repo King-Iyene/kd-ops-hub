@@ -15248,6 +15248,57 @@ export type Database = {
         }
         Relationships: []
       }
+      time_export_schedules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_type: string
+          day_of_month: number | null
+          day_of_week: number | null
+          format: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          lookback_days: number
+          name: string
+          next_run_at: string
+          recipient_email: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_type: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          format?: string
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          lookback_days?: number
+          name: string
+          next_run_at?: string
+          recipient_email: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_type?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          format?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          lookback_days?: number
+          name?: string
+          next_run_at?: string
+          recipient_email?: string
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           created_at: string
