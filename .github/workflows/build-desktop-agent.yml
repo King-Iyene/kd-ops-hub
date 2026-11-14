@@ -86,21 +86,21 @@ jobs:
           # "Windows protected your PC" warning on first run — expected
           # until certificates are purchased and added as secrets.
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # Confirmed (via the logs of two cancelled runs) root cause of the
-          # multi-hour hangs this workflow has had: @electron/rebuild
-          # rebuilding active-win's native addon gets stuck at the
-          # "preparing" phase on every OS, with no further log output —
-          # active-win's node-pre-gyp install tries a network download of a
-          # prebuilt .node binary before falling back to a node-gyp source
-          # build, and that download has no effective timeout. Setting the
-          # npm_config_build_from_source env var (the usual node-pre-gyp
-          # workaround) did NOT fix this: electron-builder's own rebuild
-          # call logs "buildFromSource=false" regardless, because
-          # @electron/rebuild takes that flag from electron-builder's own
-          # config, not from npm's env var convention. The actual fix is
-          # package.json's build.buildDependenciesFromSource (see
-          # desktop-agent/package.json) — electron-builder's own
-          # documented option for this.
+          # This job has hung at the IDENTICAL point three times running —
+          # @electron/rebuild logs "preparing moduleName=active-win" and then
+          # nothing, ever, on all three OSes — with two different fixes
+          # (npm_config_build_from_source, then package.json's
+          # build.buildDependenciesFromSource) both confirmed via logs to
+          # have actually taken effect (buildFromSource=true both times)
+          # and NEITHER changing the outcome at all. That rules out the
+          # prebuilt-vs-source download path as the cause: whatever's stuck
+          # happens before or regardless of that fork, with zero log output
+          # either way, so there's nothing left to infer from the log as
+          # it stands — these DEBUG/verbose flags are so the next run's
+          # (cancelled, if needed) log actually shows what it's doing
+          # instead of going silent at "preparing".
+          DEBUG: 'electron-rebuild,electron-notarize'
+          npm_config_loglevel: verbose
           # Also authenticate electron-builder's GitHub API calls (e.g.
           # resolving the latest release, even with --publish=never) so
           # they aren't subject to GitHub's much lower unauthenticated
