@@ -103,7 +103,7 @@ export default function DashboardPage() {
         actions={
           <Button size="sm" variant="outline" onClick={handleDownload} disabled={isLoading || (today ?? []).length === 0}>
             <Download className="h-4 w-4 mr-1.5" />
-            Download CSV
+            Export CSV
           </Button>
         }
       />
@@ -161,25 +161,27 @@ export default function DashboardPage() {
                 {search ? 'No one matches that name.' : 'No activity logged yet today.'}
               </p>
             ) : (
-              <div className="max-h-[420px] overflow-y-auto -mx-1 px-1 divide-y divide-border/60">
+              <div className="divide-y divide-border/60">
                 {roster.map((r) => (
-                  <div key={r.employee_id} className="flex items-center gap-3 py-2 px-1 rounded-md hover:bg-muted/40 transition-colors">
-                    <Avatar className="h-8 w-8" status={r.is_timer_active ? 'online' : undefined}>
-                      <AvatarFallback className="text-2xs font-semibold bg-primary/10 text-primary">
+                  <div key={r.employee_id} className="flex items-center gap-3 py-3 px-1 rounded-md hover:bg-muted/40 transition-colors">
+                    <Avatar className="h-10 w-10" status={r.is_timer_active ? 'online' : undefined}>
+                      <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
                         {initials(r.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{r.full_name}</p>
-                      {r.is_timer_active && r.active_project_name && (
-                        <p className="text-3xs text-muted-foreground truncate">on {r.active_project_name}</p>
+                      {r.is_timer_active && r.active_project_name ? (
+                        <p className="text-xs text-muted-foreground truncate">on {r.active_project_name}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground truncate">&nbsp;</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {r.is_timer_active && (
                         <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-3xs">active</Badge>
                       )}
-                      <span className="text-sm font-mono tabular-nums w-14 text-right">{r.hours_today.toFixed(2)}h</span>
+                      <span className="text-base font-mono tabular-nums w-16 text-right">{r.hours_today.toFixed(2)}h</span>
                     </div>
                   </div>
                 ))}

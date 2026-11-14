@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { DesktopAgentHeaderButton } from '@/features/timetrack/pages/activity/shared';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
@@ -190,6 +191,7 @@ export default function AppLayout() {
                   <span className="text-2xs">⌘</span>K
                 </kbd>
               </button>
+              <DesktopAgentHeaderButton />
               <NotificationBell />
               <ThemeToggle />
               <div className="hidden sm:block w-px h-4 bg-border/60" />

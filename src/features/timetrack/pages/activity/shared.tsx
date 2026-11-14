@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
-import { Loader2, Download } from 'lucide-react';
+import { Loader2, Download, Monitor } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -109,8 +109,7 @@ function useLatestDesktopRelease() {
   });
 }
 
-export function GetDesktopAppButton() {
-  const [open, setOpen] = useState(false);
+function DesktopAgentDialogContent() {
   const { data: release, isLoading, isError } = useLatestDesktopRelease();
 
   const win = release ? pickAsset(release.assets, (n) => n.endsWith('.exe')) : undefined;
@@ -119,43 +118,69 @@ export function GetDesktopAppButton() {
   const hasAnyInstaller = Boolean(win || mac || linux);
 
   return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader><DialogTitle>KD Ops Time Tracker (desktop agent)</DialogTitle></DialogHeader>
+      <div className="space-y-3 text-sm">
+        {isLoading && (
+          <p className="text-muted-foreground flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Checking for the latest build…
+          </p>
+        )}
+        {!isLoading && hasAnyInstaller && (
+          <>
+            <p className="text-muted-foreground">Version {release?.tag_name} — click your operating system to download the installer.</p>
+            <div className="flex flex-col gap-2">
+              {win && <a href={win.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Windows (.exe)</Button></a>}
+              {mac && <a href={mac.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for macOS (.dmg)</Button></a>}
+              {linux && <a href={linux.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Linux</Button></a>}
+            </div>
+          </>
+        )}
+        {!isLoading && !hasAnyInstaller && (
+          <p className="text-muted-foreground">
+            {isError ? "Couldn't check for a download right now — try again in a moment."
+              : "No installer is published yet — the agent hasn't been built as a real app yet, only this web UI exists so far. Check back soon."}
+          </p>
+        )}
+        <p className="text-muted-foreground">
+          An admin must also enable tracking for that employee first, under
+          <span className="font-medium text-foreground"> Agent &amp; policy</span> —
+          the agent refuses to capture anything otherwise, even if it's running.
+        </p>
+      </div>
+    </DialogContent>
+  );
+}
+
+export function GetDesktopAppButton() {
+  const [open, setOpen] = useState(false);
+  return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Download className="h-4 w-4 mr-1.5" /> Get desktop app
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>KD Ops Time Tracker (desktop agent)</DialogTitle></DialogHeader>
-          <div className="space-y-3 text-sm">
-            {isLoading && (
-              <p className="text-muted-foreground flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Checking for the latest build…
-              </p>
-            )}
-            {!isLoading && hasAnyInstaller && (
-              <>
-                <p className="text-muted-foreground">Version {release?.tag_name} — click your operating system to download the installer.</p>
-                <div className="flex flex-col gap-2">
-                  {win && <a href={win.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Windows (.exe)</Button></a>}
-                  {mac && <a href={mac.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for macOS (.dmg)</Button></a>}
-                  {linux && <a href={linux.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Linux</Button></a>}
-                </div>
-              </>
-            )}
-            {!isLoading && !hasAnyInstaller && (
-              <p className="text-muted-foreground">
-                {isError ? "Couldn't check for a download right now — try again in a moment."
-                  : 'No installer is published yet. Check back soon — this button will switch to a direct download automatically the moment one is released.'}
-              </p>
-            )}
-            <p className="text-muted-foreground">
-              An admin must also enable tracking for that employee first, under
-              <span className="font-medium text-foreground"> Agent &amp; policy</span> —
-              the agent refuses to capture anything otherwise, even if it's running.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Dialog open={open} onOpenChange={setOpen}><DesktopAgentDialogContent /></Dialog>
+    </>
+  );
+}
+
+/** Global header icon — same placement TimeCamp uses (a small monitor icon
+ * next to notifications/profile, present on every page, not tucked away on
+ * one report). */
+export function DesktopAgentHeaderButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 kd-transition"
+        aria-label="Get desktop app"
+        title="Get desktop app"
+      >
+        <Monitor className="h-4 w-4" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}><DesktopAgentDialogContent /></Dialog>
     </>
   );
 }
