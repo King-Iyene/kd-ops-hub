@@ -564,6 +564,7 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
   try {
     activeTimer = await switchTimer(supabase, currentEmployeeId, task);
     pausedTask = null; // explicitly picking a task overrides whatever was paused
+    if (autoPaused) await setAutoPaused(false); // starting a task resumes tracking, like TimeCamp
   } catch {
     // Non-fatal — tray menu/widget simply won't reflect a switch that failed
     // server-side; refreshActiveTimer's next poll will reconcile either way.
@@ -598,6 +599,7 @@ ipcMain.handle(
       if (args.selectAfterCreate && currentEmployeeId) {
         activeTimer = await switchTimer(supabase, currentEmployeeId, created);
         pausedTask = null;
+        if (autoPaused) await setAutoPaused(false);
         rebuildTrayMenu();
         sendWidgetStatus(trackingStartedAt != null);
       }

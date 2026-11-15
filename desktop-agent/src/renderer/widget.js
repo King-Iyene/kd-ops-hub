@@ -23,13 +23,20 @@ function formatElapsed(ms) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+// While paused the clock must stand still (it kept counting before) and, on
+// resume, continue from where it stopped — so time spent paused is excluded.
+let pausedSince = null; // ms epoch when the current pause began, else null
+let pausedAccumMs = 0; // total ms spent paused earlier in this tracking session
+
 function renderTick() {
   const anchor = currentTask ? currentTask.startedAt : trackingStartedAt;
   if (anchor == null) {
     elapsedEl.textContent = '00:00:00';
     return;
   }
-  elapsedEl.textContent = formatElapsed(Date.now() - anchor);
+  const now = pausedSince ?? Date.now();
+  const excluded = currentTask ? 0 : pausedAccumMs;
+  elapsedEl.textContent = formatElapsed(now - anchor - excluded);
 }
 
 function setState(state) {
@@ -87,6 +94,16 @@ function render() {
 
 window.widget.onStatus(({ tracking, idle, startedAt, task, pausedTask: pt, autoPaused: ap }) => {
   autoPaused = !!ap;
+  const nowPaused = !!ap || !!pt;
+  if (!tracking) {
+    pausedSince = null;
+    pausedAccumMs = 0;
+  } else if (nowPaused && pausedSince == null) {
+    pausedSince = Date.now();
+  } else if (!nowPaused && pausedSince != null) {
+    pausedAccumMs += Date.now() - pausedSince;
+    pausedSince = null;
+  }
   if (startedAt != null) trackingStartedAt = startedAt;
   if (!tracking) {
     trackingStartedAt = null;
