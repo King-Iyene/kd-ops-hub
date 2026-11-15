@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { PickableTask } from './taskTimer';
+import type { PickableTask, PickableProject } from './taskTimer';
 
 export interface CreateTaskArgs {
   projectId: string;
@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('taskPicker', {
   // (the employee's own most-recently-used tasks), so the renderer only
   // ever has one source of truth to render from instead of juggling two
   // separate async loads that could resolve out of order.
-  onData: (cb: (data: { tasks: PickableTask[]; suggested: PickableTask[] }) => void) =>
+  onData: (cb: (data: { tasks: PickableTask[]; suggested: PickableTask[]; projects: PickableProject[] }) => void) =>
     ipcRenderer.on('task-picker-data', (_e, data) => cb(data)),
   chooseTask: (task: PickableTask) => ipcRenderer.send('task-picker-choose', task),
   chooseNoTask: () => ipcRenderer.send('task-picker-choose-none'),

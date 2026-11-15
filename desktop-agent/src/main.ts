@@ -32,6 +32,7 @@ import { startAutoFlush, flushQueue, queueLength } from './offlineQueue';
 import {
   fetchPickableTasks,
   fetchSuggestedTasks,
+  fetchAllProjects,
   createTask,
   getActiveTimer,
   switchTimer,
@@ -499,16 +500,17 @@ ipcMain.on('open-task-picker', () => {
 ipcMain.on('task-picker-ready', async () => {
   if (!supabase || !taskPickerWindow) return;
   try {
-    const [tasks, suggested] = await Promise.all([
+    const [tasks, suggested, projects] = await Promise.all([
       fetchPickableTasks(supabase),
       currentEmployeeId ? fetchSuggestedTasks(supabase, currentEmployeeId) : Promise.resolve([]),
+      fetchAllProjects(supabase),
     ]);
     // taskPickerWindow closes on blur, so the user clicking away during this
     // await is routine, not an edge case — safeSend is load-bearing here,
     // not defensive decoration (see the comment on its definition).
-    safeSend(taskPickerWindow, 'task-picker-data', { tasks, suggested });
+    safeSend(taskPickerWindow, 'task-picker-data', { tasks, suggested, projects });
   } catch {
-    safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [] });
+    safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [], projects: [] });
   }
 });
 

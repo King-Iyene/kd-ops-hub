@@ -33,6 +33,35 @@ export interface ActiveTimer {
   startTime: string; // ISO
 }
 
+export interface PickableProject {
+  projectId: string;
+  projectName: string;
+  clientName: string | null;
+}
+
+/** All active projects, independent of whether any task exists under them yet.
+ * fetchPickableTasks (below) only sees projects that already have at least one
+ * task — so a brand-new project with zero tasks is invisible to it, which
+ * means the "Create task" dialog's project dropdown (built from that task
+ * list) could never offer a new project as a choice, blocking creation of the
+ * very first task in it. This is queried directly from time_projects instead
+ * so that gap doesn't exist — confirmed time_projects_read's RLS (`qual: true`)
+ * allows any signed-in employee to read it, not just managers. */
+export async function fetchAllProjects(client: SupabaseClient): Promise<PickableProject[]> {
+  const { data, error } = await client
+    .from('time_projects')
+    .select('id, name, time_clients(id, name)')
+    .eq('is_archived', false)
+    .order('name');
+  if (error) throw error;
+  type Row = { id: string; name: string; time_clients: { id: string; name: string } | null };
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    projectId: r.id,
+    projectName: r.name,
+    clientName: r.time_clients?.name ?? null,
+  }));
+}
+
 export async function fetchPickableTasks(client: SupabaseClient): Promise<PickableTask[]> {
   const { data, error } = await client
     .from('time_tasks')

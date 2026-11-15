@@ -18,6 +18,7 @@ const createSubmitBtn = document.getElementById('create-submit');
 
 let allTasks = [];
 let suggested = [];
+let allProjects = [];
 let query = '';
 // Collapsed state is keyed by a group key ("client::<name>" / "project::<id>")
 // — absent from the set means expanded. Starts empty so everything is
@@ -179,12 +180,11 @@ document.addEventListener('keydown', (e) => {
 
 // --- Inline "Create task…" -------------------------------------------------
 
-function uniqueProjects(tasks) {
-  const seen = new Map(); // projectId -> { projectId, projectName, clientName }
-  for (const t of tasks) {
-    if (!seen.has(t.projectId)) seen.set(t.projectId, { projectId: t.projectId, projectName: t.projectName, clientName: t.clientName });
-  }
-  return [...seen.values()].sort((a, b) => {
+function sortedProjects(projects) {
+  // Fed from a direct time_projects fetch (allProjects), not derived from
+  // allTasks — a brand-new project with zero tasks under it still needs to
+  // be selectable here, or its first task could never be created.
+  return [...projects].sort((a, b) => {
     const an = [a.clientName, a.projectName].filter(Boolean).join(' · ');
     const bn = [b.clientName, b.projectName].filter(Boolean).join(' · ');
     return an.localeCompare(bn);
@@ -201,13 +201,20 @@ function enterCreateMode() {
   createErrorEl.textContent = '';
   createNameEl.value = '';
 
-  const projects = uniqueProjects(allTasks);
-  createProjectEl.innerHTML = projects
-    .map(
-      (p, i) =>
-        `<option value="${i}">${escapeHtml([p.clientName, p.projectName].filter(Boolean).join(' · '))}</option>`,
-    )
-    .join('');
+  const projects = sortedProjects(allProjects);
+  if (projects.length === 0) {
+    createProjectEl.innerHTML = '';
+    createProjectEl.disabled = true;
+    createErrorEl.textContent = 'No projects exist yet — create one in the web app first (Settings → Projects & Tasks).';
+  } else {
+    createProjectEl.disabled = false;
+    createProjectEl.innerHTML = projects
+      .map(
+        (p, i) =>
+          `<option value="${i}">${escapeHtml([p.clientName, p.projectName].filter(Boolean).join(' · '))}</option>`,
+      )
+      .join('');
+  }
   createProjectEl._projects = projects; // stash for submit, avoids re-parsing option text
   createNameEl.focus();
 }
@@ -267,9 +274,10 @@ createSubmitBtn.addEventListener('click', async () => {
   }
 });
 
-window.taskPicker.onData(({ tasks, suggested: s }) => {
+window.taskPicker.onData(({ tasks, suggested: s, projects }) => {
   allTasks = tasks;
   suggested = s;
+  allProjects = projects ?? [];
   render();
 });
 
