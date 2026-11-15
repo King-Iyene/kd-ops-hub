@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useLogsWithIntervals } from './shared';
+import { useLogsWithIntervals, EmployeeLink } from './shared';
 
 interface Goal {
   id: string; employee_id: string; metric: 'productive_hours' | 'efficiency_pct'; period: 'daily' | 'weekly'; target_value: number;
@@ -113,7 +113,7 @@ export default function GoalsPage() {
                     const pct = g.target_value > 0 ? Math.min(100, (actual / g.target_value) * 100) : 0;
                     return (
                       <TableRow key={g.id}>
-                        <TableCell>{name}</TableCell>
+                        <TableCell><EmployeeLink employeeId={g.employee_id} name={name} /></TableCell>
                         <TableCell>{g.metric === 'productive_hours' ? 'Productive hours' : 'Efficiency %'}</TableCell>
                         <TableCell className="capitalize">{g.period}</TableCell>
                         <TableCell>{g.target_value}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>

@@ -16,6 +16,10 @@ export default {
       fontFamily: {
         sans: ['-apple-system', 'system-ui', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Oxygen-Sans', 'Ubuntu', 'Cantarell', '"Helvetica Neue"', 'sans-serif'],
         display: ['-apple-system', 'system-ui', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Oxygen-Sans', 'Ubuntu', 'Cantarell', '"Helvetica Neue"', 'sans-serif'],
+        // Time Tracking module only (see TimetrackFontScope.tsx) — self-hosted
+        // Inter, the standard UI typeface this category of product (TimeCamp
+        // included) is built around. Rest of the app keeps the OS-native stack.
+        timetrack: ['"Inter"', '-apple-system', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

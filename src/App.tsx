@@ -13,6 +13,7 @@ import { MfaChallengeDialog } from '@/components/MfaChallengeDialog';
 const AppLayout = lazy(() => import('@/components/AppLayout'));
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
+import { TimetrackFontScope } from '@/features/timetrack/TimetrackFontScope';
 import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES, PAYMENT_ROLES } from '@/lib/roles';
 import { Loader as Loader2 } from 'lucide-react';
 
@@ -932,7 +933,9 @@ function AppRoutes() {
             element={
               <RoleGuard roles={roles}>
                 <ErrorBoundary>
-                  <Page />
+                  <TimetrackFontScope>
+                    <Page />
+                  </TimetrackFontScope>
                 </ErrorBoundary>
               </RoleGuard>
             }

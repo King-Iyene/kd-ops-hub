@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, CATEGORY_BADGE } from './shared';
+import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, CATEGORY_BADGE, EmployeeLink } from './shared';
 
 /** TimeCamp's "Efficiency" report — productive vs. neutral vs. unproductive share, per employee. */
 export default function EfficiencyPage() {
@@ -138,7 +138,7 @@ export default function EfficiencyPage() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.employeeId}>
-                    <TableCell>{r.name}</TableCell>
+                    <TableCell><EmployeeLink employeeId={r.employeeId} name={r.name} /></TableCell>
                     <TableCell className="text-right">{r.productive}</TableCell>
                     <TableCell className="text-right">{r.neutral}</TableCell>
                     <TableCell className="text-right">{r.unproductive}</TableCell>

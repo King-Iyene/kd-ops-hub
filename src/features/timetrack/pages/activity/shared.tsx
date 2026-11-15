@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
 import { Loader2, Download } from 'lucide-react';
@@ -40,6 +41,25 @@ export function captureDomain(log: Pick<ActivityLog, 'url'>): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * TimeCamp makes every employee name across its activity/computer-tracking
+ * reports a link that drills into that person's own activity — so an admin
+ * scanning a table never has to re-filter by hand. Same idea here: every
+ * employee name in this module is this component, linking to Activities
+ * Summary pre-filtered to just that person (summary.tsx reads `?employee=`).
+ */
+export function EmployeeLink({ employeeId, name }: { employeeId: string; name: string }) {
+  return (
+    <Link
+      to={`/timetrack/activity/summary?employee=${encodeURIComponent(employeeId)}`}
+      className="font-medium text-foreground hover:text-primary hover:underline underline-offset-2 kd-transition"
+      title={`View ${name}'s activity`}
+    >
+      {name}
+    </Link>
+  );
 }
 
 export function useActivityDateRange() {

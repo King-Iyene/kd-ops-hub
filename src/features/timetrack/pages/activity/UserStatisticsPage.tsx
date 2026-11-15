@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
+import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, EmployeeLink } from './shared';
 
 interface AgentRow { employee_id: string; is_enabled: boolean; app_version: string | null; last_login_at: string | null; login_count: number }
 
@@ -96,7 +96,7 @@ export default function UserStatisticsPage() {
                     return (
                       <TableRow key={r.employeeId}>
                         <TableCell>
-                          {r.name}{' '}
+                          <EmployeeLink employeeId={r.employeeId} name={r.name} />{' '}
                           {agent?.is_enabled ? <Badge variant="outline" className="ml-1 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30">installed</Badge>
                             : <Badge variant="outline" className="ml-1 text-[10px]">not installed</Badge>}
                         </TableCell>

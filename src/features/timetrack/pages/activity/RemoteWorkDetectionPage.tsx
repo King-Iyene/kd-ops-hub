@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
+import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, EmployeeLink } from './shared';
 
 interface TrackingHoursRow { weekday: number; from_time: string; to_time: string }
 
@@ -45,7 +45,7 @@ export default function RemoteWorkDetectionPage() {
 
   const flagged = useMemo(() => {
     const byWeekday = new Map((hours ?? []).map((h) => [h.weekday, h]));
-    const out: { employee: string; app: string | null; capturedAt: string; offHours: boolean; outsideGeofence: boolean; location: string | null }[] = [];
+    const out: { employeeId: string; employee: string; app: string | null; capturedAt: string; offHours: boolean; outsideGeofence: boolean; location: string | null }[] = [];
     for (const l of data?.logs ?? []) {
       const d = new Date(l.captured_at);
       const weekday = (d.getDay() + 6) % 7; // 0=Mon..6=Sun, matching time_agent_tracking_hours
@@ -56,6 +56,7 @@ export default function RemoteWorkDetectionPage() {
       if (!offHours && !outsideGeofence) continue;
       const location = [l.geo_city, l.geo_region, l.geo_country].filter(Boolean).join(', ') || null;
       out.push({
+        employeeId: l.employee_id,
         employee: employees?.find((e) => e.id === l.employee_id)?.full_name ?? l.employee_id,
         app: l.app_name,
         capturedAt: l.captured_at,
@@ -85,7 +86,7 @@ export default function RemoteWorkDetectionPage() {
                 {flagged.map((f, i) => (
                   <TableRow key={i}>
                     <TableCell>{format(new Date(f.capturedAt), 'MMM d, HH:mm')}</TableCell>
-                    <TableCell>{f.employee}</TableCell>
+                    <TableCell><EmployeeLink employeeId={f.employeeId} name={f.employee} /></TableCell>
                     <TableCell>{f.app ?? '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{f.location ?? '—'}</TableCell>
                     <TableCell className="space-x-1.5">

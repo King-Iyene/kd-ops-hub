@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { Loader2, LayoutDashboard, Download } from 'lucide-react';
 import { useActiveEmployees } from '@/queries/useEmployees';
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { downloadXlsx } from '../../reports/reportTables';
 import { MultiSelectFilter } from '../../reports/ReportFiltersBar';
-import { ActivityDateRangeBar, useActivityDateRange, useLogsWithIntervals, CATEGORY_BADGE, GetDesktopAppButton } from './shared';
+import { ActivityDateRangeBar, useActivityDateRange, useLogsWithIntervals, CATEGORY_BADGE, GetDesktopAppButton, EmployeeLink } from './shared';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -35,6 +36,19 @@ export default function ActivitiesSummaryPage() {
   const { start, end, setStart, setEnd } = useActivityDateRange();
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
   const { data, isLoading } = useLogsWithIntervals(start, end);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Arriving via an EmployeeLink from another activity-tracker page (e.g.
+  // User Statistics) — pre-scope to that one person, then drop the param so
+  // the People filter above (which owns employeeIds from here on) is the
+  // single source of truth and a page refresh doesn't silently re-apply it.
+  useEffect(() => {
+    const fromLink = searchParams.get('employee');
+    if (fromLink) {
+      setEmployeeIds([fromLink]);
+      setSearchParams((p) => { p.delete('employee'); return p; }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const nameOf = (id: string) => employees?.find((e) => e.id === id)?.full_name ?? id;
 
@@ -159,7 +173,7 @@ export default function ActivitiesSummaryPage() {
                   <div className="flex items-center gap-2.5 mb-3">
                     <Avatar className="h-8 w-8"><AvatarFallback>{initials(nameOf(p.employeeId))}</AvatarFallback></Avatar>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{nameOf(p.employeeId)}</p>
+                      <p className="text-sm truncate"><EmployeeLink employeeId={p.employeeId} name={nameOf(p.employeeId)} /></p>
                       <p className="text-xs text-muted-foreground">{p.hours.toFixed(1)}h total · {p.avgPerDay.toFixed(1)}h/day</p>
                     </div>
                   </div>
@@ -185,7 +199,7 @@ export default function ActivitiesSummaryPage() {
                   {scopedLogs.slice(0, 200).map((l) => (
                     <TableRow key={l.id}>
                       <TableCell>{format(new Date(l.captured_at), 'MMM d, HH:mm')}</TableCell>
-                      <TableCell>{nameOf(l.employee_id)}</TableCell>
+                      <TableCell><EmployeeLink employeeId={l.employee_id} name={nameOf(l.employee_id)} /></TableCell>
                       <TableCell>{l.app_name ?? '—'}</TableCell>
                       <TableCell className="max-w-xs truncate">{l.window_title ?? '—'}</TableCell>
                       <TableCell>{l.productivity_category && <Badge variant="outline" className={CATEGORY_BADGE[l.productivity_category]}>{l.productivity_category}</Badge>}</TableCell>
