@@ -191,7 +191,7 @@ export default function AppLayout() {
                   <span className="text-2xs">⌘</span>K
                 </kbd>
               </button>
-              <DesktopAgentHeaderButton />
+              {location.pathname.startsWith('/timetrack') && <DesktopAgentHeaderButton />}
               <NotificationBell />
               <ThemeToggle />
               <div className="hidden sm:block w-px h-4 bg-border/60" />

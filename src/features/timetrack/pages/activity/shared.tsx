@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
-import { Loader2, Download, Monitor } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -178,7 +178,7 @@ export function DesktopAgentHeaderButton() {
         aria-label="Get desktop app"
         title="Get desktop app"
       >
-        <Monitor className="h-4 w-4" />
+        <Download className="h-4 w-4" />
       </button>
       <Dialog open={open} onOpenChange={setOpen}><DesktopAgentDialogContent /></Dialog>
     </>
