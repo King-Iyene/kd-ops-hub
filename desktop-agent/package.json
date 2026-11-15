@@ -1,8 +1,8 @@
 {
   "name": "kd-ops-timetrack-agent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
-  "description": "Native desktop agent for KD Ops Hub Time Tracking — window/app activity capture and optional screenshots. Self-contained; not built or linted by the main web app's toolchain.",
+  "description": "Native desktop agent for KD Ops Hub Time Tracking \u2014 window/app activity capture and optional screenshots. Self-contained; not built or linted by the main web app's toolchain.",
   "author": {
     "name": "KD Squares",
     "email": "code@kdsquares.com"
@@ -26,7 +26,8 @@
     "@types/node": "^20.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "dotenv": "^16.4.5"
   },
   "overrides": {
     "node-gyp": "^10.3.1"

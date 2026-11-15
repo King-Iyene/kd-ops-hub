@@ -1,8 +1,31 @@
-import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
+
+// dotenv is a dev-only convenience for `npm start` — it loads a local .env
+// file into process.env so supabaseClient.ts (required below) can pick up
+// local Supabase credentials without touching the build-time-baked
+// generated-config.ts. It is deliberately NOT listed in package.json
+// (neither "dependencies" nor "devDependencies") and must never run in a
+// packaged build: electron-builder only bundles what package.json declares,
+// so a prior unconditional top-level `import 'dotenv/config'` here shipped
+// fine from every local machine that happened to have dotenv sitting in
+// node_modules already, then crashed every packaged install on first launch
+// with "Cannot find module 'dotenv/config'" the moment it ran on a machine
+// with a clean, production-only node_modules tree. Guarded on
+// `!app.isPackaged` and wrapped in try/catch so a missing dotenv is a
+// silent no-op both in production (expected) and for any dev machine that
+// hasn't `npm install`ed it locally.
+if (!app.isPackaged) {
+  try {
+    require('dotenv/config');
+  } catch {
+    // Not installed locally - fine, generated-config.ts / an explicitly
+    // exported env var still works for `npm start`.
+  }
+}
+
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
 
