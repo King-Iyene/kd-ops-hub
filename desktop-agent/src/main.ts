@@ -28,7 +28,17 @@ if (!app.isPackaged) {
 
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
-import { fetchPickableTasks, getActiveTimer, switchTimer, stopActiveTimer, type ActiveTimer, type PickableTask } from './taskTimer';
+import {
+  fetchPickableTasks,
+  fetchSuggestedTasks,
+  createTask,
+  getActiveTimer,
+  switchTimer,
+  resumeTask,
+  stopActiveTimer,
+  type ActiveTimer,
+  type PickableTask,
+} from './taskTimer';
 
 // Single-instance lock: without this, every launch (a second double-click of
 // the installed app, an "open at login" entry firing alongside a manual
@@ -107,8 +117,38 @@ async function reportCheckin() {
 const store = new Store<{ refresh_token?: string; widget_visible?: boolean }>();
 
 let mainWindow: BrowserWindow | null = null;
+// Set by the 'before-quit' handler below so mainWindow's 'close' interceptor
+// (createWindow) knows the difference between the user closing the window
+// (hide it, stay in the tray) and the app actually quitting (let it close).
+let isQuitting = false;
 let widgetWindow: BrowserWindow | null = null;
 let taskPickerWindow: BrowserWindow | null = null;
+
+// Guards every webContents.send() in this file. Two real crashes this
+// protects against, both hit live:
+// 1. taskPickerWindow closes on blur, so any handler that does `await` work
+//    (task-picker-ready fetching tasks) before calling
+//    taskPickerWindow.webContents.send(...) can find the window already
+//    destroyed by the time the await resolves — .send() throws
+//    "Object has been destroyed" on a destroyed webContents even though the
+//    JS variable itself isn't null yet (the 'closed' event that nulls it
+//    fires on a later tick). Worse, the old code's catch block called
+//    .send() again as its fallback, which threw the SAME error a second
+//    time, uncaught, crashing the whole app to Electron's fatal-error
+//    dialog — confirmed exactly matching a live crash report.
+// 2. mainWindow is deliberately never closed-quit (see window-all-closed
+//    below — the app stays alive in the tray after the user closes the
+//    window) and is never nulled on close either, so mainWindow becomes a
+//    stale destroyed BrowserWindow the moment the user closes it. Every
+//    later mainWindow?.webContents.send(...) — including the 60-second
+//    settings poll in pollSettingsAndTrack — would hit the identical crash
+//    the first time it ran after that, independent of anything task-picker
+//    related.
+function safeSend(win: BrowserWindow | null, channel: string, payload?: unknown): void {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send(channel, payload);
+  }
+}
 let tray: Tray | null = null;
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 // Session-local (not persisted): when the current tracking run started, so
@@ -123,6 +163,12 @@ let currentEmployeeId: string | null = null;
 // Mirrors the one open (end_time IS NULL) time_entries row for this employee,
 // if any — loaded on sign-in/restore and kept in sync by switchTimer/stopActiveTimer.
 let activeTimer: ActiveTimer | null = null;
+// Set by "Pause": the task that was running when paused, remembered so
+// "Resume" can hand it straight back to resumeTask() without reopening the
+// picker. Cleared whenever a different task is explicitly chosen, or "No
+// Task" is chosen, or it's actually resumed. Lives only in memory — quitting
+// the app and reopening loses a pending pause, same as most trackers.
+let pausedTask: ActiveTimer | null = null;
 
 async function restoreSession() {
   if (!supabase) return null;
@@ -149,13 +195,13 @@ async function pollSettingsAndTrack(employeeId: string) {
     if (error || !data || !data.is_enabled) {
       stopTracking();
       trackingStartedAt = null;
-      mainWindow?.webContents.send('agent-status', { tracking: false });
+      safeSend(mainWindow, 'agent-status', { tracking: false });
       applyWidgetVisibility();
       return;
     }
     startTracking(client, employeeId, data);
     if (trackingStartedAt == null) trackingStartedAt = Date.now();
-    mainWindow?.webContents.send('agent-status', { tracking: true });
+    safeSend(mainWindow, 'agent-status', { tracking: true });
     applyWidgetVisibility();
   };
   await check();
@@ -175,9 +221,25 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
+  // This is a tray-resident background tracker (see window-all-closed below),
+  // so "closing" this window is meant to mean "hide it", not "destroy it" —
+  // otherwise mainWindow becomes a stale destroyed BrowserWindow the moment
+  // the user closes it (via the window's own X button, Alt+F4, etc.), and
+  // EVERY later reference to it — the tray's "Show", the widget's "⋯" button
+  // (open-main-window), the 60-second settings poll's agent-status send —
+  // throws "Object has been destroyed", confirmed as a real live crash on
+  // exactly this path (closing the window, then clicking the widget's "⋯").
+  // preventDefault + hide() keeps the one BrowserWindow instance alive for
+  // the whole life of the app, so "Show" (tray or widget) always has a real,
+  // un-destroyed window to bring back.
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return; // let the real app.quit() path actually close it
+    event.preventDefault();
+    mainWindow?.hide();
+  });
 }
 
-const WIDGET_WIDTH = 248; // wide enough for the extra stop-task button alongside the open button
+const WIDGET_WIDTH = 274; // wide enough for pause + stop + open buttons alongside the label
 const WIDGET_HEIGHT = 56;
 
 // Floating always-on-top status pill — the "so they know it's active" piece
@@ -208,11 +270,12 @@ function createWidgetWindow() {
 }
 
 function sendWidgetStatus(tracking: boolean) {
-  widgetWindow?.webContents.send('widget-status', {
+  safeSend(widgetWindow, 'widget-status', {
     tracking,
     idle: false, // true per-tick idle state isn't plumbed out of tracker.ts yet
     startedAt: trackingStartedAt,
     task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime() } : null,
+    pausedTask: !activeTimer && pausedTask ? { name: pausedTask.taskName, project: pausedTask.projectName } : null,
   });
 }
 
@@ -251,10 +314,64 @@ function createTaskPickerWindow() {
   });
 }
 
+// --- Pause / Stop / Resume: shared by the tray menu and the widget/picker's
+// IPC handlers below, so there's exactly one place each does its actual work. ---
+
+async function pauseActiveTask() {
+  if (!supabase || !activeTimer) return;
+  const toPause = activeTimer;
+  try {
+    await stopActiveTimer(supabase, toPause.entryId);
+    pausedTask = toPause;
+  } catch {
+    // Non-fatal — refreshActiveTimer's next poll reconciles either way.
+  }
+  activeTimer = null;
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+}
+
+async function stopActiveTask() {
+  if (!supabase || !activeTimer) return;
+  try {
+    await stopActiveTimer(supabase, activeTimer.entryId);
+  } catch {
+    // Non-fatal — see note above.
+  }
+  activeTimer = null;
+  pausedTask = null; // an explicit Stop clears any pending pause too, not just the running entry
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+}
+
+async function resumePausedTask() {
+  if (!supabase || !currentEmployeeId || !pausedTask) return;
+  const toResume = pausedTask;
+  try {
+    activeTimer = await resumeTask(supabase, currentEmployeeId, {
+      taskId: toResume.taskId,
+      taskName: toResume.taskName,
+      projectId: toResume.projectId,
+      projectName: toResume.projectName,
+      clientName: toResume.clientName,
+      searchLabel: '', // unused by resumeTask/switchTimer's own logic
+    });
+    pausedTask = null;
+  } catch {
+    // Non-fatal — pausedTask stays set so the user can just try Resume again.
+  }
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+}
+
 async function refreshActiveTimer() {
   if (!supabase || !currentEmployeeId) return;
   try {
     activeTimer = await getActiveTimer(supabase, currentEmployeeId);
+    // Something is now actually running server-side (started here, from the
+    // web app, or resumed some other way) — whatever was locally "paused"
+    // before is superseded, so don't leave it to resurface once this stops.
+    if (activeTimer) pausedTask = null;
   } catch {
     // Non-fatal — widget just shows no task this tick; next poll retries.
   }
@@ -264,21 +381,28 @@ async function refreshActiveTimer() {
 
 function rebuildTrayMenu() {
   if (!tray) return;
+  const taskItems = activeTimer
+    ? [
+        {
+          label: `Pause: ${activeTimer.taskName}`,
+          click: () => pauseActiveTask(),
+        },
+        {
+          label: `Stop: ${activeTimer.taskName}`,
+          click: () => stopActiveTask(),
+        },
+        { label: 'Switch Task…', click: () => createTaskPickerWindow() },
+      ]
+    : pausedTask
+      ? [
+          { label: `Resume: ${pausedTask.taskName}`, click: () => resumePausedTask() },
+          { label: 'Start a Different Task…', click: () => createTaskPickerWindow() },
+        ]
+      : [{ label: 'Start a Task…', click: () => createTaskPickerWindow() }];
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: () => mainWindow?.show() },
     { type: 'separator' },
-    activeTimer
-      ? {
-          label: `Stop: ${activeTimer.taskName}`,
-          click: async () => {
-            if (!supabase || !activeTimer) return;
-            await stopActiveTimer(supabase, activeTimer.entryId);
-            activeTimer = null;
-            rebuildTrayMenu();
-            sendWidgetStatus(trackingStartedAt != null);
-          },
-        }
-      : { label: 'Start a Task…', click: () => createTaskPickerWindow() },
+    ...taskItems,
     { type: 'separator' },
     {
       label: 'Show floating widget',
@@ -317,13 +441,13 @@ app.whenReady().then(async () => {
   initAutoUpdater();
 
   if (configError) {
-    mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('config-error', configError));
+    mainWindow?.webContents.once('did-finish-load', () => safeSend(mainWindow, 'config-error', configError));
     return;
   }
 
   const session = await restoreSession();
   if (session?.user) {
-    mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('signed-in', session.user.email));
+    mainWindow?.webContents.once('did-finish-load', () => safeSend(mainWindow, 'signed-in', session.user.email));
     currentEmployeeId = session.user.id;
     pollSettingsAndTrack(session.user.id);
     void reportCheckin();
@@ -341,10 +465,16 @@ ipcMain.on('open-task-picker', () => {
 ipcMain.on('task-picker-ready', async () => {
   if (!supabase || !taskPickerWindow) return;
   try {
-    const tasks: PickableTask[] = await fetchPickableTasks(supabase);
-    taskPickerWindow.webContents.send('task-picker-tasks', tasks);
+    const [tasks, suggested] = await Promise.all([
+      fetchPickableTasks(supabase),
+      currentEmployeeId ? fetchSuggestedTasks(supabase, currentEmployeeId) : Promise.resolve([]),
+    ]);
+    // taskPickerWindow closes on blur, so the user clicking away during this
+    // await is routine, not an edge case — safeSend is load-bearing here,
+    // not defensive decoration (see the comment on its definition).
+    safeSend(taskPickerWindow, 'task-picker-data', { tasks, suggested });
   } catch {
-    taskPickerWindow.webContents.send('task-picker-tasks', []);
+    safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [] });
   }
 });
 
@@ -353,6 +483,7 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
   if (!supabase || !currentEmployeeId) return;
   try {
     activeTimer = await switchTimer(supabase, currentEmployeeId, task);
+    pausedTask = null; // explicitly picking a task overrides whatever was paused
   } catch {
     // Non-fatal — tray menu/widget simply won't reflect a switch that failed
     // server-side; refreshActiveTimer's next poll will reconcile either way.
@@ -363,19 +494,49 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
 
 ipcMain.on('task-picker-choose-none', async () => {
   taskPickerWindow?.close();
-  if (!supabase || !activeTimer) return;
-  try {
-    await stopActiveTimer(supabase, activeTimer.entryId);
-  } catch {
-    // Non-fatal — see note above.
-  }
-  activeTimer = null;
-  rebuildTrayMenu();
-  sendWidgetStatus(trackingStartedAt != null);
+  await stopActiveTask();
 });
 
 ipcMain.on('task-picker-cancel', () => {
   taskPickerWindow?.close();
+});
+
+// Inline "Create task…": subject to time_tasks' own RLS (manage_tasks
+// capability, or being that project's manager) — a regular employee
+// creating a task under a project they don't manage gets a real permission
+// error back, surfaced to the picker rather than swallowed, since silently
+// failing here would look like the button just doesn't work.
+ipcMain.handle(
+  'task-picker-create-task',
+  async (
+    _e,
+    args: { projectId: string; projectName: string; clientName: string | null; name: string; selectAfterCreate: boolean },
+  ) => {
+    if (!supabase) return { ok: false, error: 'Not signed in' };
+    try {
+      const created = await createTask(supabase, currentEmployeeId ?? '', args.projectId, args.projectName, args.clientName, args.name);
+      if (args.selectAfterCreate && currentEmployeeId) {
+        activeTimer = await switchTimer(supabase, currentEmployeeId, created);
+        pausedTask = null;
+        rebuildTrayMenu();
+        sendWidgetStatus(trackingStartedAt != null);
+      }
+      return { ok: true, task: created };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not create task';
+      return { ok: false, error: message };
+    }
+  },
+);
+
+ipcMain.on('task-picker-pause', () => {
+  taskPickerWindow?.close();
+  void pauseActiveTask();
+});
+
+ipcMain.on('task-picker-resume', () => {
+  taskPickerWindow?.close();
+  void resumePausedTask();
 });
 
 ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; password: string }) => {
@@ -416,4 +577,15 @@ app.on('window-all-closed', () => {
   // Keep running in the tray — this is a background tracker. Deliberately
   // NOT calling app.quit() here is what keeps it alive after the window
   // closes; 'window-all-closed' has no preventDefault() in Electron's types.
+  // In practice this now rarely fires at all, since mainWindow's own 'close'
+  // handler hides rather than destroys it (see createWindow) — there's
+  // nothing left to force-quit over.
+});
+
+// Fires for every real quit path (tray "Quit", Alt+F4 reaching the process,
+// OS shutdown/logoff) BEFORE any window's 'close' event — flips the flag
+// mainWindow's close interceptor checks, so an actual quit isn't silently
+// turned into a hide.
+app.on('before-quit', () => {
+  isQuitting = true;
 });

@@ -6,9 +6,11 @@ const label = document.getElementById('label');
 const elapsedEl = document.getElementById('elapsed');
 const openBtn = document.getElementById('open-btn');
 const stopBtn = document.getElementById('stop-btn');
+const pauseBtn = document.getElementById('pause-btn');
 
 let trackingStartedAt = null; // ms epoch, set once per tracking session
 let currentTask = null; // { name, project, startedAt } | null — the manual task timer, if one is running
+let pausedTask = null; // { name, project } | null — set only when currentTask is null, see render()
 let tickHandle = null;
 
 function formatElapsed(ms) {
@@ -50,13 +52,28 @@ function render() {
     dot.className = 'tracking';
     label.textContent = currentTask.name;
     stopBtn.classList.add('visible');
+    pauseBtn.classList.add('visible');
+    pauseBtn.textContent = '❙❙';
+    pauseBtn.title = 'Pause this task';
+  } else if (pausedTask) {
+    // Distinct from the "tracking"/"idle"/"disabled" states in setState() —
+    // those describe the automatic window/activity tracker, this describes
+    // the separate manual task timer, so both can be true at once (e.g.
+    // automatic tracking still on, manual task paused).
+    dot.className = 'paused';
+    label.textContent = `${pausedTask.name} (paused)`;
+    stopBtn.classList.remove('visible');
+    pauseBtn.classList.add('visible');
+    pauseBtn.textContent = '▶';
+    pauseBtn.title = 'Resume this task';
   } else {
     stopBtn.classList.remove('visible');
+    pauseBtn.classList.remove('visible');
   }
   renderTick();
 }
 
-window.widget.onStatus(({ tracking, idle, startedAt, task }) => {
+window.widget.onStatus(({ tracking, idle, startedAt, task, pausedTask: pt }) => {
   if (startedAt != null) trackingStartedAt = startedAt;
   if (!tracking) {
     trackingStartedAt = null;
@@ -67,11 +84,16 @@ window.widget.onStatus(({ tracking, idle, startedAt, task }) => {
     setState('tracking');
   }
   currentTask = task ?? null;
+  pausedTask = pt ?? null;
   render();
 });
 
 openBtn.addEventListener('click', () => window.widget.openMain());
 stopBtn.addEventListener('click', () => window.widget.stopTask());
+pauseBtn.addEventListener('click', () => {
+  if (currentTask) window.widget.pauseTask();
+  else if (pausedTask) window.widget.resumeTask();
+});
 label.addEventListener('click', () => window.widget.changeTask());
 
 tickHandle = setInterval(renderTick, 1000);

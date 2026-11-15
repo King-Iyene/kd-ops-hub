@@ -11,10 +11,13 @@ contextBridge.exposeInMainWorld('widget', {
       idle: boolean;
       startedAt: number | null;
       task: { name: string; project: string; startedAt: number } | null;
+      pausedTask: { name: string; project: string } | null;
     }) => void,
   ) => ipcRenderer.on('widget-status', (_e, status) => cb(status)),
   openMain: () => ipcRenderer.send('open-main-window'),
   stopTask: () => ipcRenderer.send('task-picker-choose-none'),
+  pauseTask: () => ipcRenderer.send('task-picker-pause'),
+  resumeTask: () => ipcRenderer.send('task-picker-resume'),
   // Click the task name itself (or "No Task") to bring up the same picker
   // the tray's "Start a Task…" menu item opens — matches the "Click to
   // change task" interaction the widget is meant to mirror, rather than

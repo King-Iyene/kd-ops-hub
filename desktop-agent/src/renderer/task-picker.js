@@ -1,71 +1,277 @@
-const searchEl = document.getElementById('search');
+// Full task-picker rebuild: search (flattens everything when active), a
+// "Suggested" section of the employee's own recently-used tasks, and a
+// collapsible "All Projects and Tasks" tree grouped Client > Project > Task
+// — plus inline "Create task…". Deliberately plain DOM/vanilla JS, matching
+// the rest of this app's renderer scripts (no build step for these windows).
+
+const searchInput = document.getElementById('search');
 const listEl = document.getElementById('list');
 const noTaskEl = document.getElementById('no-task');
+const createLinkEl = document.getElementById('create-link');
+const createFormEl = document.getElementById('create-form');
+const createNameEl = document.getElementById('create-name');
+const createProjectEl = document.getElementById('create-project');
+const createSelectAfterEl = document.getElementById('create-select-after');
+const createErrorEl = document.getElementById('create-error');
+const createCancelBtn = document.getElementById('create-cancel');
+const createSubmitBtn = document.getElementById('create-submit');
 
-let tasks = [];
-let selectedIndex = -1;
+let allTasks = [];
+let suggested = [];
+let query = '';
+// Collapsed state is keyed by a group key ("client::<name>" / "project::<id>")
+// — absent from the set means expanded. Starts empty so everything is
+// expanded by default on first open (there's no large dataset yet to make
+// that unwieldy, and it's more discoverable than starting collapsed).
+const collapsed = new Set();
+let mode = 'browse'; // 'browse' | 'create'
+let activeIndex = -1; // index into the current flat `selectable` rows
 
-function render(filtered) {
-  listEl.innerHTML = '';
-  if (filtered.length === 0) {
-    const empty = document.createElement('div');
-    empty.id = 'empty';
-    empty.textContent = 'No matching tasks. Create tasks under Time Tracking → Projects first.';
-    listEl.appendChild(empty);
-    return;
+function groupKey(prefix, name) {
+  return `${prefix}::${name ?? ''}`;
+}
+
+// { clientName: string|null, projects: { projectId, projectName, tasks: PickableTask[] }[] }[]
+function buildTree(tasks) {
+  const clients = new Map(); // clientName -> Map(projectId -> { projectName, tasks[] })
+  for (const t of tasks) {
+    const clientKey = t.clientName ?? '';
+    if (!clients.has(clientKey)) clients.set(clientKey, new Map());
+    const projects = clients.get(clientKey);
+    if (!projects.has(t.projectId)) projects.set(t.projectId, { projectName: t.projectName, tasks: [] });
+    projects.get(t.projectId).tasks.push(t);
   }
-  filtered.forEach((t, i) => {
-    const row = document.createElement('div');
-    row.className = 'row' + (i === selectedIndex ? ' active' : '');
-    row.innerHTML = `<div class="task">${escapeHtml(t.taskName)}</div><div class="path">${escapeHtml([t.clientName, t.projectName].filter(Boolean).join(' · '))}</div>`;
-    row.addEventListener('click', () => choose(t));
-    listEl.appendChild(row);
-  });
+  return [...clients.entries()]
+    .sort((a, b) => (a[0] || '￿').localeCompare(b[0] || '￿'))
+    .map(([clientName, projects]) => ({
+      clientName: clientName || null,
+      projects: [...projects.entries()]
+        .sort((a, b) => a[1].projectName.localeCompare(b[1].projectName))
+        .map(([projectId, p]) => ({ projectId, projectName: p.projectName, tasks: p.tasks })),
+    }));
 }
 
 function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function filteredTasks() {
-  const q = searchEl.value.trim().toLowerCase();
-  if (!q) return tasks;
-  return tasks.filter((t) => t.searchLabel.toLowerCase().includes(q));
+function taskRowHtml(task, idx) {
+  return `<div class="row task-row" data-idx="${idx}">
+    <div class="task">${escapeHtml(task.taskName)}</div>
+    <div class="path">${escapeHtml([task.clientName, task.projectName].filter(Boolean).join(' · '))}</div>
+  </div>`;
 }
 
-function choose(task) {
-  window.taskPicker.chooseTask(task);
+function render() {
+  // `selectable` mirrors what's actually rendered as clickable task rows, in
+  // order, so arrow-key navigation and Enter-to-choose stay in sync with
+  // whatever's currently shown (search results vs. the tree).
+  const selectable = [];
+  let html = '';
+
+  if (query.trim()) {
+    const q = query.trim().toLowerCase();
+    const matches = allTasks.filter((t) => t.searchLabel.toLowerCase().includes(q));
+    if (matches.length === 0) {
+      html = '<div id="empty">No matching tasks</div>';
+    } else {
+      html += '<div class="section-header">Results</div>';
+      for (const t of matches) {
+        selectable.push(t);
+        html += taskRowHtml(t, selectable.length - 1);
+      }
+    }
+  } else {
+    if (suggested.length) {
+      html += '<div class="section-header">Suggested</div>';
+      for (const t of suggested) {
+        selectable.push(t);
+        html += taskRowHtml(t, selectable.length - 1);
+      }
+    }
+    html += '<div class="section-header">All Projects and Tasks</div>';
+    const tree = buildTree(allTasks);
+    if (tree.length === 0) {
+      html += '<div id="empty">No projects or tasks yet</div>';
+    }
+    for (const client of tree) {
+      const clientKey = groupKey('client', client.clientName);
+      const clientCollapsed = collapsed.has(clientKey);
+      html += `<div class="group-row${clientCollapsed ? ' collapsed' : ''}" data-toggle="${clientKey}">
+        <span class="chevron">▾</span>${escapeHtml(client.clientName ?? '(No Client)')}
+      </div>`;
+      if (clientCollapsed) continue;
+      for (const project of client.projects) {
+        const projectKey = groupKey('project', project.projectId);
+        const projectCollapsed = collapsed.has(projectKey);
+        html += `<div class="group-row project-row${projectCollapsed ? ' collapsed' : ''}" data-toggle="${projectKey}">
+          <span class="chevron">▾</span>${escapeHtml(project.projectName)}
+        </div>`;
+        if (projectCollapsed) continue;
+        for (const t of project.tasks) {
+          selectable.push(t);
+          html += taskRowHtml(t, selectable.length - 1);
+        }
+      }
+    }
+  }
+
+  listEl.innerHTML = html;
+  render.selectable = selectable;
+  if (activeIndex >= selectable.length) activeIndex = selectable.length - 1;
+  applyActiveClass();
+
+  listEl.querySelectorAll('.group-row[data-toggle]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-toggle');
+      if (collapsed.has(key)) collapsed.delete(key);
+      else collapsed.add(key);
+      render();
+    });
+  });
+  listEl.querySelectorAll('.row.task-row[data-idx]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const idx = Number(el.getAttribute('data-idx'));
+      chooseIndex(idx);
+    });
+  });
 }
 
-noTaskEl.addEventListener('click', () => {
-  window.taskPicker.chooseNoTask();
+function applyActiveClass() {
+  listEl.querySelectorAll('.row.task-row[data-idx]').forEach((el) => {
+    el.classList.toggle('active', Number(el.getAttribute('data-idx')) === activeIndex);
+  });
+}
+
+function chooseIndex(idx) {
+  const task = render.selectable?.[idx];
+  if (task) window.taskPicker.chooseTask(task);
+}
+
+searchInput.addEventListener('input', () => {
+  query = searchInput.value;
+  activeIndex = -1;
+  render();
 });
 
-searchEl.addEventListener('input', () => {
-  selectedIndex = -1;
-  render(filteredTasks());
-});
+noTaskEl.addEventListener('click', () => window.taskPicker.chooseNoTask());
 
-searchEl.addEventListener('keydown', (e) => {
-  const filtered = filteredTasks();
+document.addEventListener('keydown', (e) => {
+  if (mode !== 'browse') {
+    if (e.key === 'Escape') window.taskPicker.cancel();
+    return;
+  }
+  const selectable = render.selectable ?? [];
   if (e.key === 'ArrowDown') {
     e.preventDefault();
-    selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
-    render(filtered);
+    activeIndex = Math.min(activeIndex + 1, selectable.length - 1);
+    applyActiveClass();
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
-    selectedIndex = Math.max(selectedIndex - 1, 0);
-    render(filtered);
+    activeIndex = Math.max(activeIndex - 1, 0);
+    applyActiveClass();
   } else if (e.key === 'Enter') {
-    if (selectedIndex >= 0 && filtered[selectedIndex]) choose(filtered[selectedIndex]);
+    if (activeIndex >= 0) chooseIndex(activeIndex);
   } else if (e.key === 'Escape') {
     window.taskPicker.cancel();
   }
 });
 
-window.taskPicker.onTasks((list) => {
-  tasks = list;
-  render(filteredTasks());
+// --- Inline "Create task…" -------------------------------------------------
+
+function uniqueProjects(tasks) {
+  const seen = new Map(); // projectId -> { projectId, projectName, clientName }
+  for (const t of tasks) {
+    if (!seen.has(t.projectId)) seen.set(t.projectId, { projectId: t.projectId, projectName: t.projectName, clientName: t.clientName });
+  }
+  return [...seen.values()].sort((a, b) => {
+    const an = [a.clientName, a.projectName].filter(Boolean).join(' · ');
+    const bn = [b.clientName, b.projectName].filter(Boolean).join(' · ');
+    return an.localeCompare(bn);
+  });
+}
+
+function enterCreateMode() {
+  mode = 'create';
+  document.getElementById('search-row').style.display = 'none';
+  createLinkEl.style.display = 'none';
+  noTaskEl.style.display = 'none';
+  listEl.style.display = 'none';
+  createFormEl.classList.add('visible');
+  createErrorEl.textContent = '';
+  createNameEl.value = '';
+
+  const projects = uniqueProjects(allTasks);
+  createProjectEl.innerHTML = projects
+    .map(
+      (p, i) =>
+        `<option value="${i}">${escapeHtml([p.clientName, p.projectName].filter(Boolean).join(' · '))}</option>`,
+    )
+    .join('');
+  createProjectEl._projects = projects; // stash for submit, avoids re-parsing option text
+  createNameEl.focus();
+}
+
+function exitCreateMode() {
+  mode = 'browse';
+  document.getElementById('search-row').style.display = '';
+  createLinkEl.style.display = '';
+  noTaskEl.style.display = '';
+  listEl.style.display = '';
+  createFormEl.classList.remove('visible');
+  searchInput.focus();
+}
+
+createLinkEl.addEventListener('click', enterCreateMode);
+createCancelBtn.addEventListener('click', exitCreateMode);
+
+createSubmitBtn.addEventListener('click', async () => {
+  const name = createNameEl.value.trim();
+  const projects = createProjectEl._projects ?? [];
+  const project = projects[Number(createProjectEl.value)];
+  createErrorEl.textContent = '';
+  if (!name) {
+    createErrorEl.textContent = 'Enter a task name.';
+    return;
+  }
+  if (!project) {
+    createErrorEl.textContent = 'Choose a project first — tasks must belong to one.';
+    return;
+  }
+  createSubmitBtn.disabled = true;
+  createSubmitBtn.textContent = 'Adding…';
+  try {
+    const result = await window.taskPicker.createTask({
+      projectId: project.projectId,
+      projectName: project.projectName,
+      clientName: project.clientName,
+      name,
+      selectAfterCreate: createSelectAfterEl.checked,
+    });
+    if (result.ok) {
+      // If "select after adding" was checked, main.ts already started the
+      // timer on it — either way, this picker's done its job.
+      window.taskPicker.cancel();
+    } else {
+      // Surfaces real server-side failures rather than hiding them — most
+      // commonly RLS: time_tasks_write requires manage_tasks capability or
+      // being that project's manager, so a regular employee creating a task
+      // under a project they don't manage gets a real permission error here.
+      createErrorEl.textContent = result.error || 'Could not create task.';
+    }
+  } catch (err) {
+    createErrorEl.textContent = 'Could not create task.';
+  } finally {
+    createSubmitBtn.disabled = false;
+    createSubmitBtn.textContent = 'Add task';
+  }
+});
+
+window.taskPicker.onData(({ tasks, suggested: s }) => {
+  allTasks = tasks;
+  suggested = s;
+  render();
 });
 
 window.taskPicker.requestTasks();
+render();
