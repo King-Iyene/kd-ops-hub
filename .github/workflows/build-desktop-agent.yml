@@ -111,6 +111,8 @@ jobs:
             desktop-agent/release/*.exe
             desktop-agent/release/*.dmg
             desktop-agent/release/*.zip
+            desktop-agent/release/*.yml
+            desktop-agent/release/*.blockmap
           if-no-files-found: error
           retention-days: 90
 

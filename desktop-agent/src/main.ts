@@ -2,8 +2,32 @@ import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
+import { autoUpdater } from 'electron-updater';
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
+
+// Auto-update: electron-builder's `publish: { provider: 'github', ... }`
+// config (package.json) makes it emit latest.yml / latest-mac.yml /
+// latest-linux.yml alongside each release's installers — electron-updater
+// reads those to check if a newer version is on the GitHub release this app
+// was built to point at. Nobody has to manually reinstall on every machine
+// again; a new tagged release (the same human-approved release flow as
+// always) is enough for every running agent to pick it up on its own.
+// autoUpdater.checkForUpdatesAndNotify() downloads silently in the
+// background and shows a native OS notification once it's ready to install
+// on next quit — never interrupts an active tracking session.
+function initAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('error', (err) => {
+    // Non-fatal by design — an offline machine or a GitHub hiccup must never
+    // crash or block the agent; it just tries again next launch.
+    console.error('[auto-update] check failed:', err?.message ?? err);
+  });
+  autoUpdater.checkForUpdatesAndNotify().catch(() => {
+    // Same reasoning as the .on('error', ...) handler above.
+  });
+}
 
 // Reports this install into time_agent_settings (app_version, last_login_at,
 // login_count) so the web app's User Statistics page — which reads those
@@ -79,6 +103,8 @@ app.whenReady().then(async () => {
     { label: 'Quit', click: () => app.quit() },
   ]));
   tray.setToolTip('KD Ops Time Tracker');
+
+  initAutoUpdater();
 
   if (configError) {
     mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('config-error', configError));

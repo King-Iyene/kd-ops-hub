@@ -19,7 +19,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "active-win": "^8.2.0",
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -33,8 +34,13 @@
   "build": {
     "appId": "com.kdsquares.timetrack-agent",
     "productName": "KD Ops Time Tracker",
-    "files": ["dist/**/*", "src/renderer/**/*"],
-    "directories": { "output": "release" },
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
     "icon": "build/icon.png",
     "npmRebuild": false,
     "publish": {
@@ -43,12 +49,18 @@
       "repo": "kd-ops-hub"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office",
       "icon": "build/icon.png"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.png"
     },
     "nsis": {
@@ -58,7 +70,10 @@
       "createStartMenuShortcut": true
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
       "hardenedRuntime": false,
