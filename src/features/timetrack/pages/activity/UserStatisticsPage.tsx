@@ -45,7 +45,10 @@ export default function UserStatisticsPage() {
       if (l.captured_at > row.last) row.last = l.captured_at;
       map.set(l.employee_id, row);
     }
-    return [...map.entries()].map(([employeeId, r]) => {
+    // Everyone is listed (TimeCamp shows every user, even with no activity yet), not just people with captures.
+    const ids = new Set<string>([...map.keys(), ...(employees ?? []).map((e) => e.id)]);
+    return [...ids].map((employeeId) => {
+      const r = map.get(employeeId) ?? { captures: 0, productive: 0, idle: 0, hours: 0, days: new Set<string>(), first: '', last: '' };
       const activeCaptures = r.captures - r.idle;
       return {
         employeeId, name: employees?.find((e) => e.id === employeeId)?.full_name ?? employeeId,
@@ -53,7 +56,7 @@ export default function UserStatisticsPage() {
         productivePct: activeCaptures > 0 ? (r.productive / activeCaptures) * 100 : 0,
         first: r.first, last: r.last,
       };
-    }).sort((a, b) => b.hours - a.hours);
+    }).sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name));
   }, [data, employees]);
 
   const exportCsv = () => {
@@ -62,7 +65,7 @@ export default function UserStatisticsPage() {
       rows.map((r) => {
         const agent = agentFor(r.employeeId);
         return [
-          r.name, agent?.is_enabled ? 'Yes' : 'No', agent?.app_version ?? '', agent?.last_login_at ? format(new Date(agent.last_login_at), 'yyyy-MM-dd HH:mm') : '',
+          r.name, agent?.app_version ? 'Yes' : 'No', agent?.app_version ?? '', agent?.last_login_at ? format(new Date(agent.last_login_at), 'yyyy-MM-dd HH:mm') : '',
           String(agent?.login_count ?? 0), String(r.captures), String(r.idle), r.hours.toFixed(2), String(r.activeDays), r.productivePct.toFixed(0),
         ];
       }),
@@ -84,6 +87,7 @@ export default function UserStatisticsPage() {
                   <TableHead>Employee</TableHead>
                   <TableHead>App version</TableHead>
                   <TableHead>Last login</TableHead>
+                  <TableHead>Last app sync</TableHead>
                   <TableHead className="text-right">Logins</TableHead>
                   <TableHead className="text-right">Captures</TableHead>
                   <TableHead className="text-right">Idle</TableHead>
@@ -97,11 +101,12 @@ export default function UserStatisticsPage() {
                       <TableRow key={r.employeeId}>
                         <TableCell>
                           <EmployeeLink employeeId={r.employeeId} name={r.name} />{' '}
-                          {agent?.is_enabled ? <Badge variant="outline" className="ml-1 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30">installed</Badge>
+                          {agent?.app_version ? <Badge variant="outline" className="ml-1 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30">installed</Badge>
                             : <Badge variant="outline" className="ml-1 text-[10px]">not installed</Badge>}
                         </TableCell>
                         <TableCell>{agent?.app_version ?? '—'}</TableCell>
                         <TableCell>{agent?.last_login_at ? format(new Date(agent.last_login_at), 'MMM d, HH:mm') : '—'}</TableCell>
+                        <TableCell>{r.last ? format(new Date(r.last), 'MMM d, HH:mm') : '—'}</TableCell>
                         <TableCell className="text-right">{agent?.login_count ?? 0}</TableCell>
                         <TableCell className="text-right">{r.captures}</TableCell>
                         <TableCell className="text-right">{r.idle}</TableCell>
@@ -111,7 +116,7 @@ export default function UserStatisticsPage() {
                       </TableRow>
                     );
                   })}
-                  {rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+                  {rows.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">No employees found.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>

@@ -7,7 +7,14 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, CATEGORY_BADGE, EmployeeLink } from './shared';
+import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, captureDomain, CATEGORY_BADGE, EmployeeLink } from './shared';
+
+function fmtHm(hours: number): string {
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
 
 /** TimeCamp's "Efficiency" report — productive vs. neutral vs. unproductive share, per employee. */
 export default function EfficiencyPage() {
@@ -57,11 +64,13 @@ export default function EfficiencyPage() {
 
   const { topProductive, topUnproductive } = useMemo(() => {
     const byApp = new Map<string, { productive: number; unproductive: number; label: string }>();
+    // Like TimeCamp: name the site or app (not the window title) and show time, not a tick count.
     for (const l of data?.logs ?? []) {
-      const label = l.window_title || l.app_name || 'Unknown';
+      const label = captureDomain(l) ?? l.app_name ?? 'Unknown';
+      const hours = (data?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const a = byApp.get(label) ?? { productive: 0, unproductive: 0, label };
-      if (l.productivity_category === 'productive') a.productive += 1;
-      if (l.productivity_category === 'unproductive') a.unproductive += 1;
+      if (l.productivity_category === 'productive' || l.productivity_category === 'neutral') a.productive += hours;
+      if (l.productivity_category === 'unproductive' || l.productivity_category === 'blocked') a.unproductive += hours;
       byApp.set(label, a);
     }
     const all = [...byApp.values()];
@@ -97,12 +106,12 @@ export default function EfficiencyPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Card>
             <CardContent className="pt-4">
-              <p className="text-sm font-medium mb-3">Top productive activities</p>
+              <p className="text-sm font-medium mb-3">Top productive / neutral activities</p>
               <div className="space-y-1.5">
                 {topProductive.map((a) => (
                   <div key={a.label} className="flex items-center justify-between text-sm">
                     <span className="truncate max-w-[70%]">{a.label}</span>
-                    <Badge variant="outline" className={CATEGORY_BADGE.productive}>{a.productive}</Badge>
+                    <Badge variant="outline" className={CATEGORY_BADGE.productive}>{fmtHm(a.productive)}</Badge>
                   </div>
                 ))}
                 {topProductive.length === 0 && <p className="text-sm text-muted-foreground">No productive activity in range.</p>}
@@ -116,7 +125,7 @@ export default function EfficiencyPage() {
                 {topUnproductive.map((a) => (
                   <div key={a.label} className="flex items-center justify-between text-sm">
                     <span className="truncate max-w-[70%]">{a.label}</span>
-                    <Badge variant="outline" className={CATEGORY_BADGE.unproductive}>{a.unproductive}</Badge>
+                    <Badge variant="outline" className={CATEGORY_BADGE.unproductive}>{fmtHm(a.unproductive)}</Badge>
                   </div>
                 ))}
                 {topUnproductive.length === 0 && <p className="text-sm text-muted-foreground">No unproductive activity in range.</p>}
