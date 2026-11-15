@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, screen } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
@@ -67,11 +67,17 @@ async function reportCheckin() {
   }
 }
 
-const store = new Store<{ refresh_token?: string }>();
+const store = new Store<{ refresh_token?: string; widget_visible?: boolean }>();
 
 let mainWindow: BrowserWindow | null = null;
+let widgetWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pollHandle: ReturnType<typeof setInterval> | null = null;
+// Session-local (not persisted): when the current tracking run started, so
+// the widget can show a live elapsed timer. Reset to null whenever tracking
+// stops, so re-enabling starts the clock fresh rather than carrying over a
+// stale start time across a pause.
+let trackingStartedAt: number | null = null;
 
 async function restoreSession() {
   if (!supabase) return null;
@@ -97,11 +103,15 @@ async function pollSettingsAndTrack(employeeId: string) {
       .maybeSingle();
     if (error || !data || !data.is_enabled) {
       stopTracking();
+      trackingStartedAt = null;
       mainWindow?.webContents.send('agent-status', { tracking: false });
+      applyWidgetVisibility();
       return;
     }
     startTracking(client, employeeId, data);
+    if (trackingStartedAt == null) trackingStartedAt = Date.now();
     mainWindow?.webContents.send('agent-status', { tracking: true });
+    applyWidgetVisibility();
   };
   await check();
   if (pollHandle) clearInterval(pollHandle);
@@ -118,11 +128,73 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
 }
 
+const WIDGET_WIDTH = 220;
+const WIDGET_HEIGHT = 56;
+
+// Floating always-on-top status pill — the "so they know it's active" piece
+// TimeCamp's own desktop app ships as its Task Widget. We default to showing
+// it (same as TimeCamp's first-run default) and let the tray menu toggle it.
+function createWidgetWindow() {
+  const display = screen.getPrimaryDisplay();
+  const { width: sw, height: sh } = display.workArea;
+  widgetWindow = new BrowserWindow({
+    width: WIDGET_WIDTH,
+    height: WIDGET_HEIGHT,
+    x: sw - WIDGET_WIDTH - 24,
+    y: sh - WIDGET_HEIGHT - 24,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false, // the card itself draws its own shadow via CSS
+    show: false,
+    webPreferences: { preload: path.join(__dirname, 'preload-widget.js'), contextIsolation: true },
+  });
+  widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  widgetWindow.loadFile(path.join(__dirname, '../src/renderer/widget.html'));
+  widgetWindow.on('closed', () => {
+    widgetWindow = null;
+  });
+}
+
+function sendWidgetStatus(tracking: boolean) {
+  widgetWindow?.webContents.send('widget-status', {
+    tracking,
+    idle: false, // true per-tick idle state isn't plumbed out of tracker.ts yet
+    startedAt: trackingStartedAt,
+  });
+}
+
+function widgetPreferenceEnabled() {
+  return store.get('widget_visible', true);
+}
+
+function applyWidgetVisibility() {
+  if (!widgetWindow) return;
+  if (trackingStartedAt != null && widgetPreferenceEnabled()) {
+    widgetWindow.showInactive(); // never steals focus from whatever the user is doing
+    sendWidgetStatus(true);
+  } else {
+    widgetWindow.hide();
+  }
+}
+
 app.whenReady().then(async () => {
   createWindow();
+  createWidgetWindow();
   tray = new Tray(path.join(__dirname, '../src/renderer/tray-icon.png'));
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: () => mainWindow?.show() },
+    {
+      label: 'Show floating widget',
+      type: 'checkbox',
+      checked: widgetPreferenceEnabled(),
+      click: (menuItem) => {
+        store.set('widget_visible', menuItem.checked);
+        applyWidgetVisibility();
+      },
+    },
     { label: 'Quit', click: () => app.quit() },
   ]));
   tray.setToolTip('KD Ops Time Tracker');
@@ -155,9 +227,16 @@ ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; passw
 ipcMain.handle('sign-out', async () => {
   stopTracking();
   if (pollHandle) clearInterval(pollHandle);
+  trackingStartedAt = null;
+  applyWidgetVisibility();
   store.delete('refresh_token');
   await supabase?.auth.signOut();
   return { ok: true };
+});
+
+ipcMain.on('open-main-window', () => {
+  mainWindow?.show();
+  mainWindow?.focus();
 });
 
 app.on('window-all-closed', () => {
