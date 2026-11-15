@@ -106,9 +106,9 @@ export default function SitesAppsPage() {
       </div>
       <p className="text-xs text-muted-foreground">
         Hours are estimated from capture ticks × each employee's capture interval, not a true duration.
-        Real site/domain breakdown only works on macOS — Windows and Linux have no OS-level way for the
-        agent to read a browser's active tab URL (that needs a browser extension, out of scope here), so
-        those rows fall back to grouping by application instead.
+        Site/domain breakdown comes from the desktop app (v1.0.11+) reading the browser's address bar on
+        Windows and macOS (Chrome, Edge, Brave, Firefox...). Only the site name is stored, never the full
+        link. Older captures and Linux fall back to grouping by application.
       </p>
 
       <Tabs value={show} onValueChange={(v) => setShow(v as ShowFilter)}>

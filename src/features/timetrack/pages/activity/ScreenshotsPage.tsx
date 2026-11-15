@@ -10,6 +10,7 @@ import { useTimetrackCapabilities } from '../../lib/capabilities';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -29,6 +30,7 @@ export default function ScreenshotsPage() {
   const [employeeId, setEmployeeId] = useState('');
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
 
   const { data: retentionDays } = useQuery({
     queryKey: ['timetrack', 'agent-retention', employeeId],
@@ -152,7 +154,9 @@ export default function ScreenshotsPage() {
                 </div>
               )}
               {urls[r.id] ? (
-                <img src={urls[r.id]} alt="" className="w-full aspect-video object-cover bg-muted" loading="lazy" />
+                <button type="button" onClick={() => setViewing(r)} className="block w-full cursor-zoom-in" aria-label="View full-size screenshot">
+                  <img src={urls[r.id]} alt="" className="w-full aspect-video object-cover bg-muted" loading="lazy" />
+                </button>
               ) : (
                 <div className="w-full aspect-video bg-muted flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
               )}
@@ -169,6 +173,19 @@ export default function ScreenshotsPage() {
           )}
         </div>
       )}
+
+      <Dialog open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>
+              {viewing ? `${employees?.find((e) => e.id === viewing.employee_id)?.full_name ?? 'Employee'} — ${format(new Date(viewing.captured_at), 'MMM d, yyyy HH:mm:ss')}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          {viewing && urls[viewing.id] && (
+            <img src={urls[viewing.id]} alt="Full-size screenshot" className="w-full rounded-md bg-muted" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

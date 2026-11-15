@@ -70,8 +70,8 @@ function AgentSettingsTab() {
         // provisioning has run.
         is_enabled: existing?.is_enabled ?? true,
         capture_interval_minutes: existing?.capture_interval_minutes ?? 10,
-        screenshots_enabled: existing?.screenshots_enabled ?? false,
-        blur_screenshots: existing?.blur_screenshots ?? true,
+        screenshots_enabled: existing?.screenshots_enabled ?? true,
+        blur_screenshots: existing?.blur_screenshots ?? false,
         retention_days: existing?.retention_days ?? 30,
         ...patch,
       });
@@ -107,8 +107,8 @@ function AgentSettingsTab() {
                       <Input type="number" className="w-20 h-8" defaultValue={s?.capture_interval_minutes ?? 10}
                         onBlur={(ev) => upsert(e.id, { capture_interval_minutes: Number(ev.target.value) || 10 })} />
                     </TableCell>
-                    <TableCell><Switch checked={s?.screenshots_enabled ?? false} onCheckedChange={(v) => upsert(e.id, { screenshots_enabled: v })} /></TableCell>
-                    <TableCell><Switch checked={s?.blur_screenshots ?? true} onCheckedChange={(v) => upsert(e.id, { blur_screenshots: v })} /></TableCell>
+                    <TableCell><Switch checked={s?.screenshots_enabled ?? true} onCheckedChange={(v) => upsert(e.id, { screenshots_enabled: v })} /></TableCell>
+                    <TableCell><Switch checked={s?.blur_screenshots ?? false} onCheckedChange={(v) => upsert(e.id, { blur_screenshots: v })} /></TableCell>
                     <TableCell>
                       <Input type="number" className="w-20 h-8" defaultValue={s?.retention_days ?? 30}
                         onBlur={(ev) => upsert(e.id, { retention_days: Number(ev.target.value) || 30 })} />

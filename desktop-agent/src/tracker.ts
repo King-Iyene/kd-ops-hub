@@ -170,6 +170,62 @@ async function captureAndUploadScreenshot(supabase: SupabaseClient, employeeId: 
   }
 }
 
+/** Reduces a URL (or a bare "host/path" as Chrome shows it) to "https://host/". */
+function toOrigin(raw: string | null): string | null {
+  if (!raw) return null;
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(candidate);
+    if (!u.hostname || !u.hostname.includes('.')) return null; // newtab, localhost, search text...
+    return `${u.protocol}//${u.hostname}/`;
+  } catch {
+    return null;
+  }
+}
+
+const BROWSER_RE = /chrome|msedge|edge|brave|opera|vivaldi|firefox|arc/i;
+
+// UI Automation script: finds the foreground browser window's address bar and
+// prints its value. Passed as -EncodedCommand so no script file has to exist
+// inside the packaged (asar) app.
+const UIA_SCRIPT = `
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Add-Type @"
+using System; using System.Runtime.InteropServices;
+public class Fg { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); }
+"@
+$h = [Fg]::GetForegroundWindow()
+$root = [System.Windows.Automation.AutomationElement]::FromHandle($h)
+$cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+foreach ($e in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+  if ($e.Current.Name -match 'Address|address bar|search or enter|search or type') {
+    $vp = $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+    Write-Output $vp.Current.Value; break
+  }
+}`;
+const UIA_ENCODED = Buffer.from(UIA_SCRIPT, 'utf16le').toString('base64');
+
+/** Windows only. Returns the browser tab's origin (e.g. "https://github.com/") or
+ * null (not a browser, address bar not found, or PowerShell blocked/slow). */
+async function readWindowsBrowserHost(appName: string): Promise<string | null> {
+  if (!BROWSER_RE.test(appName)) return null;
+  try {
+    const { execFile } = require('child_process') as typeof import('child_process');
+    const out = await new Promise<string>((resolve) => {
+      execFile(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', UIA_ENCODED],
+        { timeout: 8000, windowsHide: true },
+        (err, stdout) => resolve(err ? '' : String(stdout)),
+      );
+    });
+    return toOrigin(out.trim().split(/\r?\n/)[0] ?? null);
+  } catch {
+    return null;
+  }
+}
+
 export function stopTracking() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
@@ -223,12 +279,14 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
 
       const appName = activeWindow.owner?.name ?? 'unknown';
       const title = activeWindow.title ?? '';
-      // Only populated on macOS (Chromium/Safari-family browsers) — active-win
-      // has no OS-level way to get a browser's active tab URL on Windows or
-      // Linux at all. Left null there; true cross-platform per-tab URL
-      // capture needs a browser extension, which TimeCamp itself also
-      // requires and which is out of scope for the native agent.
-      const url = activeWindow.platform === 'macos' ? activeWindow.url ?? null : null;
+      // macOS: active-win reads the tab URL itself. Windows: active-win can't,
+      // so readWindowsBrowserHost() asks Windows UI Automation for the browser's
+      // address bar (no extension needed, same outcome TimeCamp shows).
+      // Linux: still null. Only the site's origin is ever stored, never paths or
+      // query strings, which can carry tokens or private ids.
+      let url: string | null = null;
+      if (activeWindow.platform === 'macos') url = toOrigin(activeWindow.url ?? null);
+      else if (activeWindow.platform === 'windows') url = await readWindowsBrowserHost(appName);
       const category = isAway ? 'idle' : classify(appName, title);
 
       if (Date.now() - lastGeoLookupAt > GEO_LOOKUP_INTERVAL_MS) {

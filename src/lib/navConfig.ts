@@ -263,19 +263,23 @@ export const NAV_GROUPS = [
   // mechanism the Finance hub already uses for Money Out / Money In /
   // Risk, just applied to Time Tracking's own pages instead of one big
   // 14-item group.
-  { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries', 'Time Expenses'] },
+  { key: 'timeTrackTrack',       label: 'Track',               titles: ['Time Dashboard', 'Time Entries'] },
   // Reports > Time is itself three labeled sub-groups in TimeCamp's own
   // nav (Time / People / Other) above a separate Finance hub — same
   // sub-group mechanism as Money Out/In/Risk above, nested one level
   // deeper via SIDEBAR_HUBS' own groups list.
-  { key: 'timeTrackReportsTime',    label: 'Time',   titles: ['Reports: Summary', 'Reports: Detailed', 'Reports: By days (Time)', 'Reports: Pivot Table'] },
+  // Trimmed + merged: the Time / People / Other report groups are now one
+  // "Reports" group with the handful of reports the team actually uses. The
+  // other report pages (Pivot, By days and tasks, Location, ...) still exist as
+  // routes; add their titles back here to show them again.
+  { key: 'timeTrackReportsTime',    label: 'Reports',   titles: ['Reports: Summary', 'Reports: Detailed', 'Reports: By days (Time)', 'Reports: By tasks', 'Reports: By projects', 'Reports: Real-time dashboard'] },
   { key: 'timeTrackReportsPeople',  label: 'People', titles: ['Reports: By tasks', 'Reports: By days and tasks', 'Reports: By days (People)', 'Reports: By projects'] },
   { key: 'timeTrackReportsOther',   label: 'Other',  titles: ['Reports: Location report', 'Reports: Real-time dashboard'] },
   { key: 'timeTrackFinance',        label: 'Finance', titles: ['Finance: Billable, non-billable', 'Finance: Estimates', 'Finance: Revenues', 'Finance: Costs', 'Finance: Margin'] },
-  { key: 'timeTrackActivityProductivity', label: 'Productivity & Coaching', titles: ['Activity: Summary', 'Activity: Sites and apps', 'Activity: Categories', 'Activity: Efficiency', 'Activity: Goals'] },
+  { key: 'timeTrackActivityProductivity', label: 'Activity', titles: ['Activity: Summary', 'Activity: Sites and apps', 'Activity: Categories', 'Activity: Timeline', 'Activity: Screenshots'] },
   { key: 'timeTrackActivityVerification', label: 'Work verification', titles: ['Activity: Timeline', 'Activity: User statistics', 'Activity: Remote work detection', 'Activity: Screenshots'] },
   { key: 'timeTrackActivityConfig', label: 'Settings', titles: ['Time Agent & Policy'] },
-  { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Planner', 'Time Tags', 'Time Export Center', 'Time Integrations', 'Time Billing Rates'] },
+  { key: 'timeTrackManage',      label: 'Manage',               titles: ['Time Projects', 'Time Tags', 'Time Agent & Policy'] },
   { key: 'timeTrackAttendance',  label: 'Attendance',           titles: ['Time Attendance', 'Time Leave', 'Time Kiosk'] },
   { key: 'timeTrackTeam',        label: 'Team',                 titles: ['Time Approvals', 'Time Roles'] },
   { key: 'timeTrackClients',     label: 'Clients',               titles: ['Time Clients & Invoices'] },
@@ -323,17 +327,12 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     icon: 'Clock',
     color: 'text-teal-400',
     iconBg: 'bg-teal-500/15',
-    // Finance (billable/estimates/revenues/costs/margin), Attendance and
-    // Clients & Invoices are deliberately left out of the sidebar for now —
-    // the team only needs time tracking, activity/app/site tracking, reports
-    // and screenshots. Their groups (timeTrackFinance, timeTrackAttendance,
-    // timeTrackClients) and routes still exist; re-add the keys here to bring
-    // them back.
-    groups: [
-      'timeTrackTrack', 'timeTrackReportsTime', 'timeTrackReportsPeople', 'timeTrackReportsOther',
-      'timeTrackActivityProductivity', 'timeTrackActivityVerification', 'timeTrackActivityConfig', 'timeTrackManage',
-      'timeTrackTeam', 'timeTrackSettings',
-    ],
+    // Deliberately minimal: the team only needs time tracking, activity /
+    // sites & apps, reports and screenshots. All finance items (Finance
+    // reports, Expenses, Billing Rates, Clients & Invoices) plus Attendance,
+    // Team, People/Other reports and Settings are left out of the sidebar.
+    // Their groups and routes still exist; re-add the keys here to restore.
+    groups: ['timeTrackTrack', 'timeTrackReportsTime', 'timeTrackActivityProductivity', 'timeTrackManage'],
   },
   {
     key: 'people',
