@@ -5,8 +5,10 @@ const dot = document.getElementById('dot');
 const label = document.getElementById('label');
 const elapsedEl = document.getElementById('elapsed');
 const openBtn = document.getElementById('open-btn');
+const stopBtn = document.getElementById('stop-btn');
 
 let trackingStartedAt = null; // ms epoch, set once per tracking session
+let currentTask = null; // { name, project, startedAt } | null — the manual task timer, if one is running
 let tickHandle = null;
 
 function formatElapsed(ms) {
@@ -19,15 +21,17 @@ function formatElapsed(ms) {
 }
 
 function renderTick() {
-  if (trackingStartedAt == null) {
+  const anchor = currentTask ? currentTask.startedAt : trackingStartedAt;
+  if (anchor == null) {
     elapsedEl.textContent = '00:00:00';
     return;
   }
-  elapsedEl.textContent = formatElapsed(Date.now() - trackingStartedAt);
+  elapsedEl.textContent = formatElapsed(Date.now() - anchor);
 }
 
 function setState(state) {
-  // state: 'tracking' | 'idle' | 'disabled'
+  // state: 'tracking' | 'idle' | 'disabled' — ignored while a task is active,
+  // since the task name takes over the label in that case (see render() below).
   dot.className = state === 'tracking' ? 'tracking' : state === 'idle' ? 'idle' : '';
   if (state === 'tracking') {
     label.textContent = 'Tracking';
@@ -38,7 +42,18 @@ function setState(state) {
   }
 }
 
-window.widget.onStatus(({ tracking, idle, startedAt }) => {
+function render() {
+  if (currentTask) {
+    dot.className = 'tracking';
+    label.textContent = currentTask.name;
+    stopBtn.classList.add('visible');
+  } else {
+    stopBtn.classList.remove('visible');
+  }
+  renderTick();
+}
+
+window.widget.onStatus(({ tracking, idle, startedAt, task }) => {
   if (startedAt != null) trackingStartedAt = startedAt;
   if (!tracking) {
     trackingStartedAt = null;
@@ -48,10 +63,12 @@ window.widget.onStatus(({ tracking, idle, startedAt }) => {
   } else {
     setState('tracking');
   }
-  renderTick();
+  currentTask = task ?? null;
+  render();
 });
 
 openBtn.addEventListener('click', () => window.widget.openMain());
+stopBtn.addEventListener('click', () => window.widget.stopTask());
 
 tickHandle = setInterval(renderTick, 1000);
 window.addEventListener('beforeunload', () => clearInterval(tickHandle));

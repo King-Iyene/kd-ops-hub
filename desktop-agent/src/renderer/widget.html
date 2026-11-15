@@ -66,6 +66,22 @@
       flex-shrink: 0;
     }
     #open-btn:hover { background: rgba(255, 255, 255, 0.16); }
+    #stop-btn {
+      -webkit-app-region: no-drag;
+      border: none;
+      background: rgba(248, 113, 113, 0.15);
+      color: #f87171;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      flex-shrink: 0;
+      display: none;
+    }
+    #stop-btn.visible { display: block; }
+    #stop-btn:hover { background: rgba(248, 113, 113, 0.28); }
   </style>
 </head>
 <body>
@@ -75,6 +91,7 @@
       <div id="label">Starting…</div>
       <div id="elapsed">00:00:00</div>
     </div>
+    <button id="stop-btn" title="Stop this task">■</button>
     <button id="open-btn" title="Open KD Ops Time Tracker">⋯</button>
   </div>
   <script src="./widget.js"></script>

@@ -28,6 +28,7 @@ if (!app.isPackaged) {
 
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
+import { fetchPickableTasks, getActiveTimer, switchTimer, stopActiveTimer, type ActiveTimer, type PickableTask } from './taskTimer';
 
 // Auto-update: electron-builder's `publish: { provider: 'github', ... }`
 // config (package.json) makes it emit latest.yml / latest-mac.yml /
@@ -71,6 +72,7 @@ const store = new Store<{ refresh_token?: string; widget_visible?: boolean }>();
 
 let mainWindow: BrowserWindow | null = null;
 let widgetWindow: BrowserWindow | null = null;
+let taskPickerWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 // Session-local (not persisted): when the current tracking run started, so
@@ -78,6 +80,13 @@ let pollHandle: ReturnType<typeof setInterval> | null = null;
 // stops, so re-enabling starts the clock fresh rather than carrying over a
 // stale start time across a pause.
 let trackingStartedAt: number | null = null;
+// The employee currently signed in — needed outside pollSettingsAndTrack's
+// own closure for the task-timer IPC handlers below, which can fire any time
+// after sign-in, not just during the settings poll.
+let currentEmployeeId: string | null = null;
+// Mirrors the one open (end_time IS NULL) time_entries row for this employee,
+// if any — loaded on sign-in/restore and kept in sync by switchTimer/stopActiveTimer.
+let activeTimer: ActiveTimer | null = null;
 
 async function restoreSession() {
   if (!supabase) return null;
@@ -114,8 +123,12 @@ async function pollSettingsAndTrack(employeeId: string) {
     applyWidgetVisibility();
   };
   await check();
+  await refreshActiveTimer(); // pick up a timer already running (e.g. started from the web app)
   if (pollHandle) clearInterval(pollHandle);
-  pollHandle = setInterval(check, 60_000); // re-check enabled/settings every minute
+  pollHandle = setInterval(() => {
+    void check();
+    void refreshActiveTimer(); // keeps the tray/widget in sync if the timer was started/stopped from the web app
+  }, 60_000);
 }
 
 function createWindow() {
@@ -128,7 +141,7 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
 }
 
-const WIDGET_WIDTH = 220;
+const WIDGET_WIDTH = 248; // wide enough for the extra stop-task button alongside the open button
 const WIDGET_HEIGHT = 56;
 
 // Floating always-on-top status pill — the "so they know it's active" piece
@@ -163,7 +176,85 @@ function sendWidgetStatus(tracking: boolean) {
     tracking,
     idle: false, // true per-tick idle state isn't plumbed out of tracker.ts yet
     startedAt: trackingStartedAt,
+    task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime() } : null,
   });
+}
+
+// --- Manual task timer (tray "Start a Task…") ---------------------------
+// Separate from the automatic window/activity tracker above: this is the
+// TimeCamp-style "what am I working on" timer the user picks explicitly,
+// writing directly to time_entries — see taskTimer.ts for why it shares that
+// table with the web app's own timer instead of inventing a parallel one.
+
+const TASK_PICKER_WIDTH = 360;
+const TASK_PICKER_HEIGHT = 420;
+
+function createTaskPickerWindow() {
+  if (taskPickerWindow) {
+    taskPickerWindow.show();
+    taskPickerWindow.focus();
+    return;
+  }
+  const display = screen.getPrimaryDisplay();
+  const { width: sw, height: sh } = display.workArea;
+  taskPickerWindow = new BrowserWindow({
+    width: TASK_PICKER_WIDTH,
+    height: TASK_PICKER_HEIGHT,
+    x: sw - TASK_PICKER_WIDTH - 24,
+    y: sh - TASK_PICKER_HEIGHT - 96,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload-task-picker.js'), contextIsolation: true },
+  });
+  taskPickerWindow.loadFile(path.join(__dirname, '../src/renderer/task-picker.html'));
+  taskPickerWindow.on('blur', () => taskPickerWindow?.close());
+  taskPickerWindow.on('closed', () => {
+    taskPickerWindow = null;
+  });
+}
+
+async function refreshActiveTimer() {
+  if (!supabase || !currentEmployeeId) return;
+  try {
+    activeTimer = await getActiveTimer(supabase, currentEmployeeId);
+  } catch {
+    // Non-fatal — widget just shows no task this tick; next poll retries.
+  }
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Show', click: () => mainWindow?.show() },
+    { type: 'separator' },
+    activeTimer
+      ? {
+          label: `Stop: ${activeTimer.taskName}`,
+          click: async () => {
+            if (!supabase || !activeTimer) return;
+            await stopActiveTimer(supabase, activeTimer.entryId);
+            activeTimer = null;
+            rebuildTrayMenu();
+            sendWidgetStatus(trackingStartedAt != null);
+          },
+        }
+      : { label: 'Start a Task…', click: () => createTaskPickerWindow() },
+    { type: 'separator' },
+    {
+      label: 'Show floating widget',
+      type: 'checkbox',
+      checked: widgetPreferenceEnabled(),
+      click: (menuItem) => {
+        store.set('widget_visible', menuItem.checked);
+        applyWidgetVisibility();
+      },
+    },
+    { label: 'Quit', click: () => app.quit() },
+  ]));
 }
 
 function widgetPreferenceEnabled() {
@@ -184,19 +275,7 @@ app.whenReady().then(async () => {
   createWindow();
   createWidgetWindow();
   tray = new Tray(path.join(__dirname, '../src/renderer/tray-icon.png'));
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Show', click: () => mainWindow?.show() },
-    {
-      label: 'Show floating widget',
-      type: 'checkbox',
-      checked: widgetPreferenceEnabled(),
-      click: (menuItem) => {
-        store.set('widget_visible', menuItem.checked);
-        applyWidgetVisibility();
-      },
-    },
-    { label: 'Quit', click: () => app.quit() },
-  ]));
+  rebuildTrayMenu();
   tray.setToolTip('KD Ops Time Tracker');
 
   initAutoUpdater();
@@ -209,9 +288,51 @@ app.whenReady().then(async () => {
   const session = await restoreSession();
   if (session?.user) {
     mainWindow?.webContents.once('did-finish-load', () => mainWindow?.webContents.send('signed-in', session.user.email));
+    currentEmployeeId = session.user.id;
     pollSettingsAndTrack(session.user.id);
     void reportCheckin();
+    void refreshActiveTimer();
   }
+});
+
+ipcMain.on('task-picker-ready', async () => {
+  if (!supabase || !taskPickerWindow) return;
+  try {
+    const tasks: PickableTask[] = await fetchPickableTasks(supabase);
+    taskPickerWindow.webContents.send('task-picker-tasks', tasks);
+  } catch {
+    taskPickerWindow.webContents.send('task-picker-tasks', []);
+  }
+});
+
+ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
+  taskPickerWindow?.close();
+  if (!supabase || !currentEmployeeId) return;
+  try {
+    activeTimer = await switchTimer(supabase, currentEmployeeId, task);
+  } catch {
+    // Non-fatal — tray menu/widget simply won't reflect a switch that failed
+    // server-side; refreshActiveTimer's next poll will reconcile either way.
+  }
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+});
+
+ipcMain.on('task-picker-choose-none', async () => {
+  taskPickerWindow?.close();
+  if (!supabase || !activeTimer) return;
+  try {
+    await stopActiveTimer(supabase, activeTimer.entryId);
+  } catch {
+    // Non-fatal — see note above.
+  }
+  activeTimer = null;
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+});
+
+ipcMain.on('task-picker-cancel', () => {
+  taskPickerWindow?.close();
 });
 
 ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; password: string }) => {
@@ -219,8 +340,10 @@ ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; passw
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.session) return { ok: false, error: error?.message ?? 'Sign-in failed' };
   store.set('refresh_token', data.session.refresh_token);
+  currentEmployeeId = data.session.user.id;
   pollSettingsAndTrack(data.session.user.id);
   void reportCheckin();
+  void refreshActiveTimer();
   return { ok: true, email: data.session.user.email };
 });
 
@@ -228,7 +351,14 @@ ipcMain.handle('sign-out', async () => {
   stopTracking();
   if (pollHandle) clearInterval(pollHandle);
   trackingStartedAt = null;
+  // Deliberately NOT stopping an open manual task timer here — same as
+  // closing a browser tab doesn't stop the web app's own timer, the
+  // time_entries row stays open server-side; only this agent's local view of
+  // it (tray label, widget) goes away until someone signs back in.
+  currentEmployeeId = null;
+  activeTimer = null;
   applyWidgetVisibility();
+  rebuildTrayMenu();
   store.delete('refresh_token');
   await supabase?.auth.signOut();
   return { ok: true };
