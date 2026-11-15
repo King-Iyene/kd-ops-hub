@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, differenceInCalendarDays } from 'date-fns';
-import { Loader2, LayoutDashboard, Download } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, LayoutDashboard, Download, AlertTriangle } from 'lucide-react';
+import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -28,6 +30,19 @@ function initials(name: string): string {
 function ticksToHours(ticks: number, intervalMinutes: number | undefined): number {
   return (ticks * (intervalMinutes ?? 5)) / 60;
 }
+
+function fmtHm(hours: number): string {
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+
+const PRODUCTIVE_GOAL_HOURS = 7;
+
+const CATEGORY_COLOR: Record<string, string> = {
+  productive: '#22c55e', neutral: '#9ca3af', unproductive: '#ef4444', blocked: '#ef4444', idle: '#38bdf8',
+};
 
 /** TimeCamp's "Activities summary" — averages for the selected people plus a
  * per-person breakdown, backed by the same capture feed as the raw log table. */
@@ -106,6 +121,40 @@ export default function ActivitiesSummaryPage() {
     return { totalHours, avgPerDay: totalHours / days, topApps, byPerson };
   }, [scopedLogs, data, days]);
 
+  // TimeCamp-style personal dashboard figures, from the same scoped captures.
+  const extra = useMemo(() => {
+    const intervalByEmployee = data?.intervalByEmployee ?? new Map<string, number>();
+    const hourly = Array.from({ length: 24 }, () => 0);
+    const byCategory = new Map<string, number>();
+    const uncategorized = new Set<string>();
+    let activeHours = 0;
+    let productiveHours = 0;
+    let distractedHours = 0;
+    let idleHours = 0;
+    for (const l of scopedLogs) {
+      const h = (intervalByEmployee.get(l.employee_id) ?? 5) / 60;
+      const cat = l.productivity_category ?? 'uncategorized';
+      byCategory.set(cat, (byCategory.get(cat) ?? 0) + h);
+      if (cat === 'idle') { idleHours += h; continue; }
+      activeHours += h;
+      hourly[new Date(l.captured_at).getHours()] += h;
+      if (cat === 'productive') productiveHours += h;
+      if (cat === 'unproductive' || cat === 'blocked') distractedHours += h;
+      if (!l.productivity_category) uncategorized.add(l.app_name ?? 'Unknown');
+    }
+    const allHours = activeHours + idleHours;
+    return {
+      hourly: hourly.map((hours, hour) => ({ hour: String(hour), minutes: Math.round(hours * 60) })),
+      categories: [...byCategory.entries()].map(([name, hours]) => ({ name, hours: Number(hours.toFixed(2)) })).sort((a, b) => b.hours - a.hours),
+      uncategorizedCount: uncategorized.size,
+      toolUsagePct: allHours > 0 ? (activeHours / allHours) * 100 : 0,
+      activeHours,
+      productiveHours,
+      distractedHours,
+      distractedPct: activeHours > 0 ? (distractedHours / activeHours) * 100 : 0,
+    };
+  }, [scopedLogs, data]);
+
   const exportRows = () => scopedLogs.map((l) => [
     format(new Date(l.captured_at), 'yyyy-MM-dd HH:mm'), nameOf(l.employee_id), l.app_name ?? '', l.window_title ?? '', l.productivity_category ?? '',
   ]);
@@ -141,6 +190,68 @@ export default function ActivitiesSummaryPage() {
 
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <>
+          {extra.uncategorizedCount > 0 && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>
+                There {extra.uncategorizedCount === 1 ? 'is' : 'are'} <strong>{extra.uncategorizedCount}</strong> application{extra.uncategorizedCount === 1 ? '' : 's'} or site{extra.uncategorizedCount === 1 ? '' : 's'} that {extra.uncategorizedCount === 1 ? 'is' : 'are'} not categorized.{' '}
+                <Link to="/timetrack/activity/sites-apps" className="font-medium text-primary hover:underline">Click here</Link> to suggest categories.
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatCard title="Tool usage" value={`${extra.toolUsagePct.toFixed(0)}%`} tone="primary" />
+            <StatCard title="Per day" value={fmtHm(avgPerDay)} tone="info" />
+            <StatCard title="Total time" value={fmtHm(totalHours)} tone="default" />
+            <StatCard title="Distracted time" value={`${fmtHm(extra.distractedHours)} (${extra.distractedPct.toFixed(0)}%)`} tone="default" />
+          </div>
+
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm font-medium mb-2">Productive ≥ {PRODUCTIVE_GOAL_HOURS}h per day</p>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (extra.productiveHours / days / PRODUCTIVE_GOAL_HOURS) * 100)}%` }} />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {fmtHm(extra.productiveHours / days)} productive per day on average · <Link to="/timetrack/activity/goals" className="text-primary hover:underline">Edit goals</Link>
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium mb-2">Daily time (by hour of day)</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={extra.hourly}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={1} />
+                    <YAxis tick={{ fontSize: 10 }} unit="m" />
+                    <Tooltip formatter={(v: number) => `${v} min`} labelFormatter={(h) => `${h}:00`} />
+                    <Bar dataKey="minutes" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium mb-2">Top categories</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={extra.categories}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} unit="h" />
+                    <Tooltip formatter={(v: number) => fmtHm(v)} />
+                    <Bar dataKey="hours" radius={[3, 3, 0, 0]}>
+                      {extra.categories.map((c) => <Cell key={c.name} fill={CATEGORY_COLOR[c.name] ?? '#9ca3af'} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm font-medium mb-4">Averages for all selected users</p>

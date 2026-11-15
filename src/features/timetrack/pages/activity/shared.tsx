@@ -32,7 +32,7 @@ export const CATEGORY_BADGE: Record<string, string> = {
 };
 
 /** Best-effort domain for a capture: real URL when the agent could get one
- * (macOS only — see the url column's migration for why), else null so
+ * (macOS and, since desktop v1.0.11, Windows), else null so
  * callers can fall back to app/window-title grouping. */
 export function captureDomain(log: Pick<ActivityLog, 'url'>): string | null {
   if (!log.url) return null;

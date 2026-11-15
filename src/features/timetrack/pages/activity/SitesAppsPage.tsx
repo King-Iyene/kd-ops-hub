@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Download, Globe, Search } from 'lucide-react';
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, captureDomain, CATEGORY_BADGE } from './shared';
 
 type ShowFilter = 'all' | 'websites' | 'applications' | 'non_categorized' | 'away_time';
+
+const PAGE_SIZE = 20;
+
+/** 3.38 hours -> "3h 23m" (TimeCamp's format); under an hour -> "23m". */
+function formatHm(hours: number): string {
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+
+/** Chart bar colour by productivity, like TimeCamp: green productive, red unproductive, grey otherwise. */
+function barColor(category: string): string {
+  if (category === 'productive') return '#22c55e';
+  if (category === 'unproductive' || category === 'blocked') return '#ef4444';
+  return '#9ca3af';
+}
 
 /** TimeCamp's "Sites and Apps" report. Real per-site domain breakdown is only
  * possible where the agent can get a browser's active-tab URL at all, which
@@ -87,7 +104,19 @@ export default function SitesAppsPage() {
     return list;
   }, [rows, show, search]);
 
-  const chartData = filtered.slice(0, 10).map((r) => ({ name: r.key.length > 18 ? `${r.key.slice(0, 18)}…` : r.key, hours: Number(r.hours.toFixed(2)) }));
+  const [page, setPage] = useState(0);
+  const totalHours = filtered.reduce((s, r) => s + r.hours, 0);
+  const top10Hours = filtered.slice(0, 10).reduce((s, r) => s + r.hours, 0);
+  const top10Pct = totalHours > 0 ? (top10Hours / totalHours) * 100 : 0;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  const chartData = filtered.slice(0, 10).map((r) => ({
+    name: r.key.length > 18 ? `${r.key.slice(0, 18)}…` : r.key,
+    hours: Number(r.hours.toFixed(2)),
+    category: r.category,
+  }));
 
   const exportCsv = () => {
     const csv = toCsv(['Site / App', 'Type', 'Category', 'Estimated hours'], filtered.map((r) => [r.key, r.isSite ? 'Site' : r.isIdle ? 'Away' : 'App', r.category, r.hours.toFixed(2)]));
@@ -97,6 +126,7 @@ export default function SitesAppsPage() {
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Sites and apps" description="Site and application usage, by estimated hours" icon={Globe} />
+      {!isLoading && <p className="text-sm">Total time: <span className="font-medium text-emerald-500">{formatHm(totalHours)}</span></p>}
       <div className="flex flex-wrap items-end gap-3">
         <ActivityDateRangeBar start={start} end={end} setStart={setStart} setEnd={setEnd} />
         <div className="relative w-56">
@@ -131,8 +161,10 @@ export default function SitesAppsPage() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={60} />
                     <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => `${v}h`} />
-                    <Bar dataKey="hours" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Tooltip formatter={(v: number) => formatHm(v)} />
+                    <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                      {chartData.map((d, i) => <Cell key={i} fill={barColor(d.category)} />)}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -143,15 +175,23 @@ export default function SitesAppsPage() {
           <Card>
             <CardContent className="pt-4">
               <Table>
-                <TableHeader><TableRow><TableHead>Site / Application</TableHead><TableHead className="text-right">Estimated hours</TableHead><TableHead className="w-44">Category</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="text-right">Time</TableHead><TableHead className="text-right w-16">%</TableHead><TableHead className="w-44">Category</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {filtered.map((r) => (
+                  {pageRows.map((r) => (
                     <TableRow key={r.key}>
                       <TableCell className="flex items-center gap-2">
+                        {r.isSite && (
+                          <img
+                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.key)}&sz=32`}
+                            alt=""
+                            className="h-4 w-4 rounded-sm"
+                            loading="lazy"
+                          />
+                        )}
                         {r.key}
-                        {r.isSite && <Badge variant="outline" className="text-[10px]">site</Badge>}
                       </TableCell>
-                      <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatHm(r.hours)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{totalHours > 0 ? `${Math.round((r.hours / totalHours) * 100)}%` : '0%'}</TableCell>
                       <TableCell>
                         {r.isIdle ? (
                           <Badge variant="outline" className={CATEGORY_BADGE.idle}>idle</Badge>
@@ -170,9 +210,25 @@ export default function SitesAppsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filtered.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+                  {filtered.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              {filtered.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-emerald-500">{top10Pct.toFixed(1)}%</span> of time in top 10
+                  </p>
+                  {pageCount > 1 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Page:</span>
+                      {Array.from({ length: pageCount }, (_, i) => (
+                        <Button key={i} size="sm" variant={i === safePage ? 'default' : 'outline'} className="h-7 w-7 p-0" onClick={() => setPage(i)}>{i + 1}</Button>
+                      ))}
+                      <span className="text-muted-foreground">({safePage * PAGE_SIZE + 1}-{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length})</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

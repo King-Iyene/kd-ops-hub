@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { Loader2, Image as ImageIcon, Trash2, CheckSquare } from 'lucide-react';
+import { addDays, endOfDay, format, startOfDay } from 'date-fns';
+import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -10,17 +10,28 @@ import { useTimetrackCapabilities } from '../../lib/capabilities';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-interface ScreenshotRow { id: string; employee_id: string; storage_path: string; captured_at: string }
+interface ScreenshotRow {
+  id: string;
+  employee_id: string;
+  storage_path: string;
+  captured_at: string;
+  time_activity_logs: { app_name: string | null; url: string | null } | null;
+}
 
-/** TimeCamp's "Screenshots" report. Thumbnails are loaded lazily via short-lived signed URLs from
- * the private timetrack-screenshots bucket — never public, matching the RLS on time_screenshots. */
+const ALL = '__all__';
+
+/** TimeCamp's "Screenshots" report: pick a day and a person, get one row per capture with the
+ * application that was in front, a thumbnail (click to enlarge), and per-row / bulk removal.
+ * Images come from the private timetrack-screenshots bucket via short-lived signed URLs. */
 export default function ScreenshotsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -28,9 +39,13 @@ export default function ScreenshotsPage() {
   const canManage = has('manage_activity_tracking');
   const { data: employees } = useActiveEmployees();
   const [employeeId, setEmployeeId] = useState('');
+  const [day, setDay] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
+
+  const dayDate = new Date(`${day}T00:00:00`);
+  const shiftDay = (n: number) => setDay(format(addDays(dayDate, n), 'yyyy-MM-dd'));
 
   const { data: retentionDays } = useQuery({
     queryKey: ['timetrack', 'agent-retention', employeeId],
@@ -42,19 +57,25 @@ export default function ScreenshotsPage() {
   });
 
   const { data: rows, isLoading } = useQuery({
-    queryKey: ['timetrack', 'screenshots', employeeId],
+    queryKey: ['timetrack', 'screenshots', employeeId, day],
     queryFn: async () => {
-      let q = supabase.from('time_screenshots').select('id, employee_id, storage_path, captured_at').order('captured_at', { ascending: false }).limit(60);
+      let q = supabase
+        .from('time_screenshots')
+        .select('id, employee_id, storage_path, captured_at, time_activity_logs(app_name, url)')
+        .gte('captured_at', startOfDay(dayDate).toISOString())
+        .lte('captured_at', endOfDay(dayDate).toISOString())
+        .order('captured_at', { ascending: true })
+        .limit(300);
       if (employeeId) q = q.eq('employee_id', employeeId);
       const { data, error } = await q;
       if (error) throw error;
-      return data as ScreenshotRow[];
+      return data as unknown as ScreenshotRow[];
     },
   });
 
   useEffect(() => {
     setSelected(new Set());
-  }, [employeeId]);
+  }, [employeeId, day]);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +83,7 @@ export default function ScreenshotsPage() {
       const pending = (rows ?? []).filter((r) => !urls[r.id]);
       if (pending.length === 0) return;
       const entries = await Promise.all(pending.map(async (r) => {
-        const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 300);
+        const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 900);
         return [r.id, data?.signedUrl ?? ''] as const;
       }));
       if (!cancelled) setUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
@@ -82,9 +103,8 @@ export default function ScreenshotsPage() {
     setSelected((prev) => (prev.size === (rows ?? []).length ? new Set() : new Set((rows ?? []).map((r) => r.id))));
   };
 
-  const removeSelected = async () => {
+  const remove = async (toRemove: ScreenshotRow[]) => {
     try {
-      const toRemove = (rows ?? []).filter((r) => selected.has(r.id));
       if (toRemove.length === 0) return;
       const { error: storageErr } = await supabase.storage.from('timetrack-screenshots').remove(toRemove.map((r) => r.storage_path));
       if (storageErr) throw storageErr;
@@ -97,25 +117,42 @@ export default function ScreenshotsPage() {
       toast({ title: 'Could not remove screenshots', description: errorMessage(err), variant: 'destructive' });
     }
   };
+  const removeSelected = () => remove((rows ?? []).filter((r) => selected.has(r.id)));
+
+  const nameOf = (id: string) => employees?.find((e) => e.id === id)?.full_name ?? id;
+  const appOf = (r: ScreenshotRow) => {
+    const url = r.time_activity_logs?.url;
+    if (url) {
+      try { return new URL(url).hostname.replace(/^www\./, ''); } catch { /* fall through */ }
+    }
+    return r.time_activity_logs?.app_name ?? '';
+  };
 
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Screenshots" description="Captured only for employees with screenshots enabled under Agent & policy" icon={ImageIcon} />
 
-      {employeeId && retentionDays != null && (
-        <div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Screenshots for this employee are kept for <strong>{retentionDays} days</strong>, then deleted automatically. Use the retention setting under Agent &amp; policy to change this.
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">Date</p>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(-1)} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></Button>
+              <Input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-40" />
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(1)} aria-label="Next day"><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">People</p>
+            <Select value={employeeId || ALL} onValueChange={(v) => setEmployeeId(v === ALL ? '' : v)}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="All employees" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All employees</SelectItem>
+                {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Select value={employeeId} onValueChange={setEmployeeId}>
-          <SelectTrigger className="w-64"><SelectValue placeholder="All employees" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All employees</SelectItem>
-            {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
-          </SelectContent>
-        </Select>
 
         {canManage && (rows ?? []).length > 0 && (
           <div className="flex items-center gap-2">
@@ -144,33 +181,72 @@ export default function ScreenshotsPage() {
         )}
       </div>
 
-      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {(rows ?? []).map((r) => (
-            <div key={r.id} className={`relative rounded-md border overflow-hidden ${selected.has(r.id) ? 'border-primary ring-1 ring-primary' : 'border-border/60'}`}>
-              {canManage && (
-                <div className="absolute top-1.5 left-1.5 z-10 bg-background/80 rounded">
-                  <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} />
-                </div>
-              )}
-              {urls[r.id] ? (
-                <button type="button" onClick={() => setViewing(r)} className="block w-full cursor-zoom-in" aria-label="View full-size screenshot">
-                  <img src={urls[r.id]} alt="" className="w-full aspect-video object-cover bg-muted" loading="lazy" />
-                </button>
-              ) : (
-                <div className="w-full aspect-video bg-muted flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              )}
-              <div className="p-2 text-xs text-muted-foreground flex items-center justify-between">
-                <span>{employees?.find((e) => e.id === r.employee_id)?.full_name ?? r.employee_id}</span>
-                <span>{format(new Date(r.captured_at), 'MMM d, HH:mm')}</span>
-              </div>
-            </div>
-          ))}
-          {(rows ?? []).length === 0 && (
-            <p className="col-span-full text-center text-muted-foreground py-6">
-              No screenshots yet — only captured when an employee has screenshots enabled under Agent &amp; policy.
-            </p>
-          )}
+      {employeeId && retentionDays != null && (
+        <div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Screenshots for this employee are kept for <strong>{retentionDays} days</strong>, then deleted automatically. Change it under Agent &amp; policy.
+        </div>
+      )}
+
+      {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (rows ?? []).length === 0 ? (
+        <p className="text-center text-muted-foreground py-10">
+          No screenshots for {format(dayDate, 'd MMM yyyy')}. Screenshots are only captured while the desktop app is running with screenshots enabled.
+        </p>
+      ) : (
+        <div className="rounded-md border border-border/60 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Made at</TableHead>
+                <TableHead>Application</TableHead>
+                <TableHead>Thumbnail</TableHead>
+                {canManage && <TableHead className="w-16 text-center">Removal</TableHead>}
+                {canManage && <TableHead className="w-14 text-center">Bulk</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(rows ?? []).map((r) => (
+                <TableRow key={r.id} className={selected.has(r.id) ? 'bg-primary/5' : undefined}>
+                  <TableCell className="font-medium">{nameOf(r.employee_id)}</TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums">{format(new Date(r.captured_at), 'dd-MM-yyyy HH:mm:ss')}</TableCell>
+                  <TableCell>{appOf(r)}</TableCell>
+                  <TableCell>
+                    {urls[r.id] ? (
+                      <button type="button" onClick={() => setViewing(r)} className="block cursor-zoom-in" aria-label="View full-size screenshot">
+                        <img src={urls[r.id]} alt="" className="h-16 w-28 rounded border border-border/60 object-cover bg-muted" loading="lazy" />
+                      </button>
+                    ) : (
+                      <div className="flex h-16 w-28 items-center justify-center rounded bg-muted"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    )}
+                  </TableCell>
+                  {canManage && (
+                    <TableCell className="text-center">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove screenshot"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove this screenshot?</AlertDialogTitle>
+                            <AlertDialogDescription>This permanently deletes it. This cannot be undone.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => remove([r])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remove</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  )}
+                  {canManage && (
+                    <TableCell className="text-center">
+                      <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label="Select screenshot" />
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -178,7 +254,7 @@ export default function ScreenshotsPage() {
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>
-              {viewing ? `${employees?.find((e) => e.id === viewing.employee_id)?.full_name ?? 'Employee'} — ${format(new Date(viewing.captured_at), 'MMM d, yyyy HH:mm:ss')}` : ''}
+              {viewing ? `${nameOf(viewing.employee_id)} — ${format(new Date(viewing.captured_at), 'MMM d, yyyy HH:mm:ss')}${appOf(viewing) ? ` — ${appOf(viewing)}` : ''}` : ''}
             </DialogTitle>
           </DialogHeader>
           {viewing && urls[viewing.id] && (
