@@ -61,7 +61,14 @@ function AgentSettingsTab() {
       const existing = settings?.find((s) => s.employee_id === employeeId);
       const { error } = await supabase.from('time_agent_settings').upsert({
         employee_id: employeeId,
-        is_enabled: existing?.is_enabled ?? false,
+        // Tracking defaults ON for every employee (policy decision — all
+        // employees are under contract and informed when added to the
+        // app), matching time_agent_settings' own column default and the
+        // profiles_create_default_agent_settings trigger that provisions
+        // this row automatically on employee creation. This fallback only
+        // matters if an admin edits another field here before that
+        // provisioning has run.
+        is_enabled: existing?.is_enabled ?? true,
         capture_interval_minutes: existing?.capture_interval_minutes ?? 10,
         screenshots_enabled: existing?.screenshots_enabled ?? false,
         blur_screenshots: existing?.blur_screenshots ?? true,
