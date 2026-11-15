@@ -11,6 +11,7 @@ const pauseBtn = document.getElementById('pause-btn');
 let trackingStartedAt = null; // ms epoch, set once per tracking session
 let currentTask = null; // { name, project, startedAt } | null — the manual task timer, if one is running
 let pausedTask = null; // { name, project } | null — set only when currentTask is null, see render()
+let autoPaused = false; // automatic tracker paused by the user (no manual task involved)
 let tickHandle = null;
 
 function formatElapsed(ms) {
@@ -67,13 +68,25 @@ function render() {
     pauseBtn.textContent = '▶';
     pauseBtn.title = 'Resume this task';
   } else {
+    // No manual task: Pause is still there (TimeCamp shows it whenever the
+    // collector is running) and pauses/resumes the automatic tracker.
     stopBtn.classList.remove('visible');
-    pauseBtn.classList.remove('visible');
+    pauseBtn.classList.add('visible');
+    if (autoPaused) {
+      dot.className = 'paused';
+      label.textContent = 'Tracking paused';
+      pauseBtn.textContent = '▶';
+      pauseBtn.title = 'Resume tracking';
+    } else {
+      pauseBtn.textContent = '❙❙';
+      pauseBtn.title = 'Pause tracking';
+    }
   }
   renderTick();
 }
 
-window.widget.onStatus(({ tracking, idle, startedAt, task, pausedTask: pt }) => {
+window.widget.onStatus(({ tracking, idle, startedAt, task, pausedTask: pt, autoPaused: ap }) => {
+  autoPaused = !!ap;
   if (startedAt != null) trackingStartedAt = startedAt;
   if (!tracking) {
     trackingStartedAt = null;
@@ -93,8 +106,10 @@ stopBtn.addEventListener('click', () => window.widget.stopTask());
 pauseBtn.addEventListener('click', () => {
   if (currentTask) window.widget.pauseTask();
   else if (pausedTask) window.widget.resumeTask();
+  else window.widget.toggleAutoPause();
 });
-label.addEventListener('click', () => window.widget.changeTask());
+// The whole text block (name + timer), not just the name, opens the picker.
+document.getElementById('text').addEventListener('click', () => window.widget.changeTask());
 
 tickHandle = setInterval(renderTick, 1000);
 window.addEventListener('beforeunload', () => clearInterval(tickHandle));

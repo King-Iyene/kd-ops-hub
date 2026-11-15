@@ -171,6 +171,20 @@ let activeTimer: ActiveTimer | null = null;
 // Task" is chosen, or it's actually resumed. Lives only in memory — quitting
 // the app and reopening loses a pending pause, same as most trackers.
 let pausedTask: ActiveTimer | null = null;
+// User-initiated pause of the AUTOMATIC activity tracker (the widget's Pause
+// button when no manual task is running, or Pause on a running task, which
+// pauses everything like TimeCamp). Session-local; the settings poll honours
+// it so it doesn't silently restart tracking every 60s.
+let autoPaused = false;
+let runSettingsCheck: (() => Promise<void>) | null = null;
+
+async function setAutoPaused(paused: boolean) {
+  autoPaused = paused;
+  if (paused) stopTracking();
+  else if (runSettingsCheck) await runSettingsCheck();
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+}
 
 async function restoreSession() {
   if (!supabase) return null;
@@ -201,11 +215,18 @@ async function pollSettingsAndTrack(employeeId: string) {
       applyWidgetVisibility();
       return;
     }
-    startTracking(client, employeeId, data);
     if (trackingStartedAt == null) trackingStartedAt = Date.now();
+    if (autoPaused) {
+      stopTracking();
+      safeSend(mainWindow, 'agent-status', { tracking: true });
+      applyWidgetVisibility();
+      return;
+    }
+    startTracking(client, employeeId, data);
     safeSend(mainWindow, 'agent-status', { tracking: true });
     applyWidgetVisibility();
   };
+  runSettingsCheck = check;
   await check();
   await refreshActiveTimer(); // pick up a timer already running (e.g. started from the web app)
   // Retries anything that got queued locally because the network was down
@@ -279,7 +300,8 @@ function createWidgetWindow() {
 function sendWidgetStatus(tracking: boolean) {
   safeSend(widgetWindow, 'widget-status', {
     tracking,
-    idle: false, // true per-tick idle state isn't plumbed out of tracker.ts yet
+    idle: autoPaused, // per-tick idle isn't plumbed out of tracker.ts; this reflects a user pause
+    autoPaused,
     startedAt: trackingStartedAt,
     task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime() } : null,
     pausedTask: !activeTimer && pausedTask ? { name: pausedTask.taskName, project: pausedTask.projectName } : null,
@@ -334,8 +356,7 @@ async function pauseActiveTask() {
     // Non-fatal — refreshActiveTimer's next poll reconciles either way.
   }
   activeTimer = null;
-  rebuildTrayMenu();
-  sendWidgetStatus(trackingStartedAt != null);
+  await setAutoPaused(true); // Pause means pause everything, like TimeCamp
 }
 
 async function stopActiveTask() {
@@ -347,8 +368,7 @@ async function stopActiveTask() {
   }
   activeTimer = null;
   pausedTask = null; // an explicit Stop clears any pending pause too, not just the running entry
-  rebuildTrayMenu();
-  sendWidgetStatus(trackingStartedAt != null);
+  await setAutoPaused(false); // Stop ends the session; automatic tracking carries on
 }
 
 async function resumePausedTask() {
@@ -364,6 +384,8 @@ async function resumePausedTask() {
       searchLabel: '', // unused by resumeTask/switchTimer's own logic
     });
     pausedTask = null;
+    await setAutoPaused(false);
+    return;
   } catch {
     // Non-fatal — pausedTask stays set so the user can just try Resume again.
   }
@@ -405,7 +427,13 @@ function rebuildTrayMenu() {
           { label: `Resume: ${pausedTask.taskName}`, click: () => resumePausedTask() },
           { label: 'Start a Different Task…', click: () => createTaskPickerWindow() },
         ]
-      : [{ label: 'Start a Task…', click: () => createTaskPickerWindow() }];
+      : [
+          { label: 'Start a Task…', click: () => createTaskPickerWindow() },
+          {
+            label: autoPaused ? 'Resume tracking' : 'Pause tracking',
+            click: () => void setAutoPaused(!autoPaused),
+          },
+        ];
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: () => mainWindow?.show() },
     { type: 'separator' },
@@ -568,6 +596,10 @@ ipcMain.handle(
 ipcMain.on('task-picker-pause', () => {
   taskPickerWindow?.close();
   void pauseActiveTask();
+});
+
+ipcMain.on('toggle-auto-pause', () => {
+  void setAutoPaused(!autoPaused);
 });
 
 ipcMain.on('task-picker-resume', () => {

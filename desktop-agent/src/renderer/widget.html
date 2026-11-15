@@ -50,7 +50,8 @@
       70%  { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
       100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
     }
-    #text { display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
+    #text { -webkit-app-region: no-drag; cursor: pointer; display: flex; flex-direction: column; line-height: 1.25; flex: 1; min-width: 0; }
+    #text:hover #label { color: #93c5fd; }
     #label {
       -webkit-app-region: no-drag;
       font-size: 11px;

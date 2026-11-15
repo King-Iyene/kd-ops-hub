@@ -33,8 +33,17 @@ function groupKey(prefix, name) {
 }
 
 // { clientName: string|null, projects: { projectId, projectName, tasks: PickableTask[] }[] }[]
-function buildTree(tasks) {
+function buildTree(tasks, projects = []) {
   const clients = new Map(); // clientName -> Map(projectId -> { projectName, tasks[] })
+  // Seed from the project list first so a project with zero tasks still gets
+  // a row (TimeCamp shows empty projects; deriving the tree from tasks alone
+  // made a freshly created project invisible).
+  for (const p of projects) {
+    const clientKey = p.clientName ?? '';
+    if (!clients.has(clientKey)) clients.set(clientKey, new Map());
+    const byProject = clients.get(clientKey);
+    if (!byProject.has(p.projectId)) byProject.set(p.projectId, { projectName: p.projectName, tasks: [] });
+  }
   for (const t of tasks) {
     const clientKey = t.clientName ?? '';
     if (!clients.has(clientKey)) clients.set(clientKey, new Map());
@@ -63,6 +72,10 @@ function taskRowHtml(task, idx) {
   </div>`;
 }
 
+function addTaskRowHtml(projectId) {
+  return `<div class="row add-task-row" data-add-project="${escapeHtml(projectId)}">+ Add task</div>`;
+}
+
 function render() {
   // `selectable` mirrors what's actually rendered as clickable task rows, in
   // order, so arrow-key navigation and Enter-to-choose stay in sync with
@@ -73,13 +86,20 @@ function render() {
   if (query.trim()) {
     const q = query.trim().toLowerCase();
     const matches = allTasks.filter((t) => t.searchLabel.toLowerCase().includes(q));
-    if (matches.length === 0) {
+    const withTasks = new Set(allTasks.map((t) => t.projectId));
+    const emptyProjectMatches = allProjects.filter(
+      (p) => !withTasks.has(p.projectId) && [p.clientName, p.projectName].filter(Boolean).join(' · ').toLowerCase().includes(q),
+    );
+    if (matches.length === 0 && emptyProjectMatches.length === 0) {
       html = '<div id="empty">No matching tasks</div>';
     } else {
       html += '<div class="section-header">Results</div>';
       for (const t of matches) {
         selectable.push(t);
         html += taskRowHtml(t, selectable.length - 1);
+      }
+      for (const p of emptyProjectMatches) {
+        html += `<div class="group-row project-row">${escapeHtml(p.projectName)}</div>${addTaskRowHtml(p.projectId)}`;
       }
     }
   } else {
@@ -91,9 +111,9 @@ function render() {
       }
     }
     html += '<div class="section-header">All Projects and Tasks</div>';
-    const tree = buildTree(allTasks);
+    const tree = buildTree(allTasks, allProjects);
     if (tree.length === 0) {
-      html += '<div id="empty">No projects or tasks yet</div>';
+      html += '<div id="empty">No projects yet — create one in the web app (Time Tracking → Projects)</div>';
     }
     for (const client of tree) {
       const clientKey = groupKey('client', client.clientName);
@@ -113,6 +133,7 @@ function render() {
           selectable.push(t);
           html += taskRowHtml(t, selectable.length - 1);
         }
+        html += addTaskRowHtml(project.projectId);
       }
     }
   }
@@ -129,6 +150,9 @@ function render() {
       else collapsed.add(key);
       render();
     });
+  });
+  listEl.querySelectorAll('.add-task-row[data-add-project]').forEach((el) => {
+    el.addEventListener('click', () => enterCreateMode(el.getAttribute('data-add-project')));
   });
   listEl.querySelectorAll('.row.task-row[data-idx]').forEach((el) => {
     el.addEventListener('click', () => {
@@ -191,7 +215,7 @@ function sortedProjects(projects) {
   });
 }
 
-function enterCreateMode() {
+function enterCreateMode(preselectProjectId) {
   mode = 'create';
   document.getElementById('search-row').style.display = 'none';
   createLinkEl.style.display = 'none';
@@ -214,6 +238,11 @@ function enterCreateMode() {
           `<option value="${i}">${escapeHtml([p.clientName, p.projectName].filter(Boolean).join(' · '))}</option>`,
       )
       .join('');
+    // Reached via a project's "+ Add task" row: start on that project.
+    if (typeof preselectProjectId === 'string') {
+      const i = projects.findIndex((p) => p.projectId === preselectProjectId);
+      if (i >= 0) createProjectEl.value = String(i);
+    }
   }
   createProjectEl._projects = projects; // stash for submit, avoids re-parsing option text
   createNameEl.focus();
@@ -229,7 +258,7 @@ function exitCreateMode() {
   searchInput.focus();
 }
 
-createLinkEl.addEventListener('click', enterCreateMode);
+createLinkEl.addEventListener('click', () => enterCreateMode());
 createCancelBtn.addEventListener('click', exitCreateMode);
 
 createSubmitBtn.addEventListener('click', async () => {
