@@ -28,6 +28,7 @@ if (!app.isPackaged) {
 
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
+import { startAutoFlush } from './offlineQueue';
 import {
   fetchPickableTasks,
   fetchSuggestedTasks,
@@ -206,6 +207,11 @@ async function pollSettingsAndTrack(employeeId: string) {
   };
   await check();
   await refreshActiveTimer(); // pick up a timer already running (e.g. started from the web app)
+  // Retries anything that got queued locally because the network was down
+  // when it was written (activity log ticks, timer start/stop/pause) —
+  // tries immediately, then every 30s, so a dropped connection never means
+  // dropped tracking data.
+  startAutoFlush(client);
   if (pollHandle) clearInterval(pollHandle);
   pollHandle = setInterval(() => {
     void check();

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
+import { queueInsert, queueUpdate, writeOrQueue } from './offlineQueue';
 
 // Mirrors the web app's own manual timer (src/features/timetrack/pages/TimePage.tsx:
 // fetchAllActiveTasks + startTimer/stopTimer against time_entries). Desktop agent
@@ -101,25 +103,37 @@ export async function switchTimer(
   employeeId: string,
   task: PickableTask,
 ): Promise<ActiveTimer> {
+  // getActiveTimer is a read — if we're offline it'll just fail/throw past this
+  // function (acceptable: it only runs with a live connection already assumed,
+  // same as before). The writes below are what need offline resilience, since
+  // they're what loses data if dropped.
   const existing = await getActiveTimer(client, employeeId);
   if (existing) {
-    await client.from('time_entries').update({ end_time: new Date().toISOString() }).eq('id', existing.entryId);
+    await writeOrQueue(
+      () => client.from('time_entries').update({ end_time: new Date().toISOString() }).eq('id', existing.entryId),
+      () => queueUpdate('time_entries', existing.entryId, { end_time: new Date().toISOString() }, { column: 'id', value: existing.entryId }),
+    );
   }
+  // Generated here (not left to the DB default) so the id is known immediately
+  // even if the insert itself ends up only reaching the server later via the
+  // offline queue — Stop/Pause can then act on this id right away without
+  // waiting for a round trip that may not have happened yet.
+  const entryId = randomUUID();
   const startTime = new Date().toISOString();
-  const { data, error } = await client
-    .from('time_entries')
-    .insert({
-      employee_id: employeeId,
-      task_id: task.taskId,
-      project_id: task.projectId,
-      start_time: startTime,
-      entry_source: ENTRY_SOURCE,
-    })
-    .select('id')
-    .single();
-  if (error) throw error;
+  const payload = {
+    id: entryId,
+    employee_id: employeeId,
+    task_id: task.taskId,
+    project_id: task.projectId,
+    start_time: startTime,
+    entry_source: ENTRY_SOURCE,
+  };
+  await writeOrQueue(
+    () => client.from('time_entries').insert(payload),
+    () => queueInsert('time_entries', payload),
+  );
   return {
-    entryId: data.id as string,
+    entryId,
     taskId: task.taskId,
     projectId: task.projectId,
     taskName: task.taskName,
@@ -130,8 +144,11 @@ export async function switchTimer(
 }
 
 export async function stopActiveTimer(client: SupabaseClient, entryId: string): Promise<void> {
-  const { error } = await client.from('time_entries').update({ end_time: new Date().toISOString() }).eq('id', entryId);
-  if (error) throw error;
+  const endTime = new Date().toISOString();
+  await writeOrQueue(
+    () => client.from('time_entries').update({ end_time: endTime }).eq('id', entryId),
+    () => queueUpdate('time_entries', entryId, { end_time: endTime }, { column: 'id', value: entryId }),
+  );
 }
 
 /** Resuming a paused task is the same operation as switching to it — a new

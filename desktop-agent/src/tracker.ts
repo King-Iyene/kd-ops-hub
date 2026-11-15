@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { desktopCapturer, nativeImage, powerMonitor } from 'electron';
+import { randomUUID } from 'crypto';
+import { queueInsert, writeOrQueue } from './offlineQueue';
 
 interface AgentSettings {
   is_enabled: boolean;
@@ -226,32 +228,44 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, sett
         );
       }
 
-      const { data: inserted, error } = await supabase
-        .from('time_activity_logs')
-        .insert({
-          employee_id: employeeId,
-          window_title: title,
-          app_name: appName,
-          url,
-          productivity_category: category,
-          ip_address: lastGeoLookup?.ip ?? null,
-          geo_lat: lastGeoLookup?.lat ?? null,
-          geo_lon: lastGeoLookup?.lon ?? null,
-          geo_city: lastGeoLookup?.city ?? null,
-          geo_region: lastGeoLookup?.region ?? null,
-          geo_country: lastGeoLookup?.country ?? null,
-          is_outside_geofence: isOutsideGeofence,
-        })
-        .select('id')
-        .single();
+      // Generated client-side so a tick still has a stable id to hand to the
+      // screenshot step (and so the row can be queued for later retry) even if
+      // the network is down right now — this is the fix for "if network goes,
+      // does tracking still save": a dropped connection no longer means a
+      // dropped tick, it means a queued one.
+      const logId = randomUUID();
+      const payload = {
+        id: logId,
+        employee_id: employeeId,
+        window_title: title,
+        app_name: appName,
+        url,
+        productivity_category: category,
+        ip_address: lastGeoLookup?.ip ?? null,
+        geo_lat: lastGeoLookup?.lat ?? null,
+        geo_lon: lastGeoLookup?.lon ?? null,
+        geo_city: lastGeoLookup?.city ?? null,
+        geo_region: lastGeoLookup?.region ?? null,
+        geo_country: lastGeoLookup?.country ?? null,
+        is_outside_geofence: isOutsideGeofence,
+      };
 
-      if (error) {
-        console.error('[tracker] activity log insert failed:', error.message);
-        return;
-      }
+      let wentOffline = false;
+      await writeOrQueue(
+        () => supabase.from('time_activity_logs').insert(payload),
+        () => {
+          wentOffline = true;
+          queueInsert('time_activity_logs', payload);
+        },
+      );
 
-      if (settings.screenshots_enabled && inserted && !isAway) {
-        await captureAndUploadScreenshot(supabase, employeeId, inserted.id, settings.blur_screenshots);
+      // Screenshots are tied to a specific already-stored row (storage_path
+      // references activity_log_id via FK), so they can't be queued the same
+      // way — skip the screenshot for this tick if we're offline rather than
+      // uploading against a row the server doesn't have yet. The activity log
+      // itself is never skipped.
+      if (settings.screenshots_enabled && !wentOffline && !isAway) {
+        await captureAndUploadScreenshot(supabase, employeeId, logId, settings.blur_screenshots);
       }
     } catch (err) {
       console.error('[tracker] tick failed:', err);
