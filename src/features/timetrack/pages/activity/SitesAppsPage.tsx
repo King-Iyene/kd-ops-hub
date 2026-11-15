@@ -140,37 +140,41 @@ export default function SitesAppsPage() {
           </Card>
 
           <div className="flex justify-end"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button></div>
-          <Table>
-            <TableHeader><TableRow><TableHead>Site / Application</TableHead><TableHead className="text-right">Estimated hours</TableHead><TableHead className="w-44">Category</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.key}>
-                  <TableCell className="flex items-center gap-2">
-                    {r.key}
-                    {r.isSite && <Badge variant="outline" className="text-[10px]">site</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {r.isIdle ? (
-                      <Badge variant="outline" className={CATEGORY_BADGE.idle}>idle</Badge>
-                    ) : (
-                      <Select value={r.category || '__none'} onValueChange={(v) => assignCategory(r.key, v)}>
-                        <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none" disabled>Uncategorized</SelectItem>
-                          <SelectItem value="productive">Productive</SelectItem>
-                          <SelectItem value="neutral">Neutral</SelectItem>
-                          <SelectItem value="unproductive">Unproductive</SelectItem>
-                          <SelectItem value="blocked">Blocked</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="pt-4">
+              <Table>
+                <TableHeader><TableRow><TableHead>Site / Application</TableHead><TableHead className="text-right">Estimated hours</TableHead><TableHead className="w-44">Category</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {filtered.map((r) => (
+                    <TableRow key={r.key}>
+                      <TableCell className="flex items-center gap-2">
+                        {r.key}
+                        {r.isSite && <Badge variant="outline" className="text-[10px]">site</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {r.isIdle ? (
+                          <Badge variant="outline" className={CATEGORY_BADGE.idle}>idle</Badge>
+                        ) : (
+                          <Select value={r.category || '__none'} onValueChange={(v) => assignCategory(r.key, v)}>
+                            <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none" disabled>Uncategorized</SelectItem>
+                              <SelectItem value="productive">Productive</SelectItem>
+                              <SelectItem value="neutral">Neutral</SelectItem>
+                              <SelectItem value="unproductive">Unproductive</SelectItem>
+                              <SelectItem value="blocked">Blocked</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filtered.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

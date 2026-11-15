@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
 import { CATEGORY_BADGE } from './shared';
 
 interface Row { app_name: string | null; window_title: string | null; productivity_category: string | null; captured_at: string }
@@ -68,29 +69,31 @@ export default function TimelinePage() {
       ) : isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : blocks.length === 0 ? (
         <p className="text-muted-foreground text-sm">No activity captured for this day.</p>
       ) : (
-        <div className="space-y-1">
-          <div className="relative h-8 rounded-md bg-muted overflow-hidden">
-            {blocks.map((b, i) => (
-              <div key={i}
-                className={`absolute top-0 h-full border-r border-background/60 ${b.category === 'productive' ? 'bg-emerald-500/60' : b.category === 'unproductive' ? 'bg-destructive/60' : 'bg-muted-foreground/40'}`}
-                style={{ left: `${(b.startMin / 1440) * 100}%`, width: `${Math.max(0.3, ((b.endMin - b.startMin) / 1440) * 100)}%` }}
-                title={`${b.app} — ${format(new Date(0, 0, 0, Math.floor(b.startMin / 60), b.startMin % 60), 'HH:mm')}–${format(new Date(0, 0, 0, Math.floor(b.endMin / 60), b.endMin % 60), 'HH:mm')}`}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between text-xs text-muted-foreground"><span>00:00</span><span>12:00</span><span>23:59</span></div>
-          <div className="mt-4 divide-y divide-border/60">
-            {blocks.map((b, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-                <span>{b.app}</span>
-                <span className="text-muted-foreground">
-                  {format(new Date(0, 0, 0, Math.floor(b.startMin / 60), b.startMin % 60), 'HH:mm')}–{format(new Date(0, 0, 0, Math.floor(b.endMin / 60), b.endMin % 60), 'HH:mm')}
-                </span>
-                {b.category && <span className={`text-xs px-1.5 py-0.5 rounded border ${CATEGORY_BADGE[b.category]}`}>{b.category}</span>}
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="relative h-8 rounded-md bg-muted overflow-hidden">
+              {blocks.map((b, i) => (
+                <div key={i}
+                  className={`absolute top-0 h-full border-r border-background/60 ${b.category === 'productive' ? 'bg-emerald-500/60' : b.category === 'unproductive' ? 'bg-destructive/60' : 'bg-muted-foreground/40'}`}
+                  style={{ left: `${(b.startMin / 1440) * 100}%`, width: `${Math.max(0.3, ((b.endMin - b.startMin) / 1440) * 100)}%` }}
+                  title={`${b.app} — ${format(new Date(0, 0, 0, Math.floor(b.startMin / 60), b.startMin % 60), 'HH:mm')}–${format(new Date(0, 0, 0, Math.floor(b.endMin / 60), b.endMin % 60), 'HH:mm')}`}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>00:00</span><span>12:00</span><span>23:59</span></div>
+            <div className="mt-4 divide-y divide-border/60">
+              {blocks.map((b, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                  <span>{b.app}</span>
+                  <span className="text-muted-foreground">
+                    {format(new Date(0, 0, 0, Math.floor(b.startMin / 60), b.startMin % 60), 'HH:mm')}–{format(new Date(0, 0, 0, Math.floor(b.endMin / 60), b.endMin % 60), 'HH:mm')}
+                  </span>
+                  {b.category && <span className={`text-xs px-1.5 py-0.5 rounded border ${CATEGORY_BADGE[b.category]}`}>{b.category}</span>}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

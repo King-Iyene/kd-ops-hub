@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useLogsWithIntervals } from './shared';
 
@@ -95,34 +96,38 @@ export default function GoalsPage() {
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <div className="space-y-3">
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New goal</Button>
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Employee</TableHead><TableHead>Metric</TableHead><TableHead>Period</TableHead>
-              <TableHead>Target</TableHead><TableHead>Actual</TableHead><TableHead className="w-40">Progress</TableHead><TableHead />
-            </TableRow></TableHeader>
-            <TableBody>
-              {(goals ?? []).map((g) => {
-                const name = employees?.find((e) => e.id === g.employee_id)?.full_name ?? g.employee_id;
-                const a = actualsByEmployee.get(g.employee_id);
-                let actual = 0;
-                if (g.metric === 'productive_hours') actual = g.period === 'daily' ? (a?.dailyHours ?? 0) : (a?.weeklyHours ?? 0);
-                else actual = g.period === 'daily' ? (a?.dailyTotal ? (a.dailyProductive / a.dailyTotal) * 100 : 0) : (a?.weeklyTotal ? (a.weeklyProductive / a.weeklyTotal) * 100 : 0);
-                const pct = g.target_value > 0 ? Math.min(100, (actual / g.target_value) * 100) : 0;
-                return (
-                  <TableRow key={g.id}>
-                    <TableCell>{name}</TableCell>
-                    <TableCell>{g.metric === 'productive_hours' ? 'Productive hours' : 'Efficiency %'}</TableCell>
-                    <TableCell className="capitalize">{g.period}</TableCell>
-                    <TableCell>{g.target_value}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
-                    <TableCell>{actual.toFixed(1)}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
-                    <TableCell><Progress value={pct} /></TableCell>
-                    <TableCell><Button size="sm" variant="ghost" onClick={() => remove(g.id)}>Remove</Button></TableCell>
-                  </TableRow>
-                );
-              })}
-              {(goals ?? []).length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No goals set yet.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="pt-4">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Employee</TableHead><TableHead>Metric</TableHead><TableHead>Period</TableHead>
+                  <TableHead>Target</TableHead><TableHead>Actual</TableHead><TableHead className="w-40">Progress</TableHead><TableHead />
+                </TableRow></TableHeader>
+                <TableBody>
+                  {(goals ?? []).map((g) => {
+                    const name = employees?.find((e) => e.id === g.employee_id)?.full_name ?? g.employee_id;
+                    const a = actualsByEmployee.get(g.employee_id);
+                    let actual = 0;
+                    if (g.metric === 'productive_hours') actual = g.period === 'daily' ? (a?.dailyHours ?? 0) : (a?.weeklyHours ?? 0);
+                    else actual = g.period === 'daily' ? (a?.dailyTotal ? (a.dailyProductive / a.dailyTotal) * 100 : 0) : (a?.weeklyTotal ? (a.weeklyProductive / a.weeklyTotal) * 100 : 0);
+                    const pct = g.target_value > 0 ? Math.min(100, (actual / g.target_value) * 100) : 0;
+                    return (
+                      <TableRow key={g.id}>
+                        <TableCell>{name}</TableCell>
+                        <TableCell>{g.metric === 'productive_hours' ? 'Productive hours' : 'Efficiency %'}</TableCell>
+                        <TableCell className="capitalize">{g.period}</TableCell>
+                        <TableCell>{g.target_value}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
+                        <TableCell>{actual.toFixed(1)}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
+                        <TableCell><Progress value={pct} /></TableCell>
+                        <TableCell><Button size="sm" variant="ghost" onClick={() => remove(g.id)}>Remove</Button></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(goals ?? []).length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No goals set yet.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
 
 interface AgentRow { employee_id: string; is_enabled: boolean; app_version: string | null; last_login_at: string | null; login_count: number }
@@ -76,41 +77,45 @@ export default function UserStatisticsPage() {
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <>
           <div className="flex justify-end"><Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-1.5" />Export CSV</Button></div>
-          <Table>
-            <TableHeader><TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>App version</TableHead>
-              <TableHead>Last login</TableHead>
-              <TableHead className="text-right">Logins</TableHead>
-              <TableHead className="text-right">Captures</TableHead>
-              <TableHead className="text-right">Idle</TableHead>
-              <TableHead className="text-right">Est. hours</TableHead><TableHead className="text-right">Active days</TableHead>
-              <TableHead className="text-right">Productive %</TableHead>
-            </TableRow></TableHeader>
-            <TableBody>
-              {rows.map((r) => {
-                const agent = agentFor(r.employeeId);
-                return (
-                  <TableRow key={r.employeeId}>
-                    <TableCell>
-                      {r.name}{' '}
-                      {agent?.is_enabled ? <Badge variant="outline" className="ml-1 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30">installed</Badge>
-                        : <Badge variant="outline" className="ml-1 text-[10px]">not installed</Badge>}
-                    </TableCell>
-                    <TableCell>{agent?.app_version ?? '—'}</TableCell>
-                    <TableCell>{agent?.last_login_at ? format(new Date(agent.last_login_at), 'MMM d, HH:mm') : '—'}</TableCell>
-                    <TableCell className="text-right">{agent?.login_count ?? 0}</TableCell>
-                    <TableCell className="text-right">{r.captures}</TableCell>
-                    <TableCell className="text-right">{r.idle}</TableCell>
-                    <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{r.activeDays}</TableCell>
-                    <TableCell className="text-right">{r.productivePct.toFixed(0)}%</TableCell>
-                  </TableRow>
-                );
-              })}
-              {rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="pt-4">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>App version</TableHead>
+                  <TableHead>Last login</TableHead>
+                  <TableHead className="text-right">Logins</TableHead>
+                  <TableHead className="text-right">Captures</TableHead>
+                  <TableHead className="text-right">Idle</TableHead>
+                  <TableHead className="text-right">Est. hours</TableHead><TableHead className="text-right">Active days</TableHead>
+                  <TableHead className="text-right">Productive %</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {rows.map((r) => {
+                    const agent = agentFor(r.employeeId);
+                    return (
+                      <TableRow key={r.employeeId}>
+                        <TableCell>
+                          {r.name}{' '}
+                          {agent?.is_enabled ? <Badge variant="outline" className="ml-1 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30">installed</Badge>
+                            : <Badge variant="outline" className="ml-1 text-[10px]">not installed</Badge>}
+                        </TableCell>
+                        <TableCell>{agent?.app_version ?? '—'}</TableCell>
+                        <TableCell>{agent?.last_login_at ? format(new Date(agent.last_login_at), 'MMM d, HH:mm') : '—'}</TableCell>
+                        <TableCell className="text-right">{agent?.login_count ?? 0}</TableCell>
+                        <TableCell className="text-right">{r.captures}</TableCell>
+                        <TableCell className="text-right">{r.idle}</TableCell>
+                        <TableCell className="text-right">{r.hours.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{r.activeDays}</TableCell>
+                        <TableCell className="text-right">{r.productivePct.toFixed(0)}%</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {rows.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

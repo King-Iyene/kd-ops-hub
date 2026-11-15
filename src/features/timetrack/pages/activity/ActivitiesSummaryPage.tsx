@@ -174,25 +174,32 @@ export default function ActivitiesSummaryPage() {
             {byPerson.length === 0 && <p className="text-sm text-muted-foreground col-span-full">No activity captured yet.</p>}
           </div>
 
-          <Table>
-            <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Employee</TableHead><TableHead>App</TableHead><TableHead>Window title</TableHead><TableHead>Category</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {scopedLogs.slice(0, 200).map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell>{format(new Date(l.captured_at), 'MMM d, HH:mm')}</TableCell>
-                  <TableCell>{nameOf(l.employee_id)}</TableCell>
-                  <TableCell>{l.app_name ?? '—'}</TableCell>
-                  <TableCell className="max-w-xs truncate">{l.window_title ?? '—'}</TableCell>
-                  <TableCell>{l.productivity_category && <Badge variant="outline" className={CATEGORY_BADGE[l.productivity_category]}>{l.productivity_category}</Badge>}</TableCell>
-                </TableRow>
-              ))}
-              {scopedLogs.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No activity captured yet — the desktop agent needs to be installed and enabled under Agent &amp; policy.
-                </TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                Raw activity log{scopedLogs.length > 200 ? ' (most recent 200)' : ''}
+              </p>
+              <Table>
+                <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Employee</TableHead><TableHead>App</TableHead><TableHead>Window title</TableHead><TableHead>Category</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {scopedLogs.slice(0, 200).map((l) => (
+                    <TableRow key={l.id}>
+                      <TableCell>{format(new Date(l.captured_at), 'MMM d, HH:mm')}</TableCell>
+                      <TableCell>{nameOf(l.employee_id)}</TableCell>
+                      <TableCell>{l.app_name ?? '—'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{l.window_title ?? '—'}</TableCell>
+                      <TableCell>{l.productivity_category && <Badge variant="outline" className={CATEGORY_BADGE[l.productivity_category]}>{l.productivity_category}</Badge>}</TableCell>
+                    </TableRow>
+                  ))}
+                  {scopedLogs.length === 0 && (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">
+                      No activity captured yet — the desktop agent needs to be installed and enabled under Agent &amp; policy.
+                    </TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

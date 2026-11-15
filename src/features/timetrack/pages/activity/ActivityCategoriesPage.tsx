@@ -115,21 +115,25 @@ export default function ActivityCategoriesPage() {
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <div className="space-y-3">
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New rule</Button>
-          <Table>
-            <TableHeader><TableRow><TableHead>Priority</TableHead><TableHead>App contains</TableHead><TableHead>Title contains</TableHead><TableHead>Category</TableHead><TableHead /></TableRow></TableHeader>
-            <TableBody>
-              {(rules ?? []).map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.priority}</TableCell>
-                  <TableCell>{r.app_name_contains ?? '—'}</TableCell>
-                  <TableCell>{r.title_contains ?? '—'}</TableCell>
-                  <TableCell><Badge variant="outline" className={CATEGORY_BADGE[r.category]}>{r.category}</Badge></TableCell>
-                  <TableCell><Button size="sm" variant="ghost" onClick={() => remove(r.id)}>Remove</Button></TableCell>
-                </TableRow>
-              ))}
-              {(rules ?? []).length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No rules yet — everything classifies as neutral.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
+          <Card>
+            <CardContent className="pt-4">
+              <Table>
+                <TableHeader><TableRow><TableHead>Priority</TableHead><TableHead>App contains</TableHead><TableHead>Title contains</TableHead><TableHead>Category</TableHead><TableHead /></TableRow></TableHeader>
+                <TableBody>
+                  {(rules ?? []).map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.priority}</TableCell>
+                      <TableCell>{r.app_name_contains ?? '—'}</TableCell>
+                      <TableCell>{r.title_contains ?? '—'}</TableCell>
+                      <TableCell><Badge variant="outline" className={CATEGORY_BADGE[r.category]}>{r.category}</Badge></TableCell>
+                      <TableCell><Button size="sm" variant="ghost" onClick={() => remove(r.id)}>Remove</Button></TableCell>
+                    </TableRow>
+                  ))}
+                  {(rules ?? []).length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No rules yet — everything classifies as neutral.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 

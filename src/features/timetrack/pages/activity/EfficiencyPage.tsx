@@ -125,38 +125,42 @@ export default function EfficiencyPage() {
           </Card>
         </div>
 
-        <Table>
-          <TableHeader><TableRow>
-            <TableHead>Employee</TableHead><TableHead className="text-right">Productive</TableHead>
-            <TableHead className="text-right">Neutral</TableHead><TableHead className="text-right">Unproductive</TableHead>
-            <TableHead className="text-right">Blocked</TableHead>
-            <TableHead className="text-right">Idle</TableHead>
-            <TableHead className="text-right">Captures</TableHead><TableHead className="text-right">Efficiency</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.employeeId}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell className="text-right">{r.productive}</TableCell>
-                <TableCell className="text-right">{r.neutral}</TableCell>
-                <TableCell className="text-right">{r.unproductive}</TableCell>
-                <TableCell className="text-right">
-                  {r.blocked > 0 && <Badge variant="outline" className={CATEGORY_BADGE.blocked}>{r.blocked}</Badge>}
-                </TableCell>
-                <TableCell className="text-right">
-                  {r.idle > 0 && <Badge variant="outline" className={CATEGORY_BADGE.idle}>{r.idle}</Badge>}
-                </TableCell>
-                <TableCell className="text-right">{r.total}</TableCell>
-                <TableCell className="text-right">
-                  <Badge variant="outline" className={r.efficiency >= 60 ? CATEGORY_BADGE.productive : r.efficiency >= 30 ? CATEGORY_BADGE.neutral : CATEGORY_BADGE.unproductive}>
-                    {r.efficiency.toFixed(0)}%
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent className="pt-4">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Employee</TableHead><TableHead className="text-right">Productive</TableHead>
+                <TableHead className="text-right">Neutral</TableHead><TableHead className="text-right">Unproductive</TableHead>
+                <TableHead className="text-right">Blocked</TableHead>
+                <TableHead className="text-right">Idle</TableHead>
+                <TableHead className="text-right">Captures</TableHead><TableHead className="text-right">Efficiency</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.employeeId}>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell className="text-right">{r.productive}</TableCell>
+                    <TableCell className="text-right">{r.neutral}</TableCell>
+                    <TableCell className="text-right">{r.unproductive}</TableCell>
+                    <TableCell className="text-right">
+                      {r.blocked > 0 && <Badge variant="outline" className={CATEGORY_BADGE.blocked}>{r.blocked}</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.idle > 0 && <Badge variant="outline" className={CATEGORY_BADGE.idle}>{r.idle}</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">{r.total}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="outline" className={r.efficiency >= 60 ? CATEGORY_BADGE.productive : r.efficiency >= 30 ? CATEGORY_BADGE.neutral : CATEGORY_BADGE.unproductive}>
+                        {r.efficiency.toFixed(0)}%
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No activity captured in range.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
         </>
       )}
     </div>

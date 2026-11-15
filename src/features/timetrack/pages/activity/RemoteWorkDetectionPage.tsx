@@ -7,6 +7,7 @@ import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
 
 interface TrackingHoursRow { weekday: number; from_time: string; to_time: string }
@@ -76,24 +77,28 @@ export default function RemoteWorkDetectionPage() {
         </p>
       )}
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
-        <Table>
-          <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Employee</TableHead><TableHead>App</TableHead><TableHead>Location (IP)</TableHead><TableHead /></TableRow></TableHeader>
-          <TableBody>
-            {flagged.map((f, i) => (
-              <TableRow key={i}>
-                <TableCell>{format(new Date(f.capturedAt), 'MMM d, HH:mm')}</TableCell>
-                <TableCell>{f.employee}</TableCell>
-                <TableCell>{f.app ?? '—'}</TableCell>
-                <TableCell className="text-muted-foreground">{f.location ?? '—'}</TableCell>
-                <TableCell className="space-x-1.5">
-                  {f.offHours && <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30">off-hours</Badge>}
-                  {f.outsideGeofence && <Badge variant="outline" className="bg-purple-500/15 text-purple-600 border-purple-500/30">outside geofence</Badge>}
-                </TableCell>
-              </TableRow>
-            ))}
-            {flagged.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No off-hours or outside-geofence activity in range.</TableCell></TableRow>}
-          </TableBody>
-        </Table>
+        <Card>
+          <CardContent className="pt-4">
+            <Table>
+              <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Employee</TableHead><TableHead>App</TableHead><TableHead>Location (IP)</TableHead><TableHead /></TableRow></TableHeader>
+              <TableBody>
+                {flagged.map((f, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{format(new Date(f.capturedAt), 'MMM d, HH:mm')}</TableCell>
+                    <TableCell>{f.employee}</TableCell>
+                    <TableCell>{f.app ?? '—'}</TableCell>
+                    <TableCell className="text-muted-foreground">{f.location ?? '—'}</TableCell>
+                    <TableCell className="space-x-1.5">
+                      {f.offHours && <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30">off-hours</Badge>}
+                      {f.outsideGeofence && <Badge variant="outline" className="bg-purple-500/15 text-purple-600 border-purple-500/30">outside geofence</Badge>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {flagged.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No off-hours or outside-geofence activity in range.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
