@@ -34,7 +34,10 @@ function setState(state) {
   // since the task name takes over the label in that case (see render() below).
   dot.className = state === 'tracking' ? 'tracking' : state === 'idle' ? 'idle' : '';
   if (state === 'tracking') {
-    label.textContent = 'Tracking';
+    // "No Task" (not "Tracking") when automatic tracking is on but nobody
+    // has picked a manual task — clickable, same as the task name is once
+    // one's running, so starting a task doesn't require finding the tray.
+    label.textContent = 'No Task';
   } else if (state === 'idle') {
     label.textContent = 'Idle — paused';
   } else {
@@ -69,6 +72,7 @@ window.widget.onStatus(({ tracking, idle, startedAt, task }) => {
 
 openBtn.addEventListener('click', () => window.widget.openMain());
 stopBtn.addEventListener('click', () => window.widget.stopTask());
+label.addEventListener('click', () => window.widget.changeTask());
 
 tickHandle = setInterval(renderTick, 1000);
 window.addEventListener('beforeunload', () => clearInterval(tickHandle));

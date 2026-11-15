@@ -30,6 +30,42 @@ import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
 import { fetchPickableTasks, getActiveTimer, switchTimer, stopActiveTimer, type ActiveTimer, type PickableTask } from './taskTimer';
 
+// Single-instance lock: without this, every launch (a second double-click of
+// the installed app, an "open at login" entry firing alongside a manual
+// launch, etc.) spins up a FULLY SEPARATE process — its own tray icon, its
+// own floating widget, and critically its own tracker.ts polling loop
+// independently writing activity rows to Supabase. Nothing here ever
+// prevented that, and it was invisible until there was a reason to look: an
+// employee saw three stacked "Tracking" widget pills with different elapsed
+// times, meaning three live agent processes had been running for the same
+// person simultaneously, each tracking and writing on its own. This claims
+// the lock as the very first thing the app does (before window/tray
+// creation, before app.whenReady()), so a second launch attempt quits
+// immediately instead of becoming a second independent tracker.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  // process.exit (not app.quit) so NOTHING further in this module runs —
+  // no window, no tray, no tracker poll loop gets created in this second
+  // process before it goes away. No windows/tray exist yet at this point in
+  // the file, so there is nothing for Electron's normal graceful-quit
+  // sequence to clean up; an immediate process exit is the correct and safe
+  // way to bail out of a losing instance.
+  process.exit(0);
+}
+
+// Runs only in the single surviving instance: a later launch attempt (the
+// one that just lost the lock above, in its own separate process) forwards
+// here instead of starting its own window/tray/tracker. Bring the existing
+// window forward rather than silently doing nothing, so "I double-clicked
+// the app again" still feels like it did something.
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 // Auto-update: electron-builder's `publish: { provider: 'github', ... }`
 // config (package.json) makes it emit latest.yml / latest-mac.yml /
 // latest-linux.yml alongside each release's installers — electron-updater
@@ -293,6 +329,13 @@ app.whenReady().then(async () => {
     void reportCheckin();
     void refreshActiveTimer();
   }
+});
+
+// Opens the same picker the tray's "Start a Task…" item opens, but from a
+// click on the floating widget itself (the task name / "No Task" label) —
+// so changing task doesn't require finding the tray icon and right-clicking.
+ipcMain.on('open-task-picker', () => {
+  createTaskPickerWindow();
 });
 
 ipcMain.on('task-picker-ready', async () => {

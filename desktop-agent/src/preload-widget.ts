@@ -15,4 +15,9 @@ contextBridge.exposeInMainWorld('widget', {
   ) => ipcRenderer.on('widget-status', (_e, status) => cb(status)),
   openMain: () => ipcRenderer.send('open-main-window'),
   stopTask: () => ipcRenderer.send('task-picker-choose-none'),
+  // Click the task name itself (or "No Task") to bring up the same picker
+  // the tray's "Start a Task…" menu item opens — matches the "Click to
+  // change task" interaction the widget is meant to mirror, rather than
+  // only being reachable through a right-click tray menu.
+  changeTask: () => ipcRenderer.send('open-task-picker'),
 });
