@@ -308,6 +308,11 @@ window.taskPicker.onData(({ tasks, suggested: s, projects }) => {
   suggested = s;
   allProjects = projects ?? [];
   render();
+  // Opened from the tray's "Create New Task…": go straight to the form (once).
+  if (new URLSearchParams(location.search).get('create') === '1' && mode === 'browse' && !render.openedCreate) {
+    render.openedCreate = true;
+    enterCreateMode();
+  }
 });
 
 window.taskPicker.requestTasks();

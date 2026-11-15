@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification, shell } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
@@ -317,11 +317,20 @@ function sendWidgetStatus(tracking: boolean) {
 const TASK_PICKER_WIDTH = 360;
 const TASK_PICKER_HEIGHT = 420;
 
-function createTaskPickerWindow() {
+const WEB_APP_TIME_URL = 'https://ops.kdsquares.com/timetrack/time';
+
+function createTaskPickerWindow(startInCreate = false) {
   if (taskPickerWindow) {
-    taskPickerWindow.show();
-    taskPickerWindow.focus();
-    return;
+    if (startInCreate) {
+      // Existing picker is in browse mode — reopen straight into the create form.
+      taskPickerWindow.removeAllListeners('closed');
+      taskPickerWindow.destroy();
+      taskPickerWindow = null;
+    } else {
+      taskPickerWindow.show();
+      taskPickerWindow.focus();
+      return;
+    }
   }
   const display = screen.getPrimaryDisplay();
   const { width: sw, height: sh } = display.workArea;
@@ -336,7 +345,10 @@ function createTaskPickerWindow() {
     skipTaskbar: true,
     webPreferences: { preload: path.join(__dirname, 'preload-task-picker.js'), contextIsolation: true },
   });
-  taskPickerWindow.loadFile(path.join(__dirname, '../src/renderer/task-picker.html'));
+  taskPickerWindow.loadFile(
+    path.join(__dirname, '../src/renderer/task-picker.html'),
+    startInCreate ? { query: { create: '1' } } : undefined,
+  );
   taskPickerWindow.on('blur', () => taskPickerWindow?.close());
   taskPickerWindow.on('closed', () => {
     taskPickerWindow = null;
@@ -438,6 +450,9 @@ function rebuildTrayMenu() {
     { label: 'Show', click: () => mainWindow?.show() },
     { type: 'separator' },
     ...taskItems,
+    { label: 'Create New Task…', click: () => createTaskPickerWindow(true) },
+    { type: 'separator' },
+    { label: 'Open in Browser', click: () => void shell.openExternal(WEB_APP_TIME_URL) },
     { type: 'separator' },
     {
       label: 'Show floating widget',
@@ -452,7 +467,8 @@ function rebuildTrayMenu() {
       label: 'Force Synchronization',
       click: () => void forceSync(),
     },
-    { label: 'Quit', click: () => app.quit() },
+    { type: 'separator' },
+    { label: 'Exit', click: () => app.quit() },
   ]));
 }
 

@@ -45,6 +45,8 @@ const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 5, stop_track
 const GEO_LOOKUP_INTERVAL_MS = 5 * 60_000;
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
+let runningKey = '';
+let activeSettings: AgentSettings = { is_enabled: true, capture_interval_minutes: 10, screenshots_enabled: false, blur_screenshots: true };
 let rules: ProductivityRule[] = [];
 let rulesLoadedAt = 0;
 let idlePolicy: IdlePolicy = DEFAULT_IDLE_POLICY;
@@ -175,9 +177,21 @@ export function stopTracking() {
   }
 }
 
-export function startTracking(supabase: SupabaseClient, employeeId: string, settings: AgentSettings) {
+export function startTracking(supabase: SupabaseClient, employeeId: string, newSettings: AgentSettings) {
+  // main.ts re-reads settings every 60s and calls this each time. Restarting
+  // on every call reset the timer and fired an immediate capture, so a 10-minute
+  // capture_interval_minutes really captured about once a MINUTE. Only
+  // (re)start when the schedule actually changed; otherwise just pick up the
+  // latest screenshot/blur flags for the next tick.
+  const key = `${employeeId}:${newSettings.capture_interval_minutes}`;
+  if (intervalHandle && key === runningKey && newSettings.is_enabled) {
+    activeSettings = newSettings;
+    return;
+  }
   stopTracking();
-  if (!settings.is_enabled) return;
+  if (!newSettings.is_enabled) return;
+  runningKey = key;
+  activeSettings = newSettings;
 
   refreshRules(supabase);
   refreshIdlePolicy(supabase);
@@ -264,14 +278,14 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, sett
       // way — skip the screenshot for this tick if we're offline rather than
       // uploading against a row the server doesn't have yet. The activity log
       // itself is never skipped.
-      if (settings.screenshots_enabled && !wentOffline && !isAway) {
-        await captureAndUploadScreenshot(supabase, employeeId, logId, settings.blur_screenshots);
+      if (activeSettings.screenshots_enabled && !wentOffline && !isAway) {
+        await captureAndUploadScreenshot(supabase, employeeId, logId, activeSettings.blur_screenshots);
       }
     } catch (err) {
       console.error('[tracker] tick failed:', err);
     }
   };
 
-  intervalHandle = setInterval(tick, settings.capture_interval_minutes * 60_000);
+  intervalHandle = setInterval(tick, newSettings.capture_interval_minutes * 60_000);
   tick(); // capture immediately on start, don't wait a full interval
 }
