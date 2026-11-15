@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
@@ -28,7 +28,7 @@ if (!app.isPackaged) {
 
 import { supabase, configError } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
-import { startAutoFlush } from './offlineQueue';
+import { startAutoFlush, flushQueue, queueLength } from './offlineQueue';
 import {
   fetchPickableTasks,
   fetchSuggestedTasks,
@@ -419,8 +419,36 @@ function rebuildTrayMenu() {
         applyWidgetVisibility();
       },
     },
+    {
+      label: 'Force Synchronization',
+      click: () => void forceSync(),
+    },
     { label: 'Quit', click: () => app.quit() },
   ]));
+}
+
+/** Manual retry of whatever's sitting in the offline queue (activity-log
+ * ticks and/or timer start/stop/pause that couldn't reach the server when
+ * they happened), for when someone doesn't want to wait for the 30s
+ * auto-retry — e.g. right after reconnecting to wifi. Matches the reference
+ * app's "Force Synchronization" tray item. */
+async function forceSync() {
+  if (!supabase) return;
+  const before = queueLength();
+  if (before === 0) {
+    new Notification({ title: 'KD Ops Time Tracker', body: 'Already up to date — nothing queued.' }).show();
+    return;
+  }
+  await flushQueue(supabase);
+  const after = queueLength();
+  if (after === 0) {
+    new Notification({ title: 'KD Ops Time Tracker', body: `Synced ${before} queued item(s).` }).show();
+  } else {
+    new Notification({
+      title: 'KD Ops Time Tracker',
+      body: `Still offline — ${after} item(s) remain queued, will keep retrying.`,
+    }).show();
+  }
 }
 
 function widgetPreferenceEnabled() {
