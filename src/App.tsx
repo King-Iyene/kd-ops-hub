@@ -117,21 +117,11 @@ const LocationReportPage     = lazy(() => import('./features/timetrack/pages/rep
 const RealTimeDashboardPage  = lazy(() => import('./features/timetrack/pages/reports/RealTimeDashboardPage'));
 const ProjectReportPage      = lazy(() => import('./features/timetrack/pages/reports/ProjectReportPage'));
 // Finance
-const FinanceBillablePage = lazy(() => import('./features/timetrack/pages/reports/BillableNonBillablePage'));
-const FinanceEstimatesPage = lazy(() => import('./features/timetrack/pages/reports/EstimatesPage'));
-const FinanceRevenuesPage = lazy(() => import('./features/timetrack/pages/reports/RevenuesPage'));
-const FinanceCostsPage = lazy(() => import('./features/timetrack/pages/reports/CostsPage'));
-const FinanceMarginPage = lazy(() => import('./features/timetrack/pages/reports/MarginPage'));
 const TimeApprovalsPage = lazy(() => import('./features/timetrack/pages/ApprovalsPage'));
-const TimeLeavePage     = lazy(() => import('./features/timetrack/pages/LeavePage'));
-const TimeAttendancePage = lazy(() => import('./features/timetrack/pages/AttendancePage'));
 const TimePlannerPage   = lazy(() => import('./features/timetrack/pages/PlannerPage'));
-const TimeClientsInvoicesPage = lazy(() => import('./features/timetrack/pages/ClientsInvoicesPage'));
-const TimeExpensesPage = lazy(() => import('./features/timetrack/pages/ExpensesPage'));
 const TimeExportCenterPage = lazy(() => import('./features/timetrack/pages/ExportCenterPage'));
 const TimeTagsPage = lazy(() => import('./features/timetrack/pages/TagsPage'));
 const TimeIntegrationsPage = lazy(() => import('./features/timetrack/pages/IntegrationsPage'));
-const TimeBillingRatesPage = lazy(() => import('./features/timetrack/pages/BillingRatesPage'));
 const TimeRolesPage     = lazy(() => import('./features/timetrack/pages/RolesPage'));
 const ActivitiesSummaryPage = lazy(() => import('./features/timetrack/pages/activity/ActivitiesSummaryPage'));
 const SitesAppsPage = lazy(() => import('./features/timetrack/pages/activity/SitesAppsPage'));
@@ -144,7 +134,6 @@ const RemoteWorkDetectionPage = lazy(() => import('./features/timetrack/pages/ac
 const ActivityScreenshotsPage = lazy(() => import('./features/timetrack/pages/activity/ScreenshotsPage'));
 const AgentConfigPage = lazy(() => import('./features/timetrack/pages/activity/AgentConfigPage'));
 const TimeSettingsPage  = lazy(() => import('./features/timetrack/pages/SettingsPage'));
-const TimeKioskPage     = lazy(() => import('./features/timetrack/pages/KioskPage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
 const FlexTables        = lazy(() => import('./pages/FlexTables'));
 const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
@@ -898,21 +887,11 @@ function AppRoutes() {
           { path: '/timetrack/reports/people-by-projects', Page: PeopleByProjectsPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/reports/location', Page: LocationReportPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/reports/dashboard', Page: RealTimeDashboardPage, roles: ALL_AUTH_ROLES },
-          { path: '/timetrack/finance/billable', Page: FinanceBillablePage, roles: PAYMENT_ROLES },
-          { path: '/timetrack/finance/estimates', Page: FinanceEstimatesPage, roles: PAYMENT_ROLES },
-          { path: '/timetrack/finance/revenues', Page: FinanceRevenuesPage, roles: PAYMENT_ROLES },
-          { path: '/timetrack/finance/costs', Page: FinanceCostsPage, roles: PAYMENT_ROLES },
-          { path: '/timetrack/finance/margin', Page: FinanceMarginPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/approvals', Page: TimeApprovalsPage, roles: ALL_AUTH_ROLES },
-          { path: '/timetrack/leave', Page: TimeLeavePage, roles: ALL_AUTH_ROLES },
-          { path: '/timetrack/attendance', Page: TimeAttendancePage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/planner', Page: TimePlannerPage, roles: ALL_AUTH_ROLES },
-          { path: '/timetrack/clients', Page: TimeClientsInvoicesPage, roles: PAYMENT_ROLES },
-          { path: '/timetrack/expenses', Page: TimeExpensesPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/export-center', Page: TimeExportCenterPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/tags', Page: TimeTagsPage, roles: ALL_AUTH_ROLES },
           { path: '/timetrack/integrations', Page: TimeIntegrationsPage, roles: ADMIN_ONLY_ROLES },
-          { path: '/timetrack/rates', Page: TimeBillingRatesPage, roles: PAYMENT_ROLES },
           { path: '/timetrack/roles', Page: TimeRolesPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/activity/summary', Page: ActivitiesSummaryPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/activity/sites-apps', Page: SitesAppsPage, roles: ADMIN_ONLY_ROLES },
@@ -925,7 +904,6 @@ function AppRoutes() {
           { path: '/timetrack/activity/screenshots', Page: ActivityScreenshotsPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/activity/config', Page: AgentConfigPage, roles: ADMIN_ONLY_ROLES },
           { path: '/timetrack/settings', Page: TimeSettingsPage, roles: ADMIN_ONLY_ROLES },
-          { path: '/timetrack/kiosk', Page: TimeKioskPage, roles: ALL_AUTH_ROLES },
         ].map(({ path, Page, roles }) => (
           <Route
             key={path}
