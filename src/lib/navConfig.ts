@@ -319,14 +319,20 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
   {
     key: 'timeTracking',
     label: 'Time Tracking',
-    description: 'Timers, timesheets & billing',
+    description: 'Timers, timesheets & activity',
     icon: 'Clock',
     color: 'text-teal-400',
     iconBg: 'bg-teal-500/15',
+    // Finance (billable/estimates/revenues/costs/margin), Attendance and
+    // Clients & Invoices are deliberately left out of the sidebar for now —
+    // the team only needs time tracking, activity/app/site tracking, reports
+    // and screenshots. Their groups (timeTrackFinance, timeTrackAttendance,
+    // timeTrackClients) and routes still exist; re-add the keys here to bring
+    // them back.
     groups: [
       'timeTrackTrack', 'timeTrackReportsTime', 'timeTrackReportsPeople', 'timeTrackReportsOther',
-      'timeTrackFinance', 'timeTrackActivityProductivity', 'timeTrackActivityVerification', 'timeTrackActivityConfig', 'timeTrackManage',
-      'timeTrackAttendance', 'timeTrackTeam', 'timeTrackClients', 'timeTrackSettings',
+      'timeTrackActivityProductivity', 'timeTrackActivityVerification', 'timeTrackActivityConfig', 'timeTrackManage',
+      'timeTrackTeam', 'timeTrackSettings',
     ],
   },
   {
