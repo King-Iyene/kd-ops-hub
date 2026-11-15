@@ -79,6 +79,38 @@ export function ActivityDateRangeBar({ start, end, setStart, setEnd }: {
   );
 }
 
+/** Minutes each capture really represents, per employee. The configured interval is only what
+ * the admin asked for; if the desktop app actually captured more often (an older build captured
+ * about once a minute regardless of a 10-minute setting), counting every capture as the
+ * configured interval inflates hours several times over. So use the median gap between that
+ * person's consecutive captures when it is smaller than the configured interval. */
+function effectiveIntervals(logs: ActivityLog[], configured: Map<string, number>): Map<string, number> {
+  const byEmployee = new Map<string, number[]>();
+  for (const l of logs) {
+    const arr = byEmployee.get(l.employee_id) ?? [];
+    arr.push(new Date(l.captured_at).getTime());
+    byEmployee.set(l.employee_id, arr);
+  }
+  const out = new Map<string, number>(configured);
+  for (const [employeeId, times] of byEmployee) {
+    const cfg = configured.get(employeeId) ?? 10;
+    times.sort((a, b) => a - b);
+    const gaps: number[] = [];
+    for (let i = 1; i < times.length; i++) {
+      const gapMin = (times[i] - times[i - 1]) / 60000;
+      if (gapMin > 0 && gapMin <= cfg * 3) gaps.push(gapMin);
+    }
+    if (gaps.length >= 3) {
+      gaps.sort((a, b) => a - b);
+      const median = gaps[Math.floor(gaps.length / 2)];
+      out.set(employeeId, Math.max(0.5, Math.min(cfg, median)));
+    } else {
+      out.set(employeeId, cfg);
+    }
+  }
+  return out;
+}
+
 /** Captures in range joined with each employee's capture interval, so raw tick counts can be
  * turned into estimated tracked hours (each tick represents roughly one interval of activity). */
 export function useLogsWithIntervals(start: string, end: string) {
@@ -93,8 +125,9 @@ export function useLogsWithIntervals(start: string, end: string) {
       ]);
       if (logsErr) throw logsErr;
       if (settingsErr) throw settingsErr;
-      const intervalByEmployee = new Map((settings ?? []).map((s) => [s.employee_id, s.capture_interval_minutes]));
-      return { logs: (logs ?? []) as ActivityLog[], intervalByEmployee };
+      const configured = new Map((settings ?? []).map((s) => [s.employee_id, s.capture_interval_minutes as number]));
+      const typedLogs = (logs ?? []) as ActivityLog[];
+      return { logs: typedLogs, intervalByEmployee: effectiveIntervals(typedLogs, configured) };
     },
   });
 }
