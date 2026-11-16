@@ -9,6 +9,9 @@ export interface TrackedHours {
   /** Hours the desktop app captured while no task timer was running (TimeCamp's
    * "unassigned computer activities"). */
   unassignedHours: number;
+  /** ALL captured computer time (whether or not a task was running): what the desktop
+   * app actually watched, like TimeCamp's computer-activity total. */
+  computerHours: number;
   /** entryHours + unassignedHours: everything the person was tracked for. */
   total: number;
 }
@@ -41,7 +44,7 @@ export function useTrackedHours(start: string, end: string): Map<string, Tracked
 
   return useMemo(() => {
     const result = new Map<string, TrackedHours>();
-    const get = (id: string) => result.get(id) ?? { entryHours: 0, unassignedHours: 0, total: 0 };
+    const get = (id: string) => result.get(id) ?? { entryHours: 0, unassignedHours: 0, computerHours: 0, total: 0 };
     const now = Date.now();
 
     const intervalsByEmployee = new Map<string, { s: number; e: number }[]>();
@@ -60,9 +63,13 @@ export function useTrackedHours(start: string, end: string): Map<string, Tracked
       if (l.productivity_category === 'idle') continue; // away time is not tracked work
       const t = new Date(l.captured_at).getTime();
       const covered = (intervalsByEmployee.get(l.employee_id) ?? []).some((iv) => t >= iv.s && t <= iv.e);
-      if (covered) continue;
       const minutes = logData?.intervalByEmployee.get(l.employee_id) ?? 10;
       const row = get(l.employee_id);
+      row.computerHours += minutes / 60;
+      if (covered) {
+        result.set(l.employee_id, row);
+        continue;
+      }
       row.unassignedHours += minutes / 60;
       result.set(l.employee_id, row);
     }

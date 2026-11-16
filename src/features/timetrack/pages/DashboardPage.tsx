@@ -85,8 +85,9 @@ export default function DashboardPage() {
 
   const todayRows = today ?? [];
   const myWeekTotal = myWeek?.total ?? 0;
-  const myWeekComputer = trackedWeek.get(profile?.id ?? '')?.unassignedHours ?? 0;
-  const teamComputerToday = [...trackedToday.values()].reduce((s, t) => s + t.unassignedHours, 0);
+  const myWeekComputer = trackedWeek.get(profile?.id ?? '')?.computerHours ?? 0;
+  const teamComputerToday = [...trackedToday.values()].reduce((s, t) => s + t.computerHours, 0);
+  const computerTodayFor = (id: string) => trackedToday.get(id)?.computerHours ?? 0;
 
   const activeNow = todayRows.filter((t) => t.is_timer_active).length;
   const teamHoursToday = todayRows.reduce((s, t) => s + t.hours_today, 0);
@@ -104,8 +105,8 @@ export default function DashboardPage() {
 
   const handleDownload = () => {
     const rows = canViewOthers ? roster : (myToday ? [myToday] : []);
-    const header = ['Name', 'Hours today', 'Active now', 'Current project'];
-    const body = rows.map((r) => [r.full_name, r.hours_today.toFixed(2), r.is_timer_active ? 'Yes' : 'No', r.active_project_name ?? '']);
+    const header = ['Name', 'Task hours today', 'Computer activity hours today', 'Active now', 'Current project'];
+    const body = rows.map((r) => [r.full_name, r.hours_today.toFixed(2), computerTodayFor(r.employee_id).toFixed(2), r.is_timer_active ? 'Yes' : 'No', r.active_project_name ?? '']);
     downloadCsv(`timetrack-today-${format(new Date(), 'yyyy-MM-dd')}.csv`, toCsv(header, body));
   };
 
@@ -124,11 +125,11 @@ export default function DashboardPage() {
       />
 
       <div className="kd-stat-grid kd-stagger-in">
-        <StatCard title="My hours this week" value={`${myWeekTotal.toFixed(1)} hrs`} icon={Clock} tone="primary" subtitle={`+ ${myWeekComputer.toFixed(1)}h computer activity, no task`} />
+        <StatCard title="My hours this week" value={`${myWeekTotal.toFixed(1)} hrs`} icon={Clock} tone="primary" subtitle={`Computer activity this week: ${myWeekComputer.toFixed(1)}h`} />
         {canViewOthers ? (
           <>
             <StatCard title="Active timers now" value={activeNow} icon={Users} tone={activeNow > 0 ? 'success' : 'default'} />
-            <StatCard title="Team hours today" value={`${teamHoursToday.toFixed(1)} hrs`} icon={Users} tone="info" subtitle={`+ ${teamComputerToday.toFixed(1)}h computer activity, no task`} />
+            <StatCard title="Team hours today" value={`${teamHoursToday.toFixed(1)} hrs`} icon={Users} tone="info" subtitle={`Computer activity today: ${teamComputerToday.toFixed(1)}h`} />
           </>
         ) : (
           <StatCard
@@ -195,7 +196,16 @@ export default function DashboardPage() {
                       {r.is_timer_active && (
                         <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-3xs">active</Badge>
                       )}
-                      <span className="text-base font-mono tabular-nums w-16 text-right">{r.hours_today.toFixed(2)}h</span>
+                      <div className="flex items-center gap-5 text-right">
+                        <div>
+                          <p className="text-base font-mono tabular-nums">{computerTodayFor(r.employee_id).toFixed(2)}h</p>
+                          <p className="text-3xs text-muted-foreground">computer</p>
+                        </div>
+                        <div>
+                          <p className="text-base font-mono tabular-nums">{r.hours_today.toFixed(2)}h</p>
+                          <p className="text-3xs text-muted-foreground">tasks</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
