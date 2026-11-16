@@ -309,6 +309,13 @@ function announceSignedIn(label: string) {
   }
 }
 
+/** Shows the main window once it has rendered (avoids a blank flash). */
+function showMainWhenReady() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.webContents.isLoading()) mainWindow.once('ready-to-show', () => mainWindow?.show());
+  else mainWindow.show();
+}
+
 function beginSession(r: NonNullable<Restored>) {
   currentEmployeeId = r.userId;
   const label = r.kind === 'offline' ? r.email + ' (offline - will sync when connected)' : r.email;
@@ -395,6 +402,10 @@ function createWindow() {
     width: 360,
     height: 420,
     resizable: false,
+    // Hidden by default, like TimeCamp: once signed in there is no window, only the
+    // floating widget and the tray menu. It is shown when sign-in is needed, or from
+    // the tray's "Settings…" / the widget's "⋯" (that is where Sign out lives).
+    show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
@@ -608,7 +619,7 @@ function rebuildTrayMenu() {
           },
         ];
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Show', click: () => mainWindow?.show() },
+    { label: 'Settings…', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { type: 'separator' },
     ...taskItems,
     { label: 'Create New Task…', click: () => createTaskPickerWindow(true) },
@@ -616,7 +627,7 @@ function rebuildTrayMenu() {
     { label: 'Open in Browser', click: () => void shell.openExternal(WEB_APP_TIME_URL) },
     { type: 'separator' },
     {
-      label: 'Show floating widget',
+      label: 'Show Task Widget',
       type: 'checkbox',
       checked: widgetPreferenceEnabled(),
       click: (menuItem) => {
@@ -685,6 +696,7 @@ app.whenReady().then(async () => {
 
   if (configError) {
     mainWindow?.webContents.once('did-finish-load', () => safeSend(mainWindow, 'config-error', configError));
+    showMainWhenReady(); // a build problem must be visible
     return;
   }
 
@@ -701,10 +713,12 @@ app.whenReady().then(async () => {
   // the app switches to online and uploads anything queued meanwhile.
   const cachedUserId = store.get('employee_id');
   if (store.get('refresh_token') && cachedUserId) {
+    // Already signed in: stay out of the way (no window), just the widget and tray.
     beginSession({ kind: 'offline', userId: cachedUserId, email: store.get('email') ?? '' });
   } else {
     const restored = await restoreSession();
     if (restored) beginSession(restored);
+    else showMainWhenReady(); // nobody signed in: show the sign-in window
   }
 });
 
@@ -826,6 +840,11 @@ ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; passw
   pollSettingsAndTrack(data.session.user.id);
   void reportCheckin();
   void refreshActiveTimer();
+  // Job done once signed in: let the person see "Signed in" for a moment, then tuck the
+  // window away so only the widget stays on screen.
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+  }, 1500);
   return { ok: true, email: data.session.user.email };
 });
 
