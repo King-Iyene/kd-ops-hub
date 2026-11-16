@@ -66,6 +66,7 @@
       "icon": "build/icon.png"
     },
     "nsis": {
+      "artifactName": "KD-Ops-Time-Tracker-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
