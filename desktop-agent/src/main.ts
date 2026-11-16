@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification, shell, powerMonitor } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
@@ -27,7 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
-import { startTracking, stopTracking, setTimerRunningProvider, captureNow } from './tracker';
+import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
   fetchPickableTasks,
@@ -130,6 +130,8 @@ const store = new Store<{
   email?: string;
   settings?: CachedSettings;
   picker?: PickerCache;
+  /** Last time this app knew a task timer was running (30s heartbeat), to recover from a crash or power loss. */
+  timerBeat?: { entryId: string; at: number };
 }>();
 
 let mainWindow: BrowserWindow | null = null;
@@ -532,6 +534,48 @@ function createTaskPickerWindow(startInCreate = false) {
 // --- Pause / Stop / Resume: shared by the tray menu and the widget/picker's
 // IPC handlers below, so there's exactly one place each does its actual work. ---
 
+// --- Keeping the tracked time honest -----------------------------------------------
+// A timer must not keep counting when nobody is working. It stops (and the entry ends at
+// the moment work really stopped) when: the app quits, the computer sleeps, the computer
+// has been unused for the admin policy time, or the app died (crash / power loss) while
+// the timer ran and is found still open at the next start.
+
+const STALE_TIMER_MS = 2 * 60 * 1000; // open entry + last heartbeat older than this at start-up = app was not running
+
+async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 'stale'): Promise<void> {
+  if (!supabase || !activeTimer) return;
+  const t = activeTimer;
+  const end = Math.max(endMs, new Date(t.startTime).getTime()); // never before it started
+  activeTimer = null;
+  pausedTask = null;
+  store.delete('timerBeat');
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+  try {
+    await stopActiveTimer(supabase, t.entryId, new Date(end).toISOString());
+  } catch (err) {
+    console.error('[timer] could not close the entry:', err);
+  }
+  if (reason === 'idle' || reason === 'sleep') {
+    const hhmm = new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    new Notification({
+      title: 'KD Ops Time Tracker',
+      body: reason === 'idle' ? `Timer stopped: no activity since ${hhmm}.` : `Timer stopped when the computer went to sleep (${hhmm}).`,
+    }).show();
+  }
+}
+
+/** Every 30s while a timer runs: remember we are alive, and stop it if the computer has been unused too long. */
+function startTimerWatchdog() {
+  setInterval(() => {
+    if (!activeTimer) return;
+    store.set('timerBeat', { entryId: activeTimer.entryId, at: Date.now() });
+    const idleSec = powerMonitor.getSystemIdleTime();
+    if (idleSec >= getStopWhenUnusedMinutes() * 60) void stopTimerAt(Date.now() - idleSec * 1000, 'idle');
+  }, 30_000);
+  powerMonitor.on('suspend', () => void stopTimerAt(Date.now(), 'sleep'));
+}
+
 async function pauseActiveTask() {
   if (!supabase || !activeTimer) return;
   const toPause = activeTimer;
@@ -585,6 +629,12 @@ async function refreshActiveTimer() {
     // web app, or resumed some other way) — whatever was locally "paused"
     // before is superseded, so don't leave it to resurface once this stops.
     if (activeTimer) pausedTask = null;
+    const beat = store.get('timerBeat');
+    if (activeTimer && beat && beat.entryId === activeTimer.entryId && Date.now() - beat.at > STALE_TIMER_MS) {
+      // The entry is still open but this app has not been running for a while (crash,
+      // power loss, killed). End it when we last knew it was running, not now.
+      await stopTimerAt(beat.at, 'stale');
+    }
   } catch {
     // Non-fatal — widget just shows no task this tick; next poll retries.
   }
@@ -686,6 +736,7 @@ app.whenReady().then(async () => {
   // Capture only while a task timer runs (and tracking isn't paused), per the
   // "track only when timer running" policy (default on, same as Hubstaff / TimeCamp).
   setTimerRunningProvider(() => activeTimer !== null && !autoPaused);
+  startTimerWatchdog();
   createWindow();
   createWidgetWindow();
   tray = new Tray(path.join(__dirname, '../src/renderer/tray-icon.png'));
@@ -890,6 +941,13 @@ app.on('window-all-closed', () => {
 // OS shutdown/logoff) BEFORE any window's 'close' event — flips the flag
 // mainWindow's close interceptor checks, so an actual quit isn't silently
 // turned into a hide.
-app.on('before-quit', () => {
+let quitTimerHandled = false;
+app.on('before-quit', (event) => {
   isQuitting = true;
+  if (activeTimer && !quitTimerHandled) {
+    // Quitting must end the running entry, otherwise it keeps counting while the app is closed.
+    event.preventDefault();
+    quitTimerHandled = true;
+    void Promise.race([stopTimerAt(Date.now(), 'quit'), new Promise((r) => setTimeout(r, 2500))]).finally(() => app.quit());
+  }
 });

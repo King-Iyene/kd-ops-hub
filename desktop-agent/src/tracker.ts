@@ -276,6 +276,11 @@ async function readWindowsBrowserHost(appName: string): Promise<string | null> {
   }
 }
 
+/** Admin policy: stop the timer after the computer has been unused for this many minutes. */
+export function getStopWhenUnusedMinutes(): number {
+  return (idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY).stop_tracking_when_unused_minutes;
+}
+
 // main.ts tells the tracker whether a task timer is running right now.
 let timerRunning: () => boolean = () => false;
 export function setTimerRunningProvider(fn: () => boolean) {

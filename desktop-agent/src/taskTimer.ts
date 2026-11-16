@@ -195,8 +195,10 @@ export function switchTimer(
   });
 }
 
-export function stopActiveTimer(client: SupabaseClient, entryId: string): Promise<void> {
-  const endTime = new Date().toISOString(); // captured now, not when the write finally runs
+export function stopActiveTimer(client: SupabaseClient, entryId: string, endAtIso?: string): Promise<void> {
+  // captured now (or given: idle / sleep / crash recovery end the entry at the moment the
+  // person actually stopped working, not at the moment we noticed), never when the write runs
+  const endTime = endAtIso ?? new Date().toISOString();
   return enqueueTimerWrite(() =>
     writeOrQueue(
       () => client.from('time_entries').update({ end_time: endTime }).eq('id', entryId),
