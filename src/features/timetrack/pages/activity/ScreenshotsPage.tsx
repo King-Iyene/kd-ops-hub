@@ -67,7 +67,8 @@ export default function ScreenshotsPage() {
         .select('id, employee_id, storage_path, captured_at, time_activity_logs(app_name, url)')
         .gte('captured_at', startOfDay(dayDate).toISOString())
         .lte('captured_at', endOfDay(dayDate).toISOString())
-        .order('captured_at', { ascending: true })
+        // Newest first, so the latest capture is at the top without scrolling.
+        .order('captured_at', { ascending: false })
         .limit(300);
       if (employeeId) q = q.eq('employee_id', employeeId);
       const { data, error } = await q;
