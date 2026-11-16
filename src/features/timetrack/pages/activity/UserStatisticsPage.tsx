@@ -5,7 +5,7 @@ import { Loader2, Download, Users } from 'lucide-react';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
 import { useActiveEmployees } from '@/queries/useEmployees';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

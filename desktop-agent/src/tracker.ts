@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { desktopCapturer, nativeImage, powerMonitor } from 'electron';
+import { desktopCapturer, nativeImage, powerMonitor, screen } from 'electron';
 import { randomUUID } from 'crypto';
 import { queueInsert, writeOrQueue } from './offlineQueue';
 
@@ -144,21 +144,67 @@ async function refreshIdlePolicy(supabase: SupabaseClient) {
   }
 }
 
+// Every connected monitor goes into ONE wide image, left to right in their
+// real desktop order (like TimeCamp). Each screen is captured at up to
+// PER_SCREEN_WIDTH px so text stays readable and the viewer can zoom in; the
+// result is JPEG (a 3-screen PNG would be several MB per capture).
+const PER_SCREEN_WIDTH = 1600;
+const JPEG_QUALITY = 78;
+
+async function captureAllScreens(blur: boolean): Promise<Buffer | null> {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: PER_SCREEN_WIDTH, height: PER_SCREEN_WIDTH },
+  });
+  if (sources.length === 0) return null;
+
+  // Put the screens in left-to-right desktop order using the display bounds.
+  const displays = screen.getAllDisplays();
+  const xOf = (displayId: string, fallback: number) => {
+    const d = displays.find((x) => String(x.id) === displayId);
+    return d ? d.bounds.x : fallback;
+  };
+  const ordered = sources
+    .map((src, i) => ({ src, x: xOf(src.display_id, i * 100000) }))
+    .sort((a, b) => a.x - b.x)
+    .map((o) => o.src.thumbnail)
+    .filter((img) => !img.isEmpty());
+  if (ordered.length === 0) return null;
+
+  const sizes = ordered.map((img) => img.getSize());
+  const totalW = sizes.reduce((sum, sz) => sum + sz.width, 0);
+  const maxH = Math.max(...sizes.map((sz) => sz.height));
+
+  // Compose raw BGRA bitmaps side by side (no native image library needed).
+  const out = Buffer.alloc(totalW * maxH * 4);
+  for (let i = 3; i < out.length; i += 4) out[i] = 255; // opaque black background
+  let xOffset = 0;
+  ordered.forEach((img, idx) => {
+    const { width, height } = sizes[idx];
+    const bmp = img.toBitmap();
+    for (let row = 0; row < height; row++) {
+      const srcStart = row * width * 4;
+      const dstStart = (row * totalW + xOffset) * 4;
+      bmp.copy(out, dstStart, srcStart, srcStart + width * 4);
+    }
+    xOffset += width;
+  });
+
+  let image = nativeImage.createFromBitmap(out, { width: totalW, height: maxH });
+  if (blur) {
+    // Optional privacy blur: downscale hard, scale back up.
+    image = image.resize({ width: 96 }).resize({ width: totalW, height: maxH });
+  }
+  return image.toJPEG(JPEG_QUALITY);
+}
+
 async function captureAndUploadScreenshot(supabase: SupabaseClient, employeeId: string, activityLogId: string, blur: boolean) {
   try {
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1280, height: 800 } });
-    if (sources.length === 0) return;
-    let image: Electron.NativeImage = sources[0].thumbnail;
-    if (blur) {
-      // Cheap, dependency-free "blur": downscale hard then scale back up.
-      // Good enough to obscure readable text while still showing layout/activity.
-      const small = image.resize({ width: 64 });
-      image = small.resize({ width: 1280, height: 800 });
-    }
-    const buffer = image.toPNG();
-    const path = `${employeeId}/${Date.now()}.png`;
+    const buffer = await captureAllScreens(blur);
+    if (!buffer) return;
+    const path = `${employeeId}/${Date.now()}.jpg`;
     const { error: uploadError } = await supabase.storage.from('timetrack-screenshots').upload(path, buffer, {
-      contentType: 'image/png',
+      contentType: 'image/jpeg',
     });
     if (uploadError) {
       console.error('[tracker] screenshot upload failed:', uploadError.message);

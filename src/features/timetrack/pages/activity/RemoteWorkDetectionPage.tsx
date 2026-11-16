@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useActiveEmployees } from '@/queries/useEmployees';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';

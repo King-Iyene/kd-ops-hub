@@ -127,56 +127,81 @@ export async function getActiveTimer(client: SupabaseClient, employeeId: string)
  * permissive (click a new task to switch directly), so this must be atomic
  * from the caller's point of view: old entry closed, new one open, never both
  * running at once. */
-export async function switchTimer(
+// Every timer write (start, switch, pause, stop) goes through this one chain, in the
+// order it was requested. They run in the background (so the UI never waits on the
+// network), and without this a "stop" could reach the offline queue BEFORE the
+// "start" it belongs to; replayed in that order the stop finds no row, and the
+// entry would stay open forever.
+let timerWrites: Promise<unknown> = Promise.resolve();
+function enqueueTimerWrite(job: () => Promise<void>): Promise<void> {
+  const run = timerWrites.then(job, job);
+  timerWrites = run.catch(() => undefined);
+  return run;
+}
+
+export function switchTimer(
   client: SupabaseClient,
   employeeId: string,
   task: PickableTask,
+  knownActive?: ActiveTimer | null,
 ): Promise<ActiveTimer> {
-  // getActiveTimer is a read — if we're offline it'll just fail/throw past this
-  // function (acceptable: it only runs with a live connection already assumed,
-  // same as before). The writes below are what need offline resilience, since
-  // they're what loses data if dropped.
-  const existing = await getActiveTimer(client, employeeId);
-  if (existing) {
-    await writeOrQueue(
-      () => client.from('time_entries').update({ end_time: new Date().toISOString() }).eq('id', existing.entryId),
-      () => queueUpdate('time_entries', existing.entryId, { end_time: new Date().toISOString() }, { column: 'id', value: existing.entryId }),
-    );
-  }
-  // Generated here (not left to the DB default) so the id is known immediately
-  // even if the insert itself ends up only reaching the server later via the
-  // offline queue — Stop/Pause can then act on this id right away without
-  // waiting for a round trip that may not have happened yet.
+  // Returns IMMEDIATELY with the new timer and does the server work in the
+  // background. Every server call can take many seconds to fail when the
+  // connection is dead or flaky, and the old version awaited all of them before
+  // the widget could react, so starting a task felt frozen offline. The ids and
+  // timestamps are generated here, so nothing depends on a round trip: writes
+  // either land now or sit in the offline queue and upload later, in order.
+  const now = new Date().toISOString();
   const entryId = randomUUID();
-  const startTime = new Date().toISOString();
   const payload = {
     id: entryId,
     employee_id: employeeId,
     task_id: task.taskId,
     project_id: task.projectId,
-    start_time: startTime,
+    start_time: now,
     entry_source: ENTRY_SOURCE,
   };
-  await writeOrQueue(
-    () => client.from('time_entries').insert(payload),
-    () => queueInsert('time_entries', payload),
-  );
-  return {
+
+  void enqueueTimerWrite(async () => {
+    // Close whatever is running (the web app may have started something this app
+    // doesn't know about, so ask the server; offline, fall back to what we know).
+    let existing: ActiveTimer | null = null;
+    try {
+      existing = await getActiveTimer(client, employeeId);
+    } catch {
+      existing = knownActive ?? null;
+    }
+    if (existing && existing.entryId !== entryId) {
+      const old = existing;
+      await writeOrQueue(
+        () => client.from('time_entries').update({ end_time: now }).eq('id', old.entryId),
+        () => queueUpdate('time_entries', old.entryId, { end_time: now }, { column: 'id', value: old.entryId }),
+      );
+    }
+    await writeOrQueue(
+      () => client.from('time_entries').insert(payload),
+      () => queueInsert('time_entries', payload),
+    );
+  }).catch((err) => console.error('[taskTimer] start/switch write failed:', err));
+
+  return Promise.resolve({
     entryId,
     taskId: task.taskId,
     projectId: task.projectId,
     taskName: task.taskName,
     projectName: task.projectName,
     clientName: task.clientName,
-    startTime,
-  };
+    startTime: now,
+  });
 }
 
-export async function stopActiveTimer(client: SupabaseClient, entryId: string): Promise<void> {
-  const endTime = new Date().toISOString();
-  await writeOrQueue(
-    () => client.from('time_entries').update({ end_time: endTime }).eq('id', entryId),
-    () => queueUpdate('time_entries', entryId, { end_time: endTime }, { column: 'id', value: entryId }),
+export function stopActiveTimer(client: SupabaseClient, entryId: string): Promise<void> {
+  const endTime = new Date().toISOString(); // captured now, not when the write finally runs
+  return enqueueTimerWrite(() =>
+    writeOrQueue(
+      () => client.from('time_entries').update({ end_time: endTime }).eq('id', entryId),
+      () => queueUpdate('time_entries', entryId, { end_time: endTime }, { column: 'id', value: entryId }),
+    ),
   );
 }
 

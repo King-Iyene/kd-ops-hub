@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, endOfDay, format, startOfDay } from 'date-fns';
-import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { useTimetrackCapabilities } from '../../lib/capabilities';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,9 @@ export default function ScreenshotsPage() {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const openViewer = (r: ScreenshotRow) => { setZoom(1); setViewing(r); };
+  const clampZoom = (z: number) => Math.min(6, Math.max(1, Number(z.toFixed(2))));
 
   const dayDate = new Date(`${day}T00:00:00`);
   const shiftDay = (n: number) => setDay(format(addDays(dayDate, n), 'yyyy-MM-dd'));
@@ -212,11 +215,11 @@ export default function ScreenshotsPage() {
                   <TableCell>{appOf(r)}</TableCell>
                   <TableCell>
                     {urls[r.id] ? (
-                      <button type="button" onClick={() => setViewing(r)} className="block cursor-zoom-in" aria-label="View full-size screenshot">
-                        <img src={urls[r.id]} alt="" className="h-16 w-28 rounded border border-border/60 object-cover bg-muted" loading="lazy" />
+                      <button type="button" onClick={() => openViewer(r)} className="block cursor-zoom-in" aria-label="View full-size screenshot">
+                        <img src={urls[r.id]} alt="" className="h-20 w-auto max-w-[360px] rounded border border-border/60 object-contain bg-black" loading="lazy" />
                       </button>
                     ) : (
-                      <div className="flex h-16 w-28 items-center justify-center rounded bg-muted"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                      <div className="flex h-20 w-40 items-center justify-center rounded bg-muted"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                     )}
                   </TableCell>
                   {canManage && (
@@ -251,15 +254,31 @@ export default function ScreenshotsPage() {
       )}
 
       <Dialog open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-[96vw] w-[96vw] p-3 gap-2">
+          <DialogHeader className="pr-8">
+            <DialogTitle className="text-sm">
               {viewing ? `${nameOf(viewing.employee_id)} — ${format(new Date(viewing.captured_at), 'MMM d, yyyy HH:mm:ss')}${appOf(viewing) ? ` — ${appOf(viewing)}` : ''}` : ''}
             </DialogTitle>
           </DialogHeader>
-          {viewing && urls[viewing.id] && (
-            <img src={urls[viewing.id]} alt="Full-size screenshot" className="w-full rounded-md bg-muted" />
-          )}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z - 0.5))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z + 0.5))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setZoom(1)}><Maximize2 className="h-3.5 w-3.5 mr-1.5" />Fit</Button>
+            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(zoom * 100)}% · scroll to move · click the image or Ctrl+scroll to zoom</span>
+          </div>
+          <div className="max-h-[78vh] overflow-auto rounded-md bg-black">
+            {viewing && urls[viewing.id] && (
+              <img
+                src={urls[viewing.id]}
+                alt="Full-size screenshot"
+                draggable={false}
+                onClick={() => setZoom((z) => (z >= 3 ? 1 : clampZoom(z + 1)))}
+                onWheel={(e) => { if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25))); }}
+                className="block max-w-none cursor-zoom-in"
+                style={{ width: `${zoom * 100}%` }}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

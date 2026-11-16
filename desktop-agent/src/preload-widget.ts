@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('widget', {
       idle: boolean;
       startedAt: number | null;
       task: { name: string; project: string; startedAt: number } | null;
-      pausedTask: { name: string; project: string } | null;
+      pausedTask: { name: string; project: string; elapsedMs?: number } | null;
       autoPaused: boolean;
     }) => void,
   ) => ipcRenderer.on('widget-status', (_e, status) => cb(status)),

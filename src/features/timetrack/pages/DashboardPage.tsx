@@ -5,14 +5,15 @@ import { Loader2, Clock, Users, TrendingUp, AlertTriangle, Download, Search, Use
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useTimetrackCapabilities } from '../lib/capabilities';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { StatCard } from '@/components/ui-kit/StatCard';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
+import { StatCard } from '@/features/timetrack/ui/TrackerStat';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import { useTrackedHours } from '../lib/useTrackedHours';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -73,19 +74,33 @@ export default function DashboardPage() {
     enabled: canViewOthers,
   });
 
-  const activeNow = (today ?? []).filter((t) => t.is_timer_active).length;
-  const teamHoursToday = (today ?? []).reduce((s, t) => s + t.hours_today, 0);
-  const myToday = (today ?? []).find((t) => t.employee_id === profile?.id);
+  // "Hours" are TASK hours only: time on a started task timer, like TimeCamp. The
+  // desktop app watching the computer with no task selected is not counted as
+  // hours (opening the app must not start the clock). That computer activity is
+  // shown separately, so the two figures are never mixed up.
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const weekStartStr = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const trackedToday = useTrackedHours(todayStr, todayStr);
+  const trackedWeek = useTrackedHours(weekStartStr, todayStr);
+
+  const todayRows = today ?? [];
+  const myWeekTotal = myWeek?.total ?? 0;
+  const myWeekComputer = trackedWeek.get(profile?.id ?? '')?.unassignedHours ?? 0;
+  const teamComputerToday = [...trackedToday.values()].reduce((s, t) => s + t.unassignedHours, 0);
+
+  const activeNow = todayRows.filter((t) => t.is_timer_active).length;
+  const teamHoursToday = todayRows.reduce((s, t) => s + t.hours_today, 0);
+  const myToday = todayRows.find((t) => t.employee_id === profile?.id);
 
   const roster = useMemo(() => {
-    const rows = (today ?? []).slice().sort((a, b) => {
+    const rows = todayRows.slice().sort((a, b) => {
       if (a.is_timer_active !== b.is_timer_active) return a.is_timer_active ? -1 : 1;
       return b.hours_today - a.hours_today;
     });
     if (!search.trim()) return rows;
     const q = search.trim().toLowerCase();
     return rows.filter((r) => r.full_name.toLowerCase().includes(q));
-  }, [today, search]);
+  }, [todayRows, search]);
 
   const handleDownload = () => {
     const rows = canViewOthers ? roster : (myToday ? [myToday] : []);
@@ -109,12 +124,12 @@ export default function DashboardPage() {
       />
 
       <div className="kd-stat-grid kd-stagger-in">
-        <StatCard title="My hours this week" value={`${(myWeek?.total ?? 0).toFixed(1)} hrs`} icon={Clock} tone="primary" />
+        <StatCard title="My hours this week" value={`${myWeekTotal.toFixed(1)} hrs`} icon={Clock} tone="primary" subtitle={`+ ${myWeekComputer.toFixed(1)}h computer activity, no task`} />
         <StatCard title="Billable this week" value={`${(myWeek?.billable ?? 0).toFixed(1)} hrs`} icon={TrendingUp} tone="success" />
         {canViewOthers ? (
           <>
             <StatCard title="Active timers now" value={activeNow} icon={Users} tone={activeNow > 0 ? 'success' : 'default'} />
-            <StatCard title="Team hours today" value={`${teamHoursToday.toFixed(1)} hrs`} icon={Users} tone="info" />
+            <StatCard title="Team hours today" value={`${teamHoursToday.toFixed(1)} hrs`} icon={Users} tone="info" subtitle={`+ ${teamComputerToday.toFixed(1)}h computer activity, no task`} />
           </>
         ) : (
           <StatCard

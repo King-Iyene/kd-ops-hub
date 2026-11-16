@@ -19,6 +19,7 @@ const createSubmitBtn = document.getElementById('create-submit');
 let allTasks = [];
 let suggested = [];
 let allProjects = [];
+let dataLoaded = false; // true once the main process has sent any project/task data
 let query = '';
 // Collapsed state is keyed by a group key ("client::<name>" / "project::<id>")
 // — absent from the set means expanded. Starts empty so everything is
@@ -113,7 +114,9 @@ function render() {
     html += '<div class="section-header">All Projects and Tasks</div>';
     const tree = buildTree(allTasks, allProjects);
     if (tree.length === 0) {
-      html += '<div id="empty">No projects yet — create one in the web app (Time Tracking → Projects)</div>';
+      html += dataLoaded
+        ? '<div id="empty">No projects yet — create one in the web app (Time Tracking → Projects)</div>'
+        : '<div id="empty">Loading…</div>';
     }
     for (const client of tree) {
       const clientKey = groupKey('client', client.clientName);
@@ -224,28 +227,41 @@ function enterCreateMode(preselectProjectId) {
   createFormEl.classList.add('visible');
   createErrorEl.textContent = '';
   createNameEl.value = '';
+  populateProjectSelect(preselectProjectId);
+  createNameEl.focus();
+}
 
+// Fills the Project dropdown from the project list. Called when the form opens AND
+// again whenever fresh data arrives while the form is open (the list can still be
+// loading, or arrive late on a slow connection, when someone opens the form).
+function populateProjectSelect(preselectProjectId) {
+  const previouslySelected =
+    createProjectEl._projects?.[Number(createProjectEl.value)]?.projectId ?? null;
   const projects = sortedProjects(allProjects);
   if (projects.length === 0) {
     createProjectEl.innerHTML = '';
     createProjectEl.disabled = true;
-    createErrorEl.textContent = 'No projects exist yet — create one in the web app first (Settings → Projects & Tasks).';
+    createErrorEl.textContent = dataLoaded
+      ? 'No projects exist yet — create one in the web app first (Settings → Projects & Tasks).'
+      : 'Loading projects…';
   } else {
     createProjectEl.disabled = false;
+    createErrorEl.textContent = '';
     createProjectEl.innerHTML = projects
       .map(
         (p, i) =>
           `<option value="${i}">${escapeHtml([p.clientName, p.projectName].filter(Boolean).join(' · '))}</option>`,
       )
       .join('');
-    // Reached via a project's "+ Add task" row: start on that project.
-    if (typeof preselectProjectId === 'string') {
-      const i = projects.findIndex((p) => p.projectId === preselectProjectId);
+    // Reached via a project's "+ Add task" row: start on that project; otherwise keep
+    // whatever was already chosen when the list refreshes underneath the person.
+    const wanted = typeof preselectProjectId === 'string' ? preselectProjectId : previouslySelected;
+    if (wanted) {
+      const i = projects.findIndex((p) => p.projectId === wanted);
       if (i >= 0) createProjectEl.value = String(i);
     }
   }
   createProjectEl._projects = projects; // stash for submit, avoids re-parsing option text
-  createNameEl.focus();
 }
 
 function exitCreateMode() {
@@ -307,7 +323,11 @@ window.taskPicker.onData(({ tasks, suggested: s, projects }) => {
   allTasks = tasks;
   suggested = s;
   allProjects = projects ?? [];
+  dataLoaded = true;
   render();
+  // The create form may already be open (data can arrive after it was opened):
+  // refill its project list instead of leaving it stuck on "no projects".
+  if (mode === 'create') populateProjectSelect();
   // Opened from the tray's "Create New Task…": go straight to the form (once).
   if (new URLSearchParams(location.search).get('create') === '1' && mode === 'browse' && !render.openedCreate) {
     render.openedCreate = true;

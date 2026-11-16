@@ -12,6 +12,7 @@ import { SUPABASE_URL as BAKED_URL, SUPABASE_ANON_KEY as BAKED_ANON_KEY } from '
 //      (scripts/write-config.js), which is what a packaged installer ships
 //      with since there's no .env next to an installed app.
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim() || BAKED_URL;
+export const supabaseUrl = SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY?.trim() || BAKED_ANON_KEY;
 
 export const configError =

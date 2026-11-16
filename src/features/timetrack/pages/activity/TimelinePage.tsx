@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Loader2, History } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useActiveEmployees } from '@/queries/useEmployees';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

@@ -1,5 +1,5 @@
 import { MapPin } from 'lucide-react';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { useReportFilters } from '../../reports/useReportFilters';
 import { ReportFiltersBar } from '../../reports/ReportFiltersBar';
 

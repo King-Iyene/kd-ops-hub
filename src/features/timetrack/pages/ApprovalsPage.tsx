@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Check, X, Unlock, CheckSquare } from 'lucide-react';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { StatCard } from '@/components/ui-kit/StatCard';
+import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
+import { StatCard } from '@/features/timetrack/ui/TrackerStat';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';

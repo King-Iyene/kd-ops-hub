@@ -29,6 +29,11 @@ function showSignedIn(email) {
 }
 
 window.agent.onSignedIn((email) => showSignedIn(email));
+window.agent.onSignedOut(() => {
+  loginView.classList.remove('hidden');
+  signedInView.classList.add('hidden');
+  errorEl.textContent = 'Your login expired. Please sign in again.';
+});
 window.agent.onStatus((status) => {
   statusEl.textContent = status.tracking ? 'Tracking active.' : 'Tracking is OFF (ask an admin to enable it for you).';
 });

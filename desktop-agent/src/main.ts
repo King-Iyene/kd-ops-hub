@@ -26,9 +26,9 @@ if (!app.isPackaged) {
   }
 }
 
-import { supabase, configError } from './supabaseClient';
+import { supabase, configError, supabaseUrl } from './supabaseClient';
 import { startTracking, stopTracking } from './tracker';
-import { startAutoFlush, flushQueue, queueLength } from './offlineQueue';
+import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
   fetchPickableTasks,
   fetchSuggestedTasks,
@@ -40,6 +40,7 @@ import {
   stopActiveTimer,
   type ActiveTimer,
   type PickableTask,
+  type PickableProject,
 } from './taskTimer';
 
 // Single-instance lock: without this, every launch (a second double-click of
@@ -116,7 +117,20 @@ async function reportCheckin() {
   }
 }
 
-const store = new Store<{ refresh_token?: string; widget_visible?: boolean }>();
+interface CachedSettings { is_enabled: boolean; capture_interval_minutes: number; screenshots_enabled: boolean; blur_screenshots: boolean }
+interface PickerCache { tasks: PickableTask[]; suggested: PickableTask[]; projects: PickableProject[] }
+
+// Beyond the login token this keeps what the app needs to keep working with
+// NO internet: who is signed in, the last tracking settings the server gave
+// us, and the last project/task list (so the picker still works offline).
+const store = new Store<{
+  refresh_token?: string;
+  widget_visible?: boolean;
+  employee_id?: string;
+  email?: string;
+  settings?: CachedSettings;
+  picker?: PickerCache;
+}>();
 
 let mainWindow: BrowserWindow | null = null;
 // Set by the 'before-quit' handler below so mainWindow's 'close' interceptor
@@ -176,39 +190,174 @@ let pausedTask: ActiveTimer | null = null;
 // pauses everything like TimeCamp). Session-local; the settings poll honours
 // it so it doesn't silently restart tracking every 60s.
 let autoPaused = false;
+let pausedAtMs: number | null = null; // when the current task was paused, so the widget can freeze its clock
 let runSettingsCheck: (() => Promise<void>) | null = null;
 
 async function setAutoPaused(paused: boolean) {
   autoPaused = paused;
   if (paused) stopTracking();
-  else if (runSettingsCheck) await runSettingsCheck();
+  // Update the widget and tray FIRST. The settings check below talks to the server,
+  // which can take seconds to fail on a bad connection; the UI must not wait for it.
   rebuildTrayMenu();
   sendWidgetStatus(trackingStartedAt != null);
+  if (!paused && runSettingsCheck) await runSettingsCheck();
 }
 
-async function restoreSession() {
+type Restored = { kind: 'online' | 'offline'; userId: string; email: string } | null;
+
+/** Brings the saved login back. Three outcomes, deliberately different:
+ *  - online:  the server accepted the token (and gave us a fresh one, saved).
+ *  - offline: we could not REACH the server (no internet, outage). The login
+ *             is kept and the app runs from the cached identity; it syncs
+ *             when the connection returns. Before this, ANY failure, even
+ *             being offline, deleted the saved login and signed the person out.
+ *  - null:    the server explicitly rejected the token, so it really is
+ *             invalid and the person has to sign in again. */
+/** Quick yes/no: can we reach the server right now? Any HTTP answer counts as
+ * reachable. Needed because the login library retries a dead connection for
+ * ~40s while holding an internal lock that every other request waits on, which
+ * froze the whole app on start-up whenever there was no internet. */
+async function isServerReachable(): Promise<boolean> {
+  try {
+    await fetch(`${supabaseUrl}/auth/v1/health`, { signal: AbortSignal.timeout(4000) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function restoreSession(): Promise<Restored> {
   if (!supabase) return null;
   const refreshToken = store.get('refresh_token');
   if (!refreshToken) return null;
-  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
-  if (error || !data.session) {
-    store.delete('refresh_token');
-    return null;
+  if (!(await isServerReachable())) {
+    const cachedId = store.get('employee_id');
+    return cachedId ? { kind: 'offline', userId: cachedId, email: store.get('email') ?? '' } : null;
   }
-  store.set('refresh_token', data.session.refresh_token);
-  return data.session;
+  try {
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+    if (data.session) {
+      store.set('refresh_token', data.session.refresh_token);
+      store.set('employee_id', data.session.user.id);
+      store.set('email', data.session.user.email ?? '');
+      return { kind: 'online', userId: data.session.user.id, email: data.session.user.email ?? '' };
+    }
+    const status = (error as { status?: number } | null)?.status;
+    if (status === 400 || status === 401 || status === 403) {
+      store.delete('refresh_token');
+      return null;
+    }
+  } catch {
+    // network failure: fall through to the offline path
+  }
+  const userId = store.get('employee_id');
+  if (userId) return { kind: 'offline', userId, email: store.get('email') ?? '' };
+  return null;
+}
+
+let reconnectHandle: ReturnType<typeof setInterval> | null = null;
+
+/** Started when the app launched without a connection. Retries the login every
+ * 15s; once it works, writes go straight to the server again and everything
+ * queued while offline is uploaded. */
+// True once the server has accepted our login in this run (sign-in, or the saved
+// login restored). Until then we are running from the cached identity.
+let sessionActive = false;
+
+let reconnecting = false; // the login library retries a dead connection for a long time; never overlap attempts
+
+async function attemptReconnect() {
+  if (reconnecting) return;
+  reconnecting = true;
+  try {
+    const r = await restoreSession();
+    if (r?.kind === 'online') {
+      if (reconnectHandle) clearInterval(reconnectHandle);
+      reconnectHandle = null;
+      sessionActive = true;
+      setAuthReady(true);
+      if (supabase) void flushQueue(supabase);
+      void reportCheckin();
+      void refreshActiveTimer();
+      if (runSettingsCheck) void runSettingsCheck(); // pick up the server's real settings now that we are logged in
+      announceSignedIn(r.email);
+    } else if (r === null) {
+      if (reconnectHandle) clearInterval(reconnectHandle);
+      reconnectHandle = null;
+      new Notification({ title: 'KD Ops Time Tracker', body: 'Your login expired. Please sign in again; offline tracking is kept and will upload.' }).show();
+      safeSend(mainWindow, 'signed-out');
+      mainWindow?.show();
+    }
+  } finally {
+    reconnecting = false;
+  }
+}
+
+function startReconnectLoop() {
+  if (reconnectHandle) return;
+  reconnectHandle = setInterval(() => void attemptReconnect(), 15_000);
+  void attemptReconnect(); // first try right away
+}
+
+/** Tells the window who is signed in, whether or not it has finished loading yet. */
+function announceSignedIn(label: string) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', () => safeSend(mainWindow, 'signed-in', label));
+  } else {
+    safeSend(mainWindow, 'signed-in', label);
+  }
+}
+
+function beginSession(r: NonNullable<Restored>) {
+  currentEmployeeId = r.userId;
+  const label = r.kind === 'offline' ? r.email + ' (offline - will sync when connected)' : r.email;
+  announceSignedIn(label);
+  sessionActive = r.kind === 'online';
+  setAuthReady(r.kind === 'online');
+  void pollSettingsAndTrack(r.userId);
+  if (r.kind === 'online') {
+    void reportCheckin();
+    void refreshActiveTimer();
+  } else {
+    startReconnectLoop();
+  }
 }
 
 async function pollSettingsAndTrack(employeeId: string) {
   if (!supabase) return;
   const client = supabase;
   const check = async () => {
-    const { data, error } = await client
-      .from('time_agent_settings')
-      .select('is_enabled, capture_interval_minutes, screenshots_enabled, blur_screenshots')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
-    if (error || !data || !data.is_enabled) {
+    // Forces the login token to refresh when near expiry; the
+    // onAuthStateChange listener (whenReady) saves the rotated token.
+    let fresh: CachedSettings | null = null;
+    let error: unknown = null;
+    if (sessionActive) {
+      try { await client.auth.getSession(); } catch { /* offline: fine */ }
+      const res = await client
+        .from('time_agent_settings')
+        .select('is_enabled, capture_interval_minutes, screenshots_enabled, blur_screenshots')
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+      fresh = (res.data as CachedSettings | null) ?? null;
+      error = res.error;
+    } else {
+      // Started from the saved identity and not logged in to the server yet. An
+      // anonymous query would come back EMPTY with no error (row-level security
+      // hides the row), which used to be misread as "tracking disabled". Treat it
+      // as unknown and use the cached settings instead.
+      error = new Error('login not restored yet');
+    }
+    let data: CachedSettings | null = fresh;
+    if (!error && fresh) {
+      store.set('settings', fresh as CachedSettings);
+    } else if (error) {
+      // Could not reach the server. That is NOT "tracking disabled": keep
+      // going on the last settings we were given instead of stopping.
+      const cached = store.get('settings');
+      if (cached) data = cached;
+    }
+    if (!data || !data.is_enabled) {
       stopTracking();
       trackingStartedAt = null;
       safeSend(mainWindow, 'agent-status', { tracking: false });
@@ -249,6 +398,9 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   mainWindow.loadFile(path.join(__dirname, '../src/renderer/index.html'));
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (trackingStartedAt != null) safeSend(mainWindow, 'agent-status', { tracking: true });
+  });
   // This is a tray-resident background tracker (see window-all-closed below),
   // so "closing" this window is meant to mean "hide it", not "destroy it" —
   // otherwise mainWindow becomes a stale destroyed BrowserWindow the moment
@@ -292,6 +444,9 @@ function createWidgetWindow() {
   });
   widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   widgetWindow.loadFile(path.join(__dirname, '../src/renderer/widget.html'));
+  // Status sent before the page finished loading is lost (it happens when there is
+  // no network delay to slow the first send down), so resend once it is ready.
+  widgetWindow.webContents.on('did-finish-load', () => sendWidgetStatus(trackingStartedAt != null));
   widgetWindow.on('closed', () => {
     widgetWindow = null;
   });
@@ -304,7 +459,15 @@ function sendWidgetStatus(tracking: boolean) {
     autoPaused,
     startedAt: trackingStartedAt,
     task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime() } : null,
-    pausedTask: !activeTimer && pausedTask ? { name: pausedTask.taskName, project: pausedTask.projectName } : null,
+    pausedTask:
+      !activeTimer && pausedTask
+        ? {
+            name: pausedTask.taskName,
+            project: pausedTask.projectName,
+            // Time the task had run when it was paused (frozen on the widget).
+            elapsedMs: Math.max(0, (pausedAtMs ?? Date.now()) - new Date(pausedTask.startTime).getTime()),
+          }
+        : null,
   });
 }
 
@@ -361,24 +524,21 @@ function createTaskPickerWindow(startInCreate = false) {
 async function pauseActiveTask() {
   if (!supabase || !activeTimer) return;
   const toPause = activeTimer;
-  try {
-    await stopActiveTimer(supabase, toPause.entryId);
-    pausedTask = toPause;
-  } catch {
-    // Non-fatal — refreshActiveTimer's next poll reconciles either way.
-  }
+  // Optimistic: the widget updates at once. The write goes out (or is queued
+  // when offline) in the background, so a slow or dead connection never makes
+  // the Pause button feel stuck.
+  pausedTask = toPause;
+  pausedAtMs = Date.now();
   activeTimer = null;
+  void stopActiveTimer(supabase, toPause.entryId).catch((err) => console.error('[pause] write failed:', err));
   await setAutoPaused(true); // Pause means pause everything, like TimeCamp
 }
 
 async function stopActiveTask() {
   if (!supabase || !activeTimer) return;
-  try {
-    await stopActiveTimer(supabase, activeTimer.entryId);
-  } catch {
-    // Non-fatal — see note above.
-  }
+  const toStop = activeTimer;
   activeTimer = null;
+  void stopActiveTimer(supabase, toStop.entryId).catch((err) => console.error('[stop] write failed:', err));
   pausedTask = null; // an explicit Stop clears any pending pause too, not just the running entry
   await setAutoPaused(false); // Stop ends the session; automatic tracking carries on
 }
@@ -524,13 +684,23 @@ app.whenReady().then(async () => {
     return;
   }
 
-  const session = await restoreSession();
-  if (session?.user) {
-    mainWindow?.webContents.once('did-finish-load', () => safeSend(mainWindow, 'signed-in', session.user.email));
-    currentEmployeeId = session.user.id;
-    pollSettingsAndTrack(session.user.id);
-    void reportCheckin();
-    void refreshActiveTimer();
+  // The login token rotates whenever it refreshes (about hourly). Save every
+  // new one: persistSession is off, so without this the saved token went stale
+  // after an hour and the next launch could no longer sign in.
+  supabase?.auth.onAuthStateChange((event, session) => {
+    if (event !== 'SIGNED_OUT' && session?.refresh_token) store.set('refresh_token', session.refresh_token);
+  });
+
+  // Start straight away from the saved identity instead of waiting on the
+  // network: tracking, the widget and the queue work immediately (even with no
+  // internet), and the login is re-checked in the background. If it succeeds
+  // the app switches to online and uploads anything queued meanwhile.
+  const cachedUserId = store.get('employee_id');
+  if (store.get('refresh_token') && cachedUserId) {
+    beginSession({ kind: 'offline', userId: cachedUserId, email: store.get('email') ?? '' });
+  } else {
+    const restored = await restoreSession();
+    if (restored) beginSession(restored);
   }
 });
 
@@ -543,6 +713,11 @@ ipcMain.on('open-task-picker', () => {
 
 ipcMain.on('task-picker-ready', async () => {
   if (!supabase || !taskPickerWindow) return;
+  // Show the last known list instantly, then replace it with fresh data. Waiting
+  // on the network first left the picker (and the Create form) empty, or stuck on
+  // "no projects", for as long as a slow or dead connection took to answer.
+  const cachedNow = store.get('picker');
+  if (cachedNow) safeSend(taskPickerWindow, 'task-picker-data', cachedNow);
   try {
     const [tasks, suggested, projects] = await Promise.all([
       fetchPickableTasks(supabase),
@@ -552,9 +727,12 @@ ipcMain.on('task-picker-ready', async () => {
     // taskPickerWindow closes on blur, so the user clicking away during this
     // await is routine, not an edge case — safeSend is load-bearing here,
     // not defensive decoration (see the comment on its definition).
+    store.set('picker', { tasks, suggested, projects });
     safeSend(taskPickerWindow, 'task-picker-data', { tasks, suggested, projects });
   } catch {
-    safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [], projects: [] });
+    // Offline: the cached list (if any) is already on screen; only fall back to an
+    // empty list when there was nothing cached to show.
+    if (!cachedNow) safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [], projects: [] });
   }
 });
 
@@ -562,7 +740,7 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
   taskPickerWindow?.close();
   if (!supabase || !currentEmployeeId) return;
   try {
-    activeTimer = await switchTimer(supabase, currentEmployeeId, task);
+    activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
     pausedTask = null; // explicitly picking a task overrides whatever was paused
     if (autoPaused) await setAutoPaused(false); // starting a task resumes tracking, like TimeCamp
   } catch {
@@ -597,7 +775,7 @@ ipcMain.handle(
     try {
       const created = await createTask(supabase, currentEmployeeId ?? '', args.projectId, args.projectName, args.clientName, args.name);
       if (args.selectAfterCreate && currentEmployeeId) {
-        activeTimer = await switchTimer(supabase, currentEmployeeId, created);
+        activeTimer = await switchTimer(supabase, currentEmployeeId, created, activeTimer);
         pausedTask = null;
         if (autoPaused) await setAutoPaused(false);
         rebuildTrayMenu();
@@ -605,8 +783,12 @@ ipcMain.handle(
       }
       return { ok: true, task: created };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not create task';
-      return { ok: false, error: message };
+      const raw = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? 'Could not create task');
+      const offline = /fetch failed|network|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|timeout/i.test(raw);
+      return {
+        ok: false,
+        error: offline ? 'You are offline. New tasks can only be created while connected; pick an existing task to keep tracking.' : raw,
+      };
     }
   },
 );
@@ -630,6 +812,10 @@ ipcMain.handle('sign-in', async (_e, { email, password }: { email: string; passw
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.session) return { ok: false, error: error?.message ?? 'Sign-in failed' };
   store.set('refresh_token', data.session.refresh_token);
+  store.set('employee_id', data.session.user.id);
+  store.set('email', data.session.user.email ?? '');
+  sessionActive = true;
+  setAuthReady(true);
   currentEmployeeId = data.session.user.id;
   pollSettingsAndTrack(data.session.user.id);
   void reportCheckin();
@@ -650,6 +836,13 @@ ipcMain.handle('sign-out', async () => {
   applyWidgetVisibility();
   rebuildTrayMenu();
   store.delete('refresh_token');
+  store.delete('employee_id');
+  store.delete('email');
+  store.delete('settings');
+  store.delete('picker');
+  if (reconnectHandle) clearInterval(reconnectHandle);
+  reconnectHandle = null;
+  sessionActive = false;
   await supabase?.auth.signOut();
   return { ok: true };
 });

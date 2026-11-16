@@ -25,6 +25,24 @@ let queue: QueuedOp[] = [];
 let flushHandle: ReturnType<typeof setInterval> | null = null;
 let flushing = false;
 
+// False while the app has no valid login yet (started offline from a saved
+// profile, or the session can't be refreshed). While false every write is
+// queued WITHOUT being attempted — an unauthenticated request would be
+// rejected by row-level security and (before this) thrown away for good.
+let authReady = true;
+export function setAuthReady(ready: boolean): void {
+  authReady = ready;
+}
+
+/** A write rejected because the SESSION is bad (expired/missing token), as
+ * opposed to a real permission or constraint error. These are worth keeping
+ * and retrying once the session is refreshed. */
+function isAuthSessionError(message: string): boolean {
+  return /jwt|token is expired|not authenticated|invalid claim|PGRST30[0-9]/i.test(message);
+}
+
+const MAX_AUTH_RETRIES = 120; // ~1 hour of 30s flushes, then give up on that op
+
 function getQueuePath(): string {
   if (!queuePath) queuePath = join(app.getPath('userData'), 'offline-queue.json');
   return queuePath;
@@ -116,7 +134,7 @@ export function queueLength(): number {
  * a constraint now rejects it, etc.) drops just that one op, logged, so a
  * single bad row can't jam the queue forever. */
 export async function flushQueue(client: SupabaseClient): Promise<void> {
-  if (flushing || queue.length === 0) return;
+  if (flushing || queue.length === 0 || !authReady) return;
   flushing = true;
   try {
     while (queue.length > 0) {
