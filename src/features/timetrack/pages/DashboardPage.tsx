@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfWeek } from 'date-fns';
-import { Loader2, Clock, Users, TrendingUp, AlertTriangle, Download, Search, User } from 'lucide-react';
+import { Loader2, Clock, Users, AlertTriangle, Download, Search, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useTimetrackCapabilities } from '../lib/capabilities';
@@ -125,7 +125,6 @@ export default function DashboardPage() {
 
       <div className="kd-stat-grid kd-stagger-in">
         <StatCard title="My hours this week" value={`${myWeekTotal.toFixed(1)} hrs`} icon={Clock} tone="primary" subtitle={`+ ${myWeekComputer.toFixed(1)}h computer activity, no task`} />
-        <StatCard title="Billable this week" value={`${(myWeek?.billable ?? 0).toFixed(1)} hrs`} icon={TrendingUp} tone="success" />
         {canViewOthers ? (
           <>
             <StatCard title="Active timers now" value={activeNow} icon={Users} tone={activeNow > 0 ? 'success' : 'default'} />
