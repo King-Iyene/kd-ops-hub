@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, endOfDay, format, startOfDay } from 'date-fns';
-import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Rows3, GalleryHorizontal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScreenPanels } from '@/features/timetrack/ui/ScreenPanels';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -44,6 +44,7 @@ export default function ScreenshotsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [layout, setLayout] = useState<'stacked' | 'wide'>('stacked');
   const openViewer = (r: ScreenshotRow) => { setZoom(1); setViewing(r); };
   const clampZoom = (z: number) => Math.min(6, Math.max(1, Number(z.toFixed(2))));
 
@@ -196,61 +197,48 @@ export default function ScreenshotsPage() {
           No screenshots for {format(dayDate, 'd MMM yyyy')}. Screenshots are only captured while the desktop app is running with screenshots enabled.
         </p>
       ) : (
-        <div className="rounded-md border border-border/60 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Made at</TableHead>
-                <TableHead>Application</TableHead>
-                <TableHead>Thumbnail</TableHead>
-                {canManage && <TableHead className="w-16 text-center">Removal</TableHead>}
-                {canManage && <TableHead className="w-14 text-center">Bulk</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(rows ?? []).map((r) => (
-                <TableRow key={r.id} className={selected.has(r.id) ? 'bg-primary/5' : undefined}>
-                  <TableCell className="font-medium">{nameOf(r.employee_id)}</TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">{format(new Date(r.captured_at), 'dd-MM-yyyy HH:mm:ss')}</TableCell>
-                  <TableCell>{appOf(r)}</TableCell>
-                  <TableCell>
-                    {urls[r.id] ? (
-                      <button type="button" onClick={() => openViewer(r)} className="block cursor-zoom-in" aria-label="View full-size screenshot">
-                        <img src={urls[r.id]} alt="" className="h-20 w-auto max-w-[360px] rounded border border-border/60 object-contain bg-black" loading="lazy" />
-                      </button>
-                    ) : (
-                      <div className="flex h-20 w-40 items-center justify-center rounded bg-muted"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-                    )}
-                  </TableCell>
+        <div className="space-y-5">
+          {(rows ?? []).map((r) => (
+            <div key={r.id} className={`overflow-hidden rounded-lg border ${selected.has(r.id) ? 'border-primary ring-1 ring-primary' : 'border-border'}`}>
+              <div className="flex items-center justify-between gap-3 bg-muted/30 px-3 py-2 text-sm">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                  {canManage && <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label="Select screenshot" />}
+                  <span className="font-medium">{nameOf(r.employee_id)}</span>
+                  <span className="tabular-nums text-muted-foreground">{format(new Date(r.captured_at), 'dd-MM-yyyy HH:mm:ss')}</span>
+                  {appOf(r) && <span className="truncate text-muted-foreground">{appOf(r)}</span>}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8" onClick={() => openViewer(r)}>
+                    <ZoomIn className="mr-1.5 h-3.5 w-3.5" /> View large
+                  </Button>
                   {canManage && (
-                    <TableCell className="text-center">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove screenshot"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove this screenshot?</AlertDialogTitle>
-                            <AlertDialogDescription>This permanently deletes it. This cannot be undone.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => remove([r])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remove</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove screenshot"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove this screenshot?</AlertDialogTitle>
+                          <AlertDialogDescription>This permanently deletes it. This cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remove([r])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remove</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
-                  {canManage && (
-                    <TableCell className="text-center">
-                      <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label="Select screenshot" />
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </div>
+              </div>
+              {urls[r.id] ? (
+                <button type="button" onClick={() => openViewer(r)} className="block w-full cursor-zoom-in bg-black" aria-label="View full-size screenshot">
+                  <img src={urls[r.id]} alt="" className="block h-auto w-full" loading="lazy" />
+                </button>
+              ) : (
+                <div className="flex aspect-[16/3] w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -261,22 +249,26 @@ export default function ScreenshotsPage() {
               {viewing ? `${nameOf(viewing.employee_id)} — ${format(new Date(viewing.captured_at), 'MMM d, yyyy HH:mm:ss')}${appOf(viewing) ? ` — ${appOf(viewing)}` : ''}` : ''}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={() => { setLayout((l) => (l === 'stacked' ? 'wide' : 'stacked')); setZoom(1); }}>
+              {layout === 'stacked' ? <GalleryHorizontal className="mr-1.5 h-3.5 w-3.5" /> : <Rows3 className="mr-1.5 h-3.5 w-3.5" />}
+              {layout === 'stacked' ? 'Side by side' : 'One screen per row'}
+            </Button>
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z - 0.5))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></Button>
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z + 0.5))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" className="h-8" onClick={() => setZoom(1)}><Maximize2 className="h-3.5 w-3.5 mr-1.5" />Fit</Button>
-            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(zoom * 100)}% · scroll to move · click the image or Ctrl+scroll to zoom</span>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setZoom(1)}><Maximize2 className="mr-1.5 h-3.5 w-3.5" />Fit</Button>
+            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(zoom * 100)}% · zoom is optional · scroll to move</span>
           </div>
-          <div className="max-h-[78vh] overflow-auto rounded-md bg-black">
+          <div
+            className="max-h-[80vh] overflow-auto rounded-md bg-black"
+            onWheel={(e) => { if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25))); }}
+          >
             {viewing && urls[viewing.id] && (
-              <img
-                src={urls[viewing.id]}
-                alt="Full-size screenshot"
-                draggable={false}
-                onClick={() => setZoom((z) => (z >= 3 ? 1 : clampZoom(z + 1)))}
-                onWheel={(e) => { if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25))); }}
-                className="block max-w-none cursor-zoom-in"
-                style={{ width: `${zoom * 100}%` }}
+              <ScreenPanels
+                url={urls[viewing.id]}
+                layout={layout}
+                zoom={zoom}
+                onClickImage={() => setZoom((z) => (z >= 3 ? 1 : clampZoom(z + 1)))}
               />
             )}
           </div>
