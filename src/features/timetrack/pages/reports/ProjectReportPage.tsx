@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ArrowLeft, Loader2, FileBarChart, Trash2 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
@@ -93,7 +93,7 @@ export default function ProjectReportPage() {
   });
 
   const cumulativeChart = useMemo(
-    () => (report?.cumulative ?? []).map((d) => ({ date: format(new Date(d.date), 'd MMM'), hours: d.hours })),
+    () => (report?.cumulative ?? []).map((d) => ({ date: format(parseISO(d.date), 'd MMM'), hours: d.hours })),
     [report],
   );
 
@@ -116,11 +116,10 @@ export default function ProjectReportPage() {
       format(new Date(e.start_time), 'yyyy-MM-dd'), e.employee_name, e.task_name,
       formatHours((e.duration_minutes ?? 0) / 60), e.notes ?? '',
       format(new Date(e.start_time), 'HH:mm'), e.end_time ? format(new Date(e.end_time), 'HH:mm') : '',
-      e.income.toFixed(2), e.cost.toFixed(2),
     ]);
     downloadCsv(
       `${(project?.name ?? 'project').replace(/\s+/g, '-')}-time-entries.csv`,
-      toCsv(['Date', 'User', 'Task', 'Hours', 'Note', 'From', 'To', 'Income', 'Cost'], rows),
+      toCsv(['Date', 'User', 'Task', 'Hours', 'Note', 'From', 'To'], rows),
     );
   };
 
@@ -133,7 +132,7 @@ export default function ProjectReportPage() {
           <ArrowLeft className="h-4 w-4 mr-1.5" /> Projects
         </Button>
       </div>
-      <PageHeader title={project?.name ?? 'Project report'} description="Cumulative hours, costs, and a full breakdown of time logged against this project" icon={FileBarChart} />
+      <PageHeader title={project?.name ?? 'Project report'} description="Cumulative hours and a full breakdown of time logged against this project" icon={FileBarChart} />
 
       <div className="flex flex-wrap items-end gap-3">
         <div>
@@ -212,7 +211,7 @@ export default function ProjectReportPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <StatCard
               title="Start date"
               value={project ? format(new Date(project.created_at), 'd MMM yyyy') : '—'}
@@ -224,12 +223,6 @@ export default function ProjectReportPage() {
               value={formatHours(report?.totals.total_hours ?? 0)}
               subtitle={`Billable: ${formatHours(report?.totals.billable_hours ?? 0)} · Non-billable: ${formatHours(report?.totals.non_billable_hours ?? 0)}`}
               tone="primary"
-            />
-            <StatCard
-              title="Total costs"
-              value={`$${(report?.totals.total_cost ?? 0).toFixed(2)}`}
-              subtitle={`Billable revenue: $${(report?.totals.billable_revenue ?? 0).toFixed(2)} · Non-billable revenue: $${(report?.totals.non_billable_revenue ?? 0).toFixed(2)}`}
-              tone="success"
             />
           </div>
 
@@ -249,8 +242,6 @@ export default function ProjectReportPage() {
                       <TableRow>
                         <TableHead>Task</TableHead>
                         <TableHead>Hours</TableHead>
-                        <TableHead>Income</TableHead>
-                        <TableHead>Cost</TableHead>
                         <TableHead>Assigned</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -259,20 +250,16 @@ export default function ProjectReportPage() {
                         <TableRow key={t.task_id}>
                           <TableCell>{t.task_name}</TableCell>
                           <TableCell>{formatHours(t.hours)}</TableCell>
-                          <TableCell>${t.income.toFixed(2)}</TableCell>
-                          <TableCell>${t.cost.toFixed(2)}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{t.employee_ids.length} {t.employee_ids.length === 1 ? 'person' : 'people'}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="font-medium">
                         <TableCell>Total:</TableCell>
                         <TableCell>{formatHours(report?.totals.total_hours ?? 0)}</TableCell>
-                        <TableCell>${(report?.totals.billable_revenue ?? 0).toFixed(2)}</TableCell>
-                        <TableCell>${(report?.totals.total_cost ?? 0).toFixed(2)}</TableCell>
                         <TableCell>—</TableCell>
                       </TableRow>
                       {(report?.tasks ?? []).length === 0 && (
-                        <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">No data match your criteria.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">No data match your criteria.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -302,8 +289,6 @@ export default function ProjectReportPage() {
                         <TableHead>Note</TableHead>
                         <TableHead>From</TableHead>
                         <TableHead>To</TableHead>
-                        <TableHead>Income</TableHead>
-                        <TableHead>Cost</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -316,12 +301,10 @@ export default function ProjectReportPage() {
                           <TableCell className="max-w-[160px] truncate">{e.notes ?? ''}</TableCell>
                           <TableCell>{format(new Date(e.start_time), 'HH:mm')}</TableCell>
                           <TableCell>{e.end_time ? format(new Date(e.end_time), 'HH:mm') : '—'}</TableCell>
-                          <TableCell>${e.income.toFixed(2)}</TableCell>
-                          <TableCell>${e.cost.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                       {(report?.entries ?? []).length === 0 && (
-                        <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-6">No data match your criteria.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-6">No data match your criteria.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
