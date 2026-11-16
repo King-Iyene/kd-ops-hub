@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Loader2, Gauge } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { PercentTrend } from '@/features/timetrack/ui/charts';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +59,7 @@ export default function EfficiencyPage() {
     }
     return [...byDay.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, d]) => ({ day: format(new Date(day), 'd MMM'), efficiency: d.active > 0 ? Math.round((d.productive / d.active) * 100) : 0 }));
+      .map(([day, d]) => ({ day: format(parseISO(day), 'd MMM'), efficiency: d.active > 0 ? Math.round((d.productive / d.active) * 100) : 0 }));
   }, [data]);
 
   const { topProductive, topUnproductive } = useMemo(() => {
@@ -90,15 +90,7 @@ export default function EfficiencyPage() {
           <CardContent className="pt-4">
             <p className="text-sm font-medium mb-2">Daily efficiency</p>
             {daily.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No data to display.</p> : (
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={daily}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-                  <Tooltip formatter={(v: number) => `${v}%`} />
-                  <Line type="monotone" dataKey="efficiency" stroke="#10b981" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <PercentTrend data={daily.map((d) => ({ label: d.day, value: d.efficiency }))} />
             )}
           </CardContent>
         </Card>

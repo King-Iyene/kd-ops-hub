@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Loader2, LayoutDashboard, Download, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { DurationColumns, RankedBars } from '@/features/timetrack/ui/charts';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { StatCard } from '@/features/timetrack/ui/TrackerStat';
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { downloadXlsx } from '../../reports/reportTables';
 import { MultiSelectFilter } from '../../reports/ReportFiltersBar';
-import { ActivityDateRangeBar, useActivityDateRange, useLogsWithIntervals, CATEGORY_BADGE, GetDesktopAppButton, EmployeeLink } from './shared';
+import { ActivityDateRangeBar, useActivityDateRange, useLogsWithIntervals, captureDomain, CATEGORY_BADGE, GetDesktopAppButton, EmployeeLink } from './shared';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -39,6 +39,18 @@ function fmtHm(hours: number): string {
 }
 
 const PRODUCTIVE_GOAL_HOURS = 7;
+
+const CATEGORY_LABEL: Record<string, string> = {
+  productive: 'Productive', neutral: 'Neutral', unproductive: 'Unproductive', blocked: 'Blocked', idle: 'Away', uncategorized: 'Uncategorized',
+};
+
+/** 0 -> "12a", 9 -> "9a", 12 -> "12p", 15 -> "3p" */
+function hourLabel(h: number): string {
+  if (h === 0) return '12a';
+  if (h < 12) return `${h}a`;
+  if (h === 12) return '12p';
+  return `${h - 12}p`;
+}
 
 const CATEGORY_COLOR: Record<string, string> = {
   productive: '#22c55e', neutral: '#9ca3af', unproductive: '#ef4444', blocked: '#ef4444', idle: '#38bdf8',
@@ -140,7 +152,7 @@ export default function ActivitiesSummaryPage() {
       hourly[new Date(l.captured_at).getHours()] += h;
       if (cat === 'productive') productiveHours += h;
       if (cat === 'unproductive' || cat === 'blocked') distractedHours += h;
-      if (!l.productivity_category) uncategorized.add(l.app_name ?? 'Unknown');
+      if (!l.ruled) uncategorized.add(captureDomain(l) ?? l.app_name ?? 'Unknown');
     }
     const allHours = activeHours + idleHours;
     return {
@@ -223,31 +235,13 @@ export default function ActivitiesSummaryPage() {
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-medium mb-2">Daily time (by hour of day)</p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={extra.hourly}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={1} />
-                    <YAxis tick={{ fontSize: 10 }} unit="m" />
-                    <Tooltip formatter={(v: number) => `${v} min`} labelFormatter={(h) => `${h}:00`} />
-                    <Bar dataKey="minutes" fill="#22c55e" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <DurationColumns data={extra.hourly.map((h) => ({ label: hourLabel(Number(h.hour)), hours: h.minutes / 60 }))} xInterval={2} />
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-medium mb-2">Top categories</p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={extra.categories}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} unit="h" />
-                    <Tooltip formatter={(v: number) => fmtHm(v)} />
-                    <Bar dataKey="hours" radius={[3, 3, 0, 0]}>
-                      {extra.categories.map((c) => <Cell key={c.name} fill={CATEGORY_COLOR[c.name] ?? '#9ca3af'} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <RankedBars data={extra.categories.map((c) => ({ name: CATEGORY_LABEL[c.name] ?? c.name, hours: c.hours, color: CATEGORY_COLOR[c.name] ?? '#94a3b8' }))} />
               </CardContent>
             </Card>
           </div>

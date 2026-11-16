@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ArrowLeft, Loader2, FileBarChart, Trash2 } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { CumulativeChart } from '@/features/timetrack/ui/charts';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { StatCard } from '@/features/timetrack/ui/TrackerStat';
 import { Card, CardContent } from '@/components/ui/card';
@@ -93,7 +93,7 @@ export default function ProjectReportPage() {
   });
 
   const cumulativeChart = useMemo(
-    () => (report?.cumulative ?? []).map((d) => ({ date: format(parseISO(d.date), 'd MMM'), hours: d.hours })),
+    () => (report?.cumulative ?? []).map((d) => ({ label: format(parseISO(d.date), 'd MMM'), hours: d.hours })),
     [report],
   );
 
@@ -168,19 +168,7 @@ export default function ProjectReportPage() {
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm font-medium mb-2">Cumulative hours over time</p>
-              {cumulativeChart.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-10 text-center">No data to display.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={cumulativeChart}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => formatHours(v)} />
-                    <Line type="monotone" dataKey="hours" stroke="#10b981" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
+              <CumulativeChart data={cumulativeChart} />
 
               <div className="flex items-center justify-end gap-2 mt-3">
                 {has('manage_projects') && (

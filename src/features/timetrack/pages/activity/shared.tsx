@@ -21,6 +21,39 @@ export interface ActivityLog {
   geo_region?: string | null;
   geo_country?: string | null;
   is_outside_geofence?: boolean | null;
+  /** true when one of the admin's rules decided this capture's category (applied now, so rules also cover past captures). */
+  ruled?: boolean;
+}
+
+export interface ProductivityRule {
+  app_name_contains: string | null;
+  title_contains: string | null;
+  category: string;
+  priority: number;
+}
+
+/**
+ * Category from the admin's rules. Same logic as the desktop app (desktop-agent/src/productivityRules.ts).
+ * Precedence: a rule naming the site > a window-title rule > an app rule, so "instagram.com = red"
+ * beats "Google Chrome = productive". Lower priority number first within a level.
+ */
+export function matchProductivityRule(
+  rules: ProductivityRule[],
+  log: Pick<ActivityLog, 'app_name' | 'window_title' | 'url'>,
+): string | null {
+  const app = (log.app_name ?? '').toLowerCase();
+  const title = (log.window_title ?? '').toLowerCase();
+  const host = (captureDomain(log) ?? '').toLowerCase();
+  const has = (needle: string | null, hay: string) => !!needle && !!hay && hay.includes(needle.toLowerCase());
+  const sorted = [...rules].sort((a, b) => a.priority - b.priority);
+  if (host) {
+    const site = sorted.find((r) => !r.title_contains && has(r.app_name_contains, host));
+    if (site) return site.category;
+  }
+  const byTitle = sorted.find((r) => has(r.title_contains, title) && (!r.app_name_contains || has(r.app_name_contains, app)));
+  if (byTitle) return byTitle.category;
+  const byApp = sorted.find((r) => !r.title_contains && has(r.app_name_contains, app));
+  return byApp ? byApp.category : null;
 }
 
 export const CATEGORY_BADGE: Record<string, string> = {
@@ -117,16 +150,25 @@ export function useLogsWithIntervals(start: string, end: string) {
   return useQuery({
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
-      const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }] = await Promise.all([
+      const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }, { data: ruleRows }] = await Promise.all([
         supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence')
           .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
           .order('captured_at', { ascending: false }).limit(20000),
         supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),
+        supabase.from('time_productivity_rules').select('app_name_contains, title_contains, category, priority'),
       ]);
       if (logsErr) throw logsErr;
       if (settingsErr) throw settingsErr;
       const configured = new Map((settings ?? []).map((s) => [s.employee_id, s.capture_interval_minutes as number]));
-      const typedLogs = (logs ?? []) as ActivityLog[];
+      // Apply the CURRENT rules to every capture, past ones included. Before, a rule only labelled
+      // captures taken after it was created, so marking Chrome / Claude / Slack as work tools left all
+      // the existing time at 0% productive.
+      const rules = (ruleRows ?? []) as ProductivityRule[];
+      const typedLogs = ((logs ?? []) as ActivityLog[]).map((l) => {
+        if (l.productivity_category === 'idle') return l;
+        const category = matchProductivityRule(rules, l);
+        return category ? { ...l, productivity_category: category, ruled: true } : l;
+      });
       return { logs: typedLogs, intervalByEmployee: effectiveIntervals(typedLogs, configured) };
     },
   });

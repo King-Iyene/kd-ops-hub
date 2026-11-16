@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Tags } from 'lucide-react';
-import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { RankedBars } from '@/features/timetrack/ui/charts';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -97,17 +97,7 @@ export default function ActivityCategoriesPage() {
           {logsLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : chartData.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">No data to display.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="cat" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number) => `${v}h`} />
-                <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
-                  {chartData.map((r) => <Cell key={r.cat} fill={CATEGORY_COLOR[r.cat]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <RankedBars data={chartData.map((r) => ({ name: r.cat.charAt(0).toUpperCase() + r.cat.slice(1), hours: r.hours, color: CATEGORY_COLOR[r.cat] }))} />
           )}
         </CardContent>
       </Card>

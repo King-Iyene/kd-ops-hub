@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Download, Globe, Search } from 'lucide-react';
-import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { RankedBars } from '@/features/timetrack/ui/charts';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,10 @@ import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, captu
 type ShowFilter = 'all' | 'websites' | 'applications' | 'non_categorized' | 'away_time';
 
 const PAGE_SIZE = 20;
+
+const CATEGORY_LABEL: Record<string, string> = {
+  productive: 'a work tool (productive)', neutral: 'neutral', unproductive: 'not work (red)', blocked: 'blocked (red + alert)',
+};
 
 /** 3.38 hours -> "3h 23m" (TimeCamp's format); under an hour -> "23m". */
 function formatHm(hours: number): string {
@@ -73,7 +77,8 @@ export default function SitesAppsPage() {
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ['timetrack', 'productivity-rules'] });
-      toast({ title: `"${key}" will now classify as ${category}`, description: 'Applies going forward to new captures.' });
+      qc.invalidateQueries({ queryKey: ['timetrack', 'activity-logs-range'] }); // rules now apply to past captures too
+      toast({ title: `"${key}" is now ${CATEGORY_LABEL[category] ?? category}`, description: 'Applied to all captures, past and new.' });
     } catch (err) {
       toast({ title: 'Could not assign category', description: errorMessage(err), variant: 'destructive' });
     }
@@ -113,7 +118,7 @@ export default function SitesAppsPage() {
   const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   const chartData = filtered.slice(0, 10).map((r) => ({
-    name: r.key.length > 18 ? `${r.key.slice(0, 18)}…` : r.key,
+    name: r.key,
     hours: Number(r.hours.toFixed(2)),
     category: r.category,
   }));
@@ -156,17 +161,7 @@ export default function SitesAppsPage() {
           <Card>
             <CardContent className="pt-4">
               {chartData.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No data to display.</p> : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => formatHm(v)} />
-                    <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
-                      {chartData.map((d, i) => <Cell key={i} fill={barColor(d.category)} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <RankedBars data={chartData.map((d) => ({ name: d.name, hours: d.hours, color: barColor(d.category) }))} />
               )}
             </CardContent>
           </Card>
@@ -200,10 +195,10 @@ export default function SitesAppsPage() {
                             <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none" disabled>Uncategorized</SelectItem>
-                              <SelectItem value="productive">Productive</SelectItem>
+                              <SelectItem value="productive">Work tool (productive)</SelectItem>
                               <SelectItem value="neutral">Neutral</SelectItem>
-                              <SelectItem value="unproductive">Unproductive</SelectItem>
-                              <SelectItem value="blocked">Blocked</SelectItem>
+                              <SelectItem value="unproductive">Not work (red)</SelectItem>
+                              <SelectItem value="blocked">Blocked (red + alert)</SelectItem>
                             </SelectContent>
                           </Select>
                         )}

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { Loader2, LayoutDashboard } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { DurationColumns, RankedBars } from '@/features/timetrack/ui/charts';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,35 +53,31 @@ export default function RealTimeDashboardPage() {
   const [month, setMonth] = useState(MONTH_OPTIONS[0].value);
   const { data: rows, isLoading } = useMonthEntries(month);
 
-  const { totalHours, billableHours, topProjects, daily, topWorkers } = useMemo(() => {
+  const { totalHours, topProjects, daily, topWorkers } = useMemo(() => {
     const list = rows ?? [];
     const totalHours = list.reduce((s, r) => s + r.duration_minutes / 60, 0);
-    const billableHours = list.filter((r) => r.is_billable).reduce((s, r) => s + r.duration_minutes / 60, 0);
 
-    const byProject = new Map<string, { billable: number; nonBillable: number }>();
-    for (const r of list) {
-      const p = byProject.get(r.project_name) ?? { billable: 0, nonBillable: 0 };
-      if (r.is_billable) p.billable += r.duration_minutes / 60; else p.nonBillable += r.duration_minutes / 60;
-      byProject.set(r.project_name, p);
-    }
+    const byProject = new Map<string, number>();
+    for (const r of list) byProject.set(r.project_name, (byProject.get(r.project_name) ?? 0) + r.duration_minutes / 60);
     const topProjects = [...byProject.entries()]
-      .map(([name, v]) => ({ name, ...v, total: v.billable + v.nonBillable }))
-      .sort((a, b) => b.total - a.total).slice(0, 10);
+      .map(([name, hours]) => ({ name, hours }))
+      .sort((a, b) => b.hours - a.hours).slice(0, 10);
 
-    const byDay = new Map<string, { billable: number; nonBillable: number }>();
+    // days keyed 'yyyy-MM-dd' so they sort chronologically (they used to come out in query order)
+    const byDay = new Map<string, number>();
     for (const r of list) {
-      const day = format(new Date(r.start_time), 'd MMM');
-      const d = byDay.get(day) ?? { billable: 0, nonBillable: 0 };
-      if (r.is_billable) d.billable += r.duration_minutes / 60; else d.nonBillable += r.duration_minutes / 60;
-      byDay.set(day, d);
+      const key = format(new Date(r.start_time), 'yyyy-MM-dd');
+      byDay.set(key, (byDay.get(key) ?? 0) + r.duration_minutes / 60);
     }
-    const daily = [...byDay.entries()].map(([name, v]) => ({ name, ...v }));
+    const daily = [...byDay.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, hours]) => ({ label: format(parseISO(key), 'd MMM'), hours }));
 
     const byWorker = new Map<string, number>();
     for (const r of list) byWorker.set(r.employee_name, (byWorker.get(r.employee_name) ?? 0) + r.duration_minutes / 60);
     const topWorkers = [...byWorker.entries()].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours).slice(0, 5);
 
-    return { totalHours, billableHours, topProjects, daily, topWorkers };
+    return { totalHours, topProjects, daily, topWorkers };
   }, [rows]);
 
   return (
@@ -94,43 +90,19 @@ export default function RealTimeDashboardPage() {
 
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total time tracked</p>
-              <p className="text-2xl font-semibold text-emerald-600">{formatHours(totalHours)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Billable</p>
-              <p className="text-2xl font-semibold text-emerald-600">{formatHours(billableHours)}</p>
-            </CardContent></Card>
-          </div>
+          <Card className="max-w-xs"><CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total time tracked</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{formatHours(totalHours)}</p>
+          </CardContent></Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
               <CardContent className="pt-4">
                 <p className="text-sm font-medium mb-2">Top 10 projects</p>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={topProjects}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-30} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => formatHours(v)} />
-                    <Bar dataKey="billable" stackId="a" fill="#10b981" name="Billable" />
-                    <Bar dataKey="nonBillable" stackId="a" fill="#6b7280" name="Non-billable" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <RankedBars data={topProjects} />
 
                 <p className="text-sm font-medium mt-6 mb-2">Daily</p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={daily}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={2} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip formatter={(v: number) => formatHours(v)} />
-                    <Bar dataKey="billable" stackId="a" fill="#10b981" name="Billable" />
-                    <Bar dataKey="nonBillable" stackId="a" fill="#6b7280" name="Non-billable" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <DurationColumns data={daily} xInterval={daily.length > 14 ? 2 : 0} />
               </CardContent>
             </Card>
 

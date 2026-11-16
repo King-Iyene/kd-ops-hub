@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { desktopCapturer, nativeImage, powerMonitor, screen } from 'electron';
 import { randomUUID } from 'crypto';
 import { queueInsert, writeOrQueue } from './offlineQueue';
+import { matchProductivityRule } from './productivityRules';
 
 interface AgentSettings {
   is_enabled: boolean;
@@ -111,15 +112,11 @@ async function lookupIpGeolocation(): Promise<GeoLookup | null> {
   }
 }
 
-function classify(appName: string, title: string): string | null {
+function classify(appName: string, title: string, url: string | null): string | null {
   const now = Date.now();
   if (now - rulesLoadedAt > 60_000) return null; // stale cache, classify next tick once refreshed
-  for (const r of rules) {
-    const appMatch = r.app_name_contains && appName.toLowerCase().includes(r.app_name_contains.toLowerCase());
-    const titleMatch = r.title_contains && title.toLowerCase().includes(r.title_contains.toLowerCase());
-    if (appMatch || titleMatch) return r.category;
-  }
-  return 'neutral';
+  // site rule > title rule > app rule (see productivityRules.ts); no rule = neutral
+  return matchProductivityRule(rules, appName, title, url) ?? 'neutral';
 }
 
 async function refreshRules(supabase: SupabaseClient) {
@@ -359,7 +356,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       let url: string | null = null;
       if (activeWindow.platform === 'macos') url = toOrigin(activeWindow.url ?? null);
       else if (activeWindow.platform === 'windows') url = await readWindowsBrowserHost(appName);
-      const category = isAway ? 'idle' : classify(appName, title);
+      const category = isAway ? 'idle' : classify(appName, title, url);
 
       if (Date.now() - lastGeoLookupAt > GEO_LOOKUP_INTERVAL_MS) {
         lastGeoLookup = await lookupIpGeolocation();
