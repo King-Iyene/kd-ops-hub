@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -133,69 +133,69 @@ export function DurationColumns({ data, color = CHART_COLORS.accent, height = 22
   );
 }
 
-/** Running total over time. With fewer than 3 points a line is meaningless, so draw columns instead. */
-export function CumulativeChart({ data, height = 220 }: { data: LabelledHours[]; height?: number }) {
-  if (data.length === 0) return <ChartEmpty />;
-  if (data.length < 3) return <DurationColumns data={data.map((d) => ({ ...d, note: 'Total so far' }))} height={height} />;
-  const axis = durationAxis(Math.max(...data.map((d) => d.hours)));
+export interface TrendPoint { label: string; value: number; note?: string }
+
+/**
+ * The polished time-series line: smooth curve with a green-to-cyan gradient stroke and soft glow,
+ * faded area underneath, ringed dots, a dashed hover guide and a tooltip. Values are hours
+ * (kind="duration") or 0-100 (kind="percent"). Always a line, even for 1-2 points (padded so
+ * the dots do not sit on the axes), and value labels appear when there are only a few points.
+ */
+export function TrendLine({
+  data, kind = 'duration', height = 220, xInterval, color = CHART_COLORS.accent,
+}: { data: TrendPoint[]; kind?: 'duration' | 'percent'; height?: number; xInterval?: number | 'preserveEnd'; color?: string }) {
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  if (data.length === 0 || (kind === 'duration' && data.every((d) => d.value <= 0))) return <ChartEmpty />;
+  const rows = data.map((d) => ({ ...d, hours: d.value }));
+  const axis = kind === 'percent'
+    ? { ticks: [0, 25, 50, 75, 100], domain: [0, 100] as [number, number], format: (v: number) => `${v}%` }
+    : durationAxis(Math.max(...rows.map((r) => r.value)));
+  const fmt = (v: number) => (kind === 'percent' ? `${Math.round(v)}%` : fmtDuration(v));
+  const few = rows.length <= 6;
+  const pad = rows.length < 4 ? 48 : 16;
+  const dotFill = 'hsl(var(--background))';
   return (
     <div className="text-foreground" style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+        <AreaChart data={rows} margin={{ top: 22, right: 14, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id="kd-cum" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CHART_COLORS.accent} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={CHART_COLORS.accent} stopOpacity={0.02} />
+            <linearGradient id={`${uid}-fill`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.4} />
+              <stop offset="70%" stopColor={color} stopOpacity={0.08} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id={`${uid}-line`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={color} />
+              <stop offset="100%" stopColor="#06b6d4" />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} {...GRID} />
-          <XAxis dataKey="label" tick={AXIS_TEXT} axisLine={false} tickLine={false} minTickGap={24} />
-          <YAxis domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} tick={AXIS_TEXT} width={38} axisLine={false} tickLine={false} />
-          <Tooltip content={<Tip kind="duration" />} />
-          <Area type="monotone" dataKey="hours" stroke={CHART_COLORS.accent} strokeWidth={2} fill="url(#kd-cum)" isAnimationActive={false} />
+          <CartesianGrid vertical={false} strokeDasharray="3 5" {...GRID} />
+          <XAxis dataKey="label" tick={AXIS_TEXT} axisLine={false} tickLine={false} padding={{ left: pad, right: pad }} interval={xInterval ?? 'preserveEnd'} minTickGap={20} />
+          <YAxis domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} tick={AXIS_TEXT} width={40} axisLine={false} tickLine={false} />
+          <Tooltip cursor={{ stroke: color, strokeOpacity: 0.5, strokeDasharray: '4 4' }} content={<Tip kind={kind} />} />
+          <Area
+            type="monotone" dataKey="value" stroke={`url(#${uid}-line)`} strokeWidth={3} fill={`url(#${uid}-fill)`}
+            style={{ filter: `drop-shadow(0 3px 6px ${color}66)` }}
+            dot={{ r: 3.5, fill: dotFill, stroke: color, strokeWidth: 2 }}
+            activeDot={{ r: 6, fill: color, stroke: dotFill, strokeWidth: 3 }}
+            animationDuration={900} animationEasing="ease-out"
+          >
+            {few && <LabelList dataKey="value" position="top" offset={10} formatter={fmt} style={{ fontSize: 11, fontWeight: 600, fill: 'currentColor', fillOpacity: 0.9 }} />}
+          </Area>
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
+/** Running total over time, drawn as the polished line. */
+export function CumulativeChart({ data, height = 220 }: { data: LabelledHours[]; height?: number }) {
+  return <TrendLine data={data.map((d) => ({ label: d.label, value: d.hours, note: 'Total so far' }))} height={height} />;
+}
+
 export interface LabelledPercent { label: string; value: number }
 
-/** A 0-100% value per day. 1-2 days draw as columns; 3+ as an area trend. */
+/** A 0-100% value per day, drawn as the polished line. */
 export function PercentTrend({ data, height = 200 }: { data: LabelledPercent[]; height?: number }) {
-  if (data.length === 0) return <ChartEmpty />;
-  const ticks = [0, 25, 50, 75, 100];
-  const common = {
-    xAxis: <XAxis dataKey="label" tick={AXIS_TEXT} axisLine={false} tickLine={false} minTickGap={24} />,
-    yAxis: <YAxis domain={[0, 100]} ticks={ticks} tickFormatter={(v: number) => `${v}%`} tick={AXIS_TEXT} width={42} axisLine={false} tickLine={false} />,
-  };
-  return (
-    <div className="text-foreground" style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        {data.length < 3 ? (
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={false} {...GRID} />
-            {common.xAxis}
-            {common.yAxis}
-            <Tooltip cursor={{ fill: 'currentColor', fillOpacity: 0.05 }} content={<Tip kind="percent" />} />
-            <Bar dataKey="value" fill={CHART_COLORS.accent} radius={[3, 3, 0, 0]} maxBarSize={56} isAnimationActive={false} />
-          </BarChart>
-        ) : (
-          <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="kd-pct" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={CHART_COLORS.accent} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={CHART_COLORS.accent} stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} {...GRID} />
-            {common.xAxis}
-            {common.yAxis}
-            <Tooltip content={<Tip kind="percent" />} />
-            <Area type="monotone" dataKey="value" stroke={CHART_COLORS.accent} strokeWidth={2} fill="url(#kd-pct)" isAnimationActive={false} />
-          </AreaChart>
-        )}
-      </ResponsiveContainer>
-    </div>
-  );
+  return <TrendLine data={data} kind="percent" height={height} />;
 }

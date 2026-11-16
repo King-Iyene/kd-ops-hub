@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { Loader2, LayoutDashboard } from 'lucide-react';
-import { DurationColumns, RankedBars } from '@/features/timetrack/ui/charts';
+import { RankedBars, TrendLine } from '@/features/timetrack/ui/charts';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -102,7 +102,7 @@ export default function RealTimeDashboardPage() {
                 <RankedBars data={topProjects} />
 
                 <p className="text-sm font-medium mt-6 mb-2">Daily</p>
-                <DurationColumns data={daily} xInterval={daily.length > 14 ? 2 : 0} />
+                <TrendLine data={daily.map((d) => ({ label: d.label, value: d.hours, note: d.note }))} xInterval={daily.length > 14 ? 2 : 0} />
               </CardContent>
             </Card>
 

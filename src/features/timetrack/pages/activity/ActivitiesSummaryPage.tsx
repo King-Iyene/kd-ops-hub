@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Loader2, LayoutDashboard, Download, AlertTriangle } from 'lucide-react';
-import { DurationColumns, RankedBars } from '@/features/timetrack/ui/charts';
+import { RankedBars, TrendLine } from '@/features/timetrack/ui/charts';
 import { useActiveEmployees } from '@/queries/useEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { StatCard } from '@/features/timetrack/ui/TrackerStat';
@@ -235,7 +235,7 @@ export default function ActivitiesSummaryPage() {
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-medium mb-2">Daily time (by hour of day)</p>
-                <DurationColumns data={extra.hourly.map((h) => ({ label: hourLabel(Number(h.hour)), hours: h.minutes / 60 }))} xInterval={2} />
+                <TrendLine data={extra.hourly.map((h) => ({ label: hourLabel(Number(h.hour)), value: h.minutes / 60 }))} xInterval={2} />
               </CardContent>
             </Card>
             <Card>
