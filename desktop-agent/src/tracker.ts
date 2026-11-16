@@ -345,6 +345,9 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const activeWindow = await (require('active-win') as typeof import('active-win'))();
       if (!activeWindow) return;
+      // Never record this app's own windows (the widget, the task picker): clicking them is not work, and they
+      // used to show up as "Electron" and drag productivity down.
+      if (activeWindow.owner?.processId === process.pid || activeWindow.owner?.path === process.execPath) return;
 
       const appName = activeWindow.owner?.name ?? 'unknown';
       const title = activeWindow.title ?? '';

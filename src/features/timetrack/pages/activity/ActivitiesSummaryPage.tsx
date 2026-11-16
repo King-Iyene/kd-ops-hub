@@ -250,8 +250,8 @@ export default function ActivitiesSummaryPage() {
             <CardContent className="pt-4">
               <p className="text-sm font-medium mb-4">Averages for all selected users</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-                <StatCard title="Total time" value={`${totalHours.toFixed(1)}h`} tone="primary" />
-                <StatCard title="Average per day" value={`${avgPerDay.toFixed(1)}h`} tone="info" />
+                <StatCard title="Total time" value={fmtHm(totalHours)} tone="primary" />
+                <StatCard title="Average per day" value={fmtHm(avgPerDay)} tone="info" />
                 <StatCard title="Tools tracked" value={topApps.length} tone="default" />
               </div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Tools usage</p>
@@ -263,7 +263,7 @@ export default function ActivitiesSummaryPage() {
                       <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(2, a.pct)}%` }} />
                     </div>
                     <span className="w-12 text-right text-xs text-muted-foreground shrink-0">{a.pct.toFixed(0)}%</span>
-                    <span className="w-16 text-right text-xs text-muted-foreground shrink-0">{a.hours.toFixed(1)}h</span>
+                    <span className="w-16 text-right text-xs text-muted-foreground shrink-0">{fmtHm(a.hours)}</span>
                   </div>
                 ))}
                 {topApps.length === 0 && <p className="text-sm text-muted-foreground">No captures in this range.</p>}
@@ -279,7 +279,7 @@ export default function ActivitiesSummaryPage() {
                     <Avatar className="h-8 w-8"><AvatarFallback>{initials(nameOf(p.employeeId))}</AvatarFallback></Avatar>
                     <div className="min-w-0">
                       <p className="text-sm truncate"><EmployeeLink employeeId={p.employeeId} name={nameOf(p.employeeId)} /></p>
-                      <p className="text-xs text-muted-foreground">{p.hours.toFixed(1)}h total · {p.avgPerDay.toFixed(1)}h/day</p>
+                      <p className="text-xs text-muted-foreground">{fmtHm(p.hours)} total · {fmtHm(p.avgPerDay)}/day</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { fmtDuration } from '@/features/timetrack/ui/charts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import {
@@ -446,11 +447,11 @@ export default function TimePage() {
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
               <span>
                 {(unassignedMinutes ?? 0) > 0
-                  ? `(unassigned computer activities) · ${((unassignedMinutes ?? 0) / 60).toFixed(2)}h`
+                  ? `(unassigned computer activities) · ${fmtDuration((unassignedMinutes ?? 0) / 60)}`
                   : ''}
               </span>
               <span className="font-medium text-foreground">
-                {(dayEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0) / 60).toFixed(2)}h total
+                {fmtDuration(dayEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0) / 60)} total
               </span>
             </div>
           )}
@@ -877,7 +878,7 @@ function EntryRow({ entry: e, readOnly, canRestart, allTags, onPatch, onApplyTag
         className="w-[74px] shrink-0 bg-transparent text-xs tabular-nums text-muted-foreground outline-none disabled:cursor-default"
       />
       <div className="text-xs font-medium tabular-nums shrink-0 w-14 text-right">
-        {e.duration_minutes != null ? `${(e.duration_minutes / 60).toFixed(2)}h` : '—'}
+        {e.duration_minutes != null ? fmtDuration(e.duration_minutes / 60) : '—'}
       </div>
       {canRestart && !readOnly && (
         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={onRestart} title="Start again">
@@ -955,7 +956,7 @@ function CalendarGrid({ rangeStart, dayGroups, onPickDay }: {
             className={`rounded-md border border-border/60 p-2 text-left text-xs hover:bg-accent ${isToday(d) ? 'border-primary' : ''}`}
           >
             <p className="font-medium">{format(d, 'd MMM')}</p>
-            {hours > 0 && <p className="text-muted-foreground">{hours.toFixed(1)}h</p>}
+            {hours > 0 && <p className="text-muted-foreground">{fmtDuration(hours)}</p>}
           </button>
         );
       })}

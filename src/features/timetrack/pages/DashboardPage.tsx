@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { fmtDuration } from '@/features/timetrack/ui/charts';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfWeek } from 'date-fns';
 import { Loader2, Clock, Users, AlertTriangle, Download, Search, User } from 'lucide-react';
@@ -125,16 +126,16 @@ export default function DashboardPage() {
       />
 
       <div className="kd-stat-grid kd-stagger-in">
-        <StatCard title="My hours this week" value={`${myWeekTotal.toFixed(1)} hrs`} icon={Clock} tone="primary" subtitle={`Computer activity this week: ${myWeekComputer.toFixed(1)}h`} />
+        <StatCard title="My hours this week" value={fmtDuration(myWeekTotal)} icon={Clock} tone="primary" subtitle={`Computer activity this week: ${fmtDuration(myWeekComputer)}`} />
         {canViewOthers ? (
           <>
             <StatCard title="Active timers now" value={activeNow} icon={Users} tone={activeNow > 0 ? 'success' : 'default'} />
-            <StatCard title="Team hours today" value={`${teamHoursToday.toFixed(1)} hrs`} icon={Users} tone="info" subtitle={`Computer activity today: ${teamComputerToday.toFixed(1)}h`} />
+            <StatCard title="Team hours today" value={fmtDuration(teamHoursToday)} icon={Users} tone="info" subtitle={`Computer activity today: ${fmtDuration(teamComputerToday)}`} />
           </>
         ) : (
           <StatCard
             title="My hours today"
-            value={`${(myToday?.hours_today ?? 0).toFixed(1)} hrs`}
+            value={fmtDuration(myToday?.hours_today ?? 0)}
             icon={Clock}
             tone={myToday?.is_timer_active ? 'success' : 'default'}
           />
@@ -198,11 +199,11 @@ export default function DashboardPage() {
                       )}
                       <div className="flex items-center gap-5 text-right">
                         <div>
-                          <p className="text-base font-mono tabular-nums">{computerTodayFor(r.employee_id).toFixed(2)}h</p>
+                          <p className="text-base font-mono tabular-nums">{fmtDuration(computerTodayFor(r.employee_id))}</p>
                           <p className="text-3xs text-muted-foreground">computer</p>
                         </div>
                         <div>
-                          <p className="text-base font-mono tabular-nums">{r.hours_today.toFixed(2)}h</p>
+                          <p className="text-base font-mono tabular-nums">{fmtDuration(r.hours_today)}</p>
                           <p className="text-3xs text-muted-foreground">tasks</p>
                         </div>
                       </div>
@@ -227,7 +228,7 @@ export default function DashboardPage() {
                   {myToday?.is_timer_active && <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">active now</Badge>}
                   {myToday?.is_timer_active && myToday.active_project_name ? `on ${myToday.active_project_name}` : 'No activity logged yet today.'}
                 </span>
-                <span className="font-mono tabular-nums font-medium">{(myToday?.hours_today ?? 0).toFixed(2)}h</span>
+                <span className="font-mono tabular-nums font-medium">{fmtDuration(myToday?.hours_today ?? 0)}</span>
               </div>
             )}
             <p className="text-3xs text-muted-foreground mt-3">
