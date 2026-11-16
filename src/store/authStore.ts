@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     if (typeof window !== 'undefined') {
       try {
         window.sessionStorage.removeItem(VIEW_AS_KEY);

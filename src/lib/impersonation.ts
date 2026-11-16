@@ -155,7 +155,7 @@ export async function endImpersonation(): Promise<void> {
     // rather than being stuck mid-impersonation.
     window.sessionStorage.removeItem(ORIGIN_KEY);
     window.sessionStorage.removeItem(META_KEY);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
     window.location.href = '/login';
     return;
   }

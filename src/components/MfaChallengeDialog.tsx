@@ -61,7 +61,7 @@ export function MfaChallengeDialog(props: {
       setAttempts(next);
       if (next >= 5) {
         toast({ title: 'Too many failed attempts', description: 'Signing you out for safety.', variant: 'destructive' });
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         return;
       }
       toast({
@@ -131,7 +131,7 @@ export function MfaChallengeDialog(props: {
 
           <button
             type="button"
-            onClick={async () => { await supabase.auth.signOut(); }}
+            onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); }}
             className="w-full text-2xs text-muted-foreground hover:text-foreground"
           >
             Sign out instead

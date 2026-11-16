@@ -156,7 +156,7 @@ export function MobileNav() {
 
   const handleSignOut = async () => {
     setMoreOpen(false);
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   return (

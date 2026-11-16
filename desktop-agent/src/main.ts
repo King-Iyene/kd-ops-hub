@@ -246,6 +246,12 @@ async function restoreSession(): Promise<Restored> {
     }
     const status = (error as { status?: number } | null)?.status;
     if (status === 400 || status === 401 || status === 403) {
+      // Only give up if the saved token is still the one that was just rejected.
+      // If another refresh already saved a newer token, that one is the live login.
+      if (store.get('refresh_token') !== refreshToken) {
+        const userId = store.get('employee_id');
+        if (userId) return { kind: 'offline', userId, email: store.get('email') ?? '' };
+      }
       store.delete('refresh_token');
       return null;
     }
@@ -919,7 +925,7 @@ ipcMain.handle('sign-out', async () => {
   if (reconnectHandle) clearInterval(reconnectHandle);
   reconnectHandle = null;
   sessionActive = false;
-  await supabase?.auth.signOut();
+  await supabase?.auth.signOut({ scope: 'local' });
   return { ok: true };
 });
 

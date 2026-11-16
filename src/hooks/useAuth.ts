@@ -162,7 +162,7 @@ export const useAuth = () => {
           }
         }
 
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         setUser(null);
         useAuthStore.getState().setProfile(null);
         setLoading(false);
@@ -233,7 +233,7 @@ export const useAuth = () => {
     // storage, the user is NOT logged out — we keep them in place and let the
     // SDK's auto-refresh recover once the rate-limit window clears. We only
     // redirect to /login when storage genuinely has no session (a real sign-out
-    // elsewhere). And we NEVER call supabase.auth.signOut() here, which would
+    // elsewhere). And we NEVER call supabase.auth.signOut({ scope: 'local' }) here, which would
     // wipe the shared session and cascade the logout to every tab.
     const recoverOrLogout = async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
