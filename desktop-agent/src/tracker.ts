@@ -20,6 +20,8 @@ interface ProductivityRule {
 interface IdlePolicy {
   away_time_after_minutes: number;
   stop_tracking_when_unused_minutes: number;
+  /** Admin policy: when true, nothing is recorded unless a task timer is running. */
+  track_only_when_timer_running: boolean;
 }
 
 interface OfficeLocation {
@@ -37,7 +39,9 @@ interface GeoLookup {
   country: string | null;
 }
 
-const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 5, stop_tracking_when_unused_minutes: 5 };
+// track_only_when_timer_running defaults to TRUE: before the policy has been read (or
+// when offline with nothing cached) the safe behaviour is to record nothing.
+const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 5, stop_tracking_when_unused_minutes: 5, track_only_when_timer_running: true };
 // ipapi.co's free tier allows 1,000 lookups/day/IP with no key. A real IP
 // rarely moves within a workday, so looking it up every 5 minutes (not every
 // tick) is both honest-enough freshness and comfortably inside that limit
@@ -135,7 +139,7 @@ async function refreshRules(supabase: SupabaseClient) {
 async function refreshIdlePolicy(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from('time_agent_policy')
-    .select('away_time_after_minutes, stop_tracking_when_unused_minutes')
+    .select('away_time_after_minutes, stop_tracking_when_unused_minutes, track_only_when_timer_running')
     .eq('id', true)
     .maybeSingle();
   if (!error && data) {
@@ -272,6 +276,19 @@ async function readWindowsBrowserHost(appName: string): Promise<string | null> {
   }
 }
 
+// main.ts tells the tracker whether a task timer is running right now.
+let timerRunning: () => boolean = () => false;
+export function setTimerRunningProvider(fn: () => boolean) {
+  timerRunning = fn;
+}
+
+// Set by startTracking so a task start can trigger a capture straight away instead of
+// waiting up to a full interval for the next scheduled one.
+let captureTick: (() => Promise<void>) | null = null;
+export function captureNow() {
+  if (captureTick) void captureTick();
+}
+
 export function stopTracking() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
@@ -314,6 +331,10 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       const policy = idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY;
       if (idleSeconds >= policy.stop_tracking_when_unused_minutes * 60) return;
       const isAway = idleSeconds >= policy.away_time_after_minutes * 60;
+
+      // Hubstaff / TimeCamp model: with the policy on, capture nothing (no activity row,
+      // no screenshot, no site or app) unless a task timer is running right now.
+      if (policy.track_only_when_timer_running && !timerRunning()) return;
 
       // Lazily required: active-win ships native bindings per OS; requiring
       // it at module load time would break `tsc` on an unsupported platform
@@ -390,6 +411,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
     }
   };
 
+  captureTick = tick;
   intervalHandle = setInterval(tick, newSettings.capture_interval_minutes * 60_000);
   tick(); // capture immediately on start, don't wait a full interval
 }

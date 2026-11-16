@@ -27,7 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
-import { startTracking, stopTracking } from './tracker';
+import { startTracking, stopTracking, setTimerRunningProvider, captureNow } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
   fetchPickableTasks,
@@ -557,6 +557,7 @@ async function resumePausedTask() {
     });
     pausedTask = null;
     await setAutoPaused(false);
+    captureNow();
     return;
   } catch {
     // Non-fatal — pausedTask stays set so the user can just try Resume again.
@@ -671,6 +672,9 @@ function applyWidgetVisibility() {
 }
 
 app.whenReady().then(async () => {
+  // Capture only while a task timer runs (and tracking isn't paused), per the
+  // "track only when timer running" policy (default on, same as Hubstaff / TimeCamp).
+  setTimerRunningProvider(() => activeTimer !== null && !autoPaused);
   createWindow();
   createWidgetWindow();
   tray = new Tray(path.join(__dirname, '../src/renderer/tray-icon.png'));
@@ -743,6 +747,7 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
     activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
     pausedTask = null; // explicitly picking a task overrides whatever was paused
     if (autoPaused) await setAutoPaused(false); // starting a task resumes tracking, like TimeCamp
+    captureNow(); // first capture right as the timer starts
   } catch {
     // Non-fatal — tray menu/widget simply won't reflect a switch that failed
     // server-side; refreshActiveTimer's next poll will reconcile either way.
@@ -778,6 +783,7 @@ ipcMain.handle(
         activeTimer = await switchTimer(supabase, currentEmployeeId, created, activeTimer);
         pausedTask = null;
         if (autoPaused) await setAutoPaused(false);
+        captureNow();
         rebuildTrayMenu();
         sendWidgetStatus(trackingStartedAt != null);
       }
