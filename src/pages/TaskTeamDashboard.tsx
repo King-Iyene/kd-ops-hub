@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { ChartGradients, GlassTooltip } from '@/components/ChartKit';
 import { axisTick, chartAnim, chartTheme, chartPalette } from '@/components/chart-kit-constants';
+import { DateRangeSelect } from '@/components/ui-kit/DateRangeSelect';
 
 // ─── Types & helpers ───────────────────────────────────────────────────
 
@@ -399,9 +400,7 @@ export default function TaskTeamDashboard() {
           <p className="text-sm text-muted-foreground">Team-wide task performance for the selected period.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="date" className="h-8 w-[150px] text-xs" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input type="date" className="h-8 w-[150px] text-xs" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          <DateRangeSelect start={fromDate} end={toDate} setStart={setFromDate} setEnd={setToDate} />
           <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
             <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>

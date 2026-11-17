@@ -51,6 +51,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
+import { DateRangeSelect } from '@/components/ui-kit/DateRangeSelect';
 
 interface DateRange {
   start: string; // yyyy-mm-dd
@@ -124,25 +125,13 @@ const Reports = () => {
           <p className="text-muted-foreground text-sm mt-1">Finance and operations analytics across modules.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <div className="flex items-end gap-2 flex-wrap">
-            <div className="space-y-1">
-              <Label className="text-xs">From</Label>
-              <Input
-                type="date"
-                value={range.start}
-                onChange={(e) => setRange({ ...range, start: e.target.value })}
-                className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">To</Label>
-              <Input
-                type="date"
-                value={range.end}
-                onChange={(e) => setRange({ ...range, end: e.target.value })}
-                className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
-              />
-            </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Date range</Label>
+            <DateRangeSelect
+              start={range.start} end={range.end}
+              setStart={(v) => setRange((r) => ({ ...r, start: v }))}
+              setEnd={(v) => setRange((r) => ({ ...r, end: v }))}
+            />
           </div>
         </div>
       </div>

@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
+import { DateRangeSelect } from '@/components/ui-kit/DateRangeSelect';
 import {
   flexApi, FLEX_FIELD_TYPES, type FlexTable, type FlexField, type FlexRecord,
   type FlexForm, type FlexFieldType, type FlexChoice, type FlexFormField,
@@ -1200,15 +1201,7 @@ function TableDashboard({
             {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" className="h-8 w-[150px] text-xs" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <span className="text-xs text-muted-foreground">to</span>
-        <Input type="date" className="h-8 w-[150px] text-xs" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        <Button
-          variant="ghost" size="sm" className="h-8 text-xs"
-          onClick={() => { setFromDate(toIso(startOfWeek(today))); setToDate(toIso(endOfWeek(today))); }}
-        >
-          This week
-        </Button>
+        <DateRangeSelect start={fromDate} end={toDate} setStart={setFromDate} setEnd={setToDate} />
       </div>
 
       {!personField || !dateField ? (

@@ -62,6 +62,7 @@ import { Pagination } from '@/components/ui-kit/Pagination';
 import { MobileCard, MobileCardHeader, MobileCardTitle } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
+import { DateRangeSelect } from '@/components/ui-kit/DateRangeSelect';
 
 interface AuditRow {
   id: string;
@@ -404,20 +405,7 @@ const AuditLog = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Input
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
-                  data-mobile-filter-row
-                />
-                <Input
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
-                  data-mobile-filter-row
-                />
+                <DateRangeSelect start={from} end={to} setStart={setFrom} setEnd={setTo} />
               </>
             }
           />
