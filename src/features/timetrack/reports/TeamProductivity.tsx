@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
-import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopSitesAppsColumns } from './ActivityBreakdown';
+import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -243,6 +243,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                     {isOpen && (
                       <div className="space-y-4 bg-muted/10 p-3 sm:p-4">
                         <PersonSummaryTiles filters={{ ...filters, employeeIds: [r.id] }} />
+                        <TopAppsStrip filters={{ ...filters, employeeIds: [r.id] }} />
                         <DailyTrends filters={{ ...filters, employeeIds: [r.id] }} />
                         <DayDetails filters={{ ...filters, employeeIds: [r.id] }} />
                         <TopSitesAppsColumns filters={{ ...filters, employeeIds: [r.id] }} />

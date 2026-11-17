@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Toolti
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
+import { SiteIcon } from '../ui/SiteIcon';
 import { CHART_COLORS, ChartEmpty, TrendLine, durationAxis, fmtDuration } from '../ui/charts';
 import { captureDomain, useLogsWithIntervals } from '../pages/activity/shared';
 import type { ReportFiltersState } from './useReportFilters';
@@ -126,7 +127,7 @@ export function TopSitesAppsColumns({ filters }: { filters: ReportFiltersState }
               </div>
               {shown.map((r) => (
                 <div key={r.name} className="grid grid-cols-[1fr_90px_60px_190px] items-center gap-2 border-b border-border/60 px-3 py-2 text-sm last:border-0">
-                  <span className="truncate font-medium">{r.name}<span className="ml-2 text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><SiteIcon name={r.name} /><span className="truncate">{r.name}</span><span className="shrink-0 text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span>
                   <span className="text-right font-mono tabular-nums">{fmtDuration(r.hours)}</span>
                   <span className="text-right font-mono tabular-nums text-muted-foreground">{Math.round(r.pct)}%</span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -193,6 +194,32 @@ export function PersonSummaryTiles({ filters }: { filters: ReportFiltersState })
           {t.sub && <p className="truncate text-xs text-muted-foreground">{t.sub}</p>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** TimeCamp's "Top active apps" strip: the biggest sites/apps as icons with their share of tracked time. */
+export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
+  const { items, isLoading } = useScopedLogs(filters);
+  const top = useMemo(() => {
+    const by = new Map<string, number>();
+    let total = 0;
+    for (const i of items) { by.set(i.key, (by.get(i.key) ?? 0) + i.hours); total += i.hours; }
+    return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, h]) => ({ name, h, pct: total ? (h / total) * 100 : 0 }));
+  }, [items]);
+  if (isLoading || top.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-3">
+      <p className="mb-2 text-xs text-muted-foreground">Top active apps and sites</p>
+      <div className="flex flex-wrap gap-x-5 gap-y-3">
+        {top.map((t) => (
+          <div key={t.name} className="flex w-20 flex-col items-center gap-1" title={`${t.name} · ${fmtDuration(t.h)}`}>
+            <SiteIcon name={t.name} className="h-10 w-10 rounded-xl text-sm" />
+            <span className="w-full truncate text-center text-xs">{t.name}</span>
+            <span className="text-xs font-semibold">{Math.round(t.pct)}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
