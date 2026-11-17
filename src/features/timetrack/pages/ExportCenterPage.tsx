@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Download, Plus, Trash2, Send, FileDown } from 'lucide-react';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
@@ -263,7 +264,7 @@ export default function ExportCenterPage() {
                       <Button variant="ghost" size="sm" onClick={() => sendNow(s)} disabled={sendingId === s.id}>
                         {sendingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeSchedule(s)}><Trash2 className="h-4 w-4" /></Button>
+                      <ConfirmAction title="Delete this scheduled export?" description="It will stop being sent. This cannot be undone." onConfirm={() => removeSchedule(s)}><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button></ConfirmAction>
                     </TableCell>
                   </TableRow>
                 ))}

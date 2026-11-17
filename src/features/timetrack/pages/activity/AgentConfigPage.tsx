@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ShieldCheck, Settings, MapPin, Trash2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -503,9 +504,9 @@ function GeofencingTab() {
                   <TableCell>{o.radius_meters}</TableCell>
                   <TableCell><Switch checked={o.is_active} onCheckedChange={(v) => toggleActive(o, v)} /></TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeOffice(o)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmAction title="Remove this office location?" confirmLabel="Remove" description="People will no longer be checked against this location for geofencing. This cannot be undone." onConfirm={() => removeOffice(o)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                    </ConfirmAction>
                   </TableCell>
                 </TableRow>
               ))}

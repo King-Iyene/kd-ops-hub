@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Tags } from 'lucide-react';
 import { RankedBars } from '@/features/timetrack/ui/charts';
@@ -116,7 +117,7 @@ export default function ActivityCategoriesPage() {
                       <TableCell>{r.app_name_contains ?? '—'}</TableCell>
                       <TableCell>{r.title_contains ?? '—'}</TableCell>
                       <TableCell><Badge variant="outline" className={CATEGORY_BADGE[r.category]}>{r.category}</Badge></TableCell>
-                      <TableCell><Button size="sm" variant="ghost" onClick={() => remove(r.id)}>Remove</Button></TableCell>
+                      <TableCell><ConfirmAction title="Remove this rule?" confirmLabel="Remove" description="Captures that used this rule go back to uncategorised. This cannot be undone." onConfirm={() => remove(r.id)}><Button size="sm" variant="ghost">Remove</Button></ConfirmAction></TableCell>
                     </TableRow>
                   ))}
                   {(rules ?? []).length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No rules yet — everything classifies as neutral.</TableCell></TableRow>}

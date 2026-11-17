@@ -35,13 +35,14 @@ export default function DashboardPage() {
     queryFn: async () => {
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
       const { data, error } = await supabase
-        .from('time_entries').select('duration_minutes, is_billable')
-        .eq('employee_id', profile!.id).gte('start_time', weekStart).not('end_time', 'is', null);
+        .from('time_entries').select('duration_minutes, is_billable, start_time, end_time')
+        .eq('employee_id', profile!.id).gte('start_time', weekStart);
       if (error) throw error;
       const rows = data ?? [];
       return {
-        total: rows.reduce((s, e) => s + (e.duration_minutes ?? 0), 0) / 60,
-        billable: rows.filter((e) => e.is_billable).reduce((s, e) => s + (e.duration_minutes ?? 0), 0) / 60,
+        // a timer that is still running counts live, up to now
+        total: rows.reduce((s, e) => s + (e.end_time ? (e.duration_minutes ?? 0) : (Date.now() - new Date(e.start_time).getTime()) / 60_000), 0) / 60,
+        billable: rows.filter((e) => e.is_billable).reduce((s, e) => s + (e.end_time ? (e.duration_minutes ?? 0) : (Date.now() - new Date(e.start_time).getTime()) / 60_000), 0) / 60,
       };
     },
     enabled: !!profile?.id,

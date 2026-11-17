@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfWeek } from 'date-fns';
 import { Loader2, Target, Plus } from 'lucide-react';
@@ -119,7 +120,7 @@ export default function GoalsPage() {
                         <TableCell>{g.target_value}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
                         <TableCell>{actual.toFixed(1)}{g.metric === 'efficiency_pct' ? '%' : 'h'}</TableCell>
                         <TableCell><Progress value={pct} /></TableCell>
-                        <TableCell><Button size="sm" variant="ghost" onClick={() => remove(g.id)}>Remove</Button></TableCell>
+                        <TableCell><ConfirmAction title="Remove this goal?" confirmLabel="Remove" description="The goal stops being tracked. This cannot be undone." onConfirm={() => remove(g.id)}><Button size="sm" variant="ghost">Remove</Button></ConfirmAction></TableCell>
                       </TableRow>
                     );
                   })}
