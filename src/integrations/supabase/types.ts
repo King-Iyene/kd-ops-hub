@@ -14548,6 +14548,7 @@ export type Database = {
       }
       time_activity_logs: {
         Row: {
+          active_seconds: number | null
           app_name: string | null
           captured_at: string
           employee_id: string
@@ -14557,13 +14558,17 @@ export type Database = {
           geo_lon: number | null
           geo_region: string | null
           id: string
+          input_events: number | null
           ip_address: string | null
           is_outside_geofence: boolean | null
+          mouse_events: number | null
           productivity_category: string | null
           url: string | null
+          window_seconds: number | null
           window_title: string | null
         }
         Insert: {
+          active_seconds?: number | null
           app_name?: string | null
           captured_at?: string
           employee_id: string
@@ -14573,13 +14578,17 @@ export type Database = {
           geo_lon?: number | null
           geo_region?: string | null
           id?: string
+          input_events?: number | null
           ip_address?: string | null
           is_outside_geofence?: boolean | null
+          mouse_events?: number | null
           productivity_category?: string | null
           url?: string | null
+          window_seconds?: number | null
           window_title?: string | null
         }
         Update: {
+          active_seconds?: number | null
           app_name?: string | null
           captured_at?: string
           employee_id?: string
@@ -14589,10 +14598,13 @@ export type Database = {
           geo_lon?: number | null
           geo_region?: string | null
           id?: string
+          input_events?: number | null
           ip_address?: string | null
           is_outside_geofence?: boolean | null
+          mouse_events?: number | null
           productivity_category?: string | null
           url?: string | null
+          window_seconds?: number | null
           window_title?: string | null
         }
         Relationships: [
