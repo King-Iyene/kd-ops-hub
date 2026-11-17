@@ -27,7 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
-import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes } from './tracker';
+import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes, getIdleMode, getAwayAfterMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
   fetchPickableTasks,
@@ -535,6 +535,7 @@ function sendWidgetStatus(tracking: boolean) {
     tracking,
     idle: autoPaused, // per-tick idle isn't plumbed out of tracker.ts; this reflects a user pause
     autoPaused,
+    idleNow,
     startedAt: trackingStartedAt,
     task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime(), baseMs: taskTodayMs(activeTimer.taskId) } : null,
     pausedTask:
@@ -631,13 +632,51 @@ async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 's
   }
 }
 
-/** Every 30s while a timer runs: remember we are alive, and stop it if the computer has been unused too long. */
+let idleNow = false; // 'keep tracking' mode: the computer is idle right now (shown on the widget, nothing pauses)
+
+function formatIdle(sec: number): string {
+  const m = Math.max(1, Math.round(sec / 60));
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'}`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r === 0 ? `${h} hour${h === 1 ? '' : 's'}` : `${h} h ${r} min`;
+}
+
+/** "Do not track idle time": pause the timer back-dated to when the idle began, and tell the person. */
+async function pauseForIdle(endMs: number, idleSec: number): Promise<void> {
+  if (!supabase || !activeTimer) return;
+  const t = activeTimer;
+  const end = Math.max(endMs, new Date(t.startTime).getTime());
+  addSegment(t, end);
+  pausedTask = t;
+  pausedAtMs = end;
+  activeTimer = null;
+  store.delete('timerBeat');
+  void stopActiveTimer(supabase, t.entryId, new Date(end).toISOString()).catch((err) => console.error('[idle pause] write failed:', err));
+  await setAutoPaused(true);
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+  const hhmm = new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  new Notification({
+    title: 'KD Ops Time Tracker',
+    body: `You have been idle for ${formatIdle(idleSec)}. Your timer for "${t.taskName}" is paused (since ${hhmm}). Open the tracker and press Resume when you are back.`,
+  }).show();
+}
+
+/** Every 30s while a timer runs: remember we are alive, and act on idle time the way the admin chose. */
 function startTimerWatchdog() {
   setInterval(() => {
     if (!activeTimer) return;
     store.set('timerBeat', { entryId: activeTimer.entryId, at: Date.now() });
     const idleSec = powerMonitor.getSystemIdleTime();
-    if (idleSec >= getStopWhenUnusedMinutes() * 60) void stopTimerAt(Date.now() - idleSec * 1000, 'idle');
+    if (getIdleMode() === 'pause') {
+      if (idleNow) { idleNow = false; sendWidgetStatus(trackingStartedAt != null); }
+      if (idleSec >= getStopWhenUnusedMinutes() * 60) void pauseForIdle(Date.now() - idleSec * 1000, idleSec);
+    } else {
+      // keep tracking: nothing pauses; just show on the widget that the computer is idle
+      const nowIdle = idleSec >= getAwayAfterMinutes() * 60;
+      if (nowIdle !== idleNow) { idleNow = nowIdle; sendWidgetStatus(trackingStartedAt != null); }
+    }
   }, 30_000);
   powerMonitor.on('suspend', () => void stopTimerAt(Date.now(), 'sleep'));
 }

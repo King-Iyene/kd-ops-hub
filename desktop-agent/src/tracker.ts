@@ -21,6 +21,8 @@ interface ProductivityRule {
 interface IdlePolicy {
   away_time_after_minutes: number;
   stop_tracking_when_unused_minutes: number;
+  /** 'pause' = pause and notify at the idle limit; 'track' = keep tracking and mark idle time as idle */
+  idle_mode?: 'pause' | 'track';
   /** Admin policy: when true, nothing is recorded unless a task timer is running. */
   track_only_when_timer_running: boolean;
 }
@@ -185,6 +187,14 @@ async function refreshRules(supabase: SupabaseClient) {
 interface HoursRow { weekday: number; from_time: string; to_time: string }
 let trackingHours: HoursRow[] = [];
 
+export function getIdleMode(): 'pause' | 'track' {
+  return (idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY).idle_mode ?? 'pause';
+}
+
+export function getAwayAfterMinutes(): number {
+  return (idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY).away_time_after_minutes;
+}
+
 export function isWithinTrackingHours(now = new Date()): boolean {
   if (trackingHours.length === 0) return true;
   const row = trackingHours.find((r) => r.weekday === (now.getDay() + 6) % 7);
@@ -196,7 +206,7 @@ export function isWithinTrackingHours(now = new Date()): boolean {
 async function refreshIdlePolicy(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from('time_agent_policy')
-    .select('away_time_after_minutes, stop_tracking_when_unused_minutes, track_only_when_timer_running')
+    .select('away_time_after_minutes, stop_tracking_when_unused_minutes, track_only_when_timer_running, idle_mode')
     .eq('id', true)
     .maybeSingle();
   if (!error && data) {
@@ -413,7 +423,9 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       // misclassified against whatever app happened to be focused.
       const idleSeconds = powerMonitor.getSystemIdleTime();
       const policy = idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY;
-      if (idleSeconds >= policy.stop_tracking_when_unused_minutes * 60) return;
+      // In 'pause' mode idle time past the limit is not tracked at all. In 'track' mode it keeps being
+      // recorded (marked idle below) so it shows in the tracker and the summaries.
+      if ((policy.idle_mode ?? 'pause') === 'pause' && idleSeconds >= policy.stop_tracking_when_unused_minutes * 60) return;
       const isAway = idleSeconds >= policy.away_time_after_minutes * 60;
 
       // Pick up admin policy / tracking-hours changes without needing a restart.

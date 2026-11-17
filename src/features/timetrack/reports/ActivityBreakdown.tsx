@@ -153,6 +153,17 @@ export function TopSitesAppsColumns({ filters }: { filters: ReportFiltersState }
 /** Headline numbers for one person: the first thing HR reads when they open a row. */
 export function PersonSummaryTiles({ filters }: { filters: ReportFiltersState }) {
   const { items, isLoading } = useScopedLogs(filters);
+  const { data: rawLogs } = useLogsWithIntervals(filters.start, filters.end);
+  // idle captures are left out of the productive/neutral/unproductive split, so they are counted here and shown on their own
+  const idleHours = useMemo(() => {
+    let h = 0;
+    for (const l of rawLogs?.logs ?? []) {
+      if (l.productivity_category !== 'idle') continue;
+      if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
+      h += (rawLogs?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
+    }
+    return h;
+  }, [rawLogs, filters.employeeIds]);
   const s = useMemo(() => {
     if (items.length === 0) return null;
     const sum = (lv: Level) => items.filter((i) => i.level === lv).reduce((a, i) => a + i.hours, 0);
@@ -180,12 +191,13 @@ export function PersonSummaryTiles({ filters }: { filters: ReportFiltersState })
     { label: 'Productive', value: `${Math.round(pct)}%`, sub: fmtDuration(s.productive), color: CHART_COLORS.productive },
     { label: 'Neutral', value: fmtDuration(s.neutral), sub: `${Math.round(s.total ? (s.neutral / s.total) * 100 : 0)}% of time`, color: CHART_COLORS.neutral },
     { label: 'Unproductive', value: fmtDuration(s.unproductive), sub: `${Math.round(s.total ? (s.unproductive / s.total) * 100 : 0)}% of time`, color: CHART_COLORS.unproductive },
+    { label: 'Idle', value: fmtDuration(idleHours), sub: idleHours > 0 ? 'computer idle, marked as idle' : 'no idle time recorded', color: '#38bdf8' },
     { label: 'Activity level', value: s.activity == null ? 'n/a' : `${Math.round(s.activity)}%`, sub: s.activity == null ? 'needs tracker 1.0.17+' : `${s.mouse.toLocaleString()} mouse · ${s.keys.toLocaleString()} typing/click bursts` },
     { label: 'Active window', value: `${format(new Date(s.first), 'HH:mm')}–${format(new Date(s.last), 'HH:mm')}`, sub: 'first to last capture, any day' },
     { label: 'Most used', value: s.top[0], sub: `${fmtDuration(s.top[1])} · ${s.sites} sites, ${s.apps} apps` },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
       {tiles.map((t) => (
         <div key={t.label} className="rounded-lg border border-border bg-card px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">

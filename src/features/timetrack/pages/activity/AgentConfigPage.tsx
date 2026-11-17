@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -238,6 +239,7 @@ interface AgentPolicy {
   block_away_time_outside_first_last: boolean; choose_task_when_unmatched: boolean; no_task_timeout_minutes: number;
   allow_logging_overtime: boolean; stop_tracking_when_unused_minutes: number; stop_at_daily_limit_weekdays: number[];
   disable_split_away_time: boolean; use_different_settings_for_notebooks: boolean;
+  idle_mode: 'pause' | 'track';
 }
 interface TrackingHoursRow { weekday: number; from_time: string; to_time: string }
 const WEEKDAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -337,7 +339,22 @@ function PolicyTab() {
           <div className="grid sm:grid-cols-3 gap-4 max-w-2xl">
             <div><Label>Private time per day (minutes)</Label><Input type="number" min={0} value={local.private_time_minutes_per_day} onChange={(e) => setLocal({ ...local, private_time_minutes_per_day: Number(e.target.value) || 0 })} /></div>
             <div><Label>Choose away-time activity after (min)</Label><Input type="number" min={1} value={local.away_time_after_minutes} onChange={(e) => setLocal({ ...local, away_time_after_minutes: Number(e.target.value) || 1 })} /></div>
-            <div><Label>Stop tracking when computer unused for (min)</Label><Input type="number" min={1} value={local.stop_tracking_when_unused_minutes} onChange={(e) => setLocal({ ...local, stop_tracking_when_unused_minutes: Number(e.target.value) || 1 })} /></div>
+            <div><Label>Computer counts as idle after (min)</Label><Input type="number" min={1} value={local.stop_tracking_when_unused_minutes} onChange={(e) => setLocal({ ...local, stop_tracking_when_unused_minutes: Number(e.target.value) || 1 })} /></div>
+            <div className="sm:col-span-2">
+              <Label>When the computer is idle</Label>
+              <Select value={local.idle_mode ?? 'pause'} onValueChange={(v) => setLocal({ ...local, idle_mode: v as 'pause' | 'track' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pause">Do not track idle time: pause the timer and notify the person</SelectItem>
+                  <SelectItem value="track">Keep tracking: the timer runs on, idle time is marked as idle</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {(local.idle_mode ?? 'pause') === 'pause'
+                  ? 'After the idle time above, the tracker pauses the timer back-dated to when the idle began and shows "You have been idle for …". The person presses Resume when they are back. The idle time is not counted.'
+                  : 'Nothing pauses and no notification appears. The idle time stays in the tracked time but is marked idle, so it shows in the tracker and in the summaries.'}
+              </p>
+            </div>
             <div><Label>Switch to "no task" after (min, 0 = immediately)</Label><Input type="number" min={0} value={local.no_task_timeout_minutes} onChange={(e) => setLocal({ ...local, no_task_timeout_minutes: Number(e.target.value) || 0 })} /></div>
           </div>
 

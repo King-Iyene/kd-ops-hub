@@ -56,7 +56,7 @@ function setState(state) {
 function render() {
   if (currentTask) {
     dot.className = 'tracking';
-    label.textContent = currentTask.name;
+    label.textContent = idleNow ? `${currentTask.name} · idle` : currentTask.name;
     stopBtn.classList.add('visible');
     pauseBtn.classList.add('visible');
     pauseBtn.textContent = '❙❙';
@@ -90,8 +90,10 @@ function render() {
   renderTick();
 }
 
-window.widget.onStatus(({ tracking, idle, startedAt, task, pausedTask: pt, autoPaused: ap }) => {
+let idleNow = false;
+window.widget.onStatus(({ tracking, idle, idleNow: inow, startedAt, task, pausedTask: pt, autoPaused: ap }) => {
   autoPaused = !!ap;
+  idleNow = !!inow;
   if (startedAt != null) trackingStartedAt = startedAt;
   if (!tracking) {
     trackingStartedAt = null;
