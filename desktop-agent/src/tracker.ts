@@ -180,6 +180,19 @@ async function refreshRules(supabase: SupabaseClient) {
 // Company-wide idle policy (time_agent_policy) is a singleton row admins edit
 // on the Agent & Policy page. Re-fetched periodically like the rules cache,
 // never blocking a tick — a stale/default policy is a safe fallback.
+// "Track time in specific hours" (Agent & policy): one from/to window per weekday, 0 = Monday.
+// Outside the window nothing is captured. No rows loaded yet = no restriction.
+interface HoursRow { weekday: number; from_time: string; to_time: string }
+let trackingHours: HoursRow[] = [];
+
+export function isWithinTrackingHours(now = new Date()): boolean {
+  if (trackingHours.length === 0) return true;
+  const row = trackingHours.find((r) => r.weekday === (now.getDay() + 6) % 7);
+  if (!row) return true;
+  const hhmmss = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+  return hhmmss >= row.from_time.slice(0, 8) && hhmmss <= row.to_time.slice(0, 8);
+}
+
 async function refreshIdlePolicy(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from('time_agent_policy')
@@ -190,6 +203,8 @@ async function refreshIdlePolicy(supabase: SupabaseClient) {
     idlePolicy = data as IdlePolicy;
     idlePolicyLoadedAt = Date.now();
   }
+  const hours = await supabase.from('time_agent_tracking_hours').select('weekday, from_time, to_time');
+  if (!hours.error && hours.data) trackingHours = hours.data as HoursRow[];
 }
 
 // Every connected monitor goes into ONE wide image, left to right in their
@@ -381,6 +396,11 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       const policy = idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY;
       if (idleSeconds >= policy.stop_tracking_when_unused_minutes * 60) return;
       const isAway = idleSeconds >= policy.away_time_after_minutes * 60;
+
+      // Pick up admin policy / tracking-hours changes without needing a restart.
+      if (Date.now() - idlePolicyLoadedAt > 5 * 60_000) void refreshIdlePolicy(supabase);
+      // Outside the admin's tracking hours nothing is captured.
+      if (!isWithinTrackingHours()) return;
 
       // Hubstaff / TimeCamp model: with the policy on, capture nothing (no activity row,
       // no screenshot, no site or app) unless a task timer is running right now.
