@@ -205,20 +205,33 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
     const by = new Map<string, number>();
     let total = 0;
     for (const i of items) { by.set(i.key, (by.get(i.key) ?? 0) + i.hours); total += i.hours; }
-    return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, h]) => ({ name, h, pct: total ? (h / total) * 100 : 0 }));
+    return [...by.entries()].sort((a, b) => b[1] - a[1]).map(([name, h]) => ({ name, h, pct: total ? (h / total) * 100 : 0 }));
   }, [items]);
   if (isLoading || top.length === 0) return null;
+  // Biggest apps get big icons; the long tail shrinks, and anything past 24 is folded into a +N chip.
+  const MAX = 24;
+  const shown = top.slice(0, MAX);
+  const rest = top.slice(MAX);
+  const size = (pct: number, i: number) => (i < 4 ? 44 : i < 10 ? 34 : 26);
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-3">
       <p className="mb-2 text-xs text-muted-foreground">Top active apps and sites</p>
-      <div className="flex flex-wrap gap-x-5 gap-y-3">
-        {top.map((t) => (
-          <div key={t.name} className="flex w-20 flex-col items-center gap-1" title={`${t.name} · ${fmtDuration(t.h)}`}>
-            <SiteIcon name={t.name} className="h-10 w-10 rounded-xl text-sm" />
-            <span className="w-full truncate text-center text-xs">{t.name}</span>
-            <span className="text-xs font-semibold">{Math.round(t.pct)}%</span>
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        {shown.map((t, i) => {
+          const px = size(t.pct, i);
+          return (
+            <div key={t.name} className="flex flex-col items-center gap-1" style={{ width: Math.max(px + 14, 56) }} title={`${t.name} · ${fmtDuration(t.h)} · ${t.pct.toFixed(1)}%`}>
+              <SiteIcon name={t.name} className="rounded-xl" size={px} />
+              {i < 10 && <span className="w-full truncate text-center text-[11px]">{t.name}</span>}
+              <span className="text-xs font-semibold">{t.pct >= 1 ? `${Math.round(t.pct)}%` : '<1%'}</span>
+            </div>
+          );
+        })}
+        {rest.length > 0 && (
+          <div className="flex h-9 items-center rounded-full border border-border px-3 text-xs text-muted-foreground" title={rest.map((r) => r.name).join(', ')}>
+            +{rest.length} more · {Math.round(rest.reduce((a, r) => a + r.pct, 0))}%
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

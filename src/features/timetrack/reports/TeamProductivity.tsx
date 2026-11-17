@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
+import { useTrackedHours } from '../lib/useTrackedHours';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
@@ -100,6 +101,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const [mode, setMode] = useState<Mode>('hours');
   const [open, setOpen] = useState<string | null>(null);
   const companyIds = useCompanyEmployeeIds();
+  const tracked = useTrackedHours(filters.start, filters.end);
   const { data: logData, isLoading } = useLogsWithIntervals(filters.start, filters.end);
 
   const { data: names } = useQuery({
@@ -135,6 +137,12 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
       .sort((a, b) => b.pct - a.pct || b.total - a.total);
   }, [logData, names, filters.employeeIds, companyIds]);
 
+  // People with task time but no computer activity at all: their desktop tracker is not installed, not signed in, or never ran.
+  const notConnected = [...tracked.entries()]
+    .filter(([id, t]) => t.entryHours > 0.05 && t.computerHours === 0)
+    .filter(([id]) => (filters.employeeIds.length === 0 || filters.employeeIds.includes(id)) && (!companyIds || companyIds.has(id)))
+    .map(([id, t]) => ({ id, name: names?.get(id) ?? 'Unknown', hours: t.entryHours }))
+    .sort((a, b) => b.hours - a.hours);
   const teamTotal = rows.reduce((a, r) => a + r.total, 0);
   const teamProductive = rows.reduce((a, r) => a + r.productive, 0);
   const teamUnproductive = rows.reduce((a, r) => a + r.unproductive, 0);
@@ -211,6 +219,14 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
               </ResponsiveContainer>
             </div>
 
+            {notConnected.length > 0 && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                <p className="font-medium text-amber-600 dark:text-amber-400">No tracker data for {notConnected.length} {notConnected.length === 1 ? 'person' : 'people'} who logged time</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {notConnected.map((n) => `${n.name} (${fmtDuration(n.hours)})`).join(', ')}. They have task time but no computer activity or screenshots, so the desktop tracker is not installed or not signed in on their computer.
+                </p>
+              </div>
+            )}
             <div className="divide-y divide-border/60 rounded-md border border-border">
               {rows.map((r) => {
                 const isOpen = open === r.id;

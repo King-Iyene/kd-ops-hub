@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useTrackedHours } from '../lib/useTrackedHours';
+import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -94,15 +95,16 @@ export default function DashboardPage() {
   const teamHoursToday = todayRows.reduce((s, t) => s + t.hours_today, 0);
   const myToday = todayRows.find((t) => t.employee_id === profile?.id);
 
+  const companyIds = useCompanyEmployeeIds();
   const roster = useMemo(() => {
-    const rows = todayRows.slice().sort((a, b) => {
+    const rows = todayRows.filter((r) => !companyIds || companyIds.has(r.employee_id)).sort((a, b) => {
       if (a.is_timer_active !== b.is_timer_active) return a.is_timer_active ? -1 : 1;
       return b.hours_today - a.hours_today;
     });
     if (!search.trim()) return rows;
     const q = search.trim().toLowerCase();
     return rows.filter((r) => r.full_name.toLowerCase().includes(q));
-  }, [todayRows, search]);
+  }, [todayRows, search, companyIds]);
 
   const handleDownload = () => {
     const rows = canViewOthers ? roster : (myToday ? [myToday] : []);

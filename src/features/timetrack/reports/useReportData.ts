@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
+import { useActiveEmployees, useCompanyEmployeeIds } from '@/features/timetrack/lib/trackerEmployees';
 import { fetchAllProjects, fetchAllTags } from '../lib/queries';
 import type { ReportFilters } from './useReportFilters';
 
@@ -35,8 +35,9 @@ export function useReportLookups() {
  * project/task name, and tags. Shared by every report page so each one
  * only has to decide how to group/aggregate, not how to fetch. */
 export function useReportEntries(filters: ReportFilters) {
+  const companyIds = useCompanyEmployeeIds();
   return useQuery({
-    queryKey: ['timetrack', 'report-entries', filters],
+    queryKey: ['timetrack', 'report-entries', filters, companyIds ? [...companyIds].sort().join(',') : 'all'],
     queryFn: async (): Promise<ReportEntry[]> => {
       let query = supabase
         .from('time_entries')
@@ -92,6 +93,8 @@ export function useReportEntries(filters: ReportFilters) {
       if (filters.tagIds.length) {
         rows = rows.filter((r) => r.tag_ids.some((id) => filters.tagIds.includes(id)));
       }
+      // the company chosen in the page header narrows every report built on these entries
+      if (companyIds) rows = rows.filter((r) => companyIds.has(r.employee_id));
       return rows;
     },
   });

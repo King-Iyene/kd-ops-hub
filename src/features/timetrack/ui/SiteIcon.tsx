@@ -24,14 +24,14 @@ function hashColor(name: string) {
   return `hsl(${h} 55% 42%)`;
 }
 
-export function SiteIcon({ name, className }: { name: string; className?: string }) {
+export function SiteIcon({ name, className, size = 24 }: { name: string; className?: string; size?: number }) {
   const brand = BRANDS.find(([re]) => re.test(name));
   const bg = brand?.[1] ?? hashColor(name);
   const label = brand?.[2] ?? (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
   return (
     <span
-      className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold leading-none text-white', className)}
-      style={{ background: bg }}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-md font-bold leading-none text-white', className)}
+      style={{ background: bg, width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.38)) }}
       aria-hidden
     >
       {label}
