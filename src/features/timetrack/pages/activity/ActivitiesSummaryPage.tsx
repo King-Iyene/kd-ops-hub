@@ -79,6 +79,16 @@ export default function ActivitiesSummaryPage() {
 
   const nameOf = (id: string) => employees?.find((e) => e.id === id)?.full_name ?? id;
 
+  // people who ran task timers but have no desktop-tracker data: shown too, so nobody's time goes missing
+  const tracked = useTrackedHours(start, end);
+  const taskOnly = useMemo(
+    () => [...tracked.entries()]
+      .filter(([id, t]) => t.entryHours > 0.05 && t.computerHours === 0 && (employeeIds.length === 0 || employeeIds.includes(id)) && !!employees?.some((e) => e.id === id))
+      .map(([id, t]) => ({ id, hours: t.entryHours }))
+      .sort((a, b) => b.hours - a.hours),
+    [tracked, employeeIds, employees],
+  );
+
   const scopedLogs = useMemo(() => {
     const all = data?.logs ?? [];
     return employeeIds.length > 0 ? all.filter((l) => employeeIds.includes(l.employee_id)) : all;
@@ -291,7 +301,22 @@ export default function ActivitiesSummaryPage() {
                 </CardContent>
               </Card>
             ))}
-            {byPerson.length === 0 && <p className="text-sm text-muted-foreground col-span-full">No activity captured yet.</p>}
+            {taskOnly.map((p) => (
+              <Card key={p.id} className="border-dashed border-amber-500/50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <Avatar className="h-8 w-8"><AvatarFallback>{initials(nameOf(p.id))}</AvatarFallback></Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm truncate"><EmployeeLink employeeId={p.id} name={nameOf(p.id)} /></p>
+                      <p className="text-xs text-muted-foreground">{fmtHm(p.hours)} of task time</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">No desktop tracker data</p>
+                  <p className="text-xs text-muted-foreground">Timers only: no apps, sites or screenshots until the tracker is installed and signed in.</p>
+                </CardContent>
+              </Card>
+            ))}
+            {byPerson.length === 0 && taskOnly.length === 0 && <p className="text-sm text-muted-foreground col-span-full">No activity captured yet.</p>}
           </div>
 
           <Card>

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { SiteIcon } from '@/features/timetrack/ui/SiteIcon';
+import { parseEntryList } from '@/features/timetrack/lib/siteNames';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CATEGORY_BADGE, useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
 
@@ -64,27 +65,7 @@ export default function ActivityCategoriesPage() {
   const [addText, setAddText] = useState('');
   const [addCategory, setAddCategory] = useState<'productive' | 'neutral' | 'unproductive' | 'blocked'>('productive');
 
-  /** "https://www.Facebook.com/groups/x?y=1" -> "facebook.com"; apps are kept as typed. */
-  const normalise = (raw: string, kind: 'site' | 'app'): string | null => {
-    const v = raw.trim();
-    if (!v) return null;
-    if (kind === 'app') return v;
-    const host = v.toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#:\s]/)[0];
-    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
-  };
-  const parsedEntries = useMemo(() => {
-    const seen = new Set<string>();
-    const ok: string[] = [];
-    const bad: string[] = [];
-    for (const line of addText.split(/[\n,;]+/)) {
-      if (!line.trim()) continue;
-      const n = normalise(line, addKind);
-      if (!n) { bad.push(line.trim()); continue; }
-      if (!seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); ok.push(n); }
-    }
-    return { ok, bad };
-   
-  }, [addText, addKind]);
+  const parsedEntries = useMemo(() => parseEntryList(addText, addKind), [addText, addKind]);
 
   const saveEntries = async () => {
     if (parsedEntries.ok.length === 0) { toast({ title: 'Nothing to add yet', variant: 'destructive' }); return; }

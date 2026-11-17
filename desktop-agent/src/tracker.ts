@@ -3,6 +3,7 @@ import { app, desktopCapturer, nativeImage, powerMonitor, screen } from 'electro
 import { randomUUID } from 'crypto';
 import { queueInsert, writeOrQueue } from './offlineQueue';
 import { matchProductivityRule } from './productivityRules';
+import { idleDecision, withinTrackingHours, type HoursRow } from './logic';
 
 interface AgentSettings {
   is_enabled: boolean;
@@ -184,7 +185,6 @@ async function refreshRules(supabase: SupabaseClient) {
 // never blocking a tick — a stale/default policy is a safe fallback.
 // "Track time in specific hours" (Agent & policy): one from/to window per weekday, 0 = Monday.
 // Outside the window nothing is captured. No rows loaded yet = no restriction.
-interface HoursRow { weekday: number; from_time: string; to_time: string }
 let trackingHours: HoursRow[] = [];
 
 export function getIdleMode(): 'pause' | 'track' {
@@ -196,11 +196,7 @@ export function getAwayAfterMinutes(): number {
 }
 
 export function isWithinTrackingHours(now = new Date()): boolean {
-  if (trackingHours.length === 0) return true;
-  const row = trackingHours.find((r) => r.weekday === (now.getDay() + 6) % 7);
-  if (!row) return true;
-  const hhmmss = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
-  return hhmmss >= row.from_time.slice(0, 8) && hhmmss <= row.to_time.slice(0, 8);
+  return withinTrackingHours(trackingHours, now);
 }
 
 async function refreshIdlePolicy(supabase: SupabaseClient) {
@@ -444,8 +440,9 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       const policy = idlePolicyLoadedAt > 0 ? idlePolicy : DEFAULT_IDLE_POLICY;
       // In 'pause' mode idle time past the limit is not tracked at all. In 'track' mode it keeps being
       // recorded (marked idle below) so it shows in the tracker and the summaries.
-      if ((policy.idle_mode ?? 'pause') === 'pause' && idleSeconds >= policy.stop_tracking_when_unused_minutes * 60) return;
-      const isAway = idleSeconds >= policy.away_time_after_minutes * 60;
+      const idle = idleDecision(policy.idle_mode ?? 'pause', idleSeconds, policy.stop_tracking_when_unused_minutes, policy.away_time_after_minutes);
+      if (idle.skipCapture) return;
+      const isAway = idle.markIdle;
 
       // Pick up admin policy / tracking-hours changes without needing a restart.
       if (Date.now() - idlePolicyLoadedAt > 5 * 60_000) void refreshIdlePolicy(supabase);

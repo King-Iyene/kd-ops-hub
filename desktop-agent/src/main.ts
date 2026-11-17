@@ -27,6 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
+import { idleDecision, formatIdle, taskTodayMs as taskTodayFrom, addTaskToday as addTaskTodayTo, mergeTaskToday } from './logic';
 import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes, getIdleMode, getAwayAfterMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
@@ -215,14 +216,11 @@ let runSettingsCheck: (() => Promise<void>) | null = null;
 // reconciled with the server whenever it is reachable.
 const dayKey = () => new Date().toDateString();
 function taskTodayMs(taskId: string): number {
-  const s = store.get('taskToday');
-  return s && s.date === dayKey() ? (s.ms[taskId] ?? 0) : 0;
+  return taskTodayFrom(store.get('taskToday'), dayKey(), taskId);
 }
 function addTaskToday(taskId: string, ms: number) {
   if (!(ms > 0)) return;
-  const s = store.get('taskToday');
-  const cur = s && s.date === dayKey() ? s.ms : {};
-  store.set('taskToday', { date: dayKey(), ms: { ...cur, [taskId]: (cur[taskId] ?? 0) + ms } });
+  store.set('taskToday', addTaskTodayTo(store.get('taskToday'), dayKey(), taskId, ms));
 }
 function addSegment(t: ActiveTimer, endMs = Date.now()) {
   addTaskToday(t.taskId, Math.max(0, endMs - new Date(t.startTime).getTime()));
@@ -244,10 +242,7 @@ async function syncTaskToday() {
       merged[r.task_id] = (merged[r.task_id] ?? 0) + (new Date(r.end_time).getTime() - new Date(r.start_time).getTime());
     }
     // keep whichever is larger per task: the server may not have an offline segment yet
-    const s = store.get('taskToday');
-    const local = s && s.date === dayKey() ? s.ms : {};
-    for (const [k, v] of Object.entries(local)) merged[k] = Math.max(merged[k] ?? 0, v);
-    store.set('taskToday', { date: dayKey(), ms: merged });
+    store.set('taskToday', mergeTaskToday(store.get('taskToday'), dayKey(), merged));
     sendWidgetStatus(trackingStartedAt != null);
   } catch {
     // offline: the local totals keep the clock right
@@ -636,14 +631,6 @@ async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 's
 
 let idleNow = false; // 'keep tracking' mode: the computer is idle right now (shown on the widget, nothing pauses)
 
-function formatIdle(sec: number): string {
-  const m = Math.max(1, Math.round(sec / 60));
-  if (m < 60) return `${m} minute${m === 1 ? '' : 's'}`;
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  return r === 0 ? `${h} hour${h === 1 ? '' : 's'}` : `${h} h ${r} min`;
-}
-
 /** "Do not track idle time": pause the timer back-dated to when the idle began, and tell the person. */
 async function pauseForIdle(endMs: number, idleSec: number): Promise<void> {
   if (!supabase || !activeTimer) return;
@@ -671,14 +658,10 @@ function startTimerWatchdog() {
     if (!activeTimer) return;
     store.set('timerBeat', { entryId: activeTimer.entryId, at: Date.now() });
     const idleSec = powerMonitor.getSystemIdleTime();
-    if (getIdleMode() === 'pause') {
-      if (idleNow) { idleNow = false; sendWidgetStatus(trackingStartedAt != null); }
-      if (idleSec >= getStopWhenUnusedMinutes() * 60) void pauseForIdle(Date.now() - idleSec * 1000, idleSec);
-    } else {
-      // keep tracking: nothing pauses; just show on the widget that the computer is idle
-      const nowIdle = idleSec >= getAwayAfterMinutes() * 60;
-      if (nowIdle !== idleNow) { idleNow = nowIdle; sendWidgetStatus(trackingStartedAt != null); }
-    }
+    const d = idleDecision(getIdleMode(), idleSec, getStopWhenUnusedMinutes(), getAwayAfterMinutes());
+    if (d.pauseTimer) void pauseForIdle(Date.now() - idleSec * 1000, idleSec);
+    // 'keep tracking' mode: nothing pauses, the widget just shows the task as idle
+    if (d.showIdleOnWidget !== idleNow) { idleNow = d.showIdleOnWidget; sendWidgetStatus(trackingStartedAt != null); }
   }, 30_000);
   powerMonitor.on('suspend', () => void stopTimerAt(Date.now(), 'sleep'));
 }

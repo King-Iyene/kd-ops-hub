@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
+import { useReportEntries } from './useReportData';
 import { SiteIcon } from '../ui/SiteIcon';
 import { siteOrAppKey } from '../pages/activity/shared';
 import { useTrackedHours } from '../lib/useTrackedHours';
@@ -22,6 +23,46 @@ function Photo({ url, initials, accent }: { url: string | null; initials: string
     return <img src={url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as string]: accent }} onError={() => setFailed(true)} />;
   }
   return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: accent }}>{initials}</span>;
+}
+
+/** What a person with task time but no desktop tracker has: their hours by project and task, from the timers they ran. */
+function TaskTimeOnly({ filters, id, name }: { filters: ReportFiltersState; id: string; name: string }) {
+  const { data: entries, isLoading } = useReportEntries({ ...filters, employeeIds: [id] });
+  const rows = useMemo(() => {
+    const by = new Map<string, { project: string; task: string; minutes: number; running: boolean }>();
+    for (const e of entries ?? []) {
+      const k = `${e.project_id}|${e.task_id}`;
+      const r = by.get(k) ?? { project: e.project_name, task: e.task_name, minutes: 0, running: false };
+      r.minutes += e.duration_minutes;
+      r.running = r.running || !!e.is_running;
+      by.set(k, r);
+    }
+    return [...by.values()].sort((a, b) => b.minutes - a.minutes);
+  }, [entries]);
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+        <p className="font-medium text-amber-600 dark:text-amber-400">No desktop tracker data for {name}</p>
+        <p className="mt-0.5 text-muted-foreground">
+          Only the task timers are known. There is no computer activity, no sites or apps, no screenshots and no idle detection, so productivity cannot be worked out.
+          To get all of that, {name} needs to install the desktop tracker, sign in, and start a task there.
+        </p>
+      </div>
+      {isLoading ? null : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No timer entries in this range.</p>
+      ) : (
+        <div className="divide-y divide-border/60 rounded-md border border-border text-sm">
+          {rows.map((r) => (
+            <div key={`${r.project}|${r.task}`} className="flex items-center gap-3 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate"><span className="font-medium">{r.task}</span><span className="ml-2 text-xs text-muted-foreground">{r.project}</span></span>
+              {r.running && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-500">running now</span>}
+              <span className="w-20 text-right font-mono tabular-nums">{fmtDuration(r.minutes / 60)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface PersonRow {
@@ -301,6 +342,30 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                           <span>End of {r.name}'s details</span>
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setOpen(null)}>Collapse</Button>
                         </div>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+              {!attentionOnly && notConnected.map((n) => {
+                const isOpen = open === n.id;
+                const initials = n.name.replace(/\[.*?\]/g, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
+                return (
+                  <section key={n.id} className="overflow-hidden rounded-xl border border-dashed border-amber-500/50 bg-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                    <button
+                      type="button" onClick={() => setOpen(isOpen ? null : n.id)} aria-expanded={isOpen}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors hover:bg-muted/40"
+                    >
+                      {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                      <Photo url={names?.get(n.id)?.photo ?? null} initials={initials} accent="#f59e0b" />
+                      <span className="w-36 shrink-0 truncate text-[15px] font-semibold sm:w-48">{n.name}</span>
+                      <span className="hidden min-w-0 flex-1 text-xs text-amber-600 dark:text-amber-400 sm:block">Task timers only, no desktop tracker</span>
+                      <span className="ml-auto w-20 shrink-0 text-right font-mono tabular-nums text-muted-foreground">{fmtDuration(n.hours)}</span>
+                      <span className="w-16 shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-center text-xs font-semibold text-amber-600 dark:text-amber-400">n/a</span>
+                    </button>
+                    {isOpen && (
+                      <div className="p-3 sm:p-4">
+                        <TaskTimeOnly filters={filters} id={n.id} name={n.name} />
                       </div>
                     )}
                   </section>

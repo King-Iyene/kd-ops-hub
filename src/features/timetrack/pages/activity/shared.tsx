@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { captureDomain } from '../../lib/siteNames';
 import { DateRangeSelect } from '@/features/timetrack/ui/DateRangeSelect';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -72,34 +73,7 @@ export const CATEGORY_BADGE: Record<string, string> = {
 /** Best-effort domain for a capture: real URL when the agent could get one
  * (macOS and, since desktop v1.0.11, Windows), else null so
  * callers can fall back to app/window-title grouping. */
-const BROWSER_APP = /chrome|msedge|edge|brave|opera|vivaldi|firefox|arc|safari/i;
-
-/**
- * What to call a capture in site/app lists. A site when the address was read; otherwise, for a browser (or a
- * web app window with no address bar, like WhatsApp Web), the page's own title, so it shows as "WhatsApp Web"
- * and not just "Brave Browser". Anything else is the application name.
- */
-export function siteOrAppKey(log: Pick<ActivityLog, 'url' | 'app_name' | 'window_title'>): { key: string; isSite: boolean } {
-  const d = captureDomain(log);
-  if (d) return { key: d, isSite: true };
-  const app = log.app_name ?? 'Unknown';
-  if (BROWSER_APP.test(app) && log.window_title) {
-    const t = log.window_title
-      .replace(/\s[-–—]\s(Google Chrome|Brave( Browser)?( Beta)?|Microsoft\u200b? ?Edge|Mozilla Firefox|Opera|Vivaldi|Arc)(\s[-–—].*)?$/i, '')
-      .trim();
-    if (t && t.length <= 60) return { key: t, isSite: true };
-  }
-  return { key: app, isSite: false };
-}
-
-export function captureDomain(log: Pick<ActivityLog, 'url'>): string | null {
-  if (!log.url) return null;
-  try {
-    return new URL(log.url).hostname.replace(/^www\./, '');
-  } catch {
-    return null;
-  }
-}
+export { captureDomain, siteOrAppKey } from '../../lib/siteNames';
 
 /**
  * TimeCamp makes every employee name across its activity/computer-tracking
