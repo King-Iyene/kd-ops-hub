@@ -29,10 +29,9 @@ function useMonthEntries(month: string) {
     queryFn: async (): Promise<DashRow[]> => {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('employee_id, project_id, start_time, duration_minutes, is_billable, time_tasks!inner(time_projects!inner(name))')
+        .select('employee_id, project_id, start_time, end_time, duration_minutes, is_billable, time_tasks!inner(time_projects!inner(name))')
         .gte('start_time', `${start}T00:00:00`)
-        .lt('start_time', `${end}T23:59:59`)
-        .not('end_time', 'is', null);
+        .lt('start_time', `${end}T23:59:59`);
       if (error) throw error;
       const { data: employeesRaw } = await supabase.from('profiles_directory').select('id, full_name');
       const nameMap = new Map((employeesRaw ?? []).map((e) => [e.id, e.full_name ?? e.id]));
@@ -41,7 +40,8 @@ function useMonthEntries(month: string) {
         employee_name: nameMap.get(e.employee_id) ?? e.employee_id,
         project_name: (e.time_tasks as unknown as { time_projects: { name: string } | null } | null)?.time_projects?.name ?? '—',
         start_time: e.start_time,
-        duration_minutes: e.duration_minutes ?? 0,
+        // a timer still running counts up to now
+        duration_minutes: e.end_time ? (e.duration_minutes ?? 0) : Math.max(0, Math.round((Date.now() - new Date(e.start_time).getTime()) / 60_000)),
         is_billable: e.is_billable,
       }));
     },

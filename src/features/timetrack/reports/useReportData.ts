@@ -16,6 +16,8 @@ export interface ReportEntry {
   start_time: string;
   end_time: string | null;
   duration_minutes: number;
+  /** true while the timer has not been stopped; duration_minutes is then the time so far */
+  is_running?: boolean;
   is_billable: boolean;
   invoiced: boolean;
   notes: string | null;
@@ -49,7 +51,7 @@ export function useReportEntries(filters: ReportFilters) {
         )
         .gte('start_time', `${filters.start}T00:00:00`)
         .lt('start_time', `${filters.end}T23:59:59`)
-        .not('end_time', 'is', null)
+        // running timers are included too (counted up to now), so tracked time never disappears from a report
         .order('start_time', { ascending: false });
 
       if (filters.employeeIds.length) query = query.in('employee_id', filters.employeeIds);
@@ -81,7 +83,8 @@ export function useReportEntries(filters: ReportFilters) {
           task_name: task?.name ?? '—',
           start_time: e.start_time,
           end_time: e.end_time,
-          duration_minutes: e.duration_minutes ?? 0,
+          duration_minutes: e.end_time ? (e.duration_minutes ?? 0) : Math.max(0, Math.round((Date.now() - new Date(e.start_time).getTime()) / 60_000)),
+          is_running: !e.end_time,
           is_billable: e.is_billable,
           invoiced: e.invoiced,
           notes: e.notes,
