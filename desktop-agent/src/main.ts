@@ -466,8 +466,8 @@ async function pollSettingsAndTrack(employeeId: string) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 360,
-    height: 420,
+    width: 400,
+    height: 490,
     resizable: false,
     icon: path.join(__dirname, '../src/renderer/app-icon.png'), // title-bar and taskbar icon
     autoHideMenuBar: true, // the File/Edit/View menu is not needed here; Alt still shows it
