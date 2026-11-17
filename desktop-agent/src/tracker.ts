@@ -55,6 +55,53 @@ let activeSettings: AgentSettings = { is_enabled: true, capture_interval_minutes
 let rules: ProductivityRule[] = [];
 let rulesLoadedAt = 0;
 let idlePolicy: IdlePolicy = DEFAULT_IDLE_POLICY;
+
+// ---- Activity level ----------------------------------------------------------------------------
+// Counts how busy the person is without any key hook: once a second we read how long the system
+// has been idle. If that number dropped since the last look, there was input in between. If the
+// pointer also moved it was mouse activity, otherwise it was typing / a click / a shortcut.
+// Only totals are kept (never which key or where), reset after each capture.
+let sampler: ReturnType<typeof setInterval> | null = null;
+let lastIdleSec = 0;
+let lastPointer = { x: 0, y: 0 };
+let sample = { activeSeconds: 0, mouseEvents: 0, inputEvents: 0, since: Date.now() };
+
+function startActivitySampler() {
+  if (sampler) return;
+  lastIdleSec = powerMonitor.getSystemIdleTime();
+  lastPointer = screen.getCursorScreenPoint();
+  sample = { activeSeconds: 0, mouseEvents: 0, inputEvents: 0, since: Date.now() };
+  sampler = setInterval(() => {
+    const idle = powerMonitor.getSystemIdleTime();
+    const p = screen.getCursorScreenPoint();
+    if (!timerRunning()) {
+      // nothing is being tracked: keep the window fresh so the first capture after a start is not skewed
+      sample = { activeSeconds: 0, mouseEvents: 0, inputEvents: 0, since: Date.now() };
+      lastIdleSec = idle;
+      lastPointer = p;
+      return;
+    }
+    if (idle < 2) sample.activeSeconds += 1; // input within the last couple of seconds
+    if (idle < lastIdleSec) {
+      if (p.x !== lastPointer.x || p.y !== lastPointer.y) sample.mouseEvents += 1;
+      else sample.inputEvents += 1;
+    }
+    lastIdleSec = idle;
+    lastPointer = p;
+  }, 1000);
+}
+
+function takeActivitySample() {
+  const windowSeconds = Math.max(1, Math.round((Date.now() - sample.since) / 1000));
+  const out = {
+    active_seconds: Math.min(sample.activeSeconds, windowSeconds),
+    window_seconds: windowSeconds,
+    mouse_events: sample.mouseEvents,
+    input_events: sample.inputEvents,
+  };
+  sample = { activeSeconds: 0, mouseEvents: 0, inputEvents: 0, since: Date.now() };
+  return out;
+}
 let idlePolicyLoadedAt = 0;
 let officeLocations: OfficeLocation[] = [];
 let officeLocationsLoadedAt = 0;
@@ -314,6 +361,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
   runningKey = key;
   activeSettings = newSettings;
 
+  startActivitySampler();
   refreshRules(supabase);
   refreshIdlePolicy(supabase);
   refreshOfficeLocations(supabase);
@@ -392,6 +440,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
         geo_region: lastGeoLookup?.region ?? null,
         geo_country: lastGeoLookup?.country ?? null,
         is_outside_geofence: isOutsideGeofence,
+        ...takeActivitySample(),
       };
 
       let wentOffline = false;

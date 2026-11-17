@@ -21,7 +21,7 @@ interface Row { name: string; hours: number; pct: number; level: Level; isSite: 
 function useScopedLogs(filters: ReportFiltersState) {
   const { data, isLoading } = useLogsWithIntervals(filters.start, filters.end);
   const items = useMemo(() => {
-    const out: { key: string; isSite: boolean; level: Level; hours: number; hour: number; ts: number }[] = [];
+    const out: { key: string; isSite: boolean; level: Level; hours: number; hour: number; ts: number; act: number; win: number; mouse: number; keys: number }[] = [];
     for (const l of data?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
@@ -33,6 +33,11 @@ function useScopedLogs(filters: ReportFiltersState) {
         hours: (data?.intervalByEmployee.get(l.employee_id) ?? 10) / 60,
         hour: new Date(l.captured_at).getHours(),
         ts: new Date(l.captured_at).getTime(),
+        // captures with a very short window (a task just started) say nothing about activity
+        act: (l.window_seconds ?? 0) >= 60 ? (l.active_seconds ?? 0) : 0,
+        win: (l.window_seconds ?? 0) >= 60 ? (l.window_seconds ?? 0) : 0,
+        mouse: l.mouse_events ?? 0,
+        keys: l.input_events ?? 0,
       });
     }
     return out;
@@ -155,7 +160,12 @@ export function PersonSummaryTiles({ filters }: { filters: ReportFiltersState })
     const top = [...byKey.entries()].sort((a, b) => b[1] - a[1])[0];
     const days = new Set(items.map((i) => format(new Date(i.ts), 'yyyy-MM-dd'))).size;
     const ts = items.map((i) => i.ts);
+    const act = items.reduce((a, i) => a + i.act, 0);
+    const win = items.reduce((a, i) => a + i.win, 0);
     return {
+      activity: win > 0 ? (act / win) * 100 : null,
+      mouse: items.reduce((a, i) => a + i.mouse, 0),
+      keys: items.reduce((a, i) => a + i.keys, 0),
       total, productive: sum('productive'), neutral: sum('neutral'), unproductive: sum('unproductive'),
       first: Math.min(...ts), last: Math.max(...ts), top, days, sites: new Set(items.filter((i) => i.isSite).map((i) => i.key)).size,
       apps: new Set(items.filter((i) => !i.isSite).map((i) => i.key)).size,
@@ -168,11 +178,12 @@ export function PersonSummaryTiles({ filters }: { filters: ReportFiltersState })
     { label: 'Productive', value: `${Math.round(pct)}%`, sub: fmtDuration(s.productive), color: CHART_COLORS.productive },
     { label: 'Neutral', value: fmtDuration(s.neutral), sub: `${Math.round(s.total ? (s.neutral / s.total) * 100 : 0)}% of time`, color: CHART_COLORS.neutral },
     { label: 'Unproductive', value: fmtDuration(s.unproductive), sub: `${Math.round(s.total ? (s.unproductive / s.total) * 100 : 0)}% of time`, color: CHART_COLORS.unproductive },
+    { label: 'Activity level', value: s.activity == null ? 'n/a' : `${Math.round(s.activity)}%`, sub: s.activity == null ? 'needs tracker 1.0.17+' : `${s.mouse.toLocaleString()} mouse · ${s.keys.toLocaleString()} typing/click bursts` },
     { label: 'Active window', value: `${format(new Date(s.first), 'HH:mm')}–${format(new Date(s.last), 'HH:mm')}`, sub: 'first to last capture, any day' },
     { label: 'Most used', value: s.top[0], sub: `${fmtDuration(s.top[1])} · ${s.sites} sites, ${s.apps} apps` },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
       {tiles.map((t) => (
         <div key={t.label} className="rounded-lg border border-border bg-card px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">

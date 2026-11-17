@@ -21,6 +21,11 @@ export interface ActivityLog {
   geo_region?: string | null;
   geo_country?: string | null;
   is_outside_geofence?: boolean | null;
+  /** Activity level inputs (counts only): seconds with input, the window they cover, pointer bursts, typing/click bursts. */
+  active_seconds?: number | null;
+  window_seconds?: number | null;
+  mouse_events?: number | null;
+  input_events?: number | null;
   /** true when one of the admin's rules decided this capture's category (applied now, so rules also cover past captures). */
   ruled?: boolean;
 }
@@ -151,7 +156,7 @@ export function useLogsWithIntervals(start: string, end: string) {
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
       const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }, { data: ruleRows }] = await Promise.all([
-        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence')
+        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence, active_seconds, window_seconds, mouse_events, input_events')
           .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
           .order('captured_at', { ascending: false }).limit(20000),
         supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),
