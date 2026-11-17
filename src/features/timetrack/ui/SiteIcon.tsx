@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { useSiteLogo } from './siteIconStore';
 
 /**
- * The real logo of a site or app. Sites use their own favicon (fetched from DuckDuckGo's icon
- * service by domain, so nothing is stored or bundled); well-known desktop apps are mapped to
- * their website. If no logo can be found, or the viewer is offline, a coloured initial tile is
- * shown instead.
+ * The official logo of a site or app, in this order: the icon the desktop tracker read from the
+ * app itself, then the site's logo (fetched by our own site-icons function, crisp up to 128px and
+ * cached), then a coloured initial tile. Well-known desktop apps are mapped to their website.
  *
- * Privacy: when a report is open, the viewer's browser asks DuckDuckGo for the icon of each
- * listed domain (domain only, no page paths, no user or company details).
+ * Privacy: the viewer's browser never contacts a logo service; our server asks for bare domain names only.
  */
 const APP_DOMAINS: [RegExp, string][] = [
   [/claude|anthropic/i, 'claude.ai'], [/slack/i, 'slack.com'], [/teams/i, 'teams.microsoft.com'],
@@ -60,6 +59,7 @@ export function SiteIcon({ name, className, size = 24 }: { name: string; classNa
   const { data: appIcons } = useAppIcons();
   const appIcon = appIcons?.get(name.trim().toLowerCase());
   const domain = domainFor(name);
+  const logo = useSiteLogo(appIcons?.get(name.trim().toLowerCase()) ? null : domain);
   const bg = BRAND_COLOR.find(([re]) => re.test(name))?.[1] ?? hashColor(name);
   const label = (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
   const box = { width: size, height: size };
@@ -71,14 +71,12 @@ export function SiteIcon({ name, className, size = 24 }: { name: string; classNa
       </span>
     );
   }
-  if (domain && !failed) {
+  if (logo && !failed) {
     return (
       <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden bg-white/95 p-[12%]', className)} style={{ ...box, borderRadius: size * 0.25 }}>
         <img
-          src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
+          src={logo}
           alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
           draggable={false}
           onError={() => setFailed(true)}
           className="h-full w-full object-contain"

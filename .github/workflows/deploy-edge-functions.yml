@@ -85,6 +85,9 @@ jobs:
       # code (cron secret / webhook signature / user JWT + role check), which
       # is Supabase's recommended pattern. Keep this flag on every deploy so a
       # redeploy never silently re-enables the JWT gate and breaks cron jobs.
+      - name: Deploy site-icons
+        run: supabase functions deploy site-icons --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       - name: Deploy batch-worker
         run: supabase functions deploy batch-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 

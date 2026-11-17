@@ -15,6 +15,15 @@ import { useTrackedHours } from '../lib/useTrackedHours';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonInsights, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
+/** The employee's uploaded profile picture, or a coloured initials circle when they have none (or it fails to load). */
+function Photo({ url, initials, accent }: { url: string | null; initials: string; accent: string }) {
+  const [failed, setFailed] = useState(false);
+  if (url && !failed) {
+    return <img src={url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as string]: accent }} onError={() => setFailed(true)} />;
+  }
+  return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: accent }}>{initials}</span>;
+}
+
 interface PersonRow {
   id: string;
   name: string;
@@ -77,8 +86,8 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const { data: names } = useQuery({
     queryKey: ['timetrack', 'directory-names'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles_directory').select('id, full_name');
-      return new Map((data ?? []).map((e) => [e.id as string, (e.full_name as string | null) ?? 'Unknown']));
+      const { data } = await supabase.from('profiles_directory').select('id, full_name, photo_url');
+      return new Map((data ?? []).map((e) => [e.id as string, { name: (e.full_name as string | null) ?? 'Unknown', photo: (e.photo_url as string | null) ?? null }]));
     },
     staleTime: 5 * 60_000,
   });
@@ -93,7 +102,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
       if (companyIds && !companyIds.has(l.employee_id)) continue;
       const hours = (logData?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const row = byPerson.get(l.employee_id) ?? {
-        id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0, topApps: [],
+        id: l.employee_id, name: names?.get(l.employee_id)?.name ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0, topApps: [],
       };
       const am = appHours.get(l.employee_id) ?? new Map<string, number>();
       const appKey = captureDomain(l) ?? l.app_name ?? 'Unknown';
@@ -120,7 +129,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const notConnected = [...tracked.entries()]
     .filter(([, t]) => t.entryHours > 0.05 && t.computerHours === 0)
     .filter(([id]) => (filters.employeeIds.length === 0 || filters.employeeIds.includes(id)) && (!companyIds || companyIds.has(id)))
-    .map(([id, t]) => ({ id, name: names?.get(id) ?? 'Unknown', hours: t.entryHours }))
+    .map(([id, t]) => ({ id, name: names?.get(id)?.name ?? 'Unknown', hours: t.entryHours }))
     .sort((a, b) => b.hours - a.hours);
   const teamTotal = rows.reduce((a, r) => a + r.total, 0);
   const teamProductive = rows.reduce((a, r) => a + r.productive, 0);
@@ -257,7 +266,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                       className={`flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors hover:bg-muted/40 ${isOpen ? 'sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur' : ''}`}
                     >
                       {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: accent }}>{initials}</span>
+                      <Photo url={names?.get(r.id)?.photo ?? null} initials={initials} accent={accent} />
                       <span className="w-36 shrink-0 truncate text-[15px] font-semibold sm:w-48">{r.name}</span>
                       <span className="hidden shrink-0 items-center -space-x-1.5 md:flex" title={r.topApps.map(([n, h]) => `${n} ${fmtDuration(h)}`).join(' · ')}>
                         {r.topApps.map(([n]) => (
