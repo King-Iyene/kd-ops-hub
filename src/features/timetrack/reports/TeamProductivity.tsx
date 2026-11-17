@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, endOfMonth, format, startOfMonth, startOfWeek, subMonths } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
+import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -92,6 +94,7 @@ function PersonTip({ active, payload }: { active?: boolean; payload?: TipRow[] }
  */
 export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const [mode, setMode] = useState<Mode>('hours');
+  const [open, setOpen] = useState<string | null>(null);
   const { data: logData, isLoading } = useLogsWithIntervals(filters.start, filters.end);
 
   const { data: names } = useQuery({
@@ -139,7 +142,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-sm">Team productivity at a glance</CardTitle>
+        <CardTitle className="text-sm">Team productivity at a glance (click a person for details)</CardTitle>
         <div className="flex gap-1">
           <Button size="sm" variant={mode === 'hours' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('hours')}>Hours</Button>
           <Button size="sm" variant={mode === 'percent' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('percent')}>% split</Button>
@@ -180,21 +183,46 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
             </div>
 
             <div className="divide-y divide-border/60 rounded-md border border-border">
-              {rows.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-                  <span className="w-20 text-right font-mono tabular-nums text-muted-foreground">{fmtDuration(r.total)}</span>
-                  <span
-                    className="w-16 rounded-full px-2 py-0.5 text-center text-xs font-semibold"
-                    style={{
-                      background: `${r.pct >= 60 ? CHART_COLORS.productive : r.pct >= 30 ? CHART_COLORS.neutral : CHART_COLORS.unproductive}26`,
-                      color: r.pct >= 60 ? CHART_COLORS.productive : r.pct >= 30 ? 'currentColor' : CHART_COLORS.unproductive,
-                    }}
-                  >
-                    {Math.round(r.pct)}%
-                  </span>
-                </div>
-              ))}
+              {rows.map((r) => {
+                const isOpen = open === r.id;
+                const maxTotal = Math.max(...rows.map((x) => x.total), 0.01);
+                const tone = r.pct >= 60 ? CHART_COLORS.productive : r.pct >= 30 ? CHART_COLORS.neutral : CHART_COLORS.unproductive;
+                const seg = (v: number) => (r.total ? `${(v / r.total) * 100}%` : '0%');
+                return (
+                  <Fragment key={r.id}>
+                    <button
+                      type="button" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors hover:bg-muted/40"
+                    >
+                      {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                      <span className="w-40 shrink-0 truncate font-medium sm:w-52">{r.name}</span>
+                      <span className="hidden min-w-0 flex-1 sm:block">
+                        <span className="flex h-3.5 overflow-hidden rounded-full bg-muted/40" style={{ width: `${Math.max(6, (r.total / maxTotal) * 100)}%` }}>
+                          <span style={{ width: seg(r.productive), background: CHART_COLORS.productive }} />
+                          <span style={{ width: seg(r.neutral), background: CHART_COLORS.neutral }} />
+                          <span style={{ width: seg(r.unproductive), background: CHART_COLORS.unproductive }} />
+                        </span>
+                      </span>
+                      <span className="ml-auto w-20 shrink-0 text-right font-mono tabular-nums text-muted-foreground">{fmtDuration(r.total)}</span>
+                      <span
+                        className="w-16 shrink-0 rounded-full px-2 py-0.5 text-center text-xs font-semibold"
+                        style={{ background: `${tone}26`, color: r.pct >= 30 && r.pct < 60 ? 'currentColor' : tone }}
+                      >
+                        {Math.round(r.pct)}%
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="space-y-4 bg-muted/10 p-3 sm:p-4">
+                        <PersonSummaryTiles filters={{ ...filters, employeeIds: [r.id] }} />
+                        <DailyTrends filters={{ ...filters, employeeIds: [r.id] }} />
+                        <DayDetails filters={{ ...filters, employeeIds: [r.id] }} />
+                        <TopSitesAppsColumns filters={{ ...filters, employeeIds: [r.id] }} />
+                        <HourlyProductivity filters={{ ...filters, employeeIds: [r.id] }} />
+                      </div>
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
           </>
         )}
