@@ -14649,6 +14649,7 @@ export type Database = {
           disable_split_away_time: boolean
           dismiss_overlapping_activities: boolean
           id: boolean
+          idle_mode: string
           keep_tracking_last_task: boolean
           no_task_timeout_minutes: number
           private_time_minutes_per_day: number
@@ -14671,6 +14672,7 @@ export type Database = {
           disable_split_away_time?: boolean
           dismiss_overlapping_activities?: boolean
           id?: boolean
+          idle_mode?: string
           keep_tracking_last_task?: boolean
           no_task_timeout_minutes?: number
           private_time_minutes_per_day?: number
@@ -14693,6 +14695,7 @@ export type Database = {
           disable_split_away_time?: boolean
           dismiss_overlapping_activities?: boolean
           id?: boolean
+          idle_mode?: string
           keep_tracking_last_task?: boolean
           no_task_timeout_minutes?: number
           private_time_minutes_per_day?: number
