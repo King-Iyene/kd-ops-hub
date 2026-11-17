@@ -51,6 +51,10 @@ export function MultiSelectFilter({
                   <Check className={cn('mr-2 h-4 w-4', selected.length === 0 ? 'opacity-100' : 'opacity-0')} />
                   {allLabel}
                 </CommandItem>
+                <CommandItem onSelect={() => onChange(options.map((o) => o.id))}>
+                  <Check className={cn('mr-2 h-4 w-4', selected.length === options.length && options.length > 0 ? 'opacity-100' : 'opacity-0')} />
+                  Select all ({options.length})
+                </CommandItem>
                 {options.map((opt) => {
                   const isChecked = selected.includes(opt.id);
                   return (

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useTimetrackCapabilities } from '../lib/capabilities';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

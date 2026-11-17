@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Loader2, Download, Users } from 'lucide-react';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { supabase } from '@/lib/supabase';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

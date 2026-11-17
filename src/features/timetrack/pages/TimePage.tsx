@@ -13,7 +13,7 @@ import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { useTimetrackCapabilities } from '../lib/capabilities';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

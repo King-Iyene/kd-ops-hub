@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
+import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
@@ -95,6 +96,7 @@ function PersonTip({ active, payload }: { active?: boolean; payload?: TipRow[] }
 export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const [mode, setMode] = useState<Mode>('hours');
   const [open, setOpen] = useState<string | null>(null);
+  const companyIds = useCompanyEmployeeIds();
   const { data: logData, isLoading } = useLogsWithIntervals(filters.start, filters.end);
 
   const { data: names } = useQuery({
@@ -111,6 +113,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
     for (const l of logData?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
+      if (companyIds && !companyIds.has(l.employee_id)) continue;
       const hours = (logData?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const row = byPerson.get(l.employee_id) ?? {
         id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0,
@@ -127,8 +130,13 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
         return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0 };
       })
       .sort((a, b) => b.pct - a.pct || b.total - a.total);
-  }, [logData, names, filters.employeeIds]);
+  }, [logData, names, filters.employeeIds, companyIds]);
 
+  const teamTotal = rows.reduce((a, r) => a + r.total, 0);
+  const teamProductive = rows.reduce((a, r) => a + r.productive, 0);
+  const teamUnproductive = rows.reduce((a, r) => a + r.unproductive, 0);
+  const teamPct = teamTotal ? (teamProductive / teamTotal) * 100 : 0;
+  const rangeDays = Math.max(1, Math.round((new Date(`${filters.end}T12:00:00`).getTime() - new Date(`${filters.start}T12:00:00`).getTime()) / 86_400_000) + 1);
   const chartData = rows.map((r) => ({
     ...r,
     pProductive: r.total ? (r.productive / r.total) * 100 : 0,
@@ -155,6 +163,24 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
           <ChartEmpty>No computer activity captured in this range.</ChartEmpty>
         ) : (
           <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                { label: 'People tracked', value: String(rows.length), sub: 'with computer activity' },
+                { label: 'Total tracked', value: fmtDuration(teamTotal), sub: `avg ${fmtDuration(teamTotal / rows.length)} per person` },
+                { label: 'Avg per person / day', value: fmtDuration(teamTotal / rows.length / rangeDays), sub: `over ${rangeDays} day${rangeDays === 1 ? '' : 's'}` },
+                { label: 'Productive', value: `${Math.round(teamPct)}%`, sub: fmtDuration(teamProductive), color: CHART_COLORS.productive },
+                { label: 'Unproductive', value: `${Math.round(teamTotal ? (teamUnproductive / teamTotal) * 100 : 0)}%`, sub: fmtDuration(teamUnproductive), color: CHART_COLORS.unproductive },
+                { label: 'Most productive', value: rows[0].name, sub: `${Math.round(rows[0].pct)}% · ${fmtDuration(rows[0].total)}` },
+              ].map((t) => (
+                <div key={t.label} className="rounded-lg border border-border bg-card px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {'color' in t && t.color && <span className="h-2 w-2 rounded-sm" style={{ background: t.color }} />}{t.label}
+                  </p>
+                  <p className="mt-0.5 truncate text-lg font-semibold">{t.value}</p>
+                  <p className="truncate text-xs text-muted-foreground">{t.sub}</p>
+                </div>
+              ))}
+            </div>
             <div className="text-foreground" style={{ width: '100%', height: 340 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>

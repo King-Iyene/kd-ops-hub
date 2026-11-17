@@ -5,7 +5,7 @@ import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

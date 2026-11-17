@@ -4,7 +4,7 @@ import { Loader2, Settings as SettingsIcon, KeyRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

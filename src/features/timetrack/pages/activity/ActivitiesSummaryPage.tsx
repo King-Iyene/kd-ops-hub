@@ -4,7 +4,7 @@ import { format, differenceInCalendarDays } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Loader2, LayoutDashboard, Download, AlertTriangle } from 'lucide-react';
 import { RankedBars, TrendLine } from '@/features/timetrack/ui/charts';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { StatCard } from '@/features/timetrack/ui/TrackerStat';
 import { Badge } from '@/components/ui/badge';

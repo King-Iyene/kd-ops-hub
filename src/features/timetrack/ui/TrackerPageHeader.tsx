@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { CompanyFilter } from './CompanyFilter';
 
 interface Props {
   title: string;
@@ -32,7 +33,10 @@ export function PageHeader({ title, description, actions, badge, info, className
         </div>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
+      <div className="flex items-center gap-2 flex-wrap">
+        <CompanyFilter />
+        {actions}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Loader2, Gauge } from 'lucide-react';
 import { PercentTrend } from '@/features/timetrack/ui/charts';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';

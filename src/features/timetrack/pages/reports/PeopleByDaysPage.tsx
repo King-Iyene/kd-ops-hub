@@ -1,7 +1,7 @@
 import { Loader2, Users } from 'lucide-react';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { toCsv, downloadCsv } from '@/lib/csv';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { useReportFilters } from '../../reports/useReportFilters';
 import { useReportEntries } from '../../reports/useReportData';
 import { ReportFiltersBar } from '../../reports/ReportFiltersBar';

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { addDays, endOfDay, format, startOfDay } from 'date-fns';
+import { addDays, endOfDay, format, startOfDay, subDays } from 'date-fns';
 import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Rows3, GalleryHorizontal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
-import { useActiveEmployees } from '@/queries/useEmployees';
+import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { useTimetrackCapabilities } from '../../lib/capabilities';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScreenPanels } from '@/features/timetrack/ui/ScreenPanels';
+import { EmployeeSelect } from '@/features/timetrack/ui/EmployeeSelect';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -145,17 +146,19 @@ export default function ScreenshotsPage() {
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(-1)} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></Button>
               <Input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-40" />
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => shiftDay(1)} aria-label="Next day"><ChevronRight className="h-4 w-4" /></Button>
+              {[0, 1, 2].map((back) => {
+                const d = format(subDays(new Date(), back), 'yyyy-MM-dd');
+                return (
+                  <Button key={back} size="sm" variant={day === d ? 'default' : 'outline'} className="h-9 text-xs" onClick={() => setDay(d)}>
+                    {back === 0 ? 'Today' : back === 1 ? 'Yesterday' : format(subDays(new Date(), back), 'EEE d MMM')}
+                  </Button>
+                );
+              })}
             </div>
           </div>
           <div>
             <p className="mb-1 text-xs text-muted-foreground">People</p>
-            <Select value={employeeId || ALL} onValueChange={(v) => setEmployeeId(v === ALL ? '' : v)}>
-              <SelectTrigger className="w-64"><SelectValue placeholder="All employees" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All employees</SelectItem>
-                {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <EmployeeSelect value={employeeId} onChange={setEmployeeId} employees={employees ?? []} />
           </div>
         </div>
 
