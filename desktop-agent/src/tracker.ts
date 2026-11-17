@@ -317,25 +317,44 @@ public class Fg { [DllImport("user32.dll")] public static extern IntPtr GetForeg
 $h = [Fg]::GetForegroundWindow()
 $root = [System.Windows.Automation.AutomationElement]::FromHandle($h)
 $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-foreach ($e in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
-  if ($e.Current.Name -match 'Address|address bar|search or enter|search or type') {
-    $vp = $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-    Write-Output $vp.Current.Value; break
+# Chromium browsers build their accessibility tree on demand, so the first look often finds nothing: look up to 4 times.
+for ($try = 0; $try -lt 4; $try++) {
+  foreach ($e in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    if ($e.Current.Name -match 'Address|address bar|search or enter|search or type|URL') {
+      $vp = $e.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+      $v = $vp.Current.Value
+      if ($v) { Write-Output $v; exit }
+    }
   }
+  Start-Sleep -Milliseconds 450
 }`;
 const UIA_ENCODED = Buffer.from(UIA_SCRIPT, 'utf16le').toString('base64');
 
 /** Windows only. Returns the browser tab's origin (e.g. "https://github.com/") or
  * null (not a browser, address bar not found, or PowerShell blocked/slow). */
-async function readWindowsBrowserHost(appName: string): Promise<string | null> {
+let lastBrowserSite: { title: string; url: string; at: number } | null = null;
+
+async function readWindowsBrowserHost(appName: string, title = ''): Promise<string | null> {
   if (!BROWSER_RE.test(appName)) return null;
+  const url = await readAddressBar();
+  if (url) {
+    lastBrowserSite = { title, url, at: Date.now() };
+    return url;
+  }
+  // The address bar could not be read this time. If the page (window title) has not changed since the last
+  // successful read, it is still the same site.
+  if (lastBrowserSite && title && lastBrowserSite.title === title && Date.now() - lastBrowserSite.at < 15 * 60_000) return lastBrowserSite.url;
+  return null;
+}
+
+async function readAddressBar(): Promise<string | null> {
   try {
     const { execFile } = require('child_process') as typeof import('child_process');
     const out = await new Promise<string>((resolve) => {
       execFile(
         'powershell.exe',
         ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', UIA_ENCODED],
-        { timeout: 8000, windowsHide: true },
+        { timeout: 12000, windowsHide: true },
         (err, stdout) => resolve(err ? '' : String(stdout)),
       );
     });
@@ -458,7 +477,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       // query strings, which can carry tokens or private ids.
       let url: string | null = null;
       if (activeWindow.platform === 'macos') url = toOrigin(activeWindow.url ?? null);
-      else if (activeWindow.platform === 'windows') url = await readWindowsBrowserHost(appName);
+      else if (activeWindow.platform === 'windows') url = await readWindowsBrowserHost(appName, title);
       const category = isAway ? 'idle' : classify(appName, title, url);
 
       if (Date.now() - lastGeoLookupAt > GEO_LOOKUP_INTERVAL_MS) {

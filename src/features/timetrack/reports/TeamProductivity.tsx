@@ -10,7 +10,7 @@ import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/chart
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
 import { SiteIcon } from '../ui/SiteIcon';
-import { captureDomain } from '../pages/activity/shared';
+import { siteOrAppKey } from '../pages/activity/shared';
 import { useTrackedHours } from '../lib/useTrackedHours';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonInsights, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
@@ -105,7 +105,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
         id: l.employee_id, name: names?.get(l.employee_id)?.name ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0, topApps: [],
       };
       const am = appHours.get(l.employee_id) ?? new Map<string, number>();
-      const appKey = captureDomain(l) ?? l.app_name ?? 'Unknown';
+      const appKey = siteOrAppKey(l).key;
       am.set(appKey, (am.get(appKey) ?? 0) + hours);
       appHours.set(l.employee_id, am);
       const dk = dayKeys.get(l.employee_id) ?? new Set<string>();

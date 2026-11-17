@@ -12,7 +12,7 @@ import { useSiteLogo } from './siteIconStore';
  * Privacy: the viewer's browser never contacts a logo service; our server asks for bare domain names only.
  */
 const APP_DOMAINS: [RegExp, string][] = [
-  [/claude|anthropic/i, 'claude.ai'], [/slack/i, 'slack.com'], [/teams/i, 'teams.microsoft.com'],
+  [/youtube music/i, 'music.youtube.com'], [/whatsapp/i, 'web.whatsapp.com'], [/claude|anthropic/i, 'claude.ai'], [/slack/i, 'slack.com'], [/teams/i, 'teams.microsoft.com'],
   [/zoom/i, 'zoom.us'], [/outlook/i, 'outlook.office.com'], [/excel|word|powerpoint|onenote|office/i, 'office.com'],
   [/chrome/i, 'google.com'], [/edge/i, 'microsoft.com'], [/firefox/i, 'mozilla.org'], [/brave/i, 'brave.com'],
   [/visual studio code|^code$|code\.exe/i, 'code.visualstudio.com'], [/notion/i, 'notion.so'], [/figma/i, 'figma.com'],

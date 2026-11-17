@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SiteIcon } from '@/features/timetrack/ui/SiteIcon';
 import { useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals, captureDomain, CATEGORY_BADGE } from './shared';
 
 type ShowFilter = 'all' | 'websites' | 'applications' | 'non_categorized' | 'away_time';
@@ -175,14 +176,7 @@ export default function SitesAppsPage() {
                   {pageRows.map((r) => (
                     <TableRow key={r.key}>
                       <TableCell className="flex items-center gap-2">
-                        {r.isSite && (
-                          <img
-                            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(r.key)}&sz=32`}
-                            alt=""
-                            className="h-4 w-4 rounded-sm"
-                            loading="lazy"
-                          />
-                        )}
+                        {!r.isIdle && <SiteIcon name={r.key} size={18} />}
                         {r.key}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatHm(r.hours)}</TableCell>

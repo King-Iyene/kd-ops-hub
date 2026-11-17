@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { SiteIcon } from '../ui/SiteIcon';
 import { CHART_COLORS, ChartEmpty, TrendLine, durationAxis, fmtDuration } from '../ui/charts';
-import { captureDomain, useLogsWithIntervals } from '../pages/activity/shared';
+import { siteOrAppKey, useLogsWithIntervals } from '../pages/activity/shared';
 import type { ReportFiltersState } from './useReportFilters';
 
 type Level = 'productive' | 'neutral' | 'unproductive';
@@ -27,10 +27,10 @@ function useScopedLogs(filters: ReportFiltersState) {
     for (const l of data?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
-      const domain = captureDomain(l);
+      const { key, isSite } = siteOrAppKey(l);
       out.push({
-        key: domain ?? l.app_name ?? 'Unknown',
-        isSite: !!domain,
+        key,
+        isSite,
         level: levelOf(l.productivity_category),
         hours: (data?.intervalByEmployee.get(l.employee_id) ?? 10) / 60,
         hour: new Date(l.captured_at).getHours(),
