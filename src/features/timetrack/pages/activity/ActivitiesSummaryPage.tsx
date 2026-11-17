@@ -160,6 +160,7 @@ export default function ActivitiesSummaryPage() {
       categories: [...byCategory.entries()].map(([name, hours]) => ({ name, hours: Number(hours.toFixed(2)) })).sort((a, b) => b.hours - a.hours),
       uncategorizedCount: uncategorized.size,
       toolUsagePct: allHours > 0 ? (activeHours / allHours) * 100 : 0,
+      productivePct: activeHours > 0 ? (productiveHours / activeHours) * 100 : 0,
       activeHours,
       productiveHours,
       distractedHours,
@@ -213,7 +214,7 @@ export default function ActivitiesSummaryPage() {
           )}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard title="Tool usage" value={`${extra.toolUsagePct.toFixed(0)}%`} tone="primary" />
+            <StatCard title="Productive" value={`${extra.productivePct.toFixed(0)}%`} tone="primary" subtitle={`of active time · ${extra.toolUsagePct.toFixed(0)}% of time was active (not idle)`} />
             <StatCard title="Per day" value={fmtHm(avgPerDay)} tone="info" />
             <StatCard title="Total time" value={fmtHm(totalHours)} tone="default" />
             <StatCard title="Distracted time" value={`${fmtHm(extra.distractedHours)} (${extra.distractedPct.toFixed(0)}%)`} tone="default" />

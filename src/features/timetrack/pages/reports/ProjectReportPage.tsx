@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { ArrowLeft, Loader2, FileBarChart, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { addDays, endOfMonth, endOfWeek, endOfYear, format, parseISO, startOfMonth, startOfWeek, startOfYear, subMonths, subYears } from 'date-fns';
+import { ArrowLeft, Loader2, FileBarChart } from 'lucide-react';
 import { CumulativeChart } from '@/features/timetrack/ui/charts';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { StatCard } from '@/features/timetrack/ui/TrackerStat';
@@ -13,27 +13,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { CHART_COLORS, fmtDuration } from '@/features/timetrack/ui/charts';
+import { captureDomain, useLogsWithIntervals } from '../activity/shared';
 import { supabase } from '@/lib/supabase';
-import { errorMessage } from '@/lib/db-errors';
-import { useToast } from '@/hooks/use-toast';
 import { toCsv, downloadCsv } from '@/lib/csv';
-import { useTimetrackCapabilities } from '../../lib/capabilities';
 import { MultiSelectFilter } from '../../reports/ReportFiltersBar';
 import { useReportLookups, formatHours } from '../../reports/useReportData';
 import type { TimeProject } from '../../lib/types';
 
-type RangePreset = 'this_week' | 'this_month' | 'all_time' | 'custom';
+type RangePreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'all_time' | 'custom';
 
-function rangeForPreset(preset: RangePreset): { start: string | null; end: string | null } {
+const PRESET_LABELS: Record<RangePreset, string> = {
+  this_week: 'This week', last_week: 'Last week', this_month: 'This month', last_month: 'Last month',
+  this_year: 'This year', last_year: 'Last year', all_time: 'All time', custom: 'Custom range',
+};
+
+function rangeForPreset(preset: RangePreset, custom: { start: string; end: string }): { start: string | null; end: string | null } {
   const today = new Date();
-  if (preset === 'this_week') return { start: format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd'), end: format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd') };
-  if (preset === 'this_month') return { start: format(startOfMonth(today), 'yyyy-MM-dd'), end: format(endOfMonth(today), 'yyyy-MM-dd') };
-  if (preset === 'all_time') return { start: null, end: null };
-  return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+  const f = (d: Date) => format(d, 'yyyy-MM-dd');
+  const wk = startOfWeek(today, { weekStartsOn: 1 });
+  switch (preset) {
+    case 'this_week': return { start: f(wk), end: f(endOfWeek(today, { weekStartsOn: 1 })) };
+    case 'last_week': return { start: f(addDays(wk, -7)), end: f(addDays(wk, -1)) };
+    case 'this_month': return { start: f(startOfMonth(today)), end: f(endOfMonth(today)) };
+    case 'last_month': return { start: f(startOfMonth(subMonths(today, 1))), end: f(endOfMonth(subMonths(today, 1))) };
+    case 'this_year': return { start: f(startOfYear(today)), end: f(endOfYear(today)) };
+    case 'last_year': return { start: f(startOfYear(subYears(today, 1))), end: f(endOfYear(subYears(today, 1))) };
+    case 'all_time': return { start: null, end: null };
+    default: return { start: custom.start, end: custom.end };
+  }
 }
 
 interface ReportTask { task_id: string; task_name: string; hours: number; income: number; cost: number; employee_ids: string[] }
@@ -58,14 +67,12 @@ interface ReportPayload {
 export default function ProjectReportPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const { has } = useTimetrackCapabilities();
   const { employees } = useReportLookups();
 
   const [preset, setPreset] = useState<RangePreset>('this_week');
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
-  const { start, end } = rangeForPreset(preset);
+  const [custom, setCustom] = useState({ start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end: format(new Date(), 'yyyy-MM-dd') });
+  const { start, end } = rangeForPreset(preset, custom);
 
   const { data: project } = useQuery({
     queryKey: ['timetrack', 'project', projectId],
@@ -97,20 +104,6 @@ export default function ProjectReportPage() {
     [report],
   );
 
-  const eraseRecordedTime = async () => {
-    try {
-      let q = supabase.from('time_entries').delete().eq('project_id', projectId!);
-      if (start) q = q.gte('start_time', `${start}T00:00:00`);
-      if (end) q = q.lte('start_time', `${end}T23:59:59`);
-      const { error } = await q;
-      if (error) throw error;
-      toast({ title: 'Recorded time erased', description: 'All time entries in this range were permanently deleted.' });
-      qc.invalidateQueries({ queryKey: ['timetrack', 'project-report', projectId] });
-    } catch (err) {
-      toast({ title: 'Could not erase time', description: errorMessage(err), variant: 'destructive' });
-    }
-  };
-
   const exportTimeEntries = () => {
     const rows = (report?.entries ?? []).map((e) => [
       format(new Date(e.start_time), 'yyyy-MM-dd'), e.employee_name, e.task_name,
@@ -138,14 +131,22 @@ export default function ProjectReportPage() {
         <div>
           <Label className="text-xs text-muted-foreground">Date range</Label>
           <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
-            <SelectTrigger className="h-8 text-xs w-[140px] mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-[150px] mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="this_week">This week</SelectItem>
-              <SelectItem value="this_month">This month</SelectItem>
-              <SelectItem value="all_time">All time</SelectItem>
+              {(Object.keys(PRESET_LABELS) as RangePreset[]).map((k) => <SelectItem key={k} value={k}>{PRESET_LABELS[k]}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
+        {preset === 'custom' && (
+          <div>
+            <Label className="text-xs text-muted-foreground">From – to</Label>
+            <div className="mt-1 flex items-center gap-1.5">
+              <Input type="date" value={custom.start} onChange={(e) => e.target.value && setCustom((c) => ({ ...c, start: e.target.value }))} className="h-8 w-[136px] text-xs" />
+              <span className="text-xs text-muted-foreground">–</span>
+              <Input type="date" value={custom.end} onChange={(e) => e.target.value && setCustom((c) => ({ ...c, end: e.target.value }))} className="h-8 w-[136px] text-xs" />
+            </div>
+          </div>
+        )}
         <div className="w-56">
           <MultiSelectFilter
             label="People" allLabel="All users"
@@ -170,32 +171,6 @@ export default function ProjectReportPage() {
               <p className="text-sm font-medium mb-2">Cumulative hours over time</p>
               <CumulativeChart data={cumulativeChart} />
 
-              <div className="flex items-center justify-end gap-2 mt-3">
-                {has('manage_projects') && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Erase recorded time
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Erase recorded time?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This permanently deletes every time entry logged against <strong>{project?.name}</strong> in the selected date range
-                          ({preset === 'all_time' ? 'all time' : `${start} to ${end}`}). This cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={eraseRecordedTime} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Erase permanently
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
             </CardContent>
           </Card>
 
@@ -256,9 +231,7 @@ export default function ProjectReportPage() {
             </TabsContent>
 
             <TabsContent value="activities" className="mt-4">
-              <Card><CardContent className="pt-4">
-                <p className="text-sm text-muted-foreground text-center py-6">No data match your criteria.</p>
-              </CardContent></Card>
+              <ProjectActivities entries={report?.entries ?? []} start={start} end={end} />
             </TabsContent>
 
             <TabsContent value="entries" className="mt-4">
@@ -332,5 +305,80 @@ export default function ProjectReportPage() {
         </>
       )}
     </div>
+  );
+}
+
+/** Computer activity captured while this project's timers were running: which sites/apps, for how long, and how they were classed. */
+function ProjectActivities({ entries, start, end }: { entries: ReportEntryRow[]; start: string | null; end: string | null }) {
+  const first = entries.length ? format(new Date(Math.min(...entries.map((e) => new Date(e.start_time).getTime()))), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+  const { data, isLoading } = useLogsWithIntervals(start ?? first, end ?? format(new Date(), 'yyyy-MM-dd'));
+
+  const rows = useMemo(() => {
+    const spans = new Map<string, { s: number; e: number }[]>();
+    for (const e of entries) {
+      const list = spans.get(e.employee_id) ?? [];
+      list.push({ s: new Date(e.start_time).getTime(), e: e.end_time ? new Date(e.end_time).getTime() : Date.now() });
+      spans.set(e.employee_id, list);
+    }
+    const by = new Map<string, { hours: number; isSite: boolean; cat: Record<string, number> }>();
+    let total = 0;
+    for (const l of data?.logs ?? []) {
+      if (l.productivity_category === 'idle') continue;
+      const t = new Date(l.captured_at).getTime();
+      if (!(spans.get(l.employee_id) ?? []).some((x) => t >= x.s - 60_000 && t <= x.e + 60_000)) continue;
+      const domain = captureDomain(l);
+      const key = domain ?? l.app_name ?? 'Unknown';
+      const hours = (data?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
+      const r = by.get(key) ?? { hours: 0, isSite: !!domain, cat: {} };
+      r.hours += hours;
+      const c = l.productivity_category === 'productive' ? 'productive' : l.productivity_category === 'unproductive' || l.productivity_category === 'blocked' ? 'unproductive' : 'neutral';
+      r.cat[c] = (r.cat[c] ?? 0) + hours;
+      by.set(key, r);
+      total += hours;
+    }
+    return {
+      total,
+      list: [...by.entries()].map(([name, r]) => ({
+        name, hours: r.hours, isSite: r.isSite, pct: total ? (r.hours / total) * 100 : 0,
+        cat: (Object.entries(r.cat).sort((x, y) => y[1] - x[1])[0]?.[0] ?? 'neutral') as 'productive' | 'neutral' | 'unproductive',
+      })).sort((x, y) => y.hours - x.hours),
+    };
+  }, [data, entries]);
+
+  const color = { productive: CHART_COLORS.productive, neutral: CHART_COLORS.neutral, unproductive: CHART_COLORS.unproductive };
+  const label = { productive: 'Work tool', neutral: 'Neutral / uncategorised', unproductive: 'Not work' };
+
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        {isLoading ? (
+          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : rows.list.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No computer activity was captured while this project's timer ran in this period. Activity comes from the desktop tracker, so time
+            started from the website alone has none.
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">Computer activity during this project's time: <span className="font-semibold text-foreground">{fmtDuration(rows.total)}</span></p>
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Site / app</TableHead><TableHead className="text-right">Time</TableHead><TableHead className="text-right">%</TableHead><TableHead>Category</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.list.slice(0, 30).map((r) => (
+                  <TableRow key={r.name}>
+                    <TableCell className="font-medium">{r.name}<span className="ml-2 text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fmtDuration(r.hours)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Math.round(r.pct)}%</TableCell>
+                    <TableCell><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-sm" style={{ background: color[r.cat] }} />{label[r.cat]}</span></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

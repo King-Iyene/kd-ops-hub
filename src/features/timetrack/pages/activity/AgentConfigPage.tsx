@@ -82,6 +82,69 @@ function AgentSettingsTab() {
     }
   };
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [copyFrom, setCopyFrom] = useState('');
+  const [change, setChange] = useState({ is_enabled: false, capture_interval_minutes: false, screenshots_enabled: false, blur_screenshots: false, retention_days: false });
+  const [vals, setVals] = useState<Omit<AgentSettings, 'employee_id'>>({ is_enabled: true, capture_interval_minutes: 10, screenshots_enabled: true, blur_screenshots: false, retention_days: 90 });
+  const [applying, setApplying] = useState(false);
+
+  const shown = (employees ?? []).filter((e) => !search.trim() || (e.full_name ?? '').toLowerCase().includes(search.trim().toLowerCase()));
+  const allShownSelected = shown.length > 0 && shown.every((e) => selected.has(e.id));
+  const toggle = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleAllShown = () => setSelected((prev) => {
+    const n = new Set(prev);
+    if (allShownSelected) shown.forEach((e) => n.delete(e.id)); else shown.forEach((e) => n.add(e.id));
+    return n;
+  });
+
+  /** Writes the same changes to many people in one request. */
+  const applyMany = async (ids: string[], patch: Partial<Omit<AgentSettings, 'employee_id'>>) => {
+    if (ids.length === 0 || Object.keys(patch).length === 0) return;
+    setApplying(true);
+    try {
+      const rows = ids.map((id) => {
+        const existing = settings?.find((s) => s.employee_id === id);
+        return {
+          employee_id: id,
+          is_enabled: existing?.is_enabled ?? true,
+          capture_interval_minutes: existing?.capture_interval_minutes ?? 10,
+          screenshots_enabled: existing?.screenshots_enabled ?? true,
+          blur_screenshots: existing?.blur_screenshots ?? false,
+          retention_days: existing?.retention_days ?? 30,
+          ...patch,
+        };
+      });
+      const { error } = await supabase.from('time_agent_settings').upsert(rows);
+      if (error) throw error;
+      toast({ title: `Updated ${ids.length} ${ids.length === 1 ? 'person' : 'people'}` });
+      qc.invalidateQueries({ queryKey: ['timetrack', 'agent-settings'] });
+    } catch (err) {
+      toast({ title: 'Could not update settings', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const copySettings = () => {
+    const src = settings?.find((s) => s.employee_id === copyFrom);
+    if (!src) return;
+    void applyMany([...selected].filter((id) => id !== copyFrom), {
+      is_enabled: src.is_enabled, capture_interval_minutes: src.capture_interval_minutes,
+      screenshots_enabled: src.screenshots_enabled, blur_screenshots: src.blur_screenshots, retention_days: src.retention_days,
+    });
+  };
+  const applyChosen = (ids: string[]) => {
+    const patch: Partial<Omit<AgentSettings, 'employee_id'>> = {};
+    if (change.is_enabled) patch.is_enabled = vals.is_enabled;
+    if (change.capture_interval_minutes) patch.capture_interval_minutes = vals.capture_interval_minutes;
+    if (change.screenshots_enabled) patch.screenshots_enabled = vals.screenshots_enabled;
+    if (change.blur_screenshots) patch.blur_screenshots = vals.blur_screenshots;
+    if (change.retention_days) patch.retention_days = vals.retention_days;
+    void applyMany(ids, patch);
+  };
+  const anyChange = Object.values(change).some(Boolean);
+
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
   return (
@@ -90,17 +153,55 @@ function AgentSettingsTab() {
         Disabled by default for everyone — the agent refuses to capture anything for an employee without an enabled row here (enforced server-side, not just in the UI).
       </p>
       <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Change many people at once</CardTitle>
+          <CardDescription>Tick people in the table (or use the company filter at the top), then copy one person's settings to them, or change just the fields you tick below.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input placeholder="Search employees…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-52" />
+            <Button size="sm" variant="outline" className="h-8" onClick={toggleAllShown}>{allShownSelected ? 'Unselect all shown' : `Select all shown (${shown.length})`}</Button>
+            <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Copy settings from</span>
+            <select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-sm">
+              <option value="">Choose a person…</option>
+              {(employees ?? []).map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+            </select>
+            <Button size="sm" className="h-8" disabled={!copyFrom || selected.size === 0 || applying} onClick={copySettings}>Copy to selected ({selected.size})</Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span className="text-muted-foreground">Or change only:</span>
+            <label className="flex items-center gap-1.5"><Checkbox checked={change.is_enabled} onCheckedChange={(v) => setChange({ ...change, is_enabled: !!v })} />Enabled
+              <Switch checked={vals.is_enabled} onCheckedChange={(v) => setVals({ ...vals, is_enabled: v })} /></label>
+            <label className="flex items-center gap-1.5"><Checkbox checked={change.capture_interval_minutes} onCheckedChange={(v) => setChange({ ...change, capture_interval_minutes: !!v })} />Interval
+              <Input type="number" className="h-8 w-16" value={vals.capture_interval_minutes} onChange={(e) => setVals({ ...vals, capture_interval_minutes: Number(e.target.value) || 10 })} /></label>
+            <label className="flex items-center gap-1.5"><Checkbox checked={change.screenshots_enabled} onCheckedChange={(v) => setChange({ ...change, screenshots_enabled: !!v })} />Screenshots
+              <Switch checked={vals.screenshots_enabled} onCheckedChange={(v) => setVals({ ...vals, screenshots_enabled: v })} /></label>
+            <label className="flex items-center gap-1.5"><Checkbox checked={change.blur_screenshots} onCheckedChange={(v) => setChange({ ...change, blur_screenshots: !!v })} />Blur
+              <Switch checked={vals.blur_screenshots} onCheckedChange={(v) => setVals({ ...vals, blur_screenshots: v })} /></label>
+            <label className="flex items-center gap-1.5"><Checkbox checked={change.retention_days} onCheckedChange={(v) => setChange({ ...change, retention_days: !!v })} />Retention
+              <Input type="number" className="h-8 w-16" value={vals.retention_days} onChange={(e) => setVals({ ...vals, retention_days: Number(e.target.value) || 30 })} /></label>
+            <Button size="sm" className="h-8" disabled={!anyChange || selected.size === 0 || applying} onClick={() => applyChosen([...selected])}>Apply to selected ({selected.size})</Button>
+            <Button size="sm" variant="outline" className="h-8" disabled={!anyChange || shown.length === 0 || applying} onClick={() => applyChosen(shown.map((e) => e.id))}>Apply to everyone shown ({shown.length})</Button>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
         <CardContent className="pt-4">
           <Table>
             <TableHeader><TableRow>
+              <TableHead className="w-8"><Checkbox checked={allShownSelected} onCheckedChange={toggleAllShown} aria-label="Select all shown" /></TableHead>
               <TableHead>Employee</TableHead><TableHead>Enabled</TableHead><TableHead>Interval (min)</TableHead>
               <TableHead>Screenshots</TableHead><TableHead>Blur</TableHead><TableHead>Retention (days)</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {(employees ?? []).map((e) => {
+              {shown.map((e) => {
                 const s = settings?.find((x) => x.employee_id === e.id);
                 return (
                   <TableRow key={e.id}>
+                    <TableCell><Checkbox checked={selected.has(e.id)} onCheckedChange={() => toggle(e.id)} aria-label={`Select ${e.full_name}`} /></TableCell>
                     <TableCell>{e.full_name}</TableCell>
                     <TableCell><Switch checked={s?.is_enabled ?? false} onCheckedChange={(v) => upsert(e.id, { is_enabled: v })} /></TableCell>
                     <TableCell>

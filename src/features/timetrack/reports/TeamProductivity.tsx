@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { addDays, endOfMonth, format, startOfMonth, startOfWeek, subMonths } from 'date-fns';
+import { addDays, endOfMonth, endOfYear, format, startOfMonth, startOfWeek, startOfYear, subMonths, subYears } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,9 @@ export function datePresets(now = new Date()) {
     { key: 'lastweek', label: 'Last week', start: fmt(addDays(weekStart, -7)), end: fmt(addDays(weekStart, -1)) },
     { key: 'month', label: 'This month', start: fmt(startOfMonth(now)), end: fmt(now) },
     { key: 'lastmonth', label: 'Last month', start: fmt(startOfMonth(lastMonth)), end: fmt(endOfMonth(lastMonth)) },
+    { key: 'year', label: 'This year', start: fmt(startOfYear(now)), end: fmt(now) },
+    { key: 'lastyear', label: 'Last year', start: fmt(startOfYear(subYears(now, 1))), end: fmt(endOfYear(subYears(now, 1))) },
+    { key: 'all', label: 'All time', start: '2024-01-01', end: fmt(now) },
   ];
 }
 
