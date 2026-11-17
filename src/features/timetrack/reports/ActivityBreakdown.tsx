@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { SiteIcon } from '../ui/SiteIcon';
@@ -248,7 +248,7 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
             {shown.map((t, i) => {
               const px = size(i);
               return (
-                <Tooltip key={t.name}>
+                <UiTooltip key={t.name}>
                   <TooltipTrigger asChild>
                     <div className="flex cursor-default flex-col items-center gap-1" style={{ width: Math.max(px + 14, 56) }}>
                       <SiteIcon name={t.name} className="rounded-xl" size={px} />
@@ -257,7 +257,7 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
                     </div>
                   </TooltipTrigger>
                   {tip(t)}
-                </Tooltip>
+                </UiTooltip>
               );
             })}
             {rest.length > 0 && (
@@ -354,20 +354,34 @@ export function HourlyProductivity({ filters }: { filters: ReportFiltersState })
   );
 }
 
-/** Day-by-day table plus an hour-by-day heatmap: when each person actually worked, and how productive it was. */
+interface Cell { productive: number; neutral: number; unproductive: number; apps: Map<string, number>; act: number; win: number; first: number; last: number }
+
+/**
+ * Day-by-day heatmap: one row per day, one square per hour. Hover a square for the full story of that
+ * hour (split, activity level, the apps used with their logos, first and last capture); hover a date
+ * for the day's summary.
+ */
 export function DayDetails({ filters }: { filters: ReportFiltersState }) {
   const { items, isLoading } = useScopedLogs(filters);
   const days = useMemo(() => {
-    const by = new Map<string, { total: number; byLevel: Record<Level, number>; first: number; last: number; cells: Map<number, Record<Level, number>> }>();
+    const by = new Map<string, { total: number; byLevel: Record<Level, number>; first: number; last: number; act: number; win: number; cells: Map<number, Cell>; apps: Map<string, number> }>();
     for (const i of items) {
       const d = format(new Date(i.ts), 'yyyy-MM-dd');
-      const r = by.get(d) ?? { total: 0, byLevel: { productive: 0, neutral: 0, unproductive: 0 }, first: i.ts, last: i.ts, cells: new Map() };
+      const r = by.get(d) ?? { total: 0, byLevel: { productive: 0, neutral: 0, unproductive: 0 }, first: i.ts, last: i.ts, act: 0, win: 0, cells: new Map(), apps: new Map() };
       r.total += i.hours;
       r.byLevel[i.level] += i.hours;
       r.first = Math.min(r.first, i.ts);
       r.last = Math.max(r.last, i.ts);
-      const cell = r.cells.get(i.hour) ?? { productive: 0, neutral: 0, unproductive: 0 };
+      r.act += i.act;
+      r.win += i.win;
+      r.apps.set(i.key, (r.apps.get(i.key) ?? 0) + i.hours);
+      const cell = r.cells.get(i.hour) ?? { productive: 0, neutral: 0, unproductive: 0, apps: new Map(), act: 0, win: 0, first: i.ts, last: i.ts };
       cell[i.level] += i.hours;
+      cell.apps.set(i.key, (cell.apps.get(i.key) ?? 0) + i.hours);
+      cell.act += i.act;
+      cell.win += i.win;
+      cell.first = Math.min(cell.first, i.ts);
+      cell.last = Math.max(cell.last, i.ts);
       r.cells.set(i.hour, cell);
       by.set(d, r);
     }
@@ -378,47 +392,108 @@ export function DayDetails({ filters }: { filters: ReportFiltersState }) {
   const lo = Math.min(...allHours);
   const hi = Math.max(...allHours);
   const hours = Array.from({ length: hi - lo + 1 }, (_, k) => lo + k);
-  const maxCell = Math.max(0.01, ...days.flatMap(([, r]) => [...r.cells.values()].map((c) => c.productive + c.neutral + c.unproductive)));
-  const dominant = (c: Record<Level, number>): Level => (Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]) as Level;
+  const cellTotal = (c: Cell) => c.productive + c.neutral + c.unproductive;
+  const maxCell = Math.max(0.01, ...days.flatMap(([, r]) => [...r.cells.values()].map(cellTotal)));
+  const dominant = (c: Cell): Level => (['productive', 'neutral', 'unproductive'] as Level[]).sort((a, b) => c[b] - c[a])[0];
+  const topApps = (m: Map<string, number>, n = 4) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+
+  const Split = ({ p, n, u }: { p: number; n: number; u: number }) => {
+    const t = p + n + u || 1;
+    return (
+      <div className="mt-1.5 space-y-1">
+        <div className="flex h-2 overflow-hidden rounded-full bg-muted/40">
+          <span style={{ width: `${(p / t) * 100}%`, background: CHART_COLORS.productive }} />
+          <span style={{ width: `${(n / t) * 100}%`, background: CHART_COLORS.neutral }} />
+          <span style={{ width: `${(u / t) * 100}%`, background: CHART_COLORS.unproductive }} />
+        </div>
+        <div className="flex justify-between gap-3 text-[11px] text-muted-foreground">
+          <span style={{ color: CHART_COLORS.productive }}>{fmtDuration(p)} productive</span>
+          <span>{fmtDuration(n)} neutral</span>
+          <span style={{ color: CHART_COLORS.unproductive }}>{fmtDuration(u)} not work</span>
+        </div>
+      </div>
+    );
+  };
+  const Apps = ({ m }: { m: Map<string, number> }) => (
+    <div className="mt-2 space-y-1">
+      {topApps(m).map(([name, h]) => (
+        <div key={name} className="flex items-center gap-2">
+          <SiteIcon name={name} size={16} />
+          <span className="min-w-0 flex-1 truncate">{name}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">{fmtDuration(h)}</span>
+        </div>
+      ))}
+      {m.size > 4 && <p className="text-[11px] text-muted-foreground">+{m.size - 4} more</p>}
+    </div>
+  );
 
   return (
     <Card>
       <CardHeader><CardTitle className="text-sm">Day by day</CardTitle></CardHeader>
       <CardContent className="space-y-1.5 overflow-x-auto">
-        <div className="flex min-w-[560px] items-center gap-2 text-xs text-muted-foreground">
-          <span className="w-24 shrink-0">Date</span>
-          <span className="w-16 shrink-0 text-right">Tracked</span>
-          <span className="w-12 shrink-0 text-right">Prod.</span>
-          <span className="w-24 shrink-0 text-center">Window</span>
-          <span className="flex flex-1 gap-px">
-            {hours.map((h) => <span key={h} className="flex-1 text-center text-[10px]">{hours.length <= 14 || h % 2 === 0 ? hourName(h) : ''}</span>)}
-          </span>
-        </div>
-        {days.map(([d, r]) => {
-          const pct = r.total ? (r.byLevel.productive / r.total) * 100 : 0;
-          return (
-            <div key={d} className="flex min-w-[560px] items-center gap-2 text-sm">
-              <span className="w-24 shrink-0 font-medium">{format(new Date(`${d}T12:00:00`), 'EEE d MMM')}</span>
-              <span className="w-16 shrink-0 text-right font-mono tabular-nums">{fmtDuration(r.total)}</span>
-              <span className="w-12 shrink-0 text-right font-mono tabular-nums" style={{ color: pct >= 60 ? CHART_COLORS.productive : pct < 30 ? CHART_COLORS.unproductive : undefined }}>{Math.round(pct)}%</span>
-              <span className="w-24 shrink-0 text-center text-xs text-muted-foreground">{format(new Date(r.first), 'HH:mm')}–{format(new Date(r.last), 'HH:mm')}</span>
-              <span className="flex h-5 flex-1 gap-px">
-                {hours.map((h) => {
-                  const c = r.cells.get(h);
-                  const v = c ? c.productive + c.neutral + c.unproductive : 0;
-                  return (
-                    <span
-                      key={h} className="flex-1 rounded-[2px] bg-muted/30"
-                      title={c ? `${hourName(h)} · ${fmtDuration(v)} · ${Math.round((c.productive / v) * 100)}% productive` : undefined}
-                      style={c ? { background: LEVEL_COLOR[dominant(c)], opacity: 0.25 + 0.75 * Math.min(1, v / maxCell) } : undefined}
-                    />
-                  );
-                })}
-              </span>
-            </div>
-          );
-        })}
-        <p className="pt-1 text-xs text-muted-foreground">Each square is an hour: green mostly productive, red mostly not work, grey neutral. Darker means more time. Hover for details.</p>
+        <TooltipProvider delayDuration={60}>
+          <div className="flex min-w-[560px] items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-24 shrink-0">Date</span>
+            <span className="w-16 shrink-0 text-right">Tracked</span>
+            <span className="w-12 shrink-0 text-right">Prod.</span>
+            <span className="w-24 shrink-0 text-center">Window</span>
+            <span className="flex flex-1 gap-px">
+              {hours.map((h) => <span key={h} className="flex-1 text-center text-[10px]">{hours.length <= 14 || h % 2 === 0 ? hourName(h) : ''}</span>)}
+            </span>
+          </div>
+          {days.map(([d, r]) => {
+            const pct = r.total ? (r.byLevel.productive / r.total) * 100 : 0;
+            const act = r.win > 0 ? Math.round((r.act / r.win) * 100) : null;
+            return (
+              <div key={d} className="flex min-w-[560px] items-center gap-2 text-sm">
+                <UiTooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-24 shrink-0 cursor-default font-medium">{format(new Date(`${d}T12:00:00`), 'EEE d MMM')}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="w-72 text-xs">
+                    <p className="text-sm font-semibold">{format(new Date(`${d}T12:00:00`), 'EEEE d MMMM yyyy')}</p>
+                    <p className="text-muted-foreground">
+                      {fmtDuration(r.total)} tracked · {Math.round(pct)}% productive{act != null ? ` · ${act}% active` : ''} · {format(new Date(r.first), 'HH:mm')} to {format(new Date(r.last), 'HH:mm')}
+                    </p>
+                    <Split p={r.byLevel.productive} n={r.byLevel.neutral} u={r.byLevel.unproductive} />
+                    <Apps m={r.apps} />
+                  </TooltipContent>
+                </UiTooltip>
+                <span className="w-16 shrink-0 text-right font-mono tabular-nums">{fmtDuration(r.total)}</span>
+                <span className="w-12 shrink-0 text-right font-mono tabular-nums" style={{ color: pct >= 60 ? CHART_COLORS.productive : pct < 30 ? CHART_COLORS.unproductive : undefined }}>{Math.round(pct)}%</span>
+                <span className="w-24 shrink-0 text-center text-xs text-muted-foreground">{format(new Date(r.first), 'HH:mm')}–{format(new Date(r.last), 'HH:mm')}</span>
+                <span className="flex h-6 flex-1 gap-px">
+                  {hours.map((h) => {
+                    const c = r.cells.get(h);
+                    if (!c) return <span key={h} className="flex-1 rounded-[2px] bg-muted/30" />;
+                    const v = cellTotal(c);
+                    const cellAct = c.win > 0 ? Math.round((c.act / c.win) * 100) : null;
+                    return (
+                      <UiTooltip key={h}>
+                        <TooltipTrigger asChild>
+                          <span
+                            className="flex-1 cursor-default rounded-[2px] transition-transform hover:scale-y-125 hover:ring-1 hover:ring-foreground/40"
+                            style={{ background: LEVEL_COLOR[dominant(c)], opacity: 0.25 + 0.75 * Math.min(1, v / maxCell) }}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="w-72 text-xs">
+                          <p className="text-sm font-semibold">{format(new Date(`${d}T12:00:00`), 'EEE d MMM')}, {hourName(h)} to {hourName((h + 1) % 24)}</p>
+                          <p className="text-muted-foreground">
+                            {fmtDuration(v)} tracked · {Math.round((c.productive / v) * 100)}% productive{cellAct != null ? ` · ${cellAct}% active` : ''}
+                          </p>
+                          <p className="text-muted-foreground">Captures from {format(new Date(c.first), 'HH:mm')} to {format(new Date(c.last), 'HH:mm')}</p>
+                          <Split p={c.productive} n={c.neutral} u={c.unproductive} />
+                          <Apps m={c.apps} />
+                        </TooltipContent>
+                      </UiTooltip>
+                    );
+                  })}
+                </span>
+              </div>
+            );
+          })}
+        </TooltipProvider>
+        <p className="pt-1 text-xs text-muted-foreground">Each square is an hour: green mostly productive, red mostly not work, grey neutral. Darker means more time. Hover a square for that hour's apps, split and activity, or a date for the whole day.</p>
       </CardContent>
     </Card>
   );
