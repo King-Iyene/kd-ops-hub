@@ -14888,6 +14888,24 @@ export type Database = {
           },
         ]
       }
+      time_app_icons: {
+        Row: {
+          app_name: string
+          icon: string
+          updated_at: string
+        }
+        Insert: {
+          app_name: string
+          icon: string
+          updated_at?: string
+        }
+        Update: {
+          app_name?: string
+          icon?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_approvals: {
         Row: {
           approver_id: string | null
