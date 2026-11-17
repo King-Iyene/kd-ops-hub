@@ -128,7 +128,7 @@ export function TopSitesAppsColumns({ filters }: { filters: ReportFiltersState }
               </div>
               {shown.map((r) => (
                 <div key={r.name} className="grid grid-cols-[1fr_90px_60px_190px] items-center gap-2 border-b border-border/60 px-3 py-2 text-sm last:border-0">
-                  <span className="flex min-w-0 items-center gap-2 font-medium"><SiteIcon name={r.name} /><span className="truncate">{r.name}</span><span className="shrink-0 text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><SiteIcon name={r.name} size={18} /><span className="truncate">{r.name}</span><span className="shrink-0 text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span>
                   <span className="text-right font-mono tabular-nums">{fmtDuration(r.hours)}</span>
                   <span className="text-right font-mono tabular-nums text-muted-foreground">{Math.round(r.pct)}%</span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -214,7 +214,7 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
   const MAX = 24;
   const shown = top.slice(0, MAX);
   const rest = top.slice(MAX);
-  const size = (i: number) => (i < 4 ? 44 : i < 10 ? 34 : 26);
+  const size = (i: number) => (i < 4 ? 36 : i < 10 ? 28 : 22);
   const tip = (t: { name: string; h: number; pct: number }) => (
     <TooltipContent side="top" className="text-xs">
       <p className="font-semibold">{t.name}</p>
@@ -236,7 +236,7 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
           <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
             {top.map((t) => (
               <div key={t.name} className="flex items-center gap-2 text-sm">
-                <SiteIcon name={t.name} size={22} />
+                <SiteIcon name={t.name} size={18} />
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
                 <span className="font-mono text-xs tabular-nums text-muted-foreground">{fmtDuration(t.h)}</span>
                 <span className="w-10 text-right font-mono text-xs tabular-nums">{t.pct >= 1 ? `${Math.round(t.pct)}%` : '<1%'}</span>
@@ -250,7 +250,7 @@ export function TopAppsStrip({ filters }: { filters: ReportFiltersState }) {
               return (
                 <UiTooltip key={t.name}>
                   <TooltipTrigger asChild>
-                    <div className="flex cursor-default flex-col items-center gap-1" style={{ width: Math.max(px + 14, 56) }}>
+                    <div className="flex cursor-default flex-col items-center gap-1" style={{ width: Math.max(px + 12, 50) }}>
                       <SiteIcon name={t.name} className="rounded-xl" size={px} />
                       {i < 10 && <span className="w-full truncate text-center text-[11px]">{t.name}</span>}
                       <span className="text-xs font-semibold">{t.pct >= 1 ? `${Math.round(t.pct)}%` : '<1%'}</span>

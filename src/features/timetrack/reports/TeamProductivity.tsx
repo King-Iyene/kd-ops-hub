@@ -268,9 +268,9 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                       {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                       <Photo url={names?.get(r.id)?.photo ?? null} initials={initials} accent={accent} />
                       <span className="w-36 shrink-0 truncate text-[15px] font-semibold sm:w-48">{r.name}</span>
-                      <span className="hidden shrink-0 items-center -space-x-1.5 md:flex" title={r.topApps.map(([n, h]) => `${n} ${fmtDuration(h)}`).join(' · ')}>
+                      <span className="hidden shrink-0 items-center gap-1 md:flex" title={r.topApps.map(([n, h]) => `${n} ${fmtDuration(h)}`).join(' · ')}>
                         {r.topApps.map(([n]) => (
-                          <SiteIcon key={n} name={n} size={24} className="rounded-md ring-2 ring-card" />
+                          <SiteIcon key={n} name={n} size={20} className="rounded-md" />
                         ))}
                       </span>
                       <span className="hidden min-w-0 flex-1 sm:block">

@@ -369,7 +369,7 @@ function ProjectActivities({ entries, start, end }: { entries: ReportEntryRow[];
               <TableBody>
                 {rows.list.slice(0, 30).map((r) => (
                   <TableRow key={r.name}>
-                    <TableCell className="font-medium"><span className="flex items-center gap-2"><SiteIcon name={r.name} />{r.name}<span className="text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span></TableCell>
+                    <TableCell className="font-medium"><span className="flex items-center gap-2"><SiteIcon name={r.name} size={18} />{r.name}<span className="text-xs font-normal text-muted-foreground">{r.isSite ? 'site' : 'app'}</span></span></TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fmtDuration(r.hours)}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums text-muted-foreground">{Math.round(r.pct)}%</TableCell>
                     <TableCell><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-2 w-2 rounded-sm" style={{ background: color[r.cat] }} />{label[r.cat]}</span></TableCell>
