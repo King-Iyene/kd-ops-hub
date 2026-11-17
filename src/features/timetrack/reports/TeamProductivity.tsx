@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -226,20 +226,30 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                 Needs attention ({attention.length})
               </Button>
             </div>
-            <div className="divide-y divide-border/60 rounded-md border border-border">
+            <div className="space-y-3">
               {listRows.map((r) => {
                 const isOpen = open === r.id;
                 const maxTotal = Math.max(...rows.map((x) => x.total), 0.01);
                 const tone = r.pct >= 60 ? CHART_COLORS.productive : r.pct >= 30 ? CHART_COLORS.neutral : CHART_COLORS.unproductive;
                 const seg = (v: number) => (r.total ? `${(v / r.total) * 100}%` : '0%');
+                // each person gets their own stable colour so cards are easy to tell apart
+                let hue = 0;
+                for (let i = 0; i < r.name.length; i++) hue = (hue * 31 + r.name.charCodeAt(i)) % 360;
+                const accent = `hsl(${hue} 65% 55%)`;
+                const initials = r.name.replace(/\[.*?\]/g, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
                 return (
-                  <Fragment key={r.id}>
+                  <section
+                    key={r.id}
+                    className={`overflow-hidden rounded-xl border bg-card transition-shadow ${isOpen ? 'shadow-xl shadow-black/30' : 'shadow-sm hover:shadow-md'}`}
+                    style={{ borderColor: isOpen ? accent : undefined, borderLeft: `4px solid ${accent}` }}
+                  >
                     <button
                       type="button" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}
-                      className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors hover:bg-muted/40"
+                      className={`flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors hover:bg-muted/40 ${isOpen ? 'sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur' : ''}`}
                     >
                       {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                      <span className="w-40 shrink-0 truncate font-medium sm:w-52">{r.name}</span>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: accent }}>{initials}</span>
+                      <span className="w-36 shrink-0 truncate text-[15px] font-semibold sm:w-48">{r.name}</span>
                       <span className="hidden min-w-0 flex-1 sm:block">
                         <span className="flex h-3.5 overflow-hidden rounded-full bg-muted/40" style={{ width: `${Math.max(6, (r.total / maxTotal) * 100)}%` }}>
                           <span style={{ width: seg(r.productive), background: CHART_COLORS.productive }} />
@@ -256,7 +266,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                       </span>
                     </button>
                     {isOpen && (
-                      <div className="space-y-4 bg-muted/10 p-3 sm:p-4">
+                      <div className="space-y-4 p-3 sm:p-4" style={{ background: `linear-gradient(180deg, hsl(${hue} 40% 50% / 0.08), transparent 220px)` }}>
                         <PersonSummaryTiles filters={{ ...filters, employeeIds: [r.id] }} />
                         <PersonInsights filters={{ ...filters, employeeIds: [r.id] }} team={{ pct: teamPct, hoursPerDay: rows.reduce((a, x) => a + x.total / Math.max(1, x.days), 0) / rows.length }} />
                         <TopAppsStrip filters={{ ...filters, employeeIds: [r.id] }} />
@@ -264,9 +274,13 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                         <DayDetails filters={{ ...filters, employeeIds: [r.id] }} />
                         <TopSitesAppsColumns filters={{ ...filters, employeeIds: [r.id] }} />
                         <HourlyProductivity filters={{ ...filters, employeeIds: [r.id] }} />
+                        <div className="flex items-center justify-between rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                          <span>End of {r.name}'s details</span>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setOpen(null)}>Collapse</Button>
+                        </div>
                       </div>
                     )}
-                  </Fragment>
+                  </section>
                 );
               })}
             </div>
