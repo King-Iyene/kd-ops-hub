@@ -16607,6 +16607,24 @@ export type Database = {
           },
         ]
       }
+      time_site_icons: {
+        Row: {
+          domain: string
+          fetched_at: string
+          icon: string | null
+        }
+        Insert: {
+          domain: string
+          fetched_at?: string
+          icon?: string | null
+        }
+        Update: {
+          domain?: string
+          fetched_at?: string
+          icon?: string | null
+        }
+        Relationships: []
+      }
       time_tags: {
         Row: {
           created_at: string
