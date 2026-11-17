@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
 /**
@@ -41,13 +43,34 @@ function domainFor(name: string): string | null {
   return APP_DOMAINS.find(([re]) => re.test(name))?.[1] ?? null;
 }
 
+/** Real icons the desktop tracker read from each app's program file (shared, loaded once). */
+function useAppIcons() {
+  return useQuery({
+    queryKey: ['timetrack', 'app-icons'],
+    queryFn: async () => {
+      const { data } = await supabase.from('time_app_icons').select('app_name, icon');
+      return new Map((data ?? []).map((r) => [(r.app_name as string).toLowerCase(), r.icon as string]));
+    },
+    staleTime: 10 * 60_000,
+  });
+}
+
 export function SiteIcon({ name, className, size = 24 }: { name: string; className?: string; size?: number }) {
   const [failed, setFailed] = useState(false);
+  const { data: appIcons } = useAppIcons();
+  const appIcon = appIcons?.get(name.trim().toLowerCase());
   const domain = domainFor(name);
   const bg = BRAND_COLOR.find(([re]) => re.test(name))?.[1] ?? hashColor(name);
   const label = (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
   const box = { width: size, height: size };
 
+  if (appIcon) {
+    return (
+      <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden', className)} style={{ ...box, borderRadius: size * 0.2 }}>
+        <img src={appIcon} alt="" draggable={false} className="h-full w-full object-contain" />
+      </span>
+    );
+  }
   if (domain && !failed) {
     return (
       <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden bg-white/95 p-[12%]', className)} style={{ ...box, borderRadius: size * 0.25 }}>

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { desktopCapturer, nativeImage, powerMonitor, screen } from 'electron';
+import { app, desktopCapturer, nativeImage, powerMonitor, screen } from 'electron';
 import { randomUUID } from 'crypto';
 import { queueInsert, writeOrQueue } from './offlineQueue';
 import { matchProductivityRule } from './productivityRules';
@@ -348,6 +348,25 @@ export function setTimerRunningProvider(fn: () => boolean) {
 
 // Set by startTracking so a task start can trigger a capture straight away instead of
 // waiting up to a full interval for the next scheduled one.
+// ---- App icons ---------------------------------------------------------------------------------
+// The first time an app is seen, read its real icon from the program file and save it (small PNG) so
+// the reports can show the actual logo. Once per app name per run; the server ignores repeats.
+const iconSeen = new Set<string>();
+async function ensureAppIcon(supabase: SupabaseClient, appName: string, exePath: string | undefined) {
+  if (!exePath || iconSeen.has(appName)) return;
+  iconSeen.add(appName);
+  try {
+    const img = await app.getFileIcon(exePath, { size: 'large' });
+    if (img.isEmpty()) return;
+    const png = img.resize({ width: 64, height: 64, quality: 'best' }).toPNG();
+    const icon = 'data:image/png;base64,' + png.toString('base64');
+    if (icon.length >= 60000) return;
+    await supabase.from('time_app_icons').upsert({ app_name: appName, icon }, { onConflict: 'app_name', ignoreDuplicates: true });
+  } catch {
+    // purely cosmetic: never let an icon problem affect tracking
+  }
+}
+
 let captureTick: (() => Promise<void>) | null = null;
 export function captureNow() {
   if (captureTick) void captureTick();
@@ -418,6 +437,7 @@ export function startTracking(supabase: SupabaseClient, employeeId: string, newS
       if (activeWindow.owner?.processId === process.pid || activeWindow.owner?.path === process.execPath) return;
 
       const appName = activeWindow.owner?.name ?? 'unknown';
+      void ensureAppIcon(supabase, appName, activeWindow.owner?.path);
       const title = activeWindow.title ?? '';
       // macOS: active-win reads the tab URL itself. Windows: active-win can't,
       // so readWindowsBrowserHost() asks Windows UI Automation for the browser's
