@@ -152,6 +152,24 @@ export default function TimePage() {
     }
   };
 
+  /** Track the project itself: time goes on its "General" task, created the first time someone needs it. */
+  const startOnProject = async (projectId: string) => {
+    try {
+      let general = (allTasks ?? []).find((t) => t.project_id === projectId && t.name.trim().toLowerCase() === 'general');
+      if (!general) {
+        const { data, error } = await supabase.from('time_tasks').insert({ project_id: projectId, name: 'General', created_by: profile!.id }).select('id, name, project_id').single();
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: ['timetrack', 'all-tasks'] });
+        general = data as unknown as NonNullable<typeof general>;
+      }
+      setTimerProjectId(projectId);
+      setTimerTaskId(general.id);
+      await startTimer(general.id, projectId);
+    } catch (err) {
+      toast({ title: 'Could not start the project timer', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
+
   const stopTimer = async (endTime?: string) => {
     if (!activeEntry) return;
     setStopping(true);
@@ -366,6 +384,7 @@ export default function TimePage() {
               tasks={allTasks ?? []}
               disabled={!!activeEntry}
               activeLabel={activeEntry ? `${activeEntry.notes ? activeEntry.notes + ' · ' : ''}${allTasks?.find((t) => t.id === activeEntry.task_id)?.time_projects?.name ?? ''}` : undefined}
+              onPickProject={(projectId) => { void startOnProject(projectId); }}
               onPick={(task) => {
                 setTimerProjectId(task.project_id);
                 setTimerTaskId(task.id);
@@ -506,20 +525,23 @@ export default function TimePage() {
  * timer bar: one search box over every project's tasks, grouped by project,
  * picking one starts the timer immediately (no separate confirm step).
  */
-function TimerCombobox({ projects, tasks, disabled, activeLabel, onPick }: {
+function TimerCombobox({ projects, tasks, disabled, activeLabel, onPick, onPickProject }: {
   projects: { id: string; name: string }[];
   tasks: { id: string; name: string; project_id: string; time_projects: { id: string; name: string } | null }[];
   disabled: boolean;
   activeLabel?: string;
   onPick: (task: { id: string; name: string; project_id: string }) => void;
+  onPickProject: (projectId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const grouped = useMemo(() => {
-    const byProject: Record<string, { projectName: string; tasks: typeof tasks }> = {};
+    const byProject: Record<string, { projectId: string; projectName: string; tasks: typeof tasks }> = {};
+    // every project is listed, even one with no tasks yet, so a project can always be tracked on its own
+    for (const pr of projects) byProject[pr.id] = { projectId: pr.id, projectName: pr.name, tasks: [] };
     for (const t of tasks) {
       const pid = t.project_id;
       const pname = t.time_projects?.name ?? projects.find((p) => p.id === pid)?.name ?? 'Unknown project';
-      (byProject[pid] ??= { projectName: pname, tasks: [] }).tasks.push(t);
+      (byProject[pid] ??= { projectId: pid, projectName: pname, tasks: [] }).tasks.push(t);
     }
     return Object.values(byProject).sort((a, b) => a.projectName.localeCompare(b.projectName));
   }, [tasks, projects]);
@@ -548,8 +570,15 @@ function TimerCombobox({ projects, tasks, disabled, activeLabel, onPick }: {
           <CommandList>
             <CommandEmpty>No matching project or task.</CommandEmpty>
             {grouped.map((g) => (
-              <CommandGroup key={g.projectName} heading={g.projectName}>
-                {g.tasks.map((t) => (
+              <CommandGroup key={g.projectId} heading={g.projectName}>
+                <CommandItem
+                  value={`${g.projectName} track the project itself general`}
+                  onSelect={() => { onPickProject(g.projectId); setOpen(false); }}
+                  className="text-emerald-500"
+                >
+                  <Play className="mr-2 h-3.5 w-3.5" /> Track the project itself
+                </CommandItem>
+                {g.tasks.filter((t) => t.name.trim().toLowerCase() !== 'general').map((t) => (
                   <CommandItem
                     key={t.id}
                     value={`${g.projectName} ${t.name}`}

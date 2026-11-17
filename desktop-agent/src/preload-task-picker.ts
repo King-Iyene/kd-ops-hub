@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('taskPicker', {
   onData: (cb: (data: { tasks: PickableTask[]; suggested: PickableTask[]; projects: PickableProject[] }) => void) =>
     ipcRenderer.on('task-picker-data', (_e, data) => cb(data)),
   chooseTask: (task: PickableTask) => ipcRenderer.send('task-picker-choose', task),
+  chooseProject: (p: { projectId: string; projectName: string; clientName: string | null }) => ipcRenderer.send('task-picker-choose-project', p),
   chooseNoTask: () => ipcRenderer.send('task-picker-choose-none'),
   cancel: () => ipcRenderer.send('task-picker-cancel'),
   createTask: (args: CreateTaskArgs): Promise<CreateTaskResult> => ipcRenderer.invoke('task-picker-create-task', args),

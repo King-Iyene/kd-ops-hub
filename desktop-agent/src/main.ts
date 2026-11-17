@@ -874,6 +874,29 @@ ipcMain.on('task-picker-ready', async () => {
   }
 });
 
+/** Click a project to track the project itself: time goes on its "General" task, made the first time it is needed. */
+ipcMain.on('task-picker-choose-project', async (_e, p: { projectId: string; projectName: string; clientName: string | null }) => {
+  taskPickerWindow?.close();
+  if (!supabase || !currentEmployeeId) return;
+  try {
+    const { data } = await supabase.from('time_tasks').select('id, name').eq('project_id', p.projectId).ilike('name', 'General').limit(1);
+    const found = data?.[0] as { id: string; name: string } | undefined;
+    const task: PickableTask = found
+      ? { taskId: found.id, taskName: found.name, projectId: p.projectId, projectName: p.projectName, clientName: p.clientName, searchLabel: '' }
+      : await createTask(supabase, currentEmployeeId, p.projectId, p.projectName, p.clientName, 'General');
+    const previous = activeTimer;
+    activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
+    if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
+    pausedTask = null;
+    if (autoPaused) await setAutoPaused(false);
+    captureNow();
+  } catch {
+    // offline or no permission: the picker simply does not start a timer; try again when connected
+  }
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+});
+
 ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
   taskPickerWindow?.close();
   if (!supabase || !currentEmployeeId) return;

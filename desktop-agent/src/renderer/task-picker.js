@@ -73,6 +73,11 @@ function taskRowHtml(task, idx) {
   </div>`;
 }
 
+// "Track project": starts the project's own General task, for work that belongs to the project but to no specific task.
+function trackProjectHtml(p) {
+  return `<span class="track-project" data-track-project="${escapeHtml(p.projectId)}" data-project-name="${escapeHtml(p.projectName)}" data-client="${escapeHtml(p.clientName || '')}" title="Track time on the project itself">▶ Track project</span>`;
+}
+
 function addTaskRowHtml(projectId) {
   return `<div class="row add-task-row" data-add-project="${escapeHtml(projectId)}">+ Add task</div>`;
 }
@@ -100,7 +105,7 @@ function render() {
         html += taskRowHtml(t, selectable.length - 1);
       }
       for (const p of emptyProjectMatches) {
-        html += `<div class="group-row project-row">${escapeHtml(p.projectName)}</div>${addTaskRowHtml(p.projectId)}`;
+        html += `<div class="group-row project-row">${escapeHtml(p.projectName)}${trackProjectHtml(p)}</div>${addTaskRowHtml(p.projectId)}`;
       }
     }
   } else {
@@ -129,7 +134,7 @@ function render() {
         const projectKey = groupKey('project', project.projectId);
         const projectCollapsed = collapsed.has(projectKey);
         html += `<div class="group-row project-row${projectCollapsed ? ' collapsed' : ''}" data-toggle="${projectKey}">
-          <span class="chevron">▾</span>${escapeHtml(project.projectName)}
+          <span class="chevron">▾</span>${escapeHtml(project.projectName)}${trackProjectHtml({ projectId: project.projectId, projectName: project.projectName, clientName: client.clientName })}
         </div>`;
         if (projectCollapsed) continue;
         for (const t of project.tasks) {
@@ -152,6 +157,16 @@ function render() {
       if (collapsed.has(key)) collapsed.delete(key);
       else collapsed.add(key);
       render();
+    });
+  });
+  listEl.querySelectorAll('.track-project[data-track-project]').forEach((el) => {
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation(); // do not also collapse/expand the project
+      window.taskPicker.chooseProject({
+        projectId: el.getAttribute('data-track-project'),
+        projectName: el.getAttribute('data-project-name'),
+        clientName: el.getAttribute('data-client') || null,
+      });
     });
   });
   listEl.querySelectorAll('.add-task-row[data-add-project]').forEach((el) => {
