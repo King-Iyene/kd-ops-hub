@@ -1,21 +1,31 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * A small brand-coloured tile for a site or app. Drawn locally from the name (known brands get their
- * own colour, everything else a stable colour from the name), so no site names are ever sent to a
- * third-party favicon service.
+ * The real logo of a site or app. Sites use their own favicon (fetched from DuckDuckGo's icon
+ * service by domain, so nothing is stored or bundled); well-known desktop apps are mapped to
+ * their website. If no logo can be found, or the viewer is offline, a coloured initial tile is
+ * shown instead.
+ *
+ * Privacy: when a report is open, the viewer's browser asks DuckDuckGo for the icon of each
+ * listed domain (domain only, no page paths, no user or company details).
  */
-const BRANDS: [RegExp, string, string][] = [
-  [/github/i, '#24292f', 'GH'], [/google|gmail|chrome/i, '#4285f4', 'G'], [/docs\.google/i, '#4285f4', 'D'],
-  [/sheets/i, '#0f9d58', 'S'], [/facebook/i, '#1877f2', 'f'], [/instagram/i, '#d6249f', 'IG'],
-  [/tiktok/i, '#111111', 'TT'], [/twitter|^x\.com/i, '#111111', 'X'], [/youtube/i, '#ff0000', 'YT'],
-  [/netflix/i, '#e50914', 'N'], [/linkedin/i, '#0a66c2', 'in'], [/slack/i, '#611f69', 'S'],
-  [/zoom/i, '#2d8cff', 'Z'], [/teams/i, '#6264a7', 'T'], [/outlook/i, '#0078d4', 'O'], [/excel/i, '#217346', 'X'],
-  [/word/i, '#2b579a', 'W'], [/powerpoint/i, '#d24726', 'P'], [/notion/i, '#111111', 'N'], [/figma/i, '#a259ff', 'F'],
-  [/canva/i, '#00c4cc', 'C'], [/claude|anthropic/i, '#d97757', 'C'], [/supabase/i, '#3ecf8e', 'S'],
-  [/vercel/i, '#000000', '▲'], [/whatsapp/i, '#25d366', 'W'], [/telegram/i, '#27a7e7', 'T'], [/spotify/i, '#1db954', 'S'],
-  [/reddit/i, '#ff4500', 'R'], [/twitch/i, '#9146ff', 'T'], [/code|visual studio/i, '#007acc', '<>'],
-  [/stripe/i, '#635bff', 'S'], [/kdsquares/i, '#006994', 'KD'], [/gohighlevel/i, '#1d6fef', 'GH'], [/make\.com/i, '#6d00cc', 'M'],
+const APP_DOMAINS: [RegExp, string][] = [
+  [/claude|anthropic/i, 'claude.ai'], [/slack/i, 'slack.com'], [/teams/i, 'teams.microsoft.com'],
+  [/zoom/i, 'zoom.us'], [/outlook/i, 'outlook.office.com'], [/excel|word|powerpoint|onenote|office/i, 'office.com'],
+  [/chrome/i, 'google.com'], [/edge/i, 'microsoft.com'], [/firefox/i, 'mozilla.org'], [/brave/i, 'brave.com'],
+  [/visual studio code|^code$|code\.exe/i, 'code.visualstudio.com'], [/notion/i, 'notion.so'], [/figma/i, 'figma.com'],
+  [/canva/i, 'canva.com'], [/spotify/i, 'spotify.com'], [/whatsapp/i, 'whatsapp.com'], [/telegram/i, 'telegram.org'],
+  [/discord/i, 'discord.com'], [/kd ops|kdops/i, 'kdsquares.com'], [/github/i, 'github.com'], [/postman/i, 'postman.com'],
+  [/docker/i, 'docker.com'], [/steam/i, 'steampowered.com'], [/obsidian/i, 'obsidian.md'], [/vlc/i, 'videolan.org'],
+  [/photoshop|illustrator|adobe|acrobat/i, 'adobe.com'], [/zapier/i, 'zapier.com'], [/make\.com|eu\d\.make/i, 'make.com'],
+  [/windows terminal|powershell|cmd\.exe|terminal/i, 'microsoft.com'], [/explorer/i, 'microsoft.com'],
+];
+
+const BRAND_COLOR: [RegExp, string][] = [
+  [/github/i, '#24292f'], [/google|chrome|gmail/i, '#4285f4'], [/facebook/i, '#1877f2'], [/instagram/i, '#d6249f'],
+  [/youtube/i, '#ff0000'], [/netflix/i, '#e50914'], [/linkedin/i, '#0a66c2'], [/slack/i, '#611f69'], [/zoom/i, '#2d8cff'],
+  [/teams/i, '#6264a7'], [/claude/i, '#d97757'], [/whatsapp/i, '#25d366'], [/spotify/i, '#1db954'],
 ];
 
 function hashColor(name: string) {
@@ -24,14 +34,39 @@ function hashColor(name: string) {
   return `hsl(${h} 55% 42%)`;
 }
 
+/** The website behind a capture's name: a domain is used as-is, app names are mapped, anything else has none. */
+function domainFor(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(n)) return n.replace(/^www\./, '');
+  return APP_DOMAINS.find(([re]) => re.test(name))?.[1] ?? null;
+}
+
 export function SiteIcon({ name, className, size = 24 }: { name: string; className?: string; size?: number }) {
-  const brand = BRANDS.find(([re]) => re.test(name));
-  const bg = brand?.[1] ?? hashColor(name);
-  const label = brand?.[2] ?? (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
+  const [failed, setFailed] = useState(false);
+  const domain = domainFor(name);
+  const bg = BRAND_COLOR.find(([re]) => re.test(name))?.[1] ?? hashColor(name);
+  const label = (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
+  const box = { width: size, height: size };
+
+  if (domain && !failed) {
+    return (
+      <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden bg-white/95 p-[12%]', className)} style={{ ...box, borderRadius: size * 0.25 }}>
+        <img
+          src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          draggable={false}
+          onError={() => setFailed(true)}
+          className="h-full w-full object-contain"
+        />
+      </span>
+    );
+  }
   return (
     <span
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-md font-bold leading-none text-white', className)}
-      style={{ background: bg, width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.38)) }}
+      className={cn('inline-flex shrink-0 items-center justify-center font-bold leading-none text-white', className)}
+      style={{ ...box, background: bg, borderRadius: size * 0.25, fontSize: Math.max(9, Math.round(size * 0.4)) }}
       aria-hidden
     >
       {label}
