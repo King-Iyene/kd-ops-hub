@@ -100,7 +100,7 @@ function initAutoUpdater() {
   autoUpdater.on('update-downloaded', (info) => {
     new Notification({
       title: 'KD Ops Time Tracker',
-      body: ,
+      body: `Version ${info.version} is ready. It installs when you quit and reopen the tracker (tray menu, Exit).`,
     }).show();
   });
   autoUpdater.checkForUpdatesAndNotify().catch(() => {
