@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Tags } from 'lucide-react';
+import { Globe, Loader2, Monitor, Plus, Tags } from 'lucide-react';
 import { RankedBars } from '@/features/timetrack/ui/charts';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { SiteIcon } from '@/features/timetrack/ui/SiteIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CATEGORY_BADGE, useActivityDateRange, ActivityDateRangeBar, useLogsWithIntervals } from './shared';
 
@@ -55,6 +57,65 @@ export default function ActivityCategoriesPage() {
   const [category, setCategory] = useState<'productive' | 'neutral' | 'unproductive' | 'blocked'>('productive');
   const [priority, setPriority] = useState('100');
   const [saving, setSaving] = useState(false);
+
+  // "Add apps or websites": type or paste a list, pick what they are and how they count
+  const [addOpen, setAddOpen] = useState(false);
+  const [addKind, setAddKind] = useState<'site' | 'app'>('site');
+  const [addText, setAddText] = useState('');
+  const [addCategory, setAddCategory] = useState<'productive' | 'neutral' | 'unproductive' | 'blocked'>('productive');
+
+  /** "https://www.Facebook.com/groups/x?y=1" -> "facebook.com"; apps are kept as typed. */
+  const normalise = (raw: string, kind: 'site' | 'app'): string | null => {
+    const v = raw.trim();
+    if (!v) return null;
+    if (kind === 'app') return v;
+    const host = v.toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').split(/[/?#:\s]/)[0];
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
+  };
+  const parsedEntries = useMemo(() => {
+    const seen = new Set<string>();
+    const ok: string[] = [];
+    const bad: string[] = [];
+    for (const line of addText.split(/[\n,;]+/)) {
+      if (!line.trim()) continue;
+      const n = normalise(line, addKind);
+      if (!n) { bad.push(line.trim()); continue; }
+      if (!seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); ok.push(n); }
+    }
+    return { ok, bad };
+   
+  }, [addText, addKind]);
+
+  const saveEntries = async () => {
+    if (parsedEntries.ok.length === 0) { toast({ title: 'Nothing to add yet', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      let added = 0;
+      let changed = 0;
+      for (const name of parsedEntries.ok) {
+        // an entry that already has a rule is switched to the new category instead of being doubled up
+        const existing = (rules ?? []).find((r) => !r.title_contains && r.app_name_contains?.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          const { error } = await supabase.from('time_productivity_rules').update({ category: addCategory, priority: 40 }).eq('id', existing.id);
+          if (error) throw error;
+          changed++;
+        } else {
+          // priority 40 so a hand-added entry beats the starter rules (60)
+          const { error } = await supabase.from('time_productivity_rules').insert({ app_name_contains: name, title_contains: null, category: addCategory, priority: 40 });
+          if (error) throw error;
+          added++;
+        }
+      }
+      toast({ title: `${added} added${changed ? `, ${changed} updated` : ''}`, description: 'Reports use it straight away, past days included.' });
+      setAddOpen(false);
+      setAddText('');
+      qc.invalidateQueries({ queryKey: ['timetrack', 'productivity-rules'] });
+    } catch (err) {
+      toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     if (!appNameContains.trim() && !titleContains.trim()) {
@@ -105,16 +166,29 @@ export default function ActivityCategoriesPage() {
 
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <div className="space-y-3">
-          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New rule</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-1.5" />Add apps or websites</Button>
+            <Button variant="outline" onClick={() => setOpen(true)}>Advanced rule (window title)</Button>
+          </div>
           <Card>
             <CardContent className="pt-4">
               <Table>
-                <TableHeader><TableRow><TableHead>Priority</TableHead><TableHead>App contains</TableHead><TableHead>Title contains</TableHead><TableHead>Category</TableHead><TableHead /></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Priority</TableHead><TableHead>App or site</TableHead><TableHead>Title contains</TableHead><TableHead>Category</TableHead><TableHead /></TableRow></TableHeader>
                 <TableBody>
                   {(rules ?? []).map((r) => (
                     <TableRow key={r.id}>
                       <TableCell>{r.priority}</TableCell>
-                      <TableCell>{r.app_name_contains ?? '—'}</TableCell>
+                      <TableCell>
+                        {r.app_name_contains ? (
+                          <span className="flex items-center gap-2">
+                            <SiteIcon name={r.app_name_contains} size={18} />
+                            <span>{r.app_name_contains}</span>
+                            {!r.title_contains && (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(r.app_name_contains)
+                              ? <Badge variant="outline" className="gap-1 text-3xs"><Globe className="h-3 w-3" />site</Badge>
+                              : <Badge variant="outline" className="gap-1 text-3xs"><Monitor className="h-3 w-3" />app</Badge>)}
+                          </span>
+                        ) : '—'}
+                      </TableCell>
                       <TableCell>{r.title_contains ?? '—'}</TableCell>
                       <TableCell><Badge variant="outline" className={CATEGORY_BADGE[r.category]}>{r.category}</Badge></TableCell>
                       <TableCell><ConfirmAction title="Remove this rule?" confirmLabel="Remove" description="Captures that used this rule go back to uncategorised. This cannot be undone." onConfirm={() => remove(r.id)}><Button size="sm" variant="ghost">Remove</Button></ConfirmAction></TableCell>
@@ -127,6 +201,61 @@ export default function ActivityCategoriesPage() {
           </Card>
         </div>
       )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add apps or websites</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={addKind === 'site' ? 'default' : 'outline'} onClick={() => setAddKind('site')}><Globe className="h-4 w-4 mr-1.5" />Websites</Button>
+              <Button type="button" variant={addKind === 'app' ? 'default' : 'outline'} onClick={() => setAddKind('app')}><Monitor className="h-4 w-4 mr-1.5" />Apps</Button>
+            </div>
+            <div>
+              <Label>{addKind === 'site' ? 'Websites (one per line, or paste a list)' : 'App names (one per line, or paste a list)'}</Label>
+              <Textarea
+                rows={5} value={addText} onChange={(e) => setAddText(e.target.value)}
+                placeholder={addKind === 'site' ? 'facebook.com\nhttps://www.tiktok.com/@someone\nnetflix.com' : 'Slack\nSnippingTool\nSteam'}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {addKind === 'site'
+                  ? 'Links are tidied to the site name (https://www.facebook.com/groups/1 becomes facebook.com).'
+                  : 'Use the name as it appears in your reports (for example "Google Chrome" or "Slack"). Part of the name is enough.'}
+              </p>
+            </div>
+            <div>
+              <Label>How should they count?</Label>
+              <Select value={addCategory} onValueChange={(v) => setAddCategory(v as typeof addCategory)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="productive">Work tool (productive, green)</SelectItem>
+                  <SelectItem value="neutral">Neutral (grey)</SelectItem>
+                  <SelectItem value="unproductive">Not work (unproductive, red)</SelectItem>
+                  <SelectItem value="blocked">Blocked (red and alerts the admins)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(parsedEntries.ok.length > 0 || parsedEntries.bad.length > 0) && (
+              <div className="rounded-md border border-border p-2 text-xs space-y-1.5">
+                {parsedEntries.ok.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsedEntries.ok.slice(0, 40).map((n) => (
+                      <span key={n} className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5"><SiteIcon name={n} size={14} />{n}</span>
+                    ))}
+                    {parsedEntries.ok.length > 40 && <span className="text-muted-foreground">+{parsedEntries.ok.length - 40} more</span>}
+                  </div>
+                )}
+                {parsedEntries.bad.length > 0 && <p className="text-destructive">Not a website, skipped: {parsedEntries.bad.slice(0, 5).join(', ')}</p>}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button onClick={saveEntries} disabled={saving || parsedEntries.ok.length === 0}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}Add {parsedEntries.ok.length || ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
