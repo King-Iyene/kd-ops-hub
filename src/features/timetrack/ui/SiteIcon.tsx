@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,51 @@ const BRAND_COLOR: [RegExp, string][] = [
   [/teams/i, '#6264a7'], [/claude/i, '#d97757'], [/whatsapp/i, '#25d366'], [/spotify/i, '#1db954'],
 ];
 
+/**
+ * How a logo will look on the page. A filled tile (Slack, Claude) is shown as is; a transparent logo
+ * with dark ink would vanish on the dark page, so it gets a soft light backing; a blank or all-white
+ * image is not a logo at all, so the letter tile is used instead.
+ */
+type Look = 'ok' | 'dark' | 'blank';
+const looks = new Map<string, Look>();
+function analyze(src: string): Promise<Look> {
+  const hit = looks.get(src);
+  if (hit) return Promise.resolve(hit);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const N = 32;
+        const c = document.createElement('canvas');
+        c.width = N; c.height = N;
+        const x = c.getContext('2d', { willReadFrequently: true })!;
+        x.drawImage(img, 0, 0, N, N);
+        const d = x.getImageData(0, 0, N, N).data;
+        let opaque = 0, lum = 0, lumSq = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 40) continue;
+          opaque++;
+          const l = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+          lum += l; lumSq += l * l;
+        }
+        const frac = opaque / (N * N);
+        const mean = opaque ? lum / opaque : 0;
+        const sd = opaque ? Math.sqrt(Math.max(0, lumSq / opaque - mean * mean)) : 0;
+        let look: Look = 'ok';
+        if (frac < 0.02) look = 'blank';
+        else if (frac > 0.8 && mean > 0.93 && sd < 0.05) look = 'blank'; // plain white square
+        else if (frac <= 0.8 && mean < 0.35) look = 'dark'; // dark ink on transparent
+        looks.set(src, look);
+        resolve(look);
+      } catch {
+        resolve('ok');
+      }
+    };
+    img.onerror = () => resolve('ok');
+    img.src = src;
+  });
+}
+
 function hashColor(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
@@ -56,6 +101,7 @@ function useAppIcons() {
 
 export function SiteIcon({ name, className, size = 24 }: { name: string; className?: string; size?: number }) {
   const [failed, setFailed] = useState(false);
+  const [look, setLook] = useState<Look>('ok');
   const { data: appIcons } = useAppIcons();
   const appIcon = appIcons?.get(name.trim().toLowerCase());
   const domain = domainFor(name);
@@ -64,16 +110,24 @@ export function SiteIcon({ name, className, size = 24 }: { name: string; classNa
   const label = (name.replace(/^www\./, '').match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase();
   const box = { width: size, height: size };
 
-  if (appIcon) {
+  useEffect(() => {
+    const src = appIcon ?? logo;
+    if (!src) return;
+    let live = true;
+    void analyze(src).then((l) => { if (live) setLook(l); });
+    return () => { live = false; };
+  }, [appIcon, logo]);
+
+  if (appIcon && look !== 'blank') {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={box}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={look === 'dark' ? { ...box, background: 'rgba(255,255,255,0.92)', borderRadius: size * 0.22, padding: size * 0.1 } : box}>
         <img src={appIcon} alt="" draggable={false} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 0.6px rgba(255,255,255,0.55))' }} />
       </span>
     );
   }
-  if (logo && !failed) {
+  if (logo && !failed && look !== 'blank') {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={box}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={look === 'dark' ? { ...box, background: 'rgba(255,255,255,0.92)', borderRadius: size * 0.22, padding: size * 0.1 } : box}>
         <img
           src={logo}
           alt=""
