@@ -3,13 +3,14 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
 import { useTrackedHours } from '../lib/useTrackedHours';
-import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
+import { DailyTrends, DayDetails, HourlyProductivity, PersonInsights, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
 
 interface PersonRow {
@@ -61,6 +62,8 @@ function PersonTip({ active, payload }: { active?: boolean; payload?: TipRow[] }
 export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const [mode, setMode] = useState<Mode>('hours');
   const [open, setOpen] = useState<string | null>(null);
+  const [sort, setSort] = useState<'productive' | 'tracked' | 'name' | 'lowest'>('productive');
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const companyIds = useCompanyEmployeeIds();
   const tracked = useTrackedHours(filters.start, filters.end);
   const { data: logData, isLoading } = useLogsWithIntervals(filters.start, filters.end);
@@ -109,6 +112,22 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const teamUnproductive = rows.reduce((a, r) => a + r.unproductive, 0);
   const teamPct = teamTotal ? (teamProductive / teamTotal) * 100 : 0;
   const rangeDays = Math.max(1, Math.round((new Date(`${filters.end}T12:00:00`).getTime() - new Date(`${filters.start}T12:00:00`).getTime()) / 86_400_000) + 1);
+  const attention = rows.filter((r) => r.pct < 30);
+  const listRows = useMemo(() => {
+    const base = attentionOnly ? rows.filter((r) => r.pct < 30) : rows;
+    const copy = [...base];
+    if (sort === 'tracked') copy.sort((a, b) => b.total - a.total);
+    else if (sort === 'name') copy.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === 'lowest') copy.sort((a, b) => a.pct - b.pct);
+    return copy;
+  }, [rows, sort, attentionOnly]);
+  const exportCsv = () => {
+    downloadCsv(
+      `team-productivity-${filters.start}-to-${filters.end}.csv`,
+      toCsv(['Employee', 'Tracked (h)', 'Productive (h)', 'Neutral (h)', 'Unproductive (h)', 'Productive %'],
+        rows.map((r) => [r.name, r.total.toFixed(2), r.productive.toFixed(2), r.neutral.toFixed(2), r.unproductive.toFixed(2), String(Math.round(r.pct))])),
+    );
+  };
   const chartData = rows.map((r) => ({
     ...r,
     pProductive: r.total ? (r.productive / r.total) * 100 : 0,
@@ -123,7 +142,8 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-sm">Team productivity at a glance (click a person for details)</CardTitle>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</Button>
           <Button size="sm" variant={mode === 'hours' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('hours')}>Hours</Button>
           <Button size="sm" variant={mode === 'percent' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setMode('percent')}>% split</Button>
         </div>
@@ -188,8 +208,20 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                 </p>
               </div>
             )}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Sort by</span>
+              {([['productive', 'Most productive'], ['lowest', 'Lowest productivity'], ['tracked', 'Most tracked'], ['name', 'Name']] as const).map(([k, label]) => (
+                <Button key={k} size="sm" variant={sort === k ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setSort(k)}>{label}</Button>
+              ))}
+              <Button
+                size="sm" variant={attentionOnly ? 'default' : 'outline'} className="ml-auto h-7 text-xs"
+                onClick={() => setAttentionOnly((v) => !v)} disabled={attention.length === 0 && !attentionOnly}
+              >
+                Needs attention ({attention.length})
+              </Button>
+            </div>
             <div className="divide-y divide-border/60 rounded-md border border-border">
-              {rows.map((r) => {
+              {listRows.map((r) => {
                 const isOpen = open === r.id;
                 const maxTotal = Math.max(...rows.map((x) => x.total), 0.01);
                 const tone = r.pct >= 60 ? CHART_COLORS.productive : r.pct >= 30 ? CHART_COLORS.neutral : CHART_COLORS.unproductive;
@@ -220,6 +252,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                     {isOpen && (
                       <div className="space-y-4 bg-muted/10 p-3 sm:p-4">
                         <PersonSummaryTiles filters={{ ...filters, employeeIds: [r.id] }} />
+                        <PersonInsights filters={{ ...filters, employeeIds: [r.id] }} team={{ pct: teamPct, hoursPerDay: teamTotal / rows.length / rangeDays }} />
                         <TopAppsStrip filters={{ ...filters, employeeIds: [r.id] }} />
                         <DailyTrends filters={{ ...filters, employeeIds: [r.id] }} />
                         <DayDetails filters={{ ...filters, employeeIds: [r.id] }} />

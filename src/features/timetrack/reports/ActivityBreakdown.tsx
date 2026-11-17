@@ -498,3 +498,88 @@ export function DayDetails({ filters }: { filters: ReportFiltersState }) {
     </Card>
   );
 }
+
+/** Plain-language read-out for one person, compared with the team: what stands out, and what to do about it. */
+export function PersonInsights({ filters, team }: { filters: ReportFiltersState; team: { pct: number; hoursPerDay: number } }) {
+  const { items, isLoading } = useScopedLogs(filters);
+  const notes = useMemo(() => {
+    if (items.length === 0) return [];
+    const total = items.reduce((a, i) => a + i.hours, 0);
+    const prod = items.filter((i) => i.level === 'productive').reduce((a, i) => a + i.hours, 0);
+    const pct = total ? (prod / total) * 100 : 0;
+    const out: { tone: 'good' | 'warn' | 'bad' | 'info'; text: string; link?: { to: string; label: string } }[] = [];
+
+    const diff = pct - team.pct;
+    if (Math.abs(diff) >= 5) out.push({ tone: diff > 0 ? 'good' : 'warn', text: `${Math.round(Math.abs(diff))} points ${diff > 0 ? 'above' : 'below'} the team's productive share (${Math.round(pct)}% vs ${Math.round(team.pct)}%).` });
+    else out.push({ tone: 'info', text: `In line with the team's productive share (${Math.round(pct)}% vs ${Math.round(team.pct)}%).` });
+
+    const byDay = new Map<string, { t: number; p: number }>();
+    for (const i of items) {
+      const d = format(new Date(i.ts), 'yyyy-MM-dd');
+      const r = byDay.get(d) ?? { t: 0, p: 0 };
+      r.t += i.hours;
+      if (i.level === 'productive') r.p += i.hours;
+      byDay.set(d, r);
+    }
+    const days = [...byDay.entries()].filter(([, r]) => r.t >= 0.5).map(([d, r]) => ({ d, pct: (r.p / r.t) * 100, t: r.t }));
+    if (days.length >= 2) {
+      const best = [...days].sort((a, b) => b.pct - a.pct)[0];
+      const worst = [...days].sort((a, b) => a.pct - b.pct)[0];
+      out.push({ tone: 'info', text: `Best day ${format(new Date(`${best.d}T12:00:00`), 'EEE d MMM')} (${Math.round(best.pct)}% productive); weakest ${format(new Date(`${worst.d}T12:00:00`), 'EEE d MMM')} (${Math.round(worst.pct)}%).` });
+    }
+
+    const byHour = new Map<number, number>();
+    for (const i of items) byHour.set(i.hour, (byHour.get(i.hour) ?? 0) + i.hours);
+    const peak = [...byHour.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (peak) out.push({ tone: 'info', text: `Busiest hour is ${hourName(peak[0])}, with ${fmtDuration(peak[1])} tracked in it across the range.` });
+
+    const perDay = total / Math.max(1, byDay.size);
+    if (team.hoursPerDay > 0 && Math.abs(perDay - team.hoursPerDay) / team.hoursPerDay >= 0.25) {
+      out.push({ tone: perDay > team.hoursPerDay ? 'good' : 'warn', text: `Tracks ${fmtDuration(perDay)} per active day, ${perDay > team.hoursPerDay ? 'more' : 'less'} than the team average of ${fmtDuration(team.hoursPerDay)}.` });
+    }
+
+    const off = new Map<string, number>();
+    for (const i of items) if (i.level === 'unproductive') off.set(i.key, (off.get(i.key) ?? 0) + i.hours);
+    const worstOff = [...off.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (worstOff) out.push({ tone: 'bad', text: `Most time off-task: ${worstOff[0]} (${fmtDuration(worstOff[1])}); ${fmtDuration([...off.values()].reduce((a, v) => a + v, 0))} in total on not-work sites and apps.` });
+
+    const act = items.reduce((a, i) => a + i.act, 0);
+    const win = items.reduce((a, i) => a + i.win, 0);
+    if (win > 0) {
+      const a = (act / win) * 100;
+      if (a < 30) out.push({ tone: 'warn', text: `Low keyboard and mouse activity (${Math.round(a)}%): the computer was on but little was typed or clicked.` });
+      else if (a >= 60) out.push({ tone: 'good', text: `High keyboard and mouse activity (${Math.round(a)}%).` });
+    }
+
+    const unknown = new Map<string, number>();
+    for (const i of items) if (i.level === 'neutral') unknown.set(i.key, (unknown.get(i.key) ?? 0) + i.hours);
+    const big = [...unknown.entries()].filter(([, h]) => h >= 5 / 60).sort((a, b) => b[1] - a[1]);
+    if (big.length > 0) {
+      out.push({
+        tone: 'info',
+        text: `${big.length} site${big.length === 1 ? '' : 's'} or app${big.length === 1 ? '' : 's'} with 5+ minutes aren't marked as work or not-work (top: ${big.slice(0, 3).map(([k]) => k).join(', ')}). Marking them makes this report more accurate.`,
+        link: { to: '/timetrack/activity/sites-apps', label: 'Categorise them' },
+      });
+    }
+    return out;
+  }, [items, team.pct, team.hoursPerDay]);
+
+  if (isLoading || notes.length === 0) return null;
+  const dot = { good: CHART_COLORS.productive, warn: '#f59e0b', bad: CHART_COLORS.unproductive, info: '#38bdf8' };
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-sm">What stands out</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        {notes.map((n, i) => (
+          <div key={i} className="flex items-start gap-2.5 text-sm">
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: dot[n.tone] }} />
+            <p className="min-w-0 flex-1">
+              {n.text}{' '}
+              {n.link && <a href={n.link.to} className="font-medium text-primary underline-offset-2 hover:underline">{n.link.label}</a>}
+            </p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
