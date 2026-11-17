@@ -67,3 +67,11 @@ export function withinTrackingHours(rows: HoursRow[], now: Date): boolean {
   const hhmmss = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
   return hhmmss >= row.from_time.slice(0, 8) && hhmmss <= row.to_time.slice(0, 8);
 }
+
+/**
+ * What to call a running task on the widget, tray and notifications. Tracking a project itself uses the project's
+ * hidden "General" task, so show the project's name then, not the word "General".
+ */
+export function taskDisplayName(t: { taskName: string; projectName: string }): string {
+  return t.taskName.trim().toLowerCase() === 'general' && t.projectName ? t.projectName : t.taskName;
+}

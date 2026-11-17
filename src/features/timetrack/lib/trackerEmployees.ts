@@ -10,7 +10,7 @@ export function useActiveEmployees() {
   const q = useAllActiveEmployees();
   const [company] = useCompany();
   const data = useMemo(
-    () => (company === 'all' ? q.data : (q.data ?? []).filter((e) => e.department_id === company)),
+    () => (company === 'all' ? q.data : (q.data ?? []).filter((e) => (company === 'none' ? !e.department_id : e.department_id === company))),
     [q.data, company],
   );
   return { ...q, data };
@@ -21,7 +21,7 @@ export function useCompanyEmployeeIds(): Set<string> | null {
   const q = useAllActiveEmployees();
   const [company] = useCompany();
   return useMemo(
-    () => (company === 'all' ? null : new Set((q.data ?? []).filter((e) => e.department_id === company).map((e) => e.id))),
+    () => (company === 'all' ? null : new Set((q.data ?? []).filter((e) => (company === 'none' ? !e.department_id : e.department_id === company)).map((e) => e.id))),
     [q.data, company],
   );
 }

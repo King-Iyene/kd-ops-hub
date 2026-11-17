@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
+import { useCompany } from '../lib/company';
 import { useReportEntries } from './useReportData';
 import { SiteIcon } from '../ui/SiteIcon';
 import { siteOrAppKey } from '../pages/activity/shared';
@@ -121,6 +122,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const [sort, setSort] = useState<'productive' | 'tracked' | 'name' | 'lowest'>('productive');
   const [attentionOnly, setAttentionOnly] = useState(false);
   const companyIds = useCompanyEmployeeIds();
+  const [company, setCompany] = useCompany();
   const tracked = useTrackedHours(filters.start, filters.end);
   const { data: logData, isLoading } = useLogsWithIntervals(filters.start, filters.end);
 
@@ -133,14 +135,17 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
     staleTime: 5 * 60_000,
   });
 
+  // people with activity in this range that the company filter is leaving out (so nobody disappears without a word)
+  const hiddenByCompany = useMemo(() => new Set<string>(), []);
   const rows = useMemo<PersonRow[]>(() => {
     const byPerson = new Map<string, PersonRow>();
     const dayKeys = new Map<string, Set<string>>();
+    hiddenByCompany.clear();
     const appHours = new Map<string, Map<string, number>>();
     for (const l of logData?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
-      if (companyIds && !companyIds.has(l.employee_id)) continue;
+      if (companyIds && !companyIds.has(l.employee_id)) { hiddenByCompany.add(l.employee_id); continue; }
       const hours = (logData?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const row = byPerson.get(l.employee_id) ?? {
         id: l.employee_id, name: names?.get(l.employee_id)?.name ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0, topApps: [],
@@ -164,7 +169,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
         return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0, days: dayKeys.get(r.id)?.size ?? 1, topApps: [...(appHours.get(r.id) ?? new Map<string, number>()).entries()].sort((x, y) => y[1] - x[1]).slice(0, 5) };
       })
       .sort((a, b) => b.pct - a.pct || b.total - a.total);
-  }, [logData, names, filters.employeeIds, companyIds]);
+  }, [logData, names, filters.employeeIds, companyIds, hiddenByCompany]);
 
   // People with task time but no computer activity at all: their desktop tracker is not installed, not signed in, or never ran.
   const notConnected = [...tracked.entries()]
@@ -265,6 +270,15 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
               </ResponsiveContainer>
             </div>
 
+            {company !== 'all' && hiddenByCompany.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs">
+                <span className="text-sky-600 dark:text-sky-400">
+                  The company filter is on, so {hiddenByCompany.size} {hiddenByCompany.size === 1 ? 'person is' : 'people are'} not shown:{' '}
+                  {[...hiddenByCompany].map((id) => names?.get(id)?.name ?? 'Unknown').join(', ')}.
+                </span>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCompany('all')}>Show everyone</Button>
+              </div>
+            )}
             {notConnected.length > 0 && (
               <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
                 <p className="font-medium text-amber-600 dark:text-amber-400">No tracker data for {notConnected.length} {notConnected.length === 1 ? 'person' : 'people'} who logged time</p>

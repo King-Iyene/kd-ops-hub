@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTaskToday, formatIdle, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
+import { addTaskToday, formatIdle, taskDisplayName, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
 import { matchProductivityRule } from '../src/productivityRules';
 
 describe('idleDecision', () => {
@@ -133,5 +133,18 @@ describe('productivity rules: site beats title beats app', () => {
   });
   it('nothing matches: no category', () => {
     expect(matchProductivityRule(rules, 'Unknown', 'x', null)).toBeNull();
+  });
+});
+
+describe('taskDisplayName (tracking a project itself)', () => {
+  it('the project General task shows the project name', () => {
+    expect(taskDisplayName({ taskName: 'General', projectName: 'KD Squares - Marketing and Promotions' })).toBe('KD Squares - Marketing and Promotions');
+    expect(taskDisplayName({ taskName: ' general ', projectName: 'Otherside' })).toBe('Otherside');
+  });
+  it('a normal task keeps its own name', () => {
+    expect(taskDisplayName({ taskName: 'Design review', projectName: 'Otherside' })).toBe('Design review');
+  });
+  it('with no project name it falls back to the task name', () => {
+    expect(taskDisplayName({ taskName: 'General', projectName: '' })).toBe('General');
   });
 });

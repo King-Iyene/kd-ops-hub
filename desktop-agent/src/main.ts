@@ -27,7 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
-import { idleDecision, formatIdle, taskTodayMs as taskTodayFrom, addTaskToday as addTaskTodayTo, mergeTaskToday } from './logic';
+import { idleDecision, formatIdle, taskDisplayName, taskTodayMs as taskTodayFrom, addTaskToday as addTaskTodayTo, mergeTaskToday } from './logic';
 import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes, getIdleMode, getAwayAfterMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
@@ -462,7 +462,7 @@ async function pollSettingsAndTrack(employeeId: string) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 400,
-    height: 490,
+    height: 540,
     resizable: false,
     icon: path.join(__dirname, '../src/renderer/app-icon.png'), // title-bar and taskbar icon
     autoHideMenuBar: true, // the File/Edit/View menu is not needed here; Alt still shows it
@@ -534,11 +534,11 @@ function sendWidgetStatus(tracking: boolean) {
     autoPaused,
     idleNow,
     startedAt: trackingStartedAt,
-    task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime(), baseMs: taskTodayMs(activeTimer.taskId) } : null,
+    task: activeTimer ? { name: taskDisplayName(activeTimer), project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime(), baseMs: taskTodayMs(activeTimer.taskId) } : null,
     pausedTask:
       !activeTimer && pausedTask
         ? {
-            name: pausedTask.taskName,
+            name: taskDisplayName(pausedTask),
             project: pausedTask.projectName,
             // Time the task had run when it was paused (frozen on the widget).
             elapsedMs: taskTodayMs(pausedTask.taskId), // includes the segment that just ended
@@ -648,7 +648,7 @@ async function pauseForIdle(endMs: number, idleSec: number): Promise<void> {
   const hhmm = new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   new Notification({
     title: 'KD Ops Time Tracker',
-    body: `You have been idle for ${formatIdle(idleSec)}. Your timer for "${t.taskName}" is paused (since ${hhmm}). Open the tracker and press Resume when you are back.`,
+    body: `You have been idle for ${formatIdle(idleSec)}. Your timer for "${taskDisplayName(t)}" is paused (since ${hhmm}). Open the tracker and press Resume when you are back.`,
   }).show();
 }
 
@@ -740,18 +740,18 @@ function rebuildTrayMenu() {
   const taskItems = activeTimer
     ? [
         {
-          label: `Pause: ${activeTimer.taskName}`,
+          label: `Pause: ${taskDisplayName(activeTimer)}`,
           click: () => pauseActiveTask(),
         },
         {
-          label: `Stop: ${activeTimer.taskName}`,
+          label: `Stop: ${taskDisplayName(activeTimer)}`,
           click: () => stopActiveTask(),
         },
         { label: 'Switch Task…', click: () => createTaskPickerWindow() },
       ]
     : pausedTask
       ? [
-          { label: `Resume: ${pausedTask.taskName}`, click: () => resumePausedTask() },
+          { label: `Resume: ${taskDisplayName(pausedTask)}`, click: () => resumePausedTask() },
           { label: 'Start a Different Task…', click: () => createTaskPickerWindow() },
         ]
       : [
