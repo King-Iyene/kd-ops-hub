@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CHART_COLORS, ChartEmpty, durationAxis, fmtDuration } from '../ui/charts';
 import { useLogsWithIntervals } from '../pages/activity/shared';
 import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
+import { SiteIcon } from '../ui/SiteIcon';
+import { captureDomain } from '../pages/activity/shared';
 import { useTrackedHours } from '../lib/useTrackedHours';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonInsights, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
@@ -23,6 +25,8 @@ interface PersonRow {
   pct: number;
   /** days on which this person has any captured activity */
   days: number;
+  /** this person's biggest sites/apps, largest first (name, hours) */
+  topApps: [string, number][];
 }
 
 type Mode = 'hours' | 'percent';
@@ -82,14 +86,19 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
   const rows = useMemo<PersonRow[]>(() => {
     const byPerson = new Map<string, PersonRow>();
     const dayKeys = new Map<string, Set<string>>();
+    const appHours = new Map<string, Map<string, number>>();
     for (const l of logData?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
       if (companyIds && !companyIds.has(l.employee_id)) continue;
       const hours = (logData?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const row = byPerson.get(l.employee_id) ?? {
-        id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0,
+        id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0, topApps: [],
       };
+      const am = appHours.get(l.employee_id) ?? new Map<string, number>();
+      const appKey = captureDomain(l) ?? l.app_name ?? 'Unknown';
+      am.set(appKey, (am.get(appKey) ?? 0) + hours);
+      appHours.set(l.employee_id, am);
       const dk = dayKeys.get(l.employee_id) ?? new Set<string>();
       dk.add(l.captured_at.slice(0, 10));
       dayKeys.set(l.employee_id, dk);
@@ -102,7 +111,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
     return [...byPerson.values()]
       .map((r) => {
         const total = r.productive + r.neutral + r.unproductive;
-        return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0, days: dayKeys.get(r.id)?.size ?? 1 };
+        return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0, days: dayKeys.get(r.id)?.size ?? 1, topApps: [...(appHours.get(r.id) ?? new Map<string, number>()).entries()].sort((x, y) => y[1] - x[1]).slice(0, 5) };
       })
       .sort((a, b) => b.pct - a.pct || b.total - a.total);
   }, [logData, names, filters.employeeIds, companyIds]);
@@ -250,6 +259,11 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                       {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: accent }}>{initials}</span>
                       <span className="w-36 shrink-0 truncate text-[15px] font-semibold sm:w-48">{r.name}</span>
+                      <span className="hidden shrink-0 items-center -space-x-1.5 md:flex" title={r.topApps.map(([n, h]) => `${n} ${fmtDuration(h)}`).join(' · ')}>
+                        {r.topApps.map(([n]) => (
+                          <SiteIcon key={n} name={n} size={24} className="rounded-md ring-2 ring-card" />
+                        ))}
+                      </span>
                       <span className="hidden min-w-0 flex-1 sm:block">
                         <span className="flex h-3.5 overflow-hidden rounded-full bg-muted/40" style={{ width: `${Math.max(6, (r.total / maxTotal) * 100)}%` }}>
                           <span style={{ width: seg(r.productive), background: CHART_COLORS.productive }} />
