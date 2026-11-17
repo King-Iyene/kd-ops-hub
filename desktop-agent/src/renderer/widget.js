@@ -28,7 +28,8 @@ function formatElapsed(ms) {
 // there; a paused task shows its time frozen at the moment of the pause.
 function renderTick() {
   if (currentTask) {
-    elapsedEl.textContent = formatElapsed(Date.now() - currentTask.startedAt);
+    // today's total for this task: earlier runs today plus the one going now
+    elapsedEl.textContent = formatElapsed((currentTask.baseMs || 0) + Date.now() - currentTask.startedAt);
   } else if (pausedTask && typeof pausedTask.elapsedMs === 'number') {
     elapsedEl.textContent = formatElapsed(pausedTask.elapsedMs);
   } else {

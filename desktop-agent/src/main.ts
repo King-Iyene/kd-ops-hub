@@ -143,6 +143,8 @@ const store = new Store<{
   picker?: PickerCache;
   /** Last time this app knew a task timer was running (30s heartbeat), to recover from a crash or power loss. */
   timerBeat?: { entryId: string; at: number };
+  /** Time already worked today on each task (ms), so a task picks up where it left off instead of restarting at 0. */
+  taskToday?: { date: string; ms: Record<string, number> };
 }>();
 
 let mainWindow: BrowserWindow | null = null;
@@ -205,6 +207,52 @@ let pausedTask: ActiveTimer | null = null;
 let autoPaused = false;
 let pausedAtMs: number | null = null; // when the current task was paused, so the widget can freeze its clock
 let runSettingsCheck: (() => Promise<void>) | null = null;
+
+// ---- Per-task time today ---------------------------------------------------------------------
+// The widget shows the task's total for TODAY: what was already worked on it earlier today plus the
+// run that is going now. So pause, stop, switch away and come back, or restart the app, and the clock
+// carries on from where it was. Segments are added locally the moment they end (works offline) and
+// reconciled with the server whenever it is reachable.
+const dayKey = () => new Date().toDateString();
+function taskTodayMs(taskId: string): number {
+  const s = store.get('taskToday');
+  return s && s.date === dayKey() ? (s.ms[taskId] ?? 0) : 0;
+}
+function addTaskToday(taskId: string, ms: number) {
+  if (!(ms > 0)) return;
+  const s = store.get('taskToday');
+  const cur = s && s.date === dayKey() ? s.ms : {};
+  store.set('taskToday', { date: dayKey(), ms: { ...cur, [taskId]: (cur[taskId] ?? 0) + ms } });
+}
+function addSegment(t: ActiveTimer, endMs = Date.now()) {
+  addTaskToday(t.taskId, Math.max(0, endMs - new Date(t.startTime).getTime()));
+}
+async function syncTaskToday() {
+  if (!supabase || !currentEmployeeId) return;
+  try {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const { data, error } = await supabase
+      .from('time_entries')
+      .select('task_id, start_time, end_time')
+      .eq('employee_id', currentEmployeeId)
+      .gte('start_time', dayStart.toISOString())
+      .not('end_time', 'is', null);
+    if (error || !data) return;
+    const merged: Record<string, number> = {};
+    for (const r of data as { task_id: string; start_time: string; end_time: string }[]) {
+      merged[r.task_id] = (merged[r.task_id] ?? 0) + (new Date(r.end_time).getTime() - new Date(r.start_time).getTime());
+    }
+    // keep whichever is larger per task: the server may not have an offline segment yet
+    const s = store.get('taskToday');
+    const local = s && s.date === dayKey() ? s.ms : {};
+    for (const [k, v] of Object.entries(local)) merged[k] = Math.max(merged[k] ?? 0, v);
+    store.set('taskToday', { date: dayKey(), ms: merged });
+    sendWidgetStatus(trackingStartedAt != null);
+  } catch {
+    // offline: the local totals keep the clock right
+  }
+}
 
 async function setAutoPaused(paused: boolean) {
   autoPaused = paused;
@@ -488,14 +536,14 @@ function sendWidgetStatus(tracking: boolean) {
     idle: autoPaused, // per-tick idle isn't plumbed out of tracker.ts; this reflects a user pause
     autoPaused,
     startedAt: trackingStartedAt,
-    task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime() } : null,
+    task: activeTimer ? { name: activeTimer.taskName, project: activeTimer.projectName, startedAt: new Date(activeTimer.startTime).getTime(), baseMs: taskTodayMs(activeTimer.taskId) } : null,
     pausedTask:
       !activeTimer && pausedTask
         ? {
             name: pausedTask.taskName,
             project: pausedTask.projectName,
             // Time the task had run when it was paused (frozen on the widget).
-            elapsedMs: Math.max(0, (pausedAtMs ?? Date.now()) - new Date(pausedTask.startTime).getTime()),
+            elapsedMs: taskTodayMs(pausedTask.taskId), // includes the segment that just ended
           }
         : null,
   });
@@ -563,6 +611,7 @@ async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 's
   if (!supabase || !activeTimer) return;
   const t = activeTimer;
   const end = Math.max(endMs, new Date(t.startTime).getTime()); // never before it started
+  addSegment(t, end);
   activeTimer = null;
   pausedTask = null;
   store.delete('timerBeat');
@@ -599,6 +648,7 @@ async function pauseActiveTask() {
   // Optimistic: the widget updates at once. The write goes out (or is queued
   // when offline) in the background, so a slow or dead connection never makes
   // the Pause button feel stuck.
+  addSegment(toPause);
   pausedTask = toPause;
   pausedAtMs = Date.now();
   activeTimer = null;
@@ -609,6 +659,7 @@ async function pauseActiveTask() {
 async function stopActiveTask() {
   if (!supabase || !activeTimer) return;
   const toStop = activeTimer;
+  addSegment(toStop);
   activeTimer = null;
   void stopActiveTimer(supabase, toStop.entryId).catch((err) => console.error('[stop] write failed:', err));
   pausedTask = null; // an explicit Stop clears any pending pause too, not just the running entry
@@ -657,6 +708,7 @@ async function refreshActiveTimer() {
   }
   rebuildTrayMenu();
   sendWidgetStatus(trackingStartedAt != null);
+  void syncTaskToday();
 }
 
 function rebuildTrayMenu() {
@@ -826,7 +878,9 @@ ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
   taskPickerWindow?.close();
   if (!supabase || !currentEmployeeId) return;
   try {
+    const previous = activeTimer;
     activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
+    if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
     pausedTask = null; // explicitly picking a task overrides whatever was paused
     if (autoPaused) await setAutoPaused(false); // starting a task resumes tracking, like TimeCamp
     captureNow(); // first capture right as the timer starts
@@ -862,7 +916,9 @@ ipcMain.handle(
     try {
       const created = await createTask(supabase, currentEmployeeId ?? '', args.projectId, args.projectName, args.clientName, args.name);
       if (args.selectAfterCreate && currentEmployeeId) {
+        const previous = activeTimer;
         activeTimer = await switchTimer(supabase, currentEmployeeId, created, activeTimer);
+        if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
         pausedTask = null;
         if (autoPaused) await setAutoPaused(false);
         captureNow();
