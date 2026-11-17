@@ -155,10 +155,22 @@ export function useLogsWithIntervals(start: string, end: string) {
   return useQuery({
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
-      const [{ data: logs, error: logsErr }, { data: settings, error: settingsErr }, { data: ruleRows }] = await Promise.all([
-        supabase.from('time_activity_logs').select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence, active_seconds, window_seconds, mouse_events, input_events')
+      // The server returns at most 1000 rows per request, so a big range (many people, weeks of data) used to be
+      // silently cut short. Read it page by page until everything is in (up to 300k captures).
+      const PAGE = 1000;
+      const logs: Record<string, unknown>[] = [];
+      let logsErr: { message: string } | null = null;
+      for (let from = 0; from < 300_000; from += PAGE) {
+        const { data: page, error } = await supabase.from('time_activity_logs')
+          .select('employee_id, app_name, window_title, url, productivity_category, captured_at, geo_city, geo_region, geo_country, is_outside_geofence, active_seconds, window_seconds, mouse_events, input_events')
           .gte('captured_at', `${start}T00:00:00`).lt('captured_at', `${end}T23:59:59`)
-          .order('captured_at', { ascending: false }).limit(20000),
+          .order('captured_at', { ascending: false }).order('id', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) { logsErr = error; break; }
+        logs.push(...(page ?? []));
+        if (!page || page.length < PAGE) break;
+      }
+      const [{ data: settings, error: settingsErr }, { data: ruleRows }] = await Promise.all([
         supabase.from('time_agent_settings').select('employee_id, capture_interval_minutes'),
         supabase.from('time_productivity_rules').select('app_name_contains, title_contains, category, priority'),
       ]);

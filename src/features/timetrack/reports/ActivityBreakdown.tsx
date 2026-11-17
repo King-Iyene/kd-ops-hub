@@ -363,6 +363,7 @@ interface Cell { productive: number; neutral: number; unproductive: number; apps
  */
 export function DayDetails({ filters }: { filters: ReportFiltersState }) {
   const { items, isLoading } = useScopedLogs(filters);
+  const [showAllDays, setShowAllDays] = useState(false);
   const days = useMemo(() => {
     const by = new Map<string, { total: number; byLevel: Record<Level, number>; first: number; last: number; act: number; win: number; cells: Map<number, Cell>; apps: Map<string, number> }>();
     for (const i of items) {
@@ -385,8 +386,10 @@ export function DayDetails({ filters }: { filters: ReportFiltersState }) {
       r.cells.set(i.hour, cell);
       by.set(d, r);
     }
-    return [...by.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 31);
+    return [...by.entries()].sort(([a], [b]) => b.localeCompare(a));
   }, [items]);
+  const totalDays = days.length;
+  const shownDays = showAllDays ? days : days.slice(0, 31);
   if (isLoading || days.length === 0) return null;
   const allHours = items.map((i) => i.hour);
   const lo = Math.min(...allHours);
@@ -441,7 +444,7 @@ export function DayDetails({ filters }: { filters: ReportFiltersState }) {
               {hours.map((h) => <span key={h} className="flex-1 text-center text-[10px]">{hours.length <= 14 || h % 2 === 0 ? hourName(h) : ''}</span>)}
             </span>
           </div>
-          {days.map(([d, r]) => {
+          {shownDays.map(([d, r]) => {
             const pct = r.total ? (r.byLevel.productive / r.total) * 100 : 0;
             const act = r.win > 0 ? Math.round((r.act / r.win) * 100) : null;
             return (
@@ -493,7 +496,12 @@ export function DayDetails({ filters }: { filters: ReportFiltersState }) {
             );
           })}
         </TooltipProvider>
-        <p className="pt-1 text-xs text-muted-foreground">Each square is an hour: green mostly productive, red mostly not work, grey neutral. Darker means more time. Hover a square for that hour's apps, split and activity, or a date for the whole day.</p>
+        {totalDays > 31 && (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowAllDays((v) => !v)}>
+            {showAllDays ? 'Show the latest 31 days' : `Show all ${totalDays} days`}
+          </Button>
+        )}
+        <p className="pt-1 text-xs text-muted-foreground">Days with captured activity in the chosen range, newest first ({totalDays} found). Each square is an hour: green mostly productive, red mostly not work, grey neutral. Darker means more time. Hover a square for that hour's apps, split and activity, or a date for the whole day.</p>
       </CardContent>
     </Card>
   );
