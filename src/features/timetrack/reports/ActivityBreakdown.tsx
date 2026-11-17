@@ -306,6 +306,32 @@ export function DailyTrends({ filters }: { filters: ReportFiltersState }) {
   );
 }
 
+/** Hover card for the by-hour chart: uses the page's own popover colours, so it reads in both light and dark mode. */
+function HourTip({ active, payload, label }: { active?: boolean; payload?: { payload: HourRow }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const total = d.productive + d.neutral + d.unproductive;
+  const rows: [string, number, string][] = [
+    ['Productive', d.productive, CHART_COLORS.productive],
+    ['Neutral', d.neutral, CHART_COLORS.neutral],
+    ['Unproductive', d.unproductive, CHART_COLORS.unproductive],
+  ];
+  return (
+    <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+      <p className="text-sm font-semibold text-foreground">{label ?? d.label} · {fmtDuration(total)} tracked</p>
+      <div className="mt-1.5 space-y-0.5">
+        {rows.map(([name, v, color]) => (
+          <p key={name} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
+            <span className="text-muted-foreground">{name}</span>
+            <span className="ml-auto pl-4 font-medium text-foreground">{fmtDuration(v)}</span>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface HourRow { label: string; productive: number; neutral: number; unproductive: number }
 
 const hourName = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
@@ -336,11 +362,7 @@ export function HourlyProductivity({ filters }: { filters: ReportFiltersState })
                 <CartesianGrid vertical={false} stroke="currentColor" strokeOpacity={0.1} strokeDasharray="3 5" />
                 <XAxis dataKey="label" interval={0} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'currentColor', fillOpacity: 0.7 }} />
                 <YAxis width={46} domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'currentColor', fillOpacity: 0.65 }} />
-                <Tooltip
-                  cursor={{ fill: 'currentColor', fillOpacity: 0.05 }}
-                  formatter={(v: number, n: string) => [fmtDuration(v), n]}
-                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
-                />
+                <Tooltip cursor={{ fill: 'currentColor', fillOpacity: 0.05 }} content={<HourTip />} />
                 <Legend verticalAlign="top" height={26} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="productive" name="Productive" stackId="h" fill={CHART_COLORS.productive} maxBarSize={32} isAnimationActive={false} />
                 <Bar dataKey="neutral" name="Neutral" stackId="h" fill={CHART_COLORS.neutral} maxBarSize={32} isAnimationActive={false} />

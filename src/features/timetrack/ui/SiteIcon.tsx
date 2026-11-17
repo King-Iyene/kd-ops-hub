@@ -34,7 +34,7 @@ const BRAND_COLOR: [RegExp, string][] = [
  * with dark ink would vanish on the dark page, so it gets a soft light backing; a blank or all-white
  * image is not a logo at all, so the letter tile is used instead.
  */
-type Look = 'ok' | 'dark' | 'blank';
+type Look = 'ok' | 'dark' | 'light' | 'blank';
 const looks = new Map<string, Look>();
 function analyze(src: string): Promise<Look> {
   const hit = looks.get(src);
@@ -63,6 +63,7 @@ function analyze(src: string): Promise<Look> {
         if (frac < 0.02) look = 'blank';
         else if (frac > 0.8 && mean > 0.93 && sd < 0.05) look = 'blank'; // plain white square
         else if (frac <= 0.8 && mean < 0.35) look = 'dark'; // dark ink on transparent
+        else if (frac <= 0.8 && mean > 0.85) look = 'light'; // white ink on transparent
         looks.set(src, look);
         resolve(look);
       } catch {
@@ -72,6 +73,26 @@ function analyze(src: string): Promise<Look> {
     img.onerror = () => resolve('ok');
     img.src = src;
   });
+}
+
+/** True when the page background is dark (works for the app's light and dark themes). */
+function pageIsDark(): boolean {
+  try {
+    const m = getComputedStyle(document.body).backgroundColor.match(/d+(.d+)?/g);
+    if (!m) return true;
+    const [r, g, b] = m.map(Number);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+  } catch {
+    return true;
+  }
+}
+
+/** A soft backing only when the logo's ink would disappear into the page: dark ink on a dark page, white ink on a light page. */
+function backing(look: Look, box: { width: number; height: number }, size: number) {
+  const dark = pageIsDark();
+  if (look === 'dark' && dark) return { ...box, background: 'rgba(255,255,255,0.92)', borderRadius: size * 0.22, padding: size * 0.1 };
+  if (look === 'light' && !dark) return { ...box, background: 'rgba(31,41,55,0.92)', borderRadius: size * 0.22, padding: size * 0.1 };
+  return box;
 }
 
 function hashColor(name: string) {
@@ -120,14 +141,14 @@ export function SiteIcon({ name, className, size = 24 }: { name: string; classNa
 
   if (appIcon && look !== 'blank') {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={look === 'dark' ? { ...box, background: 'rgba(255,255,255,0.92)', borderRadius: size * 0.22, padding: size * 0.1 } : box}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={backing(look, box, size)}>
         <img src={appIcon} alt="" draggable={false} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 0.6px rgba(255,255,255,0.55))' }} />
       </span>
     );
   }
   if (logo && !failed && look !== 'blank') {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={look === 'dark' ? { ...box, background: 'rgba(255,255,255,0.92)', borderRadius: size * 0.22, padding: size * 0.1 } : box}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={backing(look, box, size)}>
         <img
           src={logo}
           alt=""
