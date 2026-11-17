@@ -97,9 +97,20 @@ function initAutoUpdater() {
     // crash or block the agent; it just tries again next launch.
     console.error('[auto-update] check failed:', err?.message ?? err);
   });
+  autoUpdater.on('update-downloaded', (info) => {
+    new Notification({
+      title: 'KD Ops Time Tracker',
+      body: ,
+    }).show();
+  });
   autoUpdater.checkForUpdatesAndNotify().catch(() => {
     // Same reasoning as the .on('error', ...) handler above.
   });
+  // The tracker stays open for days, so a check only at launch meant people never got new versions.
+  // Look again every 2 hours.
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => { /* offline or GitHub hiccup: try again next time */ });
+  }, 2 * 60 * 60 * 1000);
 }
 
 // Reports this install into time_agent_settings (app_version, last_login_at,
