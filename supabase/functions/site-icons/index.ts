@@ -21,34 +21,41 @@ function json(body: unknown, status: number, req: Request) {
   return new Response(JSON.stringify(body), { status, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } });
 }
 
-async function toDataUrl(res: Response): Promise<string | null> {
+async function toDataUrl(res: Response): Promise<{ url: string; width: number } | null> {
   if (!res.ok) return null;
-  const type = res.headers.get('content-type') ?? '';
+  const type = (res.headers.get('content-type') ?? '').split(';')[0];
   if (!type.startsWith('image/')) return null;
   const buf = new Uint8Array(await res.arrayBuffer());
   if (buf.length < 120 || buf.length > MAX_BYTES) return null; // empty / placeholder / too big
+  // PNG width is stored at bytes 16-19; other formats count as unknown (0)
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+  const width = isPng ? ((buf[16] << 24) | (buf[17] << 16) | (buf[18] << 8) | buf[19]) : 0;
   let bin = '';
   for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-  return `data:${type.split(';')[0]};base64,${btoa(bin)}`;
+  return { url: `data:${type};base64,${btoa(bin)}`, width };
 }
 
-/** Best quality first: Google's 128px favicon service, then DuckDuckGo's. */
+/** The sharpest logo available: stops at the first one that is 96px or bigger, otherwise keeps the largest found. */
 async function fetchLogo(domain: string): Promise<string | null> {
   const sources = [
     `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
+    `https://${domain}/apple-touch-icon.png`, // the site's own high-resolution icon, when it publishes one
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
     `https://icons.duckduckgo.com/ip3/${domain}.ico`,
   ];
-  for (const url of sources) {
+  let best: { url: string; width: number } | null = null;
+  for (const src of sources) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(6000), redirect: 'follow' });
-      const data = await toDataUrl(res);
-      if (data) return data;
+      const res = await fetch(src, { signal: AbortSignal.timeout(6000), redirect: 'follow' });
+      const got = await toDataUrl(res);
+      if (!got) continue;
+      if (got.width >= 96) return got.url;
+      if (!best || got.width > best.width) best = got;
     } catch {
       // try the next source
     }
   }
-  return null;
+  return best?.url ?? null;
 }
 
 Deno.serve(async (req) => {
