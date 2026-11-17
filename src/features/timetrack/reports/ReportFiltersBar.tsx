@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { DateRangeSelect } from '../ui/DateRangeSelect';
 import type { ReportFiltersState } from './useReportFilters';
 import { useReportLookups } from './useReportData';
 
@@ -95,11 +96,7 @@ export function ReportFiltersBar({ filters: f, onExportCsv, onExportXlsx, extraA
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <Label className="text-xs text-muted-foreground">Date range</Label>
-            <div className="flex items-center gap-1.5 mt-1">
-              <Input type="date" value={f.start} onChange={(e) => f.setStart(e.target.value)} className="h-8 text-xs w-[136px]" />
-              <span className="text-muted-foreground text-xs">–</span>
-              <Input type="date" value={f.end} onChange={(e) => f.setEnd(e.target.value)} className="h-8 text-xs w-[136px]" />
-            </div>
+            <DateRangeSelect className="mt-1" start={f.start} end={f.end} setStart={f.setStart} setEnd={f.setEnd} />
           </div>
 
           <MultiSelectFilter

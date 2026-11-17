@@ -1,7 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { addDays, endOfMonth, endOfYear, format, startOfMonth, startOfWeek, startOfYear, subMonths, subYears } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -12,44 +11,6 @@ import { useCompanyEmployeeIds } from '../lib/trackerEmployees';
 import { useTrackedHours } from '../lib/useTrackedHours';
 import { DailyTrends, DayDetails, HourlyProductivity, PersonSummaryTiles, TopAppsStrip, TopSitesAppsColumns } from './ActivityBreakdown';
 import type { ReportFiltersState } from './useReportFilters';
-
-const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
-
-/** TimeCamp-style quick ranges. Weeks start on Monday. */
-export function datePresets(now = new Date()) {
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const lastMonth = subMonths(now, 1);
-  return [
-    { key: 'today', label: 'Today', start: fmt(now), end: fmt(now) },
-    { key: 'yesterday', label: 'Yesterday', start: fmt(addDays(now, -1)), end: fmt(addDays(now, -1)) },
-    { key: 'week', label: 'This week', start: fmt(weekStart), end: fmt(now) },
-    { key: 'lastweek', label: 'Last week', start: fmt(addDays(weekStart, -7)), end: fmt(addDays(weekStart, -1)) },
-    { key: 'month', label: 'This month', start: fmt(startOfMonth(now)), end: fmt(now) },
-    { key: 'lastmonth', label: 'Last month', start: fmt(startOfMonth(lastMonth)), end: fmt(endOfMonth(lastMonth)) },
-    { key: 'year', label: 'This year', start: fmt(startOfYear(now)), end: fmt(now) },
-    { key: 'lastyear', label: 'Last year', start: fmt(startOfYear(subYears(now, 1))), end: fmt(endOfYear(subYears(now, 1))) },
-    { key: 'all', label: 'All time', start: '2024-01-01', end: fmt(now) },
-  ];
-}
-
-export function DatePresetBar({ filters }: { filters: ReportFiltersState }) {
-  const presets = datePresets();
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {presets.map((p) => {
-        const active = filters.start === p.start && filters.end === p.end;
-        return (
-          <Button
-            key={p.key} size="sm" variant={active ? 'default' : 'outline'} className="h-8 text-xs"
-            onClick={() => { filters.setStart(p.start); filters.setEnd(p.end); }}
-          >
-            {p.label}
-          </Button>
-        );
-      })}
-    </div>
-  );
-}
 
 interface PersonRow {
   id: string;
@@ -139,7 +100,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
 
   // People with task time but no computer activity at all: their desktop tracker is not installed, not signed in, or never ran.
   const notConnected = [...tracked.entries()]
-    .filter(([id, t]) => t.entryHours > 0.05 && t.computerHours === 0)
+    .filter(([, t]) => t.entryHours > 0.05 && t.computerHours === 0)
     .filter(([id]) => (filters.employeeIds.length === 0 || filters.employeeIds.includes(id)) && (!companyIds || companyIds.has(id)))
     .map(([id, t]) => ({ id, name: names?.get(id) ?? 'Unknown', hours: t.entryHours }))
     .sort((a, b) => b.hours - a.hours);

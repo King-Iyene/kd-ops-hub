@@ -174,18 +174,23 @@ function AgentSettingsTab() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span className="text-muted-foreground">Or change only:</span>
             <label className="flex items-center gap-1.5"><Checkbox checked={change.is_enabled} onCheckedChange={(v) => setChange({ ...change, is_enabled: !!v })} />Enabled
-              <Switch checked={vals.is_enabled} onCheckedChange={(v) => setVals({ ...vals, is_enabled: v })} /></label>
+              <Switch checked={vals.is_enabled} onCheckedChange={(v) => { setVals({ ...vals, is_enabled: v }); setChange((ch) => ({ ...ch, is_enabled: true })); }} /></label>
             <label className="flex items-center gap-1.5"><Checkbox checked={change.capture_interval_minutes} onCheckedChange={(v) => setChange({ ...change, capture_interval_minutes: !!v })} />Interval
-              <Input type="number" className="h-8 w-16" value={vals.capture_interval_minutes} onChange={(e) => setVals({ ...vals, capture_interval_minutes: Number(e.target.value) || 10 })} /></label>
+              <Input type="number" className="h-8 w-16" value={vals.capture_interval_minutes} onChange={(e) => { setVals({ ...vals, capture_interval_minutes: Number(e.target.value) || 10 }); setChange((ch) => ({ ...ch, capture_interval_minutes: true })); }} /></label>
             <label className="flex items-center gap-1.5"><Checkbox checked={change.screenshots_enabled} onCheckedChange={(v) => setChange({ ...change, screenshots_enabled: !!v })} />Screenshots
-              <Switch checked={vals.screenshots_enabled} onCheckedChange={(v) => setVals({ ...vals, screenshots_enabled: v })} /></label>
+              <Switch checked={vals.screenshots_enabled} onCheckedChange={(v) => { setVals({ ...vals, screenshots_enabled: v }); setChange((ch) => ({ ...ch, screenshots_enabled: true })); }} /></label>
             <label className="flex items-center gap-1.5"><Checkbox checked={change.blur_screenshots} onCheckedChange={(v) => setChange({ ...change, blur_screenshots: !!v })} />Blur
-              <Switch checked={vals.blur_screenshots} onCheckedChange={(v) => setVals({ ...vals, blur_screenshots: v })} /></label>
+              <Switch checked={vals.blur_screenshots} onCheckedChange={(v) => { setVals({ ...vals, blur_screenshots: v }); setChange((ch) => ({ ...ch, blur_screenshots: true })); }} /></label>
             <label className="flex items-center gap-1.5"><Checkbox checked={change.retention_days} onCheckedChange={(v) => setChange({ ...change, retention_days: !!v })} />Retention
-              <Input type="number" className="h-8 w-16" value={vals.retention_days} onChange={(e) => setVals({ ...vals, retention_days: Number(e.target.value) || 30 })} /></label>
+              <Input type="number" className="h-8 w-16" value={vals.retention_days} onChange={(e) => { setVals({ ...vals, retention_days: Number(e.target.value) || 30 }); setChange((ch) => ({ ...ch, retention_days: true })); }} /></label>
             <Button size="sm" className="h-8" disabled={!anyChange || selected.size === 0 || applying} onClick={() => applyChosen([...selected])}>Apply to selected ({selected.size})</Button>
             <Button size="sm" variant="outline" className="h-8" disabled={!anyChange || shown.length === 0 || applying} onClick={() => applyChosen(shown.map((e) => e.id))}>Apply to everyone shown ({shown.length})</Button>
           </div>
+          {(!anyChange || (selected.size === 0 && !copyFrom)) && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {!anyChange ? "Buttons are faded until you pick what to change: tick a field above (or just change its value, it ticks itself)." : "Tick people in the table first, or use Apply to everyone shown."}
+            </p>
+          )}
         </CardContent>
       </Card>
       <Card>

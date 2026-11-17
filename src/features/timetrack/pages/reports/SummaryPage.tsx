@@ -6,7 +6,7 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { useReportFilters } from '../../reports/useReportFilters';
 import { useReportEntries, formatHours } from '../../reports/useReportData';
 import { ReportFiltersBar } from '../../reports/ReportFiltersBar';
-import { DatePresetBar, TeamProductivity } from '../../reports/TeamProductivity';
+import { TeamProductivity } from '../../reports/TeamProductivity';
 
 /** Reports > Time > Time > Summary — one row per project, with its tasks
  * indented underneath, total hours each. Matches TimeCamp's "Summary"
@@ -46,7 +46,6 @@ export default function SummaryPage() {
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Summary" description="Who was productive, plus total hours per project and task, for the selected range" icon={BarChart3} />
-      <DatePresetBar filters={filters} />
       <ReportFiltersBar filters={filters} onExportCsv={exportCsv} />
       <TeamProductivity filters={filters} />
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (

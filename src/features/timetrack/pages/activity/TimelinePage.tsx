@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
+import { DaySelect } from '@/features/timetrack/ui/DateRangeSelect';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Loader2, History } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
@@ -62,7 +62,7 @@ export default function TimelinePage() {
             <SelectContent>{(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div><Label>Day</Label><Input type="date" value={day} onChange={(e) => setDay(e.target.value)} /></div>
+        <div><Label>Day</Label><DaySelect day={day} setDay={setDay} /></div>
       </div>
       {!employeeId ? (
         <p className="text-muted-foreground text-sm">Choose an employee to see their timeline.</p>

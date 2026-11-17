@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { DateRangeSelect } from '@/features/timetrack/ui/DateRangeSelect';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
 import { Loader2, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -110,9 +110,9 @@ export function ActivityDateRangeBar({ start, end, setStart, setEnd }: {
   start: string; end: string; setStart: (v: string) => void; setEnd: (v: string) => void;
 }) {
   return (
-    <div className="flex items-end gap-3 mb-4">
-      <div><Label>From</Label><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></div>
-      <div><Label>To</Label><Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+    <div className="mb-4">
+      <Label className="text-xs text-muted-foreground">Date range</Label>
+      <DateRangeSelect className="mt-1" start={start} end={end} setStart={setStart} setEnd={setEnd} />
     </div>
   );
 }
