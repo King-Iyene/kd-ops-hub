@@ -21,6 +21,8 @@ interface PersonRow {
   unproductive: number;
   total: number;
   pct: number;
+  /** days on which this person has any captured activity */
+  days: number;
 }
 
 type Mode = 'hours' | 'percent';
@@ -79,14 +81,18 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
 
   const rows = useMemo<PersonRow[]>(() => {
     const byPerson = new Map<string, PersonRow>();
+    const dayKeys = new Map<string, Set<string>>();
     for (const l of logData?.logs ?? []) {
       if (l.productivity_category === 'idle') continue;
       if (filters.employeeIds.length > 0 && !filters.employeeIds.includes(l.employee_id)) continue;
       if (companyIds && !companyIds.has(l.employee_id)) continue;
       const hours = (logData?.intervalByEmployee.get(l.employee_id) ?? 10) / 60;
       const row = byPerson.get(l.employee_id) ?? {
-        id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0,
+        id: l.employee_id, name: names?.get(l.employee_id) ?? 'Unknown', productive: 0, neutral: 0, unproductive: 0, total: 0, pct: 0, days: 0,
       };
+      const dk = dayKeys.get(l.employee_id) ?? new Set<string>();
+      dk.add(l.captured_at.slice(0, 10));
+      dayKeys.set(l.employee_id, dk);
       const c = l.productivity_category;
       if (c === 'productive') row.productive += hours;
       else if (c === 'unproductive' || c === 'blocked') row.unproductive += hours;
@@ -96,7 +102,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
     return [...byPerson.values()]
       .map((r) => {
         const total = r.productive + r.neutral + r.unproductive;
-        return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0 };
+        return { ...r, total, pct: total > 0 ? (r.productive / total) * 100 : 0, days: dayKeys.get(r.id)?.size ?? 1 };
       })
       .sort((a, b) => b.pct - a.pct || b.total - a.total);
   }, [logData, names, filters.employeeIds, companyIds]);
@@ -252,7 +258,7 @@ export function TeamProductivity({ filters }: { filters: ReportFiltersState }) {
                     {isOpen && (
                       <div className="space-y-4 bg-muted/10 p-3 sm:p-4">
                         <PersonSummaryTiles filters={{ ...filters, employeeIds: [r.id] }} />
-                        <PersonInsights filters={{ ...filters, employeeIds: [r.id] }} team={{ pct: teamPct, hoursPerDay: teamTotal / rows.length / rangeDays }} />
+                        <PersonInsights filters={{ ...filters, employeeIds: [r.id] }} team={{ pct: teamPct, hoursPerDay: rows.reduce((a, x) => a + x.total / Math.max(1, x.days), 0) / rows.length }} />
                         <TopAppsStrip filters={{ ...filters, employeeIds: [r.id] }} />
                         <DailyTrends filters={{ ...filters, employeeIds: [r.id] }} />
                         <DayDetails filters={{ ...filters, employeeIds: [r.id] }} />
