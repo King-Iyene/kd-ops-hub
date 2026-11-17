@@ -86,7 +86,10 @@ Deno.serve(async (req) => {
   for (const d of domains) {
     const row = known.get(d);
     const age = row ? now - new Date(row.fetched_at as string).getTime() : Infinity;
-    if (row && ((row.icon && age < HIT_TTL_MS) || (!row.icon && age < MISS_TTL_MS))) icons[d] = (row.icon as string | null) ?? null;
+    // small (low-resolution) icons are re-checked daily so a sharper source can replace them
+    const small = !!row?.icon && (row.icon as string).length < 2500;
+    const ttl = row?.icon ? (small ? 24 * 3600 * 1000 : HIT_TTL_MS) : MISS_TTL_MS;
+    if (row && age < ttl) icons[d] = (row.icon as string | null) ?? null;
     else todo.push(d);
   }
 

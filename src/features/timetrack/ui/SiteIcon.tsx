@@ -66,20 +66,22 @@ export function SiteIcon({ name, className, size = 24 }: { name: string; classNa
 
   if (appIcon) {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden', className)} style={{ ...box, borderRadius: size * 0.2 }}>
-        <img src={appIcon} alt="" draggable={false} className="h-full w-full object-contain" />
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={box}>
+        <img src={appIcon} alt="" draggable={false} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 0.6px rgba(255,255,255,0.55))' }} />
       </span>
     );
   }
   if (logo && !failed) {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden bg-white/95 p-[12%]', className)} style={{ ...box, borderRadius: size * 0.25 }}>
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={box}>
         <img
           src={logo}
           alt=""
           draggable={false}
           onError={() => setFailed(true)}
           className="h-full w-full object-contain"
+          // no tile behind it: the logo sits straight on the page; a faint light edge keeps dark logos visible in dark mode
+          style={{ filter: 'drop-shadow(0 0 0.6px rgba(255,255,255,0.55))' }}
         />
       </span>
     );
