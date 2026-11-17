@@ -469,6 +469,8 @@ function createWindow() {
     width: 360,
     height: 420,
     resizable: false,
+    icon: path.join(__dirname, '../src/renderer/app-icon.png'), // title-bar and taskbar icon
+    autoHideMenuBar: true, // the File/Edit/View menu is not needed here; Alt still shows it
     // Hidden by default, like TimeCamp: once signed in there is no window, only the
     // floating widget and the tray menu. It is shown when sign-in is needed, or from
     // the tray's "Settings…" / the widget's "⋯" (that is where Sign out lives).
