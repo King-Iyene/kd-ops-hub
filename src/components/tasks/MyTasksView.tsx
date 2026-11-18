@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2, Clock, Calendar, Flag, ChevronDown, ChevronRight,
-  MessageSquare, Layers, AlertTriangle, CalendarDays,
+  MessageSquare, Layers, AlertTriangle, CalendarDays, AtSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDate, daysUntil } from '@/lib/format';
+import { formatDate, formatDateTime, daysUntil } from '@/lib/format';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import type { Task, ProfileRow, Tag } from '@/lib/task-types';
+import type { Task, ProfileRow, Tag, TaskComment } from '@/lib/task-types';
 import { STATUS_DOT, STATUS_LABEL } from '@/lib/task-types';
 
 interface MyTasksViewProps {
@@ -20,14 +22,35 @@ interface MyTasksViewProps {
   commentCounts: Map<string, number>;
 }
 
-type TabKey = 'todo' | 'done' | 'delegated';
+type TabKey = 'todo' | 'done' | 'delegated' | 'mentions';
 
 export function MyTasksView({
   tasks, profiles, availableTags, subtaskCounts,
   currentUserId, onTaskClick, commentCounts,
 }: MyTasksViewProps) {
+  const { profile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabKey>('todo');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [mentionComments, setMentionComments] = useState<(TaskComment & { taskTitle: string })[]>([]);
+  const [mentionsLoaded, setMentionsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.full_name) return;
+    const mentionTag = `@${profile.full_name.replace(/\s+/g, '.')}`;
+    supabase
+      .from('task_comments')
+      .select('id, task_id, author_id, body, created_at, tasks!inner(title)')
+      .ilike('body', `%${mentionTag}%`)
+      .order('created_at', { ascending: false })
+      .limit(30)
+      .then(({ data }) => {
+        setMentionComments(((data as any[]) || []).map((c) => ({
+          id: c.id, task_id: c.task_id, author_id: c.author_id, body: c.body, created_at: c.created_at,
+          taskTitle: c.tasks?.title ?? 'Untitled task',
+        })));
+        setMentionsLoaded(true);
+      });
+  }, [profile?.full_name]);
 
   const myTasks = useMemo(() => {
     return tasks.filter((t) =>
@@ -102,6 +125,7 @@ export function MyTasksView({
     { key: 'todo', label: 'To Do', count: todoTasks.length },
     { key: 'done', label: 'Done', count: doneTasks.length },
     { key: 'delegated', label: 'Delegated', count: delegatedTasks.length },
+    { key: 'mentions', label: 'Mentions', count: mentionComments.length },
   ];
 
   const todoGroups: { key: string; title: string; icon: typeof Calendar; iconColor: string; tasks: Task[]; highlight?: 'destructive' }[] = [
@@ -116,6 +140,14 @@ export function MyTasksView({
 
   return (
     <div className="space-y-4">
+      {/* Summary row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <SummaryTile icon={CheckCircle2} label="My open work" value={todoTasks.length} color="text-primary" />
+        <SummaryTile icon={AlertTriangle} label="Overdue" value={groupedTodo.overdue.length} color="text-destructive" />
+        <SummaryTile icon={Calendar} label="Due today" value={groupedTodo.today.length} color="text-primary" />
+        <SummaryTile icon={Flag} label="Delegated" value={delegatedTasks.length} color="text-muted-foreground" />
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border/60">
         {tabs.map((tab) => (
@@ -227,6 +259,62 @@ export function MyTasksView({
           ))}
         </div>
       )}
+
+      {/* Mentions content */}
+      {activeTab === 'mentions' && (
+        <div className="space-y-2">
+          {!mentionsLoaded ? null : mentionComments.length === 0 ? (
+            <EmptyState
+              illustration="radar"
+              title="No mentions"
+              description="When someone @mentions you in a comment, it'll show up here."
+              tone="default"
+              compact
+            />
+          ) : mentionComments.map((c) => {
+            const task = tasks.find((t) => t.id === c.task_id);
+            const author = profiles.get(c.author_id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => task && onTaskClick(task)}
+                disabled={!task}
+                className="flex items-start gap-3 w-full rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors disabled:opacity-60 disabled:cursor-default"
+              >
+                <AtSign className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{author?.full_name ?? 'Someone'}</span>
+                    {' mentioned you in '}
+                    <span className="font-medium text-foreground">{c.taskTitle}</span>
+                  </p>
+                  <p className="text-sm mt-0.5 line-clamp-2">{c.body}</p>
+                  <p className="text-3xs text-muted-foreground mt-1">{formatDateTime(c.created_at)}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryTile({ icon: Icon, label, value, color }: {
+  icon: typeof Calendar;
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="rounded-lg border p-3 flex items-center gap-3">
+      <div className="h-8 w-8 rounded-md flex items-center justify-center bg-muted shrink-0">
+        <Icon className={cn('h-4 w-4', color)} />
+      </div>
+      <div className="min-w-0">
+        <p className={cn('text-xl font-bold tabular-nums leading-none', color)}>{value}</p>
+        <p className="text-2xs text-muted-foreground mt-0.5 truncate">{label}</p>
+      </div>
     </div>
   );
 }
