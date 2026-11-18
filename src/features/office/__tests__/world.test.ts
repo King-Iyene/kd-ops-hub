@@ -334,3 +334,22 @@ describe('ambient sound levels', () => {
     expect(soundLevel(-1, 8)).toBe(0);
   });
 });
+
+describe('interactive things and the wall clock', () => {
+  it('finds the thing you are standing next to, and nothing when you are far', async () => {
+    const { nearestInteractive } = await import('../world/world');
+    const items = [{ id: 'a', t: 'valueswall' as const, x: 10, y: 10 }, { id: 'b', t: 'desk' as const, x: 11, y: 12 }];
+    expect(nearestInteractive(items, 11, 11.8)?.id).toBe('a');
+    expect(nearestInteractive(items, 30, 30)).toBeNull();
+  });
+  it('tells the time in Lagos and New York and only keeps known zones (up to three)', async () => {
+    const { zoneParts, zoneAbbr, cleanZones } = await import('../world/clock');
+    const noonUtc = Date.UTC(2026, 0, 15, 12, 0, 0);
+    expect(zoneParts('Africa/Lagos', noonUtc).h).toBe(13);
+    expect(zoneParts('America/New_York', noonUtc).h).toBe(7);
+    expect(zoneAbbr('Africa/Lagos', noonUtc)).toBe('WAT');
+    expect(zoneAbbr('America/New_York', noonUtc)).toBe('EST');
+    expect(cleanZones(['Africa/Lagos', 'nope', 'Asia/Tokyo', 'Europe/London', 'Asia/Dubai'])).toEqual(['Africa/Lagos', 'Asia/Tokyo', 'Europe/London']);
+    expect(cleanZones(undefined).length).toBe(2);
+  });
+});

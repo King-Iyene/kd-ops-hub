@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { AvatarFace } from './AvatarFace';
 import type { Person } from './data';
 
-export interface OfficeSettings { builders?: string[]; recorders?: string[]; maxItems?: number }
+export interface OfficeSettings { builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[] }
 
 function PeopleList({ title, hint, ids, directory, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; onChange: (ids: string[]) => void }) {
   const [q, setQ] = useState('');

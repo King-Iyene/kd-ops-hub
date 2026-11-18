@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { isRoom, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
+import { INTERACTIVE, ITEM_DEFS, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -49,6 +49,10 @@ interface Props {
   bubbleScale: number;
   /** ambient sound (water, fire, footsteps) on or off */
   sound: boolean;
+  /** the thing you are standing next to that you can press F on (null when none) */
+  onNear: (item: Item | null) => void;
+  /** F pressed (or the thing clicked): open it */
+  onInteract: (item: Item) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -94,6 +98,7 @@ export function OfficeCanvas(props: Props) {
   useEffect(() => () => ambient.stop(), []);
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
+  const nearRef = useRef<Item | null>(null);
   const firstEnter = useRef(true);
   const lastSaved = useRef(0);
   useEffect(() => {
@@ -120,6 +125,7 @@ export function OfficeCanvas(props: Props) {
       ambient.resume();
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      if (k === 'f' && nearRef.current && !propsRef.current.editing) { e.preventDefault(); propsRef.current.onInteract(nearRef.current); return; }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
@@ -435,6 +441,33 @@ export function OfficeCanvas(props: Props) {
         ctx.textBaseline = 'middle';
         ctx.fillText(em.e, sp.x * TILE + Math.sin(age * 9) * 3, sp.y * TILE - 56 - age * 34);
         ctx.restore();
+      }
+
+      // something to press F on? show a little prompt over it
+      const nearIt = p.editing ? null : nearestInteractive(p.items, me.x, me.y);
+      if ((nearIt?.id ?? null) !== (nearRef.current?.id ?? null)) { nearRef.current = nearIt; p.onNear(nearIt); }
+      if (nearIt) {
+        const sz = itemSize(nearIt);
+        const label = INTERACTIVE[nearIt.t] ?? ITEM_DEFS[nearIt.t].label;
+        ctx.font = '700 11px system-ui, sans-serif';
+        const tw = ctx.measureText(label).width + 34;
+        const cx0 = (nearIt.x + sz.w / 2) * TILE;
+        const cy0 = (nearIt.y + sz.h) * TILE + 16 + Math.sin(now / 280) * 2;
+        ctx.fillStyle = 'rgba(15,23,42,0.88)';
+        ctx.beginPath();
+        ctx.roundRect(cx0 - tw / 2, cy0 - 11, tw, 22, 11);
+        ctx.fill();
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.roundRect(cx0 - tw / 2 + 4, cy0 - 7, 15, 14, 4);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('F', cx0 - tw / 2 + 11.5, cy0 + 0.5);
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, cx0 - tw / 2 + 24, cy0 + 0.5);
       }
 
       drawLighting(ctx, p.map, p.items, theme, now);

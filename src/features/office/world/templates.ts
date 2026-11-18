@@ -182,6 +182,10 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     desk(x0 + 1, 4, (['papers', 'globe', 'laptop', 'mug'] as const)[i % 4]);
     items.push(it('chair', x0 + 1, 5), it('shelf', x0 + 3, 3), it('plant', x0, 3), it('rug', x0 + 1, 6), it('lamp', x0 + 4, 6));
   }
+  // the walls that tell people who we are: core values, notices, and the time in a few places
+  items.push(it('valueswall', 12, 10), it('wallclock', 18, 10), it('noticeboard', 24, 10));
+  // a dog and a cat in the lounge
+  items.push(it('dog', 36, 27), it('cat', 41, 26));
   // open desk pods: six desks facing each other, chairs between
   pods.forEach(([px, py]) => {
     for (let r = 0; r < 2; r++) {

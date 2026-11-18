@@ -1,5 +1,6 @@
 // Canvas drawing for the office: a warm modern 2.5D style (textured floors, windows with light, detailed furniture,
 // soft shadows, gentle animation). Everything is drawn from code, so there are no image files to license or load.
+import { DEFAULT_ZONES, zoneAbbr, zoneParts } from './clock';
 import type { AvatarStyle, Item, MapDef, Zone } from './types';
 import { TOP_ITEMS, itemSize } from './world';
 
@@ -80,6 +81,9 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
 // ---------- small helpers ----------
 
 type Ctx = CanvasRenderingContext2D;
+
+/** Things the page tells the drawing code (the clock's places, board headings). */
+export const officeInfo: { zones: string[]; titles: Record<string, string> } = { zones: DEFAULT_ZONES, titles: {} };
 
 function rr(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
   const rad = Math.max(0, Math.min(r, w / 2, h / 2));
@@ -1041,6 +1045,114 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cx = x + W / 2;
   const cy = y + H / 2;
   switch (item.t) {
+    case 'wallclock': {
+      const zs = officeInfo.zones.length ? officeInfo.zones : DEFAULT_ZONES;
+      const n = zs.length;
+      ctx.fillStyle = dark ? '#2f2216' : '#8a5a2b';
+      rr(ctx, x + 2, y + 3, W - 4, H - 6, 7);
+      ctx.fill();
+      ctx.strokeStyle = dark ? '#7a5a38' : '#c58a4a';
+      ctx.lineWidth = 1.5;
+      rr(ctx, x + 4, y + 5, W - 8, H - 10, 5);
+      ctx.stroke();
+      const now = Date.now();
+      for (let i = 0; i < n; i++) {
+        const fx = x + (W * (i + 0.5)) / n;
+        const fy = y + 15.5;
+        const R = 12;
+        disc(ctx, fx, fy, R + 1.6, '#4a3018');
+        disc(ctx, fx, fy, R, dark ? '#e5e7eb' : '#fffaf0');
+        ctx.strokeStyle = '#334155';
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * Math.PI * 2;
+          ctx.lineWidth = k % 3 === 0 ? 1.3 : 0.7;
+          ctx.beginPath();
+          ctx.moveTo(fx + Math.cos(a) * (R - 3.2), fy + Math.sin(a) * (R - 3.2));
+          ctx.lineTo(fx + Math.cos(a) * (R - 1.2), fy + Math.sin(a) * (R - 1.2));
+          ctx.stroke();
+        }
+        const { h, m, s } = zoneParts(zs[i], now);
+        const hand = (ang: number, len: number, lw: number, color: string) => {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lw;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(fx + Math.cos(ang) * len, fy + Math.sin(ang) * len);
+          ctx.stroke();
+        };
+        hand(((h % 12) + m / 60) / 12 * Math.PI * 2 - Math.PI / 2, R * 0.5, 1.9, '#0f172a');
+        hand((m + s / 60) / 60 * Math.PI * 2 - Math.PI / 2, R * 0.78, 1.3, '#0f172a');
+        hand(s / 60 * Math.PI * 2 - Math.PI / 2, R * 0.86, 0.7, '#e11d48');
+        disc(ctx, fx, fy, 1.4, '#e11d48');
+        ctx.font = '700 7px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = '#fde9c8';
+        ctx.fillText(zoneAbbr(zs[i], now), fx, y + H - 3);
+      }
+      return true;
+    }
+    case 'valueswall': {
+      ctx.fillStyle = vgrad(ctx, y, y + H, '#24325c', '#162040');
+      rr(ctx, x + 2, y + 3, W - 4, H - 6, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#e0b04a';
+      ctx.lineWidth = 2;
+      rr(ctx, x + 3, y + 4, W - 6, H - 8, 5);
+      ctx.stroke();
+      const title = (officeInfo.titles[item.id] ?? 'Our core values').toUpperCase().slice(0, 26);
+      ctx.font = '800 9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f6d98a';
+      ctx.fillText(title, x + W / 2, y + 14);
+      ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'].forEach((c, i) => {
+        const px = x + W / 2 + (i - 2) * 16;
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(px, y + 21);
+        ctx.lineTo(px + 4, y + 25);
+        ctx.lineTo(px, y + 29);
+        ctx.lineTo(px - 4, y + 25);
+        ctx.closePath();
+        ctx.fill();
+      });
+      // a soft shine that slides across now and then
+      const sx = ((t / 3200) % 1.6 - 0.3) * W;
+      const g = ctx.createLinearGradient(x + sx - 14, y, x + sx + 14, y);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      rr(ctx, x + 3, y + 4, W - 6, H - 8, 5);
+      ctx.fill();
+      return true;
+    }
+    case 'noticeboard': {
+      ctx.fillStyle = '#7a4b22';
+      rr(ctx, x + 2, y + 3, W - 4, H - 6, 5);
+      ctx.fill();
+      ctx.fillStyle = '#cf9a5a';
+      rr(ctx, x + 5, y + 6, W - 10, H - 12, 3);
+      ctx.fill();
+      const notes = ['#fde68a', '#bfdbfe', '#fbcfe8', '#bbf7d0', '#fed7aa'];
+      for (let i = 0; i < 5; i++) {
+        const nx = x + 10 + i * ((W - 28) / 5);
+        const ny = y + 9 + (i % 2) * 4;
+        ctx.save();
+        ctx.translate(nx + 7, ny + 7);
+        ctx.rotate(Math.sin(t / 1400 + i * 1.7) * 0.05 + (i - 2) * 0.03);
+        ctx.fillStyle = notes[i];
+        ctx.fillRect(-7, -7, 14, 13);
+        ctx.fillStyle = 'rgba(15,23,42,0.35)';
+        ctx.fillRect(-5, -3, 10, 1);
+        ctx.fillRect(-5, 0, 7, 1);
+        disc(ctx, 0, -6, 1.3, '#dc2626');
+        ctx.restore();
+      }
+      return true;
+    }
     // --- things that sit on a desk or table ---
     case 'laptop': {
       ctx.fillStyle = 'rgba(15,23,42,0.18)';

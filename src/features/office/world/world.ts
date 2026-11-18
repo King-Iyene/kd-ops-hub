@@ -49,6 +49,9 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   frame: { w: 1, h: 1, solid: true, label: 'Picture' },
   vending: { w: 1, h: 2, solid: true, label: 'Vending machine' },
   dog: { w: 1, h: 1, solid: false, label: 'Dog' },
+  wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
+  valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
+  noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -62,6 +65,28 @@ export const WALK_SPEED = 4.5; // tiles per second
 export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } {
   const d = ITEM_DEFS[item.t];
   return (item.r ?? 0) % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
+}
+
+/** Things you can walk up to and press F on. */
+export const INTERACTIVE: Partial<Record<ItemType, string>> = {
+  wallclock: 'Clocks',
+  valueswall: 'Core values',
+  noticeboard: 'Notice board',
+};
+
+/** The interactive thing closest to a point, if one is within reach. */
+export function nearestInteractive(items: Item[], x: number, y: number, reach = 1.7): Item | null {
+  let best: Item | null = null;
+  let bd = Infinity;
+  for (const it of items) {
+    if (!INTERACTIVE[it.t]) continue;
+    const { w, h } = itemSize(it);
+    const dx = Math.max(it.x - x, 0, x - (it.x + w));
+    const dy = Math.max(it.y - y, 0, y - (it.y + h));
+    const d = Math.hypot(dx, dy);
+    if (d <= reach && d < bd) { best = it; bd = d; }
+  }
+  return best;
 }
 
 /** Every tile an item covers. */

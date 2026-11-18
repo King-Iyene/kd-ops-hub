@@ -30,8 +30,10 @@ import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { applyTileEdits, canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
-import { defaultAvatar } from './world/render';
+import { applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { defaultAvatar, officeInfo } from './world/render';
+import { BoardDialog, ClockDialog, type BoardData } from './Interact';
+import { cleanZones } from './world/clock';
 import type { Item, TileEdits, Zone } from './world/types';
 
 
@@ -717,6 +719,25 @@ function OfficeRoom() {
   }, [ctx]);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [panel, setPanel] = useState<Item | null>(null);
+  const [savingPanel, setSavingPanel] = useState(false);
+  const boardsAll = space?.layout?.settings?.boards ?? {};
+  const clockZones = cleanZones(space?.layout?.settings?.clock);
+  officeInfo.zones = clockZones;
+  officeInfo.titles = Object.fromEntries(Object.entries(boardsAll).map(([k, v]) => [k, v.title]));
+  const savePanel = async (patch: { boards?: Record<string, BoardData>; clock?: string[] }) => {
+    if (!space) return;
+    setSavingPanel(true);
+    try {
+      await actions.saveSettings(space, { ...(space.layout?.settings ?? {}), ...patch });
+      toast({ title: 'Saved', description: 'Everyone sees the update.' });
+      setPanel(null);
+    } catch (err) {
+      toast({ title: 'That did not save', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setSavingPanel(false);
+    }
+  };
   const [folded, setFolded] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('kd:office:folded') ?? '[]') as string[]; } catch { return []; } });
   const shut = (id: string) => folded.includes(id);
   const flip = (id: string) => setFolded((cur) => {
@@ -935,9 +956,14 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            recenter={recenter} emotes={emotes} sound={sound} onNear={() => undefined} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
-            onMapClick={(t) => { const z = zoneAt(map, t.x + 0.5, t.y + 0.5); if (z && z.kind === 'office') setDeskZone(z); }} dark={dark} zoom={zoom}
+            onMapClick={(t) => {
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              if (hit) { setPanel(hit); return; }
+              const z = zoneAt(map, t.x + 0.5, t.y + 0.5);
+              if (z && z.kind === 'office') setDeskZone(z);
+            }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
           {!editing && (
@@ -1056,7 +1082,7 @@ function OfficeRoom() {
         onSave={async (st) => {
           if (!space) return;
           setSavingSettings(true);
-          try { await actions.saveSettings(space, st); toast({ title: 'Settings saved' }); setSettingsOpen(false); } catch (err) { toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' }); } finally { setSavingSettings(false); }
+          try { await actions.saveSettings(space, { ...(space.layout?.settings ?? {}), ...st }); toast({ title: 'Settings saved' }); setSettingsOpen(false); } catch (err) { toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' }); } finally { setSavingSettings(false); }
         }}
       />
       <DeskDialog
@@ -1170,6 +1196,14 @@ function OfficeRoom() {
           document.body,
         );
       })()}
+      <BoardDialog
+        open={!!panel && (panel.t === 'valueswall' || panel.t === 'noticeboard')}
+        kind={panel?.t === 'noticeboard' ? 'noticeboard' : 'valueswall'}
+        data={panel ? boardsAll[panel.id] ?? { title: panel.t === 'noticeboard' ? 'Notice board' : 'Our core values', cards: [] } : { title: '', cards: [] }}
+        canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)}
+        onSave={(d) => { if (panel) void savePanel({ boards: { ...boardsAll, [panel.id]: d } }); }}
+      />
+      <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
