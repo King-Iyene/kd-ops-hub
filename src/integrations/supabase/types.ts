@@ -7741,6 +7741,66 @@ export type Database = {
           },
         ]
       }
+      office_decor: {
+        Row: {
+          items: Json
+          office_id: string
+          space_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          items?: Json
+          office_id: string
+          space_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          items?: Json
+          office_id?: string
+          space_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_decor_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_decor_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_decor_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_decor_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_decor_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_desk_claims: {
         Row: {
           claimed_at: string
@@ -20675,6 +20735,10 @@ export type Database = {
       notify_expiring_overrides: { Args: never; Returns: number }
       office_is_admin: { Args: never; Returns: boolean }
       office_is_recorder: { Args: never; Returns: boolean }
+      office_owns: {
+        Args: { p_office: string; p_space: string }
+        Returns: boolean
+      }
       office_provision_personal: {
         Args: { p_profile: string }
         Returns: undefined
