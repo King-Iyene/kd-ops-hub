@@ -7,7 +7,7 @@ import { BTN_ICON, BTN_MAIN, BTN_QUIET, SURFACE } from './ui';
 export interface OfficeAction { key: string; label: string; icon: ReactNode; run: () => void; primary?: boolean; /** icon only */ compact?: boolean }
 
 /** A small card right beside the pointer when you rest it on an office or a seat: who has it, and what you can do. */
-export function OfficeCard({ x, y, title, kind, owner, avatar, locked, actions, onEnter, onLeave }: {
+export function OfficeCard({ x, y, title, kind, owner, avatar, locked, note, actions, onEnter, onLeave }: {
   x: number;
   y: number;
   title: string;
@@ -15,6 +15,8 @@ export function OfficeCard({ x, y, title, kind, owner, avatar, locked, actions, 
   owner: string | null;
   avatar?: AvatarStyle;
   locked: boolean;
+  /** a short line instead of the default one (such as why you cannot claim it) */
+  note?: string;
   actions: OfficeAction[];
   onEnter: () => void;
   onLeave: () => void;
@@ -38,7 +40,7 @@ export function OfficeCard({ x, y, title, kind, owner, avatar, locked, actions, 
             <p className="truncate text-[14px] font-bold leading-tight tracking-tight">{title}</p>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11.5px] leading-tight text-muted-foreground">
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${owner ? 'bg-primary' : 'bg-emerald-500'}`} />
-              <span className="truncate">{owner ? `Claimed by ${owner}` : kind === 'seat' ? 'Free seat' : 'Free office'}{locked ? ' · locked' : ''}</span>
+              <span className="truncate">{owner ? `Claimed by ${owner}` : note ?? 'Free to claim'}{locked ? ' · locked' : ''}</span>
             </p>
           </div>
         </div>

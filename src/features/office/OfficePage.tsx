@@ -1217,7 +1217,7 @@ function OfficeRoom() {
         return (
           <OfficeCard
             x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
-            locked={lockedRef.current.has(z.id)} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
+            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "Free, but you already have a place" : undefined} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
           />
         );
       })()}
