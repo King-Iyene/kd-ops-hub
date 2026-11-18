@@ -39,21 +39,8 @@ export function PwaUpdatePrompt() {
     navigator.serviceWorker.getRegistration().then((r) => r?.update().catch(() => {}));
   }, []);
 
-  // The virtual office needs everyone on the same version (calls and presence change between versions), so there
-  // a waiting update is applied by itself, as long as nobody is in a call or recording. Elsewhere it stays a prompt.
-  useEffect(() => {
-    if (!needRefresh || !window.location.pathname.startsWith('/office')) return;
-    const busy = (window as unknown as { __kdBusy?: boolean }).__kdBusy;
-    if (busy) return;
-    const key = 'kdops_office_auto_update_at';
-    const last = Number(sessionStorage.getItem(key) || 0);
-    // Cooldown so a burst of deploys landing minutes apart can't auto-apply
-    // and reload back to back — past this window it falls back to the same
-    // manual prompt every other page already uses.
-    if (Date.now() - last < 60_000) return;
-    sessionStorage.setItem(key, String(Date.now()));
-    void updateServiceWorker(true);
-  }, [needRefresh, updateServiceWorker]);
+  // A new version never reloads the page by itself (that caused reload loops while deploys were landing back to back):
+  // it only shows the prompt below, and the person chooses when to reload.
 
   if (!needRefresh) return null;
 
