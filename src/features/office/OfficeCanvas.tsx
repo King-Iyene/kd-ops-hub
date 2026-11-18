@@ -35,6 +35,8 @@ interface Props {
   /** stop following once I have reached them ("go to" a person) */
   followOnce: boolean;
   onFollowEnd: () => void;
+  /** a click (not a drag) on the map outside edit mode */
+  onMapClick: (tile: { x: number; y: number }) => void;
   onPortal: (target: 'team' | 'mine') => void;
   dark: boolean;
   zoom: number;
@@ -60,6 +62,8 @@ export function OfficeCanvas(props: Props) {
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
   const lastJump = useRef(0);
+  /** how far the view has been dragged away from following me, in pixels */
+  const pan = useRef({ x: 0, y: 0 });
   const drawFailed = useRef(false);
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
@@ -122,12 +126,38 @@ export function OfficeCanvas(props: Props) {
       const { ox, oy, scale } = cam.current;
       return { x: Math.floor((e.clientX - r.left - ox) / (TILE * scale)), y: Math.floor((e.clientY - r.top - oy) / (TILE * scale)) };
     };
-    const move = (e: MouseEvent) => { hover.current = toTile(e); };
-    const leave = () => { hover.current = null; };
-    const click = (e: MouseEvent) => { if (propsRef.current.editing) propsRef.current.onTile(toTile(e)); };
+    const drag = { down: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 };
+    const move = (e: MouseEvent) => {
+      hover.current = toTile(e);
+      if (!drag.down) return;
+      const dx = e.clientX - drag.sx;
+      const dy = e.clientY - drag.sy;
+      if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
+      if (drag.moved && !propsRef.current.editing) pan.current = { x: drag.px + dx, y: drag.py + dy };
+    };
+    const down = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      drag.down = true;
+      drag.moved = false;
+      drag.sx = e.clientX;
+      drag.sy = e.clientY;
+      drag.px = pan.current.x;
+      drag.py = pan.current.y;
+    };
+    const up = (e: MouseEvent) => {
+      if (!drag.down) return;
+      drag.down = false;
+      if (drag.moved) return;
+      if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
+      else propsRef.current.onMapClick(toTile(e));
+    };
+    const dbl = () => { pan.current = { x: 0, y: 0 }; };
+    const leave = () => { hover.current = null; drag.down = false; };
     canvas.addEventListener('mousemove', move);
     canvas.addEventListener('mouseleave', leave);
-    canvas.addEventListener('click', click);
+    canvas.addEventListener('mousedown', down);
+    canvas.addEventListener('mouseup', up);
+    canvas.addEventListener('dblclick', dbl);
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -145,6 +175,7 @@ export function OfficeCanvas(props: Props) {
       if (!p.editing) {
         const k = keys.current;
         let v = inputVelocity(k.has('arrowleft') || k.has('a'), k.has('arrowright') || k.has('d'), k.has('arrowup') || k.has('w'), k.has('arrowdown') || k.has('s'));
+        if (v.vx !== 0 || v.vy !== 0) pan.current = { x: 0, y: 0 };
         // automatic walking: toward a person being followed, or toward a spot. Any key press cancels.
         const pm = p.follow ? p.peers.current.get(p.follow) : undefined;
         const goal = p.follow
@@ -233,10 +264,12 @@ export function OfficeCanvas(props: Props) {
       const scale = p.zoom;
       const mapW = p.map.w * TILE * scale;
       const mapH = p.map.h * TILE * scale;
-      let ox = w / 2 - me.x * TILE * scale;
-      let oy = h / 2 - me.y * TILE * scale;
-      ox = mapW <= w ? (w - mapW) / 2 : Math.min(0, Math.max(w - mapW, ox));
-      oy = mapH <= h ? (h - mapH) / 2 : Math.min(0, Math.max(h - mapH, oy));
+      // follow me, plus however far the view was dragged, with a few tiles of room past every edge (so the rooms along the edge can be seen)
+      const pad = TILE * scale * 4;
+      let ox = w / 2 - me.x * TILE * scale + pan.current.x;
+      let oy = h / 2 - me.y * TILE * scale + pan.current.y;
+      ox = mapW + 2 * pad <= w ? (w - mapW) / 2 : Math.min(pad, Math.max(w - mapW - pad, ox));
+      oy = mapH + 2 * pad <= h ? (h - mapH) / 2 : Math.min(pad, Math.max(h - mapH - pad, oy));
       cam.current = { ox, oy, scale };
 
       // draw
@@ -316,9 +349,11 @@ export function OfficeCanvas(props: Props) {
       ro.disconnect();
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseleave', leave);
-      canvas.removeEventListener('click', click);
+      canvas.removeEventListener('mousedown', down);
+      canvas.removeEventListener('mouseup', up);
+      canvas.removeEventListener('dblclick', dbl);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full touch-none select-none outline-none" style={{ cursor: props.editing ? 'crosshair' : 'default' }} />;
+  return <canvas ref={canvasRef} className="h-full w-full touch-none select-none outline-none" style={{ cursor: props.editing ? 'crosshair' : 'grab' }} />;
 }

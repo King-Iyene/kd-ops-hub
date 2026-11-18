@@ -9,6 +9,7 @@ import { OfficeCanvas } from './OfficeCanvas';
 import { EditorPanel, type EditTool } from './EditorPanel';
 import { RoomNameDialog, type RoomOverride } from './RoomNameDialog';
 import { OfficeSettingsDialog } from './OfficeSettingsDialog';
+import { DeskDialog } from './DeskDialog';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
@@ -24,7 +25,7 @@ import { useRecorder } from './calls/useRecorder';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
-import { ensurePersonalOffice, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { ensurePersonalOffice, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -36,9 +37,6 @@ export default function OfficePage() {
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
   const { data: directory } = useDirectory();
-  // the leaders (admins) get a named private office with their avatar on the plate
-  const leaders = useMemo(() => (directory ?? []).filter((p) => p.role === 'admin' || p.role === 'super_admin').slice(0, 9).map((p) => ({ uid: p.id, name: p.name, avatar: p.avatar })), [directory]);
-  const leadersKey = leaders.map((l) => `${l.name}:${JSON.stringify(l.avatar)}`).join('|');
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
 
@@ -46,11 +44,8 @@ export default function OfficePage() {
     if (!profile) return null;
     return {
       id: profile.id,
-      // first name plus last initial, so two people with the same first name can be told apart
-      name: (() => {
-        const parts = (profile.full_name || profile.email || 'Me').split(' ').filter(Boolean);
-        return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : (parts[0] ?? 'Me');
-      })(),
+      // the full name, as it is on the profile
+      name: (profile.full_name || profile.email || 'Me').split(' ').filter(Boolean).join(' '),
       avatar: myAvatar ?? defaultAvatar(profile.id),
     };
   }, [profile, myAvatar]);
@@ -88,19 +83,17 @@ export default function OfficePage() {
   const [overrides, setOverrides] = useState<Record<string, RoomOverride>>({});
   const savedOverrides = space?.layout?.rooms;
   useEffect(() => { setOverrides(savedOverrides ?? {}); }, [savedOverrides]);
-  const plateTable = useMemo(() => {
-    const taken = new Set(Object.values(overrides).map((o) => o.uid).filter(Boolean));
-    const spare = leaders.filter((l) => !taken.has(l.uid));
-    let next = 0;
-    return Array.from({ length: 9 }, (_, i) => {
-      const o = overrides['office-' + (i + 1)];
-      if (o?.free) return undefined;
-      if (o?.uid) { const p = (directory ?? []).find((d) => d.id === o.uid); return p ? { name: p.name, avatar: p.avatar } : undefined; }
-      if (o?.label) return { name: o.label };
-      const l = spare[next++];
-      return l ? { name: l.name, avatar: l.avatar } : undefined;
-    });
-  }, [overrides, leaders, directory]);
+  // who has claimed each private office (people claim and unclaim; an admin can also assign or revoke)
+  const { data: claims } = useDeskClaims(space?.id ?? null);
+  const plateTable = useMemo(() => Array.from({ length: 9 }, (_, i) => {
+    const id = 'office-' + (i + 1);
+    const o = overrides[id];
+    if (o?.free) return undefined;
+    if (o?.label) return { name: o.label };
+    const c = (claims ?? []).find((x) => x.office_id === id);
+    const p = c ? (directory ?? []).find((d) => d.id === c.user_id) : undefined;
+    return p ? { name: p.name, avatar: p.avatar } : undefined;
+  }), [overrides, claims, directory]);
   const plateKey = plateTable.map((p) => (p ? p.name + JSON.stringify(p.avatar ?? '') : '-')).join('|') + JSON.stringify(Object.entries(overrides).filter(([k]) => k.startsWith('meeting') || k === 'boardroom' || k === 'auditorium' || k === 'lounge' || k === 'music'));
   // the shared office is the headquarters; the older plain layouts stay available
   const map = useMemo(() => {
@@ -151,6 +144,13 @@ export default function OfficePage() {
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
   const [color, setColor] = useState<number | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deskZone, setDeskZone] = useState<Zone | null>(null);
+  const [deskBusy, setDeskBusy] = useState(false);
+  const myClaim = (claims ?? []).find((c) => c.user_id === profile?.id) ?? null;
+  const ownerOf = (officeId: string) => {
+    const c = (claims ?? []).find((x) => x.office_id === officeId);
+    return c ? (directory ?? []).find((p) => p.id === c.user_id) ?? null : null;
+  };
   const [savingSettings, setSavingSettings] = useState(false);
   const [nameZone, setNameZone] = useState<{ id: string; name: string; kind: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -398,6 +398,52 @@ export default function OfficePage() {
     if (roomSpaceId && roomSpaceId !== space?.id) setSpaceId(roomSpaceId);
     setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 });
   };
+  // claiming private offices: anyone can claim a free one and unclaim theirs; an admin can assign or revoke
+  const claimOffice = async (officeId: string, uid?: string) => {
+    if (!space || !profile) return;
+    setDeskBusy(true);
+    try {
+      await actions.claimDesk(space.id, officeId, uid ?? profile.id, !!uid && isAdmin);
+      toast({ title: uid && uid !== profile.id ? 'Office assigned' : 'Office claimed', description: 'The name and face are on the door now.' });
+      setDeskZone(null);
+    } catch {
+      toast({ title: 'Could not claim that office', description: 'Someone may have just taken it. Try another.', variant: 'destructive' });
+    } finally {
+      setDeskBusy(false);
+    }
+  };
+  const unclaimOffice = async (officeId: string) => {
+    if (!space) return;
+    setDeskBusy(true);
+    try {
+      await actions.unclaimDesk(space.id, officeId);
+      toast({ title: 'Office is free again' });
+      setDeskZone(null);
+    } catch (err) {
+      toast({ title: 'Could not unclaim', description: errorMessage(err), variant: 'destructive' });
+    } finally {
+      setDeskBusy(false);
+    }
+  };
+  const walkToOffice = (officeId?: string) => {
+    const z = map.zones.find((q) => q.id === (officeId ?? myClaim?.office_id));
+    if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h - 1.5 });
+  };
+  const claimFree = () => {
+    const taken = new Set((claims ?? []).map((c) => c.office_id));
+    const free = map.zones.find((z) => z.kind === 'office' && !taken.has(z.id));
+    if (free) void claimOffice(free.id);
+    else toast({ title: 'No free office right now', description: 'Every private office is taken.' });
+  };
+  // Ctrl+D (like Gather's "walk to my desk")
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd' && myClaim) { e.preventDefault(); walkToOffice(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myClaim?.office_id, map]);
   const startFollow = (id: string) => { setFollowOnce(false); setFollow((f) => (f === id ? null : id)); };
   // following someone who walks into another office: follow them through
   useEffect(() => {
@@ -697,7 +743,8 @@ export default function OfficePage() {
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
-            jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
+            jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
+            onMapClick={(t) => { const z = zoneAt(map, t.x + 0.5, t.y + 0.5); if (z && z.kind === 'office') setDeskZone(z); }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
           {superseded && (
@@ -729,6 +776,8 @@ export default function OfficePage() {
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   bright={bright} onToggleBright={toggleBright} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
+                  myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
+                  onClaimOffice={claimFree} onUnclaimOffice={() => { if (myClaim) void unclaimOffice(myClaim.office_id); }} onWalkToOffice={() => walkToOffice()}
                   isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
                 />
               )}
@@ -775,9 +824,38 @@ export default function OfficePage() {
           try { await actions.saveSettings(space, st); toast({ title: 'Settings saved' }); setSettingsOpen(false); } catch (err) { toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' }); } finally { setSavingSettings(false); }
         }}
       />
+      <DeskDialog
+        zone={deskZone} owner={deskZone ? ownerOf(deskZone.id) : null} mine={!!deskZone && myClaim?.office_id === deskZone.id}
+        iHaveOffice={!!myClaim} isAdmin={isAdmin} busy={deskBusy}
+        onClaim={() => { if (deskZone) void claimOffice(deskZone.id); }}
+        onUnclaim={() => { if (deskZone) void unclaimOffice(deskZone.id); }}
+        onWalk={() => { if (deskZone) { walkToOffice(deskZone.id); setDeskZone(null); } }}
+        onAssign={() => { if (deskZone) { setNameZone({ id: deskZone.id, name: deskZone.name, kind: deskZone.kind }); setDeskZone(null); } }}
+        onClose={() => setDeskZone(null)}
+      />
       <RoomNameDialog
-        zone={nameZone} directory={directory ?? []} current={nameZone ? overrides[nameZone.id] : undefined} onClose={() => setNameZone(null)}
-        onSave={(o) => { if (nameZone) setOverrides((cur) => { const next = { ...cur }; if (o) next[nameZone.id] = o; else delete next[nameZone.id]; return next; }); setNameZone(null); }}
+        zone={nameZone} directory={directory ?? []}
+        current={nameZone ? { ...overrides[nameZone.id], ...(ownerOf(nameZone.id) ? { uid: ownerOf(nameZone.id)?.id } : {}) } : undefined}
+        onClose={() => setNameZone(null)}
+        onSave={(o) => {
+          if (nameZone) {
+            const id = nameZone.id;
+            const without = (cur: Record<string, RoomOverride>) => { const n = { ...cur }; delete n[id]; return n; };
+            if (nameZone.kind === 'office' && o?.uid) {
+              void claimOffice(id, o.uid);
+              setOverrides(without);
+            } else if (nameZone.kind === 'office' && o?.free) {
+              void unclaimOffice(id);
+              setOverrides(without);
+            } else {
+              const next = o ? { ...overrides, [id]: o } : without(overrides);
+              setOverrides(next);
+              // outside edit mode a rename is saved straight away (the saved furniture is kept as it is)
+              if (!editing && space) void actions.saveLayout(space, template, Array.isArray(space.layout?.items) ? savedItems : undefined, next).catch((err) => toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' }));
+            }
+          }
+          setNameZone(null);
+        }}
       />
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />

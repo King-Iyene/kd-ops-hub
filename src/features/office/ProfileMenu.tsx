@@ -1,4 +1,4 @@
-import { Circle, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun } from 'lucide-react';
+import { Circle, DoorClosed, DoorOpen, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { STATUSES, statusOf } from './status';
 
@@ -21,6 +21,11 @@ interface Props {
   onRecordings: () => void;
   canSettings: boolean;
   onSettings: () => void;
+  /** my private office (its name), if I have claimed one */
+  myOffice: string | null;
+  onClaimOffice: () => void;
+  onUnclaimOffice: () => void;
+  onWalkToOffice: () => void;
   isMyOffice: boolean;
   officeLocked: boolean;
   onOfficeLock: () => void;
@@ -54,6 +59,14 @@ export function ProfileMenu(p: Props) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
+        {p.myOffice ? (
+          <>
+            <DropdownMenuItem onSelect={p.onWalkToOffice}><DoorOpen className="mr-2 h-4 w-4" />Walk to my office <span className="ml-auto text-xs text-muted-foreground">Ctrl+D</span></DropdownMenuItem>
+            <DropdownMenuItem onSelect={p.onUnclaimOffice}><DoorClosed className="mr-2 h-4 w-4" />Unclaim my office</DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem onSelect={p.onClaimOffice}><DoorOpen className="mr-2 h-4 w-4" />Claim a free office</DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onToggleBright}>{p.bright ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}{p.bright ? 'Night office' : 'Bright office'}</DropdownMenuItem>
         <div className="flex items-center justify-between px-2 py-1.5 text-sm">
