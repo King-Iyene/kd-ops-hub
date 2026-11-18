@@ -32,6 +32,7 @@ import { ManageDialog, type Claimable } from './ManageDialog';
 import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
+import { SkyControl } from './SkyControl';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
@@ -1006,6 +1007,7 @@ function OfficeRoom() {
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
           onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
         >
+          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} onTime={setTimeMode} onSeason={setSeasonMode} />}
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}

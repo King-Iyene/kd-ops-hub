@@ -174,9 +174,6 @@ export function CallDock({
               )}
               <span className="mx-0.5 h-5 w-px bg-border" />
               <Btn label="Leave voice" onClick={onLeave}><LogOut className="h-4 w-4" /></Btn>
-              <span className="hidden px-1.5 text-[11px] text-muted-foreground lg:inline">
-                {roomName ? 'Private room' : people.length ? `${people.length} nearby` : 'Walk up to someone'}
-              </span>
             </>
           )}
         </div>
