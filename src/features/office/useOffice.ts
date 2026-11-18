@@ -70,6 +70,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const recRef = useRef(false);
   const lockRef = useRef(false);
   const statusRef = useRef('');
+  const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMeta = useRef('');
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
   const pingHandler = useRef<((raw: unknown) => void) | null>(null);
   const selfRef = useRef(self);
@@ -107,7 +109,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       if (status === 'SUBSCRIBED') {
         setConnected(true);
         const s = selfRef.current;
-        if (s) await ch.track(meta(s));
+        if (s) { const m = meta(s); lastMeta.current = JSON.stringify({ ...m, t: 0 }); await ch.track(m); }
       }
     });
     return () => {
@@ -117,32 +119,49 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     };
   }, [selfId, awake]);
 
+  // Presence updates are rate limited by the server (too many and they are dropped, so nobody sees anybody).
+  // So: wait a moment and send once, and never send what has not changed.
+  const pushMeta = useCallback((now?: boolean) => {
+    const send = () => {
+      metaTimer.current = null;
+      const s = selfRef.current;
+      if (!lobby.current || !s) return;
+      const m = meta(s);
+      const key = JSON.stringify({ ...m, t: 0 });
+      if (key === lastMeta.current) return;
+      lastMeta.current = key;
+      void lobby.current.track(m);
+    };
+    if (now) {
+      if (metaTimer.current) clearTimeout(metaTimer.current);
+      send();
+    } else if (!metaTimer.current) {
+      metaTimer.current = setTimeout(send, 300);
+    }
+  }, []);
+
   // tell the lobby when we change office, room or avatar (rare)
   const announce = useCallback((zone: string | null) => {
     zoneRef.current = zone;
-    const s = selfRef.current;
-    if (lobby.current && s) void lobby.current.track(meta(s));
+    pushMeta();
   }, []);
 
   /** Tell the room that I am (or am no longer) recording. */
   const setRecording = useCallback((on: boolean) => {
     recRef.current = on;
-    const s = selfRef.current;
-    if (lobby.current && s) void lobby.current.track(meta(s));
+    pushMeta();
   }, []);
 
   /** Show a status next to my name. */
   const setStatus = useCallback((id: string) => {
     statusRef.current = id;
-    const s = selfRef.current;
-    if (lobby.current && s) void lobby.current.track(meta(s));
+    pushMeta();
   }, []);
 
   /** Lock or unlock the meeting room I am standing in (everyone else in the office sees it). */
   const setLocked = useCallback((on: boolean) => {
     lockRef.current = on;
-    const s = selfRef.current;
-    if (lobby.current && s) void lobby.current.track(meta(s));
+    pushMeta();
   }, []);
 
   useEffect(() => {

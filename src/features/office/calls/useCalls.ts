@@ -55,6 +55,8 @@ interface Opts {
   meId: string | null;
   spaceId: string | null;
   roster: Who[];
+  /** everyone whose movement we are receiving in this office (does not depend on the online list) */
+  peerIds: () => string[];
   /** where someone else is standing (null when unknown) */
   lookup: (id: string) => Spot | null;
   /** where I am standing */
@@ -188,21 +190,22 @@ export function useCalls(opts: Opts) {
   useEffect(() => {
     if (!joined) return;
     const tick = () => {
-      const { meId, spaceId, roster, lookup, self } = o.current;
+      const { meId, peerIds, lookup, self } = o.current;
       if (!meId) return;
       const mine = self();
       const here = new Set<string>();
-      for (const r of roster) {
-        if (r.id === meId || r.spaceId !== spaceId) continue;
-        here.add(r.id);
-        const other = lookup(r.id);
+      // who is near comes from the movement we receive, so calls work even when the online list is behind
+      for (const id of peerIds()) {
+        if (id === meId) continue;
+        here.add(id);
+        const other = lookup(id);
         if (!other) continue;
-        const c = conns.current.get(r.id);
+        const c = conns.current.get(id);
         const want = wantsConnection(mine, other, !!c);
-        if (want && !c && isInitiator(meId, r.id)) create(r.id);
-        else if (!want && c) close(r.id);
-        const cur = conns.current.get(r.id);
-        if (cur) cur.audio.volume = mutedRef.current.has(r.id) ? 0 : volumeFor(mine, other);
+        if (want && !c && isInitiator(meId, id)) create(id);
+        else if (!want && c) close(id);
+        const cur = conns.current.get(id);
+        if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other);
       }
       for (const id of [...conns.current.keys()]) if (!here.has(id)) close(id);
     };

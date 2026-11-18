@@ -21,7 +21,7 @@ import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems } from './world/world';
+import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
 import type { Item, ItemType, Zone } from './world/types';
 
@@ -94,12 +94,16 @@ export default function OfficePage() {
     meId: me?.id ?? null,
     spaceId: space?.id ?? null,
     roster,
+    peerIds: () => [...peers.current.keys()],
     lookup: (id) => {
       const pm = peers.current.get(id);
-      const who = rosterRef.current.find((r) => r.id === id);
-      if (!pm || !who) return null;
+      if (!pm) return null;
       const dt = Math.min(4, (Date.now() - pm.at) / 1000);
-      return { x: pm.x + pm.vx * dt, y: pm.y + pm.vy * dt, room: who.zone && meetingIds.has(who.zone) ? who.zone : null };
+      const x = pm.x + pm.vx * dt;
+      const y = pm.y + pm.vy * dt;
+      // which meeting room they are in comes from where they stand, so privacy never depends on the online list
+      const z = zoneAt(map, x, y);
+      return { x, y, room: z && z.kind === 'meeting' ? z.id : null };
     },
     self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current }),
     send: sendRtc,
