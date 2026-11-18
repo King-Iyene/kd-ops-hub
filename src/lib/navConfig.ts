@@ -226,7 +226,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'NDI Finance',      url: '/ndi/finance',       icon: Wallet,          roles: ['super_admin', 'admin'] },
   { title: 'NDI Employees',    url: '/ndi/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'NDI Profile',      url: '/ndi/profile',       icon: Building2,       roles: ['super_admin', 'admin'] },
-  { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: ['super_admin', 'admin'] }, // soft launch: widen to every role when ready
+  { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: [] }, // hidden for now (page still reachable at /office); set roles when ready to launch
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 

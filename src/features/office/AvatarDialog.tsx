@@ -52,7 +52,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.save();
         ctx.scale(4, 4);
-        drawPerson(ctx, { x: 18, y: 6.5, dir: 0, moving: false, name, avatar: draft, isMe: true }, t, { dark: false });
+        drawPerson(ctx, { x: 0.58, y: 0.95, dir: 0, moving: false, name, avatar: draft, isMe: true }, t, { dark: false });
         ctx.restore();
       }
       raf = requestAnimationFrame(draw);
@@ -63,7 +63,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>Customise your avatar</DialogTitle></DialogHeader>
         <div className="flex gap-5">
           <canvas ref={canvasRef} width={170} height={190} className="shrink-0 rounded-lg bg-muted/40" />
