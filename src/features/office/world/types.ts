@@ -78,6 +78,25 @@ export interface AvatarStyle {
   /** 0 none, 1 stubble, 2 moustache, 3 full beard */
   beard: 0 | 1 | 2 | 3;
   pants: string;
+  // layers of clothing and accessories, each with its own colour (older saved avatars get these filled in)
+  /** 0 none, 1 blazer, 2 denim jacket, 3 bomber, 4 waistcoat */
+  jacket: 0 | 1 | 2 | 3 | 4;
+  jacketColor: string;
+  /** the shirt worn underneath, seen at the collar of a jacket or behind a tie */
+  inner: string;
+  /** 0 none, 1 necktie, 2 bow tie, 3 scarf */
+  tie: 0 | 1 | 2 | 3;
+  tieColor: string;
+  /** 0 sneakers, 1 formal shoes, 2 boots, 3 sandals */
+  shoes: 0 | 1 | 2 | 3;
+  shoeColor: string;
+  /** 0 none, 1 cap, 2 beanie, 3 head wrap, 4 beret */
+  hat: 0 | 1 | 2 | 3 | 4;
+  hatColor: string;
+  /** 0 none, 1 glasses, 2 sunglasses */
+  glasses: 0 | 1 | 2;
+  /** 0 none, 1 headset, 2 earrings */
+  extra: 0 | 1 | 2;
 }
 
 export interface PlayerState {
