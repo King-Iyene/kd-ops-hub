@@ -1,5 +1,4 @@
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ClipboardList, ExternalLink } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { formatDate } from '@/lib/format';
@@ -14,8 +13,6 @@ interface Props {
 }
 
 export default function TasksTab({ tasks }: Props) {
-  const navigate = useNavigate();
-
   return (
     <div className="mt-4">
       <Card>
@@ -33,8 +30,7 @@ export default function TasksTab({ tasks }: Props) {
                   <TableRow className="bg-muted/40">
                     <TableHead className="pl-4">Title</TableHead>
                     <TableHead>Due date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="pr-4 w-10" />
+                    <TableHead className="pr-4">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -55,16 +51,6 @@ export default function TasksTab({ tasks }: Props) {
                           {task.status || 'pending'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="pr-4">
-                        <a
-                          href="/task"
-                          onClick={(e) => { e.preventDefault(); navigate("/task"); }}
-                          className="text-muted-foreground hover:text-foreground"
-                          aria-label="Go to tasks"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -72,7 +58,7 @@ export default function TasksTab({ tasks }: Props) {
             </div>
             <div className="md:hidden space-y-2 p-3">
               {tasks.map((task: any) => (
-                <MobileCard key={task.id} href="/task" onClick={() => navigate("/task")}>
+                <MobileCard key={task.id}>
                   <MobileCardHeader>
                     <MobileCardTitle>{task.title}</MobileCardTitle>
                     <MobileCardMeta className="flex items-center gap-1.5">
@@ -87,7 +73,6 @@ export default function TasksTab({ tasks }: Props) {
                       >
                         {task.status || 'pending'}
                       </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </MobileCardMeta>
                   </MobileCardHeader>
                   <MobileCardRow label="Due date" value={task.due_date ? formatDate(task.due_date) : '—'} />

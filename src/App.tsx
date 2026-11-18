@@ -58,7 +58,6 @@ const Compliance       = lazy(() => import('./pages/Compliance'));
 const Reports          = lazy(() => import('./pages/Reports'));
 const HrAnalytics      = lazy(() => import('./pages/HrAnalytics'));
 const Documents        = lazy(() => import('./pages/Documents'));
-const TaskApp          = lazy(() => import('./pages/TaskApp'));
 const Knowledge        = lazy(() => import('./pages/Knowledge'));
 const Goals            = lazy(() => import('./pages/Goals'));
 const Contacts         = lazy(() => import('./pages/Contacts'));
@@ -619,16 +618,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Task — new module (PRD v1.0, 18 Nov 2026), directly under Time
-            Tracking in the sidebar. Replaces the old Tasks module. */}
-        <Route
-          path="/task/*"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <TaskApp />
-            </RoleGuard>
-          }
-        />
 
         {/* Tables — standalone Airtable-style module, third item after Tasks
             and Goals in the Productivity nav. Deliberately separate from the

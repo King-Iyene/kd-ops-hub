@@ -30,7 +30,6 @@ import {
   CalendarDays,
   ShieldCheck,
   Banknote,
-  ListTodo,
   BookOpen,
   ScrollText,
   Target,
@@ -197,7 +196,6 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Time Settings',    url: '/timetrack/settings', icon: Settings,        roles: ['super_admin', 'admin'] },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin'] },
   // Workspace
-  { title: 'Task',             url: '/task',              icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin'] },
   { title: 'Tables',           url: '/flex-tables',       icon: Table2,          roles: ['super_admin', 'admin'] },
   { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -273,7 +271,6 @@ export const NAV_GROUPS = [
   { key: 'policy',     label: 'Policy & Compliance',  titles: ['Disciplinary', 'Grievances', 'Surveys', 'HR Letters', 'Handbook'] },
   { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
   { key: 'productivity', label: 'Goals & Tables', titles: ['Goals', 'Tables'] },
-  { key: 'taskModule', label: 'Task',          titles: ['Task'] },
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
   { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
@@ -319,15 +316,6 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     // Team, People/Other reports and Settings are left out of the sidebar.
     // Their groups and routes still exist; re-add the keys here to restore.
     groups: ['timeTrackTrack', 'timeTrackReportsTime', 'timeTrackActivityProductivity', 'timeTrackManage'],
-  },
-  {
-    key: 'taskModule',
-    label: 'Task',
-    description: 'Spaces, lists & your work',
-    icon: 'ListTodo',
-    color: 'text-rose-400',
-    iconBg: 'bg-rose-500/15',
-    groups: ['taskModule'],
   },
   {
     key: 'people',
