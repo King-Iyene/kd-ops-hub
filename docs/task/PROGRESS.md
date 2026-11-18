@@ -7,7 +7,7 @@ memory of record; continue from the last phase marked **delivered**.
 |---|---|---|---|---|
 | 0 | Teardown | delivered | yes (`4010e0f` on `main`) | See report below and `TEARDOWN.md` |
 | 1 | Database foundation | delivered | yes (`01b38ba` on `main`, workflow run 44252109096, success) | See report below |
-| 2 | Shell and spaces | not started | | |
+| 2 | Shell and spaces | delivered | yes (`7c7ab10` -> `main`) | See report below |
 | 3 | Lists and tasks, core | not started | | |
 | 4 | Task views and tools | not started | | |
 | 5 | Task panel extras, field engine | not started | | |
@@ -142,3 +142,85 @@ displays times).
 **Next:** Phase 2 — shell and spaces.
 
 Reply `continue` to start Phase 2, or tell me what to fix.
+
+## Phase 2 report
+
+**Phase 2: Shell and spaces, done.**
+
+- Commits: `7c7ab10` (`feat/task-module-rebuild`), merged to `main`.
+- Migration: `20261291000000_task_phase2_shell_and_spaces.sql` (one new
+  function, `tk_set_space_archived` — see Decisions below).
+
+**What was built:** the Task hub in the existing KD Ops sidebar, directly
+below Time Tracking — workspace header ("KD Squares"), the Task/Track
+segmented switch (Track opens the existing `/timetrack`), and the SPACES
+section with its live tree (chevron expand/collapse, coloured badge,
+name). The `+` to create a space (owners and admins only). The create-space
+dialog (name, colour from KD Ops tokens, public/private, an optional
+members picker with Editor/Viewer roles; the creator is added as an editor
+automatically). The space overview page (`/task/s/:spaceId`) with its
+`...` menu: rename, colour, members, statuses and tags (add, rename,
+reorder for statuses, recategorise, delete with the exact "still has
+tasks" refusal), and archive with an eight-second undo toast. The phone
+equivalent in the "More" sheet. Every first-run empty state from section
+7.0 that this phase touches, in the exact given wording. Nothing else is
+reachable yet — no list/table creation, no quick create — per rule 13.
+
+**What you can test now:**
+1. As an admin or owner: open Task from the sidebar (below Time Tracking).
+   `/task` shows "No spaces yet." with "Click + to create your first
+   space."
+2. Click the `+` next to SPACES, create a public space. It opens at its
+   overview, already expanded in the sidebar tree, showing "This space is
+   empty."
+3. Create a second space as Private, adding another person as a Viewer in
+   the create dialog.
+4. As a member who is not in that private space: confirm you cannot see it
+   in the tree, and `/task` (or the public space) does not show a `+` and
+   instead reads "Ask an admin to create one."
+5. Open a space's `...` menu: rename it, change its colour, open Statuses
+   and tags, add a status, try to delete one (none have tasks yet, so this
+   just confirms the control works; the refusal text is covered by the
+   automated test since no tasks exist yet to attach to a status).
+6. Archive a space from the `...` menu — see the toast with an 8-second
+   Undo, and that the space disappears from the sidebar tree immediately.
+   Click Undo and confirm it reappears, OR let the toast expire and reopen
+   the space by its old URL — it still opens, read-only, with an
+   "This space is archived." banner and (if you are an editor or admin)
+   an Unarchive option.
+7. As a plain member on an archived space you don't edit: confirm you see
+   the archived banner but no menu or Unarchive control at all.
+8. Collapse the sidebar to the icon rail and confirm Task's icon still
+   appears and reopens the panel.
+9. On a phone-width screen, open the bottom "More" sheet, expand Task, and
+   repeat the space-creation and navigation steps there.
+
+**Compare with:** S2 (its sidebar area — workspace header, Task/Track
+switch, SPACES section — is the only part of S1 to S6 this phase touches;
+the list content in S2 itself is Phase 3).
+
+**Known gaps:**
+- No live Supabase connection is reachable from this session (the project
+  is paused, same constraint as Phase 0 and 1), so this was not verified
+  against a live, pixel-level screenshot. Verified instead by `tsc`,
+  `eslint`, a full production build, the existing 657-test suite (still
+  green), 5 new component tests for the Task shell, a functional test of
+  the new archive/unarchive function against a local disposable Postgres
+  instance, and a manual structural comparison against S2's sidebar.
+- Tags cannot be reordered (no `position` column on `tk_tags` in the Phase
+  1 schema); statuses can.
+- Task's admin-only controls reflect the account's real role, not KD
+  Ops's super-admin "view as" simulation.
+- `profiles.timezone` still not added — not yet needed.
+
+**Decisions I made:** see `DECISIONS.md`'s new "Phase 2 specifics"
+section — the dedicated `tk_set_space_archived` function (Phase 1's RLS
+would otherwise make unarchiving impossible), building Task's own sidebar
+panel components rather than forcing them into KD Ops's generic hub list,
+the KD-Ops-token colour swatch set, the Task-specific `initials()` helper,
+deferring "+Task" and the "+Add list"/"+Add table" buttons to Phases 3 and
+9, and the tag-reorder gap.
+
+**Next:** Phase 3 — lists and tasks, core.
+
+Reply `continue` to start Phase 3, or tell me what to fix.
