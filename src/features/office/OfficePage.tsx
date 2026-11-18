@@ -200,6 +200,17 @@ export default function OfficePage() {
   // like Gather: on arrival, offer to turn the camera and microphone on (once per visit)
   const [joinPrompt, setJoinPrompt] = useState(() => { try { return !sessionStorage.getItem('kd:office:prompted'); } catch { return true; } });
   const closeJoinPrompt = () => { setJoinPrompt(false); try { sessionStorage.setItem('kd:office:prompted', '1'); } catch { /* fine */ } };
+  // like Gather: if the browser has already decided about the microphone, join the call by ourselves
+  // (allowed: speak and listen; blocked: listen only). Only a first-time visitor sees the question above.
+  const autoJoined = useRef(false);
+  useEffect(() => {
+    if (autoJoined.current || !me) return;
+    autoJoined.current = true;
+    navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((st) => {
+      if (st.state === 'granted' || st.state === 'denied') { closeJoinPrompt(); void calls.join(); }
+    }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me]);
   const joinWith = async (camera: boolean) => {
     closeJoinPrompt();
     await calls.join();
