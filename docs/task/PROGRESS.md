@@ -9,7 +9,7 @@ memory of record; continue from the last phase marked **delivered**.
 | 1 | Database foundation | delivered | yes (`01b38ba` on `main`, workflow run 44252109096, success) | See report below |
 | 2 | Shell and spaces | delivered | yes (`7c7ab10` -> `main`) | See report below |
 | 3 | Lists and tasks, core | delivered | yes (`7b22528` -> `main`) | See report below |
-| 4 | Task views and tools | not started | | |
+| 4 | Task views and tools | delivered | yes (`7f26c3d` -> `main`) | See report below |
 | 5 | Task panel extras, field engine | not started | | |
 | 6 | My Tasks | not started | | |
 | 7 | Home | not started | | Needs S6 screenshot (not yet received) |
