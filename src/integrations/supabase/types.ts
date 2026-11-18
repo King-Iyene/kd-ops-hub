@@ -20905,24 +20905,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      tm_set_record_cell: {
-        Args: { p_field_id: string; p_record_id: string; p_value: Json }
-        Returns: {
-          created_at: string
-          created_by: string | null
-          data: Json
-          id: string
-          position: number
-          table_id: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "tm_table_records"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       task_recurrence_next_date: {
         Args: { p_from: string; p_rule: Json }
         Returns: string
@@ -21092,6 +21074,24 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_set_record_cell: {
+        Args: { p_field_id: string; p_record_id: string; p_value: Json }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          position: number
+          table_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tm_table_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
