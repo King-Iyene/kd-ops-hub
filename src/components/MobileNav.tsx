@@ -38,7 +38,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, ListTodo,
 };
 
 type TabDef = {
