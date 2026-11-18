@@ -18,6 +18,7 @@ import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
 import { allowed } from './OfficeSettingsDialog';
 import { desktopDownload, inDesktopApp } from './desktopApp';
+import { isHeld, useVehicles } from './useVehicles';
 import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
@@ -963,7 +964,38 @@ function OfficeRoom() {
   useEffect(() => { setRiding(riding, rideBike); }, [riding, rideBike, setRiding, connected]);
   // a bike somebody is riding is not parked any more: it leaves its spot and goes with them
   const takenBikes = roster.filter((r) => r.bike && r.spaceId === space?.id).map((r) => r.bike as string).concat(riding && rideBike ? [rideBike] : []).sort().join(',');
-  const parkedItems = useMemo(() => (takenBikes ? items.filter((i) => !takenBikes.split(',').includes(i.id)) : items), [items, takenBikes]);
+  // bikes and go-karts stay where the last rider left them, for everybody, until somebody else takes them
+  const vehicles = useVehicles(space?.id ?? null);
+  const vrows = vehicles.rows;
+  const myId = me?.id ?? '';
+  const parkedItems = useMemo(() => {
+    const away = takenBikes ? takenBikes.split(',') : [];
+    const heldByOthers = Object.values(vrows).filter((v) => isHeld(v) && v.holder_id !== myId).map((v) => v.item_id);
+    return items
+      .filter((i) => !away.includes(i.id) && !heldByOthers.includes(i.id))
+      .map((i) => { const v = i.t === 'bike' ? vrows[i.id] : undefined; return v ? { ...i, x: v.x, y: v.y, r: (v.dir === 1 ? 1 : 0) as 0 | 1 } : i; });
+  }, [items, takenBikes, vrows, myId]);
+  const handleRide = async (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => {
+    if (on && bikeId) {
+      const it = items.find((i) => i.id === bikeId);
+      const v = vrows[bikeId];
+      setRidingState(true); // hop on at once; if somebody was quicker we hop off again
+      setRideBike(bikeId);
+      const res = await vehicles.take(bikeId, v?.x ?? it?.x ?? 0, v?.y ?? it?.y ?? 0);
+      if (res === 'taken') { setRidingState(false); setRideBike(null); toast({ title: 'Somebody just took that one', description: 'Try another, or wait until they leave it.' }); }
+    } else {
+      const id = rideBike;
+      setRidingState(false);
+      setRideBike(null);
+      if (id && pos) void vehicles.drop(id, Math.floor(pos.x), Math.floor(pos.y), pos.dir);
+    }
+  };
+  // while you ride you keep hold of it; if you vanish, it is free again after a few seconds
+  useEffect(() => {
+    if (!riding || !rideBike) return;
+    const id = window.setInterval(() => { void vehicles.keep(rideBike); }, 10000);
+    return () => window.clearInterval(id);
+  }, [riding, rideBike, vehicles.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRidingState(false); setRideBike(null); }, [space?.id, superseded]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
   // the sky is the same for everyone in the office; admins set it in Manage space
@@ -1173,7 +1205,7 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={(on, bikeId) => { setRidingState(on); setRideBike(on ? bikeId ?? null : null); }} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={(on, bikeId, pos) => { void handleRide(on, bikeId, pos); }} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });

@@ -71,7 +71,8 @@ interface Props {
   onWalkTo: (x: number, y: number) => void;
   /** I am on a power bike, and getting on or off */
   riding: boolean;
-  onRide: (on: boolean, bikeId?: string) => void;
+  /** pos is where you are when you get off, so the vehicle stays there */
+  onRide: (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -155,7 +156,7 @@ export function OfficeCanvas(props: Props) {
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 'f' && !propsRef.current.editing) {
-        if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false); return; }
+        if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false, undefined, { x: meRef.current.x, y: meRef.current.y, dir: meRef.current.dir }); return; }
         const near = nearRef.current;
         if (near) { e.preventDefault(); if (near.t === 'bike') propsRef.current.onRide(true, near.id); else propsRef.current.onInteract(near); return; }
       }
@@ -385,7 +386,7 @@ export function OfficeCanvas(props: Props) {
       if (item) {
         if (item.t !== 'bike') { p.onMapClick(tile); return; }
         const m = meRef.current;
-        if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding, item.id); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
+        if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding, item.id, { x: m.x, y: m.y, dir: m.dir }); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
         return;
       }
       const r = canvas.getBoundingClientRect();
