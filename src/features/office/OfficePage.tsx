@@ -287,7 +287,7 @@ function OfficeRoom() {
       if (scope) {
         // an owner saves only their own office
         await actions.saveDecor(space.id, scope.id, draft.filter(inScope), profile?.id);
-        toast({ title: 'Your office is saved' });
+        toast({ title: 'Looking good. Your office is saved.' });
         stopEdit();
         return;
       }
@@ -302,7 +302,7 @@ function OfficeRoom() {
       await actions.saveLayout(space, template, changed ? draft : undefined, overrides, tileDraft);
       // offices decorated by their owners keep following what the owner sees, so keep them in step
       for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
-      toast({ title: 'Office saved' });
+      toast({ title: 'Space saved', description: 'Everyone sees the new look right away.' });
       stopEdit();
     } catch (err) {
       toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' });
@@ -437,7 +437,7 @@ function OfficeRoom() {
     if (now - (lastKnock.current.get(z.id) ?? 0) < 6000) return;
     lastKnock.current.set(z.id, now);
     sendDoor({ k: 'knock', f: connId, n: me.name, r: z.id });
-    toast({ title: `${z.name} is locked`, description: 'We knocked. Wait here until someone lets you in.' });
+    toast({ title: `${z.name} is locked`, description: 'We knocked for you. Hang tight, someone will let you in.' });
   };
 
   const handleDoor = (raw: unknown) => {
@@ -452,7 +452,7 @@ function OfficeRoom() {
     } else if (m.k === 'let') {
       if (m.t !== connId || !senderInside) return;
       admitted.current.add(m.r);
-      toast({ title: 'You can come in', description: 'Someone opened the door. Walk in.' });
+      toast({ title: 'The door is open', description: 'Walk on in.' });
     } else if (m.k === 'unlock') {
       if (!senderInside) return;
       unlockedAt.current.set(m.r, Date.now());
@@ -519,10 +519,10 @@ function OfficeRoom() {
     setDeskBusy(true);
     try {
       await actions.claimDesk(space.id, officeId, uid ?? profile.id, !!uid && isAdmin);
-      toast({ title: uid && uid !== profile.id ? 'Office assigned' : 'Office claimed', description: 'The name and face are on the door now.' });
+      toast({ title: uid && uid !== profile.id ? 'Office assigned' : 'The office is yours', description: uid && uid !== profile.id ? 'Their name and face are on the door now.' : 'Your name and face are on the door now.' });
       setDeskZone(null);
     } catch {
-      toast({ title: 'Could not claim that office', description: 'Someone may have just taken it. Try another.', variant: 'destructive' });
+      toast({ title: 'Could not claim that office', description: 'Someone just beat you to it. Pick another door.', variant: 'destructive' });
     } finally {
       setDeskBusy(false);
     }
@@ -532,7 +532,7 @@ function OfficeRoom() {
     setDeskBusy(true);
     try {
       await actions.unclaimDesk(space.id, officeId);
-      toast({ title: 'Office is free again' });
+      toast({ title: 'Office freed up', description: 'Anyone can claim it now.' });
       setDeskZone(null);
     } catch (err) {
       toast({ title: 'Could not unclaim', description: errorMessage(err), variant: 'destructive' });
@@ -548,7 +548,7 @@ function OfficeRoom() {
     const taken = new Set((claims ?? []).map((c) => c.office_id));
     const free = map.zones.find((z) => z.kind === 'office' && !taken.has(z.id));
     if (free) void claimOffice(free.id);
-    else toast({ title: 'No free office right now', description: 'Every private office is taken.' });
+    else toast({ title: 'No free office right now', description: 'Every office has an owner. An admin can free one up for you.' });
   };
   // Ctrl+D (like Gather's "walk to my desk")
   useEffect(() => {
@@ -570,7 +570,7 @@ function OfficeRoom() {
 
   const ring = (r: { id: string; name: string }) => {
     if (!me) return;
-    if (!canSendTo(lastSent.current, r.id, Date.now(), 'ring')) { toast({ title: `You just rang ${r.name}`, description: 'Give them a moment.' }); return; }
+    if (!canSendTo(lastSent.current, r.id, Date.now(), 'ring')) { toast({ title: `You just rang ${r.name}`, description: 'Give them a moment before ringing again.' }); return; }
     lastSent.current.set(`ring:${r.id}`, Date.now());
     sendPing({ k: 'ring', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     toast({ title: `Rang ${r.name}` });
@@ -603,7 +603,7 @@ function OfficeRoom() {
       // only the owner, standing in their own office, hears a knock
       if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
       toast({
-        title: `${m.n} is knocking`, description: 'At your office door.',
+        title: `${m.n} is at your door`, description: 'Let them in?',
         action: <ToastAction altText="Let in" onClick={() => me && sendPing({ k: 'let', f: connId, n: me.name, t: m.f, s: space.id })}>Let in</ToastAction>,
       });
       return;
@@ -619,8 +619,8 @@ function OfficeRoom() {
     if (m.k === 'ring') {
       playChime();
       toast({
-        title: `${m.n} is ringing you`, description: 'They would like to talk.',
-        action: <ToastAction altText="Go to them" onClick={() => goToPerson(m.f, m.s)}>Go to them</ToastAction>,
+        title: `${m.n} wants a word`, description: 'Walk over and say hi.',
+        action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
       });
       return;
     }
@@ -659,7 +659,7 @@ function OfficeRoom() {
         lastSent.current.set(`ring:k${target.id}`, Date.now());
         sendPing({ k: 'knock', f: connId, n: me.name, t: rosterRef.current.find((r) => r.uid === target.owner_id && r.spaceId === target.id)?.id ?? (target.owner_id as string), s: target.id });
       }
-      toast({ title: `${target.name} is locked`, description: 'We knocked. You will be taken in when they let you.' });
+      toast({ title: `${target.name} is locked`, description: 'We knocked for you. You will be let in the moment they open the door.' });
       return;
     }
     setSpaceIdRaw(id);
@@ -729,7 +729,7 @@ function OfficeRoom() {
     const url = spaceLink(extra);
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: 'Link copied', description: what });
+      toast({ title: 'Link copied', description: what + ' Paste it anywhere.' });
     } catch {
       toast({ title: 'Copy this link', description: url });
     }
@@ -1132,7 +1132,7 @@ function OfficeRoom() {
           item('walk', <Footprints className={ic} />, 'Walk to this office', () => walkToOffice(office.id));
           if (!claim && !myClaim) item('claim', <Building2 className={ic} />, 'Claim this office', () => void claimOffice(office.id));
           if (!claim && myClaim) item('claimno', <Building2 className={ic} />, 'You already have an office', () => walkToOffice());
-          if (mine) item('unclaim', <Minus className={ic} />, 'Unclaim my office', () => void unclaimOffice(office.id), true);
+          if (mine) item('unclaim', <Minus className={ic} />, 'Give up my office', () => void unclaimOffice(office.id), true);
           if (mine && !editing) item('cust', <Pencil className={ic} />, 'Customise this office', () => startEdit(office));
           item('olink', <LinkIcon className={ic} />, 'Copy link to this office', () => void copyLink(`&room=${office.id}`, 'It opens the office at this door.'));
           if (isAdmin) {
@@ -1199,8 +1199,8 @@ export default function OfficePage() {
     return (
       <div className="mx-auto mt-24 max-w-md rounded-xl border bg-card p-6 text-center">
         <Building2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-        <h2 className="text-lg font-semibold">The Virtual Office is invite-only</h2>
-        <p className="mt-1 text-sm text-muted-foreground">It is open to KDS administration and directors. Ask an admin to invite you and it will open here.</p>
+        <h2 className="text-lg font-semibold">This office is invite-only</h2>
+        <p className="mt-1 text-sm text-muted-foreground">KDS administration and directors work here. Ask an admin to invite you and the door opens.</p>
       </div>
     );
   }

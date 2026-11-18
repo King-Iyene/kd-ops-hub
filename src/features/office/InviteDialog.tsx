@@ -22,7 +22,7 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
       await fn();
       toast({ title: ok });
     } catch {
-      toast({ title: 'Could not do that', description: 'Only admins can change who is in the office.', variant: 'destructive' });
+      toast({ title: 'That did not go through', description: 'Only admins can change who is in the office.', variant: 'destructive' });
     } finally {
       setBusy(null);
     }
@@ -31,7 +31,7 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(link);
-      toast({ title: 'Link copied', description: 'It opens the office right here. People need a KD Ops account that is in the office.' });
+      toast({ title: 'Link copied', description: 'It opens the office right here for anyone who is in. Not in yet? Invite them below.' });
     } catch {
       toast({ title: 'Copy this link', description: link });
     }
@@ -41,9 +41,9 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite to the office</DialogTitle>
+          <DialogTitle>Invite someone in</DialogTitle>
           <DialogDescription>
-            Everyone in KDS Administrative and KDS Directors is in the office already. Invite anyone else here.
+            KDS admin and directors are already in. Add anyone else below, or share a link to this spot.
           </DialogDescription>
         </DialogHeader>
 
@@ -59,11 +59,11 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an employee" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
             </div>
             <div className="max-h-56 space-y-0.5 overflow-y-auto">
-              {shown.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">No one to invite.</p>}
+              {shown.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">Everyone you can invite is already in. Nice.</p>}
               {shown.map((p) => (
                 <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted">
                   <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => void run(p.id, () => actions.invite(p.id, meId), `${p.name} can enter the office now`)}>
+                  <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => void run(p.id, () => actions.invite(p.id, meId), `${p.name} is in. Say hi when they arrive.`)}>
                     <UserPlus className="mr-1.5 h-3.5 w-3.5" />Invite
                   </Button>
                 </div>
@@ -88,7 +88,7 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
         ) : (
           <p className="text-xs text-muted-foreground">Only admins can invite people.</p>
         )}
-        <p className="text-xs text-muted-foreground">Guests without a KD Ops account are not supported yet.</p>
+        <p className="text-xs text-muted-foreground">Guests without a KD Ops account cannot join yet.</p>
       </DialogContent>
     </Dialog>
   );
