@@ -6,7 +6,7 @@ import { advance } from './world';
  * each one is doing is on your screen only.) Pure logic, so it is unit tested.
  */
 export type PetKind = 'dog' | 'cat';
-export type PetMode = 'wander' | 'follow' | 'fetch' | 'return';
+export type PetMode = 'wander' | 'follow' | 'fetch' | 'return' | 'play';
 
 const DOG_NAMES = ['Suya', 'Biscuit', 'Ranger', 'Jollof'];
 const CAT_NAMES = ['Zobo', 'Mimi', 'Shadow', 'Pepper'];
@@ -47,6 +47,11 @@ export interface PetState {
   /** shows hearts until this time (ms) */
   happyUntil: number;
   stuck: number;
+  /** the pet it is playing with, and when the game ends (ms) */
+  partner: string | null;
+  playUntil: number;
+  /** when it last made a little puff or sound while playing (ms) */
+  fxAt: number;
 }
 
 export type PetCmd =
@@ -60,7 +65,7 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0 };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0 };
 }
 
 // a pet can outrun its owner (4.5 tiles a second) so it never lags behind
@@ -120,8 +125,67 @@ export function heelPoint(p: PetState, me: { x: number; y: number; dir?: 0 | 1 |
   return { x: me.x - fx * 1.1 + -fy * side * 0.8, y: me.y - fy * 1.1 + fx * side * 0.8 };
 }
 
-export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }, solid: boolean[][], rand: () => number): void {
+/** How long a game of chase lasts. */
+export const PLAY_MS = 7000;
+
+/**
+ * A dog and a cat that are idle close to each other now and then start a game of chase: the dog chases the cat, then
+ * they swap and the cat chases the dog, then they settle down again. (dt is the seconds since the last call.)
+ */
+export function playTick(pets: Iterable<PetState>, now: number, dt: number, rand: () => number): void {
+  const list = [...pets].filter((p) => p.mode === 'wander' && !p.moving && p.wait > 0.4);
+  const dogs = list.filter((p) => p.kind === 'dog');
+  const cats = list.filter((p) => p.kind === 'cat');
+  for (const d of dogs) {
+    if (d.mode !== 'wander') continue;
+    for (const c of cats) {
+      if (c.mode !== 'wander') continue;
+      if (Math.hypot(d.x - c.x, d.y - c.y) > 3.4) continue;
+      if (rand() > 0.05 * dt) continue; // about one game in twenty seconds when they are together
+      d.mode = 'play'; c.mode = 'play';
+      d.partner = c.id; c.partner = d.id;
+      d.playUntil = c.playUntil = now + PLAY_MS;
+      d.stuck = c.stuck = 0;
+      break;
+    }
+  }
+}
+
+function endPlay(p: PetState, now: number): void {
+  p.mode = 'wander';
+  p.partner = null;
+  p.hx = p.x;
+  p.hy = p.y;
+  p.tx = p.x;
+  p.ty = p.y;
+  p.wait = 2 + (now % 3);
+  p.moving = false;
+  p.v = 0;
+  p.stuck = 0;
+}
+
+export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }, solid: boolean[][], rand: () => number, others?: Map<string, PetState>): void {
   const sp = SPEED[p.kind];
+  if (p.mode === 'play') {
+    const q = p.partner ? others?.get(p.partner) : undefined;
+    // the game ends on time, or if the other one has gone off to do something else (or been called away)
+    if (!q || q.mode !== 'play' || q.partner !== p.id || now >= p.playUntil) { endPlay(p, now); return; }
+    const left = p.playUntil - now;
+    // the dog chases first, then they swap
+    const chasing = p.kind === 'dog' ? left > PLAY_MS / 2 : left <= PLAY_MS / 2;
+    if (chasing) {
+      walkTo(p, solid, q.x, q.y, sp.run * 0.88, dt, 0.7);
+    } else {
+      const dx = p.x - q.x, dy = p.y - q.y;
+      const d = Math.max(0.01, Math.hypot(dx, dy));
+      let tx = p.x + (dx / d) * 3, ty = p.y + (dy / d) * 3;
+      // cornered: dodge sideways instead
+      if (!free(solid, tx, ty) || p.stuck > 0.25) { tx = p.x - (dy / d) * 3; ty = p.y + (dx / d) * 3; p.stuck = 0; }
+      if (!free(solid, tx, ty)) { tx = p.hx; ty = p.hy; }
+      walkTo(p, solid, tx, ty, sp.run * 0.92, dt, 0.2);
+    }
+    return;
+  }
   if (p.mode === 'follow') {
     const d = Math.hypot(me.x - p.x, me.y - p.y);
     if (d > 30) { p.x = me.x; p.y = me.y + 1; p.v = 0; return; }
