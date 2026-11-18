@@ -36,6 +36,7 @@ import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
 import { useOfficeFont } from './ui';
+import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './notify';
 import { useQuery } from '@tanstack/react-query';
 import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -69,8 +70,15 @@ function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) 
   );
 }
 
+/** Focusing or in a meeting: rings and waves arrive without a sound. */
+function quietNow(): boolean {
+  try { const s = localStorage.getItem('kd:office:status'); return s === 'focus' || s === 'meeting'; } catch { return false; }
+}
+
 function OfficeRoom() {
   useOfficeFont();
+  useMissedReset();
+  const notify = useNotifySetting();
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
@@ -633,6 +641,7 @@ function OfficeRoom() {
     if (m.k === 'knock') {
       // only the owner, standing in their own office, hears a knock
       if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
+      notifyPing(`${m.n} is at your door`, 'Let them in?', undefined, 'knock:' + m.f);
       toast({
         title: `${m.n} is at your door`, description: 'Let them in?',
         action: <ToastAction altText="Let in" onClick={() => me && sendPing({ k: 'let', f: connId, n: me.name, t: m.f, s: space.id })}>Let in</ToastAction>,
@@ -648,7 +657,7 @@ function OfficeRoom() {
       return;
     }
     if (m.k === 'wave') {
-      playChime(0.08);
+      if (!quietNow()) { playChime(0.08); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
       toast({
         title: `${m.n} is waving at you 👋`, description: 'Want to go and say hi?',
         action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
@@ -656,7 +665,7 @@ function OfficeRoom() {
       return;
     }
     if (m.k === 'ring') {
-      playChime();
+      if (!quietNow()) { playChime(); notifyPing(`${m.n} wants a word`, 'Walk over and say hi.', () => goToPerson(m.f, m.s), 'ring:' + m.f); }
       toast({
         title: `${m.n} wants a word`, description: 'Walk over and say hi.',
         action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
@@ -669,6 +678,7 @@ function OfficeRoom() {
       imgUrl = s.data?.signedUrl;
     }
     setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: m.f, mine: false, text: m.text, imgUrl, at: Date.now() }]);
+    notifyPing(m.n, m.text || 'Sent a picture', () => setChatWith({ id: m.f, name: m.n }), 'dm:' + m.f);
     if (chatWithRef.current?.id !== m.f) {
       toast({
         title: m.n, description: m.text || 'Sent a picture',
@@ -1114,6 +1124,7 @@ function OfficeRoom() {
           )}
           {!editing && (
             <CallDock
+              devices={{ mics: calls.devices.mics, cams: calls.devices.cams, speakers: calls.devices.speakers, pick: calls.pick, noise: calls.noise, dataSaver: calls.dataSaver, onDataSaver: calls.setDataSaver, onMic: (id) => void calls.selectMic(id), onCam: (id) => void calls.selectCam(id), onSpeaker: calls.selectSpeaker, onNoise: calls.setNoise, onOpen: () => void calls.refreshDevices() }}
               joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} onEmote={sendEmote} tiles={calls.tiles}
               roomName={zone && isRoom(zone) ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()}
@@ -1121,7 +1132,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} notify={{ on: notify.on, denied: notify.denied, supported: notify.supported, toggle: () => void notify.toggle(), desktop: isDesktopApp() }} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}

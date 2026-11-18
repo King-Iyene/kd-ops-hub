@@ -2,6 +2,7 @@ import { Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, 
 import { useEffect, useRef, useState } from 'react';
 import type { Tile } from './useCalls';
 import { EmojiPicker } from '../EmojiPicker';
+import { DeviceMenu } from './DeviceMenu';
 import { useEmoteBar } from '../emoji';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   sharing: boolean;
   onShare: () => void;
   onMeeting: () => void;
+  /** microphone, speaker and camera choices */
+  devices: React.ComponentProps<typeof DeviceMenu>;
   /** send an emoji reaction */
   onEmote: (e: string) => void;
   /** ids of people talking now ('' is me), and my name, for the video tray */
@@ -88,7 +91,7 @@ function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: bool
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, onEmote, tiles, roomName, onJoin, onLeave, onMic, onCam,
+  joined, busy, error, micOn, camOn, sharing, devices, onShare, onMeeting, onEmote, tiles, roomName, onJoin, onLeave, onMic, onCam,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
@@ -173,6 +176,7 @@ export function CallDock({
                   : <Btn label="Record this meeting (everyone in the room is told)" onClick={onRecord}><Circle className="h-3.5 w-3.5 fill-red-500 text-red-500" /></Btn>
               )}
               <span className="mx-0.5 h-5 w-px bg-border" />
+              <DeviceMenu {...devices} />
               <Btn label="Leave voice" onClick={onLeave}><LogOut className="h-4 w-4" /></Btn>
             </>
           )}

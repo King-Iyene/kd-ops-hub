@@ -86,6 +86,43 @@ export function useCalls(opts: Opts) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [micOn, setMicOn] = useState(true);
+  // which microphone, camera and speaker, and whether background noise is cut (remembered on this device)
+  const [devices, setDevices] = useState<{ mics: MediaDeviceInfo[]; cams: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] }>({ mics: [], cams: [], speakers: [] });
+  const [pick, setPick] = useState<{ mic: string; cam: string; speaker: string }>(() => {
+    try { const v = JSON.parse(localStorage.getItem('kd:office:devices') ?? '{}') as Record<string, unknown>; return { mic: typeof v.mic === 'string' ? v.mic : '', cam: typeof v.cam === 'string' ? v.cam : '', speaker: typeof v.speaker === 'string' ? v.speaker : '' }; } catch { return { mic: '', cam: '', speaker: '' }; }
+  });
+  const [noise, setNoiseState] = useState(() => { try { return localStorage.getItem('kd:office:noise') !== '0'; } catch { return true; } });
+  const [dataSaver, setDataSaverState] = useState(() => { try { return localStorage.getItem('kd:office:datasaver') === '1'; } catch { return false; } });
+  const saverRef = useRef(dataSaver);
+  saverRef.current = dataSaver;
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
+  const noiseRef = useRef(noise);
+  noiseRef.current = noise;
+  /** the camera picture: small and slow when saving data */
+  const videoSize = () => (saverRef.current ? { width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { ideal: 12, max: 15 } } : { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } });
+  /** cap how much the camera sends (bits per second) */
+  const capVideo = async (sender: RTCRtpSender | null) => {
+    if (!sender) return;
+    try {
+      const p = sender.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = saverRef.current ? 150_000 : 900_000;
+      await sender.setParameters(p);
+    } catch { /* the browser keeps its own limit */ }
+  };
+  const micConstraints = () => ({ ...(pickRef.current.mic ? { deviceId: { exact: pickRef.current.mic } } : {}), echoCancellation: true, noiseSuppression: noiseRef.current, autoGainControl: true });
+  const refreshDevices = useCallback(async () => {
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      setDevices({ mics: list.filter((d) => d.kind === 'audioinput'), cams: list.filter((d) => d.kind === 'videoinput'), speakers: list.filter((d) => d.kind === 'audiooutput') });
+    } catch { /* no devices to list */ }
+  }, []);
+  useEffect(() => {
+    void refreshDevices();
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshDevices);
+    return () => navigator.mediaDevices?.removeEventListener?.('devicechange', refreshDevices);
+  }, [refreshDevices]);
   const [camOn, setCamOn] = useState(false);
   const [selfCam, setSelfCam] = useState<MediaStream | null>(null);
   const [mutedPeers, setMutedPeers] = useState<Set<string>>(new Set());
@@ -126,6 +163,7 @@ export function useCalls(opts: Opts) {
     const audio = new Audio();
     audio.autoplay = true;
     audio.srcObject = stream;
+    if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
     const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, pending: [] };
     conns.current.set(id, c);
 
@@ -170,7 +208,7 @@ export function useCalls(opts: Opts) {
     const l = local.current;
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
     else pc.addTransceiver('audio', { direction: 'recvonly' }); // listening only: still receive their voice
-    if (l.stream && l.video) c.videoSender = pc.addTrack(l.video, l.stream);
+    if (l.stream && l.video) { c.videoSender = pc.addTrack(l.video, l.stream); void capVideo(c.videoSender); }
     if (l.screen) c.screenSender = pc.addTrack(l.screen.track, l.screen.stream);
     bump();
     return c;
@@ -266,7 +304,7 @@ export function useCalls(opts: Opts) {
       await loadRelay();
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
       } catch (e) {
         // no microphone (blocked or missing): join listening only, and say why
         stream = new MediaStream();
@@ -306,7 +344,7 @@ export function useCalls(opts: Opts) {
     if (!l.stream) return;
     if (!l.audio) {
       try {
-        const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
         const track = mic.getAudioTracks()[0];
         if (!track) return;
         l.stream.addTrack(track);
@@ -339,12 +377,12 @@ export function useCalls(opts: Opts) {
       return;
     }
     try {
-      const cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } } });
+      const cam = await navigator.mediaDevices.getUserMedia({ video: { ...(pickRef.current.cam ? { deviceId: { exact: pickRef.current.cam } } : {}), ...videoSize() } });
       const track = cam.getVideoTracks()[0];
       if (!track || !l.stream) return;
       l.stream.addTrack(track);
       l.video = track;
-      for (const c of conns.current.values()) c.videoSender = c.pc.addTrack(track, l.stream);
+      for (const c of conns.current.values()) { c.videoSender = c.pc.addTrack(track, l.stream); void capVideo(c.videoSender); }
       setCamOn(true);
       setSelfCam(new MediaStream([track]));
       try { localStorage.setItem('kd:office:cam', '1'); } catch { /* fine */ }
@@ -352,6 +390,82 @@ export function useCalls(opts: Opts) {
     } catch {
       setError('Could not start the camera. Click the padlock left of the web address, set Camera to Allow, and try again.');
     }
+  }, []);
+
+  const savePick = (next: { mic: string; cam: string; speaker: string }) => {
+    setPick(next);
+    try { localStorage.setItem('kd:office:devices', JSON.stringify(next)); } catch { /* fine */ }
+  };
+
+  /** switch microphone: a live one is swapped in place, so nobody in the call hears a gap */
+  const selectMic = useCallback(async (id: string) => {
+    savePick({ ...pickRef.current, mic: id });
+    pickRef.current = { ...pickRef.current, mic: id };
+    const l = local.current;
+    if (!l.stream || !l.audio) return;
+    try {
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
+      const track = mic.getAudioTracks()[0];
+      if (!track) return;
+      const old = l.audio;
+      track.enabled = old.enabled;
+      for (const c of conns.current.values()) {
+        const sender = c.pc.getSenders().find((x) => x.track && x.track.id === old.id);
+        if (sender) await sender.replaceTrack(track);
+      }
+      l.stream.removeTrack(old);
+      old.stop();
+      l.stream.addTrack(track);
+      l.audio = track;
+      setError(null);
+    } catch {
+      setError('Could not switch to that microphone.');
+    }
+  }, []);
+
+  const selectCam = useCallback(async (id: string) => {
+    savePick({ ...pickRef.current, cam: id });
+    pickRef.current = { ...pickRef.current, cam: id };
+    const l = local.current;
+    if (!l.stream || !l.video) return;
+    try {
+      const cam = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id }, ...videoSize() } });
+      const track = cam.getVideoTracks()[0];
+      if (!track) return;
+      const old = l.video;
+      for (const c of conns.current.values()) if (c.videoSender) await c.videoSender.replaceTrack(track);
+      l.stream.removeTrack(old);
+      old.stop();
+      l.stream.addTrack(track);
+      l.video = track;
+      setSelfCam(new MediaStream([track]));
+      setError(null);
+    } catch {
+      setError('Could not switch to that camera.');
+    }
+  }, []);
+
+  const selectSpeaker = useCallback((id: string) => {
+    savePick({ ...pickRef.current, speaker: id });
+    pickRef.current = { ...pickRef.current, speaker: id };
+    for (const c of conns.current.values()) void (c.audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(id).catch(() => undefined);
+  }, []);
+
+  /** data saver on or off: takes effect on the live camera straight away */
+  const setDataSaver = useCallback((on: boolean) => {
+    setDataSaverState(on);
+    saverRef.current = on;
+    try { localStorage.setItem('kd:office:datasaver', on ? '1' : '0'); } catch { /* fine */ }
+    void local.current.video?.applyConstraints(videoSize()).catch(() => undefined);
+    for (const c of conns.current.values()) void capVideo(c.videoSender);
+  }, []);
+
+  /** cut background noise from my microphone (on or off) */
+  const setNoise = useCallback((on: boolean) => {
+    setNoiseState(on);
+    noiseRef.current = on;
+    try { localStorage.setItem('kd:office:noise', on ? '1' : '0'); } catch { /* fine */ }
+    void local.current.audio?.applyConstraints({ noiseSuppression: on, echoCancellation: true, autoGainControl: true }).catch(() => undefined);
   }, []);
 
   const stopShare = useCallback(() => {
@@ -490,5 +604,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, sharing, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams, devices, pick, noise, dataSaver, setDataSaver, selectMic, selectCam, selectSpeaker, setNoise, refreshDevices };
 }

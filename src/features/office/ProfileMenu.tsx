@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { STATUSES, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
@@ -22,6 +22,8 @@ interface Props {
   onToggleSound: () => void;
   volume: number;
   onVolume: (v: number) => void;
+  /** system notifications for rings, waves and messages */
+  notify: { on: boolean; denied: boolean; supported: boolean; toggle: () => void; desktop: boolean };
   /** the weather where I am (my own choice of city, only for me) */
   myWeather: Weather | null;
   myPlace: string;
@@ -146,6 +148,21 @@ export function ProfileMenu(p: Props) {
                 <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} disabled={!p.sound} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="mt-2.5 h-1 w-full cursor-pointer accent-primary disabled:opacity-40" />
                 <p className="mt-1.5 text-[11.5px] text-muted-foreground">Water, fire, piano, pets, footsteps, rain and wind. Only for you.</p>
               </div>
+              {p.notify.supported && (
+                <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-[13px] font-semibold"><Bell className="h-4 w-4" />Notifications</span>
+                      <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-foreground">
+                        {p.notify.denied ? 'Blocked in your browser. Allow notifications for this site, then turn this on.' : p.notify.desktop ? 'Rings, waves and messages pop up on your desktop.' : 'Get a pop-up when someone rings, waves or messages you while this window is behind others.'}
+                      </span>
+                    </span>
+                    <button type="button" role="switch" aria-checked={p.notify.on} onClick={p.notify.toggle} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${p.notify.on ? 'bg-primary' : 'bg-white/15'}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.notify.on ? 'left-[1.15rem]' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('avatar', <Palette className="h-4 w-4" />, 'Avatar', 'Hair, clothes, accessories', p.onAvatar)}
                 {p.myOffice
