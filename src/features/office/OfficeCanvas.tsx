@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
 import { INTERACTIVE, ITEM_DEFS, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
-import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
+import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainLevel, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
+import { applyPetCmd, initPet, petBus, petRegistry, stepPet, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
 export type { EditTool };
@@ -106,6 +107,7 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const nearRef = useRef<Item | null>(null);
+  const petFx = useRef<{ x: number; y: number; born: number; e: string }[]>([]);
   const lastBolt = useRef(-1);
   const firstEnter = useRef(true);
   const lastSaved = useRef(0);
@@ -242,10 +244,27 @@ export function OfficeCanvas(props: Props) {
       drag.py = pan.current.y;
       if (painting()) { const t = toTile(e); lastPaint = `${t.x},${t.y}`; propsRef.current.onTile(t); }
     };
+    const petAt = (e: MouseEvent): PetState | null => {
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const wx = (e.clientX - r.left - ox) / (TILE * scale);
+      const wy = (e.clientY - r.top - oy) / (TILE * scale);
+      let best: PetState | null = null;
+      let bd = 0.75;
+      for (const pet of petRegistry.values()) {
+        const d = Math.hypot(wx - pet.x, wy - (pet.y - 0.3));
+        if (d < bd) { best = pet; bd = d; }
+      }
+      return best;
+    };
     const up = (e: MouseEvent) => {
       if (!drag.down) return;
       drag.down = false;
       if (drag.moved || painting()) return;
+      if (!propsRef.current.editing) {
+        const pet = petAt(e);
+        if (pet) { petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+      }
       if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
       else propsRef.current.onMapClick(toTile(e));
     };
@@ -277,7 +296,8 @@ export function OfficeCanvas(props: Props) {
       const m = meRef.current;
       consider(p.me.id, true, m.x, m.y);
       const hit = best as { id: string; isMe: boolean } | null;
-      p.onContext({ cx: e.clientX, cy: e.clientY, wx, wy, personId: hit ? hit.id : null, isMe: !!hit && hit.isMe });
+      const pet = petAt(e);
+      p.onContext({ cx: e.clientX, cy: e.clientY, wx, wy, personId: pet ? 'pet:' + pet.id : hit ? hit.id : null, isMe: !pet && !!hit && hit.isMe });
     };
     const leave = () => { hover.current = null; drag.down = false; if (hoverId.current) { hoverId.current = null; propsRef.current.onHoverPerson(null); } };
     canvas.addEventListener('mousemove', move);
@@ -427,6 +447,29 @@ export function OfficeCanvas(props: Props) {
       cam.current = { ox, oy, scale };
 
       // draw
+      // the office pets: each one wanders, follows, fetches and reacts to you
+      {
+        const living = new Set<string>();
+        for (const it of p.items) {
+          if (it.t !== 'dog' && it.t !== 'cat') continue;
+          living.add(it.id);
+          if (!petRegistry.has(it.id)) petRegistry.set(it.id, initPet(it.id, it.t, it.x, it.y));
+        }
+        for (const id of [...petRegistry.keys()]) if (!living.has(id)) { petRegistry.delete(id); officePets.delete(id); }
+        for (const cmd of petBus.queue.splice(0)) {
+          const pet = petRegistry.get(cmd.id);
+          if (!pet) continue;
+          const res = applyPetCmd(pet, cmd, now, { x: me.x, y: me.y, dir: me.dir }, solid);
+          if (res.hearts) petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: cmd.kind === 'treat' ? '🦴' : '❤️' });
+          if (res.sound) ambient.pet(pet.kind, res.sound);
+        }
+        for (const pet of petRegistry.values()) {
+          const was = pet.happyUntil;
+          stepPet(pet, dt, now, { x: me.x, y: me.y }, solid, Math.random);
+          if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
+          officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now : true });
+        }
+      }
       const theme = { dark: p.dark };
       ctx.fillStyle = p.dark ? '#0b1020' : '#cbd5e1';
       ctx.fillRect(0, 0, w, h);
@@ -488,6 +531,18 @@ export function OfficeCanvas(props: Props) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(em.e, sp.x * TILE + Math.sin(age * 9) * 3, sp.y * TILE - 56 - age * 34);
+        ctx.restore();
+      }
+
+      for (const pet of petRegistry.values() as Iterable<PetState>) if (pet.ball) drawBall(ctx, pet.ball, now);
+      petFx.current = petFx.current.filter((f) => now - f.born < 1500);
+      for (const f of petFx.current) {
+        const age = (now - f.born) / 1500;
+        ctx.save();
+        ctx.globalAlpha = 1 - age;
+        ctx.font = '18px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(f.e, f.x * TILE + Math.sin(age * 8) * 4, f.y * TILE - age * 34);
         ctx.restore();
       }
 

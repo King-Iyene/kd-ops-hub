@@ -164,6 +164,86 @@ class Ambient {
     this.windGain = wg;
   }
 
+  /** a bark, a meow, or a happy purr or yip */
+  pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy') {
+    if (!this.enabled) return;
+    const c = this.ensure();
+    if (!c || !this.master || !this.noise || c.state !== 'running') return;
+    const out = this.master;
+    const now = c.currentTime;
+    const env = (g: GainNode, at: number, peak: number, len: number) => {
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(peak, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    };
+    if (kind === 'dog') {
+      const barks = sound === 'happy' ? 3 : 2;
+      for (let i = 0; i < barks; i++) {
+        const t = now + i * (sound === 'happy' ? 0.13 : 0.2);
+        const o = c.createOscillator();
+        o.type = 'sawtooth';
+        const hi = sound === 'happy' ? 1.6 : 1;
+        o.frequency.setValueAtTime(260 * hi, t);
+        o.frequency.exponentialRampToValueAtTime(130 * hi, t + 0.11);
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1300;
+        const g = c.createGain();
+        env(g, t, 0.22, 0.14);
+        o.connect(lp);
+        lp.connect(g);
+        g.connect(out);
+        o.start(t);
+        o.stop(t + 0.18);
+      }
+      return;
+    }
+    if (sound === 'happy') {
+      // a purr: low noise wobbling about 25 times a second
+      const n = c.createBufferSource();
+      n.buffer = this.noise;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 160;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.5, now + 0.2);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+      const lfo = c.createOscillator();
+      lfo.frequency.value = 25;
+      const depth = c.createGain();
+      depth.gain.value = 0.25;
+      lfo.connect(depth);
+      depth.connect(g.gain);
+      n.connect(lp);
+      lp.connect(g);
+      g.connect(out);
+      n.start(now, 0, 1.7);
+      lfo.start(now);
+      lfo.stop(now + 1.7);
+      return;
+    }
+    const o = c.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(620, now);
+    o.frequency.linearRampToValueAtTime(980, now + 0.18);
+    o.frequency.linearRampToValueAtTime(540, now + 0.5);
+    const vib = c.createOscillator();
+    vib.frequency.value = 7;
+    const vd = c.createGain();
+    vd.gain.value = 18;
+    vib.connect(vd);
+    vd.connect(o.frequency);
+    const g = c.createGain();
+    env(g, now, 0.2, 0.55);
+    o.connect(g);
+    g.connect(out);
+    o.start(now);
+    vib.start(now);
+    o.stop(now + 0.6);
+    vib.stop(now + 0.6);
+  }
+
   // ---- building blocks --------------------------------------------------------
 
   private ensure(): AudioContext | null {

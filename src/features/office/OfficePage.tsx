@@ -29,6 +29,7 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable } from './ManageDialog';
+import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
@@ -1184,7 +1185,8 @@ function OfficeRoom() {
       {ctx && (() => {
         const mi = 'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted';
         const done = (fn: () => void) => () => { setCtx(null); fn(); };
-        const person = ctx.personId && !ctx.isMe ? roster.find((r) => r.id === ctx.personId) ?? null : null;
+        const pet = ctx.personId?.startsWith('pet:') ? petRegistry.get(ctx.personId.slice(4)) ?? null : null;
+        const person = ctx.personId && !ctx.isMe && !pet ? roster.find((r) => r.id === ctx.personId) ?? null : null;
         const zone = zoneAt(map, ctx.wx, ctx.wy);
         const office = zone && zone.kind === 'office' ? zone : null;
         const claim = office ? (claims ?? []).find((c) => c.office_id === office.id) ?? null : null;
@@ -1201,7 +1203,14 @@ function OfficeRoom() {
         const ic = 'h-4 w-4';
         let title = 'Here';
         const label = (key: string, text: string) => rows.push(<div key={key} className="truncate px-2.5 pb-0.5 pt-1 text-xs font-medium text-muted-foreground">{text}</div>);
-        if (person) {
+        if (pet) {
+          const pn = petName(pet.id, pet.kind);
+          title = pn + ' the ' + pet.kind;
+          item('pp', <Hand className={ic} />, 'Pet ' + pn, () => petBus.queue.push({ kind: 'pet', id: pet.id }));
+          item('pf', <Footprints className={ic} />, pet.mode === 'follow' ? 'Stay here' : 'Follow me', () => petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }));
+          if (pet.kind === 'dog') item('pb', <LocateFixed className={ic} />, 'Throw a ball', () => petBus.queue.push({ kind: 'ball', id: pet.id }));
+          item('pt', <Users className={ic} />, pet.kind === 'dog' ? 'Give a treat' : 'Give a treat', () => petBus.queue.push({ kind: 'treat', id: pet.id }));
+        } else if (person) {
           title = person.name;
           const tl = calls.tiles.find((t) => t.id === person.id && !t.screen);
           item('go', <LocateFixed className={ic} />, 'Go to ' + person.name, () => goToPerson(person.id, person.spaceId));

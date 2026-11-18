@@ -386,3 +386,41 @@ describe('desk seats', () => {
     expect(m.zones.find((z) => z.id === 'pod-1')?.kind).toBe('area');
   });
 });
+
+describe('pets', () => {
+  const open = Array.from({ length: 20 }, () => Array<boolean>(20).fill(false));
+  it('come when called, and stop following when told to stay', async () => {
+    const { initPet, stepPet, applyPetCmd } = await import('../world/pets');
+    const pet = initPet('p1', 'dog', 2, 2);
+    applyPetCmd(pet, { kind: 'call', id: 'p1' }, 0, { x: 15, y: 15, dir: 0 }, open);
+    expect(pet.mode).toBe('follow');
+    for (let i = 0; i < 400; i++) stepPet(pet, 0.05, i * 50, { x: 15, y: 15 }, open, () => 0.5);
+    expect(Math.hypot(pet.x - 15, pet.y - 15)).toBeLessThan(2.2);
+    applyPetCmd(pet, { kind: 'stay', id: 'p1' }, 0, { x: 15, y: 15, dir: 0 }, open);
+    expect(pet.mode).toBe('wander');
+  });
+  it('fetches a thrown ball and brings it back', async () => {
+    const { initPet, stepPet, applyPetCmd } = await import('../world/pets');
+    const pet = initPet('p2', 'dog', 10, 10);
+    const me = { x: 10.5, y: 10.5, dir: 2 as const };
+    applyPetCmd(pet, { kind: 'ball', id: 'p2' }, 0, me, open);
+    expect(pet.mode).toBe('fetch');
+    expect(pet.ball?.x).toBeGreaterThan(10.5);
+    let sawCarry = false;
+    for (let i = 0; i < 600; i++) {
+      stepPet(pet, 0.05, i * 50, me, open, () => 0.5);
+      if (pet.carrying) sawCarry = true;
+    }
+    expect(sawCarry).toBe(true);
+    expect(pet.carrying).toBe(false);
+    expect(pet.mode).toBe('wander');
+  });
+  it('petting makes a pet happy for a moment', async () => {
+    const { initPet, applyPetCmd, petName } = await import('../world/pets');
+    const pet = initPet('p3', 'cat', 4, 4);
+    const res = applyPetCmd(pet, { kind: 'pet', id: 'p3' }, 1000, { x: 4, y: 4, dir: 0 }, open);
+    expect(res.hearts).toBe(true);
+    expect(pet.happyUntil).toBeGreaterThan(1000);
+    expect(petName('p3', 'cat').length).toBeGreaterThan(2);
+  });
+});

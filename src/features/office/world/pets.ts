@@ -8,7 +8,18 @@ import { advance } from './world';
 export type PetKind = 'dog' | 'cat';
 export type PetMode = 'wander' | 'follow' | 'fetch' | 'return';
 
-export const PET_NAMES: Record<PetKind, string> = { dog: 'Suya', cat: 'Zobo' };
+const DOG_NAMES = ['Suya', 'Biscuit', 'Ranger', 'Jollof'];
+const CAT_NAMES = ['Zobo', 'Mimi', 'Shadow', 'Pepper'];
+/** Each pet has a name, fixed by which pet it is. */
+export function petName(id: string, kind: PetKind): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const list = kind === 'dog' ? DOG_NAMES : CAT_NAMES;
+  return list[h % list.length];
+}
+
+/** The pets that are alive on this screen (the canvas keeps these up to date; the menu reads them). */
+export const petRegistry = new Map<string, PetState>();
 
 export interface Ball { x: number; y: number; fromX: number; fromY: number; thrownAt: number }
 

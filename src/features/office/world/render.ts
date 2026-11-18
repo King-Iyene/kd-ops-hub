@@ -83,6 +83,10 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
 type Ctx = CanvasRenderingContext2D;
 
 /** Things the page tells the drawing code (the clock's places, board headings). */
+/** Where each pet is right now, filled in by the canvas (a pet with no entry stays at its spot). */
+export interface PetDraw { x: number; y: number; face: 1 | -1; moving: boolean; carrying: boolean; awake: boolean }
+export const officePets = new Map<string, PetDraw>();
+
 export const officeInfo: { zones: string[]; titles: Record<string, string> } = { zones: DEFAULT_ZONES, titles: {} };
 
 function rr(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
@@ -1662,11 +1666,12 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
     case 'dog': {
       // a dog that trots around its spot, turns, pauses, and wags its tail
       const k = t / 1000;
-      const px = cx + Math.sin(k * 0.7 + seed * 6) * 30;
-      const py = cy + 4 + Math.sin(k * 0.5 + seed * 3) * 10;
+      const live = officePets.get(item.id);
+      const px = live ? live.x * TILE : cx + Math.sin(k * 0.7 + seed * 6) * 30;
+      const py = live ? live.y * TILE - 8 : cy + 4 + Math.sin(k * 0.5 + seed * 3) * 10;
       const vx = Math.cos(k * 0.7 + seed * 6);
-      const face = vx >= 0 ? 1 : -1;
-      const moving = Math.abs(vx) > 0.2;
+      const face = live ? live.face : vx >= 0 ? 1 : -1;
+      const moving = live ? live.moving : Math.abs(vx) > 0.2;
       const coat = col ?? ['#c68642', '#e8d9b5', '#5b4636', '#f1f5f9'][Math.floor(seed * 4)];
       const dark = shade(coat, -0.28);
       ellipse(ctx, px, py + 8, 11, 3.5, 'rgba(15,23,42,0.22)');
@@ -1697,16 +1702,55 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       rr(ctx, 4.6, -6, 3, 6, 1.3);
       ctx.fill();
       if (moving) ellipse(ctx, 15.4, -2.2, 1.4, 2 + Math.sin(k * 14) * 0.4, '#f472b6');
+      if (live?.carrying) { disc(ctx, 19.5, -2.5, 3.2, '#d9f99d'); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(19.5, -2.5, 3.2, 0.4, 2.6); ctx.stroke(); }
       ctx.restore();
       break;
     }
     case 'cat': {
+      const lv = officePets.get(item.id);
+      if (lv && lv.awake) {
+        // an awake cat: walks, tail up, ears pricked
+        const fur2 = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
+        const kk = t / 1000;
+        const px2 = lv.x * TILE;
+        const py2 = lv.y * TILE - 8;
+        ellipse(ctx, px2, py2 + 8, 10, 3, 'rgba(15,23,42,0.2)');
+        ctx.save();
+        ctx.translate(px2, py2);
+        ctx.scale(lv.face, 1);
+        ctx.strokeStyle = fur2;
+        ctx.lineWidth = 2.6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-8, -3);
+        ctx.quadraticCurveTo(-15, -6 + Math.sin(kk * 4) * 2, -13, -15);
+        ctx.stroke();
+        for (const [lx, ph] of [[-5.5, 0], [-2, Math.PI], [4, Math.PI], [7, 0]] as const) {
+          const sw = lv.moving ? Math.sin(kk * 12 + ph) * 2.4 : 0;
+          ctx.fillStyle = shade(fur2, -0.2);
+          rr(ctx, lx - 1.2 + sw, 2, 2.4, 6, 1);
+          ctx.fill();
+        }
+        ellipse(ctx, 0, -1.5, 9.5, 5.2, fur2);
+        disc(ctx, 9, -5, 4.6, fur2);
+        ctx.fillStyle = fur2;
+        ctx.beginPath();
+        ctx.moveTo(6, -8.5); ctx.lineTo(7, -13); ctx.lineTo(9.6, -9);
+        ctx.moveTo(10, -9); ctx.lineTo(12.4, -12.6); ctx.lineTo(13, -7.6);
+        ctx.fill();
+        disc(ctx, 11, -5.8, 0.9, '#111827');
+        disc(ctx, 13.4, -4.2, 0.9, '#f472b6');
+        ctx.restore();
+        break;
+      }
       // a cat asleep in a curl, breathing, with drifting Zs
       const br = 1 + Math.sin(t / 650 + seed * 4) * 0.035;
       const fur = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
-      ellipse(ctx, cx, y + 29, 12, 3.6, 'rgba(15,23,42,0.2)');
+      const sx = lv ? lv.x * TILE : cx;
+      const sy = lv ? lv.y * TILE - 14 : y + 22;
+      ellipse(ctx, sx, sy + 7, 12, 3.6, 'rgba(15,23,42,0.2)');
       ctx.save();
-      ctx.translate(cx, y + 22);
+      ctx.translate(sx, sy);
       ctx.scale(br, br);
       ellipse(ctx, 0, 0, 11.5, 7.5, fur);
       ctx.strokeStyle = fur;
@@ -1737,8 +1781,8 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       ctx.fillStyle = `rgba(100,116,139,${0.9 * (1 - z)})`;
       ctx.font = '700 9px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('z', cx + 8 + z * 7, y + 10 - z * 9);
-      ctx.fillText('Z', cx + 12 + z * 9, y + 6 - z * 12);
+      ctx.fillText('z', sx + 8 + z * 7, sy - 12 - z * 9);
+      ctx.fillText('Z', sx + 12 + z * 9, sy - 16 - z * 12);
       break;
     }
     default:
@@ -1749,10 +1793,25 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
 
 /** Sort key so things lower on the screen draw over things behind them. */
 export function depth(item: Item): number {
+  if (item.t === 'dog' || item.t === 'cat') { const live = officePets.get(item.id); if (live) return live.y + 0.4; }
   const { h } = itemSize(item);
   if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat') return -100 + item.y;
   if (TOP.includes(item.t)) return item.y + 1.2; // always on top of the desk it sits on
   return item.y + h;
+}
+
+/** A ball in the air (it arcs from the thrower) or lying where it landed. */
+export function drawBall(ctx: Ctx, b: { x: number; y: number; fromX: number; fromY: number; thrownAt: number }, now: number) {
+  const k = Math.max(0, Math.min(1, (now - b.thrownAt) / 700));
+  const bx = (b.fromX + (b.x - b.fromX) * k) * TILE;
+  const by = (b.fromY + (b.y - b.fromY) * k) * TILE - Math.sin(k * Math.PI) * 44;
+  ellipse(ctx, (b.fromX + (b.x - b.fromX) * k) * TILE, (b.fromY + (b.y - b.fromY) * k) * TILE + 5, 5, 2, 'rgba(15,23,42,0.25)');
+  disc(ctx, bx, by, 4.2, '#bef264');
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(bx, by, 4.2, 0.5, 2.6);
+  ctx.stroke();
 }
 
 export function drawItems(ctx: Ctx, items: Item[], theme: Theme, t = 0) {
