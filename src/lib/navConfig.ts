@@ -82,6 +82,7 @@ import {
   Tags,
   Image as ImageIcon,
   Plug,
+  CheckCircle2,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -158,6 +159,11 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Succession',       url: '/succession',        icon: Replace,         roles: ['super_admin', 'admin'] },
   { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Timesheets',       url: '/timesheets',        icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'timesheets.view' },
+  // Task module — standalone, own sidebar section (see TaskSidebarPanel),
+  // positioned directly below Time Tracking. The sidebar's actual spaces
+  // tree is live data, not this static list — this one entry only feeds
+  // the hub picker card and the "active hub" route match.
+  { title: 'Task',             url: '/task',              icon: CheckCircle2,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   // Time Tracking — standalone module (own sidebar section, like CRM/Operations).
   { title: 'Time Dashboard',   url: '/timetrack',         icon: Clock,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Time Entries',     url: '/timetrack/time',    icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -236,6 +242,7 @@ export const ALL_NAV: NavItem[] = [
 // the nav between "calculating payroll" and "moving money" that mirrors
 // the hard line already enforced at the database layer.
 export const NAV_GROUPS = [
+  { key: 'taskModule', label: 'Task', titles: ['Task'] },
   { key: 'moneyOut',   label: 'Money Out',           titles: ['Pay Hub', 'Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
   { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies'] },
@@ -316,6 +323,21 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     // Team, People/Other reports and Settings are left out of the sidebar.
     // Their groups and routes still exist; re-add the keys here to restore.
     groups: ['timeTrackTrack', 'timeTrackReportsTime', 'timeTrackActivityProductivity', 'timeTrackManage'],
+  },
+  {
+    key: 'task',
+    label: 'Task',
+    description: 'Spaces, lists & tasks',
+    icon: 'CheckCircle2',
+    color: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    // This hub's content is NOT the generic group/item list below — see
+    // AppSidebar's and MobileNav's special case for hub.key === 'task',
+    // which renders the live, data-driven TaskSidebarPanel / TaskMobilePanel
+    // instead (workspace header, Task/Track switch, the Spaces tree —
+    // master prompt section 6.2). This group only exists so the hub has at
+    // least one static nav item to pick up its route and show its card.
+    groups: ['taskModule'],
   },
   {
     key: 'people',

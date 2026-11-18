@@ -19,7 +19,7 @@ import {
   Handshake, Clock, AlertOctagon, Mail, ClipboardList, MessageSquareWarning,
   HandCoins, CalendarRange, GitBranch, BookMarked, Clock3, LayoutGrid,
   Workflow, Megaphone, Building2, Landmark, User as UserIcon, Bot,
-  MessageCircle,
+  MessageCircle, CheckCircle2,
 } from 'lucide-react';
 import { useEffectiveRole } from '@/store/authStore';
 import {
@@ -42,6 +42,7 @@ const ITEMS: Item[] = [
   { title: 'Dashboard',       path: '/',              icon: LayoutDashboard, shortcut: 'G D', roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'My Dashboard',    path: '/my-dashboard',  icon: LayoutGrid,     roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'self service' },
   { title: 'Approvals',       path: '/approvals',     icon: Inbox,           shortcut: 'G A', roles: APPROVER_ROLES, group: 'navigate' },
+  { title: 'Task',            path: '/task',          icon: CheckCircle2,    roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'spaces lists tasks' },
   { title: 'Goals',           path: '/goals',         icon: Target,          roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'Messages',        path: '/messages',      icon: MessageCircle,  roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chat direct message' },
   { title: 'AI Assistant',    path: '/assistant',     icon: Bot,            roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chatbot ask help' },

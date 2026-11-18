@@ -98,6 +98,8 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
+const TaskLanding = lazy(() => import('./features/task/pages/TaskLanding'));
+const SpaceOverview = lazy(() => import('./features/task/pages/SpaceOverview'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -906,6 +908,32 @@ function AppRoutes() {
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <OfficePage />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+
+        {/* Task module — every signed-in employee; access to a given space,
+            and which admin-only controls show, is enforced by RLS and
+            decided per-screen (PRD SEC-01/SEC-02), not by the route itself.
+            Only /task and /task/s/:spaceId exist this phase (shell and
+            spaces) — every other Task route is added in its own phase. */}
+        <Route
+          path="/task"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TaskLanding />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/task/s/:spaceId"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <SpaceOverview />
               </ErrorBoundary>
             </RoleGuard>
           }

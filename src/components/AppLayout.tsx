@@ -82,6 +82,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/timesheets':           'Timesheets',
   '/my-dashboard':         'My Portal',
   '/approval-workflows':   'Approval Workflows',
+  '/task':                 'Task',
 };
 
 function getRouteTitle(pathname: string): string {
@@ -91,6 +92,7 @@ function getRouteTitle(pathname: string): string {
   if (pathname.startsWith('/contractors/')) return 'Contractor Profile';
   if (pathname.startsWith('/employees/')) return 'Employee Profile';
   if (pathname.startsWith('/contacts/')) return 'Contact Profile';
+  if (pathname.startsWith('/task/s/')) return 'Space';
   return '';
 }
 
