@@ -34,6 +34,8 @@ export interface Who {
   status: string;
   /** on a power bike */
   riding: boolean;
+  /** which parked bike they took (an item id), so it is gone from its spot while they ride */
+  bike?: string;
 }
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
@@ -100,6 +102,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const lockRef = useRef(false);
   const statusRef = useRef('');
   const ridingRef = useRef(false);
+  const bikeRef = useRef('');
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMeta = useRef('');
   /** emoji reactions on show, by person id */
@@ -114,7 +117,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   spaceRef.current = spaceId;
   /** what the lobby knows about me */
   const meta = (s: { name: string; avatar: AvatarStyle }) => ({
-    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, rd: ridingRef.current ? 1 : 0, t: Date.now(), u: selfRef.current?.id, c: since.current,
+    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, rd: ridingRef.current ? 1 : 0, rb: ridingRef.current ? bikeRef.current : '', t: Date.now(), u: selfRef.current?.id, c: since.current,
   });
 
   const selfId = self?.id ?? null;
@@ -125,13 +128,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: connId } } });
     lobby.current = ch;
     const sync = () => {
-      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; t?: number; u?: string; c?: number }[]>;
+      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; rd?: number; rb?: string; t?: number; u?: string; c?: number }[]>;
       const all: Who[] = [];
       for (const [id, metas] of Object.entries(state)) {
         const m = metas.reduce((x, y) => ((y.t ?? 0) > (x.t ?? 0) ? y : x), metas[0]);
         if (!m) continue;
         const uid = typeof m.u === 'string' ? m.u : id;
-        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1 });
+        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1, bike: m.rd === 1 && typeof m.rb === 'string' && m.rb ? m.rb.slice(0, 64) : undefined });
       }
       // the newest tab of each account is the one shown; older tabs of the same account are "ghosts"
       const best = new Map<string, Who>();
@@ -200,8 +203,9 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   }, []);
 
   /** I got on or off a power bike (everyone sees it). */
-  const setRiding = useCallback((on: boolean) => {
+  const setRiding = useCallback((on: boolean, bike?: string | null) => {
     ridingRef.current = on;
+    bikeRef.current = on && bike ? bike : '';
     pushMeta();
   }, []);
 

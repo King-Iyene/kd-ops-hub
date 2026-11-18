@@ -962,8 +962,12 @@ function OfficeRoom() {
   }, []);
   // a power bike: you ride until you press F again, leave the space, or are moved to another window
   const [riding, setRidingState] = useState(false);
-  useEffect(() => { setRiding(riding); }, [riding, setRiding, connected]);
-  useEffect(() => { setRidingState(false); }, [space?.id, superseded]);
+  const [rideBike, setRideBike] = useState<string | null>(null);
+  useEffect(() => { setRiding(riding, rideBike); }, [riding, rideBike, setRiding, connected]);
+  // a bike somebody is riding is not parked any more: it leaves its spot and goes with them
+  const takenBikes = roster.filter((r) => r.bike && r.spaceId === space?.id).map((r) => r.bike as string).concat(riding && rideBike ? [rideBike] : []).sort().join(',');
+  const parkedItems = useMemo(() => (takenBikes ? items.filter((i) => !takenBikes.split(',').includes(i.id)) : items), [items, takenBikes]);
+  useEffect(() => { setRidingState(false); setRideBike(null); }, [space?.id, superseded]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
   // the sky is the same for everyone in the office; admins set it in Manage space
   const skyCfg = space?.layout?.settings?.sky;
@@ -1167,11 +1171,11 @@ function OfficeRoom() {
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={setRidingState} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={(on, bikeId) => { setRidingState(on); setRideBike(on ? bikeId ?? null : null); }} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });

@@ -71,7 +71,7 @@ interface Props {
   onWalkTo: (x: number, y: number) => void;
   /** I am on a power bike, and getting on or off */
   riding: boolean;
-  onRide: (on: boolean) => void;
+  onRide: (on: boolean, bikeId?: string) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -83,6 +83,10 @@ interface Props {
   ghost: (tile: { x: number; y: number }) => { ok: boolean };
   onTile: (tile: { x: number; y: number }) => void;
 }
+
+/** puffs of smoke left behind bikes (shared by every rider on screen) */
+const smoke: { x: number; y: number; t: number; r: number }[] = [];
+const smokeAt = new Map<string, number>();
 
 function typing(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
@@ -151,7 +155,7 @@ export function OfficeCanvas(props: Props) {
       if (k === 'f' && !propsRef.current.editing) {
         if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false); return; }
         const near = nearRef.current;
-        if (near) { e.preventDefault(); if (near.t === 'bike') propsRef.current.onRide(true); else propsRef.current.onInteract(near); return; }
+        if (near) { e.preventDefault(); if (near.t === 'bike') propsRef.current.onRide(true, near.id); else propsRef.current.onInteract(near); return; }
       }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
@@ -359,7 +363,7 @@ export function OfficeCanvas(props: Props) {
       if (item) {
         if (item.t !== 'bike') { p.onMapClick(tile); return; }
         const m = meRef.current;
-        if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
+        if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding, item.id); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
         return;
       }
       const r = canvas.getBoundingClientRect();
@@ -608,6 +612,25 @@ export function OfficeCanvas(props: Props) {
         });
       }
       people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+
+      // smoke trails: a grey puff left behind anyone riding, rising and fading
+      for (const q of people) {
+        if (!q.riding || !q.moving) continue;
+        const last = smokeAt.get(q.id ?? '') ?? 0;
+        if (now - last < 70) continue;
+        smokeAt.set(q.id ?? '', now);
+        const back = q.dir === 0 ? [0, -1] : q.dir === 3 ? [0, 1] : q.dir === 1 ? [1, 0] : [-1, 0];
+        smoke.push({ x: q.x * TILE + back[0] * 15 + (Math.random() - 0.5) * 4, y: q.y * TILE + 8 + back[1] * 7 + (Math.random() - 0.5) * 3, t: now, r: 2 + Math.random() * 2 });
+      }
+      while (smoke.length && now - smoke[0].t > 900) smoke.shift();
+      if (smoke.length > 120) smoke.splice(0, smoke.length - 120);
+      for (const sp of smoke) {
+        const age = (now - sp.t) / 900;
+        ctx.fillStyle = `rgba(148,163,184,${(0.5 * (1 - age)).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y - age * 14, sp.r + age * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
