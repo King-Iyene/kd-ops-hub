@@ -1,6 +1,6 @@
 import { CloudRain, CloudSun, Droplets, MapPin, Moon, Sun, Sunrise, Sunset, Thermometer, Wind } from 'lucide-react';
 import { SEASON_MODES, TIME_MODES, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
-import { PLACES, describe, type Weather } from './world/weather';
+import { PLACES, describe, placeLabel, type Weather } from './world/weather';
 import { LABEL } from './ui';
 
 export function phaseOf(hour: number): { label: string; icon: JSX.Element } {
@@ -27,7 +27,8 @@ export interface SkyPanelProps {
 /** Live weather for a place, with a place picker. */
 export function WeatherCard({ weather, place, onPlace }: { weather: Weather | null; place: string; onPlace: (id: string) => void }) {
   const cond = weather ? describe(weather.code) : null;
-  const city = PLACES.find((x) => x.id === place)?.name ?? 'Lagos';
+  const cur = PLACES.find((x) => x.id === place);
+  const city = cur ? placeLabel(cur) : 'Lagos';
   void city;
   return (
     <div className="rounded-2xl bg-gradient-to-br from-sky-500/15 via-white/[0.03] to-white/[0.02] p-3.5 ring-1 ring-white/[0.07]">
@@ -45,7 +46,7 @@ export function WeatherCard({ weather, place, onPlace }: { weather: Weather | nu
       </div>
       <div className="mt-3 flex items-center gap-2">
         <select value={place} onChange={(e) => onPlace(e.target.value)} aria-label="Weather location" className="h-7 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2 text-xs font-semibold outline-none ring-1 ring-white/[0.07] focus:ring-primary/60">
-          {PLACES.map((x) => <option key={x.id} value={x.id} className="bg-popover">{x.name}</option>)}
+          {PLACES.map((x) => <option key={x.id} value={x.id} className="bg-popover">{placeLabel(x)}</option>)}
         </select>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${weather ? 'bg-emerald-500/15 text-emerald-500' : 'bg-white/10 text-muted-foreground'}`}>{weather ? 'Live' : 'Offline'}</span>
       </div>

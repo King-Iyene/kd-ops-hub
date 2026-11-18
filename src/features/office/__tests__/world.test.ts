@@ -453,3 +453,16 @@ describe('live weather', () => {
     expect(seasonFor('rainy', julyNoon, dry)).toBe('rainy');
   });
 });
+
+describe('Nigerian places for the weather', () => {
+  it('has every state and the FCT, each once, with real coordinates inside Nigeria', async () => {
+    const { PLACES, placeLabel, DEFAULT_PLACE } = await import('../world/weather');
+    const states = new Set(PLACES.map((p) => p.state));
+    expect(states.size).toBe(37);
+    expect(new Set(PLACES.map((p) => p.id)).size).toBe(PLACES.length);
+    for (const p of PLACES) { expect(p.lat).toBeGreaterThan(4); expect(p.lat).toBeLessThan(14); expect(p.lon).toBeGreaterThan(2.5); expect(p.lon).toBeLessThan(15); }
+    expect(PLACES.some((p) => p.id === DEFAULT_PLACE)).toBe(true);
+    expect(placeLabel(PLACES.find((p) => p.id === 'portharcourt')!)).toBe('Rivers · Port Harcourt');
+    expect(placeLabel(PLACES.find((p) => p.id === 'lagos')!)).toBe('Lagos');
+  });
+});
