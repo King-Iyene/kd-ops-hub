@@ -220,11 +220,11 @@ export function OfficeCanvas(props: Props) {
     const move = (e: MouseEvent) => {
       if (!propsRef.current.editing && !drag.down) {
         const h = personAt(e);
-        const id = h ? h.id : null;
-        if (id !== hoverId.current) {
-          hoverId.current = id;
-          propsRef.current.onHoverPerson(h ? { personId: h.id, isMe: h.isMe, cx: h.headX, cy: h.headY, near: h.near } : null);
-        }
+        const hadHover = hoverId.current !== null;
+        hoverId.current = h ? h.id : null;
+        // while the pointer is on someone, keep telling the page where it is, so their card appears right by it
+        if (h) propsRef.current.onHoverPerson({ personId: h.id, isMe: h.isMe, cx: e.clientX, cy: e.clientY, near: h.near });
+        else if (hadHover) propsRef.current.onHoverPerson(null);
         // an office or a seat under the pointer (but never while someone is being hovered)
         let zid: string | null = null;
         if (!h) {

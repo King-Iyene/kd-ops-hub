@@ -25,8 +25,9 @@ export function PersonCard({ x, y, name, avatar, online, status, hint, actions, 
   onLeave: () => void;
 }) {
   const w = 252;
-  const left = Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8));
-  const top = Math.max(8, y - 140);
+  // tucked against the pointer, so there is no gap to cross on the way to a button
+  const left = x + 14 + w > window.innerWidth - 8 ? Math.max(8, x - w - 14) : x + 14;
+  const top = Math.max(8, Math.min(y - 26, window.innerHeight - 200));
   const main = actions.find((a) => a.primary && !a.off) ?? null;
   const rest = actions.filter((a) => a !== main);
   return createPortal(

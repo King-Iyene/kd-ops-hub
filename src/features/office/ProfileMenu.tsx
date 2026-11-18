@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { STATUSES, statusOf } from './status';
+import { AvatarFace } from './AvatarFace';
+import type { AvatarStyle } from './world/types';
 import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { Weather } from './world/weather';
@@ -10,6 +12,7 @@ import { LABEL, SURFACE } from './ui';
 interface Props {
   name: string;
   skin: string;
+  avatar: AvatarStyle;
   status: string;
   onStatus: (id: string) => void;
   onAvatar: () => void;
@@ -81,9 +84,9 @@ export function ProfileMenu(p: Props) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className="flex h-8 items-center gap-2 rounded-lg px-1.5 pr-2.5 text-left transition-colors hover:bg-muted" aria-label="Your profile, sky and settings">
-          <span className="relative flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-slate-900" style={{ background: p.skin }}>
-            {p.name.slice(0, 1).toUpperCase()}
-            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background bg-emerald-500" />
+          <span className="relative flex h-7 w-7 shrink-0">
+            <AvatarFace avatar={p.avatar} size={28} />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
           </span>
           <span className="hidden min-w-0 sm:block">
             <span className="block max-w-[8rem] truncate text-xs font-medium leading-tight">{p.name}</span>
@@ -93,8 +96,8 @@ export function ProfileMenu(p: Props) {
       </PopoverTrigger>
       <PopoverContent side="top" align="start" sideOffset={12} className={`ko ${SURFACE} w-[25rem] max-w-[calc(100vw-1rem)] p-0`}>
         <div className="flex items-center gap-3 px-4 pt-4">
-          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-slate-900" style={{ background: p.skin }}>
-            {p.name.slice(0, 1).toUpperCase()}
+          <span className="relative flex h-12 w-12 shrink-0">
+            <AvatarFace avatar={p.avatar} size={48} />
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-popover bg-emerald-500" />
           </span>
           <div className="min-w-0 flex-1">

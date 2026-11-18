@@ -776,12 +776,20 @@ function OfficeRoom() {
   const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 400); };
   const [card, setCard] = useState<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
+  const personLatest = useRef<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const hoverPerson = (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => {
+    personLatest.current = h;
     window.clearTimeout(cardTimer.current);
-    cardTimer.current = window.setTimeout(() => setCard(h), h ? 140 : 360);
+    if (!h) { cardTimer.current = window.setTimeout(() => setCard(null), 700); return; }
+    if (card) {
+      if (card.personId === h.personId) return;
+      // reaching for the card: someone standing next to them must not take it over
+      if (Math.hypot(h.cx - card.cx, h.cy - card.cy) < 220) return;
+    }
+    cardTimer.current = window.setTimeout(() => setCard(personLatest.current), 180);
   };
   const keepCard = () => window.clearTimeout(cardTimer.current);
-  const leaveCard = () => { window.clearTimeout(cardTimer.current); cardTimer.current = window.setTimeout(() => setCard(null), 360); };
+  const leaveCard = () => { window.clearTimeout(cardTimer.current); cardTimer.current = window.setTimeout(() => setCard(null), 450); };
   const [panel, setPanel] = useState<Item | null>(null);
   const [savingPanel, setSavingPanel] = useState(false);
   const boardsAll = space?.layout?.settings?.boards ?? {};
@@ -1108,7 +1116,7 @@ function OfficeRoom() {
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
                 <ProfileMenu
-                  name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
+                  name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
