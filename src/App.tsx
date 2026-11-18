@@ -98,6 +98,8 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
+const TaskHub = lazy(() => import('./pages/TaskHub'));
+const TaskListPage = lazy(() => import('./pages/TaskListPage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -882,6 +884,30 @@ function AppRoutes() {
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <OfficePage />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+
+        {/* Task module: every signed-in employee (folder/list/table creation
+            is admin-only, enforced by RLS — the pages themselves hide those
+            controls for everyone else). */}
+        <Route
+          path="/task"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TaskHub />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/task/list/:listId"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TaskListPage />
               </ErrorBoundary>
             </RoleGuard>
           }
