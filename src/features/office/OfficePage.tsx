@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -17,6 +17,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
 import { allowed } from './OfficeSettingsDialog';
+import { desktopDownload, inDesktopApp } from './desktopApp';
 import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
@@ -1053,6 +1054,7 @@ function OfficeRoom() {
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
+                {!inDesktopApp() && <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the desktop app</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={() => setVisitorsOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Guests{guests.waitingCount ? ` (${guests.waitingCount} waiting)` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
                 {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
