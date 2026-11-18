@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b4bd6"/><stop offset="0.55" stop-color="#352a9c"/><stop offset="1" stop-color="#1c1560"/>
+    </linearGradient>
+    <radialGradient id="hi" cx="0.28" cy="0.2" r="0.7"><stop offset="0" stop-color="#b9a8ff" stop-opacity="0.4"/><stop offset="1" stop-color="#b9a8ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="floor" cx="0.5" cy="0.45" r="0.65"><stop offset="0" stop-color="#241c6e"/><stop offset="1" stop-color="#150f47"/></radialGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a5f3fc"/><stop offset="1" stop-color="#0ea5c6"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#d9a93c"/></linearGradient>
+    <linearGradient id="ice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbcfe8"/><stop offset="1" stop-color="#ec6aa8"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#021827" flood-opacity="0.55"/></filter>
+    <clipPath id="sq"><rect x="30" y="30" width="964" height="964" rx="236"/></clipPath>
+  </defs>
+  <rect x="30" y="30" width="964" height="964" rx="236" fill="url(#bg)"/>
+  <rect x="30" y="30" width="964" height="964" rx="236" fill="url(#hi)"/>
+  <g clip-path="url(#sq)">
+  </g>
+  <!-- the room, seen from above -->
+  <g filter="url(#shadow)">
+    <rect x="212" y="232" width="600" height="520" rx="64" fill="url(#floor)"/>
+  </g>
+  <g stroke="#c4b5fd" stroke-opacity="0.10" stroke-width="3">
+    <line x1="362" y1="240" x2="362" y2="744"/><line x1="512" y1="240" x2="512" y2="744"/><line x1="662" y1="240" x2="662" y2="744"/>
+    <line x1="220" y1="360" x2="804" y2="360"/><line x1="220" y1="490" x2="804" y2="490"/><line x1="220" y1="620" x2="804" y2="620"/>
+  </g>
+  <path d="M440 752 L276 752 A64 64 0 0 1 212 688 L212 296 A64 64 0 0 1 276 232 L748 232 A64 64 0 0 1 812 296 L812 688 A64 64 0 0 1 748 752 L584 752"
+        fill="none" stroke="#f3efff" stroke-opacity="0.95" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- the open door in gold -->
+  <path d="M440 752 A144 144 0 0 0 584 896" fill="none" stroke="#f4d98a" stroke-opacity="0.55" stroke-width="6" stroke-dasharray="3 14" stroke-linecap="round"/>
+  <line x1="584" y1="752" x2="584" y2="896" stroke="#f4d98a" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="584" cy="752" r="15" fill="url(#gold)"/>
+  <!-- the connections between people -->
+  <g fill="none" stroke="#c4b5fd" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 16" opacity="0.85">
+    <path d="M376 420 Q 450 330 548 372"/>
+    <path d="M376 420 Q 396 520 470 586"/>
+    <path d="M626 392 Q 640 500 560 586"/>
+  </g>
+  <!-- pulse around the middle person -->
+  <g fill="none" stroke="#c4b5fd">
+    <circle cx="512" cy="590" r="118" stroke-opacity="0.12" stroke-width="6"/>
+    <circle cx="512" cy="590" r="88" stroke-opacity="0.22" stroke-width="6"/>
+  </g>
+  <!-- three people: glow, disc, head and shoulders -->
+  <g>
+    <circle cx="376" cy="420" r="70" fill="#22d3ee" opacity="0.55" filter="url(#glow)"/>
+    <circle cx="626" cy="392" r="70" fill="#f6d983" opacity="0.55" filter="url(#glow)"/>
+    <circle cx="512" cy="590" r="76" fill="#f472b6" opacity="0.55" filter="url(#glow)"/>
+    <g filter="url(#shadow)">
+      <circle cx="376" cy="420" r="62" fill="url(#blue)"/>
+      <circle cx="626" cy="392" r="62" fill="url(#gold)"/>
+      <circle cx="512" cy="590" r="68" fill="url(#ice)"/>
+    </g>
+    <g fill="#06233a">
+      <circle cx="376" cy="404" r="18"/><path d="M342 450 a34 28 0 0 1 68 0 z"/>
+      <circle cx="626" cy="376" r="18"/><path d="M592 422 a34 28 0 0 1 68 0 z"/>
+      <circle cx="512" cy="572" r="20"/><path d="M475 622 a37 30 0 0 1 74 0 z"/>
+    </g>
+    <circle cx="376" cy="420" r="62" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="4"/>
+    <circle cx="626" cy="392" r="62" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-width="4"/>
+    <circle cx="512" cy="590" r="68" fill="none" stroke="#c4b5fd" stroke-opacity="0.8" stroke-width="4"/>
+  </g>
+  <!-- a plant in the corner and a desk, so it reads as an office -->
+  <g>
+    <rect x="662" y="618" width="120" height="86" rx="16" fill="#2b2285" stroke="#c4b5fd" stroke-opacity="0.5" stroke-width="5"/>
+    <rect x="684" y="638" width="58" height="34" rx="6" fill="#a5f3fc" opacity="0.85"/>
+    <circle cx="258" cy="300" r="26" fill="#2fbf8f"/><circle cx="280" cy="326" r="18" fill="#5be3b4"/><circle cx="244" cy="322" r="14" fill="#1f9a72"/>
+  </g>
+</svg>

@@ -1,32 +1,68 @@
 {
   "name": "kd-office-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "KD Office: the KD Squares virtual office as a desktop app",
-  "author": { "name": "KD Squares", "email": "code@kdsquares.com" },
+  "author": {
+    "name": "KD Squares",
+    "email": "code@kdsquares.com"
+  },
   "homepage": "https://github.com/King-Iyene/kd-ops-hub/tree/main/desktop-office",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
-    "dist": "electron-builder --publish=never"
+    "dist": "electron-builder --publish=never",
+    "test": "node test/desktop.test.cjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "playwright": "^1.62.1"
   },
   "build": {
     "appId": "com.kdsquares.office",
     "productName": "KD Office",
-    "files": ["main.js", "preload.js", "offline.html", "build/icon.png"],
-    "directories": { "output": "release" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "offline.html",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release"
+    },
     "icon": "build/icon.png",
     "npmRebuild": false,
-    "linux": { "target": ["AppImage", "deb"], "category": "Office", "icon": "build/icon.png" },
-    "win": { "target": ["nsis"], "icon": "build/icon.png" },
-    "nsis": { "artifactName": "KD-Office-Setup-${version}.${ext}", "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "artifactName": "KD-Office-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KD Office",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.business",
       "icon": "build/icon.png",
       "extendInfo": {
@@ -35,6 +71,8 @@
         "NSScreenCaptureUsageDescription": "KD Office shares your screen when you choose to."
       }
     },
-    "dmg": { "artifactName": "KD-Office-${version}.${ext}" }
+    "dmg": {
+      "artifactName": "KD-Office-${version}.${ext}"
+    }
   }
 }

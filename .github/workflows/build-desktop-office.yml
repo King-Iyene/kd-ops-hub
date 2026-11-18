@@ -35,6 +35,10 @@ jobs:
           node-version: 20
       - name: Install
         run: npm install --no-audit --no-fund
+      - name: Test the app (opens it and checks notifications, tray and the offline screen)
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        run: npm test
       - name: Build installer
         run: npx electron-builder ${{ matrix.build-args }} --publish=never
         env:
