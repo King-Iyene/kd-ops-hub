@@ -19,12 +19,18 @@
 -- -----------------------------------------------------------------------------
 -- Backfill: preserve today's access before tightening anything.
 -- -----------------------------------------------------------------------------
+-- space_members.user_id FKs to auth.users, but not every profiles row has
+-- a matching auth.users row (orphaned profiles exist in production — a
+-- deleted/never-created auth account, a service profile, etc.). Such a
+-- profile can never authenticate as itself anyway, so excluding it from
+-- the backfill is harmless, not a loss of real access.
 INSERT INTO public.space_members (space_id, user_id, role, added_by)
 SELECT s.id, p.id, 'member', s.owner_id
 FROM public.project_spaces s
 CROSS JOIN public.profiles p
 WHERE s.deleted_at IS NULL
   AND COALESCE(p.status, 'active') = 'active'
+  AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.id)
 ON CONFLICT (space_id, user_id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
