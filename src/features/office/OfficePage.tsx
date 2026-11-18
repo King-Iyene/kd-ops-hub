@@ -412,21 +412,16 @@ function OfficeRoom() {
     navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((st) => {
       if (st.state === 'granted' || st.state === 'denied') {
         closeJoinPrompt();
-        void calls.join().then(async () => {
-          // camera on by default when the browser already allows it, unless this person turned it off before
-          try {
-            const cam = await navigator.permissions.query({ name: 'camera' as PermissionName });
-            if (cam.state === 'granted' && localStorage.getItem('kd:office:cam') !== '0') await calls.toggleCam();
-          } catch { /* no camera is fine */ }
-        });
+        // you always arrive with the microphone and the camera OFF; turn them on yourself when you want to
+        void calls.join();
       }
     }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me]);
-  const joinWith = async (camera: boolean) => {
+  // the camera and microphone always start off, whatever was chosen last time
+  const joinWith = async () => {
     closeJoinPrompt();
     await calls.join();
-    if (camera) await calls.toggleCam();
   };
 
   // ---- locking meeting rooms (rules in calls/locks.ts) ----
@@ -1261,13 +1256,12 @@ function OfficeRoom() {
 
       <Dialog open={joinPrompt && !calls.joined} onOpenChange={(o) => { if (!o) closeJoinPrompt(); }}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
-          <DialogHeader><DialogTitle>Turn on your camera and microphone?</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Join the voice and video?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
-            People near you will see and hear you, and you will see and hear them. Walk away and the sound fades. Inside a meeting room only the people in that room can hear you. You can mute or turn the camera off at any time.
+            People near you will see and hear you, and you will see and hear them. Walk away and the sound fades. Inside a meeting room only the people in that room can hear you. Your camera and microphone start off. Turn them on with the buttons at the bottom when you want to.
           </p>
           <div className="flex flex-col gap-2">
-            <Button onClick={() => void joinWith(true)}><Video className="mr-2 h-4 w-4" />Join with camera and microphone</Button>
-            <Button variant="outline" onClick={() => void joinWith(false)}><Mic className="mr-2 h-4 w-4" />Join with microphone only</Button>
+            <Button onClick={() => void joinWith()}><Mic className="mr-2 h-4 w-4" />Join (camera and microphone off)</Button>
             <Button variant="ghost" onClick={closeJoinPrompt}>Not now</Button>
           </div>
         </DialogContent>
