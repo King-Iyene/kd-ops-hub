@@ -7560,6 +7560,209 @@ export type Database = {
           },
         ]
       }
+      office_guest_invites: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          auto_admit: boolean
+          created_at: string
+          duration: string
+          email: string
+          expires_at: string
+          guest_id: string | null
+          id: string
+          invited_by: string
+          max_visits: number | null
+          name: string
+          room_secret: string | null
+          session_until: string | null
+          space_id: string
+          status: string
+          token_hash: string
+          visits: number
+          waiting_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          auto_admit?: boolean
+          created_at?: string
+          duration?: string
+          email: string
+          expires_at: string
+          guest_id?: string | null
+          id?: string
+          invited_by: string
+          max_visits?: number | null
+          name: string
+          room_secret?: string | null
+          session_until?: string | null
+          space_id: string
+          status?: string
+          token_hash: string
+          visits?: number
+          waiting_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          auto_admit?: boolean
+          created_at?: string
+          duration?: string
+          email?: string
+          expires_at?: string
+          guest_id?: string | null
+          id?: string
+          invited_by?: string
+          max_visits?: number | null
+          name?: string
+          room_secret?: string | null
+          session_until?: string | null
+          space_id?: string
+          status?: string
+          token_hash?: string
+          visits?: number
+          waiting_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_guest_invites_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "office_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guest_invites_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_guests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          last_invited_at: string
+          name: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          last_invited_at?: string
+          name: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          last_invited_at?: string
+          name?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_guests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_guests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_guests_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_invites: {
         Row: {
           created_at: string
@@ -19499,6 +19702,15 @@ export type Database = {
         Returns: string[]
       }
       notify_expiring_overrides: { Args: never; Returns: number }
+      office_guest_directory: {
+        Args: { p_space: string }
+        Returns: {
+          email_hint: string
+          id: string
+          last_invited_at: string
+          name: string
+        }[]
+      }
       office_is_admin: { Args: never; Returns: boolean }
       office_is_recorder: { Args: never; Returns: boolean }
       office_member_ids: { Args: never; Returns: string[] }
