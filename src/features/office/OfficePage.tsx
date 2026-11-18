@@ -1336,6 +1336,22 @@ function OfficeRoom() {
         acts.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, primary: c || myClaim ? true : false, run: () => { setZoneCard(null); walkToOffice(z.id); } });
         acts.push({ key: 'link', label: 'Copy link', compact: true, icon: <LinkIcon className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); void copyLink(`&room=${z.id}`, `It opens ${z.name}.`); } });
         if (isAdmin) acts.push({ key: 'manage', label: 'Manage', compact: true, icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
+        // an office or seat that somebody has: show that person, like Gather does, online or not
+        if (c && who) {
+          const live = roster.find((r) => r.uid === who.id) ?? null;
+          const st = live ? statusOf(live.status) : null;
+          const go = (fn: () => void) => () => { setZoneCard(null); fn(); };
+          const pa: CardAction[] = [{ key: 'prof', label: 'View profile', icon: <UserCircle className="h-4 w-4" />, run: go(() => setProfileUid(who.id)) }];
+          if (!mine) {
+            pa.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: !!live, off: live ? undefined : 'They are offline', run: go(() => live && wave(live)) });
+            pa.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: go(() => openChat(who.id)) });
+          }
+          pa.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-4 w-4" />, run: go(() => walkToOffice(z.id)) });
+          pa.push({ key: 'link', label: 'Copy link', icon: <LinkIcon className="h-4 w-4" />, run: go(() => void copyLink(`&room=${z.id}`, `It opens ${z.name}.`)) });
+          return (
+            <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={who.name + (mine ? ' (you)' : '')} avatar={who.avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} actions={pa} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
+          );
+        }
         return (
           <OfficeCard
             x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}

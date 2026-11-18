@@ -2,13 +2,13 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { AvatarStyle } from './world/types';
 import { AvatarFace } from './AvatarFace';
-import { BTN_ICON, SURFACE } from './ui';
 
 export interface CardAction { key: string; label: string; icon: ReactNode; run: () => void; /** shown but greyed out, with why */ off?: string; primary?: boolean }
 
 /**
- * The card that appears when you rest the pointer on someone: face, name, status, one clear main action
- * (wave if they are far, ring if you are close) and a few quiet icon buttons.
+ * The card that appears above someone (or above their desk) when you rest the pointer there, like Gather's:
+ * the face sits on the top edge, then name, status and a row of round buttons (profile, wave, message...).
+ * Offline owners get one too, so you can still open their profile or message them.
  */
 export function PersonCard({ x, y, name, avatar, online, status, hint, actions, onEnter, onLeave }: {
   x: number;
@@ -18,41 +18,37 @@ export function PersonCard({ x, y, name, avatar, online, status, hint, actions, 
   online: boolean;
   /** emoji and words, such as "🚀 Hustling mode" */
   status: string | null;
-  /** one short line of advice */
-  hint: string | null;
+  /** one short line of advice (shown as a tooltip) */
+  hint?: string | null;
   actions: CardAction[];
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const w = 252;
-  // centred just above the pointer and overlapping it a little, so there is no gap to cross on the way up
+  const w = 216;
   const left = Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8));
-  const above = y > 170;
-  const pos = above ? { bottom: window.innerHeight - y - 24 } : { top: y + 18 };
-  const main = actions.find((a) => a.primary && !a.off) ?? null;
-  const rest = actions.filter((a) => a !== main);
+  // just above the pointer and overlapping it a little, so there is no gap to cross on the way up
+  const above = y > 190;
+  const pos = above ? { bottom: window.innerHeight - y - 20 } : { top: y + 40 };
   return createPortal(
-    <div className="ko fixed z-[65]" style={{ left, ...pos, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <div className={`${SURFACE} animate-in fade-in zoom-in-95 p-3 duration-100`}>
-        <div className="flex items-center gap-3">
-          <div className="relative shrink-0">
-            <AvatarFace avatar={avatar} size={46} dim={!online} />
-            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-popover ${online ? 'bg-emerald-500' : 'bg-slate-500'}`} aria-label={online ? 'Online' : 'Offline'} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold leading-tight tracking-tight">{name}</p>
-            <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground">{online ? status ?? 'Available' : 'Offline'}</p>
-          </div>
+    <div className="ko fixed z-[65]" style={{ left, ...pos, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave} title={hint ?? undefined}>
+      <div className="relative pt-7">
+        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 drop-shadow-lg"><AvatarFace avatar={avatar} size={56} dim={!online} /></div>
+        <div className="animate-in fade-in zoom-in-95 rounded-2xl bg-[#262b4d]/95 px-3 pb-3 pt-9 text-center text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md duration-100">
+          <p className="truncate text-[14px] font-bold leading-tight">
+            {name}<span className={`ml-1.5 inline-block h-2 w-2 rounded-full align-middle ${online ? 'bg-emerald-400' : 'bg-slate-400'}`} aria-label={online ? 'Online' : 'Offline'} />
+          </p>
+          <p className="mt-0.5 truncate text-[12px] leading-tight text-white/60">{online ? status ?? 'Available' : 'Offline'}</p>
+          {actions.length > 0 && (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              {actions.map((a) => (
+                <button
+                  key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} aria-label={a.label} onClick={a.run}
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'bg-white/90 text-slate-900 hover:bg-white' : 'bg-white/[0.08] text-white hover:bg-white/[0.18]'}`}
+                >{a.icon}</button>
+              ))}
+            </div>
+          )}
         </div>
-        {hint && <p className="mt-2.5 text-[11.5px] leading-snug text-muted-foreground">{hint}</p>}
-        {actions.length > 0 && (
-          <div className="mt-3 flex items-center gap-1.5">
-            {main && <button type="button" onClick={main.run} className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white/90 px-3 text-xs font-semibold text-slate-900 transition-colors hover:bg-white">{main.icon}<span className="truncate">{main.label}</span></button>}
-            {rest.map((a) => (
-              <button key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} aria-label={a.label} onClick={a.run} className={BTN_ICON}>{a.icon}</button>
-            ))}
-          </div>
-        )}
       </div>
     </div>,
     document.body,
