@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Building2, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -27,7 +27,8 @@ import { useRecorder } from './calls/useRecorder';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
-import { ensurePersonalOffice, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { InviteDialog } from './InviteDialog';
+import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { applyTileEdits, canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -43,7 +44,7 @@ function SlotAside({ slot, children }: { slot: HTMLElement | null; children: Rea
   return <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">{children}</aside>;
 }
 
-export default function OfficePage() {
+function OfficeRoom() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
@@ -469,6 +470,28 @@ export default function OfficePage() {
   const admittedOffices = useRef(new Set<string>());
   const roomSpaceId = space?.kind === 'team' ? space.id : (lastTeam.current ?? myTeam?.id ?? null);
 
+  // a shared link (?space=…&room=… or &at=x,y): go to that space, then walk to that spot
+  const deepLink = useRef<{ space: string | null; room: string | null; at: { x: number; y: number } | null; started: boolean } | null>(null);
+  useEffect(() => {
+    if (!space || !spaces) return;
+    if (!deepLink.current) {
+      const q = new URLSearchParams(window.location.search);
+      const at = (q.get('at') ?? '').split(',').map(Number);
+      const hasAt = at.length === 2 && at.every((n) => Number.isFinite(n));
+      const sp = q.get('space');
+      deepLink.current = { space: sp, room: q.get('room'), at: hasAt ? { x: at[0], y: at[1] } : null, started: false };
+      if (!sp && !deepLink.current.room && !hasAt) { deepLink.current = null; return; }
+    }
+    const d = deepLink.current;
+    if (!d) return;
+    if (d.space && d.space !== space.id && spaces.some((x) => x.id === d.space)) { setSpaceId(d.space); return; }
+    if (d.started) return;
+    d.started = true;
+    const z = d.room ? map.zones.find((q) => q.id === d.room) : undefined;
+    if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 });
+    else if (d.at) setJump({ key: Date.now(), x: d.at.x + 0.5, y: d.at.y + 0.5 });
+  }, [space, spaces, map]);
+
   const goToPerson = (id: string, theirSpace: string | null) => {
     if (theirSpace && theirSpace !== space?.id) setSpaceId(theirSpace);
     // walk over to them (and stop when we arrive); across offices we walk in after arriving
@@ -682,6 +705,17 @@ export default function OfficePage() {
     return () => { window.removeEventListener('keydown', key); window.removeEventListener('blur', close); window.removeEventListener('resize', close); };
   }, [ctx]);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const spaceLink = (extra = '') => `${window.location.origin}/office?space=${space?.id ?? ''}${extra}`;
+  const copyLink = async (extra: string, what: string) => {
+    const url = spaceLink(extra);
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: 'Link copied', description: what });
+    } catch {
+      toast({ title: 'Copy this link', description: url });
+    }
+  };
   useEffect(() => {
     const look = () => { const el = document.getElementById('office-sidebar-slot'); setSlot((cur) => (cur === el ? cur : el)); };
     look();
@@ -771,6 +805,10 @@ export default function OfficePage() {
 
       <div className="flex min-h-0 flex-1 gap-3">
         <SlotAside slot={slot}>
+          <div className="flex gap-1.5">
+            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5" />Invite</button>
+            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="h-3.5 w-3.5" />Copy link</button>
+          </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -1069,6 +1107,7 @@ export default function OfficePage() {
           if (isAdmin) { sep('s1'); item('manage', <Pencil className={ic} />, 'Manage (rename, assign, build)', () => setDeskZone(office)); }
         } else {
           if (zone && isRoom(zone)) title = zone.name;
+          item('link', <LinkIcon className={ic} />, zone && isRoom(zone) ? 'Copy link to this room' : 'Copy link to this spot', () => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : `&at=${tx},${ty}`, 'It opens the office right there.'));
           item('here', <Footprints className={ic} />, 'Walk here', () => setJump({ key: Date.now(), x: tx + 0.5, y: ty + 0.5 }));
           item('rc2', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
         }
@@ -1083,6 +1122,7 @@ export default function OfficePage() {
           </div>
         );
       })()}
+      <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
@@ -1103,4 +1143,20 @@ export default function OfficePage() {
       />
     </div>
   );
+}
+
+/** Only people in the office (admin pay groups, directors, admins, or invited) get in; the rest are told how. */
+export default function OfficePage() {
+  const { profile } = useAuthStore();
+  const members = useOfficeMembers();
+  if (profile && members.data && !members.data.includes(profile.id)) {
+    return (
+      <div className="mx-auto mt-24 max-w-md rounded-xl border bg-card p-6 text-center">
+        <Building2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+        <h2 className="text-lg font-semibold">The Virtual Office is invite-only</h2>
+        <p className="mt-1 text-sm text-muted-foreground">It is open to KDS administration and directors. Ask an admin to invite you and it will open here.</p>
+      </div>
+    );
+  }
+  return <OfficeRoom />;
 }

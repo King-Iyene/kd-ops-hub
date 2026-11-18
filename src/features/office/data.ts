@@ -27,7 +27,7 @@ export function useSpaces() {
 }
 
 /** Makes sure the signed-in person has a personal office (the database also does this automatically). */
-export interface Person { id: string; name: string; avatar: AvatarStyle; role: string }
+export interface Person { id: string; name: string; avatar: AvatarStyle; role: string; gender?: string | null }
 
 /** The full name, the way people appear in the office. */
 export function shortName(full: string | null | undefined): string {
@@ -65,16 +65,63 @@ export function useDeskClaims(spaceId: string | null) {
 }
 
 /** Everyone in the company with their avatar, so people who are offline can be listed too. */
+const sb = supabase as any;
+
+/** Ids of the people who are in the office (null if it could not be worked out, so nobody is locked out by a hiccup). */
+async function fetchMemberIds(): Promise<Set<string> | null> {
+  try {
+    const { data, error } = await sb.rpc('office_member_ids');
+    if (error || !Array.isArray(data)) return null;
+    return new Set((data as unknown[]).map((x) => (typeof x === 'string' ? x : String((x as Record<string, unknown>).office_member_ids ?? x))));
+  } catch {
+    return null;
+  }
+}
+
+export function useOfficeMembers() {
+  return useQuery({ queryKey: ['office', 'members'], queryFn: async () => { const s = await fetchMemberIds(); return s ? [...s] : null; }, staleTime: 60_000 });
+}
+
+/** Active employees who are not in the office yet (the people an admin can invite). */
+export function useInvitable(enabled: boolean) {
+  return useQuery({
+    queryKey: ['office', 'invitable'],
+    enabled,
+    queryFn: async (): Promise<{ id: string; name: string }[]> => {
+      const members = (await fetchMemberIds()) ?? new Set<string>();
+      const { data } = await supabase.from('profiles').select('id, full_name, status').eq('status', 'active').order('full_name');
+      return (data ?? []).filter((p) => !members.has(p.id as string)).map((p) => ({ id: p.id as string, name: shortName(p.full_name as string) }));
+    },
+  });
+}
+
+/** People an admin has invited (and who are active). */
+export function useInvites(enabled: boolean) {
+  return useQuery({
+    queryKey: ['office', 'invites'],
+    enabled,
+    queryFn: async (): Promise<{ id: string; name: string }[]> => {
+      const { data: inv } = await sb.from('office_invites').select('profile_id');
+      const ids = ((inv ?? []) as { profile_id: string }[]).map((r) => r.profile_id);
+      if (!ids.length) return [];
+      const { data } = await supabase.from('profiles').select('id, full_name, status').in('id', ids).eq('status', 'active');
+      return (data ?? []).map((p) => ({ id: p.id as string, name: shortName(p.full_name as string) }));
+    },
+  });
+}
+
 export function useDirectory() {
   return useQuery({
     queryKey: ['office', 'directory'],
     queryFn: async (): Promise<Person[]> => {
-      const [{ data: ppl }, { data: avs }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, role').order('full_name'),
+      const memberIds = await fetchMemberIds();
+      const [{ data: pplAll }, { data: avs }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, role, gender').order('full_name'),
         supabase.from('office_avatars').select('profile_id, style'),
       ]);
       const styles = new Map((avs ?? []).map((a) => [a.profile_id as string, a.style]));
-      return (ppl ?? []).map((p) => ({ id: p.id as string, name: shortName(p.full_name as string), avatar: cleanAvatar(styles.get(p.id as string), p.id as string), role: (p.role as string) ?? '' }));
+      const ppl = memberIds ? (pplAll ?? []).filter((p) => memberIds.has(p.id as string)) : (pplAll ?? []);
+      return ppl.map((p) => ({ id: p.id as string, name: shortName(p.full_name as string), avatar: cleanAvatar(styles.get(p.id as string), p.id as string, p.gender as string | null), role: (p.role as string) ?? '', gender: p.gender as string | null }));
     },
     staleTime: 60_000,
   });
@@ -89,8 +136,11 @@ export function useMyAvatar(userId: string | undefined) {
     queryKey: ['office', 'avatar', userId],
     enabled: !!userId,
     queryFn: async (): Promise<AvatarStyle> => {
-      const { data } = await supabase.from('office_avatars').select('style').eq('profile_id', userId!).maybeSingle();
-      return cleanAvatar(data?.style, userId!);
+      const [{ data }, { data: pr }] = await Promise.all([
+        supabase.from('office_avatars').select('style').eq('profile_id', userId!).maybeSingle(),
+        supabase.from('profiles').select('gender').eq('id', userId!).maybeSingle(),
+      ]);
+      return cleanAvatar(data?.style, userId!, (pr?.gender as string | null | undefined) ?? null);
     },
     staleTime: 5 * 60_000,
   });
@@ -144,6 +194,16 @@ export async function signedRecordingUrl(path: string, downloadAs?: string): Pro
 export function useOfficeMutations() {
   const qc = useQueryClient();
   return {
+    async invite(profileId: string, by: string) {
+      const { error } = await sb.from('office_invites').upsert({ profile_id: profileId, invited_by: by });
+      if (error) throw error;
+      await Promise.all(['members', 'directory', 'invitable', 'invites'].map((k) => qc.invalidateQueries({ queryKey: ['office', k] })));
+    },
+    async uninvite(profileId: string) {
+      const { error } = await sb.from('office_invites').delete().eq('profile_id', profileId);
+      if (error) throw error;
+      await Promise.all(['members', 'directory', 'invitable', 'invites'].map((k) => qc.invalidateQueries({ queryKey: ['office', k] })));
+    },
     async saveAvatar(userId: string, style: AvatarStyle) {
       const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style: style as never, updated_at: new Date().toISOString() });
       if (error) throw error;

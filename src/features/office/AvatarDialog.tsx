@@ -11,9 +11,12 @@ const HAIR_STYLES: { id: AvatarStyle['hairStyle']; label: string }[] = [
   { id: 3, label: 'None' },
   { id: 4, label: 'Curly' },
   { id: 5, label: 'Quiff' },
+  { id: 6, label: 'Braids' },
+  { id: 7, label: 'Afro' },
 ];
-const OUTFITS: { id: AvatarStyle['outfit']; label: string }[] = [{ id: 0, label: 'T-shirt' }, { id: 1, label: 'Hoodie' }, { id: 2, label: 'Blazer' }];
-const ACCESSORIES: { id: AvatarStyle['accessory']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Glasses' }, { id: 2, label: 'Headset' }, { id: 3, label: 'Cap' }];
+const OUTFITS: { id: AvatarStyle['outfit']; label: string }[] = [{ id: 0, label: 'T-shirt' }, { id: 1, label: 'Hoodie' }, { id: 2, label: 'Blazer' }, { id: 3, label: 'Dress' }, { id: 4, label: 'Skirt' }];
+const BEARDS: { id: AvatarStyle['beard']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Stubble' }, { id: 2, label: 'Moustache' }, { id: 3, label: 'Beard' }];
+const ACCESSORIES: { id: AvatarStyle['accessory']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Glasses' }, { id: 2, label: 'Headset' }, { id: 3, label: 'Cap' }, { id: 4, label: 'Sunglasses' }, { id: 5, label: 'Beanie' }, { id: 6, label: 'Head wrap' }];
 
 function Choice<T extends number>({ label, items, value, onPick }: { label: string; items: { id: T; label: string }[]; value: T; onPick: (id: T) => void }) {
   return (
@@ -91,6 +94,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
             <Swatches label="Trousers" colors={PANTS_COLORS} value={draft.pants} onPick={(c) => setDraft({ ...draft, pants: c })} />
             <Choice label="Hair style" items={HAIR_STYLES} value={draft.hairStyle} onPick={(id) => setDraft({ ...draft, hairStyle: id })} />
             <Choice label="Outfit" items={OUTFITS} value={draft.outfit} onPick={(id) => setDraft({ ...draft, outfit: id })} />
+            <Choice label="Facial hair" items={BEARDS} value={draft.beard} onPick={(id) => setDraft({ ...draft, beard: id })} />
             <Choice label="Accessory" items={ACCESSORIES} value={draft.accessory} onPick={(id) => setDraft({ ...draft, accessory: id })} />
           </div>
         </div>

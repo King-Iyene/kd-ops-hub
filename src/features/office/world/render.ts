@@ -16,9 +16,35 @@ export const PANTS_COLORS = ['#334155', '#1e293b', '#475569', '#78350f', '#1e3a8
 type Hair = AvatarStyle['hairStyle'];
 
 /** A stable default look from someone's id, until they pick their own. */
-export function defaultAvatar(id: string): AvatarStyle {
+export function defaultAvatar(id: string, gender?: string | null): AvatarStyle {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const g = (gender ?? '').toLowerCase();
+  const from = <T,>(list: readonly T[], shift: number): T => list[(h >>> shift) % list.length];
+  if (g === 'female') {
+    return {
+      skin: SKIN_TONES[h % SKIN_TONES.length],
+      hair: HAIR_COLORS[(h >>> 3) % HAIR_COLORS.length],
+      shirt: SHIRT_COLORS[(h >>> 6) % SHIRT_COLORS.length],
+      hairStyle: from([1, 2, 4, 6, 7, 1, 2] as const, 9) as Hair,
+      outfit: from([0, 2, 3, 4, 3, 4] as const, 12) as 0 | 1 | 2 | 3 | 4,
+      accessory: from([0, 0, 0, 1, 5, 6] as const, 14) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      pants: PANTS_COLORS[(h >>> 17) % PANTS_COLORS.length],
+      beard: 0,
+    };
+  }
+  if (g === 'male') {
+    return {
+      skin: SKIN_TONES[h % SKIN_TONES.length],
+      hair: HAIR_COLORS[(h >>> 3) % HAIR_COLORS.length],
+      shirt: SHIRT_COLORS[(h >>> 6) % SHIRT_COLORS.length],
+      hairStyle: from([0, 0, 5, 3, 4, 7, 0] as const, 9) as Hair,
+      outfit: from([0, 1, 2, 0, 2] as const, 12) as 0 | 1 | 2 | 3 | 4,
+      accessory: from([0, 0, 0, 1, 2, 3, 4] as const, 14) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      pants: PANTS_COLORS[(h >>> 17) % PANTS_COLORS.length],
+      beard: from([0, 0, 1, 2, 3, 0] as const, 20) as 0 | 1 | 2 | 3,
+    };
+  }
   return {
     skin: SKIN_TONES[h % SKIN_TONES.length],
     hair: HAIR_COLORS[(h >>> 3) % HAIR_COLORS.length],
@@ -27,13 +53,14 @@ export function defaultAvatar(id: string): AvatarStyle {
     outfit: ((h >>> 12) % 3) as 0 | 1 | 2,
     accessory: ([0, 0, 0, 1, 2, 3][(h >>> 14) % 6]) as 0 | 1 | 2 | 3,
     pants: PANTS_COLORS[(h >>> 17) % PANTS_COLORS.length],
+    beard: 0,
   };
 }
 
 const hexRe = /^#[0-9a-fA-F]{6}$/;
 /** Avatar read from the network or database: any bad field falls back to the default look for that id. */
-export function cleanAvatar(raw: unknown, id: string): AvatarStyle {
-  const d = defaultAvatar(id);
+export function cleanAvatar(raw: unknown, id: string, gender?: string | null): AvatarStyle {
+  const d = defaultAvatar(id, gender);
   if (!raw || typeof raw !== 'object') return d;
   const o = raw as Record<string, unknown>;
   const col = (v: unknown, fb: string) => (typeof v === 'string' && hexRe.test(v) ? v : fb);
@@ -42,10 +69,11 @@ export function cleanAvatar(raw: unknown, id: string): AvatarStyle {
     skin: col(o.skin, d.skin),
     hair: col(o.hair, d.hair),
     shirt: col(o.shirt, d.shirt),
-    hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5], d.hairStyle),
-    outfit: pick<0 | 1 | 2>(o.outfit, [0, 1, 2], d.outfit),
-    accessory: pick<0 | 1 | 2 | 3>(o.accessory, [0, 1, 2, 3], d.accessory),
+    hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5, 6, 7], d.hairStyle),
+    outfit: pick<0 | 1 | 2 | 3 | 4>(o.outfit, [0, 1, 2, 3, 4], d.outfit),
+    accessory: pick<0 | 1 | 2 | 3 | 4 | 5 | 6>(o.accessory, [0, 1, 2, 3, 4, 5, 6], d.accessory),
     pants: col(o.pants, d.pants),
+    beard: pick<0 | 1 | 2 | 3>(o.beard, [0, 1, 2, 3], d.beard),
   };
 }
 
@@ -1732,8 +1760,9 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.fillStyle = a.hair;
     if (a.hairStyle === 1) { rr(ctx, px - 9.5, hy - 4, 19, back ? 22 : 16, 7); ctx.fill(); }
     if (a.hairStyle === 4) disc(ctx, px, hy - 2, 11.5, a.hair);
+    if (a.hairStyle === 7) disc(ctx, px, hy - 3, 13.2, a.hair);
   };
-  if (a.hairStyle === 1 || a.hairStyle === 4) hairBack();
+  if (a.hairStyle === 1 || a.hairStyle === 4 || a.hairStyle === 7) hairBack();
   if (a.outfit === 1) {
     ctx.fillStyle = shade(a.shirt, -0.2);
     ctx.beginPath();
@@ -1744,7 +1773,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // legs and shoes
   const lift = (v: number) => -Math.max(0, v) * 2.6;
   const stride = side ? step * 4.5 : 0;
-  ctx.fillStyle = a.pants;
+  ctx.fillStyle = a.outfit >= 3 ? a.skin : a.pants;
   rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, 8, 2);
   ctx.fill();
   rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, 8, 2);
@@ -1759,7 +1788,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillRect(px + 1 + fx * 1.5 - stride, py + 11 + lift(-step), 6, 0.8);
 
   // arms swing opposite to the legs
-  const sleeveLong = a.outfit !== 0;
+  const sleeveLong = a.outfit === 1 || a.outfit === 2;
   const arm = (dx: number, swing: number) => {
     const ay = py - 9 + bob + swing * 1.6;
     const axs = side ? swing * 3.2 : 0;
@@ -1782,7 +1811,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   rr(ctx, px - tw / 2, py - 11 + bob, tw, 15, 6);
   ctx.fill();
   if (!back) {
-    if (a.outfit === 0) {
+    if (a.outfit === 0 || a.outfit >= 3) {
       ctx.fillStyle = a.skin;
       ctx.beginPath();
       ctx.arc(px, py - 11 + bob, 3.6, 0, Math.PI);
@@ -1827,6 +1856,28 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     }
   }
 
+  // dress or skirt: a flared skirt over the legs
+  if (a.outfit >= 3) {
+    const skirt = a.outfit === 3 ? a.shirt : a.pants;
+    const sway = p.moving ? step * 1.6 : 0;
+    ctx.fillStyle = vgrad(ctx, py - 4 + bob, py + 8 + bob, shade(skirt, 0.1), shade(skirt, -0.16));
+    ctx.beginPath();
+    ctx.moveTo(px - 8.6, py - 3 + bob);
+    ctx.lineTo(px + 8.6, py - 3 + bob);
+    ctx.lineTo(px + 12.5 + sway, py + 6.5 + bob);
+    ctx.quadraticCurveTo(px, py + 9 + bob, px - 12.5 + sway, py + 6.5 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = shade(skirt, -0.3);
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(px - 12.5 + sway, py + 6.5 + bob);
+    ctx.quadraticCurveTo(px, py + 9 + bob, px + 12.5 + sway, py + 6.5 + bob);
+    ctx.stroke();
+    // a belt for the dress
+    if (a.outfit === 3) { ctx.fillStyle = shade(a.shirt, -0.28); ctx.fillRect(px - 8.8, py - 4.2 + bob, 17.6, 2.2); }
+  }
+
   // head
   const hg = ctx.createRadialGradient(px - 2, hy - 3, 1, px, hy, 10);
   hg.addColorStop(0, shade(a.skin, 0.12));
@@ -1866,6 +1917,16 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.beginPath();
       ctx.ellipse(px + 2 + fx, hy - 9, 7, 4.2, 0.3, 0, Math.PI * 2);
       ctx.fill();
+    } else if (a.hairStyle === 6) {
+      for (const sx of [-1, 1]) {
+        rr(ctx, px + sx * 8.2 - 1.8, hy - 2, 3.6, 19, 1.8);
+        ctx.fill();
+        ctx.fillStyle = shade(a.hair, -0.35);
+        for (let k = 0; k < 5; k++) ctx.fillRect(px + sx * 8.2 - 1.8, hy + 1 + k * 3.4, 3.6, 0.8);
+        ctx.fillStyle = a.hair;
+      }
+    } else if (a.hairStyle === 7) {
+      disc(ctx, px, hy - 7, 8, a.hair);
     }
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.beginPath();
@@ -1902,6 +1963,27 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.lineTo(e + 2, eyeY - 3.4);
       ctx.stroke();
     }
+    // facial hair
+    if (a.beard === 1) {
+      ctx.fillStyle = a.hair;
+      ctx.globalAlpha = 0.32;
+      ctx.beginPath();
+      ctx.arc(px, hy, 8.5, 0.12 * Math.PI, 0.88 * Math.PI);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (a.beard === 2) {
+      ctx.fillStyle = a.hair;
+      ctx.beginPath();
+      ctx.ellipse(px + ex * 0.8 + fx * 0.5, hy + 3, side ? 2.4 : 4.2, 1.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (a.beard === 3) {
+      ctx.fillStyle = a.hair;
+      ctx.beginPath();
+      ctx.arc(px, hy, 8.9, 0.04 * Math.PI, 0.96 * Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      disc(ctx, px + ex * 0.8, hy + 3.8, 3.3, a.skin);
+    }
     ctx.fillStyle = 'rgba(244,114,182,0.22)';
     if (!side) { disc(ctx, px - 5.5, hy + 4, 1.8, ctx.fillStyle); disc(ctx, px + 5.5, hy + 4, 1.8, ctx.fillStyle); }
     ctx.strokeStyle = shade(a.skin, -0.45);
@@ -1913,6 +1995,13 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (side) { ctx.fillStyle = shade(a.skin, -0.12); disc(ctx, px + fx * 8.2, hy + 2, 1.2, ctx.fillStyle); }
 
     // accessories
+    if (a.accessory === 4) {
+      ctx.fillStyle = '#0b1220';
+      for (const e of eyes) { rr(ctx, e - 3.6, eyeY - 2.6, 7.2, 5, 2); ctx.fill(); }
+      if (!side) ctx.fillRect(eyes[0] + 3.4, eyeY - 1.4, eyes[1] - eyes[0] - 6.8, 1.2);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      for (const e of eyes) ctx.fillRect(e - 2.4, eyeY - 1.9, 2.2, 0.9);
+    }
     if (a.accessory === 1) {
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1.2;
@@ -1951,6 +2040,34 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     }
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     disc(ctx, px, hy - 9, 1.2, ctx.fillStyle);
+  }
+
+  if (a.accessory === 5) {
+    const bc = shade(a.shirt, 0.05);
+    ctx.fillStyle = bc;
+    ctx.beginPath();
+    ctx.arc(px, hy - 2.5, 9.6, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shade(bc, -0.2);
+    rr(ctx, px - 9.8, hy - 4, 19.6, 3.6, 1.6);
+    ctx.fill();
+    disc(ctx, px, hy - 13, 2.4, shade(bc, 0.25));
+  }
+  if (a.accessory === 6) {
+    const wc = shade(a.shirt, 0.18);
+    ctx.fillStyle = wc;
+    ctx.beginPath();
+    ctx.arc(px, hy - 1.5, 9.8, Math.PI * 0.96, Math.PI * 2.04);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(px + 1.5 + fx * 2, hy - 11.5, 8.5, 4.6, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = shade(wc, -0.3);
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(px - 8, hy - 4);
+    ctx.quadraticCurveTo(px, hy - 8, px + 8, hy - 3);
+    ctx.stroke();
   }
 
   // name tag (skipped when there is no name, as in the avatar preview)
