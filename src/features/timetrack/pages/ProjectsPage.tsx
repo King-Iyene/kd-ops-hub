@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban, Play, FileBarChart } from 'lucide-react';
+import { Plus, Loader2, Archive, Tag as TagIcon, FolderKanban, FileBarChart } from 'lucide-react';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useTimetrackCapabilities } from '../lib/capabilities';
 import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
-import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,21 +17,21 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { fetchActiveProjects, fetchTasksForProject, fetchAllTags } from '../lib/queries';
-import type { TimeClient, TimeCustomField, TimeProject, TimeTask } from '../lib/types';
+import { fetchActiveProjects, fetchAllTags } from '../lib/queries';
+import type { TimeClient, TimeCustomField, TimeProject } from '../lib/types';
 
 export default function ProjectsPage() {
   const { has } = useTimetrackCapabilities();
   return (
     <div className="space-y-3 sm:space-y-6">
-      <PageHeader title="Projects & Tasks" description="Projects, tasks, tags and custom fields — the structure everything else tracks against" icon={FolderKanban} />
+      <PageHeader title="Projects" description="Projects, tags and custom fields — the structure everything else tracks against" icon={FolderKanban} />
       <Tabs defaultValue="projects">
         <TabsList>
-          <TabsTrigger value="projects">Projects &amp; Tasks</TabsTrigger>
+          <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
         </TabsList>
-        <TabsContent value="projects" className="mt-4"><ProjectsTab canManage={has('manage_projects')} canManageTasks={has('manage_tasks')} /></TabsContent>
+        <TabsContent value="projects" className="mt-4"><ProjectsTab canManage={has('manage_projects')} /></TabsContent>
         <TabsContent value="tags" className="mt-4"><TagsTab /></TabsContent>
         <TabsContent value="fields" className="mt-4"><CustomFieldsTab canManage={has('manage_custom_fields')} /></TabsContent>
       </Tabs>
@@ -40,7 +39,7 @@ export default function ProjectsPage() {
   );
 }
 
-function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canManageTasks: boolean }) {
+function ProjectsTab({ canManage }: { canManage: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -62,7 +61,6 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
       return data as TimeCustomField[];
     },
   });
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeProject | null>(null);
   const [name, setName] = useState('');
@@ -137,9 +135,6 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
         <Card key={p.id}>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <button onClick={() => setExpanded(expanded === p.id ? null : p.id)} className="shrink-0">
-                {expanded === p.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </button>
               <div className="flex-1 min-w-0">
                 <p className="font-medium">{p.name} {!p.is_billable && <Badge variant="outline" className="ml-2">non-billable</Badge>}</p>
                 <p className="text-xs text-muted-foreground">
@@ -160,7 +155,6 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
                 )}
               </div>
             </div>
-            {expanded === p.id && <TasksList projectId={p.id} canManage={canManageTasks || canManage} />}
           </CardContent>
         </Card>
       ))}
@@ -217,91 +211,6 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function TasksList({ projectId, canManage }: { projectId: string; canManage: boolean }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const { profile } = useAuthStore();
-  const { data: tasks } = useQuery({ queryKey: ['timetrack', 'tasks', projectId], queryFn: () => fetchTasksForProject(projectId) });
-  const [newTask, setNewTask] = useState('');
-  const { data: activeEntry } = useQuery({
-    queryKey: ['timetrack', 'active-timer', profile?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('time_entries').select('id, task_id').eq('employee_id', profile!.id).is('end_time', null).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile?.id,
-  });
-
-  const startTimerFor = async (t: TimeTask) => {
-    if (activeEntry) {
-      toast({ title: 'A timer is already running', description: 'Stop your current timer on the Timesheet page before starting another.', variant: 'destructive' });
-      return;
-    }
-    try {
-      const { error } = await supabase.from('time_entries').insert({
-        employee_id: profile!.id, task_id: t.id, project_id: projectId,
-        start_time: new Date().toISOString(), entry_source: 'timer',
-      });
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
-      qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
-      toast({ title: `Timer started on "${t.name}"` });
-    } catch (err) {
-      toast({ title: 'Could not start timer', description: errorMessage(err), variant: 'destructive' });
-    }
-  };
-
-  const addTask = async () => {
-    if (!newTask.trim()) return;
-    try {
-      const { error } = await supabase.from('time_tasks').insert({ project_id: projectId, name: newTask.trim() });
-      if (error) throw error;
-      setNewTask('');
-      qc.invalidateQueries({ queryKey: ['timetrack', 'tasks', projectId] });
-    } catch (err) {
-      toast({ title: 'Could not add task', description: errorMessage(err), variant: 'destructive' });
-    }
-  };
-
-  const archiveTask = async (t: TimeTask) => {
-    try {
-      const { error } = await supabase.from('time_tasks').update({ is_archived: true }).eq('id', t.id);
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ['timetrack', 'tasks', projectId] });
-    } catch (err) {
-      toast({ title: 'Could not archive task', description: errorMessage(err), variant: 'destructive' });
-    }
-  };
-
-  return (
-    <div className="ml-6 mt-3 space-y-1.5 border-l border-border/60 pl-4">
-      {(tasks ?? []).map((t) => (
-        <div key={t.id} className="flex items-center justify-between text-sm py-1">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost" size="icon" className="h-6 w-6"
-              title={activeEntry?.task_id === t.id ? 'Timer running' : 'Start timer on this task'}
-              disabled={!!activeEntry}
-              onClick={() => startTimerFor(t)}
-            >
-              <Play className={`h-3.5 w-3.5 ${activeEntry?.task_id === t.id ? 'text-emerald-500' : ''}`} />
-            </Button>
-            <span>{t.name}</span>
-          </div>
-          {canManage && <Button variant="ghost" size="sm" onClick={() => archiveTask(t)}>Archive</Button>}
-        </div>
-      ))}
-      {canManage && (
-        <div className="flex gap-2 pt-1">
-          <Input placeholder="New task name" value={newTask} onChange={(e) => setNewTask(e.target.value)} className="h-8" />
-          <Button size="sm" onClick={addTask}>Add</Button>
-        </div>
-      )}
     </div>
   );
 }
