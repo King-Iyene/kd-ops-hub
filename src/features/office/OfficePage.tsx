@@ -775,6 +775,8 @@ function OfficeRoom() {
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
   const [bright, setBright] = useState(() => { try { return localStorage.getItem('kd:office:bright') !== '0'; } catch { return true; } });
   const dark = !bright;
+  const [sound, setSound] = useState(() => { try { return localStorage.getItem('kd:office:sound') !== '0'; } catch { return true; } });
+  const toggleSound = () => { setSound((v) => { try { localStorage.setItem('kd:office:sound', v ? '0' : '1'); } catch { /* fine */ } return !v; }); };
   const toggleBright = () => { setBright((b) => { try { localStorage.setItem('kd:office:bright', b ? '0' : '1'); } catch { /* fine */ } return !b; }); };
 
   // live cameras as bubbles above heads: one hidden, playing video element per person
@@ -933,7 +935,7 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            recenter={recenter} emotes={emotes} sound={sound} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => { const z = zoneAt(map, t.x + 0.5, t.y + 0.5); if (z && z.kind === 'office') setDeskZone(z); }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
@@ -976,7 +978,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  bright={bright} onToggleBright={toggleBright} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  bright={bright} onToggleBright={toggleBright} sound={sound} onToggleSound={toggleSound} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}

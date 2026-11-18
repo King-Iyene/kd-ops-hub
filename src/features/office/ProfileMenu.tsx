@@ -1,4 +1,4 @@
-import { Circle, DoorClosed, DoorOpen, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun } from 'lucide-react';
+import { Circle, DoorClosed, DoorOpen, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun, Volume2, VolumeX } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { STATUSES, statusOf } from './status';
 
@@ -10,6 +10,8 @@ interface Props {
   onAvatar: () => void;
   bright: boolean;
   onToggleBright: () => void;
+  sound: boolean;
+  onToggleSound: () => void;
   zoom: number;
   onZoom: (delta: number) => void;
   traySize: 0 | 1 | 2 | 3;
@@ -73,6 +75,7 @@ export function ProfileMenu(p: Props) {
         {p.canCustomiseMine && <DropdownMenuItem onSelect={p.onCustomiseMine}><Pencil className="mr-2 h-4 w-4" />Customise my office</DropdownMenuItem>}
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onToggleBright}>{p.bright ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}{p.bright ? 'Night office' : 'Bright office'}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={p.onToggleSound}>{p.sound ? <Volume2 className="mr-2 h-4 w-4" /> : <VolumeX className="mr-2 h-4 w-4" />}{p.sound ? 'Office sounds: on' : 'Office sounds: off'}</DropdownMenuItem>
         <div className="flex items-center justify-between px-2 py-1.5 text-sm">
           <span>Video bubble size</span>
           <span className="flex gap-1">

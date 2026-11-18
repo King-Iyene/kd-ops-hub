@@ -5,6 +5,7 @@ import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPer
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
+import { ambient } from './ambient';
 
 import type { EditTool } from './EditorPanel';
 export type { EditTool };
@@ -46,6 +47,8 @@ interface Props {
   recenter: number;
   /** size of the video bubbles over people (1 is normal) */
   bubbleScale: number;
+  /** ambient sound (water, fire, footsteps) on or off */
+  sound: boolean;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -85,6 +88,11 @@ export function OfficeCanvas(props: Props) {
   const hover = useRef<{ x: number; y: number } | null>(null);
   const cam = useRef({ ox: 0, oy: 0, scale: 1 });
 
+  useEffect(() => {
+    ambient.setEnabled(props.sound);
+  }, [props.sound]);
+  useEffect(() => () => ambient.stop(), []);
+
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const firstEnter = useRef(true);
   const lastSaved = useRef(0);
@@ -109,6 +117,7 @@ export function OfficeCanvas(props: Props) {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      ambient.resume();
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 'shift') { keys.current.add('shift'); return; }
@@ -173,6 +182,7 @@ export function OfficeCanvas(props: Props) {
       if (drag.moved && !propsRef.current.editing) pan.current = { x: drag.px + dx, y: drag.py + dy };
     };
     const down = (e: MouseEvent) => {
+      ambient.resume();
       if (e.button !== 0) return;
       drag.down = true;
       drag.moved = false;
@@ -328,6 +338,7 @@ export function OfficeCanvas(props: Props) {
         me.x = np.x;
         me.y = np.y;
         me.dir = facing(v.vx, v.vy, me.dir);
+        ambient.update({ x: me.x, y: me.y }, p.items, Math.hypot(me.sx, me.sy) > 0.25, now);
         if (now - lastSaved.current > 1500) {
           lastSaved.current = now;
           try { localStorage.setItem('kd:office:pos:' + p.spaceId, JSON.stringify({ x: me.x, y: me.y, t: Date.now() })); } catch { /* fine */ }

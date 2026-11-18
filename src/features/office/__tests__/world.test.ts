@@ -323,3 +323,14 @@ describe('painting walls and floors', () => {
     expect(buildSolid(b, b.items)[Math.floor(b.spawn.y)][Math.floor(b.spawn.x)]).toBe(false);
   });
 });
+
+describe('ambient sound levels', () => {
+  it('is loudest next to the source, fades with distance and is silent out of range', async () => {
+    const { soundLevel } = await import('../ambient');
+    expect(soundLevel(0, 8)).toBe(1);
+    expect(soundLevel(4, 8)).toBeLessThan(soundLevel(2, 8));
+    expect(soundLevel(8, 8)).toBe(0);
+    expect(soundLevel(20, 8)).toBe(0);
+    expect(soundLevel(-1, 8)).toBe(0);
+  });
+});
