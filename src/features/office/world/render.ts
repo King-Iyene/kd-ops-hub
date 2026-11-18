@@ -1124,7 +1124,8 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cy = y + H / 2;
   switch (item.t) {
     case 'bike': {
-      bikeSprite(ctx, cx, cy + 4, 'side', 1, 0, col);
+      // a parked bike faces the way it was left (rotation 1 means facing left)
+      bikeSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col);
       return true;
     }
     case 'wallclock': {
