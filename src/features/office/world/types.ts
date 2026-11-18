@@ -41,9 +41,14 @@ export interface Zone {
   sign?: { name: string; avatar?: AvatarStyle };
 }
 
+/** Changes an admin painted onto the building: tiles made wall or open, and floors painted. */
+export interface TileEdits { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> }
+
 export interface MapDef {
   w: number;
   h: number;
+  /** floors painted over the zones' floors, by 'x,y' */
+  floorOverrides?: Record<string, string>;
   /** 'hq' draws brick walls and no sky windows */
   style?: 'office' | 'hq';
   /** walls[y][x] is true for a wall tile */

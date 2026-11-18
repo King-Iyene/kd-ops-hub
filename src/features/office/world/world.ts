@@ -1,6 +1,6 @@
 // Pure world logic: furniture catalogue, collision, walking, dead reckoning, rooms, and placement rules.
 // No React, no canvas, no network, so it is unit tested.
-import type { Item, ItemDef, ItemType, MapDef, Zone } from './types';
+import type { Item, ItemDef, ItemType, MapDef, TileEdits, Zone } from './types';
 
 export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   desk: { w: 2, h: 1, solid: true, label: 'Desk' },
@@ -154,6 +154,19 @@ export function zoneAt(map: MapDef, x: number, y: number): Zone | null {
   if (hits.length === 0) return null;
   const rank: Record<Zone['kind'], number> = { portal: 0, meeting: 1, office: 1, lounge: 2, area: 3 };
   return hits.sort((a, b) => rank[a.kind] - rank[b.kind])[0];
+}
+
+/** The map with an admin's painted walls and floors applied (tile index is y * width + x). */
+export function applyTileEdits(map: MapDef, e: TileEdits | undefined): MapDef {
+  if (!e || (!e.wallsOn?.length && !e.wallsOff?.length && !Object.keys(e.floors ?? {}).length)) return map;
+  const walls = map.walls.map((r) => r.slice());
+  const set = (i: number, v: boolean) => {
+    if (!Number.isInteger(i) || i < 0 || i >= map.w * map.h) return;
+    walls[Math.floor(i / map.w)][i % map.w] = v;
+  };
+  for (const i of e.wallsOn ?? []) set(i, true);
+  for (const i of e.wallsOff ?? []) set(i, false);
+  return { ...map, walls, floorOverrides: e.floors ?? {} };
 }
 
 /** A private room: a meeting room or someone's office (voice stays inside, it can be locked). */

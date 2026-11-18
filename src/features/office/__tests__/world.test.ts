@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advance, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, isRoom, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
-import { buildHQ, buildPersonalOffice, buildTeamOffice } from '../world/templates';
+import { advance, applyTileEdits, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, isRoom, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
+import { buildBlank, buildHQ, buildPersonalOffice, buildTeamOffice } from '../world/templates';
 import type { Item } from '../world/types';
 
 describe('templates are playable', () => {
@@ -295,5 +295,30 @@ describe('headquarters', () => {
   it('the private offices count as private rooms', () => {
     expect(isRoom(zoneAt(m, 5.5, 5.5))).toBe(true);
     expect(isRoom(zoneAt(m, 20.5, 20.5))).toBe(false);
+  });
+});
+
+describe('painting walls and floors', () => {
+  it('applies painted walls, erased walls and floors without touching the original', () => {
+    const m = buildHQ([]);
+    const open = 20 * m.w + 20; // somewhere on the open floor
+    const wall = 2 * m.w + 10; // part of the top wall
+    expect(m.walls[20][20]).toBe(false);
+    expect(m.walls[2][10]).toBe(true);
+    const edited = applyTileEdits(m, { wallsOn: [open], wallsOff: [wall], floors: { '21,21': 'grass' } });
+    expect(edited.walls[20][20]).toBe(true);
+    expect(edited.walls[2][10]).toBe(false);
+    expect(edited.floorOverrides?.['21,21']).toBe('grass');
+    expect(m.walls[20][20]).toBe(false);
+  });
+  it('ignores nonsense tile numbers and empty edits', () => {
+    const m = buildHQ([]);
+    expect(applyTileEdits(m, undefined)).toBe(m);
+    expect(() => applyTileEdits(m, { wallsOn: [-5, 1e9, 1.5], wallsOff: [], floors: {} })).not.toThrow();
+  });
+  it('a new blank space is a closed room you can stand in', () => {
+    const b = buildBlank();
+    expect(b.walls[0][0]).toBe(true);
+    expect(buildSolid(b, b.items)[Math.floor(b.spawn.y)][Math.floor(b.spawn.x)]).toBe(false);
   });
 });

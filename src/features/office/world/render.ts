@@ -132,6 +132,8 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
   const zoneAt = (x: number, y: number) => map.zones.find((z) => z.kind !== 'area' && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h);
   /** the ground here: the last zone with a floor that contains the tile */
   const floorOf = (x: number, y: number) => {
+    const painted = map.floorOverrides?.[`${x},${y}`];
+    if (painted) return painted;
     let f: string | undefined;
     for (const z of map.zones) if (z.floor && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) f = z.floor;
     return f;
@@ -177,12 +179,12 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
           ctx.fillStyle = h2(x * 5 + i, y * 3) > 0.5 ? (theme.dark ? '#2f3644' : '#9aa3b0') : (theme.dark ? '#485064' : '#c3cad4');
           ctx.fillRect(px + h2(x * 9 + i, y) * (TILE - 2), py + h2(x, y * 9 + i) * (TILE - 2), 2, 2);
         }
-      } else if (ff === 'carpet' || z?.kind === 'meeting') {
+      } else if (ff === 'carpet' || (z?.kind === 'meeting' && ff !== 'tile')) {
         ctx.fillStyle = c.carpet;
         ctx.fillRect(px, py, TILE, TILE);
         ctx.fillStyle = c.carpetDot;
         for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y) * (TILE - 2), py + h2(x, y * 7 + i) * (TILE - 2), 2, 2);
-      } else if (z?.kind === 'lounge') {
+      } else if (z?.kind === 'lounge' && ff !== 'tile') {
         // wooden planks, each a slightly different shade, seams staggered row by row
         for (let r = 0; r < 3; r++) {
           const off = ((x + y + r) % 2) * 0.5;

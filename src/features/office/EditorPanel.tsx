@@ -6,7 +6,16 @@ import { ITEM_COLORS, TILE, drawItems } from './world/render';
 import { ITEM_DEFS, itemSize } from './world/world';
 import type { ItemType } from './world/types';
 
-export type EditTool = ItemType | 'erase' | 'paint' | 'plate' | null;
+export type EditTool = ItemType | 'erase' | 'paint' | 'plate' | 'wall' | 'unwall' | 'floor' | null;
+
+export const FLOOR_KINDS: { id: string; label: string; swatch: string }[] = [
+  { id: 'wood', label: 'Wood', swatch: '#cf8f50' },
+  { id: 'grass', label: 'Grass', swatch: '#63c174' },
+  { id: 'stone', label: 'Stone', swatch: '#cfd3d9' },
+  { id: 'gray', label: 'Grey carpet', swatch: '#aeb6c1' },
+  { id: 'carpet', label: 'Lavender carpet', swatch: '#dcdaf3' },
+  { id: 'tile', label: 'Tiles', swatch: '#f4ead6' },
+];
 
 /** A little picture of an object, drawn with the same code as the office. */
 function Thumb({ type, color }: { type: ItemType; color?: number }) {
@@ -33,7 +42,11 @@ function Thumb({ type, color }: { type: ItemType; color?: number }) {
 }
 
 /** The editing panel: pick an object, pick a colour, click the floor. */
-export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited }: {
+export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited, floorKind, onFloorKind, brush, onBrush }: {
+  floorKind: string;
+  onFloorKind: (k: string) => void;
+  brush: 1 | 3;
+  onBrush: (b: 1 | 3) => void;
   /** an owner decorating their own office: no name plates, only inside their office */
   limited?: boolean;
   tool: EditTool;
@@ -47,6 +60,7 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
   saving: boolean;
 }) {
   const [cat, setCat] = useState(CATEGORIES[0].id);
+  const buildMode = tool === 'wall' || tool === 'unwall' || tool === 'floor';
   const [q, setQ] = useState('');
   const list = useMemo<ItemType[]>(() => {
     const needle = q.trim().toLowerCase();
@@ -62,6 +76,45 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
           <Button size="sm" className="h-7 px-2 text-xs" onClick={onSave} disabled={saving}><Save className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
         </div>
       </div>
+      {!limited && (
+        <div className="flex gap-1 px-2 pt-2">
+          <button type="button" onClick={() => onTool('desk')} className={`flex-1 rounded-md px-2 py-1 text-xs ${!buildMode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>Objects</button>
+          <button type="button" onClick={() => onTool('floor')} className={`flex-1 rounded-md px-2 py-1 text-xs ${buildMode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>Walls and floors</button>
+        </div>
+      )}
+      {buildMode && (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+          <div className="grid grid-cols-3 gap-1.5">
+            {([['wall', 'Paint walls'], ['unwall', 'Erase walls'], ['floor', 'Paint floor']] as const).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => onTool(id)} className={`rounded-lg border px-1 py-2 text-[11px] ${tool === id ? 'border-primary bg-primary/10 font-medium' : 'border-border hover:bg-muted'}`}>{label}</button>
+            ))}
+          </div>
+          {tool === 'floor' && (
+            <div>
+              <p className="mb-1 text-[11px] font-medium text-muted-foreground">Floor</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {FLOOR_KINDS.map((f) => (
+                  <button key={f.id} type="button" onClick={() => onFloorKind(f.id)} className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${floorKind === f.id ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}>
+                    <span className="h-5 w-5 rounded border border-black/10" style={{ background: f.swatch }} />{f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <p className="mb-1 text-[11px] font-medium text-muted-foreground">Brush</p>
+            <div className="flex gap-1.5">
+              {([1, 3] as const).map((n) => (
+                <button key={n} type="button" onClick={() => onBrush(n)} className={`rounded-lg border px-3 py-1 text-xs ${brush === n ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}>{n} × {n}</button>
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Click or drag across the map to paint. Walls block walking; floors only change the look. Save when you are done.</p>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onReset}>Undo all painting</Button>
+        </div>
+      )}
+      {!buildMode && (
+        <>
       <div className="relative p-2 pb-1">
         <Search className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-muted-foreground" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search objects…" aria-label="Search objects" className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm" />
@@ -102,6 +155,8 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
         </div>
         <p className="text-[10px] text-muted-foreground">{limited ? 'Decorate your own office: pick an object, then click inside it. Walls, name plates and the rest of the building are for admins.' : 'Pick an object, then click the floor. Green means it fits.'}</p>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -242,8 +242,22 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   return { w, h, walls, zones, spawn: { x: 31, y: 47.6 }, items, buildArea: { x: 0, y: 0, w, h }, style: 'hq' };
 }
 
-export type TemplateName = 'team' | 'personal' | 'hq';
+/** A new empty space: a wooden floor inside brick walls, ready to be built. */
+export function buildBlank(): MapDef {
+  seq = 300;
+  const w = 40;
+  const h = 30;
+  const walls = grid(w, h);
+  wallRect(walls, 0, 0, w - 1, 0);
+  wallRect(walls, 0, h - 1, w - 1, h - 1);
+  wallRect(walls, 0, 0, 0, h - 1);
+  wallRect(walls, w - 1, 0, w - 1, h - 1);
+  const zones: Zone[] = [{ id: 'room', name: 'Room', kind: 'area', x: 1, y: 1, w: w - 2, h: h - 2, floor: 'wood' }];
+  return { w, h, walls, zones, spawn: { x: 20, y: 15 }, items: [], buildArea: { x: 1, y: 1, w: w - 2, h: h - 2 }, style: 'hq' };
+}
+
+export type TemplateName = 'team' | 'personal' | 'hq' | 'blank';
 
 export function buildTemplate(name: TemplateName, people: (HqPerson | undefined)[] = []): MapDef {
-  return name === 'personal' ? buildPersonalOffice() : name === 'hq' ? buildHQ(people) : buildTeamOffice();
+  return name === 'personal' ? buildPersonalOffice() : name === 'hq' ? buildHQ(people) : name === 'blank' ? buildBlank() : buildTeamOffice();
 }

@@ -10,7 +10,7 @@ export interface SpaceRow {
   name: string;
   company_id: string | null;
   owner_id: string | null;
-  layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { builders?: string[]; recorders?: string[]; maxItems?: number } };
+  layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { builders?: string[]; recorders?: string[]; maxItems?: number }; tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> } };
 }
 
 /** Every office the signed-in person can see: the company offices and everyone's personal office. */
@@ -175,6 +175,13 @@ export function useOfficeMutations() {
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'decor', spaceId] });
     },
+    /** A new empty space (admins). Returns its id. */
+    async createSpace(name: string): Promise<string> {
+      const { data, error } = await supabase.from('office_spaces').insert({ kind: 'team', name, layout: { template: 'blank' } as never }).select('id').single();
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
+      return data.id as string;
+    },
     async saveSettings(space: SpaceRow, settings: { builders?: string[]; recorders?: string[]; maxItems?: number }) {
       const { error } = await supabase
         .from('office_spaces')
@@ -184,10 +191,10 @@ export function useOfficeMutations() {
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
       await qc.invalidateQueries({ queryKey: ['office', 'recordings'] });
     },
-    async saveLayout(space: SpaceRow, template: TemplateName, items: Item[] | undefined, rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>) {
+    async saveLayout(space: SpaceRow, template: TemplateName, items: Item[] | undefined, rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>, tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> }) {
       const { error } = await supabase
         .from('office_spaces')
-        .update({ layout: { template, ...(items ? { items } : {}), ...(rooms && Object.keys(rooms).length ? { rooms } : {}), ...(space.layout.settings ? { settings: space.layout.settings } : {}) } as never, updated_at: new Date().toISOString() })
+        .update({ layout: { template, ...(items ? { items } : {}), ...(rooms && Object.keys(rooms).length ? { rooms } : {}), ...(tiles && (tiles.wallsOn.length || tiles.wallsOff.length || Object.keys(tiles.floors).length) ? { tiles } : {}), ...(space.layout.settings ? { settings: space.layout.settings } : {}) } as never, updated_at: new Date().toISOString() })
         .eq('id', space.id);
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });

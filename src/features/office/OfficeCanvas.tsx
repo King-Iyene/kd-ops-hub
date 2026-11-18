@@ -6,7 +6,8 @@ import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 
-export type EditTool = ItemType | 'erase' | 'paint' | null;
+import type { EditTool } from './EditorPanel';
+export type { EditTool };
 
 interface Props {
   map: MapDef;
@@ -85,7 +86,7 @@ export function OfficeCanvas(props: Props) {
     meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0, sx: 0, sy: 0 };
     zoneId.current = '__none__';
     portalCooldown.current = performance.now() + 800; // do not bounce straight back through the door we just used
-  }, [props.map]);
+  }, [props.spaceId]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -135,9 +136,17 @@ export function OfficeCanvas(props: Props) {
       return { x: Math.floor((e.clientX - r.left - ox) / (TILE * scale)), y: Math.floor((e.clientY - r.top - oy) / (TILE * scale)) };
     };
     const drag = { down: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 };
+    const painting = () => { const t = propsRef.current.tool; return propsRef.current.editing && (t === 'wall' || t === 'unwall' || t === 'floor'); };
+    let lastPaint = '';
     const move = (e: MouseEvent) => {
       hover.current = toTile(e);
       if (!drag.down) return;
+      if (painting()) {
+        const t = toTile(e);
+        const key = `${t.x},${t.y}`;
+        if (key !== lastPaint) { lastPaint = key; propsRef.current.onTile(t); }
+        return;
+      }
       const dx = e.clientX - drag.sx;
       const dy = e.clientY - drag.sy;
       if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
@@ -151,11 +160,12 @@ export function OfficeCanvas(props: Props) {
       drag.sy = e.clientY;
       drag.px = pan.current.x;
       drag.py = pan.current.y;
+      if (painting()) { const t = toTile(e); lastPaint = `${t.x},${t.y}`; propsRef.current.onTile(t); }
     };
     const up = (e: MouseEvent) => {
       if (!drag.down) return;
       drag.down = false;
-      if (drag.moved) return;
+      if (drag.moved || painting()) return;
       if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
       else propsRef.current.onMapClick(toTile(e));
     };

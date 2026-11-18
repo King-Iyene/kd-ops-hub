@@ -27,9 +27,9 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { ensurePersonalOffice, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { applyTileEdits, canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
-import type { Item, Zone } from './world/types';
+import type { Item, TileEdits, Zone } from './world/types';
 
 
 export default function OfficePage() {
@@ -96,12 +96,17 @@ export default function OfficePage() {
   }), [overrides, claims, directory]);
   const plateKey = plateTable.map((p) => (p ? p.name + JSON.stringify(p.avatar ?? '') : '-')).join('|') + JSON.stringify(Object.entries(overrides).filter(([k]) => k.startsWith('meeting') || k === 'boardroom' || k === 'auditorium' || k === 'lounge' || k === 'music'));
   // the shared office is the headquarters; the older plain layouts stay available
-  const map = useMemo(() => {
+  const baseMap = useMemo(() => {
     const m = buildTemplate(template === 'team' ? 'hq' : template, plateTable);
     if (template !== 'team') return m;
     return { ...m, zones: m.zones.map((z) => (overrides[z.id]?.label && z.kind !== 'office' ? { ...z, name: overrides[z.id].label as string } : z)) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template, plateKey]);
+  // walls and floors painted by an admin (saved with the office); while editing, the draft is shown
+  const savedTiles = space?.layout?.tiles;
+  const [tileDraft, setTileDraft] = useState<TileEdits | undefined>(undefined);
+  const [tilesEditing, setTilesEditing] = useState(false);
+  const map = useMemo(() => applyTileEdits(baseMap, tilesEditing ? tileDraft : savedTiles), [baseMap, tilesEditing, tileDraft, savedTiles]);
   const savedItems = useMemo(
     () => (space && Array.isArray(space.layout?.items) ? sanitizeItems(map, space.layout.items) : map.items),
     [space, map],
@@ -154,7 +159,11 @@ export default function OfficePage() {
   const [tool, setTool] = useState<EditTool>(null);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
   const [color, setColor] = useState<number | undefined>(undefined);
+  const [floorKind, setFloorKind] = useState('wood');
+  const [brush, setBrush] = useState<1 | 3>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newSpaceOpen, setNewSpaceOpen] = useState(false);
+  const [newSpaceName, setNewSpaceName] = useState('');
   const [deskZone, setDeskZone] = useState<Zone | null>(null);
   const [deskBusy, setDeskBusy] = useState(false);
   const myClaim = (claims ?? []).find((c) => c.user_id === profile?.id) ?? null;
@@ -170,15 +179,38 @@ export default function OfficePage() {
   const inScope = (i: { x: number; y: number }) => !scope || (i.x >= scope.x && i.x < scope.x + scope.w && i.y >= scope.y && i.y < scope.y + scope.h);
   const OFFICE_LIMIT = 40;
 
-  const startEdit = (only?: Zone) => { setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
-  const stopEdit = () => { setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
+  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
+  const stopEdit = () => { setTilesEditing(false); setTileDraft(undefined); setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
   const itemAt = (tile: { x: number; y: number }) => {
     const hits = draft.filter((i) => itemCells(i).some((c) => c.x === tile.x && c.y === tile.y));
     return hits.find((i) => i.t !== 'rug') ?? hits[0] ?? null;
   };
+  /** paint walls or floors under the brush */
+  const paintTiles = (tile: { x: number; y: number }) => {
+    const r = brush === 3 ? 1 : 0;
+    setTileDraft((d) => {
+      const cur = d ?? { wallsOn: [], wallsOff: [], floors: {} };
+      const on = new Set(cur.wallsOn);
+      const off = new Set(cur.wallsOff);
+      const floors = { ...cur.floors };
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const x = tile.x + dx;
+          const y = tile.y + dy;
+          if (x < 0 || y < 0 || x >= baseMap.w || y >= baseMap.h) continue;
+          const i = y * baseMap.w + x;
+          if (tool === 'wall') { on.add(i); off.delete(i); }
+          else if (tool === 'unwall') { off.add(i); on.delete(i); }
+          else if (tool === 'floor') floors[x + ',' + y] = floorKind;
+        }
+      }
+      return { wallsOn: [...on], wallsOff: [...off], floors };
+    });
+  };
   const ghost = (tile: { x: number; y: number }) => {
+    if (tool === 'wall' || tool === 'unwall' || tool === 'floor') return { ok: true };
     if (tool === 'plate') { const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5); return { ok: !!z && (z.kind === 'office' || z.kind === 'meeting') }; }
     if (scope && !inScope(tile)) return { ok: false };
     if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
@@ -188,6 +220,7 @@ export default function OfficePage() {
   const onTile = (tile: { x: number; y: number }) => {
     if (!editing || !tool) return;
     if (scope && !inScope(tile)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
+    if (tool === 'wall' || tool === 'unwall' || tool === 'floor') { if (!scope) paintTiles(tile); return; }
     if (tool === 'erase') {
       const hit = itemAt(tile);
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
@@ -232,7 +265,7 @@ export default function OfficePage() {
         return;
       }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
-      await actions.saveLayout(space, template, changed ? draft : undefined, overrides);
+      await actions.saveLayout(space, template, changed ? draft : undefined, overrides, tileDraft);
       // offices decorated by their owners keep following what the owner sees, so keep them in step
       for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
       toast({ title: 'Office saved' });
@@ -612,6 +645,16 @@ export default function OfficePage() {
 
   const [zoom, setZoom] = useState(1);
   const [meeting, setMeeting] = useState(false);
+  // the walking hint shows only the first time, for a few seconds (or until someone moves), then never again
+  const [hintSeen, setHintSeen] = useState(() => { try { return localStorage.getItem('kd:office:hint') === '1'; } catch { return false; } });
+  useEffect(() => {
+    if (hintSeen) return;
+    const done = () => { setHintSeen(true); try { localStorage.setItem('kd:office:hint', '1'); } catch { /* fine */ } };
+    const timer = setTimeout(done, 9000);
+    const onKey = (e: KeyboardEvent) => { if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) done(); };
+    window.addEventListener('keydown', onKey);
+    return () => { clearTimeout(timer); window.removeEventListener('keydown', onKey); };
+  }, [hintSeen]);
   /** a counter: every change brings the view back to my avatar */
   const [recenter, setRecenter] = useState(0);
   const [traySize, setTraySize] = useState<0 | 1 | 2>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 ? v : 1; } catch { return 1; } });
@@ -705,6 +748,17 @@ export default function OfficePage() {
             />
           </div>
 
+          <section>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spaces</p>
+            <div className="space-y-0.5">
+              {teamSpaces.map((sp) => (
+                <button key={sp.id} type="button" onClick={() => setSpaceId(sp.id)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${sp.id === space.id ? 'bg-muted font-medium' : ''}`}>
+                  <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{sp.name}</span>
+                </button>
+              ))}
+              {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-primary hover:bg-muted"><Plus className="h-4 w-4" />New space</button>}
+            </div>
+          </section>
           {roomSpaceId && (
             <section>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rooms</p>
@@ -828,7 +882,7 @@ export default function OfficePage() {
               recError={recorder.error} unsent={recorder.unsent} onRecord={recorder.start} onStopRecord={recorder.stop} onDismissUnsent={recorder.dismissUnsent}
             />
           )}
-          {!editing && (
+          {!editing && !hintSeen && (
             <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-background/80 px-3 py-1.5 text-xs text-muted-foreground shadow backdrop-blur">
               Walk with <kbd className="rounded border px-1">W</kbd><kbd className="ml-0.5 rounded border px-1">A</kbd><kbd className="ml-0.5 rounded border px-1">S</kbd><kbd className="ml-0.5 rounded border px-1">D</kbd> or the arrow keys. Walk through a door to change rooms.
             </div>
@@ -838,8 +892,9 @@ export default function OfficePage() {
             <EditorPanel
               tool={tool} onTool={setTool} color={color} onColor={setColor}
               onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
-              onReset={() => setDraft(map.items.map((i) => ({ ...i })))}
+              onReset={() => { if (tool === 'wall' || tool === 'unwall' || tool === 'floor') setTileDraft({ wallsOn: [], wallsOff: [], floors: {} }); else setDraft(map.items.map((i) => ({ ...i }))); }}
               onCancel={stopEdit} onSave={save} saving={saving} limited={!!scope}
+              floorKind={floorKind} onFloorKind={setFloorKind} brush={brush} onBrush={setBrush}
             />
           )}
         </div>
@@ -855,6 +910,25 @@ export default function OfficePage() {
             <Button onClick={() => void joinWith(true)}><Video className="mr-2 h-4 w-4" />Join with camera and microphone</Button>
             <Button variant="outline" onClick={() => void joinWith(false)}><Mic className="mr-2 h-4 w-4" />Join with microphone only</Button>
             <Button variant="ghost" onClick={closeJoinPrompt}>Not now</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={newSpaceOpen} onOpenChange={(o) => { if (!o) setNewSpaceOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>New space</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">An empty room with a wooden floor. Open Edit this office to paint walls and floors and add furniture.</p>
+          <input value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value.slice(0, 40))} placeholder="Name, for example Leadership" aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setNewSpaceOpen(false)}>Cancel</Button>
+            <Button disabled={!newSpaceName.trim()} onClick={async () => {
+              try {
+                const id = await actions.createSpace(newSpaceName.trim());
+                setNewSpaceOpen(false);
+                setNewSpaceName('');
+                setSpaceId(id);
+                toast({ title: 'Space created' });
+              } catch (err) { toast({ title: 'Could not create the space', description: errorMessage(err), variant: 'destructive' }); }
+            }}>Create</Button>
           </div>
         </DialogContent>
       </Dialog>
