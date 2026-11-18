@@ -761,10 +761,12 @@ function OfficeRoom() {
   const [zoneCard, setZoneCard] = useState<{ zoneId: string; cx: number; cy: number } | null>(null);
   const zoneLatest = useRef<{ zoneId: string; cx: number; cy: number } | null>(null);
   const zoneTimer = useRef<number | undefined>(undefined);
+  const overZone = useRef(false);
+  useEffect(() => { if (!zoneCard) overZone.current = false; }, [zoneCard]);
   const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
     zoneLatest.current = h;
     window.clearTimeout(zoneTimer.current);
-    if (!h) { zoneTimer.current = window.setTimeout(() => setZoneCard(null), 500); return; }
+    if (!h) { zoneTimer.current = window.setTimeout(() => { if (!overZone.current) setZoneCard(null); }, 500); return; }
     if (zoneCard) {
       if (zoneCard.zoneId === h.zoneId) return;
       // reaching for the card: a seat next to it must not take it over
@@ -772,15 +774,17 @@ function OfficeRoom() {
     }
     zoneTimer.current = window.setTimeout(() => setZoneCard(zoneLatest.current), 280);
   };
-  const keepZoneCard = () => window.clearTimeout(zoneTimer.current);
-  const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 400); };
+  const keepZoneCard = () => { overZone.current = true; window.clearTimeout(zoneTimer.current); };
+  const leaveZoneCard = () => { overZone.current = false; window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 400); };
   const [card, setCard] = useState<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
+  const overCard = useRef(false);
+  useEffect(() => { if (!card) overCard.current = false; }, [card]);
   const personLatest = useRef<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const hoverPerson = (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => {
     personLatest.current = h;
     window.clearTimeout(cardTimer.current);
-    if (!h) { cardTimer.current = window.setTimeout(() => setCard(null), 700); return; }
+    if (!h) { cardTimer.current = window.setTimeout(() => { if (!overCard.current) setCard(null); }, 700); return; }
     if (card) {
       if (card.personId === h.personId) return;
       // reaching for the card: someone standing next to them must not take it over
@@ -788,8 +792,8 @@ function OfficeRoom() {
     }
     cardTimer.current = window.setTimeout(() => setCard(personLatest.current), 180);
   };
-  const keepCard = () => window.clearTimeout(cardTimer.current);
-  const leaveCard = () => { window.clearTimeout(cardTimer.current); cardTimer.current = window.setTimeout(() => setCard(null), 450); };
+  const keepCard = () => { overCard.current = true; window.clearTimeout(cardTimer.current); };
+  const leaveCard = () => { overCard.current = false; window.clearTimeout(cardTimer.current); cardTimer.current = window.setTimeout(() => setCard(null), 450); };
   const [panel, setPanel] = useState<Item | null>(null);
   const [savingPanel, setSavingPanel] = useState(false);
   const boardsAll = space?.layout?.settings?.boards ?? {};

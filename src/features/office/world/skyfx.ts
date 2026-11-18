@@ -1,5 +1,5 @@
 import type { MapDef } from './types';
-import type { Season, SkyState } from './sky';
+import { dayLook, type Season, type SkyState } from './sky';
 
 const TILE = 36;
 const hash = (a: number, b: number) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -97,6 +97,33 @@ export function drawGroundWeather(ctx: CanvasRenderingContext2D, map: MapDef, se
  * lightning now and then). Drawn on top of the whole view.
  */
 export function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, sky: SkyState, season: Season, rain: number, flash: number, t: number) {
+  // the look of the day: cool fresh morning, bright neutral midday, warm golden afternoon, with the sun's glow moving across
+  if (sky.light > 0.05) {
+    const look = dayLook(sky.hour);
+    if (look.cool > 0.01) {
+      ctx.fillStyle = `rgba(150,200,255,${(0.11 * look.cool * sky.light).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+    if (look.gold > 0.01) {
+      ctx.fillStyle = `rgba(255,185,90,${(0.16 * look.gold * sky.light).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+    if (look.elevation > 0.02) {
+      const sx = w * (0.08 + 0.84 * look.sunSide);
+      const r = Math.max(w, h) * 0.8;
+      const g = ctx.createRadialGradient(sx, -h * 0.1, 0, sx, -h * 0.1, r);
+      const warm = Math.max(look.gold, 1 - look.elevation);
+      g.addColorStop(0, `rgba(${255},${Math.round(250 - 40 * warm)},${Math.round(225 - 90 * warm)},${(0.22 * look.elevation * sky.light).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+    if (look.bloom > 0.02) {
+      ctx.fillStyle = `rgba(255,255,248,${(0.06 * look.bloom).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
   // the hour
   const night = 1 - sky.light;
   if (night > 0.01) {

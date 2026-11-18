@@ -95,7 +95,9 @@ export function OfficeCanvas(props: Props) {
   const zoomShown = useRef(props.zoom);
   /** how far the view has been dragged away from following me, in pixels */
   const pan = useRef({ x: 0, y: 0 });
-  useEffect(() => { pan.current = { x: 0, y: 0 }; }, [props.recenter]);
+  const pulseAt = useRef(-1e9);
+  // "find me": bring the view back to my avatar and show where it is
+  useEffect(() => { pan.current = { x: 0, y: 0 }; if (props.recenter > 0) pulseAt.current = performance.now(); }, [props.recenter]);
   const drawFailed = useRef(false);
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
@@ -561,6 +563,41 @@ export function OfficeCanvas(props: Props) {
         ctx.font = '18px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(f.e, f.x * TILE + Math.sin(age * 8) * 4, f.y * TILE - age * 34);
+        ctx.restore();
+      }
+
+      // "find me": rings spreading out from my avatar and a tag over it
+      if (now - pulseAt.current < 2600) {
+        const age = (now - pulseAt.current) / 2600;
+        const px0 = me.x * TILE;
+        const py0 = me.y * TILE;
+        ctx.save();
+        for (let k = 0; k < 3; k++) {
+          const ph = ((age * 3 + k / 3) % 1);
+          ctx.strokeStyle = `rgba(250,204,21,${((1 - ph) * (1 - age * 0.6)).toFixed(3)})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(px0, py0 - 4, 14 + ph * 70, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = Math.min(1, (1 - age) * 2.2);
+        ctx.font = '800 12px system-ui, sans-serif';
+        const lab = 'You are here';
+        const lw = ctx.measureText(lab).width + 22;
+        const by = py0 - 62 + Math.sin(now / 160) * 3;
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.roundRect(px0 - lw / 2, by - 12, lw, 24, 12);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px0 - 6, by + 11);
+        ctx.lineTo(px0, by + 19);
+        ctx.lineTo(px0 + 6, by + 11);
+        ctx.fill();
+        ctx.fillStyle = '#1e293b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lab, px0, by + 0.5);
         ctx.restore();
       }
 

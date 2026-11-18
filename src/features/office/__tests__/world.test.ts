@@ -466,3 +466,20 @@ describe('Nigerian places for the weather', () => {
     expect(placeLabel(PLACES.find((p) => p.id === 'lagos')!)).toBe('Lagos');
   });
 });
+
+describe('the look of the day', () => {
+  it('morning is cool with the sun on the left, afternoon is golden with the sun on the right', async () => {
+    const { dayLook } = await import('../world/sky');
+    const morning = dayLook(8.5);
+    const noon = dayLook(12);
+    const afternoon = dayLook(16.5);
+    expect(morning.cool).toBeGreaterThan(0.2);
+    expect(morning.gold).toBe(0);
+    expect(afternoon.gold).toBeGreaterThan(0.5);
+    expect(afternoon.cool).toBe(0);
+    expect(morning.sunSide).toBeLessThan(0.5);
+    expect(afternoon.sunSide).toBeGreaterThan(0.5);
+    expect(noon.bloom).toBeGreaterThan(morning.bloom);
+    expect(noon.bloom).toBeGreaterThan(afternoon.bloom);
+  });
+});

@@ -35,6 +35,23 @@ export function daylight(hour: number): number {
   return 1 - (hour - 17.5) / 2;
 }
 
+/**
+ * What the light looks like at an hour, so morning, midday and afternoon are three different looks:
+ * morning is cool and fresh with the sun low on the left, midday is bright and neutral with the sun high,
+ * afternoon turns warm and golden with the sun low on the right.
+ */
+export function dayLook(hour: number): { cool: number; gold: number; bloom: number; elevation: number; sunSide: number } {
+  const clamp = (v: number) => Math.max(0, Math.min(1, v));
+  const elevation = Math.max(0, Math.sin((Math.PI * (hour - 6)) / 12));
+  return {
+    cool: clamp(1 - (hour - 7) / 5) * (hour >= 6 ? 1 : 0),
+    gold: clamp((hour - 14) / 3.5),
+    bloom: Math.pow(elevation, 5),
+    elevation,
+    sunSide: clamp((hour - 6) / 12),
+  };
+}
+
 /** The orange glow around sunrise and sunset (0 to 1). */
 export function warmth(hour: number): number {
   const g = (c: number, w: number) => Math.exp(-(((hour - c) / w) ** 2));
