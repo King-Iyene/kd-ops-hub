@@ -7858,6 +7858,81 @@ export type Database = {
           },
         ]
       }
+      office_invites: {
+        Row: {
+          created_at: string
+          invited_by: string | null
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          invited_by?: string | null
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          invited_by?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_invites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_invites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_invites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_invites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_recordings: {
         Row: {
           created_at: string
@@ -20735,6 +20810,7 @@ export type Database = {
       notify_expiring_overrides: { Args: never; Returns: number }
       office_is_admin: { Args: never; Returns: boolean }
       office_is_recorder: { Args: never; Returns: boolean }
+      office_member_ids: { Args: never; Returns: string[] }
       office_owns: {
         Args: { p_office: string; p_space: string }
         Returns: boolean
