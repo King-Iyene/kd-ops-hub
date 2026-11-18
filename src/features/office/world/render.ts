@@ -84,7 +84,7 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Things the page tells the drawing code (the clock's places, board headings). */
 /** Where each pet is right now, filled in by the canvas (a pet with no entry stays at its spot). */
-export interface PetDraw { x: number; y: number; face: 1 | -1; moving: boolean; carrying: boolean; awake: boolean }
+export interface PetDraw { x: number; y: number; face: 1 | -1; view?: 'side' | 'front' | 'back'; moving: boolean; carrying: boolean; awake: boolean }
 export const officePets = new Map<string, PetDraw>();
 
 export const officeInfo: { zones: string[]; titles: Record<string, string> } = { zones: DEFAULT_ZONES, titles: {} };
@@ -1717,6 +1717,10 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       // a dog that trots around its spot, turns, pauses, and wags its tail
       const k = t / 1000;
       const live = officePets.get(item.id);
+      if (live && live.view && live.view !== 'side') {
+        drawPetEnd(ctx, live.x * TILE, live.y * TILE - 8, 'dog', live.view, col ?? ['#c68642', '#e8d9b5', '#5b4636', '#f1f5f9'][Math.floor(seed * 4)], k, live.moving, !!live.carrying);
+        break;
+      }
       const px = live ? live.x * TILE : cx + Math.sin(k * 0.7 + seed * 6) * 30;
       const py = live ? live.y * TILE - 8 : cy + 4 + Math.sin(k * 0.5 + seed * 3) * 10;
       const vx = Math.cos(k * 0.7 + seed * 6);
@@ -1758,6 +1762,10 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
     }
     case 'cat': {
       const lv = officePets.get(item.id);
+      if (lv && lv.awake && lv.view && lv.view !== 'side') {
+        drawPetEnd(ctx, lv.x * TILE, lv.y * TILE - 8, 'cat', lv.view, col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)], t / 1000, lv.moving, false);
+        break;
+      }
       if (lv && lv.awake) {
         // an awake cat: walks, tail up, ears pricked
         const fur2 = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
@@ -1839,6 +1847,66 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       return false;
   }
   return true;
+}
+
+/** A dog or cat seen from the front (walking towards you) or the back (walking away). */
+function drawPetEnd(ctx: Ctx, px: number, py: number, kind: 'dog' | 'cat', view: 'front' | 'back', coat: string, k: number, moving: boolean, carrying: boolean) {
+  const dark = shade(coat, -0.28);
+  const light = shade(coat, 0.3);
+  const bob = moving ? -Math.abs(Math.sin(k * 11)) * 1.4 : 0;
+  ellipse(ctx, px, py + 8, 10, 3.4, 'rgba(15,23,42,0.22)');
+  ctx.save();
+  ctx.translate(px, py + bob);
+  ctx.lineCap = 'round';
+  // legs: the pair nearest the ground steps in turn
+  const sw = moving ? Math.sin(k * 11) : 0;
+  ctx.fillStyle = dark;
+  rr(ctx, -6 - Math.max(0, sw) * 0.5, 2 - Math.max(0, sw) * 1.5, 3, 6.5, 1.3);
+  ctx.fill();
+  rr(ctx, 3 + Math.max(0, -sw) * 0.5, 2 - Math.max(0, -sw) * 1.5, 3, 6.5, 1.3);
+  ctx.fill();
+  if (view === 'back') {
+    // tail up and wagging
+    ctx.strokeStyle = coat;
+    ctx.lineWidth = kind === 'dog' ? 3 : 2.6;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.quadraticCurveTo(Math.sin(k * (kind === 'dog' ? 15 : 5)) * 5, -9, Math.sin(k * (kind === 'dog' ? 15 : 5)) * 6, -14);
+    ctx.stroke();
+  }
+  // body
+  ellipse(ctx, 0, -1.5, 8.2, 7, coat);
+  ellipse(ctx, 0, 1.5, 5.4, 3, light);
+  // head
+  const hy = view === 'front' ? -9.5 : -9;
+  disc(ctx, 0, hy, 5.8, coat);
+  if (kind === 'dog') {
+    ctx.fillStyle = dark;
+    ellipse(ctx, -5.2, hy + 0.5, 2.2, 4, dark, 0.2);
+    ellipse(ctx, 5.2, hy + 0.5, 2.2, 4, dark, -0.2);
+  } else {
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.moveTo(-5.6, hy - 2); ctx.lineTo(-4.6, hy - 8.6); ctx.lineTo(-1.2, hy - 4.6);
+    ctx.moveTo(5.6, hy - 2); ctx.lineTo(4.6, hy - 8.6); ctx.lineTo(1.2, hy - 4.6);
+    ctx.fill();
+  }
+  if (view === 'front') {
+    disc(ctx, -2.3, hy - 0.6, 0.95, '#111827');
+    disc(ctx, 2.3, hy - 0.6, 0.95, '#111827');
+    ellipse(ctx, 0, hy + 2.6, 2.4, 1.7, light);
+    disc(ctx, 0, hy + 1.9, 1, '#111827');
+    if (kind === 'dog' && moving) ellipse(ctx, 0, hy + 4.8, 1.2, 1.8 + Math.sin(k * 14) * 0.4, '#f472b6');
+    if (carrying) { disc(ctx, 0, hy + 5.4, 2.8, '#d9f99d'); }
+  } else {
+    ctx.fillStyle = 'rgba(15,23,42,0.12)';
+    ctx.beginPath();
+    ctx.arc(0, hy, 5.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // a little red collar on the dog
+  if (kind === 'dog' && view === 'front') { ctx.fillStyle = '#dc2626'; rr(ctx, -3.6, hy + 4.6, 7.2, 1.8, 0.9); ctx.fill(); }
+  ctx.restore();
 }
 
 /** Sort key so things lower on the screen draw over things behind them. */
