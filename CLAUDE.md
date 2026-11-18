@@ -11,6 +11,14 @@ Guidance for Claude Code when working in this repository.
   the tests for the area you touched, and make sure the branch's CI run (or
   pull request checks) passes. Where the change can be seen in the app,
   check it there as well. Say plainly what was and was not verified.
+- **Always run `npm run build` before merging.** Lint and tests can pass while
+  the production build is broken (a duplicate variable name did exactly that
+  and blocked every deploy). After merging, confirm the live site actually
+  deployed the change; a failed deploy leaves everyone on the old version.
+- **Never write to the database from a screen on every render or mount.**
+  Only save when a value actually changed; the profile table streams live
+  updates to every open tab, so a needless write can make the whole app
+  reload in a loop.
 - Only when the checks pass, merge the branch into `main` with a normal push
   or pull request merge. Use normal (non-force) pushes. Never force-push
   `main`.
