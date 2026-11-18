@@ -42,7 +42,7 @@ const ITEMS: Item[] = [
   { title: 'Dashboard',       path: '/',              icon: LayoutDashboard, shortcut: 'G D', roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'My Dashboard',    path: '/my-dashboard',  icon: LayoutGrid,     roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'self service' },
   { title: 'Approvals',       path: '/approvals',     icon: Inbox,           shortcut: 'G A', roles: APPROVER_ROLES, group: 'navigate' },
-  { title: 'Tasks',           path: '/tasks',         icon: ListTodo,        roles: ALL_AUTH_ROLES, group: 'navigate' },
+  { title: 'Tasks',           path: '/task',          icon: ListTodo,        roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'Goals',           path: '/goals',         icon: Target,          roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'Messages',        path: '/messages',      icon: MessageCircle,  roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chat direct message' },
   { title: 'AI Assistant',    path: '/assistant',     icon: Bot,            roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chatbot ask help' },

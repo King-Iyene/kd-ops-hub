@@ -40,7 +40,7 @@ const moduleToRoute = (module: string | null | undefined): string => {
     case 'budget':
     case 'budgets':             return '/budgets';
     case 'task':
-    case 'tasks':               return '/tasks';
+    case 'tasks':               return '/task';
     case 'subscription':
     case 'subscriptions':       return '/subscriptions';
     case 'compliance':          return '/compliance';

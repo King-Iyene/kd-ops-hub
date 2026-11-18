@@ -57,8 +57,8 @@ export default function TasksTab({ tasks }: Props) {
                       </TableCell>
                       <TableCell className="pr-4">
                         <a
-                          href="/tasks"
-                          onClick={(e) => { e.preventDefault(); navigate('/tasks'); }}
+                          href="/task"
+                          onClick={(e) => { e.preventDefault(); navigate("/task"); }}
                           className="text-muted-foreground hover:text-foreground"
                           aria-label="Go to tasks"
                         >
@@ -72,7 +72,7 @@ export default function TasksTab({ tasks }: Props) {
             </div>
             <div className="md:hidden space-y-2 p-3">
               {tasks.map((task: any) => (
-                <MobileCard key={task.id} href="/tasks" onClick={() => navigate('/tasks')}>
+                <MobileCard key={task.id} href="/task" onClick={() => navigate("/task")}>
                   <MobileCardHeader>
                     <MobileCardTitle>{task.title}</MobileCardTitle>
                     <MobileCardMeta className="flex items-center gap-1.5">

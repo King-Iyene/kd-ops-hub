@@ -10,6 +10,7 @@ import {
   X,
   Search,
   ListTodo,
+  Target,
   LogOut,
   User,
   ChevronRight,
@@ -38,7 +39,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, ListTodo,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, ListTodo, Target,
 };
 
 type TabDef = {
@@ -75,20 +76,20 @@ const ROLE_TABS: Record<string, TabDef[]> = {
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
     { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
+    { title: 'Task',      url: '/task',      icon: ListTodo },
   ],
   field_staff: [
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
     { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
+    { title: 'Task',      url: '/task',      icon: ListTodo },
   ],
 };
 
 const DEFAULT_TABS: TabDef[] = [
   { title: 'Home',     url: '/',         icon: LayoutDashboard },
   { title: 'Expenses', url: '/expenses', icon: Receipt },
-  { title: 'Tasks',    url: '/tasks',    icon: ListTodo },
+  { title: 'Task',     url: '/task',     icon: ListTodo },
 ];
 
 export function MobileNav() {

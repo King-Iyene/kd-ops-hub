@@ -58,8 +58,7 @@ const Compliance       = lazy(() => import('./pages/Compliance'));
 const Reports          = lazy(() => import('./pages/Reports'));
 const HrAnalytics      = lazy(() => import('./pages/HrAnalytics'));
 const Documents        = lazy(() => import('./pages/Documents'));
-const Tasks            = lazy(() => import('./pages/Tasks'));
-const TaskTeamDashboard = lazy(() => import('./pages/TaskTeamDashboard'));
+const TaskApp          = lazy(() => import('./pages/TaskApp'));
 const Knowledge        = lazy(() => import('./pages/Knowledge'));
 const Goals            = lazy(() => import('./pages/Goals'));
 const Contacts         = lazy(() => import('./pages/Contacts'));
@@ -620,23 +619,13 @@ function AppRoutes() {
           }
         />
 
-        {/* Tasks — every signed-in employee. */}
+        {/* Task — new module (PRD v1.0, 18 Nov 2026), directly under Time
+            Tracking in the sidebar. Replaces the old Tasks module. */}
         <Route
-          path="/tasks"
+          path="/task/*"
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
-              <Tasks />
-            </RoleGuard>
-          }
-        />
-
-        {/* Team Dashboard — admins and super admins only, right under
-            Tasks in the Productivity nav. */}
-        <Route
-          path="/tasks/dashboard"
-          element={
-            <RoleGuard roles={ADMIN_ONLY_ROLES}>
-              <TaskTeamDashboard />
+              <TaskApp />
             </RoleGuard>
           }
         />

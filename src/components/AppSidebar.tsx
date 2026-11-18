@@ -17,6 +17,7 @@ import {
   X,
   Clock,
   ListTodo,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -58,6 +59,7 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Clock,
   Building2,
   ListTodo,
+  Target,
 };
 
 const UNGROUPED_SET = new Set(['Dashboard', 'Approvals', 'My Portal', 'Finance']);
