@@ -56,6 +56,7 @@ export function useCalls(opts: Opts) {
   const [error, setError] = useState<string | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(false);
+  const [selfCam, setSelfCam] = useState<MediaStream | null>(null);
   const [mutedPeers, setMutedPeers] = useState<Set<string>>(new Set());
   const [, setVersion] = useState(0);
 
@@ -230,6 +231,7 @@ export function useCalls(opts: Opts) {
     stopLocal();
     setJoined(false);
     setCamOn(false);
+    setSelfCam(null);
   }, [closeAll, stopLocal]);
 
   useEffect(() => () => { joinedRef.current = false; closeAll(); stopLocal(); }, [closeAll, stopLocal]);
@@ -252,6 +254,7 @@ export function useCalls(opts: Opts) {
       l.stream.removeTrack(l.video);
       l.video = null;
       setCamOn(false);
+      setSelfCam(null);
       return;
     }
     try {
@@ -262,6 +265,7 @@ export function useCalls(opts: Opts) {
       l.video = track;
       for (const c of conns.current.values()) c.videoSender = c.pc.addTrack(track, l.stream);
       setCamOn(true);
+      setSelfCam(new MediaStream([track]));
       setError(null);
     } catch {
       setError('Could not start the camera. Check that the browser is allowed to use it.');
@@ -298,5 +302,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleMutePeer, audioStreams };
+  return { joined, busy, error, micOn, camOn, selfCam, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleMutePeer, audioStreams };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Circle, DoorOpen, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { Building2, Circle, DoorOpen, Lock, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { OfficeCanvas, type EditTool } from './OfficeCanvas';
 import { AvatarDialog } from './AvatarDialog';
 import { CallDock } from './calls/CallDock';
+import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
 import { useCalls } from './calls/useCalls';
 import { useRecorder } from './calls/useRecorder';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
-import { ensurePersonalOffice, useCanRecord, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -82,11 +83,13 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, setRecording, mine, sendRtc, setRtcHandler } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
   const roomRef = useRef<string | null>(null);
+  /** the meeting room I have locked, if any */
+  const myLockRoom = useRef<string | null>(null);
   const rosterRef = useRef(roster);
   rosterRef.current = roster;
   const calls = useCalls({
@@ -162,6 +165,8 @@ export default function OfficePage() {
   const onZone = (z: Zone | null) => {
     setZone(z);
     roomRef.current = z && z.kind === 'meeting' ? z.id : null;
+    // a lock only lasts while its holder stands in that room
+    if (myLockRoom.current && roomRef.current !== myLockRoom.current) { setLocked(false); myLockRoom.current = null; }
     announce(z && z.kind !== 'portal' ? z.id : null);
   };
   const onPortal = (target: 'team' | 'mine') => {
@@ -170,12 +175,12 @@ export default function OfficePage() {
   };
 
   // ---- recording (only designated people; the whole room is told) ----
-  const { data: canRecord } = useCanRecord(profile?.id);
+  const canRecord = isAdmin; // only admins and super admins record (the database enforces it too)
   const meetingRoom = zone && zone.kind === 'meeting' ? { id: zone.id, name: zone.name } : null;
   const recorder = useRecorder({
     meId: me?.id ?? null,
     spaceId: space?.id ?? null,
-    canRecord: !!canRecord,
+    canRecord,
     joined: calls.joined,
     room: meetingRoom,
     getStreams: calls.audioStreams,
@@ -189,6 +194,93 @@ export default function OfficePage() {
       : `This room is being recorded by ${recorders.map((r) => r.name).join(', ')}.`
     : null;
   const [recordingsOpen, setRecordingsOpen] = useState(false);
+
+  // ---- locking meeting rooms (rules in calls/locks.ts) ----
+  const locked = useMemo(() => lockedRooms(roster, space?.id ?? null, meetingIds), [roster, space?.id, meetingIds]);
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
+  const admitted = useRef(new Set<string>());
+  const prevLocked = useRef<{ space: string | null; rooms: Set<string> }>({ space: null, rooms: new Set() });
+  const unlockedAt = useRef(new Map<string, number>());
+  const lastKnock = useRef(new Map<string, number>());
+  const [knocks, setKnocks] = useState<{ id: string; name: string; room: string }[]>([]);
+  const roomLocked = !!meetingRoom && locked.has(meetingRoom.id);
+
+  useEffect(() => {
+    admitted.current = pruneAdmitted(admitted.current, locked);
+    // standing inside a locked room counts as being let in (so stepping out for a moment does not lock you out)
+    if (meetingRoom && locked.has(meetingRoom.id)) admitted.current.add(meetingRoom.id);
+    // the holder walked out but people are still in: the lowest id inside takes the lock over
+    const prev = prevLocked.current;
+    if (prev.space === (space?.id ?? null) && me) {
+      for (const room of prev.rooms) {
+        if (locked.has(room)) continue;
+        const inside = occupants(roster, space?.id ?? null, room);
+        const explicit = Date.now() - (unlockedAt.current.get(room) ?? 0) < 4000;
+        if (meetingRoom?.id === room && shouldTakeOver(true, false, inside, me.id, explicit)) {
+          setLocked(true);
+          myLockRoom.current = room;
+        }
+      }
+    }
+    prevLocked.current = { space: space?.id ?? null, rooms: locked };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locked, meetingRoom?.id]);
+
+  const toggleLock = () => {
+    if (!meetingRoom || !me) return;
+    const room = meetingRoom.id;
+    if (locked.has(room)) {
+      unlockedAt.current.set(room, Date.now());
+      if (myLockRoom.current === room) { setLocked(false); myLockRoom.current = null; }
+      else sendDoor({ k: 'unlock', f: me.id, r: room });
+    } else {
+      setLocked(true);
+      myLockRoom.current = room;
+      admitted.current.add(room);
+    }
+  };
+
+  const onBlocked = (z: Zone) => {
+    if (!me) return;
+    const now = Date.now();
+    if (now - (lastKnock.current.get(z.id) ?? 0) < 6000) return;
+    lastKnock.current.set(z.id, now);
+    sendDoor({ k: 'knock', f: me.id, n: me.name, r: z.id });
+    toast({ title: `${z.name} is locked`, description: 'We knocked. Wait here until someone lets you in.' });
+  };
+
+  const handleDoor = (raw: unknown) => {
+    const m = parseDoor(raw);
+    if (!m || !me || m.f === me.id) return;
+    const sender = rosterRef.current.find((r) => r.id === m.f);
+    const senderInside = !!sender && sender.spaceId === space?.id && sender.zone === m.r;
+    if (m.k === 'knock') {
+      if (roomRef.current !== m.r || !lockedRef.current.has(m.r)) return;
+      setKnocks((k) => (k.some((x) => x.id === m.f) ? k : [...k, { id: m.f, name: m.n || sender?.name || 'Someone', room: m.r }]));
+      setTimeout(() => setKnocks((k) => k.filter((x) => x.id !== m.f)), 60_000);
+    } else if (m.k === 'let') {
+      if (m.t !== me.id || !senderInside) return;
+      admitted.current.add(m.r);
+      toast({ title: 'You can come in', description: 'Someone opened the door. Walk in.' });
+    } else if (m.k === 'unlock') {
+      if (!senderInside) return;
+      unlockedAt.current.set(m.r, Date.now());
+      if (myLockRoom.current === m.r && roomRef.current === m.r) { setLocked(false); myLockRoom.current = null; }
+    }
+  };
+  const handleDoorRef = useRef(handleDoor);
+  handleDoorRef.current = handleDoor;
+  useEffect(() => {
+    setDoorHandler((raw) => handleDoorRef.current(raw));
+    return () => setDoorHandler(null);
+  }, [setDoorHandler]);
+
+  const letIn = (k: { id: string; room: string }) => {
+    if (!me) return;
+    sendDoor({ k: 'let', f: me.id, t: k.id, r: k.room });
+    setKnocks((list) => list.filter((x) => x.id !== k.id));
+  };
 
   const [zoom, setZoom] = useState(1);
   const dark = pageIsDark();
@@ -218,7 +310,7 @@ export default function OfficePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))} aria-label="Zoom out"><Minus className="h-4 w-4" /></Button>
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(1.6, +(z + 0.2).toFixed(1)))} aria-label="Zoom in"><Plus className="h-4 w-4" /></Button>
-          {(canRecord || isAdmin) && <Button size="sm" variant="outline" onClick={() => setRecordingsOpen(true)}><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</Button>}
+          {canRecord && <Button size="sm" variant="outline" onClick={() => setRecordingsOpen(true)}><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</Button>}
           <Button size="sm" variant="outline" onClick={() => setAvatarOpen(true)}><Palette className="mr-1.5 h-4 w-4" />Avatar</Button>
           {canEdit && !editing && <Button size="sm" onClick={startEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit office</Button>}
         </div>
@@ -250,7 +342,7 @@ export default function OfficePage() {
                   const people = roomPeople(z.id);
                   return (
                     <div key={z.id} className="rounded-lg px-2.5 py-1.5 text-sm">
-                      <div className="flex items-center justify-between"><span>{z.name}</span><span className={`text-xs ${people.length ? 'font-semibold text-emerald-500' : 'text-muted-foreground'}`}>{people.length}</span></div>
+                      <div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5">{z.name}{locked.has(z.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}</span><span className={`text-xs ${people.length ? 'font-semibold text-emerald-500' : 'text-muted-foreground'}`}>{people.length}</span></div>
                       {people.length > 0 && <p className="truncate text-xs text-muted-foreground">{people.map((p) => p.name.split(' ')[0]).join(', ')}</p>}
                     </div>
                   );
@@ -297,15 +389,17 @@ export default function OfficePage() {
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} update={update}
-            onZone={onZone} onPortal={onPortal} dark={dark} zoom={zoom}
+            onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
           {!editing && (
             <CallDock
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} tiles={calls.tiles}
               roomName={zone && zone.kind === 'meeting' ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={calls.toggleMic} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
-              canRecord={!!canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
+              canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
+              roomLocked={roomLocked} knocks={knocks.filter((k) => k.room === meetingRoom?.id)} onToggleLock={toggleLock} onLetIn={letIn}
+              onDismissKnock={(id) => setKnocks((l) => l.filter((x) => x.id !== id))}
               recError={recorder.error} unsent={recorder.unsent} onRecord={recorder.start} onStopRecord={recorder.stop} onDismissUnsent={recorder.dismissUnsent}
             />
           )}

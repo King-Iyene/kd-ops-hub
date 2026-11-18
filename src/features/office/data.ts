@@ -43,19 +43,6 @@ export function useMyAvatar(userId: string | undefined) {
   });
 }
 
-/** Is this person allowed to record meetings? */
-export function useCanRecord(userId: string | undefined) {
-  return useQuery({
-    queryKey: ['office', 'can-record', userId],
-    enabled: !!userId,
-    queryFn: async (): Promise<boolean> => {
-      const { data } = await supabase.from('office_recorders').select('user_id').eq('user_id', userId!).maybeSingle();
-      return !!data;
-    },
-    staleTime: 5 * 60_000,
-  });
-}
-
 export interface RecordingRow {
   id: string;
   session_id: string;
@@ -95,25 +82,6 @@ export function useRecordings(enabled: boolean) {
   });
 }
 
-export interface RecorderRow { user_id: string; full_name: string }
-
-/** The people allowed to record (admins edit this list). */
-export function useRecorders(enabled: boolean) {
-  return useQuery({
-    queryKey: ['office', 'recorders'],
-    enabled,
-    queryFn: async (): Promise<{ recorders: RecorderRow[]; people: RecorderRow[] }> => {
-      const [{ data: rec }, { data: ppl }] = await Promise.all([
-        supabase.from('office_recorders').select('user_id'),
-        supabase.from('profiles').select('id, full_name').order('full_name'),
-      ]);
-      const people = (ppl ?? []).map((p) => ({ user_id: p.id as string, full_name: (p.full_name as string) || 'Unnamed' }));
-      const set = new Set((rec ?? []).map((r) => r.user_id as string));
-      return { recorders: people.filter((p) => set.has(p.user_id)), people };
-    },
-  });
-}
-
 export async function signedRecordingUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from('office-recordings').createSignedUrl(path, 600);
   if (error || !data) throw error ?? new Error('No link');
@@ -127,14 +95,6 @@ export function useOfficeMutations() {
       const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style, updated_at: new Date().toISOString() });
       if (error) throw error;
       qc.setQueryData(['office', 'avatar', userId], style);
-    },
-    async setRecorder(userId: string, grantedBy: string, allowed: boolean) {
-      const res = allowed
-        ? await supabase.from('office_recorders').upsert({ user_id: userId, granted_by: grantedBy })
-        : await supabase.from('office_recorders').delete().eq('user_id', userId);
-      if (res.error) throw res.error;
-      await qc.invalidateQueries({ queryKey: ['office', 'recorders'] });
-      await qc.invalidateQueries({ queryKey: ['office', 'can-record'] });
     },
     async deleteRecording(row: RecordingRow) {
       await supabase.storage.from('office-recordings').remove([row.path]);

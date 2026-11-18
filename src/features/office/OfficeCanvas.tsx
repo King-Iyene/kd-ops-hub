@@ -17,6 +17,10 @@ interface Props {
   peers: React.MutableRefObject<Map<string, PeerMotion>>;
   update: (m: Motion, dir: 0 | 1 | 2 | 3, now: number) => void;
   onZone: (zone: Zone | null) => void;
+  /** may I walk into this meeting room? (false while it is locked and nobody has let me in) */
+  canEnter: (roomId: string) => boolean;
+  /** I walked into a locked door */
+  onBlocked: (zone: Zone) => void;
   onPortal: (target: 'team' | 'mine') => void;
   dark: boolean;
   zoom: number;
@@ -120,6 +124,16 @@ export function OfficeCanvas(props: Props) {
         me.vx = v.vx;
         me.vy = v.vy;
         const np = advance(solid, me.x, me.y, v.vx, v.vy, dt);
+        // a locked meeting room is a closed door: stay where we are (the page knocks for us)
+        const nz = zoneAt(p.map, np.x, np.y);
+        if (nz && nz.kind === 'meeting' && !p.canEnter(nz.id)) {
+          const cz = zoneAt(p.map, me.x, me.y);
+          if (!cz || cz.id !== nz.id) {
+            np.x = me.x;
+            np.y = me.y;
+            p.onBlocked(nz);
+          }
+        }
         // if a wall stopped us completely, we are not really moving (so we send "stop", not a walk into a wall)
         const stuck = (v.vx !== 0 || v.vy !== 0) && np.x === me.x && np.y === me.y;
         me.x = np.x;
