@@ -68,8 +68,8 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
         const ctx = c.getContext('2d')!;
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.save();
-        ctx.scale(3.2, 3.2);
-        drawPerson(ctx, { x: 0.69, y: 1.3, dir: 0, moving: false, name: '', avatar: draft, isMe: false }, t, { dark: false });
+        ctx.scale(4.6, 4.6);
+        drawPerson(ctx, { x: 0.51, y: 0.96, dir: 0, moving: false, name: '', avatar: draft, isMe: false }, t, { dark: false });
         ctx.restore();
       }
       raf = requestAnimationFrame(draw);
