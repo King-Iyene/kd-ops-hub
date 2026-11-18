@@ -39,11 +39,14 @@ export interface PickableProject {
   clientName: string | null;
 }
 
-/** All active projects — the only thing the picker shows or searches now.
- * Queried directly from time_projects (not derived from tasks) so a
- * brand-new project with no "General" task yet is still visible — confirmed
- * time_projects_read's RLS (`qual: true`) allows any signed-in employee to
- * read it, not just managers. */
+/** All active projects, independent of whether any task exists under them yet.
+ * fetchPickableTasks (below) only sees projects that already have at least one
+ * task — so a brand-new project with zero tasks is invisible to it, which
+ * means the "Create task" dialog's project dropdown (built from that task
+ * list) could never offer a new project as a choice, blocking creation of the
+ * very first task in it. This is queried directly from time_projects instead
+ * so that gap doesn't exist — confirmed time_projects_read's RLS (`qual: true`)
+ * allows any signed-in employee to read it, not just managers. */
 export async function fetchAllProjects(client: SupabaseClient): Promise<PickableProject[]> {
   const { data, error } = await client
     .from('time_projects')
@@ -57,6 +60,34 @@ export async function fetchAllProjects(client: SupabaseClient): Promise<Pickable
     projectName: r.name,
     clientName: r.time_clients?.name ?? null,
   }));
+}
+
+export async function fetchPickableTasks(client: SupabaseClient): Promise<PickableTask[]> {
+  const { data, error } = await client
+    .from('time_tasks')
+    .select('id, name, project_id, time_projects!inner(id, name, is_archived, client_id, time_clients(id, name))')
+    .eq('is_archived', false)
+    .eq('time_projects.is_archived', false)
+    .order('name');
+  if (error) throw error;
+  type Row = {
+    id: string;
+    name: string;
+    project_id: string;
+    time_projects: { id: string; name: string; time_clients: { id: string; name: string } | null } | null;
+  };
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const projectName = r.time_projects?.name ?? '(no project)';
+    const clientName = r.time_projects?.time_clients?.name ?? null;
+    return {
+      taskId: r.id,
+      taskName: r.name,
+      projectId: r.project_id,
+      projectName,
+      clientName,
+      searchLabel: [clientName, projectName, r.name].filter(Boolean).join(' · '),
+    };
+  });
 }
 
 export async function getActiveTimer(client: SupabaseClient, employeeId: string): Promise<ActiveTimer | null> {
@@ -185,76 +216,83 @@ export function stopActiveTimer(client: SupabaseClient, entryId: string, endAtIs
  * exactly like switching away and back already does. */
 export const resumeTask = switchTimer;
 
-/** Most recently worked-on projects for this employee, most recent first,
- * deduped by project — the picker's "Suggested" section. Reads time_entries
- * directly (project_id is denormalized onto every row — see the entries
- * migration) rather than a separate "recents" table, so there's nothing
- * extra to keep in sync. */
-export async function fetchSuggestedProjects(
+/** Most recently worked-on tasks for this employee, most recent first,
+ * deduped by task — the picker's "Suggested" section. Reads time_entries
+ * (which this employee can always see their own rows of, per
+ * time_entries_read's RLS) rather than a separate "recents" table, so there's
+ * nothing extra to keep in sync. */
+export async function fetchSuggestedTasks(
   client: SupabaseClient,
   employeeId: string,
   limit = 5,
-): Promise<PickableProject[]> {
+): Promise<PickableTask[]> {
   const { data, error } = await client
     .from('time_entries')
-    .select('project_id, start_time, time_projects!inner(id, name, is_archived, client_id, time_clients(id, name))')
+    .select(
+      'task_id, start_time, time_tasks!inner(id, name, project_id, is_archived, time_projects!inner(id, name, is_archived, client_id, time_clients(id, name)))',
+    )
     .eq('employee_id', employeeId)
-    .eq('time_projects.is_archived', false)
+    .eq('time_tasks.is_archived', false)
+    .eq('time_tasks.time_projects.is_archived', false)
+    .not('task_id', 'is', null)
     .order('start_time', { ascending: false })
-    .limit(limit * 6); // generous over-fetch before de-duping by project below
+    .limit(limit * 6); // generous over-fetch before de-duping by task below
   if (error) throw error;
   type Row = {
-    project_id: string;
-    time_projects: { id: string; name: string; time_clients: { id: string; name: string } | null } | null;
+    task_id: string;
+    time_tasks: {
+      id: string;
+      name: string;
+      project_id: string;
+      time_projects: { id: string; name: string; time_clients: { id: string; name: string } | null } | null;
+    } | null;
   };
   const seen = new Set<string>();
-  const out: PickableProject[] = [];
+  const out: PickableTask[] = [];
   for (const r of (data ?? []) as unknown as Row[]) {
-    const p = r.time_projects;
-    if (!p || seen.has(p.id)) continue;
-    seen.add(p.id);
-    out.push({ projectId: p.id, projectName: p.name, clientName: p.time_clients?.name ?? null });
+    const t = r.time_tasks;
+    if (!t || seen.has(t.id)) continue;
+    seen.add(t.id);
+    const projectName = t.time_projects?.name ?? '(no project)';
+    const clientName = t.time_projects?.time_clients?.name ?? null;
+    out.push({
+      taskId: t.id,
+      taskName: t.name,
+      projectId: t.project_id,
+      projectName,
+      clientName,
+      searchLabel: [clientName, projectName, t.name].filter(Boolean).join(' · '),
+    });
     if (out.length >= limit) break;
   }
   return out;
 }
 
-/** Project-only tracking: time always goes on the project's own "General"
- * task, found or (on first use) created here. Users never see or name a
- * task — this is the only way a task gets created now. Subject to
- * time_tasks' own RLS (time_tasks_write: manage_tasks capability OR project
- * manager of project_id) — a regular employee tracking a project they don't
- * manage will get a permissions error back from Supabase, which the caller
- * surfaces rather than this function papering over it. */
-export async function getOrCreateGeneralTask(
+/** Inline "Create task…" from the picker. Subject to time_tasks' own RLS
+ * (time_tasks_write: manage_tasks capability OR project manager of
+ * project_id) — a regular employee creating a task under a project they
+ * don't manage will get a permissions error back from Supabase, which the
+ * caller surfaces rather than this function papering over it. */
+export async function createTask(
   client: SupabaseClient,
   employeeId: string,
   projectId: string,
   projectName: string,
   clientName: string | null,
+  name: string,
 ): Promise<PickableTask> {
-  const { data } = await client
+  const { data, error } = await client
     .from('time_tasks')
-    .select('id, name')
-    .eq('project_id', projectId)
-    .ilike('name', 'General')
-    .limit(1);
-  const found = data?.[0] as { id: string; name: string } | undefined;
-  if (found) {
-    return { taskId: found.id, taskName: found.name, projectId, projectName, clientName, searchLabel: '' };
-  }
-  const { data: created, error } = await client
-    .from('time_tasks')
-    .insert({ project_id: projectId, name: 'General', created_by: employeeId })
+    .insert({ project_id: projectId, name, created_by: employeeId })
     .select('id, name')
     .single();
   if (error) throw error;
   return {
-    taskId: created.id as string,
-    taskName: created.name as string,
+    taskId: data.id as string,
+    taskName: data.name as string,
     projectId,
     projectName,
     clientName,
-    searchLabel: '',
+    searchLabel: [clientName, projectName, data.name as string].filter(Boolean).join(' · '),
   };
 }

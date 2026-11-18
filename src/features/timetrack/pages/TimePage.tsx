@@ -90,6 +90,8 @@ export default function TimePage() {
 
   const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
   const { data: allTasks } = useQuery({ queryKey: ['timetrack', 'all-tasks'], queryFn: fetchAllActiveTasks });
+  const [timerProjectId, setTimerProjectId] = useState<string>('');
+  const [timerTaskId, setTimerTaskId] = useState<string>('');
   const [startNote, setStartNote] = useState('');
 
   const { data: activeEntry, isLoading: activeLoading } = useQuery({
@@ -121,12 +123,18 @@ export default function TimePage() {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
 
-  const startTimer = async (taskId: string, projectId: string, note?: string) => {
+  const startTimer = async (taskId?: string, projectId?: string, note?: string) => {
+    const useTaskId = taskId ?? timerTaskId;
+    const useProjectId = projectId ?? timerProjectId;
+    if (!useTaskId || !useProjectId) {
+      toast({ title: 'Pick a project and task first', variant: 'destructive' });
+      return;
+    }
     setStarting(true);
     try {
       const startTime = new Date().toISOString();
       const { data, error } = await supabase.from('time_entries').insert({
-        employee_id: profile!.id, task_id: taskId, project_id: projectId, start_time: startTime,
+        employee_id: profile!.id, task_id: useTaskId, project_id: useProjectId, start_time: startTime,
         notes: (note ?? startNote) || null, entry_source: 'timer',
       }).select('id').single();
       if (error) throw error;
@@ -134,7 +142,7 @@ export default function TimePage() {
       qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] });
       qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] });
       dispatchPlatformWebhook('time_entry.started', {
-        entry_id: data?.id, employee_id: profile!.id, task_id: taskId, project_id: projectId,
+        entry_id: data?.id, employee_id: profile!.id, task_id: useTaskId, project_id: useProjectId,
         start_time: startTime, entry_source: 'timer',
       });
     } catch (err) {
@@ -144,9 +152,7 @@ export default function TimePage() {
     }
   };
 
-  /** Project-only tracking: time goes on the project's "General" task,
-   * created the first time someone needs it. Tasks are never shown or
-   * picked by users — this is the only way time gets tracked now. */
+  /** Track the project itself: time goes on its "General" task, created the first time someone needs it. */
   const startOnProject = async (projectId: string) => {
     try {
       let general = (allTasks ?? []).find((t) => t.project_id === projectId && t.name.trim().toLowerCase() === 'general');
@@ -156,6 +162,8 @@ export default function TimePage() {
         qc.invalidateQueries({ queryKey: ['timetrack', 'all-tasks'] });
         general = data as unknown as NonNullable<typeof general>;
       }
+      setTimerProjectId(projectId);
+      setTimerTaskId(general.id);
       await startTimer(general.id, projectId);
     } catch (err) {
       toast({ title: 'Could not start the project timer', description: errorMessage(err), variant: 'destructive' });
@@ -373,9 +381,15 @@ export default function TimePage() {
           <CardContent className="pt-6 flex flex-wrap items-center gap-3">
             <TimerCombobox
               projects={projects ?? []}
+              tasks={allTasks ?? []}
               disabled={!!activeEntry}
               activeLabel={activeEntry ? `${activeEntry.notes ? activeEntry.notes + ' · ' : ''}${allTasks?.find((t) => t.id === activeEntry.task_id)?.time_projects?.name ?? ''}` : undefined}
               onPickProject={(projectId) => { void startOnProject(projectId); }}
+              onPick={(task) => {
+                setTimerProjectId(task.project_id);
+                setTimerTaskId(task.id);
+                startTimer(task.id, task.project_id);
+              }}
             />
             {!activeEntry && (
               <Input
@@ -388,10 +402,15 @@ export default function TimePage() {
 
             <div className="ml-auto flex items-center gap-3">
               <span className="font-mono text-lg tabular-nums">{activeEntry ? elapsed : '00:00:00'}</span>
-              {activeEntry && (
+              {activeEntry ? (
                 <Button variant="destructive" onClick={() => stopTimer()} disabled={stopping}>
                   {stopping ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Square className="h-4 w-4 mr-1.5" />}
                   Stop
+                </Button>
+              ) : (
+                <Button onClick={() => startTimer()} disabled={starting || !timerTaskId}>
+                  {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Play className="h-4 w-4 mr-1.5" />}
+                  Start
                 </Button>
               )}
               <Button variant="link" className="px-0" onClick={() => { setEditingEntry(null); setDuplicateFrom(null); setManualOpen(true); }}>
@@ -506,17 +525,26 @@ export default function TimePage() {
  * timer bar: one search box over every project's tasks, grouped by project,
  * picking one starts the timer immediately (no separate confirm step).
  */
-function TimerCombobox({ projects, disabled, activeLabel, onPickProject }: {
+function TimerCombobox({ projects, tasks, disabled, activeLabel, onPick, onPickProject }: {
   projects: { id: string; name: string }[];
+  tasks: { id: string; name: string; project_id: string; time_projects: { id: string; name: string } | null }[];
   disabled: boolean;
   activeLabel?: string;
+  onPick: (task: { id: string; name: string; project_id: string }) => void;
   onPickProject: (projectId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const sortedProjects = useMemo(
-    () => [...projects].sort((a, b) => a.name.localeCompare(b.name)),
-    [projects],
-  );
+  const grouped = useMemo(() => {
+    const byProject: Record<string, { projectId: string; projectName: string; tasks: typeof tasks }> = {};
+    // every project is listed, even one with no tasks yet, so a project can always be tracked on its own
+    for (const pr of projects) byProject[pr.id] = { projectId: pr.id, projectName: pr.name, tasks: [] };
+    for (const t of tasks) {
+      const pid = t.project_id;
+      const pname = t.time_projects?.name ?? projects.find((p) => p.id === pid)?.name ?? 'Unknown project';
+      (byProject[pid] ??= { projectId: pid, projectName: pname, tasks: [] }).tasks.push(t);
+    }
+    return Object.values(byProject).sort((a, b) => a.projectName.localeCompare(b.projectName));
+  }, [tasks, projects]);
 
   if (disabled) {
     return (
@@ -538,21 +566,29 @@ function TimerCombobox({ projects, disabled, activeLabel, onPickProject }: {
       </PopoverTrigger>
       <PopoverContent className="w-[360px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Type project name" />
+          <CommandInput placeholder="Type project name or task" />
           <CommandList>
-            <CommandEmpty>No matching project.</CommandEmpty>
-            <CommandGroup>
-              {sortedProjects.map((p) => (
+            <CommandEmpty>No matching project or task.</CommandEmpty>
+            {grouped.map((g) => (
+              <CommandGroup key={g.projectId} heading={g.projectName}>
                 <CommandItem
-                  key={p.id}
-                  value={p.name}
-                  onSelect={() => { onPickProject(p.id); setOpen(false); }}
+                  value={`${g.projectName} track the project itself general`}
+                  onSelect={() => { onPickProject(g.projectId); setOpen(false); }}
                   className="text-emerald-500"
                 >
-                  <Play className="mr-2 h-3.5 w-3.5" /> {p.name}
+                  <Play className="mr-2 h-3.5 w-3.5" /> Track the project itself
                 </CommandItem>
-              ))}
-            </CommandGroup>
+                {g.tasks.filter((t) => t.name.trim().toLowerCase() !== 'general').map((t) => (
+                  <CommandItem
+                    key={t.id}
+                    value={`${g.projectName} ${t.name}`}
+                    onSelect={() => { onPick(t); setOpen(false); }}
+                  >
+                    {t.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -991,8 +1027,8 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
-  const qc = useQueryClient();
   const [projectId, setProjectId] = useState('');
+  const [taskId, setTaskId] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -1011,6 +1047,7 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
     const source = entry ?? duplicateFrom;
     if (source) {
       setProjectId(source.project_id);
+      setTaskId(source.task_id);
       setDate(entry ? format(new Date(source.start_time), 'yyyy-MM-dd') : format(defaultDate, 'yyyy-MM-dd'));
       setStartTime(format(new Date(source.start_time), 'HH:mm'));
       setEndTime(source.end_time ? format(new Date(source.end_time), 'HH:mm') : '17:00');
@@ -1021,7 +1058,7 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
         setTagIds((data ?? []).map((r) => r.tag_id));
       })();
     } else {
-      setProjectId(''); setDate(format(defaultDate, 'yyyy-MM-dd'));
+      setProjectId(''); setTaskId(''); setDate(format(defaultDate, 'yyyy-MM-dd'));
       setStartTime('09:00'); setEndTime('17:00'); setNotes(''); setBillable(false); setTagIds([]);
     }
   }, [open, entry, duplicateFrom, defaultDate]);
@@ -1031,30 +1068,9 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
   };
 
   const save = async () => {
-    if (!projectId) { toast({ title: 'Pick a project', variant: 'destructive' }); return; }
+    if (!taskId) { toast({ title: 'Pick a project and task', variant: 'destructive' }); return; }
     setSaving(true);
     try {
-      // Reuse the entry's existing task unchanged unless the project changed —
-      // otherwise resolve/create the project's "General" task. Users never
-      // see or pick a task; project is the only unit they track against.
-      let taskId: string;
-      if (entry && entry.project_id === projectId) {
-        taskId = entry.task_id;
-      } else {
-        const general = (tasks ?? []).find((t) => t.name.trim().toLowerCase() === 'general');
-        if (general) {
-          taskId = general.id;
-        } else {
-          const { data: newTask, error: taskErr } = await supabase
-            .from('time_tasks')
-            .insert({ project_id: projectId, name: 'General', created_by: profile!.id })
-            .select('id')
-            .single();
-          if (taskErr) throw taskErr;
-          taskId = newTask.id;
-          qc.invalidateQueries({ queryKey: ['timetrack', 'all-tasks'] });
-        }
-      }
       const payload = {
         employee_id: profile!.id, task_id: taskId, project_id: projectId,
         start_time: `${date}T${startTime}:00`, end_time: `${date}T${endTime}:00`,
@@ -1111,9 +1127,13 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
       <DialogContent>
         <DialogHeader><DialogTitle>{entry ? 'Edit entry' : duplicateFrom ? 'Duplicate entry' : 'Add manual entry'}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Select value={projectId} onValueChange={setProjectId}>
+          <Select value={projectId} onValueChange={(v) => { setProjectId(v); setTaskId(''); }}>
             <SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger>
             <SelectContent>{(projects ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={taskId} onValueChange={setTaskId} disabled={!projectId}>
+            <SelectTrigger><SelectValue placeholder="Task" /></SelectTrigger>
+            <SelectContent>{(tasks ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
           <div className="grid grid-cols-3 gap-2">
             <div><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>

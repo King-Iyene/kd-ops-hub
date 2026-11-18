@@ -31,14 +31,16 @@ import { idleDecision, formatIdle, taskDisplayName, taskTodayMs as taskTodayFrom
 import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes, getIdleMode, getAwayAfterMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
-  fetchSuggestedProjects,
+  fetchPickableTasks,
+  fetchSuggestedTasks,
   fetchAllProjects,
-  getOrCreateGeneralTask,
+  createTask,
   getActiveTimer,
   switchTimer,
   resumeTask,
   stopActiveTimer,
   type ActiveTimer,
+  type PickableTask,
   type PickableProject,
 } from './taskTimer';
 
@@ -128,7 +130,7 @@ async function reportCheckin() {
 }
 
 interface CachedSettings { is_enabled: boolean; capture_interval_minutes: number; screenshots_enabled: boolean; blur_screenshots: boolean }
-interface PickerCache { suggested: PickableProject[]; projects: PickableProject[] }
+interface PickerCache { tasks: PickableTask[]; suggested: PickableTask[]; projects: PickableProject[] }
 
 // Beyond the login token this keeps what the app needs to keep working with
 // NO internet: who is signed in, the last tracking settings the server gave
@@ -545,7 +547,7 @@ function sendWidgetStatus(tracking: boolean) {
   });
 }
 
-// --- Manual task timer (tray "Start a Project…") ---------------------------
+// --- Manual task timer (tray "Start a Task…") ---------------------------
 // Separate from the automatic window/activity tracker above: this is the
 // TimeCamp-style "what am I working on" timer the user picks explicitly,
 // writing directly to time_entries — see taskTimer.ts for why it shares that
@@ -556,11 +558,18 @@ const TASK_PICKER_HEIGHT = 420;
 
 const WEB_APP_TIME_URL = 'https://ops.kdsquares.com/timetrack/time';
 
-function createTaskPickerWindow() {
+function createTaskPickerWindow(startInCreate = false) {
   if (taskPickerWindow) {
-    taskPickerWindow.show();
-    taskPickerWindow.focus();
-    return;
+    if (startInCreate) {
+      // Existing picker is in browse mode — reopen straight into the create form.
+      taskPickerWindow.removeAllListeners('closed');
+      taskPickerWindow.destroy();
+      taskPickerWindow = null;
+    } else {
+      taskPickerWindow.show();
+      taskPickerWindow.focus();
+      return;
+    }
   }
   const display = screen.getPrimaryDisplay();
   const { width: sw, height: sh } = display.workArea;
@@ -575,7 +584,10 @@ function createTaskPickerWindow() {
     skipTaskbar: true,
     webPreferences: { preload: path.join(__dirname, 'preload-task-picker.js'), contextIsolation: true },
   });
-  taskPickerWindow.loadFile(path.join(__dirname, '../src/renderer/task-picker.html'));
+  taskPickerWindow.loadFile(
+    path.join(__dirname, '../src/renderer/task-picker.html'),
+    startInCreate ? { query: { create: '1' } } : undefined,
+  );
   taskPickerWindow.on('blur', () => taskPickerWindow?.close());
   taskPickerWindow.on('closed', () => {
     taskPickerWindow = null;
@@ -735,15 +747,15 @@ function rebuildTrayMenu() {
           label: `Stop: ${taskDisplayName(activeTimer)}`,
           click: () => stopActiveTask(),
         },
-        { label: 'Switch Project…', click: () => createTaskPickerWindow() },
+        { label: 'Switch Task…', click: () => createTaskPickerWindow() },
       ]
     : pausedTask
       ? [
           { label: `Resume: ${taskDisplayName(pausedTask)}`, click: () => resumePausedTask() },
-          { label: 'Start a Different Project…', click: () => createTaskPickerWindow() },
+          { label: 'Start a Different Task…', click: () => createTaskPickerWindow() },
         ]
       : [
-          { label: 'Start a Project…', click: () => createTaskPickerWindow() },
+          { label: 'Start a Task…', click: () => createTaskPickerWindow() },
           {
             label: autoPaused ? 'Resume tracking' : 'Pause tracking',
             click: () => void setAutoPaused(!autoPaused),
@@ -753,6 +765,7 @@ function rebuildTrayMenu() {
     { label: 'Settings…', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { type: 'separator' },
     ...taskItems,
+    { label: 'Create New Task…', click: () => createTaskPickerWindow(true) },
     { type: 'separator' },
     { label: 'Open in Browser', click: () => void shell.openExternal(WEB_APP_TIME_URL) },
     { type: 'separator' },
@@ -853,7 +866,7 @@ app.whenReady().then(async () => {
   }
 });
 
-// Opens the same picker the tray's "Start a Project…" item opens, but from a
+// Opens the same picker the tray's "Start a Task…" item opens, but from a
 // click on the floating widget itself (the task name / "No Task" label) —
 // so changing task doesn't require finding the tray icon and right-clicking.
 ipcMain.on('open-task-picker', () => {
@@ -863,33 +876,38 @@ ipcMain.on('open-task-picker', () => {
 ipcMain.on('task-picker-ready', async () => {
   if (!supabase || !taskPickerWindow) return;
   // Show the last known list instantly, then replace it with fresh data. Waiting
-  // on the network first left the picker empty, or stuck on "no projects", for
-  // as long as a slow or dead connection took to answer.
+  // on the network first left the picker (and the Create form) empty, or stuck on
+  // "no projects", for as long as a slow or dead connection took to answer.
   const cachedNow = store.get('picker');
   if (cachedNow) safeSend(taskPickerWindow, 'task-picker-data', cachedNow);
   try {
-    const [suggested, projects] = await Promise.all([
-      currentEmployeeId ? fetchSuggestedProjects(supabase, currentEmployeeId) : Promise.resolve([]),
+    const [tasks, suggested, projects] = await Promise.all([
+      fetchPickableTasks(supabase),
+      currentEmployeeId ? fetchSuggestedTasks(supabase, currentEmployeeId) : Promise.resolve([]),
       fetchAllProjects(supabase),
     ]);
     // taskPickerWindow closes on blur, so the user clicking away during this
     // await is routine, not an edge case — safeSend is load-bearing here,
     // not defensive decoration (see the comment on its definition).
-    store.set('picker', { suggested, projects });
-    safeSend(taskPickerWindow, 'task-picker-data', { suggested, projects });
+    store.set('picker', { tasks, suggested, projects });
+    safeSend(taskPickerWindow, 'task-picker-data', { tasks, suggested, projects });
   } catch {
     // Offline: the cached list (if any) is already on screen; only fall back to an
     // empty list when there was nothing cached to show.
-    if (!cachedNow) safeSend(taskPickerWindow, 'task-picker-data', { suggested: [], projects: [] });
+    if (!cachedNow) safeSend(taskPickerWindow, 'task-picker-data', { tasks: [], suggested: [], projects: [] });
   }
 });
 
-/** Click a project to track the project itself: time goes on its "General" task, found or made the first time it is needed. */
+/** Click a project to track the project itself: time goes on its "General" task, made the first time it is needed. */
 ipcMain.on('task-picker-choose-project', async (_e, p: { projectId: string; projectName: string; clientName: string | null }) => {
   taskPickerWindow?.close();
   if (!supabase || !currentEmployeeId) return;
   try {
-    const task = await getOrCreateGeneralTask(supabase, currentEmployeeId, p.projectId, p.projectName, p.clientName);
+    const { data } = await supabase.from('time_tasks').select('id, name').eq('project_id', p.projectId).ilike('name', 'General').limit(1);
+    const found = data?.[0] as { id: string; name: string } | undefined;
+    const task: PickableTask = found
+      ? { taskId: found.id, taskName: found.name, projectId: p.projectId, projectName: p.projectName, clientName: p.clientName, searchLabel: '' }
+      : await createTask(supabase, currentEmployeeId, p.projectId, p.projectName, p.clientName, 'General');
     const previous = activeTimer;
     activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
     if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
@@ -903,6 +921,24 @@ ipcMain.on('task-picker-choose-project', async (_e, p: { projectId: string; proj
   sendWidgetStatus(trackingStartedAt != null);
 });
 
+ipcMain.on('task-picker-choose', async (_e, task: PickableTask) => {
+  taskPickerWindow?.close();
+  if (!supabase || !currentEmployeeId) return;
+  try {
+    const previous = activeTimer;
+    activeTimer = await switchTimer(supabase, currentEmployeeId, task, activeTimer);
+    if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
+    pausedTask = null; // explicitly picking a task overrides whatever was paused
+    if (autoPaused) await setAutoPaused(false); // starting a task resumes tracking, like TimeCamp
+    captureNow(); // first capture right as the timer starts
+  } catch {
+    // Non-fatal — tray menu/widget simply won't reflect a switch that failed
+    // server-side; refreshActiveTimer's next poll will reconcile either way.
+  }
+  rebuildTrayMenu();
+  sendWidgetStatus(trackingStartedAt != null);
+});
+
 ipcMain.on('task-picker-choose-none', async () => {
   taskPickerWindow?.close();
   await stopActiveTask();
@@ -911,6 +947,42 @@ ipcMain.on('task-picker-choose-none', async () => {
 ipcMain.on('task-picker-cancel', () => {
   taskPickerWindow?.close();
 });
+
+// Inline "Create task…": subject to time_tasks' own RLS (manage_tasks
+// capability, or being that project's manager) — a regular employee
+// creating a task under a project they don't manage gets a real permission
+// error back, surfaced to the picker rather than swallowed, since silently
+// failing here would look like the button just doesn't work.
+ipcMain.handle(
+  'task-picker-create-task',
+  async (
+    _e,
+    args: { projectId: string; projectName: string; clientName: string | null; name: string; selectAfterCreate: boolean },
+  ) => {
+    if (!supabase) return { ok: false, error: 'Not signed in' };
+    try {
+      const created = await createTask(supabase, currentEmployeeId ?? '', args.projectId, args.projectName, args.clientName, args.name);
+      if (args.selectAfterCreate && currentEmployeeId) {
+        const previous = activeTimer;
+        activeTimer = await switchTimer(supabase, currentEmployeeId, created, activeTimer);
+        if (previous && previous.entryId !== activeTimer?.entryId) addSegment(previous);
+        pausedTask = null;
+        if (autoPaused) await setAutoPaused(false);
+        captureNow();
+        rebuildTrayMenu();
+        sendWidgetStatus(trackingStartedAt != null);
+      }
+      return { ok: true, task: created };
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? 'Could not create task');
+      const offline = /fetch failed|network|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|timeout/i.test(raw);
+      return {
+        ok: false,
+        error: offline ? 'You are offline. New tasks can only be created while connected; pick an existing task to keep tracking.' : raw,
+      };
+    }
+  },
+);
 
 ipcMain.on('task-picker-pause', () => {
   taskPickerWindow?.close();
