@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Building2, Footprints, Hammer, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
+import { Building2, Footprints, Hammer, MoreHorizontal, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { BTN_MAIN, BTN_QUIET, LABEL } from './ui';
 
 export interface Claimable { id: string; name: string; kind: 'office' | 'seat'; owner: string | null }
 
+type Tab = 'places' | 'people' | 'tools' | 'space';
+
 /**
- * One place to run the space: who has which office and seat, who is in the office, the tools, and the space itself.
- * Admins see everything; builders see the tools.
+ * One calm place to run the space. Offices are rows; the 24 desk seats are a compact grid of chips (a seat shows its owner,
+ * or a plus when free) so nothing repeats down the page.
  */
 export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEdit, canDelete, rows, onAssign, onUnclaim, onRename, onWalk, onInvite, onSettings, onEdit, onRecordings, onRenameSpace, onDeleteSpace, onNewSpace }: {
   open: boolean;
@@ -30,94 +33,160 @@ export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEd
   onDeleteSpace: () => void;
   onNewSpace: () => void;
 }) {
-  const [tab, setTab] = useState<'places' | 'people' | 'tools' | 'space'>('places');
+  const [tab, setTab] = useState<Tab>('places');
   const [q, setQ] = useState('');
-  const [only, setOnly] = useState<'all' | 'free' | 'taken'>('all');
-  const shown = useMemo(() => rows.filter((r) => {
-    if (only === 'free' && r.owner) return false;
-    if (only === 'taken' && !r.owner) return false;
-    const n = q.trim().toLowerCase();
-    return !n || r.name.toLowerCase().includes(n) || (r.owner ?? '').toLowerCase().includes(n);
-  }), [rows, q, only]);
-  const taken = rows.filter((r) => r.owner).length;
-
-  const tabs: { id: typeof tab; label: string; icon: JSX.Element }[] = [
-    { id: 'places', label: 'Offices and seats', icon: <Building2 className="h-4 w-4" /> },
-    { id: 'people', label: 'People', icon: <Users className="h-4 w-4" /> },
-    { id: 'tools', label: 'Tools', icon: <Hammer className="h-4 w-4" /> },
-    { id: 'space', label: 'This space', icon: <Settings className="h-4 w-4" /> },
-  ];
+  const offices = useMemo(() => rows.filter((r) => r.kind === 'office'), [rows]);
+  const seats = useMemo(() => rows.filter((r) => r.kind === 'seat'), [rows]);
+  const match = (r: Claimable) => { const n = q.trim().toLowerCase(); return !n || r.name.toLowerCase().includes(n) || (r.owner ?? '').toLowerCase().includes(n); };
+  const taken = (list: Claimable[]) => list.filter((r) => r.owner).length;
   const go = (fn: () => void) => () => { onClose(); fn(); };
+
+  const tabs: { id: Tab; label: string; icon: JSX.Element }[] = [
+    { id: 'places', label: 'Places', icon: <Building2 className="h-3.5 w-3.5" /> },
+    { id: 'people', label: 'People', icon: <Users className="h-3.5 w-3.5" /> },
+    { id: 'tools', label: 'Tools', icon: <Hammer className="h-3.5 w-3.5" /> },
+    { id: 'space', label: 'Space', icon: <Settings className="h-3.5 w-3.5" /> },
+  ];
+
+  const rowMenu = (r: Claimable) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`Options for ${r.name}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-white/10 hover:text-foreground"><MoreHorizontal className="h-4 w-4" /></button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="ko w-48">
+        <DropdownMenuItem onSelect={go(() => onWalk(r.id))}><Footprints className="mr-2 h-4 w-4" />Walk there</DropdownMenuItem>
+        {isAdmin && <DropdownMenuItem onSelect={go(() => onAssign(r.id))}><UserPlus className="mr-2 h-4 w-4" />{r.owner ? 'Change who has it' : 'Assign to someone'}</DropdownMenuItem>}
+        {isAdmin && <DropdownMenuItem onSelect={go(() => onRename(r.id))}><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem>}
+        {isAdmin && r.owner && <><DropdownMenuSeparator /><DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => onUnclaim(r.id)}><UserMinus className="mr-2 h-4 w-4" />Free it up</DropdownMenuItem></>}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const stat = (label: string, used: number, total: number) => (
+    <div className="flex-1 rounded-xl bg-white/[0.04] px-3.5 py-2.5 ring-1 ring-white/[0.06]">
+      <p className={LABEL}>{label}</p>
+      <p className="mt-0.5 text-lg font-extrabold tracking-tight">{used}<span className="text-sm font-semibold text-muted-foreground"> / {total} taken</span></p>
+    </div>
+  );
+
+  const tile = (icon: JSX.Element, title: string, text: string, run: () => void) => (
+    <button type="button" onClick={go(run)} className="group flex min-w-0 items-start gap-3 rounded-xl bg-white/[0.04] p-3.5 text-left ring-1 ring-white/[0.06] transition hover:bg-white/[0.08] hover:ring-white/15">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-bold tracking-tight">{title}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{text}</span>
+      </span>
+    </button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[88vh] max-w-2xl overflow-hidden p-0">
-        <DialogHeader className="px-5 pt-5">
-          <DialogTitle>Manage {spaceName}</DialogTitle>
-          <DialogDescription>Offices, seats, people and tools, all in one place.</DialogDescription>
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex max-h-[86vh] w-[calc(100vw-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-white/[0.08] bg-popover/95 p-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-2xl">
+        <DialogHeader className="space-y-1 px-6 pb-4 pt-6 text-left">
+          <DialogTitle className="text-xl font-extrabold tracking-tight">Manage {spaceName}</DialogTitle>
+          <DialogDescription className="text-[13px]">Offices, seats, people and tools in one place.</DialogDescription>
         </DialogHeader>
-        <div className="flex gap-1 border-b px-4">
-          {tabs.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${tab === t.id ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{t.icon}{t.label}</button>
-          ))}
+
+        <div className="px-6">
+          <div className="inline-flex rounded-xl bg-white/[0.05] p-1 ring-1 ring-white/[0.06]">
+            {tabs.map((t) => (
+              <button key={t.id} type="button" onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition ${tab === t.id ? 'bg-white/[0.12] text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                {t.icon}{t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
           {tab === 'places' && (
-            <div className="space-y-3 pt-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative min-w-40 flex-1">
-                  <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an office, seat or person" className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
-                </div>
-                {(['all', 'free', 'taken'] as const).map((f) => (
-                  <button key={f} type="button" onClick={() => setOnly(f)} className={`rounded-full border px-3 py-1 text-xs ${only === f ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}>{f === 'all' ? `All ${rows.length}` : f === 'free' ? `Free ${rows.length - taken}` : `Taken ${taken}`}</button>
-                ))}
+            <div className="space-y-5">
+              <div className="flex gap-3">
+                {stat('Offices', taken(offices), offices.length)}
+                {stat('Seats', taken(seats), seats.length)}
               </div>
-              <div className="divide-y rounded-lg border">
-                {shown.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">Nothing matches.</p>}
-                {shown.map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${r.owner ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{r.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{r.kind === 'seat' ? 'Seat' : 'Private office'} · {r.owner ? `Claimed by ${r.owner}` : 'Free'}</span>
-                    </span>
-                    <Button size="sm" variant="ghost" title="Walk there" onClick={go(() => onWalk(r.id))}><Footprints className="h-4 w-4" /></Button>
-                    {isAdmin && <Button size="sm" variant="outline" onClick={go(() => onAssign(r.id))}><UserPlus className="mr-1.5 h-3.5 w-3.5" />{r.owner ? 'Change' : 'Assign'}</Button>}
-                    {isAdmin && r.owner && <Button size="sm" variant="ghost" title="Unclaim" onClick={() => onUnclaim(r.id)}><UserMinus className="h-4 w-4" /></Button>}
-                    {isAdmin && <Button size="sm" variant="ghost" title="Rename" onClick={go(() => onRename(r.id))}><Pencil className="h-4 w-4" /></Button>}
-                  </div>
-                ))}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an office, seat or person" className="h-9 w-full rounded-xl bg-white/[0.05] pl-9 pr-3 text-[13px] outline-none ring-1 ring-white/[0.07] placeholder:text-muted-foreground focus:ring-primary/60" />
+              </div>
+
+              <div>
+                <p className={`${LABEL} mb-2`}>Private offices</p>
+                <div className="overflow-hidden rounded-xl ring-1 ring-white/[0.07]">
+                  {offices.filter(match).map((r, i) => (
+                    <div key={r.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${i ? 'border-t border-white/[0.06]' : ''}`}>
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${r.owner ? 'bg-primary' : 'bg-emerald-500'}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold">{r.name}</span>
+                        <span className="block truncate text-[11.5px] text-muted-foreground">{r.owner ? `Claimed by ${r.owner}` : 'Free to claim'}</span>
+                      </span>
+                      {isAdmin && !r.owner && <button type="button" onClick={go(() => onAssign(r.id))} className={BTN_QUIET}>Assign</button>}
+                      {rowMenu(r)}
+                    </div>
+                  ))}
+                  {offices.filter(match).length === 0 && <p className="p-4 text-center text-xs text-muted-foreground">No office matches.</p>}
+                </div>
+              </div>
+
+              <div>
+                <p className={`${LABEL} mb-2`}>Desk seats</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                  {seats.filter(match).map((r, i) => (
+                    <DropdownMenu key={r.id}>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className={`min-w-0 rounded-xl px-3 py-2 text-left ring-1 transition hover:bg-white/[0.08] ${r.owner ? 'bg-primary/10 ring-primary/30' : 'bg-white/[0.03] ring-white/[0.07]'}`}>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Seat {r.id.replace('seat-', '') || i + 1}</span>
+                          <span className={`block truncate text-[13px] font-semibold ${r.owner ? '' : 'text-muted-foreground'}`}>{r.owner ?? 'Free'}</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="ko w-48">
+                        <DropdownMenuItem onSelect={go(() => onWalk(r.id))}><Footprints className="mr-2 h-4 w-4" />Walk there</DropdownMenuItem>
+                        {isAdmin && <DropdownMenuItem onSelect={go(() => onAssign(r.id))}><UserPlus className="mr-2 h-4 w-4" />{r.owner ? 'Change who has it' : 'Assign to someone'}</DropdownMenuItem>}
+                        {isAdmin && r.owner && <DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => onUnclaim(r.id)}><UserMinus className="mr-2 h-4 w-4" />Free it up</DropdownMenuItem>}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
           {tab === 'people' && (
-            <div className="space-y-3 pt-3">
-              <p className="text-sm text-muted-foreground">KDS administration and directors are in the office. Everyone else comes by invite.</p>
-              <div className="flex flex-wrap gap-2">
-                {isAdmin && <Button onClick={go(onInvite)}><UserPlus className="mr-1.5 h-4 w-4" />Invite people</Button>}
-                {isAdmin && <Button variant="outline" onClick={go(onSettings)}><Settings className="mr-1.5 h-4 w-4" />Who can build and record</Button>}
+            <div className="space-y-4">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">KDS administration and directors are in the office. Everyone else comes by invite.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {isAdmin && tile(<UserPlus className="h-4 w-4" />, 'Invite people', 'Add employees who are not in an admin pay group.', onInvite)}
+                {isAdmin && tile(<Settings className="h-4 w-4" />, 'Builders and recorders', 'Choose who can edit the space and who can record.', onSettings)}
               </div>
+              {!isAdmin && <p className="text-xs text-muted-foreground">Only admins can change who is in the office.</p>}
             </div>
           )}
 
           {tab === 'tools' && (
-            <div className="grid gap-2 pt-3 sm:grid-cols-2">
-              {canEdit && <Button variant="outline" className="h-auto justify-start gap-2 p-3 text-left" onClick={go(onEdit)}><Hammer className="h-4 w-4 shrink-0" /><span><span className="block font-medium">Edit the space</span><span className="block text-xs font-normal text-muted-foreground">Objects, walls, floors, name plates</span></span></Button>}
-              <Button variant="outline" className="h-auto justify-start gap-2 p-3 text-left" onClick={go(onRecordings)}><Video className="h-4 w-4 shrink-0" /><span><span className="block font-medium">Recordings</span><span className="block text-xs font-normal text-muted-foreground">Listen to and download meetings</span></span></Button>
-              {isAdmin && <Button variant="outline" className="h-auto justify-start gap-2 p-3 text-left" onClick={go(onSettings)}><Settings className="h-4 w-4 shrink-0" /><span><span className="block font-medium">Permissions and limits</span><span className="block text-xs font-normal text-muted-foreground">Builders, recorders, how much furniture</span></span></Button>}
-              <p className="col-span-full text-xs text-muted-foreground">Walk up to the core values wall, notice board or wall clock and press F to edit what they say.</p>
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {canEdit && tile(<Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors and name plates.', onEdit)}
+                {tile(<Video className="h-4 w-4" />, 'Recordings', 'Watch and download recorded meetings.', onRecordings)}
+                {isAdmin && tile(<Settings className="h-4 w-4" />, 'Permissions and limits', 'Builders, recorders and furniture limit.', onSettings)}
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">Walk up to the core values wall, the notice board or the wall clock and press F to edit what they say.</p>
             </div>
           )}
 
           {tab === 'space' && (
-            <div className="space-y-2 pt-3">
-              {isSuper && <Button variant="outline" className="w-full justify-start" onClick={go(onRenameSpace)}><Pencil className="mr-2 h-4 w-4" />Rename this space</Button>}
-              {isAdmin && <Button variant="outline" className="w-full justify-start" onClick={go(onNewSpace)}><Building2 className="mr-2 h-4 w-4" />Create another space</Button>}
-              {isSuper && canDelete && <Button variant="outline" className="w-full justify-start text-red-500 hover:text-red-500" onClick={go(onDeleteSpace)}><Trash2 className="mr-2 h-4 w-4" />Delete this space</Button>}
-              {!isAdmin && <p className="text-sm text-muted-foreground">Only admins can change the space itself.</p>}
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {isSuper && tile(<Pencil className="h-4 w-4" />, 'Rename this space', 'Change the name people see.', onRenameSpace)}
+                {isAdmin && tile(<Building2 className="h-4 w-4" />, 'Create another space', 'A blank space you can build from scratch.', onNewSpace)}
+              </div>
+              {isSuper && canDelete && (
+                <div className="rounded-xl bg-red-500/[0.06] p-3.5 ring-1 ring-red-500/20">
+                  <p className="text-sm font-bold text-red-400">Delete this space</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Removes the space and everything built in it. This cannot be undone.</p>
+                  <button type="button" onClick={go(onDeleteSpace)} className={`${BTN_MAIN} mt-2.5 bg-red-600 hover:bg-red-600`}><Trash2 className="h-3.5 w-3.5" />Delete space</button>
+                </div>
+              )}
+              {!isAdmin && <p className="text-xs text-muted-foreground">Only admins can change the space itself.</p>}
             </div>
           )}
         </div>

@@ -46,7 +46,7 @@ export function MessageDialog({ person, online, messages, onClose, onSend }: {
 
   return (
     <Dialog open={!!person} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>{person?.name}{!online && <span className="ml-2 text-xs font-normal text-muted-foreground">offline, will not receive</span>}</DialogTitle></DialogHeader>
         <div className="h-64 space-y-2 overflow-y-auto rounded-lg border border-border bg-muted/30 p-2">
           {thread.length === 0 && <p className="p-2 text-xs text-muted-foreground">No messages yet. Only people who are online can receive them.</p>}

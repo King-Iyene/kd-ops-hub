@@ -1113,14 +1113,25 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
         ctx.font = '700 7px system-ui, sans-serif';
         ctx.fillStyle = '#fbbf24';
         const t12 = to12h(h);
-        ctx.fillText(zoneAbbr(zs[i], now) + ' · ' + (t12.pm ? 'PM' : 'AM'), sx + slot / 2, y + 11.5);
-        ctx.font = '700 ' + (n === 3 ? 13 : 16) + 'px ui-monospace, Menlo, Consolas, monospace';
+        ctx.fillText(zoneAbbr(zs[i], now), sx + slot / 2, y + 11.5);
+        const colon = s % 2 === 0 ? ':' : ' ';
+        const main = t12.h12 + colon + String(m).padStart(2, '0');
+        ctx.font = '700 ' + (n === 3 ? 12 : 15) + 'px ui-monospace, Menlo, Consolas, monospace';
+        const mw = ctx.measureText(main).width;
+        ctx.font = '700 8px system-ui, sans-serif';
+        const ampm = t12.pm ? 'PM' : 'AM';
+        const aw = ctx.measureText(ampm).width;
+        const x0 = sx + slot / 2 - (mw + aw + 2) / 2;
+        ctx.textAlign = 'left';
+        ctx.font = '700 ' + (n === 3 ? 12 : 15) + 'px ui-monospace, Menlo, Consolas, monospace';
         ctx.fillStyle = '#34d399';
         ctx.shadowColor = 'rgba(52,211,153,0.7)';
         ctx.shadowBlur = 5;
-        const colon = s % 2 === 0 ? ':' : ' ';
-        ctx.fillText(t12.h12 + colon + String(m).padStart(2, '0'), sx + slot / 2, y + 23);
+        ctx.fillText(main, x0, y + 23);
         ctx.shadowBlur = 0;
+        ctx.font = '700 8px system-ui, sans-serif';
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText(ampm, x0 + mw + 2, y + 25);
       }
       return true;
     }

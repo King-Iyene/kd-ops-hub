@@ -51,7 +51,7 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
   useEffect(() => { if (open) setDraft(settings); }, [open, settings]);
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Office settings</DialogTitle></DialogHeader>
         <PeopleList title="Builders" hint="Can edit the office (furniture, colours, name plates). Admins always can." ids={draft.builders ?? []} directory={directory} onChange={(builders) => setDraft({ ...draft, builders })} />
         <PeopleList title="Recorders" hint="Can record meetings (everyone in the room is told). Admins always can." ids={draft.recorders ?? []} directory={directory} onChange={(recorders) => setDraft({ ...draft, recorders })} />

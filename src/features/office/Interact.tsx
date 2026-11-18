@@ -27,7 +27,7 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">{editing ? 'Edit board' : data.title}</DialogTitle>
           <DialogDescription>{isValues ? 'What we stand for, and how we work.' : 'What the team should know right now.'}</DialogDescription>
@@ -113,7 +113,7 @@ export function ClockDialog({ open, zones, canEdit, saving, onClose, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-lg">
         <DialogHeader>
           <DialogTitle>Time around the world</DialogTitle>
           <DialogDescription>Where the team and our partners are right now.</DialogDescription>

@@ -427,3 +427,29 @@ describe('pets', () => {
     expect(petName('p3', 'cat').length).toBeGreaterThan(2);
   });
 });
+
+describe('live weather', () => {
+  it('reads weather codes and turns rain into a level', async () => {
+    const { describe: desc, liveRainLevel } = await import('../world/weather');
+    expect(desc(0).raining).toBe(false);
+    expect(desc(63).raining).toBe(true);
+    expect(desc(95).stormy).toBe(true);
+    const dry = { temp: 31, feels: 35, humidity: 70, wind: 8, code: 1, rainMm: 0, at: 0 };
+    expect(liveRainLevel(dry)).toBe(0);
+    expect(liveRainLevel(null)).toBe(0);
+    const pour = { ...dry, code: 65, rainMm: 6 };
+    expect(liveRainLevel(pour)).toBe(1);
+    expect(liveRainLevel({ ...dry, code: 61, rainMm: 0.2 })).toBeGreaterThanOrEqual(0.25);
+  });
+  it('on Auto the office rains when it really rains, and is dry when it does not', async () => {
+    const { seasonFor, rainLevel } = await import('../world/sky');
+    const julyNoon = Date.UTC(2026, 6, 10, 12);
+    const wet = { temp: 26, feels: 29, humidity: 90, wind: 12, code: 63, rainMm: 2, at: 0 };
+    const dry = { ...wet, code: 2, rainMm: 0 };
+    expect(seasonFor('auto', julyNoon, wet)).toBe('rainy');
+    expect(rainLevel('rainy', julyNoon, wet, true)).toBeGreaterThan(0.5);
+    expect(seasonFor('auto', julyNoon, dry)).toBe('clear');
+    expect(seasonFor('auto', Date.UTC(2026, 0, 20), dry)).toBe('harmattan');
+    expect(seasonFor('rainy', julyNoon, dry)).toBe('rainy');
+  });
+});

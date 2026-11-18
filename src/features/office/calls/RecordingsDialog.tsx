@@ -55,7 +55,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Meeting recordings</DialogTitle></DialogHeader>
 
         <section className="space-y-3">
@@ -69,7 +69,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
                 {s.parts.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="w-28 shrink-0 text-muted-foreground">Part {r.part} · {fmtDuration(r.duration_s)} · {fmtSize(r.size_bytes)}</span>
-                    {links[r.id] ? <audio controls src={links[r.id]} className="h-8 min-w-0 flex-1" /> : <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void listen(r)}>Listen</Button>}
+                    {links[r.id] ? (r.path.includes('-v.') ? <video controls src={links[r.id]} className="max-h-64 w-full rounded-lg bg-black" /> : <audio controls src={links[r.id]} className="h-8 min-w-0 flex-1" />) : <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void listen(r)}>Listen</Button>}
                     <Button size="sm" className="h-7 text-xs" onClick={() => void download(r, s.room)}><Download className="mr-1 h-3.5 w-3.5" />Download</Button>
                     {(isAdmin || r.recorded_by === meId) && (
                       <button type="button" onClick={() => void remove(r)} aria-label="Delete this part" className="ml-auto text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>

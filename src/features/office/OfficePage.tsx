@@ -33,6 +33,10 @@ import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
+import { ambient } from './ambient';
+import { useOfficeFont } from './ui';
+import { useQuery } from '@tanstack/react-query';
+import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
@@ -65,6 +69,7 @@ function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) 
 }
 
 function OfficeRoom() {
+  useOfficeFont();
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
@@ -342,6 +347,7 @@ function OfficeRoom() {
   // admins record, plus anyone an admin added under Office settings (the database enforces the same rule)
   const canRecord = isAdmin || (space?.layout?.settings?.recorders ?? []).includes(profile?.id ?? '');
   const meetingRoom = zone && isRoom(zone) ? { id: zone.id, name: zone.name } : null;
+  const mapCanvas = useRef<HTMLCanvasElement | null>(null);
   const recorder = useRecorder({
     meId: me?.id ?? null,
     spaceId: space?.id ?? null,
@@ -350,6 +356,8 @@ function OfficeRoom() {
     room: meetingRoom,
     getStreams: calls.audioStreams,
     getNames: () => [me?.name ?? 'Me', ...calls.tiles.map((t) => t.name)],
+    // the recording is a video of the office as you see it (people, camera bubbles and all), with everyone's voices
+    getVideoTrack: () => { try { return mapCanvas.current?.captureStream(24).getVideoTracks()[0] ?? null; } catch { return null; } },
     announce: setRecording,
   });
   const recorders = meetingRoom ? roster.filter((r) => r.rec && r.spaceId === space?.id && r.zone === meetingRoom.id) : [];
@@ -745,10 +753,15 @@ function OfficeRoom() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [zoneCard, setZoneCard] = useState<{ zoneId: string; cx: number; cy: number } | null>(null);
+  const zoneLatest = useRef<{ zoneId: string; cx: number; cy: number } | null>(null);
   const zoneTimer = useRef<number | undefined>(undefined);
   const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
+    zoneLatest.current = h;
+    if (!h) { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 300); return; }
+    if (zoneCard && zoneCard.zoneId === h.zoneId) { window.clearTimeout(zoneTimer.current); return; }
     window.clearTimeout(zoneTimer.current);
-    zoneTimer.current = window.setTimeout(() => setZoneCard(h), h ? 220 : 280);
+    // wait a beat, then show it where the pointer is now
+    zoneTimer.current = window.setTimeout(() => setZoneCard(zoneLatest.current), 260);
   };
   const keepZoneCard = () => window.clearTimeout(zoneTimer.current);
   const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 280); };
@@ -844,6 +857,19 @@ function OfficeRoom() {
   useEffect(() => { const t = window.setInterval(() => setSkyTick((n) => n + 1), 30000); return () => window.clearInterval(t); }, []);
   const dark = useMemo(() => skyState(timeMode, Date.now()).dark, [timeMode, skyTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sound, setSound] = useState(() => { try { return localStorage.getItem('kd:office:sound') !== '0'; } catch { return true; } });
+  const [volume, setVolume] = useState(() => { try { const v = Number(localStorage.getItem('kd:office:volume')); return Number.isFinite(v) && v >= 0 && v <= 1 && localStorage.getItem('kd:office:volume') !== null ? v : 0.8; } catch { return 0.8; } });
+  const chooseVolume = (v: number) => { setVolume(v); ambient.setVolume(v); try { localStorage.setItem('kd:office:volume', String(v)); } catch { /* fine */ } };
+  useEffect(() => { ambient.setVolume(volume); }, [volume]);
+  // the real weather where we are, refreshed every ten minutes
+  const [place, setPlaceRaw] = useState(() => { try { const v = localStorage.getItem('kd:office:place'); return PLACES.some((x) => x.id === v) ? (v as string) : DEFAULT_PLACE; } catch { return DEFAULT_PLACE; } });
+  const choosePlace = (id: string) => { setPlaceRaw(id); try { localStorage.setItem('kd:office:place', id); } catch { /* fine */ } };
+  const { data: weather = null } = useQuery({
+    queryKey: ['office', 'weather', place],
+    queryFn: () => fetchWeather(PLACES.find((x) => x.id === place) ?? PLACES[0]),
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    retry: 1,
+  });
   const toggleSound = () => { setSound((v) => { try { localStorage.setItem('kd:office:sound', v ? '0' : '1'); } catch { /* fine */ } return !v; }); };
 
   // live cameras as bubbles above heads: one hidden, playing video element per person
@@ -1007,13 +1033,13 @@ function OfficeRoom() {
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
           onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
         >
-          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} onTime={setTimeMode} onSeason={setSeasonMode} />}
+          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} onTime={setTimeMode} onSeason={setSeasonMode} sound={sound} onSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} place={place} onPlace={choosePlace} />}
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} weather={weather} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
@@ -1063,7 +1089,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  timeMode={timeMode} onTimeMode={setTimeMode} seasonMode={seasonMode} onSeasonMode={setSeasonMode} sound={sound} onToggleSound={toggleSound} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  timeMode={timeMode} onTimeMode={setTimeMode} seasonMode={seasonMode} onSeasonMode={setSeasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} place={place} onPlace={choosePlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
@@ -1095,7 +1121,7 @@ function OfficeRoom() {
       </div>
 
       <Dialog open={joinPrompt && !calls.joined} onOpenChange={(o) => { if (!o) closeJoinPrompt(); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
           <DialogHeader><DialogTitle>Turn on your camera and microphone?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
             People near you will see and hear you, and you will see and hear them. Walk away and the sound fades. Inside a meeting room only the people in that room can hear you. You can mute or turn the camera off at any time.
@@ -1108,7 +1134,7 @@ function OfficeRoom() {
         </DialogContent>
       </Dialog>
       <Dialog open={!!renaming} onOpenChange={(o) => { if (!o) setRenaming(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
           <DialogHeader><DialogTitle>Rename space</DialogTitle></DialogHeader>
           <input value={renameValue} onChange={(e) => setRenameValue(e.target.value.slice(0, 40))} aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
           <div className="flex justify-end gap-2">
@@ -1118,7 +1144,7 @@ function OfficeRoom() {
         </DialogContent>
       </Dialog>
       <Dialog open={newSpaceOpen} onOpenChange={(o) => { if (!o) setNewSpaceOpen(false); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
           <DialogHeader><DialogTitle>New space</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">An empty room with a wooden floor. Open Edit this office to paint walls and floors and add furniture.</p>
           <input value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value.slice(0, 40))} placeholder="Name, for example Leadership" aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
@@ -1184,10 +1210,10 @@ function OfficeRoom() {
         const c = (claims ?? []).find((x) => x.office_id === z.id) ?? null;
         const who = c ? (directory ?? []).find((d) => d.id === c.user_id) : undefined;
         const mine = !!c && c.user_id === profile?.id;
-        const acts: OfficeAction[] = [{ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); walkToOffice(z.id); } }];
+        const acts: OfficeAction[] = [];
         if (!c && !myClaim) acts.push({ key: 'claim', label: 'Claim', icon: <Building2 className="h-3.5 w-3.5" />, primary: true, run: () => { setZoneCard(null); void claimOffice(z.id); } });
-        if (mine) acts.push({ key: 'give', label: 'Give up', icon: <Minus className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); void unclaimOffice(z.id); } });
-        if (isAdmin) acts.push({ key: 'manage', label: 'Manage', icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
+        acts.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, primary: c || myClaim ? true : false, run: () => { setZoneCard(null); walkToOffice(z.id); } });
+        if (isAdmin) acts.push({ key: 'manage', label: 'Manage', compact: true, icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
         return (
           <OfficeCard
             x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
@@ -1203,7 +1229,6 @@ function OfficeRoom() {
         if (card.isMe) {
           acts.push({ key: 'av', label: 'Avatar', icon: <Users className="h-3.5 w-3.5" />, run: () => { setCard(null); setAvatarOpen(true); } });
           if (myClaim) acts.push({ key: 'mine', label: 'My office', icon: <Building2 className="h-3.5 w-3.5" />, run: () => { setCard(null); walkToOffice(); } });
-          if (myClaim) acts.push({ key: 'un', label: 'Unclaim', icon: <Minus className="h-3.5 w-3.5" />, run: () => { setCard(null); void unclaimOffice(myClaim.office_id); } });
         } else {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-3.5 w-3.5" />, primary: !card.near, run: () => { setCard(null); wave(who); } });
           if (card.near) acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-3.5 w-3.5" />, primary: true, run: () => { setCard(null); ring(who); } });
@@ -1213,7 +1238,7 @@ function OfficeRoom() {
         return (
           <PersonCard
             x={card.cx} y={card.cy} name={who.name + (card.isMe ? ' (you)' : '')} avatar={who.avatar} online status={st ? st.emoji + ' ' + st.label : null}
-            hint={card.isMe ? null : card.near ? 'You are close. Ring to get their attention.' : 'They are far away. Wave and they will see you.'}
+            hint={card.isMe ? null : card.near ? 'You are close. Ring to get their attention.' : 'Far away? Wave and they will see you.'}
             actions={acts} onEnter={keepCard} onLeave={leaveCard}
           />
         );
@@ -1297,7 +1322,7 @@ function OfficeRoom() {
         const left = Math.max(8, Math.min(ctx.cx, window.innerWidth - 232));
         const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 56)));
         return createPortal(
-          <div className="fixed inset-0 z-[70]" onPointerDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}>
+          <div className="ko fixed inset-0 z-[70]" onPointerDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}>
             <div className="animate-in fade-in zoom-in-95 absolute max-h-[80vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-popover/85 p-1.5 text-popover-foreground shadow-2xl ring-1 ring-black/5 backdrop-blur-xl duration-100" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
               <div className="mb-1 flex items-center gap-2 border-b border-border/60 px-2.5 pb-2 pt-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-primary shadow-[0_0_8px] shadow-primary/70" /><span className="truncate text-sm font-semibold tracking-tight">{title}</span></div>
               {rows}

@@ -27,7 +27,7 @@ export function EmojiPicker({ quick, freq, onPick, onQuick, onClose }: {
   };
 
   return (
-    <div className="pointer-events-auto w-[22rem] max-w-[92vw] overflow-hidden rounded-2xl border border-border bg-background/98 shadow-2xl backdrop-blur">
+    <div className="ko pointer-events-auto w-[22rem] max-w-[92vw] overflow-hidden rounded-2xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.7)] ring-1 ring-black/30 backdrop-blur-2xl">
       <div className="flex gap-0.5 border-b border-border px-1.5 pt-1.5">
         {[{ id: 'recent', icon: '🕒', label: 'Frequently used' }, ...EMOJI_GROUPS].map((g) => (
           <button key={g.id} type="button" title={g.label} aria-label={g.label} onClick={() => { setGroup(g.id); setQ(''); }}

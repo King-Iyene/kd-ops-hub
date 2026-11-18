@@ -36,9 +36,16 @@ class Ambient {
   private weatherGain: GainNode | null = null;
   private windGain: GainNode | null = null;
   private enabled = true;
+  private volume = 0.8;
   private lastUpdate = 0;
   private lastStep = 0;
   private stepSide = 1;
+
+  /** the overall loudness of every office sound (0 to 1) */
+  setVolume(v: number) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(1.1 * this.volume, this.ctx.currentTime, 0.1);
+  }
 
   setEnabled(on: boolean) {
     this.enabled = on;
@@ -252,7 +259,7 @@ class Ambient {
       const c = new AudioContext();
       this.ctx = c;
       const master = c.createGain();
-      master.gain.value = 0.9;
+      master.gain.value = 1.1 * this.volume;
       master.connect(c.destination);
       this.master = master;
 

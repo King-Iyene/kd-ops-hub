@@ -83,7 +83,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Customise your avatar</DialogTitle></DialogHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
           <canvas ref={canvasRef} width={170} height={230} style={{ width: 170, height: 230 }} className="mx-auto shrink-0 rounded-lg bg-muted/40 sm:mx-0" />

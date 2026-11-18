@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Records the audio of a meeting room, on the recorder's own computer, and saves it to private storage.
+ * Records a meeting room (a video of the office with everyone's voices; sound only if the picture is not available), on the recorder's own computer, and saves it to private storage.
  *  - Only people listed in office_recorders may record (the database enforces this too).
  *  - Only inside a meeting room, and only while joined to voice. Leaving the room or the call stops it.
  *  - Everyone in the room is told (announce flag, shown as a banner by the page).
@@ -23,12 +23,17 @@ interface Opts {
   room: RoomInfo | null;
   getStreams: () => MediaStream[];
   getNames: () => string[];
+  /** a live video of the office (the map), recorded together with the sound; none means audio only */
+  getVideoTrack?: () => MediaStreamTrack | null;
   /** tells the room we started or stopped */
   announce: (on: boolean) => void;
 }
 
-function pickMime(): string | undefined {
-  for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']) {
+function pickMime(video: boolean): string | undefined {
+  const list = video
+    ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
+    : ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+  for (const m of list) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m;
   }
   return undefined;
@@ -54,6 +59,7 @@ export function useRecorder(opts: Opts) {
     spaceId: string | null;
     meId: string;
     mime: string | undefined;
+    video: MediaStreamTrack | null;
     segStart: number;
     startedAt: Date;
     names: Set<string>;
@@ -64,9 +70,10 @@ export function useRecorder(opts: Opts) {
   } | null>(null);
 
   const upload = useCallback(async (blob: Blob, r: NonNullable<typeof run.current>, part: number, startedAt: Date, durationS: number, names: string[]) => {
-    const ext = r.mime?.includes('ogg') ? 'ogg' : r.mime?.includes('mp4') ? 'm4a' : 'webm';
-    const path = `${r.meId}/${r.session}/part-${String(part).padStart(3, '0')}.${ext}`;
-    const up = await supabase.storage.from('office-recordings').upload(path, blob, { contentType: blob.type || 'audio/webm', upsert: false });
+    const isVideo = !!r.video;
+    const ext = r.mime?.includes('ogg') ? 'ogg' : r.mime?.includes('mp4') ? (isVideo ? 'mp4' : 'm4a') : 'webm';
+    const path = `${r.meId}/${r.session}/part-${String(part).padStart(3, '0')}${isVideo ? '-v' : ''}.${ext}`;
+    const up = await supabase.storage.from('office-recordings').upload(path, blob, { contentType: blob.type || (isVideo ? 'video/webm' : 'audio/webm'), upsert: false });
     if (up.error) throw up.error;
     const ins = await supabase.from('office_recordings').insert({
       session_id: r.session, part, space_id: r.spaceId, room_id: r.room.id, room_name: r.room.name,
@@ -78,14 +85,15 @@ export function useRecorder(opts: Opts) {
   /** start a recorder for one part; when it ends the part is uploaded */
   const startPart = useCallback((r: NonNullable<typeof run.current>) => {
     const chunks: Blob[] = [];
-    const rec = new MediaRecorder(r.dest.stream, { mimeType: r.mime, audioBitsPerSecond: 48_000 });
+    const source = r.video ? new MediaStream([...r.dest.stream.getAudioTracks(), r.video]) : r.dest.stream;
+    const rec = new MediaRecorder(source, { mimeType: r.mime, audioBitsPerSecond: 64_000, ...(r.video ? { videoBitsPerSecond: 1_800_000 } : {}) });
     const part = r.part;
     const startedAt = new Date();
     r.segStart = Date.now();
     r.rec = rec;
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
-      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+      const blob = new Blob(chunks, { type: rec.mimeType || (r.video ? 'video/webm' : 'audio/webm') });
       const durationS = Math.round((Date.now() - r.segStart) / 1000);
       const names = [...r.names];
       if (blob.size < 2000) return; // nothing worth keeping
@@ -114,7 +122,7 @@ export function useRecorder(opts: Opts) {
     if (r.rotate) clearTimeout(r.rotate);
     if (r.rec && r.rec.state !== 'inactive') r.rec.stop();
     // give the last part a moment to be handed over before the mixer is closed
-    setTimeout(() => { void r.ctx.close().catch(() => undefined); }, 1500);
+    setTimeout(() => { void r.ctx.close().catch(() => undefined); r.video?.stop(); }, 1500);
     run.current = null;
     setRecording(false);
     setSeconds(0);
@@ -128,7 +136,10 @@ export function useRecorder(opts: Opts) {
     setError(null);
     const ctx = new AudioContext();
     const dest = ctx.createMediaStreamDestination();
-    const mime = pickMime();
+    let video: MediaStreamTrack | null = null;
+    try { video = o.current.getVideoTrack?.() ?? null; } catch { video = null; }
+    const mime = pickMime(!!video) ?? (video ? pickMime(false) : undefined);
+    if (video && !mime?.startsWith('video')) video = null;
     const sources = new Map<string, MediaStreamAudioSourceNode>();
     const names = new Set<string>(o.current.getNames());
     const syncSources = () => {
@@ -142,7 +153,7 @@ export function useRecorder(opts: Opts) {
     };
     syncSources();
     const r: NonNullable<typeof run.current> = {
-      ctx, dest, sources, rec: null, session: crypto.randomUUID(), part: 1, room, spaceId, meId, mime,
+      ctx, dest, sources, rec: null, session: crypto.randomUUID(), part: 1, room, spaceId, meId, mime, video,
       segStart: Date.now(), startedAt: new Date(), names,
       sync: setInterval(syncSources, 1000), rotate: null,
       tick: setInterval(() => setSeconds(Math.round((Date.now() - r.startedAt.getTime()) / 1000)), 1000),

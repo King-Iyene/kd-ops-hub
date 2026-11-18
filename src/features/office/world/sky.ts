@@ -1,4 +1,5 @@
 import { zoneParts } from './clock';
+import { liveRainLevel, type Weather } from './weather';
 
 /** The sky over the office: time of day on Nigerian time, and the Nigerian seasons. Pure, so it is unit tested. */
 
@@ -51,18 +52,23 @@ export function skyState(mode: TimeMode, now: number): SkyState {
 }
 
 /** Harmattan runs from late November to February, the rains from April to October, and March is hot and clear. */
-export function seasonFor(mode: SeasonMode, now: number): Season {
+export function seasonFor(mode: SeasonMode, now: number, live?: Weather | null): Season {
   if (mode !== 'auto') return mode;
+  // when it is really raining where we are, it rains in the office
+  if (live && liveRainLevel(live) > 0) return 'rainy';
   const month = new Date(now + 3600_000).getUTCMonth() + 1; // Lagos is UTC+1
   const day = new Date(now + 3600_000).getUTCDate();
   if (month === 12 || month <= 2 || (month === 11 && day >= 15)) return 'harmattan';
+  // in the rains it is dry between showers; without live weather we fall back on the calendar
+  if (live) return 'clear';
   if (month >= 4 && month <= 10) return 'rainy';
   return 'clear';
 }
 
 /** In the rainy season it comes and goes: showers of a few minutes with gaps between (0 to 1). */
-export function rainLevel(season: Season, now: number): number {
+export function rainLevel(season: Season, now: number, live?: Weather | null, auto = false): number {
   if (season !== 'rainy') return 0;
+  if (auto && live) return liveRainLevel(live);
   const v = Math.sin(now / 110000) * 0.6 + Math.sin(now / 37000) * 0.4 + 0.3;
   return Math.max(0, Math.min(1, v * 1.4));
 }
