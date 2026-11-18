@@ -35,6 +35,8 @@ interface Props {
   onToggleLock: () => void;
   onLetIn: (k: { id: string; room: string }) => void;
   onDismissKnock: (id: string) => void;
+  /** the profile card shown at the left of the bar */
+  leading?: React.ReactNode;
 }
 
 function clock(s: number): string {
@@ -82,7 +84,7 @@ function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean;
 export function CallDock({
   joined, busy, error, micOn, camOn, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
-  roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock,
+  roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
   const screens = tiles.filter((t) => t.screen);
   const people = tiles.filter((t) => !t.screen);
@@ -124,6 +126,12 @@ export function CallDock({
           </div>
         )}
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
+          {leading && (
+            <>
+              {leading}
+              <span className="mx-0.5 h-5 w-px bg-border" />
+            </>
+          )}
           {roomName && (
             <>
               <Btn on={roomLocked} label={roomLocked ? 'Unlock the room' : 'Lock the room so nobody else can walk in'} onClick={onToggleLock}>

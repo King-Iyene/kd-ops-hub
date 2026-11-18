@@ -973,6 +973,8 @@ export interface DrawPerson {
   isMe: boolean;
   /** this person's live camera, drawn as a bubble above their head */
   bubble?: HTMLVideoElement | null;
+  /** an emoji for their status, shown in the name tag */
+  status?: string;
 }
 
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
@@ -1214,7 +1216,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const w = ctx.measureText(p.name).width + 16;
+  const label = p.status ? `${p.status} ${p.name}` : p.name;
+  const w = ctx.measureText(label).width + 16 + (p.status ? 0 : 0);
   const ty = py - 38 + bob;
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 8, w, 18, 9);
@@ -1222,10 +1225,12 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillStyle = p.isMe ? 'rgba(37,99,235,0.96)' : theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
   rr(ctx, px - w / 2, ty - 9, w, 18, 9);
   ctx.fill();
-  ctx.fillStyle = p.isMe ? '#bfdbfe' : '#34d399';
-  disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
+  if (!p.status) {
+    ctx.fillStyle = p.isMe ? '#bfdbfe' : '#34d399';
+    disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
+  }
   ctx.fillStyle = '#fff';
-  ctx.fillText(p.name, px + 3, ty + 0.5);
+  ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
 
   // live camera bubble above the name tag, like Gather
   const v = p.bubble;

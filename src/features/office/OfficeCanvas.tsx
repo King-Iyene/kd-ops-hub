@@ -4,6 +4,7 @@ import { WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVe
 import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
+import { statusOf } from './status';
 
 export type EditTool = ItemType | 'erase' | null;
 
@@ -247,10 +248,10 @@ export function OfficeCanvas(props: Props) {
         if (info && info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id),
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id) });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
