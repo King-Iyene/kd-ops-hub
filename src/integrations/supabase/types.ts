@@ -7933,6 +7933,106 @@ export type Database = {
           },
         ]
       }
+      office_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          img: string | null
+          kind: string
+          mentions: string[]
+          sender_id: string
+          space_id: string
+          to_id: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          img?: string | null
+          kind?: string
+          mentions?: string[]
+          sender_id: string
+          space_id: string
+          to_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          img?: string | null
+          kind?: string
+          mentions?: string[]
+          sender_id?: string
+          space_id?: string
+          to_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_messages_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_messages_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_messages_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_messages_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_messages_to_id_fkey"
+            columns: ["to_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_recordings: {
         Row: {
           created_at: string
