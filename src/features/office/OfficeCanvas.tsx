@@ -15,6 +15,8 @@ interface Props {
   me: { id: string; name: string; avatar: AvatarStyle };
   roster: Who[];
   peers: React.MutableRefObject<Map<string, PeerMotion>>;
+  /** live cameras by person id, drawn as bubbles above their heads */
+  bubbles: React.MutableRefObject<Map<string, HTMLVideoElement>>;
   update: (m: Motion, dir: 0 | 1 | 2 | 3, now: number) => void;
   onZone: (zone: Zone | null) => void;
   /** may I walk into this meeting room? (false while it is locked and nobody has let me in) */
@@ -245,10 +247,10 @@ export function OfficeCanvas(props: Props) {
         if (info && info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id),
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id) });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
