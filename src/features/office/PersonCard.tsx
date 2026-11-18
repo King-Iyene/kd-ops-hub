@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { AvatarStyle } from './world/types';
 import { AvatarFace } from './AvatarFace';
-import { BTN_ICON, BTN_MAIN, SURFACE } from './ui';
+import { BTN_ICON, SURFACE } from './ui';
 
 export interface CardAction { key: string; label: string; icon: ReactNode; run: () => void; /** shown but greyed out, with why */ off?: string; primary?: boolean }
 
@@ -45,7 +45,7 @@ export function PersonCard({ x, y, name, avatar, online, status, hint, actions, 
         {hint && <p className="mt-2.5 text-[11.5px] leading-snug text-muted-foreground">{hint}</p>}
         {actions.length > 0 && (
           <div className="mt-3 flex items-center gap-1.5">
-            {main && <button type="button" onClick={main.run} className={`${BTN_MAIN} min-w-0 flex-1`}>{main.icon}<span className="truncate">{main.label}</span></button>}
+            {main && <button type="button" onClick={main.run} className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white/90 px-3 text-xs font-semibold text-slate-900 transition-colors hover:bg-white">{main.icon}<span className="truncate">{main.label}</span></button>}
             {rest.map((a) => (
               <button key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} aria-label={a.label} onClick={a.run} className={BTN_ICON}>{a.icon}</button>
             ))}

@@ -1,20 +1,25 @@
-import { useMemo, useState } from 'react';
-import { Building2, Footprints, Hammer, MoreHorizontal, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Building2, CloudSun, Footprints, Hammer, MoreHorizontal, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BTN_MAIN, BTN_QUIET, LABEL } from './ui';
 
 export interface Claimable { id: string; name: string; kind: 'office' | 'seat'; owner: string | null }
 
-type Tab = 'places' | 'people' | 'tools' | 'space';
+export type ManageTab = 'places' | 'people' | 'tools' | 'sky' | 'space';
+type Tab = ManageTab;
 
 /**
  * One calm place to run the space. Offices are rows; the 24 desk seats are a compact grid of chips (a seat shows its owner,
  * or a plus when free) so nothing repeats down the page.
  */
-export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEdit, canDelete, rows, onAssign, onUnclaim, onRename, onWalk, onInvite, onSettings, onEdit, onRecordings, onRenameSpace, onDeleteSpace, onNewSpace }: {
+export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isAdmin, isSuper, canEdit, canDelete, rows, onAssign, onUnclaim, onRename, onWalk, onInvite, onSettings, onEdit, onRecordings, onRenameSpace, onDeleteSpace, onNewSpace }: {
   open: boolean;
   onClose: () => void;
+  /** which tab to open on */
+  startTab?: ManageTab;
+  /** the sky controls (time of day, season, place) for the whole office */
+  skyPanel?: ReactNode;
   spaceName: string;
   isAdmin: boolean;
   isSuper: boolean;
@@ -33,7 +38,8 @@ export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEd
   onDeleteSpace: () => void;
   onNewSpace: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('places');
+  const [tab, setTab] = useState<Tab>(startTab ?? 'places');
+  useEffect(() => { if (open) setTab(startTab ?? 'places'); }, [open, startTab]);
   const [q, setQ] = useState('');
   const offices = useMemo(() => rows.filter((r) => r.kind === 'office'), [rows]);
   const seats = useMemo(() => rows.filter((r) => r.kind === 'seat'), [rows]);
@@ -45,6 +51,7 @@ export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEd
     { id: 'places', label: 'Places', icon: <Building2 className="h-3.5 w-3.5" /> },
     { id: 'people', label: 'People', icon: <Users className="h-3.5 w-3.5" /> },
     { id: 'tools', label: 'Tools', icon: <Hammer className="h-3.5 w-3.5" /> },
+    ...(isAdmin ? [{ id: 'sky' as Tab, label: 'Sky', icon: <CloudSun className="h-3.5 w-3.5" /> }] : []),
     { id: 'space', label: 'Space', icon: <Settings className="h-3.5 w-3.5" /> },
   ];
 
@@ -170,6 +177,13 @@ export function ManageDialog({ open, onClose, spaceName, isAdmin, isSuper, canEd
                 {isAdmin && tile(<Settings className="h-4 w-4" />, 'Permissions and limits', 'Builders, recorders and furniture limit.', onSettings)}
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">Walk up to the core values wall, the notice board or the wall clock and press F to edit what they say.</p>
+            </div>
+          )}
+
+          {tab === 'sky' && isAdmin && (
+            <div className="space-y-4">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">Set the sky for everyone in the office: the time of day, the season and the weather's location.</p>
+              {skyPanel}
             </div>
           )}
 

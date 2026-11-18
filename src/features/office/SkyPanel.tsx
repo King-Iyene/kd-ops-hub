@@ -1,4 +1,4 @@
-import { CloudRain, CloudSun, Droplets, MapPin, Moon, Sun, Sunrise, Sunset, Thermometer, Volume2, VolumeX, Wind } from 'lucide-react';
+import { CloudRain, CloudSun, Droplets, MapPin, Moon, Sun, Sunrise, Sunset, Thermometer, Wind } from 'lucide-react';
 import { SEASON_MODES, TIME_MODES, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { PLACES, describe, type Weather } from './world/weather';
 import { LABEL } from './ui';
@@ -22,10 +22,6 @@ export interface SkyPanelProps {
   seasonMode: SeasonMode;
   onTime: (m: TimeMode) => void;
   onSeason: (m: SeasonMode) => void;
-  sound: boolean;
-  onSound: () => void;
-  volume: number;
-  onVolume: (v: number) => void;
   weather: Weather | null;
   place: string;
   onPlace: (id: string) => void;
@@ -83,23 +79,8 @@ export function SkyPanel(p: SkyPanelProps) {
         {seg(SEASON_MODES, p.seasonMode, p.onSeason)}
       </div>
 
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <p className={LABEL}>Office sounds</p>
-          <button type="button" role="switch" aria-checked={p.sound} onClick={p.onSound} className={`relative h-5 w-9 rounded-full transition-colors ${p.sound ? 'bg-primary' : 'bg-white/15'}`}>
-            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.sound ? 'left-[1.15rem]' : 'left-0.5'}`} />
-          </button>
-        </div>
-        <div className={`flex items-center gap-2.5 ${p.sound ? '' : 'pointer-events-none opacity-40'}`}>
-          <VolumeX className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="h-1 w-full cursor-pointer accent-primary" />
-          <Volume2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </div>
-        <p className="mt-1.5 text-[11.5px] leading-snug text-muted-foreground">Water, fire, piano, pets, footsteps, rain and wind.</p>
-      </div>
-
       <p className="border-t border-white/[0.07] pt-3 text-[11.5px] leading-snug text-muted-foreground">
-        On Auto, rain falls in the office when it is really raining in {city}; otherwise it follows the Nigerian calendar (Harmattan from late November to February). Only your own screen changes.
+        This is the sky for the whole office, so everyone sees the same. On Auto, rain falls when it is really raining in {city}; otherwise it follows the Nigerian calendar (Harmattan from late November to February).
       </p>
     </div>
   );

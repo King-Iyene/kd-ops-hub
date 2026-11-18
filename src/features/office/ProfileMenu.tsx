@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video } from 'lucide-react';
+import { Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { STATUSES, statusOf } from './status';
-import { SkyPanel, phaseOf, seasonBadge } from './SkyPanel';
+import { phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { Weather } from './world/weather';
 import { LABEL, SURFACE } from './ui';
@@ -14,16 +14,12 @@ interface Props {
   onStatus: (id: string) => void;
   onAvatar: () => void;
   timeMode: TimeMode;
-  onTimeMode: (m: TimeMode) => void;
   seasonMode: SeasonMode;
-  onSeasonMode: (m: SeasonMode) => void;
   sound: boolean;
   onToggleSound: () => void;
   volume: number;
   onVolume: (v: number) => void;
   weather: Weather | null;
-  place: string;
-  onPlace: (id: string) => void;
   zoom: number;
   onZoom: (delta: number) => void;
   traySize: 0 | 1 | 2 | 3;
@@ -50,11 +46,11 @@ interface Props {
   onOfficeLock: () => void;
 }
 
-type Tab = 'you' | 'sky' | 'space';
+type Tab = 'you' | 'space';
 
 /**
- * The control panel, from the profile card at the left of the bottom bar. Three tabs:
- * You (status, avatar, your office), Sky and sound (live weather, hour, season, sounds) and Space (tools and view).
+ * The control panel, from the profile card at the left of the bottom bar. Two tabs:
+ * You (status, avatar, your office, your sounds) and Space (tools and your view). The sky is set for everyone in Manage space.
  */
 export function ProfileMenu(p: Props) {
   const [open, setOpen] = useState(false);
@@ -76,7 +72,7 @@ export function ProfileMenu(p: Props) {
     </button>
   );
 
-  const tabs: { id: Tab; label: string }[] = [{ id: 'you', label: 'You' }, { id: 'sky', label: 'Sky and sound' }, { id: 'space', label: 'Space' }];
+  const tabs: { id: Tab; label: string }[] = [{ id: 'you', label: 'You' }, { id: 'space', label: 'Space' }];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -102,10 +98,10 @@ export function ProfileMenu(p: Props) {
             <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
             <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? `${st.emoji} ${st.label}` : 'Available'}</p>
           </div>
-          <button type="button" onClick={() => setTab('sky')} className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-white/[0.08] transition hover:bg-white/[0.12]" title="Weather and sky">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-white/[0.08]" title="The sky, the same for everyone">
             {phaseOf(sky.hour).icon}{p.weather ? `${p.weather.temp}°` : phaseOf(sky.hour).label}
             <span className="h-3 w-px bg-white/15" />{seasonBadge(season).icon}
-          </button>
+          </div>
         </div>
 
         <div className="px-4 pt-3">
@@ -130,6 +126,16 @@ export function ProfileMenu(p: Props) {
                   ))}
                 </div>
               </div>
+              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[13px] font-semibold">{p.sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}Office sounds</span>
+                  <button type="button" role="switch" aria-checked={p.sound} onClick={p.onToggleSound} className={`relative h-5 w-9 rounded-full transition-colors ${p.sound ? 'bg-primary' : 'bg-white/15'}`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.sound ? 'left-[1.15rem]' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} disabled={!p.sound} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="mt-2.5 h-1 w-full cursor-pointer accent-primary disabled:opacity-40" />
+                <p className="mt-1.5 text-[11.5px] text-muted-foreground">Water, fire, piano, pets, footsteps, rain and wind. Only for you.</p>
+              </div>
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('avatar', <Palette className="h-4 w-4" />, 'Avatar', 'Hair, clothes, accessories', p.onAvatar)}
                 {p.myOffice
@@ -140,10 +146,6 @@ export function ProfileMenu(p: Props) {
                 {p.myOffice && tile('give', <DoorClosed className="h-4 w-4" />, 'Give up office', 'Free it for someone else', p.onUnclaimOffice, 'danger')}
               </div>
             </div>
-          )}
-
-          {tab === 'sky' && (
-            <SkyPanel timeMode={p.timeMode} seasonMode={p.seasonMode} onTime={p.onTimeMode} onSeason={p.onSeasonMode} sound={p.sound} onSound={p.onToggleSound} volume={p.volume} onVolume={p.onVolume} weather={p.weather} place={p.place} onPlace={p.onPlace} />
           )}
 
           {tab === 'space' && (

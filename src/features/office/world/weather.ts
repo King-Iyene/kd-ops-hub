@@ -16,7 +16,7 @@ export const PLACES: Place[] = [
   { id: 'kano', name: 'Kano', lat: 12.0022, lon: 8.5919 },
 ];
 
-export const DEFAULT_PLACE = 'lagos';
+export const DEFAULT_PLACE = 'portharcourt';
 
 export interface Weather {
   temp: number;

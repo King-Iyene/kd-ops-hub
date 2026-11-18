@@ -28,11 +28,12 @@ import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
-import { ManageDialog, type Claimable } from './ManageDialog';
+import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
+import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
 import { useOfficeFont } from './ui';
 import { useQuery } from '@tanstack/react-query';
@@ -752,19 +753,23 @@ function OfficeRoom() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [manageTab, setManageTab] = useState<ManageTab>('places');
   const [zoneCard, setZoneCard] = useState<{ zoneId: string; cx: number; cy: number } | null>(null);
   const zoneLatest = useRef<{ zoneId: string; cx: number; cy: number } | null>(null);
   const zoneTimer = useRef<number | undefined>(undefined);
   const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
     zoneLatest.current = h;
-    if (!h) { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 300); return; }
-    if (zoneCard && zoneCard.zoneId === h.zoneId) { window.clearTimeout(zoneTimer.current); return; }
     window.clearTimeout(zoneTimer.current);
-    // wait a beat, then show it where the pointer is now
-    zoneTimer.current = window.setTimeout(() => setZoneCard(zoneLatest.current), 260);
+    if (!h) { zoneTimer.current = window.setTimeout(() => setZoneCard(null), 500); return; }
+    if (zoneCard) {
+      if (zoneCard.zoneId === h.zoneId) return;
+      // reaching for the card: a seat next to it must not take it over
+      if (Math.hypot(h.cx - zoneCard.cx, h.cy - zoneCard.cy) < 190) return;
+    }
+    zoneTimer.current = window.setTimeout(() => setZoneCard(zoneLatest.current), 280);
   };
   const keepZoneCard = () => window.clearTimeout(zoneTimer.current);
-  const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 280); };
+  const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 400); };
   const [card, setCard] = useState<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
   const hoverPerson = (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => {
@@ -848,10 +853,20 @@ function OfficeRoom() {
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
-  const [timeMode, setTimeModeRaw] = useState<TimeMode>(() => { try { const v = localStorage.getItem('kd:office:time'); return v === 'morning' || v === 'afternoon' || v === 'evening' || v === 'night' ? v : 'auto'; } catch { return 'auto'; } });
-  const [seasonMode, setSeasonModeRaw] = useState<SeasonMode>(() => { try { const v = localStorage.getItem('kd:office:season'); return v === 'clear' || v === 'harmattan' || v === 'rainy' ? v : 'auto'; } catch { return 'auto'; } });
-  const setTimeMode = (m: TimeMode) => { setTimeModeRaw(m); try { localStorage.setItem('kd:office:time', m); } catch { /* fine */ } };
-  const setSeasonMode = (m: SeasonMode) => { setSeasonModeRaw(m); try { localStorage.setItem('kd:office:season', m); } catch { /* fine */ } };
+  // the sky is the same for everyone in the office; admins set it in Manage space
+  const skyCfg = space?.layout?.settings?.sky;
+  const timeMode: TimeMode = (['auto', 'morning', 'afternoon', 'evening', 'night'] as const).find((m) => m === skyCfg?.time) ?? 'auto';
+  const seasonMode: SeasonMode = (['auto', 'clear', 'harmattan', 'rainy'] as const).find((m) => m === skyCfg?.season) ?? 'auto';
+  const place = PLACES.find((x) => x.id === skyCfg?.place)?.id ?? DEFAULT_PLACE;
+  const saveSky = async (patch: { time?: TimeMode; season?: SeasonMode; place?: string }) => {
+    if (!space || !isAdmin) return;
+    try {
+      await actions.saveSettings(space, { ...(space.layout?.settings ?? {}), sky: { time: timeMode, season: seasonMode, place, ...patch } });
+      toast({ title: 'Sky updated', description: 'Everyone in the office sees it now.' });
+    } catch (err) {
+      toast({ title: 'That did not save', description: errorMessage(err), variant: 'destructive' });
+    }
+  };
   // the palette follows the hour (checked every half minute, so dusk arrives by itself)
   const [skyTick, setSkyTick] = useState(0);
   useEffect(() => { const t = window.setInterval(() => setSkyTick((n) => n + 1), 30000); return () => window.clearInterval(t); }, []);
@@ -861,8 +876,6 @@ function OfficeRoom() {
   const chooseVolume = (v: number) => { setVolume(v); ambient.setVolume(v); try { localStorage.setItem('kd:office:volume', String(v)); } catch { /* fine */ } };
   useEffect(() => { ambient.setVolume(volume); }, [volume]);
   // the real weather where we are, refreshed every ten minutes
-  const [place, setPlaceRaw] = useState(() => { try { const v = localStorage.getItem('kd:office:place'); return PLACES.some((x) => x.id === v) ? (v as string) : DEFAULT_PLACE; } catch { return DEFAULT_PLACE; } });
-  const choosePlace = (id: string) => { setPlaceRaw(id); try { localStorage.setItem('kd:office:place', id); } catch { /* fine */ } };
   const { data: weather = null } = useQuery({
     queryKey: ['office', 'weather', place],
     queryFn: () => fetchWeather(PLACES.find((x) => x.id === place) ?? PLACES[0]),
@@ -1033,7 +1046,7 @@ function OfficeRoom() {
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
           onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
         >
-          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} onTime={setTimeMode} onSeason={setSeasonMode} sound={sound} onSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} place={place} onPlace={choosePlace} />}
+          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} weather={weather} place={place} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
@@ -1089,7 +1102,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  timeMode={timeMode} onTimeMode={setTimeMode} seasonMode={seasonMode} onSeasonMode={setSeasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} place={place} onPlace={choosePlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
@@ -1340,7 +1353,8 @@ function OfficeRoom() {
       />
       <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
       <ManageDialog
-        open={manageOpen} onClose={() => setManageOpen(false)} spaceName={space.name} isAdmin={isAdmin} isSuper={isSuper} canEdit={canEdit}
+        open={manageOpen} onClose={() => { setManageOpen(false); setManageTab('places'); }} startTab={manageTab} spaceName={space.name}
+        skyPanel={<SkyPanel timeMode={timeMode} seasonMode={seasonMode} onTime={(m) => void saveSky({ time: m })} onSeason={(m) => void saveSky({ season: m })} weather={weather} place={place} onPlace={(id) => void saveSky({ place: id })} />} isAdmin={isAdmin} isSuper={isSuper} canEdit={canEdit}
         canDelete={space.id !== myTeam?.id}
         rows={map.zones.filter((z) => z.kind === 'office').map((z): Claimable => {
           const c = (claims ?? []).find((x) => x.office_id === z.id);

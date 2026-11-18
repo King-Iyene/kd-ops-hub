@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { AvatarStyle } from './world/types';
 import { AvatarFace } from './AvatarFace';
-import { BTN_ICON, BTN_MAIN, BTN_QUIET, SURFACE } from './ui';
 
 export interface OfficeAction { key: string; label: string; icon: ReactNode; run: () => void; primary?: boolean; /** icon only */ compact?: boolean }
 
@@ -21,36 +20,28 @@ export function OfficeCard({ x, y, title, kind, owner, avatar, locked, note, act
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const w = 248;
-  const h = 110;
-  // beside the pointer, flipping to stay on screen
-  const left = x + 16 + w > window.innerWidth - 8 ? Math.max(8, x - w - 16) : x + 16;
-  const top = Math.max(8, Math.min(y - 12, window.innerHeight - h - 8));
-  const main = actions.find((a) => a.primary) ?? null;
-  const quiet = actions.filter((a) => a !== main && !a.compact);
-  const icons = actions.filter((a) => a !== main && a.compact);
+  // tucked right against the pointer, so there is no gap to cross
+  const left = x + 10 + 260 > window.innerWidth - 8 ? Math.max(8, x - 270) : x + 10;
+  const top = Math.max(8, Math.min(y - 20, window.innerHeight - 60));
   return createPortal(
-    <div className="ko fixed z-[64]" style={{ left, top, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <div className={`${SURFACE} animate-in fade-in zoom-in-95 p-3 duration-100`}>
-        <div className="flex items-center gap-2.5">
-          {avatar
-            ? <AvatarFace avatar={avatar} size={38} />
-            : <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border border-dashed border-white/20 text-base text-muted-foreground">+</span>}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-bold leading-tight tracking-tight">{title}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11.5px] leading-tight text-muted-foreground">
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${owner ? 'bg-primary' : 'bg-emerald-500'}`} />
-              <span className="truncate">{owner ? `Claimed by ${owner}` : note ?? 'Free to claim'}{locked ? ' · locked' : ''}</span>
-            </p>
-          </div>
+    <div className="ko fixed z-[64]" style={{ left, top }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <div className="animate-in fade-in flex items-center gap-2 rounded-2xl bg-black/60 py-1.5 pl-2 pr-1.5 text-white shadow-xl ring-1 ring-white/10 backdrop-blur-md duration-100">
+        {avatar
+          ? <AvatarFace avatar={avatar} size={28} />
+          : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-white/30 text-sm text-white/60">+</span>}
+        <div className="min-w-0 max-w-[9.5rem] pr-1">
+          <p className="truncate text-[12.5px] font-bold leading-tight">{title}</p>
+          <p className="truncate text-[10.5px] leading-tight text-white/60">{owner ? `Claimed by ${owner}` : note ?? 'Free to claim'}{locked ? ' · locked' : ''}</p>
         </div>
-        {actions.length > 0 && (
-          <div className="mt-3 flex items-center gap-1.5">
-            {main && <button type="button" onClick={main.run} className={`${BTN_MAIN} min-w-0 flex-1`}>{main.icon}<span className="truncate">{main.label}</span></button>}
-            {quiet.map((a) => <button key={a.key} type="button" onClick={a.run} className={`${BTN_QUIET} min-w-0 flex-1`}>{a.icon}<span className="truncate">{a.label}</span></button>)}
-            {icons.map((a) => <button key={a.key} type="button" title={a.label} aria-label={a.label} onClick={a.run} className={BTN_ICON}>{a.icon as ReactNode}</button>)}
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          {actions.map((a) => (
+            <button key={a.key} type="button" title={a.label} aria-label={a.label} onClick={a.run}
+              className="group flex h-7 items-center rounded-full bg-white/10 px-2 text-white transition-colors hover:bg-white/20">
+              {a.icon}
+              <span className="ml-0 max-w-0 overflow-hidden whitespace-nowrap text-[11px] font-semibold opacity-0 transition-all duration-150 group-hover:ml-1.5 group-hover:max-w-[6rem] group-hover:opacity-100">{a.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>,
     document.body,
