@@ -560,7 +560,11 @@ function OfficeRoom() {
   };
   const walkToOffice = (officeId?: string) => {
     const z = map.zones.find((q) => q.id === (officeId ?? myClaim?.office_id));
-    if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h - 1.5 });
+    if (!z) return;
+    // a desk seat: go and sit on its chair (the desk itself is in the way)
+    const chair = z.seat ? items.find((i) => i.t === 'chair' && i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h) : undefined;
+    if (chair) setJump({ key: Date.now(), x: chair.x + 0.5, y: chair.y + 0.5 });
+    else setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h - 1.5 });
   };
   const claimFree = () => {
     const taken = new Set((claims ?? []).map((c) => c.office_id));
@@ -1230,7 +1234,7 @@ function OfficeRoom() {
         return (
           <OfficeCard
             x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
-            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "Free, but you already have a place" : undefined} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
+            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "You already have one" : undefined} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
           />
         );
       })()}
