@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OfficeCanvas } from './OfficeCanvas';
 import { EditorPanel, type EditTool } from './EditorPanel';
+import { RoomNameDialog, type RoomOverride } from './RoomNameDialog';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
@@ -35,7 +36,7 @@ export default function OfficePage() {
   const { data: spaces } = useSpaces();
   const { data: directory } = useDirectory();
   // the leaders (admins) get a named private office with their avatar on the plate
-  const leaders = useMemo(() => (directory ?? []).filter((p) => p.role === 'admin' || p.role === 'super_admin').slice(0, 9).map((p) => ({ name: p.name, avatar: p.avatar })), [directory]);
+  const leaders = useMemo(() => (directory ?? []).filter((p) => p.role === 'admin' || p.role === 'super_admin').slice(0, 9).map((p) => ({ uid: p.id, name: p.name, avatar: p.avatar })), [directory]);
   const leadersKey = leaders.map((l) => `${l.name}:${JSON.stringify(l.avatar)}`).join('|');
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
@@ -82,9 +83,31 @@ export default function OfficePage() {
   useEffect(() => { if (space?.kind === 'team') lastTeam.current = space.id; }, [space]);
 
   const template: TemplateName = space ? (space.layout?.template ?? space.kind) : 'team';
+  // names on the plates: who was assigned to each private office, else the leaders in order; meeting rooms can be renamed
+  const [overrides, setOverrides] = useState<Record<string, RoomOverride>>({});
+  const savedOverrides = space?.layout?.rooms;
+  useEffect(() => { setOverrides(savedOverrides ?? {}); }, [savedOverrides]);
+  const plateTable = useMemo(() => {
+    const taken = new Set(Object.values(overrides).map((o) => o.uid).filter(Boolean));
+    const spare = leaders.filter((l) => !taken.has(l.uid));
+    let next = 0;
+    return Array.from({ length: 9 }, (_, i) => {
+      const o = overrides['office-' + (i + 1)];
+      if (o?.free) return undefined;
+      if (o?.uid) { const p = (directory ?? []).find((d) => d.id === o.uid); return p ? { name: p.name, avatar: p.avatar } : undefined; }
+      if (o?.label) return { name: o.label };
+      const l = spare[next++];
+      return l ? { name: l.name, avatar: l.avatar } : undefined;
+    });
+  }, [overrides, leaders, directory]);
+  const plateKey = plateTable.map((p) => (p ? p.name + JSON.stringify(p.avatar ?? '') : '-')).join('|') + JSON.stringify(Object.entries(overrides).filter(([k]) => k.startsWith('meeting') || k === 'boardroom' || k === 'auditorium' || k === 'lounge' || k === 'music'));
   // the shared office is the headquarters; the older plain layouts stay available
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const map = useMemo(() => buildTemplate(template === 'team' ? 'hq' : template, leaders), [template, leadersKey]);
+  const map = useMemo(() => {
+    const m = buildTemplate(template === 'team' ? 'hq' : template, plateTable);
+    if (template !== 'team') return m;
+    return { ...m, zones: m.zones.map((z) => (overrides[z.id]?.label && z.kind !== 'office' ? { ...z, name: overrides[z.id].label as string } : z)) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template, plateKey]);
   const savedItems = useMemo(
     () => (space && Array.isArray(space.layout?.items) ? sanitizeItems(map, space.layout.items) : map.items),
     [space, map],
@@ -126,11 +149,12 @@ export default function OfficePage() {
   const [tool, setTool] = useState<EditTool>(null);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
   const [color, setColor] = useState<number | undefined>(undefined);
+  const [nameZone, setNameZone] = useState<{ id: string; name: string; kind: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const items = editing ? draft : savedItems;
 
   const startEdit = () => { setDraft(savedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
-  const stopEdit = () => { setEditing(false); setTool(null); };
+  const stopEdit = () => { setEditing(false); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
   const itemAt = (tile: { x: number; y: number }) => {
@@ -138,6 +162,7 @@ export default function OfficePage() {
     return hits.find((i) => i.t !== 'rug') ?? hits[0] ?? null;
   };
   const ghost = (tile: { x: number; y: number }) => {
+    if (tool === 'plate') { const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5); return { ok: !!z && (z.kind === 'office' || z.kind === 'meeting') }; }
     if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
     if (!tool) return { ok: false };
     return { ok: canPlace(map, draft, { id: 'g', t: tool, x: tile.x, y: tile.y, r: rot }).ok };
@@ -147,6 +172,11 @@ export default function OfficePage() {
     if (tool === 'erase') {
       const hit = itemAt(tile);
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
+      return;
+    }
+    if (tool === 'plate') {
+      const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5);
+      if (z && (z.kind === 'office' || z.kind === 'meeting')) setNameZone({ id: z.id, name: z.name, kind: z.kind });
       return;
     }
     if (tool === 'paint') {
@@ -167,7 +197,9 @@ export default function OfficePage() {
     if (!space) return;
     setSaving(true);
     try {
-      await actions.saveLayout(space, template, draft);
+      // keep following the template's furniture unless it was really changed
+      const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
+      await actions.saveLayout(space, template, changed ? draft : undefined, overrides);
       toast({ title: 'Office saved' });
       stopEdit();
     } catch (err) {
@@ -332,8 +364,7 @@ export default function OfficePage() {
   }, [setDoorHandler]);
 
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const teamMap = useMemo(() => buildTemplate('hq', leaders), [leadersKey]);
+  const teamMap = map;
   const [query, setQuery] = useState('');
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
@@ -726,6 +757,10 @@ export default function OfficePage() {
           </div>
         </DialogContent>
       </Dialog>
+      <RoomNameDialog
+        zone={nameZone} directory={directory ?? []} current={nameZone ? overrides[nameZone.id] : undefined} onClose={() => setNameZone(null)}
+        onSave={(o) => { if (nameZone) setOverrides((cur) => { const next = { ...cur }; if (o) next[nameZone.id] = o; else delete next[nameZone.id]; return next; }); setNameZone(null); }}
+      />
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 

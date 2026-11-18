@@ -111,7 +111,7 @@ export interface HqPerson { name: string; avatar?: AvatarStyle }
  * along the top (one per leader, then free ones), open desk pods, a courtyard with a fountain, a lounge, three meeting
  * rooms, a boardroom, an auditorium, a music corner and a reception at the entrance.
  */
-export function buildHQ(people: HqPerson[] = []): MapDef {
+export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   seq = 200;
   const w = 64;
   const h = 52;
@@ -244,6 +244,6 @@ export function buildHQ(people: HqPerson[] = []): MapDef {
 
 export type TemplateName = 'team' | 'personal' | 'hq';
 
-export function buildTemplate(name: TemplateName, people: HqPerson[] = []): MapDef {
+export function buildTemplate(name: TemplateName, people: (HqPerson | undefined)[] = []): MapDef {
   return name === 'personal' ? buildPersonalOffice() : name === 'hq' ? buildHQ(people) : buildTeamOffice();
 }

@@ -10,7 +10,7 @@ export interface SpaceRow {
   name: string;
   company_id: string | null;
   owner_id: string | null;
-  layout: { template?: TemplateName; items?: unknown };
+  layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }> };
 }
 
 /** Every office the signed-in person can see: the company offices and everyone's personal office. */
@@ -126,10 +126,10 @@ export function useOfficeMutations() {
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'recordings'] });
     },
-    async saveLayout(space: SpaceRow, template: TemplateName, items: Item[]) {
+    async saveLayout(space: SpaceRow, template: TemplateName, items: Item[] | undefined, rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>) {
       const { error } = await supabase
         .from('office_spaces')
-        .update({ layout: { template, items } as never, updated_at: new Date().toISOString() })
+        .update({ layout: { template, ...(items ? { items } : {}), ...(rooms && Object.keys(rooms).length ? { rooms } : {}) } as never, updated_at: new Date().toISOString() })
         .eq('id', space.id);
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
