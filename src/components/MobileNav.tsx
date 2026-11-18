@@ -9,7 +9,6 @@ import {
   Menu,
   X,
   Search,
-  ListTodo,
   Target,
   LogOut,
   User,
@@ -39,7 +38,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, ListTodo, Target,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, Target,
 };
 
 type TabDef = {
@@ -76,20 +75,17 @@ const ROLE_TABS: Record<string, TabDef[]> = {
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
     { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-    { title: 'Task',      url: '/task',      icon: ListTodo },
   ],
   field_staff: [
     { title: 'Home',      url: '/',          icon: LayoutDashboard },
     { title: 'Leave',     url: '/leave',     icon: CalendarDays },
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-    { title: 'Task',      url: '/task',      icon: ListTodo },
   ],
 };
 
 const DEFAULT_TABS: TabDef[] = [
   { title: 'Home',     url: '/',         icon: LayoutDashboard },
   { title: 'Expenses', url: '/expenses', icon: Receipt },
-  { title: 'Task',     url: '/task',     icon: ListTodo },
 ];
 
 export function MobileNav() {

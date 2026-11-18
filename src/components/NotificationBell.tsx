@@ -39,8 +39,6 @@ const moduleToRoute = (module: string | null | undefined): string => {
     case 'payroll_run':         return '/payroll';
     case 'budget':
     case 'budgets':             return '/budgets';
-    case 'task':
-    case 'tasks':               return '/task';
     case 'subscription':
     case 'subscriptions':       return '/subscriptions';
     case 'compliance':          return '/compliance';

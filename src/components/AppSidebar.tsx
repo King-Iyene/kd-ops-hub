@@ -16,7 +16,6 @@ import {
   Search,
   X,
   Clock,
-  ListTodo,
   Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -58,7 +57,6 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Globe,
   Clock,
   Building2,
-  ListTodo,
   Target,
 };
 

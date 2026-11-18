@@ -501,7 +501,6 @@ const Dashboard = () => {
       : [
           { label: 'Expenses', icon: Receipt, href: '/expenses', onClick: () => navigate('/expenses'), iconBg: 'bg-primary/12 dark:bg-primary/20', iconColor: 'text-primary' },
           { label: 'Leave', icon: CalendarDays, href: '/leave', onClick: () => navigate('/leave'), iconBg: 'bg-warning/10', iconColor: 'text-warning' },
-          { label: 'Tasks', icon: CheckCircle, href: '/task', onClick: () => navigate('/task'), iconBg: 'bg-success/10', iconColor: 'text-success' },
           { label: 'Handbook', icon: FileText, href: '/handbook', onClick: () => navigate('/handbook'), iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
           { label: 'Knowledge', icon: BookOpen, href: '/knowledge', onClick: () => navigate('/knowledge'), iconBg: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400' },
         ];
@@ -524,7 +523,7 @@ const Dashboard = () => {
         <div className="kd-stat-grid kd-stagger-in">
           <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" href="/expenses" onClick={() => navigate('/expenses')} />
           <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" href="/leave" onClick={() => navigate('/leave')} />
-          <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" href="/task" onClick={() => navigate("/task")} />
+          <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
