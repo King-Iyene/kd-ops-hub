@@ -22,7 +22,9 @@ export function useSpaces() {
       if (error) throw error;
       return (data ?? []) as SpaceRow[];
     },
-    staleTime: 60_000,
+    staleTime: 20_000,
+    // so a change an admin makes (the sky, a board, the clock) reaches everyone within half a minute
+    refetchInterval: 30_000,
   });
 }
 
