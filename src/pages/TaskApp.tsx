@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Home, Inbox, CheckSquare, LayoutDashboard, ChevronDown, ChevronRight,
   Plus, Layers, ListTodo, Circle, CircleDot, CheckCircle2, Loader2, Send,
+  Rows3, Columns3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -60,6 +61,7 @@ export default function TaskApp() {
   const [loading, setLoading] = useState(true);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,6 +125,12 @@ export default function TaskApp() {
       status_id: statuses.find((s) => s.space_id === lists.find((l) => l.id === selectedList)?.space_id && s.category === 'not_started')?.id || null,
     });
     if (!error) { setNewTaskTitle(''); load(); }
+  };
+
+  const moveTaskToStatus = async (taskId: string, statusId: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status_id: statusId } : t)));
+    const { error } = await supabase.from('tm_tasks').update({ status_id: statusId }).eq('id', taskId);
+    if (error) load(); // roll back to server truth on failure
   };
 
   const addSpace = async () => {
@@ -239,6 +247,9 @@ export default function TaskApp() {
             setNewTaskTitle={setNewTaskTitle}
             onCreateTask={createTask}
             onOpenTask={setOpenTaskId}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            onMoveStatus={moveTaskToStatus}
           />
         ) : nav === 'my-tasks' ? (
           <MyTasksContent tasks={myTasks} statusById={statusById} onOpenTask={setOpenTaskId} />
@@ -326,11 +337,14 @@ function MyTasksContent({ tasks, statusById, onOpenTask }: { tasks: TmTask[]; st
 
 function ListContent({
   list, tasks, statuses, profiles, assigneesByTask, newTaskTitle, setNewTaskTitle, onCreateTask, onOpenTask,
+  viewMode, setViewMode, onMoveStatus,
 }: {
   list: TmList; tasks: TmTask[]; statuses: TmStatus[];
   profiles: Map<string, ProfileLite>; assigneesByTask: Map<string, string[]>;
   newTaskTitle: string; setNewTaskTitle: (v: string) => void; onCreateTask: () => void;
   onOpenTask: (id: string) => void;
+  viewMode: 'list' | 'board'; setViewMode: (v: 'list' | 'board') => void;
+  onMoveStatus: (taskId: string, statusId: string) => void;
 }) {
   const grouped = useMemo(() => {
     const byStatus = new Map<string, TmTask[]>();
@@ -343,9 +357,41 @@ function ListContent({
     return byStatus;
   }, [statuses, tasks]);
 
+  const ViewToggle = (
+    <div className="flex items-center gap-0.5 border rounded-md p-0.5">
+      <button
+        onClick={() => setViewMode('list')}
+        className={cn('p-1 rounded', viewMode === 'list' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground')}
+      >
+        <Rows3 className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={() => setViewMode('board')}
+        className={cn('p-1 rounded', viewMode === 'board' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground')}
+      >
+        <Columns3 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
+  if (viewMode === 'board') {
+    return (
+      <div className="space-y-4 h-full flex flex-col">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">{list.name}</h1>
+          {ViewToggle}
+        </div>
+        <BoardContent statuses={statuses} grouped={grouped} onOpenTask={onOpenTask} onMoveStatus={onMoveStatus} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{list.name}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{list.name}</h1>
+        {ViewToggle}
+      </div>
       {[...statuses].sort((a, b) => a.position - b.position).map((status) => {
         const group = grouped.get(status.id) || [];
         return (
@@ -385,6 +431,70 @@ function ListContent({
         />
         <Button size="sm" onClick={onCreateTask}>Add task</Button>
       </div>
+    </div>
+  );
+}
+
+function BoardContent({
+  statuses, grouped, onOpenTask, onMoveStatus,
+}: {
+  statuses: TmStatus[];
+  grouped: Map<string, TmTask[]>;
+  onOpenTask: (id: string) => void;
+  onMoveStatus: (taskId: string, statusId: string) => void;
+}) {
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+
+  return (
+    <div className="flex-1 flex gap-3 overflow-x-auto pb-2">
+      {[...statuses].sort((a, b) => a.position - b.position).map((status) => {
+        const colTasks = grouped.get(status.id) || [];
+        return (
+          <div
+            key={status.id}
+            onDragOver={(e) => { e.preventDefault(); setOverCol(status.id); }}
+            onDragLeave={() => setOverCol((prev) => (prev === status.id ? null : prev))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggedId) onMoveStatus(draggedId, status.id);
+              setDraggedId(null);
+              setOverCol(null);
+            }}
+            className={cn(
+              'w-64 shrink-0 rounded-lg border bg-muted/20 flex flex-col transition-colors',
+              overCol === status.id && 'ring-2 ring-primary/40',
+            )}
+          >
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} />
+              <span className="text-sm font-semibold flex-1 truncate">{status.name}</span>
+              <span className="text-2xs text-muted-foreground tabular-nums">{colTasks.length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-20">
+              {colTasks.map((t) => (
+                <div
+                  key={t.id}
+                  draggable
+                  onDragStart={() => setDraggedId(t.id)}
+                  onDragEnd={() => setDraggedId(null)}
+                  onClick={() => onOpenTask(t.id)}
+                  className={cn(
+                    'rounded-md border bg-background p-2.5 text-sm cursor-pointer hover:border-primary/40 transition-colors',
+                    draggedId === t.id && 'opacity-40',
+                  )}
+                >
+                  <p className="font-medium truncate">{t.title}</p>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className={cn('text-2xs', PRIORITY_COLOR[t.priority])}>{t.priority}</span>
+                    {t.due_date && <span className="text-2xs text-muted-foreground">{formatDate(t.due_date)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
