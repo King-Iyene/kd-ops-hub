@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
+import { Bell, ChevronDown, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
@@ -68,6 +68,7 @@ export function ProfileMenu(p: Props) {
   const [tab, setTab] = useState<Tab>('you');
   const [customEmoji, setCustomEmoji] = useState('💬');
   const [customText, setCustomText] = useState('');
+  const [statusOpen, setStatusOpen] = useState(false);
   const st = statusOf(p.status);
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
@@ -130,13 +131,26 @@ export function ProfileMenu(p: Props) {
             <div className="space-y-4">
               <div>
                 <p className={`${LABEL} mb-1.5`}>Status</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {STATUSES.map((s) => (
-                    <button key={s.id} type="button" onClick={() => p.onStatus(s.id)} aria-pressed={p.status === s.id}
-                      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition ${p.status === s.id ? 'bg-primary/15 text-primary ring-primary/40' : 'bg-white/[0.04] ring-white/[0.08] hover:bg-white/[0.09]'}`}>
-                      <span>{s.emoji}</span>{s.label}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button type="button" onClick={() => setStatusOpen((o) => !o)} aria-expanded={statusOpen}
+                    className="flex h-10 w-full items-center gap-2 rounded-xl bg-white/[0.06] px-3 text-left text-[13px] font-semibold ring-1 ring-white/[0.08] transition hover:bg-white/[0.1]">
+                    <span>{(STATUSES.find((s) => s.id === p.status) ?? (st ? { emoji: st.emoji } : STATUSES[0])).emoji}</span>
+                    <span className="min-w-0 flex-1 truncate">{st ? st.label : 'Available'}</span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${statusOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {statusOpen && (
+                    <div className="mt-1 overflow-hidden rounded-xl bg-white/[0.04] p-1 ring-1 ring-white/[0.08]">
+                      {STATUSES.map((s) => (
+                        <button key={s.id} type="button" onClick={() => { p.onStatus(s.id); setStatusOpen(false); }} aria-pressed={p.status === s.id}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${p.status === s.id ? 'bg-primary/15 text-primary' : 'hover:bg-white/[0.08]'}`}>
+                          <span>{s.emoji}</span><span className="flex-1">{s.label}</span>
+                          {s.id === 'busy' && <span className="text-[10.5px] text-muted-foreground">Ctrl+I</span>}
+                          {s.id === 'dnd' && <span className="text-[10.5px] text-muted-foreground">Ctrl+U</span>}
+                          {s.id === 'available' && <span className="text-[10.5px] text-muted-foreground">Ctrl+O</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-2.5 rounded-xl bg-white/[0.03] p-2.5 ring-1 ring-white/[0.06]">
                   <p className="mb-1.5 text-[11.5px] font-semibold text-muted-foreground">Or write your own</p>

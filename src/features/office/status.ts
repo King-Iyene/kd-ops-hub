@@ -9,7 +9,6 @@ export const STATUSES = [
   { id: 'focus', emoji: '🎯', label: 'Focusing' },
   { id: 'meeting', emoji: '💬', label: 'In a meeting' },
   { id: 'lunch', emoji: '🍽️', label: 'Lunch' },
-  { id: 'hustle', emoji: '🚀', label: 'Hustling mode' },
   { id: 'away', emoji: '🌙', label: 'Away' },
 ] as const;
 
