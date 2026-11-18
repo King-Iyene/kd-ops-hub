@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { STATUSES, statusOf } from './status';
-import { phaseOf, seasonBadge } from './SkyPanel';
+import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { Weather } from './world/weather';
 import { LABEL, SURFACE } from './ui';
@@ -19,7 +19,10 @@ interface Props {
   onToggleSound: () => void;
   volume: number;
   onVolume: (v: number) => void;
-  weather: Weather | null;
+  /** the weather where I am (my own choice of city, only for me) */
+  myWeather: Weather | null;
+  myPlace: string;
+  onMyPlace: (id: string) => void;
   zoom: number;
   onZoom: (delta: number) => void;
   traySize: 0 | 1 | 2 | 3;
@@ -58,7 +61,7 @@ export function ProfileMenu(p: Props) {
   const st = statusOf(p.status);
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
-  const season = seasonFor(p.seasonMode, now, p.weather);
+  const season = seasonFor(p.seasonMode, now);
   const act = (fn: () => void) => () => { setOpen(false); fn(); };
 
   const tile = (key: string, icon: JSX.Element, title: string, text: string, run: () => void, tone: 'normal' | 'danger' = 'normal') => (
@@ -99,7 +102,7 @@ export function ProfileMenu(p: Props) {
             <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? `${st.emoji} ${st.label}` : 'Available'}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-white/[0.08]" title="The sky, the same for everyone">
-            {phaseOf(sky.hour).icon}{p.weather ? `${p.weather.temp}°` : phaseOf(sky.hour).label}
+            {phaseOf(sky.hour).icon}{p.myWeather ? `${p.myWeather.temp}°` : phaseOf(sky.hour).label}
             <span className="h-3 w-px bg-white/15" />{seasonBadge(season).icon}
           </div>
         </div>
@@ -125,6 +128,10 @@ export function ProfileMenu(p: Props) {
                     </button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <p className={`${LABEL} mb-1.5`}>Weather where you are</p>
+                <WeatherCard weather={p.myWeather} place={p.myPlace} onPlace={p.onMyPlace} />
               </div>
               <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
                 <div className="flex items-center justify-between">

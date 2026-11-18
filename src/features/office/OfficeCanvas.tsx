@@ -7,7 +7,6 @@ import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainLevel, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
-import type { Weather } from './world/weather';
 import { ambient } from './ambient';
 import { applyPetCmd, initPet, petBus, petRegistry, stepPet, type PetState } from './world/pets';
 
@@ -62,8 +61,6 @@ interface Props {
   /** the hour (auto follows Lagos time) and the season (auto follows the Nigerian calendar) */
   timeMode: TimeMode;
   seasonMode: SeasonMode;
-  /** the real weather where we are (null when it could not be fetched) */
-  weather: Weather | null;
   /** the thing you are standing next to that you can press F on (null when none) */
   onNear: (item: Item | null) => void;
   /** F pressed (or the thing clicked): open it */
@@ -500,8 +497,8 @@ export function OfficeCanvas(props: Props) {
       try {
       drawFloor(ctx, p.map, theme, now);
       {
-        const seasonNow = seasonFor(p.seasonMode, Date.now(), p.weather);
-        drawGroundWeather(ctx, p.map, seasonNow, rainLevel(seasonNow, Date.now(), p.weather, p.seasonMode === 'auto'), now);
+        const seasonNow = seasonFor(p.seasonMode, Date.now());
+        drawGroundWeather(ctx, p.map, seasonNow, rainLevel(seasonNow, Date.now()), now);
       }
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -620,8 +617,8 @@ export function OfficeCanvas(props: Props) {
       {
         const wall = Date.now();
         const sky = skyState(p.timeMode, wall);
-        const season = seasonFor(p.seasonMode, wall, p.weather);
-        const rain = rainLevel(season, wall, p.weather, p.seasonMode === 'auto');
+        const season = seasonFor(p.seasonMode, wall);
+        const rain = rainLevel(season, wall);
         const bolt = lightning(rain, wall);
         if (bolt.id !== lastBolt.current) {
           if (bolt.id >= 0) ambient.thunder();

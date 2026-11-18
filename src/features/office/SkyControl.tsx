@@ -1,26 +1,22 @@
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { phaseOf, seasonBadge } from './SkyPanel';
-import type { Weather } from './world/weather';
 
-/** The small sky pill on the map: the hour, the season and the temperature, the same for everyone. Admins can click it to change the sky. */
-export function SkyControl({ timeMode, seasonMode, weather, canEdit, onOpen }: {
+/** The small sky pill on the map: the hour and the Nigerian season, the same for everyone. Admins can click it to change the sky. */
+export function SkyControl({ timeMode, seasonMode, canEdit, onOpen }: {
   timeMode: TimeMode;
   seasonMode: SeasonMode;
-  weather: Weather | null;
-  place: string;
   canEdit: boolean;
   onOpen: () => void;
 }) {
   const now = Date.now();
   const ph = phaseOf(skyState(timeMode, now).hour);
-  const sb = seasonBadge(seasonFor(seasonMode, now, weather));
+  const sb = seasonBadge(seasonFor(seasonMode, now));
   const manual = timeMode !== 'auto' || seasonMode !== 'auto';
   const inner = (
     <>
       {ph.icon}<span>{ph.label}</span>
       <span className="h-3 w-px bg-white/15" />
       {sb.icon}<span>{sb.label}</span>
-      {weather && <><span className="h-3 w-px bg-white/15" /><span>{weather.temp}°C</span></>}
       {manual && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-500">Set by admin</span>}
     </>
   );

@@ -22,18 +22,42 @@ export interface SkyPanelProps {
   seasonMode: SeasonMode;
   onTime: (m: TimeMode) => void;
   onSeason: (m: SeasonMode) => void;
-  weather: Weather | null;
-  place: string;
-  onPlace: (id: string) => void;
 }
 
-/** The sky and sound controls: live weather, the hour, the season, and the office sounds. Used by the map pill and the main panel. */
+/** Live weather for a place, with a place picker. */
+export function WeatherCard({ weather, place, onPlace }: { weather: Weather | null; place: string; onPlace: (id: string) => void }) {
+  const cond = weather ? describe(weather.code) : null;
+  const city = PLACES.find((x) => x.id === place)?.name ?? 'Lagos';
+  void city;
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-sky-500/15 via-white/[0.03] to-white/[0.02] p-3.5 ring-1 ring-white/[0.07]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1 text-[11.5px] font-semibold text-muted-foreground"><MapPin className="h-3 w-3" />{city}</p>
+          <p className="mt-0.5 text-3xl font-extrabold leading-none tracking-tight">{weather ? `${weather.temp}°` : '--'}<span className="ml-0.5 text-base font-semibold text-muted-foreground">C</span></p>
+          <p className="mt-1 text-[12.5px] font-semibold">{cond ? cond.label : 'Weather unavailable'}</p>
+        </div>
+        <div className="space-y-1 text-right text-[11.5px] text-muted-foreground">
+          {weather && <p className="flex items-center justify-end gap-1"><Thermometer className="h-3 w-3" />Feels {weather.feels}°</p>}
+          {weather && <p className="flex items-center justify-end gap-1"><Droplets className="h-3 w-3" />{weather.humidity}%</p>}
+          {weather && <p className="flex items-center justify-end gap-1"><Wind className="h-3 w-3" />{weather.wind} km/h</p>}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <select value={place} onChange={(e) => onPlace(e.target.value)} aria-label="Weather location" className="h-7 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2 text-xs font-semibold outline-none ring-1 ring-white/[0.07] focus:ring-primary/60">
+          {PLACES.map((x) => <option key={x.id} value={x.id} className="bg-popover">{x.name}</option>)}
+        </select>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${weather ? 'bg-emerald-500/15 text-emerald-500' : 'bg-white/10 text-muted-foreground'}`}>{weather ? 'Live' : 'Offline'}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The sky controls (admins, for the whole office): live weather, the hour, the season, and the office sounds. Used by the map pill and the main panel. */
 export function SkyPanel(p: SkyPanelProps) {
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
-  const season = seasonFor(p.seasonMode, now, p.weather);
-  const cond = p.weather ? describe(p.weather.code) : null;
-  const city = PLACES.find((x) => x.id === p.place)?.name ?? 'Lagos';
+  const season = seasonFor(p.seasonMode, now);
 
   const seg = <T extends string>(items: { id: T; label: string }[], value: T, pick: (v: T) => void) => (
     <div className="flex flex-wrap gap-1 rounded-xl bg-white/[0.05] p-1 ring-1 ring-white/[0.06]">
@@ -48,28 +72,6 @@ export function SkyPanel(p: SkyPanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* live weather */}
-      <div className="rounded-2xl bg-gradient-to-br from-sky-500/15 via-white/[0.03] to-white/[0.02] p-3.5 ring-1 ring-white/[0.07]">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1 text-[11.5px] font-semibold text-muted-foreground"><MapPin className="h-3 w-3" />{city}</p>
-            <p className="mt-0.5 text-3xl font-extrabold leading-none tracking-tight">{p.weather ? `${p.weather.temp}°` : '--'}<span className="ml-0.5 text-base font-semibold text-muted-foreground">C</span></p>
-            <p className="mt-1 text-[12.5px] font-semibold">{cond ? cond.label : 'Weather unavailable'}</p>
-          </div>
-          <div className="space-y-1 text-right text-[11.5px] text-muted-foreground">
-            {p.weather && <p className="flex items-center justify-end gap-1"><Thermometer className="h-3 w-3" />Feels {p.weather.feels}°</p>}
-            {p.weather && <p className="flex items-center justify-end gap-1"><Droplets className="h-3 w-3" />{p.weather.humidity}%</p>}
-            {p.weather && <p className="flex items-center justify-end gap-1"><Wind className="h-3 w-3" />{p.weather.wind} km/h</p>}
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <select value={p.place} onChange={(e) => p.onPlace(e.target.value)} aria-label="Weather location" className="h-7 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2 text-xs font-semibold outline-none ring-1 ring-white/[0.07] focus:ring-primary/60">
-            {PLACES.map((x) => <option key={x.id} value={x.id} className="bg-popover">{x.name}</option>)}
-          </select>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${p.weather ? 'bg-emerald-500/15 text-emerald-500' : 'bg-white/10 text-muted-foreground'}`}>{p.weather ? 'Live' : 'Offline'}</span>
-        </div>
-      </div>
-
       <div>
         <p className={`${LABEL} mb-1.5`}>Time of day · now {phaseOf(sky.hour).label}</p>
         {seg(TIME_MODES, p.timeMode, p.onTime)}
@@ -80,7 +82,7 @@ export function SkyPanel(p: SkyPanelProps) {
       </div>
 
       <p className="border-t border-white/[0.07] pt-3 text-[11.5px] leading-snug text-muted-foreground">
-        This is the sky for the whole office, so everyone sees the same. On Auto, rain falls when it is really raining in {city}; otherwise it follows the Nigerian calendar (Harmattan from late November to February).
+        This is the sky for the whole office, so everyone sees the same. Auto follows Lagos time and the Nigerian seasons: Harmattan from late November to February, hot and dry in March, the rains from April to October.
       </p>
     </div>
   );

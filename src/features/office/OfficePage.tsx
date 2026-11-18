@@ -861,11 +861,10 @@ function OfficeRoom() {
   const skyCfg = space?.layout?.settings?.sky;
   const timeMode: TimeMode = (['auto', 'morning', 'afternoon', 'evening', 'night'] as const).find((m) => m === skyCfg?.time) ?? 'auto';
   const seasonMode: SeasonMode = (['auto', 'clear', 'harmattan', 'rainy'] as const).find((m) => m === skyCfg?.season) ?? 'auto';
-  const place = PLACES.find((x) => x.id === skyCfg?.place)?.id ?? DEFAULT_PLACE;
-  const saveSky = async (patch: { time?: TimeMode; season?: SeasonMode; place?: string }) => {
+  const saveSky = async (patch: { time?: TimeMode; season?: SeasonMode }) => {
     if (!space || !isAdmin) return;
     try {
-      await actions.saveSettings(space, { ...(space.layout?.settings ?? {}), sky: { time: timeMode, season: seasonMode, place, ...patch } });
+      await actions.saveSettings(space, { ...(space.layout?.settings ?? {}), sky: { time: timeMode, season: seasonMode, place: skyCfg?.place ?? DEFAULT_PLACE, ...patch } });
       toast({ title: 'Sky updated', description: 'Everyone in the office sees it now.' });
     } catch (err) {
       toast({ title: 'That did not save', description: errorMessage(err), variant: 'destructive' });
@@ -880,9 +879,13 @@ function OfficeRoom() {
   const chooseVolume = (v: number) => { setVolume(v); ambient.setVolume(v); try { localStorage.setItem('kd:office:volume', String(v)); } catch { /* fine */ } };
   useEffect(() => { ambient.setVolume(volume); }, [volume]);
   // the real weather where we are, refreshed every ten minutes
-  const { data: weather = null } = useQuery({
-    queryKey: ['office', 'weather', place],
-    queryFn: () => fetchWeather(PLACES.find((x) => x.id === place) ?? PLACES[0]),
+  // my own weather: the city I choose for myself (people sit in different places), only on my screen
+  const [myPlace, setMyPlaceRaw] = useState<string | null>(() => { try { const v = localStorage.getItem('kd:office:myplace'); return PLACES.some((x) => x.id === v) ? v : null; } catch { return null; } });
+  const myCity = myPlace ?? DEFAULT_PLACE;
+  const chooseMyPlace = (id: string) => { setMyPlaceRaw(id); try { localStorage.setItem('kd:office:myplace', id); } catch { /* fine */ } };
+  const { data: myWeather = null } = useQuery({
+    queryKey: ['office', 'weather', myCity],
+    queryFn: () => fetchWeather(PLACES.find((x) => x.id === myCity) ?? PLACES[0]),
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,
     retry: 1,
@@ -1050,13 +1053,13 @@ function OfficeRoom() {
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
           onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
         >
-          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} weather={weather} place={place} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
+          {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} weather={weather} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
@@ -1106,7 +1109,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} weather={weather} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
@@ -1358,7 +1361,7 @@ function OfficeRoom() {
       <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
       <ManageDialog
         open={manageOpen} onClose={() => { setManageOpen(false); setManageTab('places'); }} startTab={manageTab} spaceName={space.name}
-        skyPanel={<SkyPanel timeMode={timeMode} seasonMode={seasonMode} onTime={(m) => void saveSky({ time: m })} onSeason={(m) => void saveSky({ season: m })} weather={weather} place={place} onPlace={(id) => void saveSky({ place: id })} />} isAdmin={isAdmin} isSuper={isSuper} canEdit={canEdit}
+        skyPanel={<SkyPanel timeMode={timeMode} seasonMode={seasonMode} onTime={(m) => void saveSky({ time: m })} onSeason={(m) => void saveSky({ season: m })} />} isAdmin={isAdmin} isSuper={isSuper} canEdit={canEdit}
         canDelete={space.id !== myTeam?.id}
         rows={map.zones.filter((z) => z.kind === 'office').map((z): Claimable => {
           const c = (claims ?? []).find((x) => x.office_id === z.id);
