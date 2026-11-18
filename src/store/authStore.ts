@@ -139,7 +139,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, profile: null, viewAsRole: null });
   },
   fetchProfile: async (userId: string) => {
-    set({ profileLoading: true });
+    // A refresh of a profile we already have (live update from the database) must not flip the app into its
+    // loading state, or every screen is torn down and rebuilt each time the row changes.
+    if (get().profile?.id !== userId) set({ profileLoading: true });
     // maybeSingle() returns { data: null, error: null } for zero rows (a real
     // "no profile" case) and only sets `error` on an actual query failure. With
     // single() a transient failure and a missing row both surfaced as an error,

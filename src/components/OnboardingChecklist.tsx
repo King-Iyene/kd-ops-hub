@@ -84,12 +84,17 @@ export function OnboardingChecklist() {
         process_payment: (processed || 0) > 0,
       };
       setCompleted(next);
-      // Persist to profile.
+      // Persist to profile, but ONLY when something changed. Writing every time this mounted made the profile row change
+      // constantly, which (through the live profile listener) made the whole app refetch and rebuild itself in a loop.
+      const saved = ((profile as any).onboarding_steps || {}) as Record<string, boolean>;
+      const complete = Object.values(next).every(Boolean);
+      const same = Object.keys(next).every((k) => !!saved[k] === next[k]) && !!profile.onboarding_complete === complete;
+      if (same) return;
       await supabase
         .from('profiles')
         .update({
           onboarding_steps: next,
-          onboarding_complete: Object.values(next).every(Boolean),
+          onboarding_complete: complete,
         })
         .eq('id', profile.id);
     };
