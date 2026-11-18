@@ -70,9 +70,9 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
     skin: col(o.skin, d.skin),
     hair: col(o.hair, d.hair),
     shirt: col(o.shirt, d.shirt),
-    hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5, 6, 7], d.hairStyle),
-    outfit: pick<0 | 1 | 2 | 3 | 4>(o.outfit, [0, 1, 2, 3, 4], d.outfit),
-    accessory: pick<0 | 1 | 2 | 3 | 4 | 5 | 6>(o.accessory, [0, 1, 2, 3, 4, 5, 6], d.accessory),
+    hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], d.hairStyle),
+    outfit: pick<0 | 1 | 2 | 3 | 4 | 5 | 6>(o.outfit, [0, 1, 2, 3, 4, 5, 6], d.outfit),
+    accessory: pick<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(o.accessory, [0, 1, 2, 3, 4, 5, 6, 7, 8], d.accessory),
     pants: col(o.pants, d.pants),
     beard: pick<0 | 1 | 2 | 3>(o.beard, [0, 1, 2, 3], d.beard),
   };
@@ -2091,6 +2091,20 @@ export interface DrawPerson {
   riding?: boolean;
 }
 
+/** How far each person has walked in total, so the walk cycle always moves forward (x + y shrinks when walking left or up). */
+const walked = new Map<string, { x: number; y: number; d: number; t: number }>();
+function stridePhase(p: DrawPerson, t: number): number {
+  const key = p.id ?? p.name;
+  let w = walked.get(key);
+  if (!w) { w = { x: p.x, y: p.y, d: 0, t }; walked.set(key, w); }
+  if (w.t !== t) {
+    const step = Math.hypot(p.x - w.x, p.y - w.y);
+    if (step < 3) w.d += step; // a jump (teleport, new space) is not a walk
+    w.x = p.x; w.y = p.y; w.t = t;
+  }
+  return (w.d * TILE) / 7.5;
+}
+
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   if (p.riding) {
     // the bike underneath, and the rider sitting a little higher on it
@@ -2105,7 +2119,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const a = p.avatar;
   const px = p.x * TILE;
   const py = p.y * TILE;
-  const ph = (p.x + p.y) * TILE / 7.5; // one stride about every 1.2 tiles walked
+  const ph = stridePhase(p, t); // one stride about every 1.2 tiles walked, counted along the way actually walked
   const step = p.moving ? Math.sin(ph) : 0;
   const bob = p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
   const lean = p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
@@ -2113,6 +2127,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const back = p.dir === 3;
   const fx = p.dir === 1 ? -1 : p.dir === 2 ? 1 : 0; // which way the face looks
   const hy = py - 17 + bob;
+  const dressy = a.outfit === 3 || a.outfit === 4;
 
   // a soft ring under me, and the ground shadow
   if (p.isMe) {
@@ -2137,8 +2152,12 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (a.hairStyle === 1) { rr(ctx, px - 9.5, hy - 4, 19, back ? 22 : 16, 7); ctx.fill(); }
     if (a.hairStyle === 4) disc(ctx, px, hy - 2, 11.5, a.hair);
     if (a.hairStyle === 7) disc(ctx, px, hy - 3, 13.2, a.hair);
+    if (a.hairStyle === 8) { rr(ctx, px - 9.8, hy - 4, 19.6, back ? 16 : 12, 6); ctx.fill(); }
+    if (a.hairStyle === 10) {
+      for (let k = 0; k < 6; k++) { rr(ctx, px - 10 + k * 4, hy - 3, 3.4, (back ? 19 : 14) + (k % 2) * 2, 1.7); ctx.fill(); }
+    }
   };
-  if (a.hairStyle === 1 || a.hairStyle === 4 || a.hairStyle === 7) hairBack();
+  if (a.hairStyle === 1 || a.hairStyle === 4 || a.hairStyle === 7 || a.hairStyle === 8 || a.hairStyle === 10) hairBack();
   if (a.outfit === 1) {
     ctx.fillStyle = shade(a.shirt, -0.2);
     ctx.beginPath();
@@ -2149,7 +2168,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // legs and shoes
   const lift = (v: number) => -Math.max(0, v) * 2.6;
   const stride = side ? step * 4.5 : 0;
-  ctx.fillStyle = a.outfit >= 3 ? a.skin : a.pants;
+  ctx.fillStyle = dressy ? a.skin : a.pants;
   rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, 8, 2);
   ctx.fill();
   rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, 8, 2);
@@ -2186,6 +2205,24 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillStyle = vgrad(ctx, py - 11 + bob, py + 4 + bob, shade(a.shirt, 0.12), shade(a.shirt, -0.12));
   rr(ctx, px - tw / 2, py - 11 + bob, tw, 15, 6);
   ctx.fill();
+  if (a.outfit === 6) {
+    // an Ankara print: gold and white motifs in rows over the shirt colour
+    ctx.save();
+    rr(ctx, px - tw / 2, py - 11 + bob, tw, 15, 6);
+    ctx.clip();
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 5; c++) {
+        const mx = px - tw / 2 + 2 + c * 4.2 + (r % 2) * 2.1;
+        const my = py - 9 + bob + r * 3.6;
+        ctx.fillStyle = (r + c) % 2 ? '#d6ac50' : '#fff7e0';
+        ctx.beginPath();
+        ctx.moveTo(mx, my - 1.4); ctx.lineTo(mx + 1.4, my); ctx.lineTo(mx, my + 1.4); ctx.lineTo(mx - 1.4, my);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
   if (!back) {
     if (a.outfit === 0 || a.outfit >= 3) {
       ctx.fillStyle = a.skin;
@@ -2233,7 +2270,22 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
 
   // dress or skirt: a flared skirt over the legs
-  if (a.outfit >= 3) {
+  if (a.outfit === 5) {
+    // a kaftan: a straight tunic to the knee with a trimmed hem and an embroidered neckline
+    const sway = p.moving ? step * 1.2 : 0;
+    ctx.fillStyle = vgrad(ctx, py - 4 + bob, py + 7 + bob, shade(a.shirt, 0.08), shade(a.shirt, -0.18));
+    ctx.beginPath();
+    ctx.moveTo(px - 9.4, py - 3 + bob);
+    ctx.lineTo(px + 9.4, py - 3 + bob);
+    ctx.lineTo(px + 10.4 + sway, py + 7 + bob);
+    ctx.lineTo(px - 10.4 + sway, py + 7 + bob);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#d6ac50';
+    ctx.fillRect(px - 10.4 + sway, py + 5.2 + bob, 20.8, 1.8);
+    if (!back) { ctx.fillRect(px - 3.5, py - 10.5 + bob, 7, 1.4); ctx.fillRect(px - 0.7, py - 10.5 + bob, 1.4, 7); }
+  }
+  if (dressy) {
     const skirt = a.outfit === 3 ? a.shirt : a.pants;
     const sway = p.moving ? step * 1.6 : 0;
     ctx.fillStyle = vgrad(ctx, py - 4 + bob, py + 8 + bob, shade(skirt, 0.1), shade(skirt, -0.16));
@@ -2267,9 +2319,23 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   if (back) {
     disc(ctx, px, hy, 9, a.hair);
   } else if (a.hairStyle !== 3) {
-    ctx.beginPath();
-    ctx.arc(px, hy - 1, 9, Math.PI, Math.PI * 2);
-    ctx.fill();
+    if (a.hairStyle !== 9) {
+      ctx.beginPath();
+      ctx.arc(px, hy - 1, 9, Math.PI, Math.PI * 2);
+      ctx.fill();
+    }
+    if (a.hairStyle === 8) {
+      ctx.beginPath();
+      ctx.ellipse(px, hy - 4.5, 9, 3.6, 0, 0, Math.PI);
+      ctx.fill();
+    } else if (a.hairStyle === 9) {
+      ctx.beginPath();
+      ctx.ellipse(px + fx * 1.5, hy - 9, side ? 6 : 3.4, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = shade(a.hair, -0.3);
+      ctx.fillRect(px - 0.8 + fx * 1.5, hy - 14, 1.6, 8);
+      ctx.fillStyle = a.hair;
+    }
     if (a.hairStyle === 0) {
       ctx.beginPath();
       ctx.ellipse(px + (fx || -3), hy - 5, 7, 3.5, 0.15, 0, Math.PI * 2);
@@ -2444,6 +2510,22 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.moveTo(px - 8, hy - 4);
     ctx.quadraticCurveTo(px, hy - 8, px + 8, hy - 3);
     ctx.stroke();
+  }
+
+  if (a.accessory === 7 && !back) {
+    for (const ex of side ? [px - fx * 6.5] : [px - 8.6, px + 8.6]) {
+      disc(ctx, ex, hy + 4.4, 1.9, '#d6ac50');
+      disc(ctx, ex - 0.4, hy + 3.9, 0.7, '#fff3c4');
+    }
+  }
+  if (a.accessory === 8 && !back) {
+    const by = py - 10.4 + bob;
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.moveTo(px, by); ctx.lineTo(px - 5, by - 2.6); ctx.lineTo(px - 5, by + 2.6); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px, by); ctx.lineTo(px + 5, by - 2.6); ctx.lineTo(px + 5, by + 2.6); ctx.closePath(); ctx.fill();
+    disc(ctx, px, by, 1.6, '#7f1d1d');
   }
 
   // name tag (skipped when there is no name, as in the avatar preview)
