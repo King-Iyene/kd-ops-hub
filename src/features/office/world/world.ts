@@ -196,7 +196,7 @@ export function applyTileEdits(map: MapDef, e: TileEdits | undefined): MapDef {
 
 /** A private room: a meeting room or someone's office (voice stays inside, it can be locked). */
 export function isRoom(z: Zone | null | undefined): boolean {
-  return !!z && (z.kind === 'meeting' || z.kind === 'office');
+  return !!z && (z.kind === 'meeting' || z.kind === 'office') && !z.open;
 }
 
 /** Tiles reachable on foot from a start tile (4-directional, one tile wide is enough to pass). */

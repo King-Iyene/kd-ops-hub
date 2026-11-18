@@ -155,7 +155,11 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
   ];
   const pods = [[4, 13], [14, 13], [4, 22], [14, 22]] as const;
-  pods.forEach(([px, py], i) => zones.push({ id: `pod-${i + 1}`, name: 'Desks', kind: 'area', x: px, y: py, w: 8, h: 7, floor: 'gray' }));
+  // each open desk pod can be claimed like an office (it gets a name plate), without being a private room
+  pods.forEach(([px, py], i) => {
+    const p = people[9 + i];
+    zones.push({ id: `pod-${i + 1}`, name: p ? `${p.name}'s desks` : 'Free desks', kind: 'office', open: true, x: px, y: py, w: 8, h: 7, floor: 'gray', sign: { name: p ? p.name : 'Free desks', avatar: p?.avatar } });
+  });
   for (let i = 0; i < OFFICES; i++) {
     const p = people[i];
     zones.push({

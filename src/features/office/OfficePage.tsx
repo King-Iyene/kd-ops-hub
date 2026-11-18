@@ -34,6 +34,7 @@ import { applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanit
 import { defaultAvatar, officeInfo } from './world/render';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
 import { cleanZones } from './world/clock';
+import { skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { Item, TileEdits, Zone } from './world/types';
 
 
@@ -110,8 +111,8 @@ function OfficeRoom() {
   useEffect(() => { setOverrides(savedOverrides ?? {}); }, [savedOverrides]);
   // who has claimed each private office (people claim and unclaim; an admin can also assign or revoke)
   const { data: claims } = useDeskClaims(space?.id ?? null);
-  const plateTable = useMemo(() => Array.from({ length: 9 }, (_, i) => {
-    const id = 'office-' + (i + 1);
+  const plateTable = useMemo(() => Array.from({ length: 13 }, (_, i) => {
+    const id = i < 9 ? 'office-' + (i + 1) : 'pod-' + (i - 8);
     const o = overrides[id];
     if (o?.free) return undefined;
     if (o?.label) return { name: o.label };
@@ -548,7 +549,7 @@ function OfficeRoom() {
   };
   const claimFree = () => {
     const taken = new Set((claims ?? []).map((c) => c.office_id));
-    const free = map.zones.find((z) => z.kind === 'office' && !taken.has(z.id));
+    const free = map.zones.find((z) => z.kind === 'office' && !z.open && !taken.has(z.id));
     if (free) void claimOffice(free.id);
     else toast({ title: 'No free office right now', description: 'Every office has an owner. An admin can free one up for you.' });
   };
@@ -794,11 +795,16 @@ function OfficeRoom() {
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
-  const [bright, setBright] = useState(() => { try { return localStorage.getItem('kd:office:bright') !== '0'; } catch { return true; } });
-  const dark = !bright;
+  const [timeMode, setTimeModeRaw] = useState<TimeMode>(() => { try { const v = localStorage.getItem('kd:office:time'); return v === 'morning' || v === 'afternoon' || v === 'evening' || v === 'night' ? v : 'auto'; } catch { return 'auto'; } });
+  const [seasonMode, setSeasonModeRaw] = useState<SeasonMode>(() => { try { const v = localStorage.getItem('kd:office:season'); return v === 'clear' || v === 'harmattan' || v === 'rainy' ? v : 'auto'; } catch { return 'auto'; } });
+  const setTimeMode = (m: TimeMode) => { setTimeModeRaw(m); try { localStorage.setItem('kd:office:time', m); } catch { /* fine */ } };
+  const setSeasonMode = (m: SeasonMode) => { setSeasonModeRaw(m); try { localStorage.setItem('kd:office:season', m); } catch { /* fine */ } };
+  // the palette follows the hour (checked every half minute, so dusk arrives by itself)
+  const [skyTick, setSkyTick] = useState(0);
+  useEffect(() => { const t = window.setInterval(() => setSkyTick((n) => n + 1), 30000); return () => window.clearInterval(t); }, []);
+  const dark = useMemo(() => skyState(timeMode, Date.now()).dark, [timeMode, skyTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sound, setSound] = useState(() => { try { return localStorage.getItem('kd:office:sound') !== '0'; } catch { return true; } });
   const toggleSound = () => { setSound((v) => { try { localStorage.setItem('kd:office:sound', v ? '0' : '1'); } catch { /* fine */ } return !v; }); };
-  const toggleBright = () => { setBright((b) => { try { localStorage.setItem('kd:office:bright', b ? '0' : '1'); } catch { /* fine */ } return !b; }); };
 
   // live cameras as bubbles above heads: one hidden, playing video element per person
   const bubbles = useRef(new Map<string, HTMLVideoElement>());
@@ -956,7 +962,7 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} onNear={() => undefined} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onNear={() => undefined} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
@@ -1004,7 +1010,7 @@ function OfficeRoom() {
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  bright={bright} onToggleBright={toggleBright} sound={sound} onToggleSound={toggleSound} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
+                  timeMode={timeMode} onTimeMode={setTimeMode} seasonMode={seasonMode} onSeasonMode={setSeasonMode} sound={sound} onToggleSound={toggleSound} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
@@ -1130,8 +1136,10 @@ function OfficeRoom() {
         const tx = Math.floor(ctx.wx);
         const ty = Math.floor(ctx.wy);
         const rows: ReactNode[] = [];
-        const item = (key: string, icon: ReactNode, label: string, run: () => void, danger = false) => rows.push(
-          <button key={key} type="button" className={mi + (danger ? ' text-red-500' : '')} onClick={done(run)}>{icon}<span>{label}</span></button>,
+        const item = (key: string, icon: ReactNode, label: string, run: () => void, danger = false, off?: string) => rows.push(
+          off
+            ? <button key={key} type="button" disabled title={off} className={mi + ' cursor-not-allowed opacity-40 hover:bg-transparent'}>{icon}<span className="min-w-0 flex-1 truncate">{label}</span><span className="shrink-0 text-xs">{off}</span></button>
+            : <button key={key} type="button" className={mi + (danger ? ' text-red-500' : '')} onClick={done(run)}>{icon}<span>{label}</span></button>,
         );
         const sep = (key: string) => { if (rows.length) rows.push(<div key={key} className="my-1 h-px bg-border" />); };
         const ic = 'h-4 w-4';
@@ -1156,11 +1164,11 @@ function OfficeRoom() {
         if (office) {
           if (!person && !ctx.isMe) title = office.name;
           else { sep('z'); label('zl', office.name); }
-          if (!person && !ctx.isMe) label('own', claim ? 'Used by ' + (owner?.name ?? 'someone') : 'Free to claim');
-          item('walk', <Footprints className={ic} />, 'Walk to this office', () => walkToOffice(office.id));
-          if (!claim && !myClaim) item('claim', <Building2 className={ic} />, 'Claim this office', () => void claimOffice(office.id));
-          if (!claim && myClaim) item('claimno', <Building2 className={ic} />, 'You already have an office', () => walkToOffice());
-          if (mine) item('unclaim', <Minus className={ic} />, 'Give up my office', () => void unclaimOffice(office.id), true);
+          if (!person && !ctx.isMe) label('own', claim ? 'Claimed by ' + (owner?.name ?? 'someone') : 'Free to claim');
+          item('walk', <Footprints className={ic} />, office.open ? 'Walk to this desk area' : 'Walk to this office', () => walkToOffice(office.id));
+          // claiming is always listed on an office; it greys out with the reason when it cannot be done
+          item('claim', <Building2 className={ic} />, office.open ? 'Claim this desk area' : 'Claim this office', () => void claimOffice(office.id), false, claim ? (mine ? 'Yours' : 'Taken') : myClaim ? 'You have one' : undefined);
+          if (mine) item('unclaim', <Minus className={ic} />, office.open ? 'Give up my desk area' : 'Give up my office', () => void unclaimOffice(office.id), true);
           if (mine && !editing) item('cust', <Pencil className={ic} />, 'Customise this office', () => startEdit(office));
           item('olink', <LinkIcon className={ic} />, 'Copy link to this office', () => void copyLink(`&room=${office.id}`, 'It opens the office at this door.'));
           if (isAdmin) {
@@ -1168,7 +1176,7 @@ function OfficeRoom() {
             label('al', 'Admin');
             item('assign', <UserPlus className={ic} />, claim ? 'Change who has this office' : 'Assign to someone', () => setDeskZone(office));
             if (claim && !mine) item('free', <Minus className={ic} />, 'Unclaim (free this office)', () => void unclaimOffice(office.id), true);
-            item('rename', <Pencil className={ic} />, 'Rename this office', () => setNameZone({ id: office.id, name: office.name, kind: office.kind }));
+            item('rename', <Pencil className={ic} />, office.open ? 'Rename this desk area' : 'Rename this office', () => setNameZone({ id: office.id, name: office.name, kind: office.kind }));
             if (!editing) item('build', <Pencil className={ic} />, 'Edit this office (objects, walls)', () => startEdit(office));
           }
         } else if (zone && isRoom(zone)) {

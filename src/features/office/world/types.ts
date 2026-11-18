@@ -39,6 +39,8 @@ export interface Zone {
   floor?: FloorKind;
   /** a name plate drawn on the wall above a private office */
   sign?: { name: string; avatar?: AvatarStyle };
+  /** an open-plan area that can be claimed like an office, but is not a private room (voice is not walled in) */
+  open?: boolean;
 }
 
 /** Changes an admin painted onto the building: tiles made wall or open, and floors painted. */

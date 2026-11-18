@@ -270,7 +270,8 @@ describe('headquarters', () => {
   const people = [{ name: 'Ada L.' }, { name: 'Kelvin J.' }];
   const m = buildHQ(people);
   it('has nine private offices with name plates, three meeting rooms, a boardroom and an auditorium', () => {
-    expect(m.zones.filter((z) => z.kind === 'office')).toHaveLength(9);
+    expect(m.zones.filter((z) => z.kind === 'office' && !z.open)).toHaveLength(9);
+    expect(m.zones.filter((z) => z.kind === 'office' && z.open)).toHaveLength(4);
     expect(m.zones.find((z) => z.id === 'office-1')?.sign?.name).toBe('Ada L.');
     expect(m.zones.find((z) => z.id === 'office-9')?.sign?.name).toBe('Free office');
     expect(m.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)).toEqual(expect.arrayContaining(['meeting-1', 'meeting-2', 'meeting-3', 'boardroom', 'auditorium']));
@@ -351,5 +352,37 @@ describe('interactive things and the wall clock', () => {
     expect(zoneAbbr('America/New_York', noonUtc)).toBe('EST');
     expect(cleanZones(['Africa/Lagos', 'nope', 'Asia/Tokyo', 'Europe/London', 'Asia/Dubai'])).toEqual(['Africa/Lagos', 'Asia/Tokyo', 'Europe/London']);
     expect(cleanZones(undefined).length).toBe(2);
+  });
+});
+
+describe('sky and seasons', () => {
+  it('is dark at night, bright at midday, and follows the Nigerian calendar', async () => {
+    const { daylight, seasonFor, rainLevel, skyState } = await import('../world/sky');
+    expect(daylight(2)).toBe(0);
+    expect(daylight(12)).toBe(1);
+    expect(daylight(6.25)).toBeGreaterThan(0);
+    expect(daylight(18.5)).toBeGreaterThan(0);
+    expect(daylight(18.5)).toBeLessThan(1);
+    expect(skyState('night', Date.now()).dark).toBe(true);
+    expect(skyState('afternoon', Date.now()).dark).toBe(false);
+    expect(seasonFor('auto', Date.UTC(2026, 0, 20))).toBe('harmattan');
+    expect(seasonFor('auto', Date.UTC(2026, 6, 10))).toBe('rainy');
+    expect(seasonFor('auto', Date.UTC(2026, 2, 10))).toBe('clear');
+    expect(seasonFor('rainy', Date.UTC(2026, 0, 20))).toBe('rainy');
+    expect(rainLevel('clear', 123456)).toBe(0);
+    for (let i = 0; i < 200; i++) { const r = rainLevel('rainy', i * 9000); expect(r).toBeGreaterThanOrEqual(0); expect(r).toBeLessThanOrEqual(1); }
+  });
+});
+
+describe('open desk pods', () => {
+  it('can be claimed like an office but are not private rooms', async () => {
+    const { buildHQ } = await import('../world/templates');
+    const { isRoom } = await import('../world/world');
+    const m = buildHQ([]);
+    const pod = m.zones.find((z) => z.id === 'pod-1');
+    expect(pod?.kind).toBe('office');
+    expect(pod?.sign?.name).toBe('Free desks');
+    expect(isRoom(pod)).toBe(false);
+    expect(isRoom(m.zones.find((z) => z.id === 'office-1'))).toBe(true);
   });
 });

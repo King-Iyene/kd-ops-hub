@@ -5,6 +5,8 @@ import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPer
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
+import { drawSky } from './world/skyfx';
+import { lightning, rainLevel, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 
 import type { EditTool } from './EditorPanel';
@@ -49,6 +51,9 @@ interface Props {
   bubbleScale: number;
   /** ambient sound (water, fire, footsteps) on or off */
   sound: boolean;
+  /** the hour (auto follows Lagos time) and the season (auto follows the Nigerian calendar) */
+  timeMode: TimeMode;
+  seasonMode: SeasonMode;
   /** the thing you are standing next to that you can press F on (null when none) */
   onNear: (item: Item | null) => void;
   /** F pressed (or the thing clicked): open it */
@@ -99,6 +104,7 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const nearRef = useRef<Item | null>(null);
+  const lastBolt = useRef(-1);
   const firstEnter = useRef(true);
   const lastSaved = useRef(0);
   useEffect(() => {
@@ -493,6 +499,19 @@ export function OfficeCanvas(props: Props) {
         if (!drawFailed.current) { drawFailed.current = true; console.error('office draw failed', err); }
       }
       ctx.restore();
+      {
+        const wall = Date.now();
+        const sky = skyState(p.timeMode, wall);
+        const season = seasonFor(p.seasonMode, wall);
+        const rain = rainLevel(season, wall);
+        const bolt = lightning(rain, wall);
+        if (bolt.id !== lastBolt.current) {
+          if (bolt.id >= 0) ambient.thunder();
+          lastBolt.current = bolt.id;
+        }
+        ambient.setWeather(rain, season === 'harmattan' ? 1 : 0);
+        drawSky(ctx, w, h, sky, season, rain, bolt.strength, now);
+      }
       drawVignette(ctx, w, h, p.dark);
     };
     raf = requestAnimationFrame(frame);

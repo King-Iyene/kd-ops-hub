@@ -1,5 +1,6 @@
 import { Circle, DoorClosed, DoorOpen, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun, Volume2, VolumeX } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { SEASON_MODES, TIME_MODES, type SeasonMode, type TimeMode } from './world/sky';
 import { STATUSES, statusOf } from './status';
 
 interface Props {
@@ -8,8 +9,10 @@ interface Props {
   status: string;
   onStatus: (id: string) => void;
   onAvatar: () => void;
-  bright: boolean;
-  onToggleBright: () => void;
+  timeMode: TimeMode;
+  onTimeMode: (m: TimeMode) => void;
+  seasonMode: SeasonMode;
+  onSeasonMode: (m: SeasonMode) => void;
   sound: boolean;
   onToggleSound: () => void;
   zoom: number;
@@ -74,7 +77,22 @@ export function ProfileMenu(p: Props) {
         )}
         {p.canCustomiseMine && <DropdownMenuItem onSelect={p.onCustomiseMine}><Pencil className="mr-2 h-4 w-4" />Customise my office</DropdownMenuItem>}
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
-        <DropdownMenuItem onSelect={p.onToggleBright}>{p.bright ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}{p.bright ? 'Night office' : 'Bright office'}</DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger><Sun className="mr-2 h-4 w-4" />Time of day</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={p.timeMode} onValueChange={(v) => p.onTimeMode(v as TimeMode)}>
+              {TIME_MODES.map((m) => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.label}</DropdownMenuRadioItem>)}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger><Moon className="mr-2 h-4 w-4" />Season</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup value={p.seasonMode} onValueChange={(v) => p.onSeasonMode(v as SeasonMode)}>
+              {SEASON_MODES.map((m) => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.label}</DropdownMenuRadioItem>)}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuItem onSelect={p.onToggleSound}>{p.sound ? <Volume2 className="mr-2 h-4 w-4" /> : <VolumeX className="mr-2 h-4 w-4" />}{p.sound ? 'Office sounds: on' : 'Office sounds: off'}</DropdownMenuItem>
         <div className="flex items-center justify-between px-2 py-1.5 text-sm">
           <span>Video bubble size</span>

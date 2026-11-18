@@ -33,6 +33,8 @@ class Ambient {
   private noise: AudioBuffer | null = null;
   private layers = new Map<Kind, Layer>();
   private timers: number[] = [];
+  private weatherGain: GainNode | null = null;
+  private windGain: GainNode | null = null;
   private enabled = true;
   private lastUpdate = 0;
   private lastStep = 0;
@@ -97,6 +99,71 @@ class Ambient {
     }
   }
 
+  /** rain (0 to 1) and dusty Harmattan wind (0 to 1); the same everywhere in the office */
+  setWeather(rain: number, wind: number) {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.weatherGain || !this.windGain) return;
+    this.weatherGain.gain.setTargetAtTime(0.17 * rain, c.currentTime, 0.6);
+    this.windGain.gain.setTargetAtTime(0.1 * wind, c.currentTime, 1.2);
+  }
+
+  /** a roll of thunder a moment after a flash */
+  thunder() {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.noise || !this.master || c.state !== 'running') return;
+    const n = c.createBufferSource();
+    n.buffer = this.noise;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 170;
+    const e = c.createGain();
+    const t = c.currentTime + 0.5 + Math.random() * 0.9;
+    e.gain.setValueAtTime(0.0001, t);
+    e.gain.exponentialRampToValueAtTime(0.55, t + 0.25);
+    e.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+    n.connect(lp);
+    lp.connect(e);
+    e.connect(this.master);
+    n.start(t, Math.random() * 1.2, 2.8);
+  }
+
+  private buildWeather(c: AudioContext) {
+    const rain = this.loop(c);
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 1100;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 7500;
+    const rg = c.createGain();
+    rg.gain.value = 0;
+    rain.connect(hp);
+    hp.connect(lp);
+    lp.connect(rg);
+    rg.connect(this.master!);
+    rain.start();
+    this.weatherGain = rg;
+    const wind = this.loop(c);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 420;
+    bp.Q.value = 0.7;
+    const wg = c.createGain();
+    wg.gain.value = 0;
+    const gust = c.createOscillator();
+    gust.frequency.value = 0.12;
+    const gustDepth = c.createGain();
+    gustDepth.gain.value = 120;
+    gust.connect(gustDepth);
+    gustDepth.connect(bp.frequency);
+    wind.connect(bp);
+    bp.connect(wg);
+    wg.connect(this.master!);
+    wind.start();
+    gust.start();
+    this.windGain = wg;
+  }
+
   // ---- building blocks --------------------------------------------------------
 
   private ensure(): AudioContext | null {
@@ -115,6 +182,7 @@ class Ambient {
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       this.noise = buf;
 
+      this.buildWeather(c);
       this.buildWater(c);
       this.buildFire(c);
       this.buildTank(c);
