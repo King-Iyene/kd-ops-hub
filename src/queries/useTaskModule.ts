@@ -21,8 +21,18 @@ export interface TaskListRow {
   updated_at: string;
 }
 
-export type TaskStatus = 'open' | 'in_progress' | 'done';
+export type TaskStatus = 'to_do' | 'in_progress' | 'in_review' | 'blocked' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export const TASK_STATUSES: TaskStatus[] = ['to_do', 'in_progress', 'in_review', 'blocked', 'done'];
+
+export const STATUS_META: Record<TaskStatus, { label: string; dot: string; badge: string }> = {
+  to_do:       { label: 'To Do',       dot: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-300' },
+  in_progress: { label: 'In Progress', dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' },
+  in_review:   { label: 'In Review',   dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' },
+  blocked:     { label: 'Blocked',     dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' },
+  done:        { label: 'Done',        dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' },
+};
 
 export interface TaskRow {
   id: string;
@@ -125,10 +135,10 @@ export function useTasks(listId: string) {
 export function useCreateTask(listId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (vars: { title: string; createdBy: string }) =>
+    (vars: { title: string; createdBy: string; status?: TaskStatus }) =>
       supabase
         .from('tm_tasks')
-        .insert({ list_id: listId, title: vars.title, created_by: vars.createdBy })
+        .insert({ list_id: listId, title: vars.title, created_by: vars.createdBy, ...(vars.status ? { status: vars.status } : {}) })
         .select()
         .single(),
     { onSuccess: () => invalidate(queryKeys.taskModule.tasks(listId)) },
@@ -146,6 +156,15 @@ export function useUpdateTask(listId: string) {
       return supabase.from('tm_tasks').update(patch).eq('id', vars.id).select().single();
     },
     { onSuccess: () => invalidate(queryKeys.taskModule.tasks(listId)) },
+  );
+}
+
+// Cross-list: every task assigned to one person, for the My Tasks page.
+export function useMyTasks(userId: string) {
+  return useSupabaseQuery(
+    ['task-module', 'my-tasks', userId] as const,
+    () => supabase.from('tm_tasks').select('*').eq('assignee_id', userId).order('due_date'),
+    { enabled: !!userId },
   );
 }
 

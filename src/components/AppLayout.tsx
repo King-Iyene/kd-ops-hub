@@ -83,6 +83,9 @@ const ROUTE_TITLES: Record<string, string> = {
   '/my-dashboard':         'My Portal',
   '/approval-workflows':   'Approval Workflows',
   '/task':                 'Task',
+  '/task/inbox':           'Task Inbox',
+  '/task/my-tasks':        'My Tasks',
+  '/task/dashboards':      'Task Dashboards',
 };
 
 function getRouteTitle(pathname: string): string {
