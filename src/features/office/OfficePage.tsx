@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, Circle, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Search, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BellRing, Building2, Circle, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OfficeCanvas, type EditTool } from './OfficeCanvas';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
@@ -69,9 +70,12 @@ export default function OfficePage() {
 
   const myPersonal = spaces?.find((s) => s.kind === 'personal' && s.owner_id === profile?.id) ?? null;
   const teamSpaces = spaces?.filter((s) => s.kind === 'team') ?? [];
-  const myTeam = teamSpaces.find((s) => s.company_id && s.company_id === profile?.department_id) ?? teamSpaces[0] ?? null;
+  const myTeam = teamSpaces.find((s) => s.company_id && s.company_id === (profile as { department_id?: string | null } | null)?.department_id) ?? teamSpaces[0] ?? null;
 
-  const [spaceId, setSpaceId] = useState<string | null>(null);
+  const [spaceId, setSpaceIdRaw] = useState<string | null>(null);
+  // every way of changing office goes through here, so a locked personal office stops visitors (guard set below)
+  const enterGuard = useRef<(id: string | null) => void>((id) => setSpaceIdRaw(id));
+  const setSpaceId = useCallback((id: string | null) => enterGuard.current(id), []);
   const lastTeam = useRef<string | null>(null);
   useEffect(() => {
     if (!spaceId && myTeam) setSpaceId(myTeam.id);
@@ -143,7 +147,7 @@ export default function OfficePage() {
     }
     const item: Item = { id: newItemId(), t: tool, x: tile.x, y: tile.y, r: rot };
     const res = canPlace(map, draft, item);
-    if (!res.ok) { toast({ title: res.reason, variant: 'destructive' }); return; }
+    if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'Cannot place that here', variant: 'destructive' }); return; }
     setDraft((d) => [...d, item]);
   };
   const save = async () => {
@@ -198,6 +202,14 @@ export default function OfficePage() {
       : `This room is being recorded by ${recorders.map((r) => r.name).join(', ')}.`
     : null;
   const [recordingsOpen, setRecordingsOpen] = useState(false);
+  // like Gather: on arrival, offer to turn the camera and microphone on (once per visit)
+  const [joinPrompt, setJoinPrompt] = useState(() => { try { return !sessionStorage.getItem('kd:office:prompted'); } catch { return true; } });
+  const closeJoinPrompt = () => { setJoinPrompt(false); try { sessionStorage.setItem('kd:office:prompted', '1'); } catch { /* fine */ } };
+  const joinWith = async (camera: boolean) => {
+    closeJoinPrompt();
+    await calls.join();
+    if (camera) await calls.toggleCam();
+  };
 
   // ---- locking meeting rooms (rules in calls/locks.ts) ----
   const locked = useMemo(() => lockedRooms(roster, space?.id ?? null, meetingIds), [roster, space?.id, meetingIds]);
@@ -283,24 +295,29 @@ export default function OfficePage() {
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
   const teamMap = useMemo(() => buildTemplate('team'), []);
   const [query, setQuery] = useState('');
-  const [jump, setJump] = useState<{ key: number; personId?: string; x?: number; y?: number } | null>(null);
+  const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
+  const [followOnce, setFollowOnce] = useState(false);
   const [chatWith, setChatWith] = useState<{ id: string; name: string } | null>(null);
   const chatWithRef = useRef(chatWith);
   chatWithRef.current = chatWith;
   const [inbox, setInbox] = useState<Msg[]>([]);
   const lastSent = useRef(new Map<string, number>());
+  /** personal offices whose owner has let me in (kept only while that office stays locked) */
+  const admittedOffices = useRef(new Set<string>());
   const roomSpaceId = space?.kind === 'team' ? space.id : (lastTeam.current ?? myTeam?.id ?? null);
 
   const goToPerson = (id: string, theirSpace: string | null) => {
     if (theirSpace && theirSpace !== space?.id) setSpaceId(theirSpace);
-    setJump({ key: Date.now(), personId: id });
+    // walk over to them (and stop when we arrive); across offices we walk in after arriving
+    setFollowOnce(true);
+    setFollow(id);
   };
   const goToRoom = (z: Zone) => {
     if (roomSpaceId && roomSpaceId !== space?.id) setSpaceId(roomSpaceId);
     setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 });
   };
-  const startFollow = (id: string) => setFollow((f) => (f === id ? null : id));
+  const startFollow = (id: string) => { setFollowOnce(false); setFollow((f) => (f === id ? null : id)); };
   // following someone who walks into another office: follow them through
   useEffect(() => {
     if (!follow) return;
@@ -340,6 +357,23 @@ export default function OfficePage() {
   const handlePing = async (raw: unknown) => {
     const m = me ? parsePing(raw, me.id) : null;
     if (!m) return;
+    if (m.k === 'knock') {
+      // only the owner, standing in their own office, hears a knock
+      if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
+      toast({
+        title: `${m.n} is knocking`, description: 'At your office door.',
+        action: <ToastAction altText="Let in" onClick={() => me && sendPing({ k: 'let', f: me.id, n: me.name, t: m.f, s: space.id })}>Let in</ToastAction>,
+      });
+      return;
+    }
+    if (m.k === 'let') {
+      const door = spaces?.find((x) => x.id === m.s);
+      if (!door || door.owner_id !== m.f) return;
+      admittedOffices.current.add(door.id);
+      setSpaceIdRaw(door.id);
+      toast({ title: 'The door is open', description: `You are in ${door.name}.` });
+      return;
+    }
     if (m.k === 'ring') {
       try {
         const ctx = new AudioContext();
@@ -376,6 +410,47 @@ export default function OfficePage() {
     return () => setPingHandler(null);
   }, [setPingHandler]);
 
+  // ---- locking my personal office (visitors knock; I let them in) ----
+  const officeLock = useRef(false);
+  const [myOfficeLocked, setMyOfficeLocked] = useState(false);
+  const isMyOffice = !!space && space.kind === 'personal' && space.owner_id === profile?.id;
+  const lockedOffice = (s: SpaceRow | undefined) =>
+    !!s && s.kind === 'personal' && s.owner_id !== profile?.id && !admittedOffices.current.has(s.id)
+    && rosterRef.current.some((r) => r.id === s.owner_id && r.locked && r.spaceId === s.id);
+
+  enterGuard.current = (id) => {
+    const target = spaces?.find((s) => s.id === id);
+    if (me && target && lockedOffice(target)) {
+      if (canSendTo(lastSent.current, `k${target.id}`, Date.now(), 'ring')) {
+        lastSent.current.set(`ring:k${target.id}`, Date.now());
+        sendPing({ k: 'knock', f: me.id, n: me.name, t: target.owner_id as string, s: target.id });
+      }
+      toast({ title: `${target.name} is locked`, description: 'We knocked. You will be taken in when they let you.' });
+      return;
+    }
+    setSpaceIdRaw(id);
+  };
+
+  useEffect(() => {
+    for (const id of [...admittedOffices.current]) {
+      const s = spaces?.find((x) => x.id === id);
+      if (!s || !roster.some((r) => r.id === s.owner_id && r.locked && r.spaceId === id)) admittedOffices.current.delete(id);
+    }
+  }, [roster, spaces]);
+
+  const toggleOfficeLock = () => {
+    if (!isMyOffice) return;
+    const on = !officeLock.current;
+    officeLock.current = on;
+    setMyOfficeLocked(on);
+    setLocked(on);
+  };
+  // leaving my office unlocks it (the lock lives only while I am inside)
+  useEffect(() => {
+    if (officeLock.current && !isMyOffice) { officeLock.current = false; setMyOfficeLocked(false); setLocked(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMyOffice]);
+
   const letIn = (k: { id: string; room: string }) => {
     if (!me) return;
     sendDoor({ k: 'let', f: me.id, t: k.id, r: k.room });
@@ -410,6 +485,11 @@ export default function OfficePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))} aria-label="Zoom out"><Minus className="h-4 w-4" /></Button>
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(1.6, +(z + 0.2).toFixed(1)))} aria-label="Zoom in"><Plus className="h-4 w-4" /></Button>
+          {isMyOffice && (
+            <Button size="sm" variant={myOfficeLocked ? 'default' : 'outline'} onClick={toggleOfficeLock} title="Locked: visitors have to knock and you let them in">
+              <Lock className="mr-1.5 h-4 w-4" />{myOfficeLocked ? 'Office locked' : 'Lock my office'}
+            </Button>
+          )}
           {canRecord && <Button size="sm" variant="outline" onClick={() => setRecordingsOpen(true)}><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</Button>}
           <Button size="sm" variant="outline" onClick={() => setAvatarOpen(true)}><Palette className="mr-1.5 h-4 w-4" />Avatar</Button>
           {canEdit && !editing && <Button size="sm" onClick={startEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit office</Button>}
@@ -490,7 +570,10 @@ export default function OfficePage() {
                 {otherOffices.filter((s) => matches(s.name, query)).map((s) => (
                   <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${s.id === space.id ? 'bg-muted font-medium' : ''}`}>
                     <span className="truncate">{s.name.replace(/'s office$/, '')}</span>
-                    {roster.some((r) => r.spaceId === s.id) && <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {roster.some((r) => r.id === s.owner_id && r.locked && r.spaceId === s.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}
+                      {roster.some((r) => r.spaceId === s.id) && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -502,7 +585,7 @@ export default function OfficePage() {
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
-            jump={jump} follow={follow} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
+            jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
           {follow && (
@@ -546,6 +629,19 @@ export default function OfficePage() {
         </div>
       </div>
 
+      <Dialog open={joinPrompt && !calls.joined} onOpenChange={(o) => { if (!o) closeJoinPrompt(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Turn on your camera and microphone?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            People near you will see and hear you, and you will see and hear them. Walk away and the sound fades. Inside a meeting room only the people in that room can hear you. You can mute or turn the camera off at any time.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => void joinWith(true)}><Video className="mr-2 h-4 w-4" />Join with camera and microphone</Button>
+            <Button variant="outline" onClick={() => void joinWith(false)}><Mic className="mr-2 h-4 w-4" />Join with microphone only</Button>
+            <Button variant="ghost" onClick={closeJoinPrompt}>Not now</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 

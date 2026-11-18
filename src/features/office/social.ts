@@ -6,7 +6,8 @@ export const MIN_GAP_MS = 8000;
 
 /** A short note sent straight to one person: a ring (knock on their shoulder) or a text message. */
 export interface Ping {
-  k: 'ring' | 'dm';
+  /** ring, text message, knock on a locked personal office, or the owner letting a knocker in */
+  k: 'ring' | 'dm' | 'knock' | 'let';
   /** from */
   f: string;
   /** sender display name */
@@ -56,7 +57,7 @@ export function cleanText(s: string): string {
 export function parsePing(raw: unknown, myId: string): Ping | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Record<string, unknown>;
-  if (p.k !== 'ring' && p.k !== 'dm') return null;
+  if (p.k !== 'ring' && p.k !== 'dm' && p.k !== 'knock' && p.k !== 'let') return null;
   if (typeof p.f !== 'string' || p.f.length > 64 || p.f === myId || p.t !== myId) return null;
   if (typeof p.n !== 'string') return null;
   const s = typeof p.s === 'string' && p.s.length <= 64 ? p.s : null;

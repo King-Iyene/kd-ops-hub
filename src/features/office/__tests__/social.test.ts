@@ -20,6 +20,13 @@ describe('parsePing', () => {
   });
 });
 
+describe('office door pings', () => {
+  it('accepts knock and let messages that carry the office id', () => {
+    expect(parsePing({ k: 'knock', f: 'a', n: 'Ann', t: 'me', s: 'office1' }, 'me')?.s).toBe('office1');
+    expect(parsePing({ k: 'let', f: 'a', n: 'Ann', t: 'me', s: 'office1' }, 'me')?.k).toBe('let');
+  });
+});
+
 describe('canSendTo', () => {
   it('rate-limits rings far more than messages', () => {
     const m = new Map<string, number>([['ring:a', 1000], ['dm:a', 1000]]);

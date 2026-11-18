@@ -132,6 +132,50 @@ export function reachable(solid: boolean[][], sx: number, sy: number): Set<strin
   return seen;
 }
 
+/**
+ * A walking route from (sx, sy) to (tx, ty) as waypoints at tile centres (the start tile is left out), going around
+ * walls and furniture. If the target tile is blocked the route ends next to it. Null when there is no way there.
+ */
+export function findPath(solid: boolean[][], sx: number, sy: number, tx: number, ty: number): { x: number; y: number }[] | null {
+  const h = solid.length;
+  const w = solid[0]?.length ?? 0;
+  const s = { x: Math.floor(sx), y: Math.floor(sy) };
+  const t = { x: Math.floor(tx), y: Math.floor(ty) };
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && !solid[y][x];
+  if (!open(s.x, s.y)) return null;
+  const prev = new Map<number, number>();
+  const id = (x: number, y: number) => y * w + x;
+  prev.set(id(s.x, s.y), -1);
+  const q: [number, number][] = [[s.x, s.y]];
+  let goal = -1;
+  const targetOpen = open(t.x, t.y);
+  for (let i = 0; i < q.length && goal < 0; i++) {
+    const [x, y] = q[i];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      // a blocked target (a person standing at a desk, say) counts as reached when we are next to it
+      if (!targetOpen && nx === t.x && ny === t.y) { goal = id(x, y); break; }
+      if (!open(nx, ny) || prev.has(id(nx, ny))) continue;
+      prev.set(id(nx, ny), id(x, y));
+      if (targetOpen && nx === t.x && ny === t.y) { goal = id(nx, ny); break; }
+      q.push([nx, ny]);
+    }
+  }
+  if (s.x === t.x && s.y === t.y) return [];
+  if (goal < 0) return null;
+  const tiles: { x: number; y: number }[] = [];
+  for (let c = goal; c !== -1; c = prev.get(c) ?? -1) tiles.push({ x: (c % w) + 0.5, y: Math.floor(c / w) + 0.5 });
+  tiles.reverse();
+  tiles.shift(); // the start tile
+  // keep only the corners: points in the middle of a straight run are not needed
+  return tiles.filter((p, i) => {
+    const a = i === 0 ? { x: s.x + 0.5, y: s.y + 0.5 } : tiles[i - 1];
+    const b = tiles[i + 1];
+    return !b || b.x - p.x !== p.x - a.x || b.y - p.y !== p.y - a.y;
+  });
+}
+
 export type PlaceResult = { ok: true } | { ok: false; reason: string };
 
 /**

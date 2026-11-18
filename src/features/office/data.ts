@@ -92,7 +92,7 @@ export function useOfficeMutations() {
   const qc = useQueryClient();
   return {
     async saveAvatar(userId: string, style: AvatarStyle) {
-      const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style, updated_at: new Date().toISOString() });
+      const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style: style as never, updated_at: new Date().toISOString() });
       if (error) throw error;
       qc.setQueryData(['office', 'avatar', userId], style);
     },
@@ -105,7 +105,7 @@ export function useOfficeMutations() {
     async saveLayout(space: SpaceRow, template: TemplateName, items: Item[]) {
       const { error } = await supabase
         .from('office_spaces')
-        .update({ layout: { template, items }, updated_at: new Date().toISOString() })
+        .update({ layout: { template, items } as never, updated_at: new Date().toISOString() })
         .eq('id', space.id);
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, buildSolid, canPlace, collides, extrapolate, facing, inputVelocity, itemCells, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
+import { advance, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
 import { buildPersonalOffice, buildTeamOffice } from '../world/templates';
 import type { Item } from '../world/types';
 
@@ -221,5 +221,32 @@ describe('saved layouts are sanitised', () => {
     const out = sanitizeItems(m, many);
     expect(new Set(out.map((i) => i.id)).size).toBe(out.length);
     expect(out.length).toBeLessThanOrEqual(300);
+  });
+});
+
+describe('findPath', () => {
+  // 5x5 room, wall across the middle with a gap at x=4
+  const g = () => Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => y === 2 && x < 4));
+  it('goes around a wall through the gap and ends on the target tile', () => {
+    const p = findPath(g(), 0.5, 0.5, 0.5, 4.5)!;
+    expect(p.length).toBeGreaterThan(0);
+    expect(p[p.length - 1]).toEqual({ x: 0.5, y: 4.5 });
+    expect(p.some((w) => w.x === 4.5)).toBe(true);
+  });
+  it('returns an empty route when already there and null when walled in', () => {
+    expect(findPath(g(), 0.5, 0.5, 0.7, 0.6)).toEqual([]);
+    const closed = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => y === 2));
+    expect(findPath(closed, 0.5, 0.5, 0.5, 4.5)).toBeNull();
+  });
+  it('ends next to a blocked target tile', () => {
+    const p = findPath(g(), 0.5, 3.5, 0.5, 2.5)!;
+    expect(p.length).toBeLessThanOrEqual(1);
+  });
+  it('finds a route from the team office entrance to a meeting room', () => {
+    const map = buildTeamOffice();
+    const solid = buildSolid(map, map.items);
+    const room = map.zones.find((z) => z.id.includes('meet'))!;
+    const p = findPath(solid, map.spawn.x, map.spawn.y, room.x + room.w / 2, room.y + room.h / 2);
+    expect(p).not.toBeNull();
   });
 });
