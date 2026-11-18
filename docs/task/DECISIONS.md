@@ -192,3 +192,95 @@ One line each, per the master prompt's section 4 discovery and section 11's
   on an archived space still correctly fails), and a manual structural
   comparison against S2's sidebar, which is visible in the background of
   every screenshot. Not a live, pixel-level screenshot of the running app.
+
+## Phase 3 specifics
+
+- **Database gap found and fixed:** Phase 1 auto-seeds a space's five
+  default statuses by trigger, but never seeded a new list's four default
+  views (List, Board, Calendar, Table) the way section 7.0 says ("on create
+  the list opens at /task/l/:listId with its four default views"). Added
+  `tk_seed_default_views()` (migration
+  `20261292000000_task_phase3_lists_and_tasks.sql`), mirroring the
+  statuses trigger exactly. Verified locally that creating a list
+  immediately seeds all four rows.
+- **New dependencies**, both explicitly suggested by the master prompt's
+  own hard rule 12: `chrono-node` for quick create's natural-language
+  dates, and `@tiptap/react` + `@tiptap/starter-kit` +
+  `@tiptap/extension-image` + `@tiptap/extension-task-list` +
+  `@tiptap/extension-task-item` + `@tiptap/extension-placeholder` for the
+  description editor (headings, lists, checkboxes, links, images — not
+  yet @mentions, which is Phase 5). TipTap v3's StarterKit already bundles
+  a configurable Link extension, so it is configured rather than
+  duplicated with a second Link instance.
+- **Toolbar controls that are not functional yet stay off the screen, not
+  disabled on it.** S2's toolbar shows Search tasks, Filter, Group: Status,
+  Sort: Manual order, Me, Show closed. The full filter builder (AND/OR
+  conditions, saved views) is explicitly Phase 4 scope, so "Filter" is not
+  rendered at all this phase — a button that opens nothing is a dead
+  button, which hard rule 3 forbids. Group and Sort render as their exact
+  S2 labels but as static, non-interactive text for now ("all group-by and
+  sort options" is also named as Phase 4 scope); Search, Me and Show
+  closed are fully wired since nothing gates them to a later phase.
+- **Drag is between status groups only, not reordering within one.**
+  Phase 3's own line in the master prompt's phase table says "drag between
+  groups"; "all group-by and sort options" (which is where true manual
+  reordering would belong) is Phase 4's line. Implemented with `@dnd-kit`:
+  each status group is a drop target, each row a draggable; dropping on a
+  different group updates `status_id`. Reordering within a group is left
+  for Phase 4.
+- **Quick-created tasks default to the target list's first status by
+  position**, not no status. Not explicit in the prompt, but a task with
+  no status would never appear in its own list's grouped List view (every
+  group buckets by `status_id`), which would make "create a task from
+  anywhere in under ten seconds" (AC-10) look like it silently failed.
+  Matches what the list page's own inline "+ Add task" row already does
+  for a specific group.
+- **Priority has no true "unset" state.** Section 5's colour table lists a
+  `priority.none` role distinct from `normal`, but `tk_tasks.priority` is
+  `NOT NULL DEFAULT 'normal'` with no fifth enum value (Phase 1 schema,
+  already deployed) — there is no column state that means "no priority
+  set." Rows actually at the default `normal` value render with the
+  outline (unset-looking) flag the spec describes for "none"; urgent,
+  high and low render filled. Not a new column added to work around this
+  now, since changing an already-deployed NOT NULL enum column was never
+  this phase's job to take on.
+- **The task panel is a fixed, full-viewport overlay, not a background
+  route kept mounted underneath it.** A literal reading of "opens as a
+  panel over the current page" suggests keeping the originating page's DOM
+  mounted behind a see-through scrim (the React Router "background
+  location" pattern). That would mean restructuring how `App.tsx`'s single
+  route tree renders for every page that can open a task, which is a much
+  larger, riskier change to shared routing than this phase calls for
+  (hard rule 6). Instead `/task/t/:taskId` renders the same panel
+  full-screen with its own scrim, and Escape/Close call `navigate(-1)`,
+  which returns to wherever the task was opened from in the overwhelming
+  majority of cases (anywhere except a cold direct link, where there is no
+  "current page" to return to anyway).
+- **Caught and fixed during review, not by a failing test:** the
+  description editor's debounced autosave used
+  `useEffect(() => () => flushDescription(), [])` to flush on unmount
+  (AC-13: "a description typed quickly and then navigated away from is
+  saved in full"). That closes over the very first render's
+  `flushDescription`, whose `task` is still `undefined` while the task
+  query is loading, so the unmount cleanup would always see `!task` and
+  silently do nothing — the exact failure AC-13 is testing for. Fixed by
+  keeping the latest `flushDescription` in a ref and calling
+  `ref.current()` from the cleanup instead.
+- **Quick create's assignee field is single-select**, matching section
+  7.8's field list ("assignee", singular) even though a task can carry
+  many assignees (`tk_task_assignees` is a join table). More can be added
+  from the task panel once the task exists.
+- **No automated test for the stale-closure flush fix above** — mounting
+  the full task panel needs mocks for tasks, lists, spaces, statuses,
+  people, comments, activity and watchers together, which is a heavier
+  investment than this fix's residual risk justified once the pattern
+  (ref holds the latest closure; cleanup calls `ref.current()`) was
+  applied; verified by re-reading the fixed code rather than a new test.
+- Verification: `tsc`, `eslint`, a full production build, the existing
+  suite (now 670 tests, including 12 new ones for `formatDue`, `initials`
+  and the natural-language date parser, and an updated Phase 2 regression
+  test now that "+ Add list" is a real control), and the local disposable
+  Postgres instance for the one new trigger. Same standing limitation as
+  Phases 0 to 2: no live Supabase connection was reachable from this
+  session, so this was not checked against a live, pixel-level screenshot
+  (S2 is this phase's only visual reference, for the List view structure).
