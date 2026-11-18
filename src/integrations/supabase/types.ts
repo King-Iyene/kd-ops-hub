@@ -2953,6 +2953,79 @@ export type Database = {
           },
         ]
       }
+      custom_field_people: {
+        Row: {
+          field_id: string
+          person_id: string
+          task_id: string
+        }
+        Insert: {
+          field_id: string
+          person_id: string
+          task_id: string
+        }
+        Update: {
+          field_id?: string
+          person_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_people_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_field_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_field_people_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_field_task_links: {
+        Row: {
+          field_id: string
+          linked_task_id: string
+          task_id: string
+        }
+        Insert: {
+          field_id: string
+          linked_task_id: string
+          task_id: string
+        }
+        Update: {
+          field_id?: string
+          linked_task_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_task_links_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_field_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_field_task_links_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_field_task_links_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_field_values: {
         Row: {
           created_at: string
