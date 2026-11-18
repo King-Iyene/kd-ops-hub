@@ -1539,6 +1539,250 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       }
       break;
     }
+    case 'pond': {
+      const rx = W / 2 - 3, ry = H / 2 - 3;
+      const oval = (px: number, py: number, ax: number, ay: number, fill: string | CanvasGradient) => { ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(px, py, ax, ay, 0, 0, Math.PI * 2); ctx.fill(); };
+      oval(cx, cy + 3, rx + 4, ry + 4, 'rgba(15,23,42,0.18)');
+      oval(cx, cy, rx + 3, ry + 3, '#b7b0a6');
+      oval(cx, cy, rx + 0.5, ry + 0.5, '#78716c');
+      const wg = ctx.createRadialGradient(cx - rx * 0.3, cy - ry * 0.3, 4, cx, cy, rx);
+      wg.addColorStop(0, '#7dd3fc');
+      wg.addColorStop(1, '#0e7490');
+      oval(cx, cy, rx - 2, ry - 2, wg);
+      // slow ripples
+      for (let k = 0; k < 3; k++) {
+        const ph = ((t / 2400 + k / 3 + seed) % 1);
+        ctx.strokeStyle = `rgba(255,255,255,${0.35 * (1 - ph)})`;
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.ellipse(cx + Math.sin(k * 2.3 + seed * 5) * rx * 0.35, cy + Math.cos(k * 1.7) * ry * 0.3, 6 + ph * 26, 3 + ph * 11, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // lily pads and a lotus flower
+      for (const [lx, ly, lr] of [[-0.45, 0.2, 7], [0.1, -0.35, 6], [0.5, 0.28, 8]] as const) {
+        const px2 = cx + lx * rx, py2 = cy + ly * ry;
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.ellipse(px2, py2, lr, lr * 0.6, 0, 0.35, Math.PI * 2 - 0.1);
+        ctx.lineTo(px2, py2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.beginPath(); ctx.ellipse(px2 - 2, py2 - 1.5, lr * 0.45, lr * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      disc(ctx, cx + 0.1 * rx, cy - 0.35 * ry - 2, 3.4, '#f9a8d4');
+      disc(ctx, cx + 0.1 * rx, cy - 0.35 * ry - 2, 1.5, '#fde047');
+      // koi swimming round, each turning to face the way it swims
+      const kois = ['#fb923c', '#f8fafc', '#f59e0b', '#fb7185'];
+      for (let i = 0; i < 4; i++) {
+        const a = t / (2800 + i * 650) + i * 1.9 + seed * 6;
+        const kx = cx + Math.cos(a) * (rx - 18) * (0.55 + i * 0.12);
+        const ky = cy + Math.sin(a) * (ry - 12) * (0.55 + i * 0.1);
+        const head = Math.atan2(Math.cos(a) * (ry - 12) * (0.55 + i * 0.1), -Math.sin(a) * (rx - 18) * (0.55 + i * 0.12));
+        ctx.save();
+        ctx.translate(kx, ky);
+        ctx.rotate(head);
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = kois[i];
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+        const wag = Math.sin(t / 130 + i) * 1.6;
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-10, -2.6 + wag); ctx.lineTo(-10, 2.6 + wag); ctx.closePath(); ctx.fill();
+        if (i % 2 === 0) { ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.ellipse(1, -0.6, 2.4, 1.2, 0, 0, Math.PI * 2); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+      // now and then a fish leaps out of the water
+      const jp = (((t / 1000) + seed * 9) % 7.5) / 1.2;
+      if (jp < 1) {
+        const jx = cx - rx * 0.25 + jp * rx * 0.35;
+        const jy = cy + ry * 0.2;
+        const hgt = Math.sin(Math.PI * jp) * 15;
+        ctx.save();
+        ctx.translate(jx, jy - hgt);
+        ctx.rotate((jp - 0.5) * 2.4);
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-10, -3); ctx.lineTo(-10, 3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff';
+        disc(ctx, 3, -0.6, 0.7, '#111827');
+        ctx.restore();
+        for (const edge of [0.04, 0.96]) {
+          const ph = Math.abs(jp - edge) / 0.18;
+          if (ph < 1) {
+            ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - ph)})`;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.ellipse(jx, jy, 3 + ph * 12, 1.5 + ph * 5, 0, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+      }
+      // reeds at the edge
+      ctx.strokeStyle = '#4d7c0f';
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 6; i++) {
+        const rxp = x + 6 + i * 4 + (i > 2 ? W - 36 : 0);
+        const sway = Math.sin(t / 900 + i) * 2;
+        ctx.beginPath(); ctx.moveTo(rxp, y + H - 8); ctx.quadraticCurveTo(rxp + sway, y + H - 18, rxp + sway * 1.6, y + H - 26 - (i % 3) * 3); ctx.stroke();
+        disc(ctx, rxp + sway * 1.6, y + H - 26 - (i % 3) * 3, 1.5, '#78350f');
+      }
+      break;
+    }
+    case 'waterfall': {
+      softShadow(ctx, x, y, W, H, 6);
+      // the rock face
+      ctx.fillStyle = '#6b6560';
+      rr(ctx, x + 2, y + 2, W - 4, H * 0.66, 9);
+      ctx.fill();
+      for (const [rx2, ry2, rw, rh, rc] of [[0.1, 0.05, 0.34, 0.3, '#857d77'], [0.58, 0.04, 0.3, 0.34, '#7a726c'], [0.04, 0.34, 0.28, 0.26, '#74706a'], [0.7, 0.36, 0.26, 0.24, '#8a827b']] as const) {
+        ctx.fillStyle = rc;
+        rr(ctx, x + W * rx2, y + H * ry2, W * rw, H * rh, 6);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#4d7c0f';
+      for (let i = 0; i < 6; i++) disc(ctx, x + 8 + i * (W - 16) / 5, y + 5 + (i % 2) * 2, 4 + (i % 3), '#4d7c0f');
+      // the falling water
+      const wx0 = x + W * 0.3, ww = W * 0.4;
+      ctx.fillStyle = vgrad(ctx, y + 8, y + H * 0.8, '#e0f2fe', '#7dd3fc');
+      rr(ctx, wx0, y + 8, ww, H * 0.74, 5);
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const sx = wx0 + 4 + (i / 8) * (ww - 8);
+        const ph = ((t / 520 + i * 0.37) % 1);
+        const y1 = y + 10 + ph * (H * 0.6);
+        ctx.strokeStyle = `rgba(255,255,255,${0.9 - ph * 0.3})`;
+        ctx.beginPath(); ctx.moveTo(sx, y1); ctx.lineTo(sx, y1 + 11); ctx.stroke();
+      }
+      // the pool at the bottom, with foam and rising mist
+      const py = y + H * 0.86;
+      ctx.fillStyle = '#0e7490';
+      ctx.beginPath(); ctx.ellipse(cx, py, W * 0.44, H * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath(); ctx.ellipse(cx, py - 1, W * 0.4, H * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 6; k++) {
+        const ph = ((t / 700 + k / 6) % 1);
+        ctx.fillStyle = `rgba(255,255,255,${0.75 * (1 - ph)})`;
+        ctx.beginPath(); ctx.ellipse(cx + (k - 2.5) * 7, py - 2, 5 + ph * 5, 2 + ph * 2, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      for (let k = 0; k < 7; k++) {
+        const ph = ((t / 1600 + k * 0.17) % 1);
+        ctx.fillStyle = `rgba(255,255,255,${0.28 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(cx + (k - 3) * 6 + Math.sin(t / 700 + k) * 3, py - 6 - ph * 22, 4 + ph * 6, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case 'sea': {
+      softShadow(ctx, x, y, W, H, 8);
+      ctx.fillStyle = vgrad(ctx, y, y + H, '#1d9bd1', '#7fd8f0');
+      rr(ctx, x + 1, y + 1, W - 2, H - 2, 10);
+      ctx.fill();
+      ctx.save();
+      rr(ctx, x + 1, y + 1, W - 2, H - 2, 10);
+      ctx.clip();
+      ctx.lineWidth = 1.6;
+      for (let r = 0; r < 5; r++) {
+        ctx.strokeStyle = `rgba(255,255,255,${0.16 + r * 0.05})`;
+        ctx.beginPath();
+        for (let px = x; px <= x + W; px += 6) {
+          const wy = y + 10 + r * (H / 5.5) + Math.sin(px / 15 + t / 520 + r * 1.3) * 2.4;
+          if (px === x) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+        }
+        ctx.stroke();
+      }
+      // foam that rolls up the beach and back
+      const roll = (Math.sin(t / 1400 + seed * 4) + 1) / 2;
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath();
+      ctx.moveTo(x, y + H);
+      for (let px = x; px <= x + W; px += 5) ctx.lineTo(px, y + H - 4 - roll * 5 + Math.sin(px / 8 + t / 400) * 2);
+      ctx.lineTo(x + W, y + H);
+      ctx.closePath();
+      ctx.fill();
+      // sparkles
+      for (let k = 0; k < 9; k++) {
+        const tw = (Math.sin(t / 400 + k * 2.1) + 1) / 2;
+        ctx.fillStyle = `rgba(255,255,255,${0.7 * tw})`;
+        ctx.fillRect(x + ((k * 53 + seed * 97) % (W - 8)) + 3, y + 8 + ((k * 29) % (H - 18)), 2, 2);
+      }
+      ctx.restore();
+      break;
+    }
+    case 'sand': {
+      ctx.fillStyle = vgrad(ctx, y, y + H, '#f4dfae', '#e9c98a');
+      rr(ctx, x + 1, y + 1, W - 2, H - 2, 12);
+      ctx.fill();
+      for (let i = 0; i < 26; i++) {
+        const sx = x + 6 + ((i * 47 + seed * 311) % (W - 12));
+        const sy = y + 6 + ((i * 31 + seed * 173) % (H - 12));
+        ctx.fillStyle = i % 3 ? 'rgba(180,140,80,0.35)' : 'rgba(255,255,255,0.45)';
+        ctx.fillRect(sx, sy, 1.6, 1.6);
+      }
+      // a shell and a starfish
+      const sx2 = x + W * 0.28, sy2 = y + H * 0.58;
+      ctx.fillStyle = '#fbcfe8';
+      ctx.beginPath(); ctx.arc(sx2, sy2, 4.2, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 0.8;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(sx2, sy2); ctx.lineTo(sx2 + k * 1.7, sy2 - 4.2); ctx.stroke(); }
+      const tx = x + W * 0.7, ty = y + H * 0.4;
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const rad = k % 2 ? 2.3 : 5.2; const an = -Math.PI / 2 + (k * Math.PI) / 5; ctx.lineTo(tx + Math.cos(an) * rad, ty + Math.sin(an) * rad); }
+      ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'flowerbed': {
+      ctx.fillStyle = '#6b4423';
+      rr(ctx, x + 1, y + H * 0.45, W - 2, H * 0.5, 6);
+      ctx.fill();
+      ctx.fillStyle = '#7c5a36';
+      rr(ctx, x + 3, y + H * 0.5, W - 6, 4, 2);
+      ctx.fill();
+      const heads = ['#f43f5e', '#fbbf24', '#a855f7', '#fb923c', '#f9a8d4', '#38bdf8', '#fde047', '#ef4444', '#c084fc'];
+      for (let i = 0; i < 9; i++) {
+        const fx2 = x + 7 + i * ((W - 14) / 8);
+        const sway = Math.sin(t / 750 + i * 1.3 + seed * 5) * 1.6;
+        const top = y + 6 + (i % 3) * 3;
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(fx2, y + H * 0.7); ctx.quadraticCurveTo(fx2 + sway * 0.5, (y + H * 0.7 + top) / 2, fx2 + sway, top + 3); ctx.stroke();
+        ctx.fillStyle = heads[i % heads.length];
+        for (let p = 0; p < 5; p++) { const an = (p / 5) * Math.PI * 2; disc(ctx, fx2 + sway + Math.cos(an) * 2.6, top + Math.sin(an) * 2.6, 2.1, heads[i % heads.length]); }
+        disc(ctx, fx2 + sway, top, 1.6, '#fde68a');
+      }
+      break;
+    }
+    case 'rocks': {
+      ellipse(ctx, cx, y + H - 6, 14, 5, 'rgba(15,23,42,0.22)');
+      ellipse(ctx, cx - 5, cy + 5, 9, 7, '#78716c');
+      ellipse(ctx, cx + 6, cy + 7, 7, 5.5, '#8a847d');
+      ellipse(ctx, cx + 1, cy, 7, 6, '#a29c95');
+      ellipse(ctx, cx - 1, cy - 2, 3.4, 2, 'rgba(255,255,255,0.3)');
+      ctx.fillStyle = '#4d7c0f';
+      disc(ctx, cx - 9, cy + 9, 2, '#4d7c0f');
+      break;
+    }
+    case 'birdbath': {
+      ellipse(ctx, cx, y + H - 5, 11, 4, 'rgba(15,23,42,0.2)');
+      ctx.fillStyle = '#a8a29e';
+      rr(ctx, cx - 4, cy, 8, 15, 3);
+      ctx.fill();
+      ellipse(ctx, cx, cy - 1, 13, 6, '#d6d3d1');
+      ellipse(ctx, cx, cy - 2, 11, 4.6, '#7dd3fc');
+      const ph = ((t / 1500 + seed) % 1);
+      ctx.strokeStyle = `rgba(255,255,255,${0.6 * (1 - ph)})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(cx + 2, cy - 2, 2 + ph * 8, 1 + ph * 3, 0, 0, Math.PI * 2); ctx.stroke();
+      // a small bird that hops on and off the rim
+      const hop = Math.max(0, Math.sin(t / 900 + seed * 7));
+      if (hop > 0.05) {
+        const bx = cx - 9, by = cy - 8 - hop * 3;
+        ellipse(ctx, bx, by, 4, 3, '#78716c');
+        disc(ctx, bx + 3.2, by - 1.6, 2, '#78716c');
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath(); ctx.moveTo(bx + 5, by - 1.6); ctx.lineTo(bx + 7.4, by - 1); ctx.lineTo(bx + 5, by - 0.4); ctx.fill();
+      }
+      break;
+    }
     // --- furniture and decor ---
     case 'stool': {
       ellipse(ctx, cx, y + 31, 10, 4, 'rgba(15,23,42,0.2)');
@@ -1845,7 +2089,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
 export function depth(item: Item): number {
   if (item.t === 'dog' || item.t === 'cat') { const live = officePets.get(item.id); if (live) return live.y + 0.4; }
   const { h } = itemSize(item);
-  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat') return -100 + item.y;
+  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat' || item.t === 'sand') return -100 + item.y;
   if (TOP.includes(item.t)) return item.y + 1.2; // always on top of the desk it sits on
   return item.y + h;
 }

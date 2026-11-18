@@ -5,7 +5,8 @@ export type ItemType =
   | 'flowers' | 'tree' | 'grass' | 'papers' | 'mug' | 'tv' | 'printer' | 'cooler' | 'beanbag' | 'coffeetable'
   | 'laptop' | 'books' | 'plate' | 'globe' | 'trophy' | 'headphones' | 'pizza' | 'mat' | 'balloons' | 'cactus' | 'bamboo'
   | 'hedge' | 'fountain' | 'palm' | 'bench' | 'piano' | 'fireplace' | 'fishtank' | 'speaker' | 'stool' | 'roundtable'
-  | 'frame' | 'vending' | 'dog' | 'cat' | 'wallclock' | 'valueswall' | 'noticeboard' | 'bike';
+  | 'frame' | 'vending' | 'dog' | 'cat' | 'wallclock' | 'valueswall' | 'noticeboard' | 'bike'
+  | 'pond' | 'waterfall' | 'sea' | 'sand' | 'flowerbed' | 'rocks' | 'birdbath';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */
 export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3; /** paint colour: an index into ITEM_COLORS (none = the original look) */ c?: number }
