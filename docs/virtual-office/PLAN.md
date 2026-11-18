@@ -180,3 +180,25 @@ Gather parity would be 6 to 12 months. 3D adds roughly 2 to 4 months and needs 3
 - DigitalOcean (not planned): https://digitalocean.com/pricing
 
 *Keep this file updated as decisions change. Check boxes in section 5 as stages are finished.*
+
+---
+
+## 10. What we learned from the real Gather (KD Squares Ltd space, November 2026)
+
+**Layout of their app**
+- Map in the middle; a bottom bar with a profile card at the left (name, status, edit), then mic, camera, share screen, record, emoji; at the right: calendar, chat, participants. A "Meeting view" switch at the top (video grid of everyone in the call).
+- Right panel: search, "your desk" row (edit, lock, copy link), online people, and a collapsed list of **offline members**.
+- Profile menu: status (Available, Busy, Do Not Disturb with the note "no one will be able to reach you"), custom status text, Edit character, Edit profile, **Walk to my desk (Ctrl+D)**, **Send me to lobby**, sign out.
+- A visitor prompt when someone comes to your desk: "Send to lobby / Meet at my location", **Deny** or **Admit & Meet**.
+
+**Their map (what the HQ should look like)**
+- One big wooden-floor building inside a grass garden with water at the edges and a bridge.
+- A **private desk room for every person** along the top, each with a name plate sign, a desk, a computer and a plant.
+- A conference room (big table with chairs), an auditorium (rows of seats and a stage/podium with the logo), a reception/foyer with logo signs and a red gate, meeting nooks, lounge corners with rugs, bookshelves, a fountain with palm trees and benches.
+
+**To build next (in this order, after the core calls are verified)**
+1. Statuses Busy and Do Not Disturb (Do Not Disturb blocks rings, knocks and messages), Walk to my desk, Send me to lobby.
+2. Company offices visible only to that company's members (and admins) through database rules.
+3. A KD Squares HQ map generated per company, with one named desk room per member, garden, conference room, auditorium and reception.
+4. Offline members list, visitor "Admit & Meet" prompt, meeting view (video grid).
+5. Relay (TURN) server so calls work on strict or mobile networks.
