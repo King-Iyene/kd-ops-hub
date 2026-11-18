@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { OfficeCanvas } from './OfficeCanvas';
 import { EditorPanel, type EditTool } from './EditorPanel';
 import { RoomNameDialog, type RoomOverride } from './RoomNameDialog';
+import { OfficeSettingsDialog } from './OfficeSettingsDialog';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
@@ -143,12 +144,14 @@ export default function OfficePage() {
   });
 
   // ---- editing furniture ----
-  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin);
+  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (space.layout?.settings?.builders ?? []).includes(profile?.id ?? ''));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
   const [color, setColor] = useState<number | undefined>(undefined);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [nameZone, setNameZone] = useState<{ id: string; name: string; kind: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const items = editing ? draft : savedItems;
@@ -198,6 +201,12 @@ export default function OfficePage() {
     setSaving(true);
     try {
       // keep following the template's furniture unless it was really changed
+      const limit = space.layout?.settings?.maxItems;
+      if (!isAdmin && limit && draft.length > limit) {
+        toast({ title: `Too much furniture (${draft.length} of ${limit} allowed)`, description: 'Remove a few things or ask an admin to raise the limit.', variant: 'destructive' });
+        setSaving(false);
+        return;
+      }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
       await actions.saveLayout(space, template, changed ? draft : undefined, overrides);
       toast({ title: 'Office saved' });
@@ -228,7 +237,8 @@ export default function OfficePage() {
   };
 
   // ---- recording (only designated people; the whole room is told) ----
-  const canRecord = isAdmin; // only admins and super admins record (the database enforces it too)
+  // admins record, plus anyone an admin added under Office settings (the database enforces the same rule)
+  const canRecord = isAdmin || (space?.layout?.settings?.recorders ?? []).includes(profile?.id ?? '');
   const meetingRoom = zone && isRoom(zone) ? { id: zone.id, name: zone.name } : null;
   const recorder = useRecorder({
     meId: me?.id ?? null,
@@ -682,7 +692,7 @@ export default function OfficePage() {
 
         <div
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
-          onWheel={(e) => { if ((e.ctrlKey || e.metaKey) && !editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
+          onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
         >
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
@@ -718,7 +728,7 @@ export default function OfficePage() {
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   bright={bright} onToggleBright={toggleBright} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
-                  canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)}
+                  canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
                   isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
                 />
               )}
@@ -757,6 +767,14 @@ export default function OfficePage() {
           </div>
         </DialogContent>
       </Dialog>
+      <OfficeSettingsDialog
+        open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={space?.layout?.settings ?? {}} directory={directory ?? []} saving={savingSettings}
+        onSave={async (st) => {
+          if (!space) return;
+          setSavingSettings(true);
+          try { await actions.saveSettings(space, st); toast({ title: 'Settings saved' }); setSettingsOpen(false); } catch (err) { toast({ title: 'Could not save', description: errorMessage(err), variant: 'destructive' }); } finally { setSavingSettings(false); }
+        }}
+      />
       <RoomNameDialog
         zone={nameZone} directory={directory ?? []} current={nameZone ? overrides[nameZone.id] : undefined} onClose={() => setNameZone(null)}
         onSave={(o) => { if (nameZone) setOverrides((cur) => { const next = { ...cur }; if (o) next[nameZone.id] = o; else delete next[nameZone.id]; return next; }); setNameZone(null); }}

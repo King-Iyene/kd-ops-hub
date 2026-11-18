@@ -21,7 +21,7 @@ function Thumb({ type, color }: { type: ItemType; color?: number }) {
     c.height = 56 * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, 64, 56);
-    const { w, h } = itemSize({ id: 'thumb', t: type, x: 0, y: 0, r: 0 });
+    const { w, h } = itemSize({ t: type, r: 0 });
     const k = Math.min(56 / (w * TILE), 48 / (h * TILE), 1.3);
     ctx.save();
     ctx.translate((64 - w * TILE * k) / 2, (56 - h * TILE * k) / 2);
