@@ -19,7 +19,10 @@ export interface ItemDef {
   label: string;
 }
 
-export type ZoneKind = 'meeting' | 'lounge' | 'area' | 'portal';
+export type ZoneKind = 'meeting' | 'lounge' | 'area' | 'portal' | 'office';
+
+/** What the ground looks like: wood planks, grass, stone paving, grey carpet, lavender carpet. */
+export type FloorKind = 'wood' | 'grass' | 'stone' | 'gray' | 'carpet';
 
 /** A named rectangle of the floor: a meeting room, the lounge, or a doorway into another space. */
 export interface Zone {
@@ -32,11 +35,17 @@ export interface Zone {
   h: number;
   /** portals only: 'team' = this person's company office, 'mine' = the person's own office */
   target?: 'team' | 'mine';
+  /** the ground inside this rectangle (the last zone listed wins where they overlap) */
+  floor?: FloorKind;
+  /** a name plate drawn on the wall above a private office */
+  sign?: { name: string; avatar?: AvatarStyle };
 }
 
 export interface MapDef {
   w: number;
   h: number;
+  /** 'hq' draws brick walls and no sky windows */
+  style?: 'office' | 'hq';
   /** walls[y][x] is true for a wall tile */
   walls: boolean[][];
   zones: Zone[];

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
+import { isRoom, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -195,7 +195,7 @@ export function OfficeCanvas(props: Props) {
         const np = advance(solid, me.x, me.y, me.sx, me.sy, dt);
         // a locked meeting room is a closed door: stay where we are (the page knocks for us)
         const nz = zoneAt(p.map, np.x, np.y);
-        if (nz && nz.kind === 'meeting' && !p.canEnter(nz.id)) {
+        if (nz && isRoom(nz) && !p.canEnter(nz.id)) {
           const cz = zoneAt(p.map, me.x, me.y);
           if (!cz || cz.id !== nz.id) {
             np.x = me.x;

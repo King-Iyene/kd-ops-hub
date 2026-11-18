@@ -130,13 +130,59 @@ function pal(dark: boolean) {
 export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
   const c = pal(theme.dark);
   const zoneAt = (x: number, y: number) => map.zones.find((z) => z.kind !== 'area' && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h);
+  /** the ground here: the last zone with a floor that contains the tile */
+  const floorOf = (x: number, y: number) => {
+    let f: string | undefined;
+    for (const z of map.zones) if (z.floor && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) f = z.floor;
+    return f;
+  };
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       if (map.walls[y][x]) continue;
       const px = x * TILE;
       const py = y * TILE;
       const z = zoneAt(x, y);
-      if (z?.kind === 'lounge') {
+      const ff = floorOf(x, y);
+      if (ff === 'grass') {
+        ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#2b6b3b' : '#63c174') : (theme.dark ? '#276235' : '#58b86a');
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.strokeStyle = theme.dark ? '#1f4f2b' : '#3f9d55';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 7; i++) {
+          const gx = px + h2(x * 11 + i, y) * (TILE - 3) + 1;
+          const gy = py + h2(x, y * 11 + i) * (TILE - 6) + 5;
+          ctx.beginPath();
+          ctx.moveTo(gx, gy);
+          ctx.lineTo(gx + (h2(i, x + y) - 0.5) * 2 + Math.sin(t / 1100 + gx) * 0.6, gy - 3.5);
+          ctx.stroke();
+        }
+        if (h2(x * 3 + 1, y * 7 + 2) > 0.93) {
+          const fx = px + 6 + h2(x, y) * 22;
+          const fy = py + 6 + h2(y, x) * 22;
+          disc(ctx, fx, fy, 2, ['#f9a8d4', '#fde047', '#ffffff', '#c4b5fd'][Math.floor(h2(x + 5, y + 9) * 4)]);
+          disc(ctx, fx, fy, 0.8, '#f59e0b');
+        }
+      } else if (ff === 'stone') {
+        ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#4a5160' : '#cfd3d9') : (theme.dark ? '#444b59' : '#c4c9d0');
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.fillRect(px, py + TILE - 1, TILE, 1);
+        ctx.fillRect(px + TILE - 1, py, 1, TILE);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(px, py, TILE, 1);
+      } else if (ff === 'gray') {
+        ctx.fillStyle = theme.dark ? '#3a4252' : '#aeb6c1';
+        ctx.fillRect(px, py, TILE, TILE);
+        for (let i = 0; i < 14; i++) {
+          ctx.fillStyle = h2(x * 5 + i, y * 3) > 0.5 ? (theme.dark ? '#2f3644' : '#9aa3b0') : (theme.dark ? '#485064' : '#c3cad4');
+          ctx.fillRect(px + h2(x * 9 + i, y) * (TILE - 2), py + h2(x, y * 9 + i) * (TILE - 2), 2, 2);
+        }
+      } else if (ff === 'carpet' || z?.kind === 'meeting') {
+        ctx.fillStyle = c.carpet;
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = c.carpetDot;
+        for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y) * (TILE - 2), py + h2(x, y * 7 + i) * (TILE - 2), 2, 2);
+      } else if (z?.kind === 'lounge') {
         // wooden planks, each a slightly different shade, seams staggered row by row
         for (let r = 0; r < 3; r++) {
           const off = ((x + y + r) % 2) * 0.5;
@@ -146,15 +192,21 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
           ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
           ctx.fillRect(px + TILE * off + 6, py + r * 12, 1, 11);
         }
-      } else if (z?.kind === 'meeting') {
-        // carpet with a woven speckle
-        ctx.fillStyle = c.carpet;
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = c.carpetDot;
-        for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y) * (TILE - 2), py + h2(x, y * 7 + i) * (TILE - 2), 2, 2);
       } else if (z?.kind === 'portal') {
         ctx.fillStyle = theme.dark ? '#16503d' : '#bbf7d0';
         ctx.fillRect(px, py, TILE, TILE);
+      } else if (ff === 'wood') {
+        // the headquarters floor: warm wide planks, seams staggered row by row
+        for (let r = 0; r < 3; r++) {
+          const off = ((x * 2 + y + r) % 3) / 3;
+          ctx.fillStyle = h2(x * 3 + r, y + 40) > 0.5 ? (theme.dark ? '#6b4528' : '#cf8f50') : (theme.dark ? '#5f3d22' : '#c28145');
+          ctx.fillRect(px, py + r * 12, TILE, 12);
+          ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.3)' : 'rgba(90,50,20,0.35)';
+          ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
+          ctx.fillRect(px + TILE * off + 4, py + r * 12, 1, 11);
+          ctx.fillStyle = 'rgba(255,255,255,0.07)';
+          ctx.fillRect(px, py + r * 12, TILE, 1);
+        }
       } else {
         // polished tile with a soft highlight and fine grout
         ctx.fillStyle = (x + y) % 2 === 0 ? c.floorA : c.floorB;
@@ -197,7 +249,10 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
 }
 
 export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
-  const c = pal(theme.dark);
+  const hq = map.style === 'hq';
+  const c = hq
+    ? { ...pal(theme.dark), ...(theme.dark ? { wallCap: '#6b4a33', wallFront: '#4a2e1a', wallBase: '#2f1c0f' } : { wallCap: '#a4714b', wallFront: '#7a4a2a', wallBase: '#4f2f19' }) }
+    : pal(theme.dark);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       if (!map.walls[y][x]) continue;
@@ -220,8 +275,26 @@ export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
         ctx.fillRect(px, py, TILE, 1);
         ctx.fillStyle = c.wallBase;
         ctx.fillRect(px, py + TILE - 5, TILE, 5);
+        if (hq) {
+          // brick courses with staggered joints
+          ctx.strokeStyle = 'rgba(0,0,0,0.24)';
+          ctx.lineWidth = 1;
+          for (let r = 1; r < 5; r++) {
+            const yy = py + 6 + r * 5;
+            ctx.beginPath();
+            ctx.moveTo(px, yy);
+            ctx.lineTo(px + TILE, yy);
+            ctx.stroke();
+            for (let bx = (r % 2) * 9 + 4; bx < TILE; bx += 18) {
+              ctx.beginPath();
+              ctx.moveTo(px + bx, yy - 5);
+              ctx.lineTo(px + bx, yy);
+              ctx.stroke();
+            }
+          }
+        }
         // windows along the outer top wall
-        if (y === 0 && x % 4 !== 0 && x < map.w - 1) {
+        if (!hq && y === 0 && x % 4 !== 0 && x < map.w - 1) {
           const gx = px + 3;
           const gy = py + 9;
           ctx.fillStyle = c.frame;
@@ -259,12 +332,55 @@ function ellipseFill(ctx: Ctx, x: number, y: number, rx: number, ry: number) {
   ctx.fill();
 }
 
+/** A name plate on the wall above a private office, with the owner's face. */
+function drawPlaque(ctx: Ctx, z: Zone, theme: Theme) {
+  const s = z.sign;
+  if (!s) return;
+  const x = z.x * TILE + 3;
+  const y = (z.y - 1) * TILE + 7;
+  const w = z.w * TILE - 6;
+  const hh = 22;
+  ctx.fillStyle = 'rgba(15,23,42,0.3)';
+  rr(ctx, x + 1, y + 2, w, hh, 4);
+  ctx.fill();
+  ctx.fillStyle = theme.dark ? '#d9cdb0' : '#f3ead3';
+  rr(ctx, x, y, w, hh, 4);
+  ctx.fill();
+  ctx.strokeStyle = '#7a4a22';
+  ctx.lineWidth = 2;
+  rr(ctx, x + 1, y + 1, w - 2, hh - 2, 3);
+  ctx.stroke();
+  ctx.font = '800 10px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#4a2c12';
+  let text = s.name.toUpperCase();
+  const room = w - (s.avatar ? 34 : 14);
+  while (text.length > 3 && ctx.measureText(text).width > room) text = text.slice(0, -2);
+  if (text !== s.name.toUpperCase()) text += '…';
+  ctx.fillText(text, x + (s.avatar ? 27 : 8), y + hh / 2 + 0.5);
+  if (s.avatar) {
+    ctx.save();
+    ctx.translate(x + 5.5, y + hh / 2 - 8.5);
+    ctx.beginPath();
+    ctx.arc(8.5, 8.5, 8.5, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(148,163,184,0.5)';
+    ctx.fillRect(0, 0, 17, 17);
+    const k = 17 / 27;
+    ctx.scale(k, k);
+    try { drawPerson(ctx, { x: 13.5 / TILE, y: (14.5 + 17) / TILE, dir: 0, moving: false, name: '', avatar: s.avatar, isMe: false }, 0, theme); } catch { /* the plate stays plain */ }
+    ctx.restore();
+  }
+}
+
 export function drawZoneLabels(ctx: Ctx, zones: Zone[], theme: Theme) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '600 12px system-ui, sans-serif';
   for (const z of zones) {
-    if (z.kind === 'area') continue;
+    if (z.sign) { drawPlaque(ctx, z, theme); ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, sans-serif'; continue; }
+    if (z.kind === 'area' || z.kind === 'office') continue;
     const cx = (z.x + z.w / 2) * TILE;
     const cy = (z.y + 0.5) * TILE + (z.kind === 'portal' ? 0 : 6);
     const w = ctx.measureText(z.name).width + 18;

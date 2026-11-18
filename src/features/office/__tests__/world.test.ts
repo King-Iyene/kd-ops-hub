@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advance, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
-import { buildPersonalOffice, buildTeamOffice } from '../world/templates';
+import { advance, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, isRoom, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
+import { buildHQ, buildPersonalOffice, buildTeamOffice } from '../world/templates';
 import type { Item } from '../world/types';
 
 describe('templates are playable', () => {
@@ -262,5 +262,38 @@ describe('default avatars', () => {
         expect([0, 1, 2, 3]).toContain(a.accessory);
       }
     }
+  });
+});
+
+describe('headquarters', () => {
+  const people = [{ name: 'Ada L.' }, { name: 'Kelvin J.' }];
+  const m = buildHQ(people);
+  it('has nine private offices with name plates, three meeting rooms, a boardroom and an auditorium', () => {
+    expect(m.zones.filter((z) => z.kind === 'office')).toHaveLength(9);
+    expect(m.zones.find((z) => z.id === 'office-1')?.sign?.name).toBe('Ada L.');
+    expect(m.zones.find((z) => z.id === 'office-9')?.sign?.name).toBe('Free office');
+    expect(m.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)).toEqual(expect.arrayContaining(['meeting-1', 'meeting-2', 'meeting-3', 'boardroom', 'auditorium']));
+  });
+  it('every piece of furniture can really be placed where it is, in order', () => {
+    const placed: Item[] = [];
+    const bad: string[] = [];
+    for (const item of m.items) {
+      const r = canPlace(m, placed, item);
+      if (!r.ok) bad.push(item.t + ' at ' + item.x + ',' + item.y + ': ' + ('reason' in r ? r.reason : ''));
+      placed.push(item);
+    }
+    expect(bad).toEqual([]);
+  });
+  it('the entrance, every private office and every room can be walked to from where you arrive', () => {
+    const seen = reachable(buildSolid(m, m.items), m.spawn.x, m.spawn.y);
+    for (const z of m.zones.filter((q) => q.kind !== 'area')) {
+      let any = false;
+      for (let y = z.y; y < z.y + z.h && !any; y++) for (let x = z.x; x < z.x + z.w && !any; x++) if (seen.has(x + ',' + y)) any = true;
+      expect(any, z.name).toBe(true);
+    }
+  });
+  it('the private offices count as private rooms', () => {
+    expect(isRoom(zoneAt(m, 5.5, 5.5))).toBe(true);
+    expect(isRoom(zoneAt(m, 20.5, 20.5))).toBe(false);
   });
 });

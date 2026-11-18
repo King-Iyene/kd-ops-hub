@@ -150,8 +150,13 @@ export function zoneAt(map: MapDef, x: number, y: number): Zone | null {
   const cy = Math.floor(y);
   const hits = map.zones.filter((z) => cx >= z.x && cx < z.x + z.w && cy >= z.y && cy < z.y + z.h);
   if (hits.length === 0) return null;
-  const rank: Record<Zone['kind'], number> = { portal: 0, meeting: 1, lounge: 2, area: 3 };
+  const rank: Record<Zone['kind'], number> = { portal: 0, meeting: 1, office: 1, lounge: 2, area: 3 };
   return hits.sort((a, b) => rank[a.kind] - rank[b.kind])[0];
+}
+
+/** A private room: a meeting room or someone's office (voice stays inside, it can be locked). */
+export function isRoom(z: Zone | null | undefined): boolean {
+  return !!z && (z.kind === 'meeting' || z.kind === 'office');
 }
 
 /** Tiles reachable on foot from a start tile (4-directional, one tile wide is enough to pass). */

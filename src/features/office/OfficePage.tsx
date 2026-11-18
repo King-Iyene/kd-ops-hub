@@ -24,7 +24,7 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { ensurePersonalOffice, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { canPlace, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
 import type { Item, Zone } from './world/types';
 
@@ -33,6 +33,10 @@ export default function OfficePage() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
+  const { data: directory } = useDirectory();
+  // the leaders (admins) get a named private office with their avatar on the plate
+  const leaders = useMemo(() => (directory ?? []).filter((p) => p.role === 'admin' || p.role === 'super_admin').slice(0, 9).map((p) => ({ name: p.name, avatar: p.avatar })), [directory]);
+  const leadersKey = leaders.map((l) => `${l.name}:${JSON.stringify(l.avatar)}`).join('|');
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
 
@@ -78,7 +82,9 @@ export default function OfficePage() {
   useEffect(() => { if (space?.kind === 'team') lastTeam.current = space.id; }, [space]);
 
   const template: TemplateName = space ? (space.layout?.template ?? space.kind) : 'team';
-  const map = useMemo(() => buildTemplate(template), [template]);
+  // the shared office is the headquarters; the older plain layouts stay available
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const map = useMemo(() => buildTemplate(template === 'team' ? 'hq' : template, leaders), [template, leadersKey]);
   const savedItems = useMemo(
     () => (space && Array.isArray(space.layout?.items) ? sanitizeItems(map, space.layout.items) : map.items),
     [space, map],
@@ -87,7 +93,7 @@ export default function OfficePage() {
   const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
-  const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
+  const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
   const roomRef = useRef<string | null>(null);
   /** the meeting room I have locked, if any */
   const myLockRoom = useRef<string | null>(null);
@@ -106,7 +112,7 @@ export default function OfficePage() {
       const y = pm.y + pm.vy * dt;
       // which meeting room they are in comes from where they stand, so privacy never depends on the online list
       const z = zoneAt(map, x, y);
-      return { x, y, room: z && z.kind === 'meeting' ? z.id : null };
+      return { x, y, room: z && isRoom(z) ? z.id : null };
     },
     self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current }),
     send: sendRtc,
@@ -179,7 +185,7 @@ export default function OfficePage() {
   const [zone, setZone] = useState<Zone | null>(null);
   const onZone = (z: Zone | null) => {
     setZone(z);
-    roomRef.current = z && z.kind === 'meeting' ? z.id : null;
+    roomRef.current = z && isRoom(z) ? z.id : null;
     // a lock only lasts while its holder stands in that room
     if (myLockRoom.current && roomRef.current !== myLockRoom.current) { setLocked(false); myLockRoom.current = null; }
     announce(z && z.kind !== 'portal' ? z.id : null);
@@ -191,7 +197,7 @@ export default function OfficePage() {
 
   // ---- recording (only designated people; the whole room is told) ----
   const canRecord = isAdmin; // only admins and super admins record (the database enforces it too)
-  const meetingRoom = zone && zone.kind === 'meeting' ? { id: zone.id, name: zone.name } : null;
+  const meetingRoom = zone && isRoom(zone) ? { id: zone.id, name: zone.name } : null;
   const recorder = useRecorder({
     meId: me?.id ?? null,
     spaceId: space?.id ?? null,
@@ -326,7 +332,8 @@ export default function OfficePage() {
   }, [setDoorHandler]);
 
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
-  const teamMap = useMemo(() => buildTemplate('team'), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const teamMap = useMemo(() => buildTemplate('hq', leaders), [leadersKey]);
   const [query, setQuery] = useState('');
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
@@ -494,7 +501,6 @@ export default function OfficePage() {
   const [meeting, setMeeting] = useState(false);
   const [traySize, setTraySize] = useState<0 | 1 | 2>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 ? v : 1; } catch { return 1; } });
   const chooseTray = (n: 0 | 1 | 2) => { setTraySize(n); try { localStorage.setItem('kd:office:tray', String(n)); } catch { /* fine */ } };
-  const { data: directory } = useDirectory();
   // a window that is not the newest one for this account hangs up (so there is never a second copy of me)
   useEffect(() => { if (superseded && calls.joined) calls.leave(); }, [superseded, calls.joined]); // eslint-disable-line react-hooks/exhaustive-deps
   // the update prompt must not reload the page while I am in a call or recording
@@ -674,7 +680,7 @@ export default function OfficePage() {
           {!editing && (
             <CallDock
               joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} meName={me.name} traySize={traySize} tiles={calls.tiles}
-              roomName={zone && zone.kind === 'meeting' ? zone.name : null}
+              roomName={zone && isRoom(zone) ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
