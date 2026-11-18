@@ -27,10 +27,23 @@ interface Conn {
   stream: MediaStream;
   audio: HTMLAudioElement;
   videoSender: RTCRtpSender | null;
+  /** their shared screen arrives in its own stream; `primary` is the id of their microphone/camera stream */
+  primary: string | null;
+  screen: MediaStream;
+  screenSender: RTCRtpSender | null;
   pending: RTCIceCandidateInit[];
 }
 
+interface LocalMedia {
+  stream: MediaStream | null;
+  audio: MediaStreamTrack | null;
+  video: MediaStreamTrack | null;
+  screen: { stream: MediaStream; track: MediaStreamTrack } | null;
+}
+
 export interface Tile {
+  /** a shared screen rather than a camera (shown larger) */
+  screen?: boolean;
   id: string;
   name: string;
   stream: MediaStream;
@@ -63,7 +76,8 @@ export function useCalls(opts: Opts) {
   const o = useRef(opts);
   o.current = opts;
   const conns = useRef(new Map<string, Conn>());
-  const local = useRef<{ stream: MediaStream | null; audio: MediaStreamTrack | null; video: MediaStreamTrack | null }>({ stream: null, audio: null, video: null });
+  const local = useRef<LocalMedia>({ stream: null, audio: null, video: null, screen: null });
+  const [sharing, setSharing] = useState(false);
   const joinedRef = useRef(false);
   const mutedRef = useRef(mutedPeers);
   mutedRef.current = mutedPeers;
@@ -91,7 +105,7 @@ export function useCalls(opts: Opts) {
     const audio = new Audio();
     audio.autoplay = true;
     audio.srcObject = stream;
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, pending: [] };
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, pending: [] };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -110,10 +124,14 @@ export function useCalls(opts: Opts) {
     };
     pc.ontrack = (e) => {
       const t = e.track;
-      if (!stream.getTracks().includes(t)) stream.addTrack(t);
+      const sid = e.streams[0]?.id ?? null;
+      // the microphone always arrives first and names the main stream; a video from any other stream is a shared screen
+      if (t.kind === 'audio' && !c.primary) c.primary = sid;
+      const target = t.kind === 'video' && c.primary && sid && sid !== c.primary ? c.screen : stream;
+      if (!target.getTracks().includes(t)) target.addTrack(t);
       t.onmute = bump;
       t.onunmute = bump;
-      t.onended = () => { stream.removeTrack(t); bump(); };
+      t.onended = () => { target.removeTrack(t); bump(); };
       bump();
     };
     pc.onconnectionstatechange = () => {
@@ -123,6 +141,7 @@ export function useCalls(opts: Opts) {
     const l = local.current;
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
     if (l.stream && l.video) c.videoSender = pc.addTrack(l.video, l.stream);
+    if (l.screen) c.screenSender = pc.addTrack(l.screen.track, l.screen.stream);
     bump();
     return c;
   }, [bump, close]);
@@ -203,7 +222,9 @@ export function useCalls(opts: Opts) {
   const stopLocal = useCallback(() => {
     local.current.audio?.stop();
     local.current.video?.stop();
-    local.current = { stream: null, audio: null, video: null };
+    local.current.screen?.track.stop();
+    local.current = { stream: null, audio: null, video: null, screen: null };
+    setSharing(false);
   }, []);
 
   const join = useCallback(async () => {
@@ -212,7 +233,7 @@ export function useCalls(opts: Opts) {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      local.current = { stream, audio: stream.getAudioTracks()[0] ?? null, video: null };
+      local.current = { stream, audio: stream.getAudioTracks()[0] ?? null, video: null, screen: null };
       joinedRef.current = true;
       setJoined(true);
       setMicOn(true);
@@ -272,6 +293,37 @@ export function useCalls(opts: Opts) {
     }
   }, []);
 
+  const stopShare = useCallback(() => {
+    const s = local.current.screen;
+    if (!s) return;
+    local.current.screen = null;
+    s.track.onended = null;
+    s.track.stop();
+    for (const c of conns.current.values()) {
+      if (c.screenSender) { try { c.pc.removeTrack(c.screenSender); } catch { /* already gone */ } c.screenSender = null; }
+    }
+    setSharing(false);
+  }, []);
+
+  /** Share my screen, a window or a browser tab with everyone I am talking to. */
+  const toggleShare = useCallback(async () => {
+    if (local.current.screen) { stopShare(); return; }
+    if (!local.current.stream || !navigator.mediaDevices?.getDisplayMedia) { setError('This browser cannot share the screen.'); return; }
+    try {
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+      const track = display.getVideoTracks()[0];
+      if (!track) return;
+      const stream = new MediaStream([track]);
+      local.current.screen = { stream, track };
+      track.onended = stopShare; // the browser's own "Stop sharing" button
+      for (const c of conns.current.values()) c.screenSender = c.pc.addTrack(track, stream);
+      setSharing(true);
+      setError(null);
+    } catch (e) {
+      if ((e as DOMException)?.name !== 'NotAllowedError') setError('Could not start screen sharing.');
+    }
+  }, [stopShare]);
+
   const toggleMutePeer = useCallback((id: string) => {
     setMutedPeers((prev) => {
       const next = new Set(prev);
@@ -290,6 +342,11 @@ export function useCalls(opts: Opts) {
       hasVideo: !!v && !v.muted && v.readyState === 'live',
       muted: mutedPeers.has(id),
     });
+    const sv = c.screen.getVideoTracks()[0];
+    if (sv && !sv.muted && sv.readyState === 'live') {
+      const who = opts.roster.find((r) => r.id === id)?.name ?? 'Someone';
+      tiles.unshift({ id: `${id}:screen`, name: `${who}'s screen`, stream: c.screen, hasVideo: true, muted: false, screen: true });
+    }
   }
   const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -302,5 +359,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleMutePeer, audioStreams };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
 }

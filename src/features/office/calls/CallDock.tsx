@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Circle, DoorOpen, Headphones, Lock, LockOpen, Mic, MicOff, PhoneOff, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
+import { Circle, DoorOpen, Headphones, Lock, LockOpen, Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Tile } from './useCalls';
 
@@ -10,6 +10,8 @@ interface Props {
   micOn: boolean;
   camOn: boolean;
   selfCam: MediaStream | null;
+  sharing: boolean;
+  onShare: () => void;
   tiles: Tile[];
   /** name of the meeting room I am standing in, or null in the open */
   roomName: string | null;
@@ -56,9 +58,13 @@ function VideoTile({ tile, onMute }: { tile: Tile; onMute: () => void }) {
     if (v) { v.srcObject = tile.stream; void v.play().catch(() => undefined); }
   }, [tile.stream, tile.hasVideo]);
   return (
-    <div className="relative h-24 w-36 overflow-hidden rounded-lg border border-border bg-slate-900 shadow">
-      {/* the sound plays through a separate audio element, so this picture is always muted */}
-      <video ref={ref} muted playsInline className={`h-full w-full object-cover ${tile.hasVideo ? '' : 'hidden'}`} />
+    <div className={`relative overflow-hidden rounded-lg border border-border bg-slate-900 shadow ${tile.screen ? 'h-44 w-72' : 'h-24 w-36'}`}>
+      {/* the sound plays through a separate audio element, so this picture is always muted; a shared screen opens full size on click */}
+      <video
+        ref={ref} muted playsInline
+        onClick={tile.screen ? () => void ref.current?.requestFullscreen?.().catch(() => undefined) : undefined}
+        className={`h-full w-full ${tile.screen ? 'cursor-zoom-in object-contain' : 'object-cover'} ${tile.hasVideo ? '' : 'hidden'}`}
+      />
       {!tile.hasVideo && (
         <div className="flex h-full w-full items-center justify-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-lg font-semibold text-primary">{tile.name.slice(0, 1).toUpperCase()}</span>
@@ -66,9 +72,9 @@ function VideoTile({ tile, onMute }: { tile: Tile; onMute: () => void }) {
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-2 py-0.5 text-[11px] text-white">
         <span className="truncate">{tile.name}</span>
-        <button type="button" onClick={onMute} className="ml-1 shrink-0 rounded p-0.5 hover:bg-white/20" aria-label={tile.muted ? `Unmute ${tile.name}` : `Mute ${tile.name}`} title={tile.muted ? 'Unmute them' : 'Mute them (only for you)'}>
+        {!tile.screen && <button type="button" onClick={onMute} className="ml-1 shrink-0 rounded p-0.5 hover:bg-white/20" aria-label={tile.muted ? `Unmute ${tile.name}` : `Mute ${tile.name}`} title={tile.muted ? 'Unmute them' : 'Mute them (only for you)'}>
           {tile.muted ? <VolumeX className="h-3.5 w-3.5 text-red-400" /> : <Volume2 className="h-3.5 w-3.5" />}
-        </button>
+        </button>}
       </div>
     </div>
   );
@@ -93,7 +99,7 @@ function SelfTile({ stream, micOn }: { stream: MediaStream; micOn: boolean }) {
 }
 
 /** Join button, mic and camera controls, and a tile for each person you are talking to. */
-export function CallDock({ joined, busy, error, micOn, camOn, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer, canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent, roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock }: Props) {
+export function CallDock({ joined, busy, error, micOn, camOn, selfCam, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer, canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent, roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock }: Props) {
   return (
     <>
       {joined && (tiles.length > 0 || selfCam) && (
@@ -147,6 +153,9 @@ export function CallDock({ joined, busy, error, micOn, camOn, selfCam, tiles, ro
                   <Button size="sm" variant="outline" onClick={onRecord} title="Record this meeting (everyone in the room is told)"><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Record</Button>
                 )
               )}
+              <Button size="sm" variant={sharing ? 'default' : 'outline'} onClick={onShare} aria-label={sharing ? 'Stop sharing your screen' : 'Share your screen'} title={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'}>
+                {sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}
+              </Button>
               <span className="px-2 text-xs text-muted-foreground">
                 {roomName ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />{roomName}: only people in this room can hear you</span>
                   : tiles.length ? `Talking with ${tiles.length} nearby` : 'Walk up to someone to talk'}
