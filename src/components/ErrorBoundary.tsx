@@ -24,6 +24,30 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 
+  // Best-effort: promote any service worker already installed-but-waiting
+  // to active, and clear every cache this origin owns, before reloading.
+  // A plain reload only fixes a chunk error if the next request actually
+  // reaches the network with the latest deploy's files — if an old worker
+  // is still the one answering fetches (it only takes over once every tab
+  // that held it closes, or something promotes it explicitly), the browser
+  // keeps re-serving the exact same mismatched bundle and the same error
+  // recurs forever no matter how many times this reloads.
+  private static async recoverAndReload(): Promise<void> {
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      }
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+    } catch {
+      /* best effort — reload regardless */
+    }
+    window.location.reload();
+  }
+
   static getDerivedStateFromError(error: Error): State {
     if (ErrorBoundary.isChunkError(error)) {
       const key = 'kdops_chunk_reload_at';
@@ -38,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
       // which is what turned one chunk error into a reload loop.
       if (Date.now() - last > 60_000) {
         sessionStorage.setItem(key, String(Date.now()));
-        window.location.reload();
+        void ErrorBoundary.recoverAndReload();
         return { error: null };
       }
     }
