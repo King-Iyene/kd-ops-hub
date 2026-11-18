@@ -2909,192 +2909,6 @@ export type Database = {
         }
         Relationships: []
       }
-      custom_field_definitions: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          field_type: string
-          id: string
-          is_required: boolean
-          name: string
-          options: Json | null
-          sort_order: number
-          space_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          field_type: string
-          id?: string
-          is_required?: boolean
-          name: string
-          options?: Json | null
-          sort_order?: number
-          space_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          field_type?: string
-          id?: string
-          is_required?: boolean
-          name?: string
-          options?: Json | null
-          sort_order?: number
-          space_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_field_definitions_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_field_people: {
-        Row: {
-          field_id: string
-          person_id: string
-          task_id: string
-        }
-        Insert: {
-          field_id: string
-          person_id: string
-          task_id: string
-        }
-        Update: {
-          field_id?: string
-          person_id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_field_people_field_id_fkey"
-            columns: ["field_id"]
-            isOneToOne: false
-            referencedRelation: "custom_field_definitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custom_field_people_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_field_task_links: {
-        Row: {
-          field_id: string
-          linked_task_id: string
-          task_id: string
-        }
-        Insert: {
-          field_id: string
-          linked_task_id: string
-          task_id: string
-        }
-        Update: {
-          field_id?: string
-          linked_task_id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_field_task_links_field_id_fkey"
-            columns: ["field_id"]
-            isOneToOne: false
-            referencedRelation: "custom_field_definitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custom_field_task_links_linked_task_id_fkey"
-            columns: ["linked_task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custom_field_task_links_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_field_values: {
-        Row: {
-          created_at: string
-          field_id: string
-          id: string
-          task_id: string
-          updated_at: string
-          value_json: Json | null
-          value_number: number | null
-          value_text: string | null
-        }
-        Insert: {
-          created_at?: string
-          field_id: string
-          id?: string
-          task_id: string
-          updated_at?: string
-          value_json?: Json | null
-          value_number?: number | null
-          value_text?: string | null
-        }
-        Update: {
-          created_at?: string
-          field_id?: string
-          id?: string
-          task_id?: string
-          updated_at?: string
-          value_json?: Json | null
-          value_number?: number | null
-          value_text?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_field_values_field_id_fkey"
-            columns: ["field_id"]
-            isOneToOne: false
-            referencedRelation: "custom_field_definitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custom_field_values_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dashboard_preferences: {
-        Row: {
-          card_order: Json
-          hidden_cards: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          card_order?: Json
-          hidden_cards?: Json
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          card_order?: Json
-          hidden_cards?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       data_subject_requests: {
         Row: {
           artifact_path: string | null
@@ -12373,62 +12187,6 @@ export type Database = {
           },
         ]
       }
-      saved_views: {
-        Row: {
-          columns: Json | null
-          created_at: string
-          created_by: string | null
-          filters: Json
-          group_by: string | null
-          id: string
-          is_shared: boolean
-          name: string
-          sort_by: string | null
-          sort_dir: string | null
-          space_id: string | null
-          updated_at: string
-          view_type: string
-        }
-        Insert: {
-          columns?: Json | null
-          created_at?: string
-          created_by?: string | null
-          filters?: Json
-          group_by?: string | null
-          id?: string
-          is_shared?: boolean
-          name: string
-          sort_by?: string | null
-          sort_dir?: string | null
-          space_id?: string | null
-          updated_at?: string
-          view_type?: string
-        }
-        Update: {
-          columns?: Json | null
-          created_at?: string
-          created_by?: string | null
-          filters?: Json
-          group_by?: string | null
-          id?: string
-          is_shared?: boolean
-          name?: string
-          sort_by?: string | null
-          sort_dir?: string | null
-          space_id?: string | null
-          updated_at?: string
-          view_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_views_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       shift_assignments: {
         Row: {
           created_at: string | null
@@ -12716,47 +12474,6 @@ export type Database = {
           },
         ]
       }
-      space_folders: {
-        Row: {
-          color: string | null
-          created_at: string
-          created_by: string | null
-          id: string
-          name: string
-          sort_order: number
-          space_id: string
-          updated_at: string
-        }
-        Insert: {
-          color?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name: string
-          sort_order?: number
-          space_id: string
-          updated_at?: string
-        }
-        Update: {
-          color?: string | null
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          name?: string
-          sort_order?: number
-          space_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "space_folders_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       space_members: {
         Row: {
           added_by: string | null
@@ -12782,76 +12499,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "space_members_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      space_statuses: {
-        Row: {
-          color: string
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-          space_id: string
-          status_group: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          sort_order?: number
-          space_id: string
-          status_group?: string
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          id?: string
-          name?: string
-          sort_order?: number
-          space_id?: string
-          status_group?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "space_statuses_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      space_tags: {
-        Row: {
-          color: string
-          created_at: string
-          id: string
-          name: string
-          space_id: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          space_id: string
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          id?: string
-          name?: string
-          space_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "space_tags_space_id_fkey"
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "project_spaces"
@@ -13094,44 +12741,6 @@ export type Database = {
             columns: ["statement_id"]
             isOneToOne: false
             referencedRelation: "bank_statements"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      statuses: {
-        Row: {
-          category: Database["public"]["Enums"]["status_category"]
-          color: string
-          created_at: string
-          id: string
-          name: string
-          position: number
-          space_id: string
-        }
-        Insert: {
-          category?: Database["public"]["Enums"]["status_category"]
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          position?: number
-          space_id: string
-        }
-        Update: {
-          category?: Database["public"]["Enums"]["status_category"]
-          color?: string
-          created_at?: string
-          id?: string
-          name?: string
-          position?: number
-          space_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "statuses_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
             referencedColumns: ["id"]
           },
         ]
@@ -13840,50 +13449,6 @@ export type Database = {
           },
         ]
       }
-      task_activity: {
-        Row: {
-          action: string
-          created_at: string
-          field: string | null
-          id: string
-          metadata: Json | null
-          new_value: string | null
-          old_value: string | null
-          task_id: string
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          field?: string | null
-          id?: string
-          metadata?: Json | null
-          new_value?: string | null
-          old_value?: string | null
-          task_id: string
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          field?: string | null
-          id?: string
-          metadata?: Json | null
-          new_value?: string | null
-          old_value?: string | null
-          task_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_activity_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       task_assignees: {
         Row: {
           created_at: string
@@ -13906,175 +13471,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "task_assignees_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_checklists: {
-        Row: {
-          assignee_id: string | null
-          created_at: string
-          group_name: string
-          id: string
-          is_checked: boolean
-          sort_order: number
-          task_id: string
-          title: string
-        }
-        Insert: {
-          assignee_id?: string | null
-          created_at?: string
-          group_name?: string
-          id?: string
-          is_checked?: boolean
-          sort_order?: number
-          task_id: string
-          title: string
-        }
-        Update: {
-          assignee_id?: string | null
-          created_at?: string
-          group_name?: string
-          id?: string
-          is_checked?: boolean
-          sort_order?: number
-          task_id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_checklists_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_comment_reactions: {
-        Row: {
-          comment_id: string
-          created_at: string
-          emoji: string
-          user_id: string
-        }
-        Insert: {
-          comment_id: string
-          created_at?: string
-          emoji: string
-          user_id: string
-        }
-        Update: {
-          comment_id?: string
-          created_at?: string
-          emoji?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_comment_reactions_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "task_comments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_comments: {
-        Row: {
-          author_id: string
-          body: string
-          created_at: string
-          id: string
-          task_id: string
-        }
-        Insert: {
-          author_id: string
-          body: string
-          created_at?: string
-          id?: string
-          task_id: string
-        }
-        Update: {
-          author_id?: string
-          body?: string
-          created_at?: string
-          id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "org_chart_v"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "task_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "probation_employees_v"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "task_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_comments_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_dependencies: {
-        Row: {
-          created_at: string
-          dependency_type: string
-          depends_on_id: string
-          id: string
-          task_id: string
-        }
-        Insert: {
-          created_at?: string
-          dependency_type?: string
-          depends_on_id: string
-          id?: string
-          task_id: string
-        }
-        Update: {
-          created_at?: string
-          dependency_type?: string
-          depends_on_id?: string
-          id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_dependencies_depends_on_id_fkey"
-            columns: ["depends_on_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_dependencies_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
@@ -14184,13 +13580,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "task_lists_folder_id_fkey"
-            columns: ["folder_id"]
-            isOneToOne: false
-            referencedRelation: "space_folders"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "task_lists_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -14244,147 +13633,6 @@ export type Database = {
           },
         ]
       }
-      task_space_tags: {
-        Row: {
-          tag_id: string
-          task_id: string
-        }
-        Insert: {
-          tag_id: string
-          task_id: string
-        }
-        Update: {
-          tag_id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_space_tags_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "space_tags"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_space_tags_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_templates: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          is_global: boolean
-          name: string
-          space_id: string | null
-          template_data: Json
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          is_global?: boolean
-          name: string
-          space_id?: string | null
-          template_data?: Json
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          is_global?: boolean
-          name?: string
-          space_id?: string | null
-          template_data?: Json
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_templates_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_time_entries: {
-        Row: {
-          created_at: string
-          description: string | null
-          duration_minutes: number | null
-          ended_at: string | null
-          id: string
-          started_at: string
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          duration_minutes?: number | null
-          ended_at?: string | null
-          id?: string
-          started_at?: string
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          duration_minutes?: number | null
-          ended_at?: string | null
-          id?: string
-          started_at?: string
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_time_entries_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_watchers: {
-        Row: {
-          created_at: string
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_watchers_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       tasks: {
         Row: {
           assignee_id: string | null
@@ -14405,11 +13653,9 @@ export type Database = {
           recurrence_next: string | null
           recurrence_rule: Json | null
           recurrence_spawned: boolean
-          search_vector: unknown
           sort_order: number
           start_date: string | null
           status: string
-          status_id: string | null
           tags: string[] | null
           task_type: string
           template_id: string | null
@@ -14437,11 +13683,9 @@ export type Database = {
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
-          search_vector?: unknown
           sort_order?: number
           start_date?: string | null
           status?: string
-          status_id?: string | null
           tags?: string[] | null
           task_type?: string
           template_id?: string | null
@@ -14469,11 +13713,9 @@ export type Database = {
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
-          search_vector?: unknown
           sort_order?: number
           start_date?: string | null
           status?: string
-          status_id?: string | null
           tags?: string[] | null
           task_type?: string
           template_id?: string | null
@@ -14565,13 +13807,6 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_status_id_fkey"
-            columns: ["status_id"]
-            isOneToOne: false
-            referencedRelation: "statuses"
             referencedColumns: ["id"]
           },
         ]
@@ -17370,325 +16605,6 @@ export type Database = {
           },
         ]
       }
-      tm_comments: {
-        Row: {
-          author_id: string
-          body: string
-          created_at: string
-          edited_at: string | null
-          id: string
-          task_id: string
-        }
-        Insert: {
-          author_id: string
-          body: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          task_id: string
-        }
-        Update: {
-          author_id?: string
-          body?: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_comments_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tm_tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_lists: {
-        Row: {
-          archived_at: string | null
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          position: number
-          space_id: string
-          updated_at: string
-        }
-        Insert: {
-          archived_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          position?: number
-          space_id: string
-          updated_at?: string
-        }
-        Update: {
-          archived_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          position?: number
-          space_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_lists_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "tm_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_space_members: {
-        Row: {
-          created_at: string
-          role: string
-          space_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          role?: string
-          space_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          role?: string
-          space_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_space_members_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "tm_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_spaces: {
-        Row: {
-          archived_at: string | null
-          color: string
-          created_at: string
-          created_by: string | null
-          icon: string | null
-          id: string
-          is_private: boolean
-          name: string
-          position: number
-          updated_at: string
-        }
-        Insert: {
-          archived_at?: string | null
-          color?: string
-          created_at?: string
-          created_by?: string | null
-          icon?: string | null
-          id?: string
-          is_private?: boolean
-          name: string
-          position?: number
-          updated_at?: string
-        }
-        Update: {
-          archived_at?: string | null
-          color?: string
-          created_at?: string
-          created_by?: string | null
-          icon?: string | null
-          id?: string
-          is_private?: boolean
-          name?: string
-          position?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      tm_statuses: {
-        Row: {
-          category: Database["public"]["Enums"]["tm_status_category"]
-          color: string
-          created_at: string
-          id: string
-          name: string
-          position: number
-          space_id: string
-        }
-        Insert: {
-          category?: Database["public"]["Enums"]["tm_status_category"]
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          position?: number
-          space_id: string
-        }
-        Update: {
-          category?: Database["public"]["Enums"]["tm_status_category"]
-          color?: string
-          created_at?: string
-          id?: string
-          name?: string
-          position?: number
-          space_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_statuses_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "tm_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_task_assignees: {
-        Row: {
-          assigned_at: string
-          assigned_by: string | null
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          assigned_at?: string
-          assigned_by?: string | null
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          assigned_at?: string
-          assigned_by?: string | null
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_task_assignees_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tm_tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_task_watchers: {
-        Row: {
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_task_watchers_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tm_tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tm_tasks: {
-        Row: {
-          archived_at: string | null
-          completed_at: string | null
-          created_at: string
-          created_by: string | null
-          description: string | null
-          due_date: string | null
-          due_has_time: boolean
-          id: string
-          list_id: string
-          parent_task_id: string | null
-          position: number
-          priority: Database["public"]["Enums"]["tm_task_priority"]
-          start_date: string | null
-          status_id: string | null
-          time_estimate_min: number | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          archived_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          due_has_time?: boolean
-          id?: string
-          list_id: string
-          parent_task_id?: string | null
-          position?: number
-          priority?: Database["public"]["Enums"]["tm_task_priority"]
-          start_date?: string | null
-          status_id?: string | null
-          time_estimate_min?: number | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          archived_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          due_has_time?: boolean
-          id?: string
-          list_id?: string
-          parent_task_id?: string | null
-          position?: number
-          priority?: Database["public"]["Enums"]["tm_task_priority"]
-          start_date?: string | null
-          status_id?: string | null
-          time_estimate_min?: number | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tm_tasks_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "tm_lists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tm_tasks_parent_task_id_fkey"
-            columns: ["parent_task_id"]
-            isOneToOne: false
-            referencedRelation: "tm_tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tm_tasks_status_id_fkey"
-            columns: ["status_id"]
-            isOneToOne: false
-            referencedRelation: "tm_statuses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       training_records: {
         Row: {
           category: string
@@ -19021,68 +17937,6 @@ export type Database = {
           },
         ]
       }
-      workspace_members: {
-        Row: {
-          created_at: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          updated_at: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          role?: Database["public"]["Enums"]["workspace_role"]
-          updated_at?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          role?: Database["public"]["Enums"]["workspace_role"]
-          updated_at?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_members_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workspaces: {
-        Row: {
-          created_at: string
-          id: string
-          logo_url: string | null
-          name: string
-          settings: Json
-          slug: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          logo_url?: string | null
-          name: string
-          settings?: Json
-          slug: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          logo_url?: string | null
-          name?: string
-          settings?: Json
-          slug?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       company_wallet_summary: {
@@ -19715,10 +18569,6 @@ export type Database = {
       can_access_task: { Args: { p_task_id: string }; Returns: boolean }
       can_edit_space: { Args: { p_space_id: string }; Returns: boolean }
       can_edit_task: { Args: { p_task_id: string }; Returns: boolean }
-      can_view_dashboard_of: {
-        Args: { p_target_user_id: string }
-        Returns: boolean
-      }
       cancel_advance_request: {
         Args: { p_request_id: string }
         Returns: {
@@ -20369,7 +19219,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
       is_director_disbursement_batch: {
         Args: { p_batch_id: string }
@@ -20379,15 +19228,8 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
       }
-      is_manager: { Args: { p_user_id?: string }; Returns: boolean }
-      is_manager_of: {
-        Args: { p_manager_id: string; p_target_id: string }
-        Returns: boolean
-      }
       is_ndi_admin: { Args: never; Returns: boolean }
-      is_owner: { Args: { p_user_id?: string }; Returns: boolean }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
-      is_workspace_member: { Args: { p_user_id?: string }; Returns: boolean }
       lock_payroll_run_for_disbursement: {
         Args: { p_run_id: string }
         Returns: {
@@ -21624,12 +20466,6 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
-      tm_can_access_space: { Args: { p_space_id: string }; Returns: boolean }
-      tm_can_access_task: { Args: { p_task_id: string }; Returns: boolean }
-      tm_can_edit_space: { Args: { p_space_id: string }; Returns: boolean }
-      tm_can_edit_task: { Args: { p_task_id: string }; Returns: boolean }
-      tm_space_of_list: { Args: { p_list_id: string }; Returns: string }
-      tm_space_of_task: { Args: { p_task_id: string }; Returns: string }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
@@ -21665,16 +20501,6 @@ export type Database = {
           seq: number
           stored_hash: string
         }[]
-      }
-      visible_people: {
-        Args: { p_user_id?: string }
-        Returns: {
-          person_id: string
-        }[]
-      }
-      workspace_role_of: {
-        Args: { p_user_id?: string }
-        Returns: Database["public"]["Enums"]["workspace_role"]
       }
     }
     Enums: {
