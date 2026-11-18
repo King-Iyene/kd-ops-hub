@@ -99,6 +99,7 @@ const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
 const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
+const OfficePage = lazy(() => import('./features/office/OfficePage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -919,6 +920,18 @@ function AppRoutes() {
             }
           />
         ))}
+
+        {/* Virtual office: every signed-in employee. */}
+        <Route
+          path="/office"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <OfficePage />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
 
         {/* Employee Self-Service Dashboard — all authenticated users. */}
         <Route

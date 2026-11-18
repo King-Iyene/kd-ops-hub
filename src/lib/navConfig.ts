@@ -226,6 +226,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'NDI Finance',      url: '/ndi/finance',       icon: Wallet,          roles: ['super_admin', 'admin'] },
   { title: 'NDI Employees',    url: '/ndi/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'NDI Profile',      url: '/ndi/profile',       icon: Building2,       roles: ['super_admin', 'admin'] },
+  { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: ['super_admin', 'admin'] }, // soft launch: widen to every role when ready
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
@@ -277,6 +278,7 @@ export const NAV_GROUPS = [
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements', 'Database', 'Developer'] },
   { key: 'ndi',        label: 'NDI',                 titles: ['NDI Overview', 'NDI Finance', 'NDI Employees', 'NDI Profile'] },
+  { key: 'office',     label: 'Office',              titles: ['Virtual Office'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -361,6 +363,15 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-orange-400',
     iconBg: 'bg-orange-500/15',
     groups: ['ndi'],
+  },
+  {
+    key: 'office',
+    label: 'Virtual Office',
+    description: 'Walk around, meet your team',
+    icon: 'Building2',
+    color: 'text-fuchsia-400',
+    iconBg: 'bg-fuchsia-500/15',
+    groups: ['office'],
   },
   {
     key: 'admin',

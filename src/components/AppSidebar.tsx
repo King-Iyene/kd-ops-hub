@@ -12,6 +12,7 @@ import {
   Layers,
   Contact2,
   Globe,
+  Building2,
   Search,
   X,
   Clock,
@@ -54,6 +55,7 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Contact2,
   Globe,
   Clock,
+  Building2,
 };
 
 const UNGROUPED_SET = new Set(['Dashboard', 'Approvals', 'My Portal', 'Finance']);
