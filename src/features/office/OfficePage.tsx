@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Hand, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -32,6 +32,7 @@ import { ManageDialog, type Claimable } from './ManageDialog';
 import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
@@ -891,9 +892,18 @@ function OfficeRoom() {
       <div className="flex min-h-0 flex-1 gap-3">
         <SlotAside slot={slot}>
           <div className="flex gap-1.5">
-            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5" />Invite</button>
-            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="h-3.5 w-3.5" />Copy link</button>
-            {(isAdmin || canEdit) && <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setManageOpen(true)}><Settings className="h-3.5 w-3.5" />Manage</button>}
+            <button type="button" className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5 shrink-0" /><span className="truncate">Invite</span></button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
+                {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
+                {canEdit && !editing && <DropdownMenuItem onSelect={() => startEdit()}><Pencil className="mr-2 h-4 w-4" />Edit the space</DropdownMenuItem>}
+                {canRecord && <DropdownMenuItem onSelect={() => setRecordingsOpen(true)}><Video className="mr-2 h-4 w-4" />Recordings</DropdownMenuItem>}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

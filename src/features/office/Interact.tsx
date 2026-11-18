@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MAX_ZONES, ZONE_PRESETS, zoneAbbr, zoneParts } from './world/clock';
+import { MAX_ZONES, ZONE_PRESETS, to12h, zoneAbbr, zoneParts } from './world/clock';
 
 /** What an admin writes on a board: a heading and a few cards. */
 export interface BoardData { title: string; cards: { h: string; t: string }[] }
@@ -121,11 +121,12 @@ export function ClockDialog({ open, zones, canEdit, saving, onClose, onSave }: {
         <div className={`grid gap-3 ${zones.length === 1 ? '' : zones.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
           {zones.map((z) => {
             const { h, m, s } = zoneParts(z, now);
+            const t12 = to12h(h);
             const city = ZONE_PRESETS.find((p) => p.id === z)?.city ?? z;
             return (
               <div key={z} className="rounded-xl border bg-card p-4 text-center shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{city} · {zoneAbbr(z, now)}</p>
-                <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}<span className="text-lg text-muted-foreground">:{String(s).padStart(2, '0')}</span></p>
+                <p className="mt-1 font-mono text-3xl font-semibold tabular-nums">{t12.h12}:{String(m).padStart(2, '0')}<span className="text-lg text-muted-foreground">:{String(s).padStart(2, '0')}</span><span className="ml-1.5 text-sm font-semibold text-muted-foreground">{t12.pm ? 'PM' : 'AM'}</span></p>
               </div>
             );
           })}

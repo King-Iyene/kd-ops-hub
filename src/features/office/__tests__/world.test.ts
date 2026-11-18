@@ -350,6 +350,9 @@ describe('interactive things and the wall clock', () => {
     expect(zoneParts('America/New_York', noonUtc).h).toBe(7);
     expect(zoneAbbr('Africa/Lagos', noonUtc)).toBe('WAT');
     expect(zoneAbbr('America/New_York', noonUtc)).toBe('EST');
+    const { zoneClock } = await import('../world/clock');
+    expect(zoneClock('Africa/Lagos', noonUtc)).toBe('1:00 PM');
+    expect(zoneClock('America/New_York', noonUtc)).toBe('7:00 AM');
     expect(cleanZones(['Africa/Lagos', 'nope', 'Asia/Tokyo', 'Europe/London', 'Asia/Dubai'])).toEqual(['Africa/Lagos', 'Asia/Tokyo', 'Europe/London']);
     expect(cleanZones(undefined).length).toBe(2);
   });

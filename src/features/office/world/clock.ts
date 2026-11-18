@@ -71,8 +71,14 @@ export function zoneAbbr(zone: string, now: number): string {
   return (preset?.city ?? zone).slice(0, 4).toUpperCase();
 }
 
-/** "14:05" style time for a zone. */
+/** 12-hour clock face: 14:05 becomes 2:05 PM. */
+export function to12h(h: number): { h12: number; pm: boolean } {
+  return { h12: h % 12 === 0 ? 12 : h % 12, pm: h >= 12 };
+}
+
+/** "2:05 PM" style time for a zone. */
 export function zoneClock(zone: string, now: number): string {
   const { h, m } = zoneParts(zone, now);
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const t = to12h(h);
+  return `${t.h12}:${String(m).padStart(2, '0')} ${t.pm ? 'PM' : 'AM'}`;
 }

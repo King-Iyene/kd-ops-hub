@@ -1,6 +1,6 @@
 // Canvas drawing for the office: a warm modern 2.5D style (textured floors, windows with light, detailed furniture,
 // soft shadows, gentle animation). Everything is drawn from code, so there are no image files to license or load.
-import { DEFAULT_ZONES, zoneAbbr, zoneParts } from './clock';
+import { DEFAULT_ZONES, to12h, zoneAbbr, zoneParts } from './clock';
 import type { AvatarStyle, Item, MapDef, Zone } from './types';
 import { TOP_ITEMS, itemSize } from './world';
 
@@ -1112,13 +1112,14 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
         ctx.textBaseline = 'middle';
         ctx.font = '700 7px system-ui, sans-serif';
         ctx.fillStyle = '#fbbf24';
-        ctx.fillText(zoneAbbr(zs[i], now), sx + slot / 2, y + 11.5);
-        ctx.font = '700 ' + (n === 3 ? 12 : 15) + 'px ui-monospace, Menlo, Consolas, monospace';
+        const t12 = to12h(h);
+        ctx.fillText(zoneAbbr(zs[i], now) + ' · ' + (t12.pm ? 'PM' : 'AM'), sx + slot / 2, y + 11.5);
+        ctx.font = '700 ' + (n === 3 ? 13 : 16) + 'px ui-monospace, Menlo, Consolas, monospace';
         ctx.fillStyle = '#34d399';
         ctx.shadowColor = 'rgba(52,211,153,0.7)';
         ctx.shadowBlur = 5;
         const colon = s % 2 === 0 ? ':' : ' ';
-        ctx.fillText(String(h).padStart(2, '0') + colon + String(m).padStart(2, '0'), sx + slot / 2, y + 23);
+        ctx.fillText(t12.h12 + colon + String(m).padStart(2, '0'), sx + slot / 2, y + 23);
         ctx.shadowBlur = 0;
       }
       return true;
