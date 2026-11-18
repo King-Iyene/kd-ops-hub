@@ -7833,6 +7833,165 @@ export type Database = {
           },
         ]
       }
+      office_recorders: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_recorders_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recorders_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recorders_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_recorders_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_recorders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recorders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recorders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_recorders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_recordings: {
+        Row: {
+          created_at: string
+          duration_s: number
+          id: string
+          part: number
+          participants: string[]
+          path: string
+          recorded_by: string
+          room_id: string
+          room_name: string
+          session_id: string
+          size_bytes: number
+          space_id: string | null
+          started_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_s?: number
+          id?: string
+          part?: number
+          participants?: string[]
+          path: string
+          recorded_by: string
+          room_id: string
+          room_name: string
+          session_id: string
+          size_bytes?: number
+          space_id?: string | null
+          started_at: string
+        }
+        Update: {
+          created_at?: string
+          duration_s?: number
+          id?: string
+          part?: number
+          participants?: string[]
+          path?: string
+          recorded_by?: string
+          room_id?: string
+          room_name?: string
+          session_id?: string
+          size_bytes?: number
+          space_id?: string | null
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_recordings_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_recordings_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_spaces: {
         Row: {
           company_id: string | null
@@ -19949,6 +20108,7 @@ export type Database = {
       }
       notify_expiring_overrides: { Args: never; Returns: number }
       office_is_admin: { Args: never; Returns: boolean }
+      office_is_recorder: { Args: never; Returns: boolean }
       office_provision_personal: {
         Args: { p_profile: string }
         Returns: undefined
