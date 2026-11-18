@@ -98,7 +98,11 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
+const TaskModuleLayout = lazy(() => import('./components/TaskModuleLayout'));
 const TaskHub = lazy(() => import('./pages/TaskHub'));
+const TaskInboxPage = lazy(() => import('./pages/TaskInboxPage'));
+const TaskMyTasksPage = lazy(() => import('./pages/TaskMyTasksPage'));
+const TaskDashboardsPage = lazy(() => import('./pages/TaskDashboardsPage'));
 const TaskListPage = lazy(() => import('./pages/TaskListPage'));
 const TaskTablePage = lazy(() => import('./pages/TaskTablePage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
@@ -890,39 +894,28 @@ function AppRoutes() {
           }
         />
 
-        {/* Task module: every signed-in employee (folder/list/table creation
+        {/* Task module: every signed-in employee (space/list/table creation
             is admin-only, enforced by RLS — the pages themselves hide those
-            controls for everyone else). */}
+            controls for everyone else). TaskModuleLayout renders the
+            persistent Home/Inbox/My Tasks/Dashboards + Spaces sidebar once
+            for the whole subtree; children render into its <Outlet />. */}
         <Route
           path="/task"
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
-                <TaskHub />
+                <TaskModuleLayout />
               </ErrorBoundary>
             </RoleGuard>
           }
-        />
-        <Route
-          path="/task/list/:listId"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <TaskListPage />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/task/table/:tableId"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <TaskTablePage />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
+        >
+          <Route index element={<TaskHub />} />
+          <Route path="inbox" element={<TaskInboxPage />} />
+          <Route path="my-tasks" element={<TaskMyTasksPage />} />
+          <Route path="dashboards" element={<TaskDashboardsPage />} />
+          <Route path="list/:listId" element={<TaskListPage />} />
+          <Route path="table/:tableId" element={<TaskTablePage />} />
+        </Route>
 
         {/* Employee Self-Service Dashboard — all authenticated users. */}
         <Route

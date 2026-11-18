@@ -373,7 +373,7 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
   {
     key: 'task',
     label: 'Task Management',
-    description: 'Folders, lists & tables',
+    description: 'Spaces, lists & tables',
     icon: 'CheckSquare',
     color: 'text-cyan-400',
     iconBg: 'bg-cyan-500/15',
