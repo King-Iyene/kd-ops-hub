@@ -55,7 +55,7 @@ export function OfficeCanvas(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
-  const meRef = useRef({ x: props.map.spawn.x, y: props.map.spawn.y, dir: 0 as 0 | 1 | 2 | 3, vx: 0, vy: 0 });
+  const meRef = useRef({ x: props.map.spawn.x, y: props.map.spawn.y, dir: 0 as 0 | 1 | 2 | 3, vx: 0, vy: 0, sx: 0, sy: 0 });
   const keys = useRef(new Set<string>());
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
@@ -70,7 +70,7 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance
   useEffect(() => {
-    meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0 };
+    meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0, sx: 0, sy: 0 };
     zoneId.current = '__none__';
     portalCooldown.current = performance.now() + 800; // do not bounce straight back through the door we just used
   }, [props.map]);
@@ -187,7 +187,12 @@ export function OfficeCanvas(props: Props) {
         }
         me.vx = v.vx;
         me.vy = v.vy;
-        const np = advance(solid, me.x, me.y, v.vx, v.vy, dt);
+        const ease = 1 - Math.exp(-dt * 15);
+        me.sx += (v.vx - me.sx) * ease;
+        me.sy += (v.vy - me.sy) * ease;
+        if (v.vx === 0 && Math.abs(me.sx) < 0.08) me.sx = 0;
+        if (v.vy === 0 && Math.abs(me.sy) < 0.08) me.sy = 0;
+        const np = advance(solid, me.x, me.y, me.sx, me.sy, dt);
         // a locked meeting room is a closed door: stay where we are (the page knocks for us)
         const nz = zoneAt(p.map, np.x, np.y);
         if (nz && nz.kind === 'meeting' && !p.canEnter(nz.id)) {
@@ -260,7 +265,7 @@ export function OfficeCanvas(props: Props) {
           name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));

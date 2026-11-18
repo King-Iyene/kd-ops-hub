@@ -39,11 +39,8 @@ export function buildTeamOffice(): MapDef {
   // walls between the meeting rooms
   wallRect(walls, 29, 8, w - 2, 8);
   wallRect(walls, 29, 16, w - 2, 16);
-  // the door in the top wall to your own office
-  gap(walls, 13, 0, 14, 0);
 
   const zones: Zone[] = [
-    { id: 'portal-mine', name: 'Your office', kind: 'portal', x: 13, y: 0, w: 2, h: 1, target: 'mine' },
     { id: 'meeting-1', name: 'Meeting Room 1', kind: 'meeting', x: 29, y: 1, w: 10, h: 7 },
     { id: 'meeting-2', name: 'Meeting Room 2', kind: 'meeting', x: 29, y: 9, w: 10, h: 7 },
     { id: 'meeting-3', name: 'Meeting Room 3', kind: 'meeting', x: 29, y: 17, w: 10, h: 8 },

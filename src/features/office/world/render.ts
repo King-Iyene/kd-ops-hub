@@ -1497,8 +1497,10 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const a = p.avatar;
   const px = p.x * TILE;
   const py = p.y * TILE;
-  const bob = p.moving ? Math.sin(t / 90) * 1.5 : Math.sin(t / 700) * 0.5;
-  const step = p.moving ? Math.sin(t / 90) : 0;
+  const ph = (p.x + p.y) * TILE / 7.5; // one stride about every 1.2 tiles walked
+  const step = p.moving ? Math.sin(ph) : 0;
+  const bob = p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
+  const lean = p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
   const side = p.dir === 1 || p.dir === 2;
   const back = p.dir === 3;
   const fx = p.dir === 1 ? -1 : p.dir === 2 ? 1 : 0; // which way the face looks
@@ -1519,7 +1521,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ellipse(ctx, px, py + 11, 11, 4.5, 'rgba(15,23,42,0.24)');
+  ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
 
   // hair that hangs behind the body (long hair, hood) goes first
   const hairBack = () => {
@@ -1536,34 +1538,36 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
 
   // legs and shoes
-  const lift = (s: number) => (s > 0 ? -1.6 : 0);
+  const lift = (v: number) => -Math.max(0, v) * 2.6;
+  const stride = side ? step * 4.5 : 0;
   ctx.fillStyle = a.pants;
-  rr(ctx, px - 6.5, py + 2 + lift(step), 5.5, 8, 2);
+  rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, 8, 2);
   ctx.fill();
-  rr(ctx, px + 1, py + 2 + lift(-step), 5.5, 8, 2);
+  rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, 8, 2);
   ctx.fill();
   ctx.fillStyle = '#0f172a';
-  rr(ctx, px - 7.5 + fx * 1.5, py + 9 + lift(step), 7, 3.2, 1.6);
+  rr(ctx, px - 7.5 + fx * 1.5 + stride, py + 9 + lift(step), 7, 3.2, 1.6);
   ctx.fill();
-  rr(ctx, px + 0.5 + fx * 1.5, py + 9 + lift(-step), 7, 3.2, 1.6);
+  rr(ctx, px + 0.5 + fx * 1.5 - stride, py + 9 + lift(-step), 7, 3.2, 1.6);
   ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(px - 7 + fx * 1.5, py + 11, 6, 0.8);
-  ctx.fillRect(px + 1 + fx * 1.5, py + 11, 6, 0.8);
+  ctx.fillRect(px - 7 + fx * 1.5 + stride, py + 11 + lift(step), 6, 0.8);
+  ctx.fillRect(px + 1 + fx * 1.5 - stride, py + 11 + lift(-step), 6, 0.8);
 
   // arms swing opposite to the legs
   const sleeveLong = a.outfit !== 0;
   const arm = (dx: number, swing: number) => {
     const ay = py - 9 + bob + swing * 1.6;
+    const axs = side ? swing * 3.2 : 0;
     ctx.fillStyle = a.shirt;
-    rr(ctx, px + dx - 2.4, ay, 4.8, sleeveLong ? 10 : 5, 2.4);
+    rr(ctx, px + dx - 2.4 + axs + lean, ay, 4.8, sleeveLong ? 10 : 5, 2.4);
     ctx.fill();
     if (!sleeveLong) {
       ctx.fillStyle = a.skin;
-      rr(ctx, px + dx - 2.2, ay + 4, 4.4, 5, 2.2);
+      rr(ctx, px + dx - 2.2 + axs + lean, ay + 4, 4.4, 5, 2.2);
       ctx.fill();
     } else {
-      disc(ctx, px + dx, ay + 10.5, 2.3, a.skin);
+      disc(ctx, px + dx + axs + lean, ay + 10.5, 2.3, a.skin);
     }
   };
   if (!side) { arm(-10.5, -step); arm(10.5, step); } else arm(fx * -1, -step);
@@ -1670,7 +1674,17 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     const ex = fx * 2.6;
     const eyeY = hy + 1;
     const eyes = side ? [px + ex + fx * 1.5] : [px - 3.2 + ex, px + 3.2 + ex];
+    const blink = (t + p.x * 977) % 4300 < 130;
     for (const e of eyes) {
+      if (blink) {
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(e - 2, eyeY + 0.5);
+        ctx.lineTo(e + 2, eyeY + 0.5);
+        ctx.stroke();
+        continue;
+      }
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.ellipse(e, eyeY, 2.1, 2.3, 0, 0, Math.PI * 2);

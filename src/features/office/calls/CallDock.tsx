@@ -15,6 +15,8 @@ interface Props {
   /** ids of people talking now ('' is me), and my name, for the video tray */
   speakingIds: Set<string>;
   meName: string;
+  /** size of the video tiles: 0 small, 1 medium, 2 large */
+  traySize: 0 | 1 | 2;
   tiles: Tile[];
   /** name of the meeting room I am standing in, or null in the open */
   roomName: string | null;
@@ -72,14 +74,16 @@ function ScreenTile({ tile }: { tile: Tile }) {
 }
 
 /** A person in the video tray: their picture (or an initial), a green frame while they talk, mute, click for the big view. */
-function TrayTile({ stream, name, speaking, muted, mirror, onMute, onOpen }: { stream: MediaStream | null; name: string; speaking: boolean; muted?: boolean; mirror?: boolean; onMute?: () => void; onOpen: () => void }) {
+const TRAY_SIZES = ['h-24 w-36', 'h-36 w-52 sm:h-44 sm:w-64', 'h-48 w-72 sm:h-60 sm:w-80'];
+
+function TrayTile({ stream, name, speaking, muted, mirror, size, onMute, onOpen }: { size: 0 | 1 | 2; stream: MediaStream | null; name: string; speaking: boolean; muted?: boolean; mirror?: boolean; onMute?: () => void; onOpen: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = ref.current;
     if (v && stream) { v.srcObject = stream; void v.play().catch(() => undefined); }
   }, [stream]);
   return (
-    <div className={`group relative h-36 w-52 shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-lg sm:h-44 sm:w-64 lg:h-48 lg:w-72 ${speaking ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.75)]' : 'border-white/70'}`}>
+    <div className={`group relative ${TRAY_SIZES[size]} shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-lg ${speaking ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.75)]' : 'border-white/70'}`}>
       {stream ? (
         <video ref={ref} muted playsInline onClick={onOpen} className={`h-full w-full cursor-pointer object-cover ${mirror ? '-scale-x-100' : ''}`} />
       ) : (
@@ -112,7 +116,7 @@ function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: bool
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, speakingIds, meName, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
+  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, speakingIds, meName, traySize, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
@@ -122,9 +126,9 @@ export function CallDock({
     <>
       {joined && (people.length > 0 || camOn) && (
         <div className="pointer-events-auto absolute left-1/2 top-3 z-10 flex max-w-[92%] -translate-x-1/2 gap-2 overflow-x-auto px-1 pb-1">
-          {camOn && selfCam && <TrayTile stream={selfCam} name={`You${meName ? '' : ''}`} speaking={speakingIds.has('')} mirror onOpen={onMeeting} />}
+          {camOn && selfCam && <TrayTile size={traySize} stream={selfCam} name={`You${meName ? '' : ''}`} speaking={speakingIds.has('')} mirror onOpen={onMeeting} />}
           {people.map((t) => (
-            <TrayTile key={t.id} stream={t.hasVideo ? t.stream : null} name={t.name} speaking={speakingIds.has(t.id)} muted={t.muted} onMute={() => onMutePeer(t.id)} onOpen={onMeeting} />
+            <TrayTile key={t.id} size={traySize} stream={t.hasVideo ? t.stream : null} name={t.name} speaking={speakingIds.has(t.id)} muted={t.muted} onMute={() => onMutePeer(t.id)} onOpen={onMeeting} />
           ))}
         </div>
       )}

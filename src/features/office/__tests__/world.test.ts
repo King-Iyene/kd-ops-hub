@@ -39,11 +39,11 @@ describe('templates are playable', () => {
     });
   }
 
-  it('the team office has three meeting rooms, a lounge and a door to your own office', () => {
+  it('the team office has three meeting rooms and a lounge (everyone shares this one office)', () => {
     const m = buildTeamOffice();
     expect(m.zones.filter((z) => z.kind === 'meeting')).toHaveLength(3);
     expect(m.zones.some((z) => z.kind === 'lounge')).toBe(true);
-    expect(m.zones.find((z) => z.kind === 'portal')?.target).toBe('mine');
+    expect(m.zones.some((z) => z.kind === 'portal')).toBe(false);
   });
   it('the personal office has a door back to the team office', () => {
     expect(buildPersonalOffice().zones.find((z) => z.kind === 'portal')?.target).toBe('team');
@@ -134,10 +134,9 @@ describe('rooms', () => {
     expect(zoneAt(m, 33.5, 12.5)?.name).toBe('Meeting Room 2');
     expect(zoneAt(m, 33.5, 20.5)?.name).toBe('Meeting Room 3');
   });
-  it('finds the lounge, the open floor, and the door to your office', () => {
+  it('finds the lounge and the open floor', () => {
     expect(zoneAt(m, 8.5, 20.5)?.name).toBe('Lounge');
     expect(zoneAt(m, 14.5, 13.5)?.name).toBe('Open office');
-    expect(zoneAt(m, 13.5, 0.5)?.kind).toBe('portal');
   });
   it('outside every room is null', () => expect(zoneAt(m, 39.5, 25.5)).toBeNull());
 });

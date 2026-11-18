@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Building2, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -21,7 +21,8 @@ import { useCalls } from './calls/useCalls';
 import { useRecorder } from './calls/useRecorder';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
-import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { AvatarFace } from './AvatarFace';
+import { ensurePersonalOffice, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { canPlace, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -61,7 +62,8 @@ export default function OfficePage() {
 
   const myPersonal = spaces?.find((s) => s.kind === 'personal' && s.owner_id === profile?.id) ?? null;
   const teamSpaces = spaces?.filter((s) => s.kind === 'team') ?? [];
-  const myTeam = teamSpaces.find((s) => s.company_id && s.company_id === (profile as { department_id?: string | null } | null)?.department_id) ?? teamSpaces[0] ?? null;
+  // for now everyone shares one office (other spaces, such as a bigger one for leadership, come later)
+  const myTeam = teamSpaces.find((s) => s.name.toLowerCase().includes('kd squares')) ?? teamSpaces[0] ?? null;
 
   const [spaceId, setSpaceIdRaw] = useState<string | null>(null);
   // every way of changing office goes through here, so a locked personal office stops visitors (guard set below)
@@ -490,6 +492,9 @@ export default function OfficePage() {
 
   const [zoom, setZoom] = useState(1);
   const [meeting, setMeeting] = useState(false);
+  const [traySize, setTraySize] = useState<0 | 1 | 2>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 ? v : 1; } catch { return 1; } });
+  const chooseTray = (n: 0 | 1 | 2) => { setTraySize(n); try { localStorage.setItem('kd:office:tray', String(n)); } catch { /* fine */ } };
+  const { data: directory } = useDirectory();
   // a window that is not the newest one for this account hangs up (so there is never a second copy of me)
   useEffect(() => { if (superseded && calls.joined) calls.leave(); }, [superseded, calls.joined]); // eslint-disable-line react-hooks/exhaustive-deps
   // the update prompt must not reload the page while I am in a call or recording
@@ -578,21 +583,6 @@ export default function OfficePage() {
               className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm"
             />
           </div>
-          <section>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Go to</p>
-            <div className="space-y-1">
-              {teamSpaces.map((s) => (
-                <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted ${s.id === space.id ? 'bg-muted font-medium' : ''}`}>
-                  <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{s.name}</span>
-                </button>
-              ))}
-              {myPersonal && (
-                <button type="button" onClick={() => setSpaceId(myPersonal.id)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted ${myPersonal.id === space.id ? 'bg-muted font-medium' : ''}`}>
-                  <DoorOpen className="h-4 w-4 shrink-0 text-emerald-500" /><span className="truncate">My office</span>
-                </button>
-              )}
-            </div>
-          </section>
 
           {roomSpaceId && (
             <section>
@@ -619,7 +609,7 @@ export default function OfficePage() {
                 const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
@@ -636,25 +626,27 @@ export default function OfficePage() {
             </div>
           </section>
 
-          {otherOffices.length > 0 && (
+          {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).length > 0 && (
             <section>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Colleagues' offices</p>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Offline ({(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id)).length})
+              </p>
               <div className="space-y-0.5">
-                {otherOffices.filter((s) => matches(s.name, query)).map((s) => (
-                  <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${s.id === space.id ? 'bg-muted font-medium' : ''}`}>
-                    <span className="truncate">{s.name.replace(/'s office$/, '')}</span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {roster.some((r) => r.uid === s.owner_id && r.locked && r.spaceId === s.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}
-                      {roster.some((r) => r.spaceId === s.id) && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
-                    </span>
-                  </button>
+                {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1 text-sm text-muted-foreground">
+                    <AvatarFace avatar={p.avatar} size={26} dim />
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  </div>
                 ))}
               </div>
             </section>
           )}
         </aside>
 
-        <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
+        <div
+          className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
+          onWheel={(e) => { if ((e.ctrlKey || e.metaKey) && !editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
+        >
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
@@ -681,14 +673,14 @@ export default function OfficePage() {
           )}
           {!editing && (
             <CallDock
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} meName={me.name} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} meName={me.name} traySize={traySize} tiles={calls.tiles}
               roomName={zone && zone.kind === 'meeting' ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
-                  bright={bright} onToggleBright={toggleBright} onZoom={(d) => setZoom((z) => Math.min(1.6, Math.max(0.6, +(z + d).toFixed(1))))}
+                  bright={bright} onToggleBright={toggleBright} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)}
                   isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
                 />
