@@ -9,7 +9,6 @@ import {
   Menu,
   X,
   Search,
-  Target,
   LogOut,
   User,
   ChevronRight,
@@ -38,7 +37,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, Target,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2,
 };
 
 type TabDef = {
