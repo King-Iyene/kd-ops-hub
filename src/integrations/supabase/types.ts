@@ -21634,6 +21634,28 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: Database["public"]["Enums"]["tk_workspace_role"]
       }
+      tk_set_space_archived: {
+        Args: { p_archived: boolean; p_space_id: string }
+        Returns: {
+          archived_at: string | null
+          color: string
+          created_at: string
+          created_by: string | null
+          icon: string | null
+          id: string
+          is_private: boolean
+          name: string
+          position: number
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tk_spaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       tk_space_of_list: { Args: { p_list_id: string }; Returns: string }
       tk_space_of_table: { Args: { p_table_id: string }; Returns: string }
       tk_visible_people: {
