@@ -548,9 +548,9 @@ function OfficeRoom() {
   // ---- guests: people from outside, invited by email, who meet someone in a private visitor room
   const [visitorsOpen, setVisitorsOpen] = useState(false);
   // whose profile is open (a user id), from the people lists
-  const [profile, setProfile] = useState<{ uid: string; x: number; y: number } | null>(null);
-  const profileUid = profile?.uid ?? null;
-  const setProfileUid = (uid: string | null, x = 0, y = 0) => setProfile(uid ? { uid, x, y } : null);
+  const [profileCard, setProfileCard] = useState<{ uid: string; x: number; y: number } | null>(null);
+  const profileCardUid = profileCard?.uid ?? null;
+  const setProfileCardUid = (uid: string | null, x = 0, y = 0) => setProfileCard(uid ? { uid, x, y } : null);
   const guests = useGuestInvites(roomSpaceId, (g) => {
     if (!quietNow()) playChime(0.08);
     notifyPing(`${g.name} is at the door`, 'A guest is waiting to come in.', () => setVisitorsOpen(true), 'guest:' + g.id);
@@ -1124,7 +1124,7 @@ function OfficeRoom() {
                 const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
-                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileUid(r.uid, e.clientX, e.clientY)}>
+                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
                     </button>
@@ -1155,7 +1155,7 @@ function OfficeRoom() {
             {!shut('offline') && (<>
               <div className="space-y-0.5">
                 {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).map((p) => (
-                  <button key={p.id} type="button" onClick={(e) => setProfileUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                  <button key={p.id} type="button" onClick={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                     <AvatarFace avatar={p.avatar} size={26} dim />
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
                   </button>
@@ -1354,7 +1354,7 @@ function OfficeRoom() {
           const live = roster.find((r) => r.uid === who.id) ?? null;
           const st = live ? statusOf(live.status) : null;
           const go = (fn: () => void) => () => { setZoneCard(null); fn(); };
-          const pa: CardAction[] = [{ key: 'prof', label: 'View profile', icon: <UserCircle className="h-4 w-4" />, run: go(() => setProfileUid(who.id, zoneCard.cx, zoneCard.cy)) }];
+          const pa: CardAction[] = [{ key: 'prof', label: 'View profile', icon: <UserCircle className="h-4 w-4" />, run: go(() => setProfileCardUid(who.id, zoneCard.cx, zoneCard.cy)) }];
           if (!mine) {
             pa.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: !!live, off: live ? undefined : 'They are offline', run: go(() => live && wave(live)) });
             pa.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: go(() => openChat(who.id)) });
@@ -1388,7 +1388,7 @@ function OfficeRoom() {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-3.5 w-3.5" />, primary: !card.near, run: () => { setCard(null); wave(who); } });
           if (card.near) acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-3.5 w-3.5" />, primary: true, run: () => { setCard(null); ring(who); } });
           acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); openChat(who.id); } });
-          acts.push({ key: 'prof', label: 'View profile', icon: <UserCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); setProfileUid(who.uid, card.cx, card.cy); } });
+          acts.push({ key: 'prof', label: 'View profile', icon: <UserCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); setProfileCardUid(who.uid, card.cx, card.cy); } });
           acts.push({ key: 'go', label: card.near ? 'Follow' : 'Go to', icon: card.near ? <Footprints className="h-3.5 w-3.5" /> : <LocateFixed className="h-3.5 w-3.5" />, run: () => { setCard(null); if (card.near) startFollow(who.id); else goToPerson(who.id, who.spaceId); } });
         }
         return (
@@ -1513,26 +1513,26 @@ function OfficeRoom() {
       />
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
       {(() => {
-        if (!profileUid) return null;
-        const live = roster.find((r) => r.uid === profileUid) ?? null;
-        const dir = (directory ?? []).find((d) => d.id === profileUid) ?? null;
+        if (!profileCardUid) return null;
+        const live = roster.find((r) => r.uid === profileCardUid) ?? null;
+        const dir = (directory ?? []).find((d) => d.id === profileCardUid) ?? null;
         const name = live?.name ?? dir?.name ?? 'Someone';
         const avatar = live?.avatar ?? dir?.avatar ?? null;
-        const isMe = profileUid === me.id;
+        const isMe = profileCardUid === me.id;
         const st = live ? statusOf(live.status) : null;
-        const done = (fn: () => void) => () => { setProfileUid(null); fn(); };
+        const done = (fn: () => void) => () => { setProfileCardUid(null); fn(); };
         const acts: ProfileAction[] = [];
         if (live && !isMe) {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: true, run: done(() => wave(live)) });
           acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-4 w-4" />, run: done(() => ring(live)) });
         }
-        if (!isMe) acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: done(() => openChat(profileUid)) });
+        if (!isMe) acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: done(() => openChat(profileCardUid)) });
         if (live && !isMe) {
           acts.push({ key: 'go', label: 'Go to', icon: <LocateFixed className="h-4 w-4" />, run: done(() => goToPerson(live.id, live.spaceId)) });
           acts.push({ key: 'fol', label: 'Follow', icon: <Footprints className="h-4 w-4" />, run: done(() => startFollow(live.id)) });
         }
         if (isMe) acts.push({ key: 'av', label: 'Change avatar', icon: <Users className="h-4 w-4" />, primary: true, run: done(() => setAvatarOpen(true)) });
-        return <ProfileDialog x={profile?.x ?? 0} y={profile?.y ?? 0} onClose={() => setProfileUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
+        return <ProfileDialog x={profileCard?.x ?? 0} y={profileCard?.y ?? 0} onClose={() => setProfileCardUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
       })()}
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
