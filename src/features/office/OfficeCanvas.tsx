@@ -85,8 +85,10 @@ interface Props {
 }
 
 /** puffs of smoke left behind bikes (shared by every rider on screen) */
-const smoke: { x: number; y: number; t: number; r: number }[] = [];
+const smoke: { x: number; y: number; t: number; r: number; dust?: boolean }[] = [];
 const smokeAt = new Map<string, number>();
+/** a ring that spreads from the spot you clicked to walk to */
+const ripples: { x: number; y: number; t: number }[] = [];
 
 function typing(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
@@ -203,6 +205,9 @@ export function OfficeCanvas(props: Props) {
       return { x: Math.floor((e.clientX - r.left - ox) / (TILE * scale)), y: Math.floor((e.clientY - r.top - oy) / (TILE * scale)) };
     };
     const drag = { down: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 };
+    // after you let go of a drag the map keeps gliding for a moment, then eases to a stop
+    const inertia = { x: 0, y: 0 };
+    const setCursor = (c: string) => { if (canvas.style.cursor !== c) canvas.style.cursor = c; };
     const painting = () => { const t = propsRef.current.tool; return propsRef.current.editing && (t === 'wall' || t === 'unwall' || t === 'floor'); };
     let lastPaint = '';
     const hoverId = { current: null as string | null };
@@ -234,6 +239,19 @@ export function OfficeCanvas(props: Props) {
       const hit = best as { id: string; isMe: boolean; x: number; y: number } | null;
       return hit ? { id: hit.id, isMe: hit.isMe, near: Math.hypot(hit.x - m.x, hit.y - m.y) <= 8, headX: r.left + ox + hit.x * TILE * scale, headY: r.top + oy + (hit.y - 1.6) * TILE * scale } : null;
     };
+    const petAt = (e: MouseEvent): PetState | null => {
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const wx = (e.clientX - r.left - ox) / (TILE * scale);
+      const wy = (e.clientY - r.top - oy) / (TILE * scale);
+      let best: PetState | null = null;
+      let bd = 0.75;
+      for (const pet of petRegistry.values()) {
+        const d = Math.hypot(wx - pet.x, wy - (pet.y - 0.3));
+        if (d < bd) { best = pet; bd = d; }
+      }
+      return best;
+    };
     const move = (e: MouseEvent) => {
       if (!propsRef.current.editing && !drag.down) {
         const h = personAt(e);
@@ -256,7 +274,15 @@ export function OfficeCanvas(props: Props) {
         hoverZoneId.current = zid;
       }
       hover.current = toTile(e);
-      if (!drag.down) return;
+      if (!drag.down) {
+        if (propsRef.current.editing) setCursor('crosshair');
+        else {
+          const t = hover.current;
+          const onItem = propsRef.current.items.some((i) => INTERACTIVE[i.t] && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+          setCursor(hoverId.current || hoverZoneId.current || onItem || petAt(e) ? 'pointer' : 'grab');
+        }
+        return;
+      }
       if (painting()) {
         const t = toTile(e);
         const key = `${t.x},${t.y}`;
@@ -266,35 +292,31 @@ export function OfficeCanvas(props: Props) {
       const dx = e.clientX - drag.sx;
       const dy = e.clientY - drag.sy;
       if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
-      if (drag.moved && !propsRef.current.editing) pan.current = { x: drag.px + dx, y: drag.py + dy };
+      if (drag.moved && !propsRef.current.editing) {
+        const nx = drag.px + dx, ny = drag.py + dy;
+        inertia.x = inertia.x * 0.5 + (nx - pan.current.x) * 0.5;
+        inertia.y = inertia.y * 0.5 + (ny - pan.current.y) * 0.5;
+        pan.current = { x: nx, y: ny };
+        setCursor('grabbing');
+      }
     };
     const down = (e: MouseEvent) => {
       ambient.resume();
       if (e.button !== 0) return;
       drag.down = true;
       drag.moved = false;
+      inertia.x = 0; inertia.y = 0;
       drag.sx = e.clientX;
       drag.sy = e.clientY;
       drag.px = pan.current.x;
       drag.py = pan.current.y;
       if (painting()) { const t = toTile(e); lastPaint = `${t.x},${t.y}`; propsRef.current.onTile(t); }
     };
-    const petAt = (e: MouseEvent): PetState | null => {
-      const r = canvas.getBoundingClientRect();
-      const { ox, oy, scale } = cam.current;
-      const wx = (e.clientX - r.left - ox) / (TILE * scale);
-      const wy = (e.clientY - r.top - oy) / (TILE * scale);
-      let best: PetState | null = null;
-      let bd = 0.75;
-      for (const pet of petRegistry.values()) {
-        const d = Math.hypot(wx - pet.x, wy - (pet.y - 0.3));
-        if (d < bd) { best = pet; bd = d; }
-      }
-      return best;
-    };
     const up = (e: MouseEvent) => {
       if (!drag.down) return;
       drag.down = false;
+      if (propsRef.current.editing) setCursor('crosshair'); else setCursor('grab');
+      if (!drag.moved) { inertia.x = 0; inertia.y = 0; }
       if (drag.moved || painting()) return;
       if (!propsRef.current.editing) {
         const pet = petAt(e);
@@ -371,6 +393,7 @@ export function OfficeCanvas(props: Props) {
       const z = zoneAt(p.map, (cx - r.left - ox) / (TILE * scale), (cy - r.top - oy) / (TILE * scale));
       if (z && z.kind === 'office') { p.onHoverZone({ zoneId: z.id, cx, cy }); return; }
       p.onHoverZone(null);
+      ripples.push({ x: tile.x + 0.5, y: tile.y + 0.5, t: performance.now() });
       p.onWalkTo(tile.x + 0.5, tile.y + 0.5);
     };
     const tStart = (e: TouchEvent) => {
@@ -552,6 +575,10 @@ export function OfficeCanvas(props: Props) {
       const mapH = p.map.h * TILE * scale;
       // follow me, plus however far the view was dragged, with a few tiles of room past every edge (so the rooms along the edge can be seen)
       const pad = TILE * scale * 4;
+      if (!drag.down && (Math.abs(inertia.x) > 0.2 || Math.abs(inertia.y) > 0.2)) {
+        pan.current = { x: pan.current.x + inertia.x, y: pan.current.y + inertia.y };
+        inertia.x *= 0.91; inertia.y *= 0.91;
+      } else if (!drag.down) { inertia.x = 0; inertia.y = 0; }
       let ox = w / 2 - me.x * TILE * scale + pan.current.x;
       let oy = h / 2 - me.y * TILE * scale + pan.current.y;
       ox = mapW + 2 * pad <= w ? (w - mapW) / 2 : Math.min(pad, Math.max(w - mapW - pad, ox));
@@ -613,23 +640,36 @@ export function OfficeCanvas(props: Props) {
       }
       people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
-      // smoke trails: a grey puff left behind anyone riding, rising and fading
+      // trails: smoke behind a rider, a little dust at the feet of anyone walking, and the ring where you clicked
       for (const q of people) {
-        if (!q.riding || !q.moving) continue;
+        if (!q.moving) continue;
         const last = smokeAt.get(q.id ?? '') ?? 0;
-        if (now - last < 70) continue;
+        const rider = !!q.riding;
+        if (now - last < (rider ? 70 : 140)) continue;
         smokeAt.set(q.id ?? '', now);
         const back = q.dir === 0 ? [0, -1] : q.dir === 3 ? [0, 1] : q.dir === 1 ? [1, 0] : [-1, 0];
-        smoke.push({ x: q.x * TILE + back[0] * 15 + (Math.random() - 0.5) * 4, y: q.y * TILE + 8 + back[1] * 7 + (Math.random() - 0.5) * 3, t: now, r: 2 + Math.random() * 2 });
+        if (rider) smoke.push({ x: q.x * TILE + back[0] * 15 + (Math.random() - 0.5) * 4, y: q.y * TILE + 8 + back[1] * 7 + (Math.random() - 0.5) * 3, t: now, r: 2 + Math.random() * 2 });
+        else smoke.push({ x: q.x * TILE + back[0] * 5 + (Math.random() - 0.5) * 6, y: q.y * TILE + 11 + back[1] * 3, t: now, r: 1.2 + Math.random() * 1.2, dust: true });
       }
       while (smoke.length && now - smoke[0].t > 900) smoke.shift();
-      if (smoke.length > 120) smoke.splice(0, smoke.length - 120);
+      if (smoke.length > 160) smoke.splice(0, smoke.length - 160);
       for (const sp of smoke) {
-        const age = (now - sp.t) / 900;
-        ctx.fillStyle = `rgba(148,163,184,${(0.5 * (1 - age)).toFixed(3)})`;
+        const life = sp.dust ? 480 : 900;
+        const age = (now - sp.t) / life;
+        if (age >= 1) continue;
+        ctx.fillStyle = sp.dust ? `rgba(205,190,160,${(0.28 * (1 - age)).toFixed(3)})` : `rgba(148,163,184,${(0.5 * (1 - age)).toFixed(3)})`;
         ctx.beginPath();
-        ctx.arc(sp.x, sp.y - age * 14, sp.r + age * 6, 0, Math.PI * 2);
+        ctx.arc(sp.x, sp.y - age * (sp.dust ? 6 : 14), sp.r + age * (sp.dust ? 3 : 6), 0, Math.PI * 2);
         ctx.fill();
+      }
+      while (ripples.length && now - ripples[0].t > 700) ripples.shift();
+      for (const rp of ripples) {
+        const age = (now - rp.t) / 700;
+        ctx.strokeStyle = `rgba(255,255,255,${(0.7 * (1 - age)).toFixed(3)})`;
+        ctx.lineWidth = 2.5 * (1 - age) + 0.5;
+        ctx.beginPath();
+        ctx.ellipse(rp.x * TILE, rp.y * TILE + 4, 4 + age * 24, 2 + age * 12, 0, 0, Math.PI * 2);
+        ctx.stroke();
       }
 
       // items and people drawn together so someone walking behind a desk is hidden by it
