@@ -604,9 +604,9 @@ export function OfficeCanvas(props: Props) {
         }
         for (const pet of petRegistry.values()) {
           const was = pet.happyUntil;
-          stepPet(pet, dt, now, { x: me.x, y: me.y }, solid, Math.random);
+          stepPet(pet, dt, now, { x: me.x, y: me.y, dir: me.dir }, solid, Math.random);
           if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
-          officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now : true });
+          officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now : true });
         }
       }
       const theme = { dark: p.dark };
