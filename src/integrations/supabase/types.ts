@@ -13066,6 +13066,44 @@ export type Database = {
           },
         ]
       }
+      statuses: {
+        Row: {
+          category: Database["public"]["Enums"]["status_category"]
+          color: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          space_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          space_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statuses_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       step_up_failures: {
         Row: {
           attempted_at: string
@@ -14276,9 +14314,11 @@ export type Database = {
           recurrence_next: string | null
           recurrence_rule: Json | null
           recurrence_spawned: boolean
+          search_vector: unknown
           sort_order: number
           start_date: string | null
           status: string
+          status_id: string | null
           tags: string[] | null
           task_type: string
           template_id: string | null
@@ -14306,9 +14346,11 @@ export type Database = {
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
+          search_vector?: unknown
           sort_order?: number
           start_date?: string | null
           status?: string
+          status_id?: string | null
           tags?: string[] | null
           task_type?: string
           template_id?: string | null
@@ -14336,9 +14378,11 @@ export type Database = {
           recurrence_next?: string | null
           recurrence_rule?: Json | null
           recurrence_spawned?: boolean
+          search_vector?: unknown
           sort_order?: number
           start_date?: string | null
           status?: string
+          status_id?: string | null
           tags?: string[] | null
           task_type?: string
           template_id?: string | null
@@ -14430,6 +14474,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "statuses"
             referencedColumns: ["id"]
           },
         ]
@@ -18560,6 +18611,68 @@ export type Database = {
           },
         ]
       }
+      workspace_members: {
+        Row: {
+          created_at: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          settings: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          settings?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          settings?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       company_wallet_summary: {
@@ -19846,6 +19959,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
       is_director_disbursement_batch: {
         Args: { p_batch_id: string }
@@ -19855,8 +19969,15 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_manager: { Args: { p_user_id?: string }; Returns: boolean }
+      is_manager_of: {
+        Args: { p_manager_id: string; p_target_id: string }
+        Returns: boolean
+      }
       is_ndi_admin: { Args: never; Returns: boolean }
+      is_owner: { Args: { p_user_id?: string }; Returns: boolean }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
+      is_workspace_member: { Args: { p_user_id?: string }; Returns: boolean }
       lock_payroll_run_for_disbursement: {
         Args: { p_run_id: string }
         Returns: {
@@ -21129,9 +21250,20 @@ export type Database = {
           stored_hash: string
         }[]
       }
+      visible_people: {
+        Args: { p_user_id?: string }
+        Returns: {
+          person_id: string
+        }[]
+      }
+      workspace_role_of: {
+        Args: { p_user_id?: string }
+        Returns: Database["public"]["Enums"]["workspace_role"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      status_category: "not_started" | "active" | "done" | "closed"
+      workspace_role: "owner" | "admin" | "manager" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -21261,6 +21393,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      status_category: ["not_started", "active", "done", "closed"],
+      workspace_role: ["owner", "admin", "manager", "member"],
+    },
   },
 } as const
