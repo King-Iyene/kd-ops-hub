@@ -136,9 +136,22 @@ export function useCreateSpace() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateSpaceInput) => {
+      const { data: workspace, error: workspaceErr } = await supabase
+        .from('tk_workspaces')
+        .select('id')
+        .limit(1)
+        .single();
+      if (workspaceErr) throw workspaceErr;
+
       const { data: space, error } = await supabase
         .from('tk_spaces')
-        .insert({ name: input.name, color: input.color, is_private: input.isPrivate, created_by: input.createdBy })
+        .insert({
+          workspace_id: workspace.id,
+          name: input.name,
+          color: input.color,
+          is_private: input.isPrivate,
+          created_by: input.createdBy,
+        })
         .select()
         .single();
       if (error) throw error;

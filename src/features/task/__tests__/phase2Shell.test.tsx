@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TaskLanding from '../pages/TaskLanding';
 import SpaceOverview from '../pages/SpaceOverview';
 import { TaskSidebarPanel } from '../components/TaskSidebarPanel';
+import { useCreateSpace } from '../api/spaces';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 const FAKE_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -16,12 +17,20 @@ vi.mock('@/store/authStore', () => ({
 
 type TableResult = { data: unknown; error: null };
 
-function chainable(result: TableResult) {
+const insertCalls: Record<string, unknown[]> = {};
+
+function chainable(table: string, result: TableResult) {
   const builder: Record<string, unknown> = {};
   const self = new Proxy(builder, {
     get(_target, prop) {
       if (prop === 'then') {
         return (resolve: (r: TableResult) => void) => resolve(result);
+      }
+      if (prop === 'insert') {
+        return (payload: unknown) => {
+          (insertCalls[table] ??= []).push(payload);
+          return self;
+        };
       }
       return () => self;
     },
@@ -34,7 +43,7 @@ let rpcResults: Record<string, TableResult> = {};
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    from: (table: string) => chainable(tableResults[table] ?? { data: [], error: null }),
+    from: (table: string) => chainable(table, tableResults[table] ?? { data: [], error: null }),
     rpc: (fn: string) => Promise.resolve(rpcResults[fn] ?? { data: null, error: null }),
   },
 }));
@@ -133,16 +142,42 @@ describe('Task Phase 2 — shell and spaces', () => {
     expect(screen.queryByRole('button', { name: /Unarchive/i })).not.toBeInTheDocument();
   });
 
-  it('TaskSidebarPanel renders the workspace header, the Task/Track switch, and the Spaces section', async () => {
-    tableResults = { tk_workspaces: { data: { id: 'ws-1', name: 'KD Squares', slug: 'kd-squares' }, error: null }, tk_spaces: { data: [], error: null } };
+  it('TaskSidebarPanel renders the Task hub header (not the workspace name, no Task/Track switch) and the Spaces section', async () => {
+    tableResults = { tk_spaces: { data: [], error: null } };
     rpcResults = { tk_role_of: { data: 'admin', error: null } };
 
     renderWithProviders(<TaskSidebarPanel onBack={() => {}} onSignOut={() => {}} />, '/task');
 
-    await waitFor(() => expect(screen.getByText('KD Squares')).toBeInTheDocument());
-    expect(screen.getByText('Task')).toBeInTheDocument();
-    expect(screen.getByText('Track')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Task')).toBeInTheDocument());
+    expect(screen.getByText('Spaces, lists & tasks')).toBeInTheDocument();
+    expect(screen.queryByText('KD Squares')).not.toBeInTheDocument();
+    expect(screen.queryByText('Track')).not.toBeInTheDocument();
     expect(screen.getByText('Spaces')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('No spaces yet.')).toBeInTheDocument());
+  });
+
+  it('useCreateSpace sends workspace_id on the insert (regression: the real create-space bug)', async () => {
+    tableResults = {
+      tk_workspaces: { data: { id: 'ws-1' }, error: null },
+      tk_spaces: { data: { id: 'space-9', name: 'Engineering' }, error: null },
+    };
+    delete insertCalls.tk_spaces;
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useCreateSpace(), { wrapper });
+
+    await result.current.mutateAsync({
+      name: 'Engineering',
+      color: '#006994',
+      isPrivate: false,
+      createdBy: FAKE_USER_ID,
+      members: [],
+    });
+
+    expect(insertCalls.tk_spaces).toHaveLength(1);
+    expect(insertCalls.tk_spaces[0]).toMatchObject({ workspace_id: 'ws-1', name: 'Engineering' });
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronDown, ChevronRight, Clock, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useActiveSpaces } from '../api/spaces';
 import { isTaskAdmin, useTaskRole } from '../api/workspace';
@@ -30,18 +30,6 @@ export function TaskMobilePanel({ onNavigate }: { onNavigate: () => void }) {
 
   return (
     <div className="space-y-2 px-1.5 pb-1.5">
-      <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40 w-full">
-        <button className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-background shadow-sm text-foreground">
-          <CheckCircle2 className="h-3.5 w-3.5" /> Task
-        </button>
-        <button
-          onClick={() => go('/timetrack')}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium text-muted-foreground"
-        >
-          <Clock className="h-3.5 w-3.5" /> Track
-        </button>
-      </div>
-
       <div className="flex items-center justify-between px-1.5">
         <span className="text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground/60">Spaces</span>
         {canCreate && (

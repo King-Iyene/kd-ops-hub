@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, LogOut, Plus } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, LogOut, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Sidebar,
@@ -11,14 +11,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { SIDEBAR_HUBS } from '@/lib/navConfig';
 import { useActiveSpaces } from '../api/spaces';
-import { isTaskAdmin, useTaskRole, useTaskWorkspace } from '../api/workspace';
+import { isTaskAdmin, useTaskRole } from '../api/workspace';
 import { CreateSpaceDialog } from '../spaces/CreateSpaceDialog';
+
+const TASK_HUB = SIDEBAR_HUBS.find((h) => h.key === 'task')!;
 
 export function TaskSidebarPanel({ onBack, onSignOut }: { onBack: () => void; onSignOut: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: workspace } = useTaskWorkspace();
   const { data: spaces, isLoading } = useActiveSpaces();
   const { data: role } = useTaskRole();
   const canCreate = isTaskAdmin(role);
@@ -32,37 +34,30 @@ export function TaskSidebarPanel({ onBack, onSignOut }: { onBack: () => void; on
 
   return (
     <Sidebar collapsible="icon">
+      {/* Same header shape every other hub uses (icon, label, description)
+          — not the workspace name, and no Task/Track switch: KD Ops's own
+          hub picker (the back chevron below) already gets you to Track. */}
       <div className="px-3 pt-3.5 pb-2 border-b border-sidebar-border/40">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-1.5 py-1.5 rounded-lg w-full text-left kd-transition hover:bg-white/[0.06] group/back"
+          className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg w-full text-left kd-transition hover:bg-white/[0.06] group/back"
         >
           <ChevronLeft className="h-3.5 w-3.5 text-sidebar-foreground/40 group-hover/back:text-sidebar-foreground/70 kd-transition shrink-0" />
-          <div className="h-5 w-5 rounded flex items-center justify-center shrink-0 bg-primary/20">
-            <Check className="h-3 w-3 text-sidebar-primary" />
+          <div className="h-7 w-7 flex items-center justify-center shrink-0">
+            <CheckCircle2 className={cn('h-4 w-4', TASK_HUB.color)} />
           </div>
-          <p className="text-xs-plus font-semibold text-sidebar-primary leading-none tracking-tight truncate">
-            {workspace?.name ?? 'KD Squares'}
-          </p>
+          <div className="min-w-0">
+            <p className="text-xs-plus font-semibold text-sidebar-primary leading-none tracking-tight">
+              {TASK_HUB.label}
+            </p>
+            <p className="text-3xs text-sidebar-foreground/40 mt-0.5 leading-none truncate">
+              {TASK_HUB.description}
+            </p>
+          </div>
         </button>
       </div>
 
       <SidebarContent className="pt-2 pb-2 px-2">
-        <div className="inline-flex rounded-lg border border-sidebar-border/40 p-0.5 bg-white/[0.04] mb-3 w-full">
-          <button
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium bg-white/[0.11] text-sidebar-primary"
-            aria-current="page"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" /> Task
-          </button>
-          <button
-            onClick={() => navigate('/timetrack')}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/55 hover:text-sidebar-foreground/85 kd-transition"
-          >
-            <Clock className="h-3.5 w-3.5" /> Track
-          </button>
-        </div>
-
         <div className="flex items-center justify-between px-1.5 mb-1">
           <span className="text-3xs font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35">Spaces</span>
           {canCreate && (
