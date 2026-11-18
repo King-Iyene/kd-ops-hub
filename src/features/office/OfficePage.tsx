@@ -35,7 +35,6 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
-import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
@@ -1350,11 +1349,6 @@ function OfficeRoom() {
         const c = (claims ?? []).find((x) => x.office_id === z.id) ?? null;
         const who = c ? (directory ?? []).find((d) => d.id === c.user_id) : undefined;
         const mine = !!c && c.user_id === profile?.id;
-        const acts: OfficeAction[] = [];
-        if (!c && !myClaim) acts.push({ key: 'claim', label: 'Claim', icon: <Building2 className="h-3.5 w-3.5" />, primary: true, run: () => { setZoneCard(null); void claimOffice(z.id); } });
-        acts.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, primary: c || myClaim ? true : false, run: () => { setZoneCard(null); walkToOffice(z.id); } });
-        acts.push({ key: 'link', label: 'Copy link', compact: true, icon: <LinkIcon className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); void copyLink(`&room=${z.id}`, `It opens ${z.name}.`); } });
-        if (isAdmin) acts.push({ key: 'manage', label: 'Manage', compact: true, icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
         // an office or seat that somebody has: show that person, like Gather does, online or not
         if (c && who) {
           const live = roster.find((r) => r.uid === who.id) ?? null;
@@ -1371,11 +1365,15 @@ function OfficeRoom() {
             <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={who.name + (mine ? ' (you)' : '')} avatar={who.avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} actions={pa} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
           );
         }
+        // nobody has it yet: the same card, with a plus for a face
+        const free: CardAction[] = [];
+        const gof = (fn: () => void) => () => { setZoneCard(null); fn(); };
+        if (!myClaim) free.push({ key: 'claim', label: z.seat ? 'Claim this seat' : 'Claim this office', icon: <Building2 className="h-4 w-4" />, primary: true, run: gof(() => void claimOffice(z.id)) });
+        free.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-4 w-4" />, run: gof(() => walkToOffice(z.id)) });
+        free.push({ key: 'link', label: 'Copy link', icon: <LinkIcon className="h-4 w-4" />, run: gof(() => void copyLink(`&room=${z.id}`, `It opens ${z.name}.`)) });
+        if (isAdmin) free.push({ key: 'manage', label: 'Manage', icon: <Settings className="h-4 w-4" />, run: gof(() => setDeskZone(z)) });
         return (
-          <OfficeCard
-            x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
-            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "You already have one" : undefined} actions={acts.slice(0, 4)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
-          />
+          <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={z.name} avatar={null} online={false} status={null} sub={(myClaim ? 'You already have one' : 'Free to claim') + (lockedRef.current.has(z.id) ? ' · locked' : '')} actions={free} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
         );
       })()}
       {card && !ctx && (() => {
