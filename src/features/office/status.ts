@@ -3,6 +3,9 @@ import { isEmoji } from './emoji';
 // A short status people can show next to their name (like "Hustling mode"). Only the id travels over the network.
 export const STATUSES = [
   { id: 'available', emoji: '🟢', label: 'Available' },
+  // busy is only a label (people can still reach you); do not disturb silences rings and waves
+  { id: 'busy', emoji: '🟡', label: 'Busy' },
+  { id: 'dnd', emoji: '🔴', label: 'Do not disturb' },
   { id: 'focus', emoji: '🎯', label: 'Focusing' },
   { id: 'meeting', emoji: '💬', label: 'In a meeting' },
   { id: 'lunch', emoji: '🍽️', label: 'Lunch' },

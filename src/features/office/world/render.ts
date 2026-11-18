@@ -1958,63 +1958,113 @@ export function drawVignette(ctx: Ctx, w: number, h: number, dark: boolean) {
  */
 function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, spin: number, col?: string) {
   const body = col ?? '#dc2626';
-  const dark = '#111827';
-  ellipse(ctx, px, py + 9, view === 'side' ? 17 : 7, 4, 'rgba(15,23,42,0.28)');
+  const dark = '#0f172a';
+  const light = shade(body, 0.35);
+  ellipse(ctx, px, py + 9, view === 'side' ? 18 : 8, 4, 'rgba(15,23,42,0.32)');
   ctx.save();
   ctx.translate(px, py);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   if (view === 'side') {
     ctx.scale(face, 1);
-    for (const wx of [-11, 11]) {
-      disc(ctx, wx, 5, 7.2, dark);
-      disc(ctx, wx, 5, 4.4, '#cbd5e1');
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 1;
+    // wheels: thick tyre, silver rim, spokes that turn, gold hub
+    for (const wx of [-11.5, 11.5]) {
+      disc(ctx, wx, 5, 7.6, dark);
+      disc(ctx, wx, 5, 5.2, '#e2e8f0');
+      disc(ctx, wx, 5, 4.2, '#475569');
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 0.9;
       ctx.beginPath();
-      for (let k = 0; k < 3; k++) {
-        const a = spin + (k * Math.PI) / 3;
-        ctx.moveTo(wx - Math.cos(a) * 4.4, 5 - Math.sin(a) * 4.4);
-        ctx.lineTo(wx + Math.cos(a) * 4.4, 5 + Math.sin(a) * 4.4);
+      for (let k = 0; k < 4; k++) {
+        const an = spin + (k * Math.PI) / 4;
+        ctx.moveTo(wx - Math.cos(an) * 4.2, 5 - Math.sin(an) * 4.2);
+        ctx.lineTo(wx + Math.cos(an) * 4.2, 5 + Math.sin(an) * 4.2);
       }
       ctx.stroke();
-      disc(ctx, wx, 5, 1.4, dark);
+      disc(ctx, wx, 5, 1.5, '#facc15');
     }
-    ctx.fillStyle = body;
-    rr(ctx, -12, -1, 24, 5, 2.5);
+    // front fork, rear swing arm and the engine block between the wheels
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(11.5, 5); ctx.lineTo(8.5, -6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-11.5, 5); ctx.lineTo(-3, 3); ctx.stroke();
+    ctx.fillStyle = '#334155';
+    rr(ctx, -5, 0, 11, 6.5, 2);
     ctx.fill();
-    ctx.fillStyle = shade(body, -0.3);
-    rr(ctx, -5, 0, 10, 6, 2);
+    ctx.fillStyle = '#64748b';
+    rr(ctx, -3, 1.4, 6, 1.6, 0.8);
     ctx.fill();
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(11, 4);
-    ctx.lineTo(9, -7);
-    ctx.lineTo(13, -9);
-    ctx.stroke();
-    ctx.fillStyle = dark;
-    rr(ctx, -12, -4, 9, 3.5, 1.6);
-    ctx.fill();
-    disc(ctx, 14, -6, 2.1, '#fde047');
-    disc(ctx, -13, 1, 1.4, '#ef4444');
-  } else {
-    ctx.fillStyle = dark;
-    rr(ctx, -3, -2, 6, 17, 2.6);
-    ctx.fill();
+    // exhaust
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillRect(-1.2, 1 + ((spin * 3) % 5), 2.4, 1.6);
-    ctx.fillStyle = body;
-    rr(ctx, -5, -4, 10, 11, 3);
+    rr(ctx, -15, 3.2, 10, 2.6, 1.3);
     ctx.fill();
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = 'round';
+    // fairing and tank: a swoosh from the tail up over the tank down to the nose
+    const g = ctx.createLinearGradient(0, -9, 0, 5);
+    g.addColorStop(0, light); g.addColorStop(0.5, body); g.addColorStop(1, shade(body, -0.35));
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(-11, -7);
-    ctx.lineTo(11, -7);
-    ctx.stroke();
-    if (view === 'front') disc(ctx, 0, -2, 2.1, '#fde047');
-    else { disc(ctx, -3, 6, 1.5, '#ef4444'); disc(ctx, 3, 6, 1.5, '#ef4444'); }
+    ctx.moveTo(-14, -2);
+    ctx.quadraticCurveTo(-10, -5, -4, -4.5);
+    ctx.quadraticCurveTo(2, -8, 7, -6.5);
+    ctx.quadraticCurveTo(13, -4, 14.5, 0.5);
+    ctx.lineTo(10, 3.5);
+    ctx.lineTo(-3, 3);
+    ctx.lineTo(-12, 2.5);
+    ctx.closePath();
+    ctx.fill();
+    // a stripe and a highlight along the top
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-9, -1); ctx.lineTo(10, -1.5); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath(); ctx.moveTo(-3, -5.2); ctx.quadraticCurveTo(3, -7.6, 7, -6.2); ctx.stroke();
+    // seat, windscreen, mirror and handlebar
+    ctx.fillStyle = dark;
+    rr(ctx, -12.5, -5.8, 9, 3, 1.5);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(186,230,253,0.85)';
+    ctx.beginPath(); ctx.moveTo(8.5, -6.5); ctx.lineTo(11.5, -11); ctx.lineTo(13, -6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(8.5, -6.5); ctx.lineTo(7.5, -9.5); ctx.stroke();
+    // lights: glowing headlamp and tail lamp
+    const hg = ctx.createRadialGradient(15, -1, 0, 15, -1, 5);
+    hg.addColorStop(0, 'rgba(254,240,138,0.9)'); hg.addColorStop(1, 'rgba(254,240,138,0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(15, -1, 5, 0, Math.PI * 2); ctx.fill();
+    disc(ctx, 14.2, -1, 2, '#fef08a');
+    disc(ctx, -14.2, -1.6, 1.5, '#f43f5e');
+  } else {
+    // front or back: the tyre, the body from ahead or behind, the bars and the lamps
+    ctx.fillStyle = dark;
+    rr(ctx, -3.2, -2, 6.4, 18, 2.8);
+    ctx.fill();
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(-1.2, 1 + ((spin * 3) % 5), 2.4, 1.6);
+    const g = ctx.createLinearGradient(-6, 0, 6, 0);
+    g.addColorStop(0, shade(body, -0.3)); g.addColorStop(0.5, light); g.addColorStop(1, shade(body, -0.3));
+    ctx.fillStyle = g;
+    rr(ctx, -6, -6, 12, 13, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(-0.7, -5, 1.4, 11);
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-12, -8); ctx.lineTo(12, -8); ctx.stroke();
+    disc(ctx, -12, -8, 1.6, '#94a3b8');
+    disc(ctx, 12, -8, 1.6, '#94a3b8');
+    if (view === 'front') {
+      ctx.fillStyle = 'rgba(186,230,253,0.85)';
+      ctx.beginPath(); ctx.moveTo(-4, -6); ctx.lineTo(0, -12); ctx.lineTo(4, -6); ctx.closePath(); ctx.fill();
+      disc(ctx, 0, -1, 3.2, 'rgba(254,240,138,0.35)');
+      disc(ctx, 0, -1, 2, '#fef08a');
+    } else {
+      disc(ctx, -3.4, 5, 1.6, '#f43f5e');
+      disc(ctx, 3.4, 5, 1.6, '#f43f5e');
+      ctx.fillStyle = '#cbd5e1';
+      rr(ctx, -2.5, 8, 5, 2, 1);
+      ctx.fill();
+    }
   }
   ctx.restore();
 }

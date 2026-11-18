@@ -91,7 +91,7 @@ function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) 
 
 /** Focusing or in a meeting: rings and waves arrive without a sound. */
 function quietNow(): boolean {
-  try { const s = localStorage.getItem('kd:office:status'); return s === 'focus' || s === 'meeting'; } catch { return false; }
+  try { const s = localStorage.getItem('kd:office:status'); return s === 'focus' || s === 'meeting' || s === 'dnd'; } catch { return false; }
 }
 
 function OfficeRoom() {
@@ -947,6 +947,19 @@ function OfficeRoom() {
   const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
+  // like Gather: Ctrl+O available, Ctrl+I busy, Ctrl+U do not disturb
+  useEffect(() => {
+    const keys: Record<string, string> = { o: 'available', i: 'busy', u: 'dnd' };
+    const onKey = (e: KeyboardEvent) => {
+      const id = keys[e.key.toLowerCase()];
+      if (!id || !e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      chooseStatus(id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+     
+  }, []);
   // a power bike: you ride until you press F again, leave the space, or are moved to another window
   const [riding, setRidingState] = useState(false);
   useEffect(() => { setRiding(riding); }, [riding, setRiding, connected]);
