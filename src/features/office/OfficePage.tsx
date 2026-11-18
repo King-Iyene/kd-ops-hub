@@ -6,6 +6,8 @@ import { errorMessage } from '@/lib/db-errors';
 import { Button } from '@/components/ui/button';
 import { OfficeCanvas, type EditTool } from './OfficeCanvas';
 import { AvatarDialog } from './AvatarDialog';
+import { CallDock } from './calls/CallDock';
+import { useCalls } from './calls/useCalls';
 import { useOffice } from './useOffice';
 import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
@@ -74,7 +76,28 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, mine, sendRtc, setRtcHandler } = useOffice(me, space?.id ?? null);
+
+  // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
+  const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
+  const roomRef = useRef<string | null>(null);
+  const rosterRef = useRef(roster);
+  rosterRef.current = roster;
+  const calls = useCalls({
+    meId: me?.id ?? null,
+    spaceId: space?.id ?? null,
+    roster,
+    lookup: (id) => {
+      const pm = peers.current.get(id);
+      const who = rosterRef.current.find((r) => r.id === id);
+      if (!pm || !who) return null;
+      const dt = Math.min(4, (Date.now() - pm.at) / 1000);
+      return { x: pm.x + pm.vx * dt, y: pm.y + pm.vy * dt, room: who.zone && meetingIds.has(who.zone) ? who.zone : null };
+    },
+    self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current }),
+    send: sendRtc,
+    setHandler: setRtcHandler,
+  });
 
   // ---- editing furniture ----
   const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin);
@@ -132,6 +155,7 @@ export default function OfficePage() {
   const [zone, setZone] = useState<Zone | null>(null);
   const onZone = (z: Zone | null) => {
     setZone(z);
+    roomRef.current = z && z.kind === 'meeting' ? z.id : null;
     announce(z && z.kind !== 'portal' ? z.id : null);
   };
   const onPortal = (target: 'team' | 'mine') => {
@@ -249,7 +273,14 @@ export default function OfficePage() {
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
           {!editing && (
-            <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg bg-background/80 px-3 py-1.5 text-xs text-muted-foreground shadow backdrop-blur">
+            <CallDock
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles}
+              roomName={zone && zone.kind === 'meeting' ? zone.name : null}
+              onJoin={calls.join} onLeave={calls.leave} onMic={calls.toggleMic} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
+            />
+          )}
+          {!editing && (
+            <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-background/80 px-3 py-1.5 text-xs text-muted-foreground shadow backdrop-blur">
               Walk with <kbd className="rounded border px-1">W</kbd><kbd className="ml-0.5 rounded border px-1">A</kbd><kbd className="ml-0.5 rounded border px-1">S</kbd><kbd className="ml-0.5 rounded border px-1">D</kbd> or the arrow keys. Walk through a door to change rooms.
             </div>
           )}

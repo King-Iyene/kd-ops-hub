@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { AvatarStyle } from './world/types';
 import { pack, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
 import { cleanAvatar } from './world/render';
+import type { RtcSignal } from './calls/rules';
 
 /**
  * Live presence for the office, built to stay quiet (see netSync.ts):
@@ -56,6 +57,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const roomReady = useRef(false);
   const lastSent = useRef<SentMotion | null>(null);
   const mine = useRef<{ m: Motion; dir: 0 | 1 | 2 | 3 }>({ m: { x: 0, y: 0, vx: 0, vy: 0 }, dir: 0 });
+  const rtcHandler = useRef<((raw: unknown) => void) | null>(null);
   const zoneRef = useRef<string | null>(null);
   const selfRef = useRef(self);
   selfRef.current = self;
@@ -129,6 +131,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     ch.on('broadcast', { event: 'q' }, () => {
       setTimeout(() => { if (roomReady.current) emit(); }, Math.random() * 400);
     });
+    // call set-up messages (see calls/useCalls.ts); handled by whoever registered a handler
+    ch.on('broadcast', { event: 'rtc' }, ({ payload }) => { rtcHandler.current?.(payload); });
     ch.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         roomReady.current = true;
@@ -156,5 +160,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     lastSent.current = { ...m, at: now };
   }, []);
 
-  return { roster, connected, peers, update, announce };
+  /** Send a call set-up message to the people in this office (only the addressee acts on it). */
+  const sendRtc = useCallback((payload: RtcSignal) => {
+    const ch = room.current;
+    if (ch && roomReady.current) void ch.send({ type: 'broadcast', event: 'rtc', payload });
+  }, []);
+  const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
+
+  return { roster, connected, peers, update, announce, mine, sendRtc, setRtcHandler };
 }
