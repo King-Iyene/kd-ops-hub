@@ -4,6 +4,7 @@
   "private": true,
   "description": "KD Office: the KD Squares virtual office as a desktop app",
   "author": { "name": "KD Squares", "email": "code@kdsquares.com" },
+  "homepage": "https://github.com/King-Iyene/kd-ops-hub/tree/main/desktop-office",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
