@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Building2, CloudSun, Footprints, Hammer, MoreHorizontal, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
+import { Building2, CloudSun, Footprints, Hammer, Link2, MoreHorizontal, Pencil, Search, Settings, Trash2, UserMinus, UserPlus, Users, Video } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BTN_MAIN, BTN_QUIET, LABEL } from './ui';
@@ -13,7 +13,7 @@ type Tab = ManageTab;
  * One calm place to run the space. Offices are rows; the 24 desk seats are a compact grid of chips (a seat shows its owner,
  * or a plus when free) so nothing repeats down the page.
  */
-export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isAdmin, isSuper, canEdit, canDelete, rows, onAssign, onUnclaim, onRename, onWalk, onInvite, onSettings, onEdit, onRecordings, onRenameSpace, onDeleteSpace, onNewSpace }: {
+export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isAdmin, isSuper, canEdit, canDelete, rows, onAssign, onUnclaim, onRename, onWalk, onCopyLink, onInvite, onSettings, onEdit, onRecordings, onRenameSpace, onDeleteSpace, onNewSpace }: {
   open: boolean;
   onClose: () => void;
   /** which tab to open on */
@@ -30,6 +30,8 @@ export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isA
   onUnclaim: (id: string) => void;
   onRename: (id: string) => void;
   onWalk: (id: string) => void;
+  /** copy a link that opens this office or seat */
+  onCopyLink: (id: string) => void;
   onInvite: () => void;
   onSettings: () => void;
   onEdit: () => void;
@@ -62,6 +64,7 @@ export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isA
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="ko w-48">
         <DropdownMenuItem onSelect={go(() => onWalk(r.id))}><Footprints className="mr-2 h-4 w-4" />Walk there</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onCopyLink(r.id)}><Link2 className="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
         {isAdmin && <DropdownMenuItem onSelect={go(() => onAssign(r.id))}><UserPlus className="mr-2 h-4 w-4" />{r.owner ? 'Change who has it' : 'Assign to someone'}</DropdownMenuItem>}
         {isAdmin && <DropdownMenuItem onSelect={go(() => onRename(r.id))}><Pencil className="mr-2 h-4 w-4" />Rename</DropdownMenuItem>}
         {isAdmin && r.owner && <><DropdownMenuSeparator /><DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => onUnclaim(r.id)}><UserMinus className="mr-2 h-4 w-4" />Free it up</DropdownMenuItem></>}
@@ -148,6 +151,7 @@ export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isA
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="ko w-48">
                         <DropdownMenuItem onSelect={go(() => onWalk(r.id))}><Footprints className="mr-2 h-4 w-4" />Walk there</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onCopyLink(r.id)}><Link2 className="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
                         {isAdmin && <DropdownMenuItem onSelect={go(() => onAssign(r.id))}><UserPlus className="mr-2 h-4 w-4" />{r.owner ? 'Change who has it' : 'Assign to someone'}</DropdownMenuItem>}
                         {isAdmin && r.owner && <DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => onUnclaim(r.id)}><UserMinus className="mr-2 h-4 w-4" />Free it up</DropdownMenuItem>}
                       </DropdownMenuContent>

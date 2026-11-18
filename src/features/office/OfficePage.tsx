@@ -57,8 +57,21 @@ import type { Item, TileEdits, Zone } from './world/types';
  * when that sidebar is collapsed or on a phone it stays beside the map as before.
  */
 function SlotAside({ slot, children }: { slot: HTMLElement | null; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   if (slot) return createPortal(<div className="flex flex-col gap-4 px-3 pb-3 pt-2">{children}</div>, slot);
-  return <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">{children}</aside>;
+  return (
+    <>
+      <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">{children}</aside>
+      {/* on a phone there is no room beside the map: the same lists open from a button */}
+      <button type="button" onClick={() => setOpen(true)} className="ko fixed left-3 top-[4.75rem] z-30 flex items-center gap-1.5 rounded-full border border-white/10 bg-background/85 px-3 py-1.5 text-xs font-semibold shadow-lg backdrop-blur-md md:hidden"><Users className="h-3.5 w-3.5" />People and rooms</button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex h-[85vh] w-[calc(100vw-1rem)] flex-col gap-4 overflow-y-auto rounded-3xl p-4 md:hidden">
+          <DialogTitle className="sr-only">People and rooms</DialogTitle>
+          {children}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 /** A sidebar section title you can click to fold the list away (so there is room for other things). */
@@ -864,6 +877,15 @@ function OfficeRoom() {
     return next;
   });
   const spaceLink = (extra = '') => `${window.location.origin}/office?space=${space?.id ?? ''}${extra}`;
+  const copySpaceLink = async (sp: { id: string; name: string }) => {
+    const url = `${window.location.origin}/office?space=${sp.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: 'Link copied', description: `It opens ${sp.name}. Paste it anywhere.` });
+    } catch {
+      toast({ title: 'Copy this link', description: url });
+    }
+  };
   const copyLink = async (extra: string, what: string) => {
     const url = spaceLink(extra);
     try {
@@ -1028,6 +1050,7 @@ function OfficeRoom() {
                   <button type="button" onClick={() => setSpaceId(sp.id)} className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left text-sm">
                     <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{sp.name}</span>
                   </button>
+                  <button type="button" aria-label={`Copy link to ${sp.name}`} title="Copy link" onClick={() => void copySpaceLink(sp)} className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded opacity-0 hover:bg-background group-hover:opacity-100"><LinkIcon className="h-3.5 w-3.5" /></button>
                   {isSuper && (
                     <span className="mr-1 flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
                       <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-background"><Pencil className="h-3.5 w-3.5" /></button>
@@ -1118,7 +1141,7 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} riding={riding} onRide={setRidingState} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={setRidingState} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
@@ -1294,11 +1317,12 @@ function OfficeRoom() {
         const acts: OfficeAction[] = [];
         if (!c && !myClaim) acts.push({ key: 'claim', label: 'Claim', icon: <Building2 className="h-3.5 w-3.5" />, primary: true, run: () => { setZoneCard(null); void claimOffice(z.id); } });
         acts.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, primary: c || myClaim ? true : false, run: () => { setZoneCard(null); walkToOffice(z.id); } });
+        acts.push({ key: 'link', label: 'Copy link', compact: true, icon: <LinkIcon className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); void copyLink(`&room=${z.id}`, `It opens ${z.name}.`); } });
         if (isAdmin) acts.push({ key: 'manage', label: 'Manage', compact: true, icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
         return (
           <OfficeCard
             x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
-            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "You already have one" : undefined} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
+            locked={lockedRef.current.has(z.id)} note={!c && myClaim ? "You already have one" : undefined} actions={acts.slice(0, 4)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
           />
         );
       })()}
@@ -1432,6 +1456,7 @@ function OfficeRoom() {
         onUnclaim={(id) => void unclaimOffice(id)}
         onRename={(id) => { const z = map.zones.find((q) => q.id === id); if (z) setNameZone({ id: z.id, name: z.name, kind: z.kind }); }}
         onWalk={(id) => walkToOffice(id)}
+        onCopyLink={(id) => { const z = map.zones.find((q) => q.id === id); void copyLink(`&room=${id}`, `It opens ${z?.name ?? 'it'}.`); }}
         onInvite={() => setInviteOpen(true)} onSettings={() => setSettingsOpen(true)} onEdit={() => startEdit()} onRecordings={() => setRecordingsOpen(true)}
         onRenameSpace={() => { setRenaming(space); setRenameValue(space.name); }} onDeleteSpace={() => void removeSpace(space)} onNewSpace={() => setNewSpaceOpen(true)}
       />

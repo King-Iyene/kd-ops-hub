@@ -65,6 +65,10 @@ interface Props {
   onNear: (item: Item | null) => void;
   /** F pressed (or the thing clicked): open it */
   onInteract: (item: Item) => void;
+  /** pinch to zoom: multiply the zoom by this */
+  onZoomBy: (factor: number) => void;
+  /** walk to a spot (a double click, or a tap on a phone) */
+  onWalkTo: (x: number, y: number) => void;
   /** I am on a power bike, and getting on or off */
   riding: boolean;
   onRide: (on: boolean) => void;
@@ -295,7 +299,12 @@ export function OfficeCanvas(props: Props) {
       if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
       else propsRef.current.onMapClick(toTile(e));
     };
-    const dbl = () => { pan.current = { x: 0, y: 0 }; };
+    const dbl = (e: MouseEvent) => {
+      pan.current = { x: 0, y: 0 };
+      if (propsRef.current.editing) return;
+      const t = toTile(e);
+      propsRef.current.onWalkTo(t.x + 0.5, t.y + 0.5);
+    };
     const ctxMenu = (e: MouseEvent) => {
       e.preventDefault();
       const p = propsRef.current;
@@ -331,6 +340,77 @@ export function OfficeCanvas(props: Props) {
     canvas.addEventListener('mouseleave', leave);
     canvas.addEventListener('mousedown', down);
     canvas.addEventListener('mouseup', up);
+    // touch: drag to pan, pinch to zoom, tap to walk or open things, press and hold for the menu
+    const pseudo = (x: number, y: number) => ({ clientX: x, clientY: y, preventDefault() { /* nothing to cancel */ } }) as unknown as MouseEvent;
+    let touch: { x: number; y: number; px: number; py: number; moved: boolean; timer: number | null } | null = null;
+    let pinch: number | null = null;
+    const pinchDist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const tap = (cx: number, cy: number) => {
+      const p = propsRef.current;
+      const e = pseudo(cx, cy);
+      const tile = toTile(e);
+      if (p.editing) { p.onTile(tile); return; }
+      const pet = petAt(e);
+      if (pet) { petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+      const who = personAt(e);
+      if (who) { p.onHoverPerson({ personId: who.id, isMe: who.isMe, cx, cy, near: who.near }); return; }
+      p.onHoverPerson(null);
+      const item = p.items.find((i) => INTERACTIVE[i.t] && tile.x >= i.x && tile.y >= i.y && tile.x < i.x + itemSize(i).w && tile.y < i.y + itemSize(i).h);
+      if (item) {
+        if (item.t !== 'bike') { p.onMapClick(tile); return; }
+        const m = meRef.current;
+        if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
+        return;
+      }
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const z = zoneAt(p.map, (cx - r.left - ox) / (TILE * scale), (cy - r.top - oy) / (TILE * scale));
+      if (z && z.kind === 'office') { p.onHoverZone({ zoneId: z.id, cx, cy }); return; }
+      p.onHoverZone(null);
+      p.onWalkTo(tile.x + 0.5, tile.y + 0.5);
+    };
+    const tStart = (e: TouchEvent) => {
+      ambient.resume();
+      if (e.touches.length === 2) {
+        pinch = pinchDist(e);
+        if (touch?.timer) window.clearTimeout(touch.timer);
+        touch = null;
+        return;
+      }
+      const t = e.touches[0];
+      touch = { x: t.clientX, y: t.clientY, px: pan.current.x, py: pan.current.y, moved: false, timer: null };
+      touch.timer = window.setTimeout(() => {
+        if (touch && !touch.moved) { const held = touch; touch = null; ctxMenu(pseudo(held.x, held.y)); }
+      }, 550);
+    };
+    const tMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2 && pinch) {
+        const d = pinchDist(e);
+        propsRef.current.onZoomBy(d / pinch);
+        pinch = d;
+        return;
+      }
+      if (!touch) return;
+      const t = e.touches[0];
+      const dx = t.clientX - touch.x;
+      const dy = t.clientY - touch.y;
+      if (Math.abs(dx) + Math.abs(dy) > 10) { touch.moved = true; if (touch.timer) window.clearTimeout(touch.timer); }
+      if (touch.moved && !propsRef.current.editing) pan.current = { x: touch.px + dx, y: touch.py + dy };
+    };
+    const tEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length < 2) pinch = null;
+      if (!touch) return;
+      const t = touch;
+      touch = null;
+      if (t.timer) window.clearTimeout(t.timer);
+      if (!t.moved) tap(t.x, t.y);
+    };
+    canvas.addEventListener('touchstart', tStart, { passive: false });
+    canvas.addEventListener('touchmove', tMove, { passive: false });
+    canvas.addEventListener('touchend', tEnd, { passive: false });
+    canvas.addEventListener('touchcancel', tEnd, { passive: false });
     canvas.addEventListener('dblclick', dbl);
     canvas.addEventListener('contextmenu', ctxMenu);
 
@@ -700,6 +780,10 @@ export function OfficeCanvas(props: Props) {
       canvas.removeEventListener('mousedown', down);
       canvas.removeEventListener('mouseup', up);
       canvas.removeEventListener('dblclick', dbl);
+      canvas.removeEventListener('touchstart', tStart);
+      canvas.removeEventListener('touchmove', tMove);
+      canvas.removeEventListener('touchend', tEnd);
+      canvas.removeEventListener('touchcancel', tEnd);
       canvas.removeEventListener('contextmenu', ctxMenu);
     };
   }, []);
