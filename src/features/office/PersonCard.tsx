@@ -25,13 +25,14 @@ export function PersonCard({ x, y, name, avatar, online, status, hint, actions, 
   onLeave: () => void;
 }) {
   const w = 252;
-  // tucked against the pointer, so there is no gap to cross on the way to a button
-  const left = x + 14 + w > window.innerWidth - 8 ? Math.max(8, x - w - 14) : x + 14;
-  const top = Math.max(8, Math.min(y - 26, window.innerHeight - 200));
+  // centred just above the pointer and overlapping it a little, so there is no gap to cross on the way up
+  const left = Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8));
+  const above = y > 170;
+  const pos = above ? { bottom: window.innerHeight - y - 24 } : { top: y + 18 };
   const main = actions.find((a) => a.primary && !a.off) ?? null;
   const rest = actions.filter((a) => a !== main);
   return createPortal(
-    <div className="ko fixed z-[65]" style={{ left, top, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+    <div className="ko fixed z-[65]" style={{ left, ...pos, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <div className={`${SURFACE} animate-in fade-in zoom-in-95 p-3 duration-100`}>
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">

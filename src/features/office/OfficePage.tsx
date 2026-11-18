@@ -836,7 +836,7 @@ function OfficeRoom() {
   const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
     zoneLatest.current = h;
     window.clearTimeout(zoneTimer.current);
-    if (!h) { zoneTimer.current = window.setTimeout(() => { if (!overZone.current) setZoneCard(null); }, 2200); return; }
+    if (!h) { zoneTimer.current = window.setTimeout(() => { if (!overZone.current) setZoneCard(null); }, 700); return; }
     if (zoneCard) {
       if (zoneCard.zoneId === h.zoneId) return;
       // reaching for the card: a seat next to it must not take it over
