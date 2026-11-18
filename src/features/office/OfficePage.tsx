@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { BellRing, Building2, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { OfficeCanvas, type EditTool } from './OfficeCanvas';
+import { OfficeCanvas } from './OfficeCanvas';
+import { EditorPanel, type EditTool } from './EditorPanel';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
@@ -22,11 +23,10 @@ import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { canPlace, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
-import type { Item, ItemType, Zone } from './world/types';
+import type { Item, Zone } from './world/types';
 
-const PALETTE: ItemType[] = ['desk', 'computer', 'papers', 'mug', 'chair', 'plant', 'flowers', 'tree', 'sofa', 'beanbag', 'table', 'coffeetable', 'shelf', 'rug', 'grass', 'whiteboard', 'tv', 'printer', 'cooler', 'lamp', 'coffee', 'bin'];
 
 export default function OfficePage() {
   const { profile } = useAuthStore();
@@ -117,6 +117,7 @@ export default function OfficePage() {
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
+  const [color, setColor] = useState<number | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const items = editing ? draft : savedItems;
 
@@ -129,7 +130,7 @@ export default function OfficePage() {
     return hits.find((i) => i.t !== 'rug') ?? hits[0] ?? null;
   };
   const ghost = (tile: { x: number; y: number }) => {
-    if (tool === 'erase') return { ok: !!itemAt(tile) };
+    if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
     if (!tool) return { ok: false };
     return { ok: canPlace(map, draft, { id: 'g', t: tool, x: tile.x, y: tile.y, r: rot }).ok };
   };
@@ -140,7 +141,16 @@ export default function OfficePage() {
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
       return;
     }
-    const item: Item = { id: newItemId(), t: tool, x: tile.x, y: tile.y, r: rot };
+    if (tool === 'paint') {
+      const hit = itemAt(tile);
+      if (hit) setDraft((d) => d.map((i) => {
+        if (i.id !== hit.id) return i;
+        const { c: _old, ...rest } = i;
+        return color === undefined ? rest : { ...rest, c: color };
+      }));
+      return;
+    }
+    const item: Item = { id: newItemId(), t: tool, x: tile.x, y: tile.y, r: rot, ...(color !== undefined ? { c: color } : {}) };
     const res = canPlace(map, draft, item);
     if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'Cannot place that here', variant: 'destructive' }); return; }
     setDraft((d) => [...d, item]);
@@ -695,19 +705,12 @@ export default function OfficePage() {
           )}
 
           {editing && (
-            <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-background/95 p-2 shadow-lg backdrop-blur">
-              {PALETTE.map((t) => (
-                <Button key={t} size="sm" variant={tool === t ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => setTool(t)}>{ITEM_DEFS[t].label}</Button>
-              ))}
-              <Button size="sm" variant={tool === 'erase' ? 'destructive' : 'outline'} className="h-7 px-2 text-xs" onClick={() => setTool('erase')}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove</Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}><RotateCw className="mr-1 h-3.5 w-3.5" />Turn</Button>
-              <span className="mx-1 hidden text-xs text-muted-foreground sm:inline">Click the floor to place. Green is allowed.</span>
-              <div className="ml-auto flex gap-1.5">
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setDraft(map.items.map((i) => ({ ...i })))}>Reset</Button>
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={stopEdit}><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
-                <Button size="sm" className="h-7 px-2 text-xs" onClick={save} disabled={saving}><Save className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
-              </div>
-            </div>
+            <EditorPanel
+              tool={tool} onTool={setTool} color={color} onColor={setColor}
+              onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
+              onReset={() => setDraft(map.items.map((i) => ({ ...i })))}
+              onCancel={stopEdit} onSave={save} saving={saving}
+            />
           )}
         </div>
       </div>

@@ -25,10 +25,33 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   cooler: { w: 1, h: 1, solid: true, label: 'Water cooler' },
   beanbag: { w: 1, h: 1, solid: false, label: 'Beanbag' },
   coffeetable: { w: 2, h: 1, solid: true, label: 'Coffee table' },
+  laptop: { w: 1, h: 1, solid: false, label: 'Laptop' },
+  books: { w: 1, h: 1, solid: false, label: 'Books' },
+  plate: { w: 1, h: 1, solid: false, label: 'Plate of food' },
+  globe: { w: 1, h: 1, solid: false, label: 'Globe' },
+  trophy: { w: 1, h: 1, solid: false, label: 'Trophy' },
+  headphones: { w: 1, h: 1, solid: false, label: 'Headphones' },
+  pizza: { w: 1, h: 1, solid: false, label: 'Pizza box' },
+  mat: { w: 2, h: 1, solid: false, label: 'Mat' },
+  balloons: { w: 1, h: 1, solid: false, label: 'Balloons' },
+  cactus: { w: 1, h: 1, solid: true, label: 'Cactus' },
+  bamboo: { w: 1, h: 2, solid: true, label: 'Bamboo' },
+  hedge: { w: 2, h: 1, solid: true, label: 'Hedge' },
+  fountain: { w: 3, h: 3, solid: true, label: 'Fountain' },
+  palm: { w: 1, h: 2, solid: true, label: 'Palm tree' },
+  bench: { w: 2, h: 1, solid: true, label: 'Bench' },
+  piano: { w: 2, h: 2, solid: true, label: 'Piano' },
+  fireplace: { w: 2, h: 1, solid: true, label: 'Fireplace' },
+  fishtank: { w: 2, h: 1, solid: true, label: 'Fish tank' },
+  speaker: { w: 1, h: 1, solid: true, label: 'Speaker' },
+  stool: { w: 1, h: 1, solid: false, label: 'Stool' },
+  roundtable: { w: 2, h: 2, solid: true, label: 'Round table' },
+  frame: { w: 1, h: 1, solid: true, label: 'Picture' },
+  vending: { w: 1, h: 2, solid: true, label: 'Vending machine' },
 };
 
 /** Small things that sit on top of a desk or table (one of each kind per tile). */
-export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug'];
+export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug', 'laptop', 'books', 'plate', 'globe', 'trophy', 'headphones', 'pizza'];
 
 export const PLAYER_RADIUS = 0.3;
 export const WALK_SPEED = 4.5; // tiles per second
@@ -205,7 +228,7 @@ export function canPlace(map: MapDef, items: Item[], item: Item): PlaceResult {
     if (map.walls[c.y]?.[c.x]) return { ok: false, reason: 'That is a wall' };
   }
   if (TOP_ITEMS.includes(item.t)) {
-    const surfaces = items.filter((i) => i.t === 'desk' || i.t === 'table' || i.t === 'coffeetable');
+    const surfaces = items.filter((i) => i.t === 'desk' || i.t === 'table' || i.t === 'coffeetable' || i.t === 'roundtable');
     const onSurface = surfaces.some((s) => itemCells(s).some((c) => c.x === item.x && c.y === item.y));
     if (!onSurface) return { ok: false, reason: `${ITEM_DEFS[item.t].label} goes on a desk or table` };
     if (items.some((i) => i.t === item.t && i.x === item.x && i.y === item.y)) return { ok: false, reason: `Already a ${ITEM_DEFS[item.t].label.toLowerCase()} here` };
@@ -257,6 +280,7 @@ export function sanitizeItems(map: MapDef, raw: unknown): Item[] {
     let id = typeof o.id === 'string' && o.id.length <= 40 ? o.id : newItemId();
     if (ids.has(id)) id = newItemId();
     const item: Item = { id, t: o.t as ItemType, x: o.x, y: o.y, r: rot };
+    if (typeof o.c === 'number' && Number.isInteger(o.c) && o.c >= 0 && o.c < 10) item.c = o.c;
     // computers are checked against the desks accepted so far, so order matters (desks first)
     const ordered = out;
     if (!canPlace(map, ordered, item).ok) continue;

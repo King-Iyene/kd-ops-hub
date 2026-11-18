@@ -6,7 +6,7 @@ import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 
-export type EditTool = ItemType | 'erase' | null;
+export type EditTool = ItemType | 'erase' | 'paint' | null;
 
 interface Props {
   map: MapDef;
