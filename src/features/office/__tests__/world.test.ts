@@ -483,3 +483,44 @@ describe('the look of the day', () => {
     expect(noon.bloom).toBeGreaterThan(afternoon.bloom);
   });
 });
+
+describe('chat', () => {
+  const me = 'me';
+  const mk = (over: Partial<import('../chat').ChatMsg>): import('../chat').ChatMsg => ({
+    id: Math.random().toString(), space_id: 's', sender_id: 'other', to_id: null, body: 'hi', img: null, kind: 'text', mentions: [], created_at: new Date().toISOString(), ...over,
+  });
+  it('files a message under the other person, or under everyone', async () => {
+    const { convOf, ALL } = await import('../chat');
+    expect(convOf(mk({ to_id: null }), me)).toBe(ALL);
+    expect(convOf(mk({ sender_id: 'other', to_id: me }), me)).toBe('other');
+    expect(convOf(mk({ sender_id: me, to_id: 'other' }), me)).toBe('other');
+  });
+  it('finds @mentions by first or full name, and ignores plain words', async () => {
+    const { parseMentions } = await import('../chat');
+    const people = [{ id: 'k', name: 'Kelvin Sampson' }, { id: 'd', name: 'David Temple' }, { id: 'da', name: 'David Alban' }];
+    expect(parseMentions('hello @Kelvin, lunch?', people)).toEqual(['k']);
+    expect(parseMentions('@David Temple please look', people)).toEqual(['d']);
+    expect(parseMentions('no mention of kelvin here', people)).toEqual([]);
+    expect(parseMentions('email me@kelvin.com', people)).toEqual([]);
+  });
+  it('counts unread per conversation and clears them once read', async () => {
+    const { unreadCounts, ALL } = await import('../chat');
+    const t0 = Date.now() - 60_000;
+    const msgs = [mk({ created_at: new Date(t0).toISOString() }), mk({ sender_id: 'b', to_id: me, created_at: new Date(t0 + 1000).toISOString() }), mk({ sender_id: me, to_id: 'b' })];
+    expect(unreadCounts(msgs, me, {})).toEqual({ [ALL]: 1, b: 1 });
+    expect(unreadCounts(msgs, me, { [ALL]: Date.now(), b: Date.now() })).toEqual({});
+  });
+  it('is quiet about the busy channel, loud about direct messages, mentions and announcements', async () => {
+    const { shouldNotify, ALL } = await import('../chat');
+    const ctx = { quiet: false, openConv: null, focused: true };
+    expect(shouldNotify(mk({}), me, ctx)).toBe('badge');
+    expect(shouldNotify(mk({ to_id: me }), me, ctx)).toBe('pop');
+    expect(shouldNotify(mk({ mentions: [me] }), me, ctx)).toBe('pop');
+    expect(shouldNotify(mk({ kind: 'announcement' }), me, ctx)).toBe('pop');
+    expect(shouldNotify(mk({ to_id: me }), me, { ...ctx, quiet: true })).toBe('badge');
+    expect(shouldNotify(mk({ sender_id: me }), me, ctx)).toBe('none');
+    expect(shouldNotify(mk({ to_id: me, sender_id: 'x' }), me, { ...ctx, openConv: 'x' })).toBe('none');
+    expect(shouldNotify(mk({ mentions: [me] }), me, { ...ctx, openConv: ALL })).toBe('none');
+    expect(shouldNotify(mk({ to_id: me, sender_id: 'x' }), me, { ...ctx, openConv: 'x', focused: false })).toBe('pop');
+  });
+});

@@ -8,8 +8,24 @@ import { useCallback, useEffect, useState } from 'react';
 const KEY = 'kd:office:notify';
 const BASE_TITLE = 'Virtual Office';
 
+type Desk = { notify?: (p: { id: string; title: string; body: string }) => void; onNotificationClick?: (cb: (id: string) => void) => void };
+const desk = (): Desk | undefined => (typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: Desk }).kdDesktop);
+/** In the desktop app notifications are made by the app itself, no browser permission needed. */
+const nativeOk = () => !!desk()?.notify;
+const pending = new Map<string, () => void>();
+let wired = false;
+function wireClicks() {
+  if (wired) return;
+  wired = true;
+  desk()?.onNotificationClick?.((id) => {
+    const run = pending.get(id);
+    pending.delete(id);
+    run?.();
+  });
+}
+
 export function notifySupported(): boolean {
-  return typeof window !== 'undefined' && 'Notification' in window;
+  return nativeOk() || (typeof window !== 'undefined' && 'Notification' in window);
 }
 
 export function isDesktopApp(): boolean {
@@ -42,7 +58,17 @@ export function notifyPing(title: string, body: string, onClick?: () => void, ta
   if (!away) return;
   missed += 1;
   paintTitle();
-  if (!notifySupported() || !notifyWanted() || Notification.permission !== 'granted') return;
+  if (!notifyWanted()) return;
+  // desktop app: a real system notification from the app itself
+  if (nativeOk()) {
+    wireClicks();
+    const id = `${tag ?? 'n'}:${Date.now()}`;
+    if (pending.size > 40) pending.clear();
+    pending.set(id, onClick ?? (() => undefined));
+    desk()?.notify?.({ id, title, body });
+    return;
+  }
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     const n = new Notification(title, { body, tag, icon: '/icon-192.png', badge: '/icon-192.png', silent: false });
     n.onclick = () => {
@@ -74,12 +100,18 @@ export function useMissedReset() {
 
 /** The on/off switch for notifications. Turning it on asks the browser for permission. */
 export function useNotifySetting() {
-  const [on, setOn] = useState(() => notifyWanted() && notifySupported() && Notification.permission === 'granted');
-  const [denied, setDenied] = useState(() => notifySupported() && Notification.permission === 'denied');
+  const [on, setOn] = useState(() => notifyWanted() && (nativeOk() || (notifySupported() && Notification.permission === 'granted')));
+  const [denied, setDenied] = useState(() => !nativeOk() && notifySupported() && Notification.permission === 'denied');
   const toggle = useCallback(async () => {
     if (on) {
       setOn(false);
       try { localStorage.setItem(KEY, '0'); } catch { /* fine */ }
+      return;
+    }
+    if (nativeOk()) {
+      setOn(true);
+      try { localStorage.setItem(KEY, '1'); } catch { /* fine */ }
+      desk()?.notify?.({ id: 'test', title: 'Notifications are on', body: 'You will see rings, waves and messages here, even when KD Office is hidden.' });
       return;
     }
     if (!notifySupported()) return;

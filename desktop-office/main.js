@@ -7,7 +7,7 @@
 //  - microphone, camera and screen sharing work without browser prompts
 //  - a friendly offline screen that reconnects by itself (power and network cuts happen)
 //  - only one copy runs, and it can start with your computer
-const { app, BrowserWindow, Menu, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences } = require('electron');
+const { app, BrowserWindow, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -196,6 +196,21 @@ async function askMacAccess() {
   try { await systemPreferences.askForMediaAccess('microphone'); } catch { /* the person said no */ }
   try { await systemPreferences.askForMediaAccess('camera'); } catch { /* the person said no */ }
 }
+
+// real system notifications (Windows toast, macOS notification centre, Linux desktop notification), made here so they work
+// whether the window is open, behind others or hidden in the tray. Clicking one brings the office to the front.
+const shown = new Set();
+ipcMain.on('kd:notify', (_e, p) => {
+  if (!p || typeof p.title !== 'string' || !Notification.isSupported()) return;
+  const n = new Notification({ title: p.title.slice(0, 100), body: String(p.body || '').slice(0, 240), icon: ICON, silent: false });
+  shown.add(n); // keep it alive until it is gone
+  n.on('click', () => {
+    showWindow();
+    if (win) win.webContents.send('kd:notification-click', String(p.id));
+  });
+  n.on('close', () => shown.delete(n));
+  n.show();
+});
 
 ipcMain.on('kd:focus', () => showWindow());
 ipcMain.on('kd:badge', (_e, n) => setUnread(n));

@@ -14,7 +14,9 @@ import { DeskDialog } from './DeskDialog';
 import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
-import { MessageDialog, type Msg } from './MessageDialog';
+import { type Msg } from './MessageDialog';
+import { ChatDialog } from './ChatDialog';
+import { ALL, shouldNotify, useChat, type ChatMsg } from './chat';
 import { playChime } from './chime';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
@@ -507,6 +509,37 @@ function OfficeRoom() {
   const admittedOffices = useRef(new Set<string>());
   const roomSpaceId = space?.kind === 'team' ? space.id : (lastTeam.current ?? myTeam?.id ?? null);
 
+  // ---- chat: everyone in the space, and direct messages (saved, so people who were away see them)
+  const [chatOpen, setChatOpen] = useState(false);
+  const [conv, setConv] = useState<string>(ALL);
+  const openChat = (c: string) => { setConv(c); setChatOpen(true); };
+  const chatCtx = useRef({ open: false, conv: ALL });
+  chatCtx.current = { open: chatOpen, conv };
+  const onChatIncoming = (m: ChatMsg) => {
+    const alert = shouldNotify(m, me?.id ?? '', { quiet: quietNow(), openConv: chatCtx.current.open ? chatCtx.current.conv : null, focused: document.hasFocus() && !document.hidden });
+    if (alert !== 'pop') return; // the unread badge on the chat button is enough for everything else
+    const sender = (directory ?? []).find((d) => d.id === m.sender_id)?.name ?? 'Someone';
+    const dm = m.to_id !== null;
+    const target = dm ? m.sender_id : ALL;
+    const title = m.kind === 'announcement' ? `Announcement from ${sender}` : dm ? sender : `${sender} mentioned you`;
+    const body = (m.body === '(picture)' ? 'Sent a picture' : m.body).slice(0, 160);
+    playChime(0.07);
+    notifyPing(title, body, () => openChat(target), `chat:${target}`);
+    toast({ title, description: body, action: <ToastAction altText="Open the chat" onClick={() => openChat(target)}>Open</ToastAction> });
+  };
+  const chat = useChat(me?.id ?? null, roomSpaceId, (m) => onChatIncoming(m));
+  const chatPeople = useMemo(() => (directory ?? []).map((d) => ({ id: d.id, name: d.name, avatar: d.avatar, online: roster.some((r) => r.uid === d.id) })), [directory, roster]);
+  const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean }) => {
+    if (!me) return false;
+    let img: string | undefined;
+    if (p.file) {
+      img = `${me.id}/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${p.file.type.split('/')[1].replace('jpeg', 'jpg')}`;
+      const up = await supabase.storage.from('office-shared').upload(img, p.file, { contentType: p.file.type });
+      if (up.error) return false;
+    }
+    return chat.send({ text: p.text, to: p.to, img, announce: p.announce, people: chatPeople.map((x) => ({ id: x.id, name: x.name })) });
+  };
+
   // a shared link (?space=…&room=… or &at=x,y): go to that space, then walk to that spot
   const deepLink = useRef<{ space: string | null; room: string | null; at: { x: number; y: number } | null; started: boolean } | null>(null);
   useEffect(() => {
@@ -678,11 +711,11 @@ function OfficeRoom() {
       imgUrl = s.data?.signedUrl;
     }
     setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: m.f, mine: false, text: m.text, imgUrl, at: Date.now() }]);
-    notifyPing(m.n, m.text || 'Sent a picture', () => setChatWith({ id: m.f, name: m.n }), 'dm:' + m.f);
+    notifyPing(m.n, m.text || 'Sent a picture', () => openChat(m.f), 'dm:' + m.f);
     if (chatWithRef.current?.id !== m.f) {
       toast({
         title: m.n, description: m.text || 'Sent a picture',
-        action: <ToastAction altText="Reply" onClick={() => setChatWith({ id: m.f, name: m.n })}>Reply</ToastAction>,
+        action: <ToastAction altText="Reply" onClick={() => openChat(m.f)}>Reply</ToastAction>,
       });
     }
   };
@@ -1043,7 +1076,7 @@ function OfficeRoom() {
                         <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
                         <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3.5 w-3.5" /></button>
                         <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3.5 w-3.5" /></button>
-                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => setChatWith({ id: r.id, name: r.name })}><MessageCircle className="h-3.5 w-3.5" /></button>
+                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3.5 w-3.5" /></button>
                       </span>
                     )}
                   </div>
@@ -1124,6 +1157,7 @@ function OfficeRoom() {
           )}
           {!editing && (
             <CallDock
+              chatUnread={chat.totalUnread} onChat={() => openChat(conv)}
               devices={{ mics: calls.devices.mics, cams: calls.devices.cams, speakers: calls.devices.speakers, pick: calls.pick, noise: calls.noise, dataSaver: calls.dataSaver, onDataSaver: calls.setDataSaver, onMic: (id) => void calls.selectMic(id), onCam: (id) => void calls.selectCam(id), onSpeaker: calls.selectSpeaker, onNoise: calls.setNoise, onOpen: () => void calls.refreshDevices() }}
               joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} onEmote={sendEmote} tiles={calls.tiles}
               roomName={zone && isRoom(zone) ? zone.name : null}
@@ -1275,7 +1309,7 @@ function OfficeRoom() {
         } else {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-3.5 w-3.5" />, primary: !card.near, run: () => { setCard(null); wave(who); } });
           if (card.near) acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-3.5 w-3.5" />, primary: true, run: () => { setCard(null); ring(who); } });
-          acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); setChatWith({ id: who.id, name: who.name }); } });
+          acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); openChat(who.id); } });
           acts.push({ key: 'go', label: card.near ? 'Follow' : 'Go to', icon: card.near ? <Footprints className="h-3.5 w-3.5" /> : <LocateFixed className="h-3.5 w-3.5" />, run: () => { setCard(null); if (card.near) startFollow(who.id); else goToPerson(who.id, who.spaceId); } });
         }
         return (
@@ -1320,7 +1354,7 @@ function OfficeRoom() {
           item('go', <LocateFixed className={ic} />, 'Go to ' + person.name, () => goToPerson(person.id, person.spaceId));
           item('fol', <Footprints className={ic} />, follow === person.id ? 'Stop following' : 'Follow', () => startFollow(person.id));
           item('ring', <BellRing className={ic} />, 'Ring', () => ring(person));
-          item('msg', <MessageCircle className={ic} />, 'Send a message', () => setChatWith({ id: person.id, name: person.name }));
+          item('msg', <MessageCircle className={ic} />, 'Send a message', () => openChat(person.id));
           if (tl) item('mute', tl.muted ? <Volume2 className={ic} /> : <VolumeX className={ic} />, tl.muted ? 'Unmute (only for you)' : 'Mute (only for you)', () => calls.toggleMutePeer(person.id));
         } else if (ctx.isMe) {
           title = me.name + ' (you)';
@@ -1398,7 +1432,10 @@ function OfficeRoom() {
         onRenameSpace={() => { setRenaming(space); setRenameValue(space.name); }} onDeleteSpace={() => void removeSpace(space)} onNewSpace={() => setNewSpaceOpen(true)}
       />
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
-      <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
+      <ChatDialog
+        open={chatOpen} onClose={() => setChatOpen(false)} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
+        people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat}
+      />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
       <AvatarDialog

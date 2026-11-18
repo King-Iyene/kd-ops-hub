@@ -1,4 +1,4 @@
-import { Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
+import { MessageSquare, Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Tile } from './useCalls';
 import { EmojiPicker } from '../EmojiPicker';
@@ -14,6 +14,9 @@ interface Props {
   sharing: boolean;
   onShare: () => void;
   onMeeting: () => void;
+  /** the chat button: how many messages are waiting, and open it */
+  chatUnread: number;
+  onChat: () => void;
   /** microphone, speaker and camera choices */
   devices: React.ComponentProps<typeof DeviceMenu>;
   /** send an emoji reaction */
@@ -91,7 +94,7 @@ function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: bool
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, devices, onShare, onMeeting, onEmote, tiles, roomName, onJoin, onLeave, onMic, onCam,
+  joined, busy, error, micOn, camOn, sharing, devices, chatUnread, onChat, onShare, onMeeting, onEmote, tiles, roomName, onJoin, onLeave, onMic, onCam,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
@@ -157,6 +160,12 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
             </>
           )}
+          <Btn label={chatUnread > 0 ? `Chat (${chatUnread} unread)` : 'Chat'} onClick={onChat}>
+            <span className="relative flex">
+              <MessageSquare className="h-4 w-4" />
+              {chatUnread > 0 && <span className="absolute -right-2.5 -top-2 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{chatUnread > 9 ? '9+' : chatUnread}</span>}
+            </span>
+          </Btn>
           <Btn label="More emotes" onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
           {bar.quick.map((e) => (
             <button key={e} type="button" title={`React ${e}`} aria-label={`React ${e}`} onClick={() => react(e)} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
