@@ -17370,6 +17370,325 @@ export type Database = {
           },
         ]
       }
+      tm_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          task_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_lists: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          position: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          position?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          position?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_lists_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tm_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_space_members: {
+        Row: {
+          created_at: string
+          role: string
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role?: string
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tm_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_spaces: {
+        Row: {
+          archived_at: string | null
+          color: string
+          created_at: string
+          created_by: string | null
+          icon: string | null
+          id: string
+          is_private: boolean
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          is_private?: boolean
+          name: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          is_private?: boolean
+          name?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tm_statuses: {
+        Row: {
+          category: Database["public"]["Enums"]["tm_status_category"]
+          color: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          space_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["tm_status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          space_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["tm_status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_statuses_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tm_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_watchers: {
+        Row: {
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_watchers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_tasks: {
+        Row: {
+          archived_at: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          due_has_time: boolean
+          id: string
+          list_id: string
+          parent_task_id: string | null
+          position: number
+          priority: Database["public"]["Enums"]["tm_task_priority"]
+          start_date: string | null
+          status_id: string | null
+          time_estimate_min: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          due_has_time?: boolean
+          id?: string
+          list_id: string
+          parent_task_id?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["tm_task_priority"]
+          start_date?: string | null
+          status_id?: string | null
+          time_estimate_min?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          due_has_time?: boolean
+          id?: string
+          list_id?: string
+          parent_task_id?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["tm_task_priority"]
+          start_date?: string | null
+          status_id?: string | null
+          time_estimate_min?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_tasks_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "tm_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_tasks_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "tm_statuses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_records: {
         Row: {
           category: string
@@ -21305,6 +21624,12 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_can_access_space: { Args: { p_space_id: string }; Returns: boolean }
+      tm_can_access_task: { Args: { p_task_id: string }; Returns: boolean }
+      tm_can_edit_space: { Args: { p_space_id: string }; Returns: boolean }
+      tm_can_edit_task: { Args: { p_task_id: string }; Returns: boolean }
+      tm_space_of_list: { Args: { p_list_id: string }; Returns: string }
+      tm_space_of_task: { Args: { p_task_id: string }; Returns: string }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
@@ -21354,6 +21679,8 @@ export type Database = {
     }
     Enums: {
       status_category: "not_started" | "active" | "done" | "closed"
+      tm_status_category: "not_started" | "active" | "done" | "closed"
+      tm_task_priority: "urgent" | "high" | "normal" | "low"
       workspace_role: "owner" | "admin" | "manager" | "member"
     }
     CompositeTypes: {
@@ -21486,6 +21813,8 @@ export const Constants = {
   public: {
     Enums: {
       status_category: ["not_started", "active", "done", "closed"],
+      tm_status_category: ["not_started", "active", "done", "closed"],
+      tm_task_priority: ["urgent", "high", "normal", "low"],
       workspace_role: ["owner", "admin", "manager", "member"],
     },
   },
