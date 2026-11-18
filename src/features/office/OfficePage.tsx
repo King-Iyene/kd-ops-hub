@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -16,6 +16,9 @@ import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
+import { ProfileDialog, type ProfileAction } from './ProfileDialog';
+import { VisitorsDialog } from './guest/VisitorsDialog';
+import { useGuestInvites } from './guest/useGuestInvites';
 import { ALL, shouldNotify, useChat, type ChatMsg } from './chat';
 import { playChime } from './chime';
 import { canSendTo, cleanText, matches, parsePing } from './social';
@@ -541,6 +544,16 @@ function OfficeRoom() {
     toast({ title, description: body, action: <ToastAction altText="Open the chat" onClick={() => openChat(target)}>Open</ToastAction> });
   };
   const chat = useChat(me?.id ?? null, roomSpaceId, (m) => onChatIncoming(m));
+
+  // ---- guests: people from outside, invited by email, who meet someone in a private visitor room
+  const [visitorsOpen, setVisitorsOpen] = useState(false);
+  // whose profile is open (a user id), from the people lists
+  const [profileUid, setProfileUid] = useState<string | null>(null);
+  const guests = useGuestInvites(roomSpaceId, (g) => {
+    if (!quietNow()) playChime(0.08);
+    notifyPing(`${g.name} is at the door`, 'A guest is waiting to come in.', () => setVisitorsOpen(true), 'guest:' + g.id);
+    toast({ title: `${g.name} is at the door`, description: 'A guest is waiting to come in.', action: <ToastAction altText="Open guests" onClick={() => setVisitorsOpen(true)}>Let in</ToastAction> });
+  });
   const chatPeople = useMemo(() => (directory ?? []).map((d) => ({ id: d.id, name: d.name, avatar: d.avatar, online: roster.some((r) => r.uid === d.id) })), [directory, roster]);
   const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean }) => {
     if (!me) return false;
@@ -822,7 +835,7 @@ function OfficeRoom() {
   const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
     zoneLatest.current = h;
     window.clearTimeout(zoneTimer.current);
-    if (!h) { zoneTimer.current = window.setTimeout(() => { if (!overZone.current) setZoneCard(null); }, 500); return; }
+    if (!h) { zoneTimer.current = window.setTimeout(() => { if (!overZone.current) setZoneCard(null); }, 2200); return; }
     if (zoneCard) {
       if (zoneCard.zoneId === h.zoneId) return;
       // reaching for the card: a seat next to it must not take it over
@@ -1026,6 +1039,7 @@ function OfficeRoom() {
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => setVisitorsOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Guests{guests.waitingCount ? ` (${guests.waitingCount} waiting)` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
                 {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
                 {canEdit && !editing && <DropdownMenuItem onSelect={() => startEdit()}><Pencil className="mr-2 h-4 w-4" />Edit the space</DropdownMenuItem>}
@@ -1091,8 +1105,10 @@ function OfficeRoom() {
                 const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
+                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={() => setProfileUid(r.uid)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
+                    </button>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
                         {calls.tiles.some((t) => t.id === r.id && !t.screen) && (
@@ -1120,10 +1136,10 @@ function OfficeRoom() {
             {!shut('offline') && (<>
               <div className="space-y-0.5">
                 {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1 text-sm text-muted-foreground">
+                  <button key={p.id} type="button" onClick={() => setProfileUid(p.id)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                     <AvatarFace avatar={p.avatar} size={26} dim />
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>)}
@@ -1194,7 +1210,7 @@ function OfficeRoom() {
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} notify={{ on: notify.on, denied: notify.denied, supported: notify.supported, toggle: () => void notify.toggle(), desktop: isDesktopApp() }} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
-                  canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
+                  canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)} onGuests={() => setVisitorsOpen(true)} guestsWaiting={guests.waitingCount}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
                   onClaimOffice={claimFree} onUnclaimOffice={() => { if (myClaim) void unclaimOffice(myClaim.office_id); }} onWalkToOffice={() => walkToOffice()}
@@ -1338,6 +1354,7 @@ function OfficeRoom() {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-3.5 w-3.5" />, primary: !card.near, run: () => { setCard(null); wave(who); } });
           if (card.near) acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-3.5 w-3.5" />, primary: true, run: () => { setCard(null); ring(who); } });
           acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); openChat(who.id); } });
+          acts.push({ key: 'prof', label: 'View profile', icon: <UserCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); setProfileUid(who.uid); } });
           acts.push({ key: 'go', label: card.near ? 'Follow' : 'Go to', icon: card.near ? <Footprints className="h-3.5 w-3.5" /> : <LocateFixed className="h-3.5 w-3.5" />, run: () => { setCard(null); if (card.near) startFollow(who.id); else goToPerson(who.id, who.spaceId); } });
         }
         return (
@@ -1461,6 +1478,29 @@ function OfficeRoom() {
         onRenameSpace={() => { setRenaming(space); setRenameValue(space.name); }} onDeleteSpace={() => void removeSpace(space)} onNewSpace={() => setNewSpaceOpen(true)}
       />
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
+      {(() => {
+        if (!profileUid) return null;
+        const live = roster.find((r) => r.uid === profileUid) ?? null;
+        const dir = (directory ?? []).find((d) => d.id === profileUid) ?? null;
+        const name = live?.name ?? dir?.name ?? 'Someone';
+        const avatar = live?.avatar ?? dir?.avatar ?? null;
+        const isMe = profileUid === me.id;
+        const st = live ? statusOf(live.status) : null;
+        const done = (fn: () => void) => () => { setProfileUid(null); fn(); };
+        const acts: ProfileAction[] = [];
+        if (live && !isMe) {
+          acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: true, run: done(() => wave(live)) });
+          acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-4 w-4" />, run: done(() => ring(live)) });
+        }
+        if (!isMe) acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: done(() => openChat(profileUid)) });
+        if (live && !isMe) {
+          acts.push({ key: 'go', label: 'Go to', icon: <LocateFixed className="h-4 w-4" />, run: done(() => goToPerson(live.id, live.spaceId)) });
+          acts.push({ key: 'fol', label: 'Follow', icon: <Footprints className="h-4 w-4" />, run: done(() => startFollow(live.id)) });
+        }
+        if (isMe) acts.push({ key: 'av', label: 'Change avatar', icon: <Users className="h-4 w-4" />, primary: true, run: done(() => setAvatarOpen(true)) });
+        return <ProfileDialog open onClose={() => setProfileUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
+      })()}
+      <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
         open={chatOpen} onClose={() => setChatOpen(false)} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
         people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat}

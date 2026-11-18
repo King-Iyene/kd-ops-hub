@@ -461,17 +461,51 @@ export function drawZoneLabels(ctx: Ctx, zones: Zone[], theme: Theme) {
     if (z.kind === 'area' || z.kind === 'office') continue;
     const cx = (z.x + z.w / 2) * TILE;
     const cy = (z.y + 0.5) * TILE + (z.kind === 'portal' ? 0 : 6);
-    const w = ctx.measureText(z.name).width + 18;
-    ctx.fillStyle = 'rgba(15,23,42,0.18)';
-    rr(ctx, cx - w / 2 + 1, cy - 10, w, 22, 11);
+    const w = ctx.measureText(z.name).width + 30;
+    const h = 22;
+    const x0 = cx - w / 2;
+    const y0 = cy - h / 2;
+    // the slab: a soft shadow on the floor, then pale (or dark) marble with a faint vein
+    ctx.fillStyle = 'rgba(15,23,42,0.22)';
+    rr(ctx, x0 + 1, y0 + 3, w, h, 6);
     ctx.fill();
-    ctx.fillStyle = theme.dark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.92)';
-    rr(ctx, cx - w / 2, cy - 11, w, 22, 11);
+    const g = ctx.createLinearGradient(x0, y0, x0 + w, y0 + h);
+    if (theme.dark) { g.addColorStop(0, '#3b4252'); g.addColorStop(0.5, '#2b3040'); g.addColorStop(1, '#383e4e'); }
+    else { g.addColorStop(0, '#f6f4ef'); g.addColorStop(0.5, '#e4e1da'); g.addColorStop(1, '#f1eee8'); }
+    ctx.fillStyle = g;
+    rr(ctx, x0, y0, w, h, 6);
     ctx.fill();
-    ctx.fillStyle = z.kind === 'portal' ? '#10b981' : z.kind === 'meeting' ? '#3b82f6' : '#f59e0b';
-    disc(ctx, cx - w / 2 + 9, cy, 3, ctx.fillStyle);
-    ctx.fillStyle = theme.dark ? '#e2e8f0' : '#1e293b';
-    ctx.fillText(z.name, cx + 4, cy + 0.5);
+    ctx.strokeStyle = theme.dark ? 'rgba(148,163,184,0.18)' : 'rgba(120,113,108,0.2)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w * 0.18, y0 + h);
+    ctx.bezierCurveTo(x0 + w * 0.3, y0 + h * 0.55, x0 + w * 0.42, y0 + h * 0.7, x0 + w * 0.55, y0 + h * 0.2);
+    ctx.moveTo(x0 + w * 0.7, y0 + h);
+    ctx.bezierCurveTo(x0 + w * 0.78, y0 + h * 0.6, x0 + w * 0.86, y0 + h * 0.5, x0 + w * 0.95, y0);
+    ctx.stroke();
+    // bevelled edge: bright on top, dim underneath
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = theme.dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.95)';
+    rr(ctx, x0 + 0.5, y0 + 0.5, w - 1, h - 1, 6);
+    ctx.stroke();
+    ctx.strokeStyle = theme.dark ? 'rgba(0,0,0,0.4)' : 'rgba(87,83,78,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 3, y0 + h - 0.5);
+    ctx.lineTo(x0 + w - 3, y0 + h - 0.5);
+    ctx.stroke();
+    // a small engraved colour dot, then the name cut into the stone (shadow above-left, light edge below-right)
+    const dotx = x0 + 11;
+    const tint = z.kind === 'portal' ? '#10b981' : z.kind === 'meeting' ? '#3b82f6' : '#f59e0b';
+    ctx.fillStyle = theme.dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
+    disc(ctx, dotx + 0.6, cy + 0.9, 3, ctx.fillStyle);
+    disc(ctx, dotx, cy, 3, tint);
+    const tx = cx + 6;
+    ctx.fillStyle = theme.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.95)';
+    ctx.fillText(z.name, tx + 0.6, cy + 1.4);
+    ctx.fillStyle = theme.dark ? '#cbd5e1' : '#57534e';
+    ctx.fillText(z.name, tx, cy + 0.6);
+    ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.35)' : 'rgba(41,37,36,0.28)';
+    ctx.fillText(z.name, tx - 0.3, cy + 0.3);
   }
 }
 

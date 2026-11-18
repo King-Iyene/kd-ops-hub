@@ -1,4 +1,4 @@
-import { MessageSquare, Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Tile } from './useCalls';
 import { EmojiPicker } from '../EmojiPicker';
@@ -99,6 +99,9 @@ export function CallDock({
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
   const [emoOpen, setEmoOpen] = useState(false);
+  // fold the bar down to just you, the mic and the camera
+  const [folded, setFolded] = useState(() => { try { return localStorage.getItem('kd:office:bar-folded') === '1'; } catch { return false; } });
+  const fold = (v: boolean) => { setFolded(v); setEmoOpen(false); try { localStorage.setItem('kd:office:bar-folded', v ? '1' : '0'); } catch { /* not saved */ } };
   const bar = useEmoteBar();
   const react = (e: string) => { bar.bump(e); onEmote(e); };
   // H raises your hand
@@ -152,7 +155,7 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
             </>
           )}
-          {roomName && (
+          {!folded && roomName && (
             <>
               <Btn on={roomLocked} label={roomLocked ? 'Unlock the room' : 'Lock the room so nobody else can walk in'} onClick={onToggleLock}>
                 {roomLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
@@ -160,6 +163,7 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
             </>
           )}
+          {!folded && <>
           <Btn label={chatUnread > 0 ? `Chat (${chatUnread} unread)` : 'Chat'} onClick={onChat}>
             <span className="relative flex">
               <MessageSquare className="h-4 w-4" />
@@ -171,12 +175,14 @@ export function CallDock({
             <button key={e} type="button" title={`React ${e}`} aria-label={`React ${e}`} onClick={() => react(e)} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
           ))}
           <Btn label="Raise hand (H)" onClick={() => react('✋')}><Hand className="h-4 w-4" /></Btn>
+          </>}
           {!joined ? (
             <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (
             <>
               <Btn ok={micOn} danger={!micOn} label={micOn ? 'Microphone is ON: click to mute' : 'Microphone is OFF: click to turn on'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
               <Btn ok={camOn} danger={!camOn} label={camOn ? 'Camera is ON: click to turn off' : 'Camera is OFF: click to turn on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
+              {!folded && <>
               <Btn on={sharing} label={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'} onClick={onShare}>{sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}</Btn>
               <Btn label="Meeting view: everyone large, like a meeting" onClick={onMeeting}><LayoutGrid className="h-4 w-4" /></Btn>
               {canRecord && roomName && (
@@ -187,8 +193,11 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
               <DeviceMenu {...devices} />
               <Btn label="Leave voice" onClick={onLeave}><LogOut className="h-4 w-4" /></Btn>
+              </>}
             </>
           )}
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          <Btn label={folded ? 'Show all controls' : 'Fold the bar down'} onClick={() => fold(!folded)}>{folded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</Btn>
         </div>
       </div>
     </>

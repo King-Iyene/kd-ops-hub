@@ -26,6 +26,7 @@ import Privacy from './pages/legal/Privacy';
 import Terms from './pages/legal/Terms';
 import Careers from './pages/Careers';
 const PublicForm = lazy(() => import('./pages/PublicForm'));
+const GuestVisit = lazy(() => import('./pages/GuestVisit'));
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 
@@ -234,6 +235,8 @@ function AppRoutes() {
       {/* Public careers page — reads job_openings.status='published'. */}
       <Route path="/careers" element={<ErrorBoundary><Careers /></ErrorBoundary>} />
       <Route path="/forms/:formId" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><PublicForm /></Suspense></ErrorBoundary>} />
+      {/* A guest's emailed link to the Virtual Office visitor room: public, no sign-in, and nothing else is reachable from it. */}
+      <Route path="/visit/:token" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><GuestVisit /></Suspense></ErrorBoundary>} />
       <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
       <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
 

@@ -6,7 +6,7 @@ import { AvatarFace } from './AvatarFace';
 export interface OfficeAction { key: string; label: string; icon: ReactNode; run: () => void; primary?: boolean; /** icon only */ compact?: boolean }
 
 /** A small card right beside the pointer when you rest it on an office or a seat: who has it, and what you can do. */
-export function OfficeCard({ x, y, title, kind, owner, avatar, locked, note, actions, onEnter, onLeave }: {
+export function OfficeCard({ title, kind, owner, avatar, locked, note, actions, onEnter, onLeave }: {
   x: number;
   y: number;
   title: string;
@@ -20,12 +20,9 @@ export function OfficeCard({ x, y, title, kind, owner, avatar, locked, note, act
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  // tucked right against the pointer, so there is no gap to cross
-  const left = x + 10 + 260 > window.innerWidth - 8 ? Math.max(8, x - 270) : x + 10;
-  const top = Math.max(8, Math.min(y - 20, window.innerHeight - 60));
   return createPortal(
-    <div className="ko fixed z-[64]" style={{ left, top }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <div className="animate-in fade-in flex items-center gap-2 rounded-2xl bg-black/60 py-1.5 pl-2 pr-1.5 text-white shadow-xl ring-1 ring-white/10 backdrop-blur-md duration-100">
+    <div className="ko fixed inset-x-0 top-[4.25rem] z-[64] flex justify-center px-3 pointer-events-none" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <div className="pointer-events-auto animate-in fade-in slide-in-from-top-2 flex items-center gap-2 rounded-2xl bg-black/60 py-1.5 pl-2 pr-1.5 text-white shadow-xl ring-1 ring-white/10 backdrop-blur-md duration-100">
         {avatar
           ? <AvatarFace avatar={avatar} size={28} />
           : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-white/30 text-sm text-white/60">+</span>}

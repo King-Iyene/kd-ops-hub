@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
@@ -41,6 +41,9 @@ interface Props {
   onSettings: () => void;
   canManage: boolean;
   onManage: () => void;
+  /** guests: open the panel, and how many are waiting at the door */
+  onGuests: () => void;
+  guestsWaiting: number;
   /** my private office (its name), if I have claimed one */
   myOffice: string | null;
   /** I have claimed an office but am not a builder: I can decorate it */
@@ -195,6 +198,7 @@ export function ProfileMenu(p: Props) {
           {tab === 'space' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2.5">
+                {tile('guests', <UserPlus className="h-4 w-4" />, p.guestsWaiting ? `Guests (${p.guestsWaiting})` : 'Guests', p.guestsWaiting ? `${p.guestsWaiting} waiting at the door` : 'Invite visitors by email', p.onGuests)}
                 {p.canManage && tile('manage', <Settings className="h-4 w-4" />, 'Manage space', 'Offices, seats, people', p.onManage)}
                 {p.canEdit && !p.editing && tile('edit', <Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors', p.onEdit)}
                 {p.canSettings && tile('settings', <Settings className="h-4 w-4" />, 'Permissions', 'Builders and recorders', p.onSettings)}

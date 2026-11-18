@@ -28,7 +28,7 @@ async function loadRelay(): Promise<void> {
   }
 }
 
-function iceConfig(): RTCConfiguration {
+export function iceConfig(): RTCConfiguration {
   const servers: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, ...relayServers];
   const env = import.meta.env as Record<string, string | undefined>;
   if (env.VITE_TURN_URL) servers.push({ urls: env.VITE_TURN_URL.split(','), username: env.VITE_TURN_USER, credential: env.VITE_TURN_CREDENTIAL });
