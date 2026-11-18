@@ -157,6 +157,151 @@ export function useDeleteTask(listId: string) {
   );
 }
 
+// ── Tables ─────────────────────────────────────────────────────────────
+
+export type TableFieldType = 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'single_select' | 'person' | 'task';
+
+export interface TaskTable {
+  id: string;
+  folder_id: string;
+  name: string;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TableField {
+  id: string;
+  table_id: string;
+  name: string;
+  type: TableFieldType;
+  config: { options?: string[] };
+  position: number;
+  created_at: string;
+}
+
+export interface TableRecordRow {
+  id: string;
+  table_id: string;
+  data: Record<string, unknown>;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useTaskTables() {
+  return useSupabaseQuery(queryKeys.taskModule.tables(undefined), () =>
+    supabase.from('tm_tables').select('*').order('position').order('created_at'),
+  );
+}
+
+export function useCreateTaskTable() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { folderId: string; name: string; createdBy: string }) =>
+      supabase
+        .from('tm_tables')
+        .insert({ folder_id: vars.folderId, name: vars.name, created_by: vars.createdBy })
+        .select()
+        .single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.tables(undefined)) },
+  );
+}
+
+export function useDeleteTaskTable() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (tableId: string) => supabase.from('tm_tables').delete().eq('id', tableId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.tables(undefined)) },
+  );
+}
+
+export function useTableFields(tableId: string) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.fields(tableId),
+    () => supabase.from('tm_table_fields').select('*').eq('table_id', tableId).order('position').order('created_at'),
+    { enabled: !!tableId },
+  );
+}
+
+export function useCreateTableField(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { name: string; type: TableFieldType; options?: string[] }) =>
+      supabase
+        .from('tm_table_fields')
+        .insert({
+          table_id: tableId,
+          name: vars.name,
+          type: vars.type,
+          config: vars.options?.length ? { options: vars.options } : {},
+        })
+        .select()
+        .single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.fields(tableId)) },
+  );
+}
+
+export function useDeleteTableField(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (fieldId: string) => supabase.from('tm_table_fields').delete().eq('id', fieldId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.fields(tableId)) },
+  );
+}
+
+export function useTableRecords(tableId: string) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.records(tableId),
+    () => supabase.from('tm_table_records').select('*').eq('table_id', tableId).order('position').order('created_at'),
+    { enabled: !!tableId },
+  );
+}
+
+export function useCreateTableRecord(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (createdBy: string) => supabase.from('tm_table_records').insert({ table_id: tableId, created_by: createdBy }).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
+  );
+}
+
+export function useDeleteTableRecord(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (recordId: string) => supabase.from('tm_table_records').delete().eq('id', recordId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
+  );
+}
+
+// Routes through the tm_set_record_cell RPC (atomic jsonb_set) rather than a
+// client-side read-modify-write on the whole `data` column — see the
+// migration comment for why: two people editing different cells of the same
+// row at once would otherwise silently clobber one another.
+export function useSetRecordCell(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation<TableRecordRow, { recordId: string; fieldId: string; value: unknown }>(
+    (vars) =>
+      supabase.rpc('tm_set_record_cell', {
+        p_record_id: vars.recordId,
+        p_field_id: vars.fieldId,
+        p_value: vars.value,
+      }),
+    { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
+  );
+}
+
+// Every task across every list, for the Table "task" field type's link
+// picker. Title + list name only — enough to disambiguate options in a
+// dropdown without pulling full task detail.
+export function useAllTasksForPicker() {
+  return useSupabaseQuery(['task-module', 'all-tasks-picker'] as const, () =>
+    supabase.from('tm_tasks').select('id, title, list_id').order('created_at', { ascending: false }).limit(1000),
+  );
+}
+
 // ── People picker ──────────────────────────────────────────────────────
 // profiles_directory excludes sensitive columns (salary, bank details, …)
 // and is readable by every authenticated user — the same source every

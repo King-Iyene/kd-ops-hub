@@ -93,6 +93,7 @@ function getRouteTitle(pathname: string): string {
   if (pathname.startsWith('/employees/')) return 'Employee Profile';
   if (pathname.startsWith('/contacts/')) return 'Contact Profile';
   if (pathname.startsWith('/task/list/')) return 'Task List';
+  if (pathname.startsWith('/task/table/')) return 'Task Table';
   return '';
 }
 

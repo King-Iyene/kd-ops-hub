@@ -20905,6 +20905,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      tm_set_record_cell: {
+        Args: { p_field_id: string; p_record_id: string; p_value: Json }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          position: number
+          table_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tm_table_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       task_recurrence_next_date: {
         Args: { p_from: string; p_rule: Json }
         Returns: string
