@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { AvatarStyle } from './world/types';
@@ -16,7 +16,12 @@ import type { Ping } from './social';
  *  - everything is torn down after the tab has been hidden for two minutes.
  */
 export interface Who {
+  /** this browser tab (every open tab is its own connection) */
   id: string;
+  /** the person's account id, the same for all of their tabs */
+  uid: string;
+  /** when this tab claimed the office (the newest tab of an account is the one that counts) */
+  since: number;
   name: string;
   avatar: AvatarStyle;
   spaceId: string | null;
@@ -60,6 +65,20 @@ function useAwake(): boolean {
 
 export function useOffice(self: { id: string; name: string; avatar: AvatarStyle } | null, spaceId: string | null) {
   const awake = useAwake();
+  // Every tab is its own connection, so two windows of one account can never fight over one avatar (which showed up to
+  // everyone else as a person jumping, vanishing and reappearing). Only the newest tab per account is shown; an older one
+  // pauses and says so. Add ?multi to the address to see every tab separately (for testing).
+  const connId = useMemo(() => crypto.randomUUID(), []);
+  const multi = useMemo(() => {
+    try {
+      if (new URLSearchParams(window.location.search).has('multi')) sessionStorage.setItem('kd:office:multi', '1');
+      return sessionStorage.getItem('kd:office:multi') === '1';
+    } catch { return false; }
+  }, []);
+  const since = useRef(Date.now());
+  const ghosts = useRef(new Set<string>());
+  const [superseded, setSuperseded] = useState(false);
+  const supersededRef = useRef(false);
   const [roster, setRoster] = useState<Who[]>([]);
   const [connected, setConnected] = useState(false);
   const peers = useRef(new Map<string, PeerMotion>());
@@ -85,7 +104,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   spaceRef.current = spaceId;
   /** what the lobby knows about me */
   const meta = (s: { name: string; avatar: AvatarStyle }) => ({
-    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, t: Date.now(),
+    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, t: Date.now(), u: selfRef.current?.id, c: since.current,
   });
 
   const selfId = self?.id ?? null;
@@ -93,20 +112,33 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   // lobby: who is here and where
   useEffect(() => {
     if (!selfId || !awake) return;
-    const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: selfId } } });
+    const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: connId } } });
     lobby.current = ch;
     const sync = () => {
-      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; t?: number }[]>;
-      const list: Who[] = [];
+      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; t?: number; u?: string; c?: number }[]>;
+      const all: Who[] = [];
       for (const [id, metas] of Object.entries(state)) {
-        const m = metas.reduce((a, b) => ((b.t ?? 0) > (a.t ?? 0) ? b : a), metas[0]);
+        const m = metas.reduce((x, y) => ((y.t ?? 0) > (x.t ?? 0) ? y : x), metas[0]);
         if (!m) continue;
-        list.push({ id, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, id), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 12) : '' });
+        const uid = typeof m.u === 'string' ? m.u : id;
+        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 12) : '' });
       }
-      setRoster(list);
-      // forget people who have left
-      const here = new Set(list.map((w) => w.id));
-      for (const id of [...peers.current.keys()]) if (!here.has(id)) peers.current.delete(id);
+      // the newest tab of each account is the one shown; older tabs of the same account are "ghosts"
+      const best = new Map<string, Who>();
+      for (const w of all) {
+        const cur = best.get(w.uid);
+        if (!cur || w.since > cur.since || (w.since === cur.since && w.id > cur.id)) best.set(w.uid, w);
+      }
+      const ghostIds = new Set<string>();
+      if (!multi) for (const w of all) if (best.get(w.uid)?.id !== w.id) ghostIds.add(w.id);
+      ghosts.current = ghostIds;
+      const mineGhost = ghostIds.has(connId);
+      supersededRef.current = mineGhost;
+      setSuperseded(mineGhost);
+      setRoster(all.filter((w) => !ghostIds.has(w.id)));
+      // forget people who have left, and tabs that are no longer the one shown
+      const here = new Set(all.map((w) => w.id));
+      for (const id of [...peers.current.keys()]) if (!here.has(id) || ghostIds.has(id)) peers.current.delete(id);
     };
     // rings and messages addressed to one person (see social.ts); everyone gets the packet, only the addressee acts
     ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });
@@ -122,7 +154,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       void supabase.removeChannel(ch);
       lobby.current = null;
     };
-  }, [selfId, awake]);
+  }, [selfId, awake, connId]);
 
   // Presence updates are rate limited by the server (too many and they are dropped, so nobody sees anybody).
   // So: wait a moment and send once, and never send what has not changed.
@@ -183,12 +215,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     room.current = ch;
     const emit = () => {
       const { m, dir } = mine.current;
-      void ch.send({ type: 'broadcast', event: 'm', payload: pack(selfId, m, dir) });
+      void ch.send({ type: 'broadcast', event: 'm', payload: pack(connId, m, dir) });
       lastSent.current = { ...m, at: Date.now() };
     };
     ch.on('broadcast', { event: 'm' }, ({ payload }) => {
       const p = unpack(payload);
-      if (!p || p.id === selfId) return;
+      if (!p || p.id === connId || ghosts.current.has(p.id)) return;
       peers.current.set(p.id, { x: p.x, y: p.y, vx: p.vx, vy: p.vy, dir: p.dir, at: Date.now() });
     });
     // someone just arrived and asks where everybody is: answer once, spread out a little so we do not all reply at once
@@ -199,7 +231,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     // someone started or stopped talking (shown as a green glow even before their audio reaches us)
     ch.on('broadcast', { event: 'sp' }, ({ payload }) => {
       const p = payload as { i?: unknown; on?: unknown } | null;
-      if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === selfId) return;
+      if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === connId || ghosts.current.has(p.i)) return;
       if (p.on === true) peerTalking.current.set(p.i, Date.now() + 4000);
       else peerTalking.current.delete(p.i);
     });
@@ -220,17 +252,23 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       room.current = null;
       peerMap.clear();
     };
-  }, [selfId, spaceId, awake]);
+  }, [selfId, spaceId, awake, connId]);
 
   /** Call every frame with our current motion. Sends a message only when the traffic budget says so. */
   const update = useCallback((m: Motion, dir: 0 | 1 | 2 | 3, now: number) => {
     mine.current = { m, dir };
     const ch = room.current;
-    if (!ch || !roomReady.current || !selfRef.current) return;
+    if (!ch || !roomReady.current || !selfRef.current || supersededRef.current) return;
     const reason = shouldSend(lastSent.current, m, now);
     if (!reason) return;
-    void ch.send({ type: 'broadcast', event: 'm', payload: pack(selfRef.current.id, m, dir) });
+    void ch.send({ type: 'broadcast', event: 'm', payload: pack(connId, m, dir) });
     lastSent.current = { ...m, at: now };
+  }, []);
+
+  /** This window becomes the one that counts (an older window of the same account then pauses). */
+  const claim = useCallback(() => {
+    since.current = Date.now();
+    pushMeta(true);
   }, []);
 
   /** Send a call set-up message to the people in this office (only the addressee acts on it). */
@@ -245,7 +283,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const sendSpeaking = useCallback((on: boolean) => {
     const ch = room.current;
     const s = selfRef.current;
-    if (ch && roomReady.current && s) void ch.send({ type: 'broadcast', event: 'sp', payload: { i: s.id, on } });
+    if (ch && roomReady.current && s && !supersededRef.current) void ch.send({ type: 'broadcast', event: 'sp', payload: { i: connId, on } });
   }, []);
   const sendDoor = useCallback((payload: DoorMsg) => {
     const ch = room.current;
@@ -254,5 +292,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking };
+  return { connId, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking };
 }

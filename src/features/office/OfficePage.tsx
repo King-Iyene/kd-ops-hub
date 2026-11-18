@@ -82,7 +82,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
+  const { connId, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -92,10 +92,10 @@ export default function OfficePage() {
   const rosterRef = useRef(roster);
   rosterRef.current = roster;
   const calls = useCalls({
-    meId: me?.id ?? null,
+    meId: connId,
     spaceId: space?.id ?? null,
     roster,
-    peerIds: () => [...peers.current.keys()],
+    peerIds: () => [...peers.current.keys()].filter((id) => !ghosts.current.has(id)),
     lookup: (id) => {
       const pm = peers.current.get(id);
       if (!pm) return null;
@@ -192,7 +192,7 @@ export default function OfficePage() {
   });
   const recorders = meetingRoom ? roster.filter((r) => r.rec && r.spaceId === space?.id && r.zone === meetingRoom.id) : [];
   const recNotice = recorders.length
-    ? recorders.some((r) => r.id === me?.id)
+    ? recorders.some((r) => r.id === connId)
       ? 'You are recording this meeting. Everyone in the room can see this.'
       : `This room is being recorded by ${recorders.map((r) => r.name).join(', ')}.`
     : null;
@@ -207,7 +207,16 @@ export default function OfficePage() {
     if (autoJoined.current || !me) return;
     autoJoined.current = true;
     navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((st) => {
-      if (st.state === 'granted' || st.state === 'denied') { closeJoinPrompt(); void calls.join(); }
+      if (st.state === 'granted' || st.state === 'denied') {
+        closeJoinPrompt();
+        void calls.join().then(async () => {
+          // camera on by default when the browser already allows it, unless this person turned it off before
+          try {
+            const cam = await navigator.permissions.query({ name: 'camera' as PermissionName });
+            if (cam.state === 'granted' && localStorage.getItem('kd:office:cam') !== '0') await calls.toggleCam();
+          } catch { /* no camera is fine */ }
+        });
+      }
     }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me]);
@@ -239,7 +248,7 @@ export default function OfficePage() {
         if (locked.has(room)) continue;
         const inside = occupants(roster, space?.id ?? null, room);
         const explicit = Date.now() - (unlockedAt.current.get(room) ?? 0) < 4000;
-        if (meetingRoom?.id === room && shouldTakeOver(true, false, inside, me.id, explicit)) {
+        if (meetingRoom?.id === room && shouldTakeOver(true, false, inside, connId, explicit)) {
           setLocked(true);
           myLockRoom.current = room;
         }
@@ -255,7 +264,7 @@ export default function OfficePage() {
     if (locked.has(room)) {
       unlockedAt.current.set(room, Date.now());
       if (myLockRoom.current === room) { setLocked(false); myLockRoom.current = null; }
-      else sendDoor({ k: 'unlock', f: me.id, r: room });
+      else sendDoor({ k: 'unlock', f: connId, r: room });
     } else {
       setLocked(true);
       myLockRoom.current = room;
@@ -268,13 +277,13 @@ export default function OfficePage() {
     const now = Date.now();
     if (now - (lastKnock.current.get(z.id) ?? 0) < 6000) return;
     lastKnock.current.set(z.id, now);
-    sendDoor({ k: 'knock', f: me.id, n: me.name, r: z.id });
+    sendDoor({ k: 'knock', f: connId, n: me.name, r: z.id });
     toast({ title: `${z.name} is locked`, description: 'We knocked. Wait here until someone lets you in.' });
   };
 
   const handleDoor = (raw: unknown) => {
     const m = parseDoor(raw);
-    if (!m || !me || m.f === me.id) return;
+    if (!m || !me || m.f === connId) return;
     const sender = rosterRef.current.find((r) => r.id === m.f);
     const senderInside = !!sender && sender.spaceId === space?.id && sender.zone === m.r;
     if (m.k === 'knock') {
@@ -282,7 +291,7 @@ export default function OfficePage() {
       setKnocks((k) => (k.some((x) => x.id === m.f) ? k : [...k, { id: m.f, name: m.n || sender?.name || 'Someone', room: m.r }]));
       setTimeout(() => setKnocks((k) => k.filter((x) => x.id !== m.f)), 60_000);
     } else if (m.k === 'let') {
-      if (m.t !== me.id || !senderInside) return;
+      if (m.t !== connId || !senderInside) return;
       admitted.current.add(m.r);
       toast({ title: 'You can come in', description: 'Someone opened the door. Walk in.' });
     } else if (m.k === 'unlock') {
@@ -336,7 +345,7 @@ export default function OfficePage() {
     if (!me) return;
     if (!canSendTo(lastSent.current, r.id, Date.now(), 'ring')) { toast({ title: `You just rang ${r.name}`, description: 'Give them a moment.' }); return; }
     lastSent.current.set(`ring:${r.id}`, Date.now());
-    sendPing({ k: 'ring', f: me.id, n: me.name, t: r.id, s: space?.id ?? null });
+    sendPing({ k: 'ring', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     toast({ title: `Rang ${r.name}` });
   };
 
@@ -356,25 +365,25 @@ export default function OfficePage() {
     const clean = cleanText(text);
     if (!clean && !img) return;
     lastSent.current.set(`dm:${target.id}`, Date.now());
-    sendPing({ k: 'dm', f: me.id, n: me.name, t: target.id, s: space?.id ?? null, text: clean || undefined, img });
+    sendPing({ k: 'dm', f: connId, n: me.name, t: target.id, s: space?.id ?? null, text: clean || undefined, img });
     setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: target.id, mine: true, text: clean || undefined, imgUrl, at: Date.now() }]);
   };
 
   const handlePing = async (raw: unknown) => {
-    const m = me ? parsePing(raw, me.id) : null;
+    const m = me ? parsePing(raw, connId) : null;
     if (!m) return;
     if (m.k === 'knock') {
       // only the owner, standing in their own office, hears a knock
       if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
       toast({
         title: `${m.n} is knocking`, description: 'At your office door.',
-        action: <ToastAction altText="Let in" onClick={() => me && sendPing({ k: 'let', f: me.id, n: me.name, t: m.f, s: space.id })}>Let in</ToastAction>,
+        action: <ToastAction altText="Let in" onClick={() => me && sendPing({ k: 'let', f: connId, n: me.name, t: m.f, s: space.id })}>Let in</ToastAction>,
       });
       return;
     }
     if (m.k === 'let') {
       const door = spaces?.find((x) => x.id === m.s);
-      if (!door || door.owner_id !== m.f) return;
+      if (!door || door.owner_id !== rosterRef.current.find((r) => r.id === m.f)?.uid) return;
       admittedOffices.current.add(door.id);
       setSpaceIdRaw(door.id);
       toast({ title: 'The door is open', description: `You are in ${door.name}.` });
@@ -422,14 +431,14 @@ export default function OfficePage() {
   const isMyOffice = !!space && space.kind === 'personal' && space.owner_id === profile?.id;
   const lockedOffice = (s: SpaceRow | undefined) =>
     !!s && s.kind === 'personal' && s.owner_id !== profile?.id && !admittedOffices.current.has(s.id)
-    && rosterRef.current.some((r) => r.id === s.owner_id && r.locked && r.spaceId === s.id);
+    && rosterRef.current.some((r) => r.uid === s.owner_id && r.locked && r.spaceId === s.id);
 
   enterGuard.current = (id) => {
     const target = spaces?.find((s) => s.id === id);
     if (me && target && lockedOffice(target)) {
       if (canSendTo(lastSent.current, `k${target.id}`, Date.now(), 'ring')) {
         lastSent.current.set(`ring:k${target.id}`, Date.now());
-        sendPing({ k: 'knock', f: me.id, n: me.name, t: target.owner_id as string, s: target.id });
+        sendPing({ k: 'knock', f: connId, n: me.name, t: rosterRef.current.find((r) => r.uid === target.owner_id && r.spaceId === target.id)?.id ?? (target.owner_id as string), s: target.id });
       }
       toast({ title: `${target.name} is locked`, description: 'We knocked. You will be taken in when they let you.' });
       return;
@@ -440,7 +449,7 @@ export default function OfficePage() {
   useEffect(() => {
     for (const id of [...admittedOffices.current]) {
       const s = spaces?.find((x) => x.id === id);
-      if (!s || !roster.some((r) => r.id === s.owner_id && r.locked && r.spaceId === id)) admittedOffices.current.delete(id);
+      if (!s || !roster.some((r) => r.uid === s.owner_id && r.locked && r.spaceId === id)) admittedOffices.current.delete(id);
     }
   }, [roster, spaces]);
 
@@ -459,12 +468,14 @@ export default function OfficePage() {
 
   const letIn = (k: { id: string; room: string }) => {
     if (!me) return;
-    sendDoor({ k: 'let', f: me.id, t: k.id, r: k.room });
+    sendDoor({ k: 'let', f: connId, t: k.id, r: k.room });
     setKnocks((list) => list.filter((x) => x.id !== k.id));
   };
 
   const [zoom, setZoom] = useState(1);
   const [meeting, setMeeting] = useState(false);
+  // a window that is not the newest one for this account hangs up (so there is never a second copy of me)
+  useEffect(() => { if (superseded && calls.joined) calls.leave(); }, [superseded, calls.joined]); // eslint-disable-line react-hooks/exhaustive-deps
   // the update prompt must not reload the page while I am in a call or recording
   useEffect(() => { (window as unknown as { __kdBusy?: boolean }).__kdBusy = calls.joined || recorder.recording; return () => { (window as unknown as { __kdBusy?: boolean }).__kdBusy = false; }; }, [calls.joined, recorder.recording]);
 
@@ -503,7 +514,7 @@ export default function OfficePage() {
   useEffect(() => {
     const want = new Map<string, MediaStream>();
     for (const t of calls.tiles) if (!t.screen && t.hasVideo) want.set(t.id, t.stream);
-    if (me && calls.selfCam) want.set(me.id, calls.selfCam);
+    if (me && calls.selfCam) want.set(connId, calls.selfCam);
     for (const [id, v] of [...bubbles.current]) {
       if (want.get(id) !== v.srcObject) { v.srcObject = null; bubbles.current.delete(id); }
     }
@@ -588,7 +599,7 @@ export default function OfficePage() {
             <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Users className="h-3.5 w-3.5" />Online ({roster.length})</p>
             <div className="space-y-1">
               {roster.filter((r) => matches(r.name, query)).map((r) => {
-                const isMe = r.id === me.id;
+                const isMe = r.id === connId;
                 const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
@@ -617,7 +628,7 @@ export default function OfficePage() {
                   <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${s.id === space.id ? 'bg-muted font-medium' : ''}`}>
                     <span className="truncate">{s.name.replace(/'s office$/, '')}</span>
                     <span className="flex shrink-0 items-center gap-1.5">
-                      {roster.some((r) => r.id === s.owner_id && r.locked && r.spaceId === s.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}
+                      {roster.some((r) => r.uid === s.owner_id && r.locked && r.spaceId === s.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}
                       {roster.some((r) => r.spaceId === s.id) && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
                     </span>
                   </button>
@@ -629,11 +640,20 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            map={map} spaceId={space.id} items={items} me={{ ...me, id: connId }} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
+          {superseded && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/90 p-4 backdrop-blur">
+              <div className="max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 text-center shadow-lg">
+                <p className="font-medium">The office is open in another window</p>
+                <p className="text-sm text-muted-foreground">You can only be in the office once, so this window is paused and you do not appear twice.</p>
+                <Button onClick={claim}>Use this window</Button>
+              </div>
+            </div>
+          )}
           {meeting && calls.joined && (
             <MeetingView me={me.name} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onClose={() => setMeeting(false)} />
           )}

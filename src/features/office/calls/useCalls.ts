@@ -316,6 +316,7 @@ export function useCalls(opts: Opts) {
       l.video = null;
       setCamOn(false);
       setSelfCam(null);
+      try { localStorage.setItem('kd:office:cam', '0'); } catch { /* fine */ }
       return;
     }
     try {
@@ -327,6 +328,7 @@ export function useCalls(opts: Opts) {
       for (const c of conns.current.values()) c.videoSender = c.pc.addTrack(track, l.stream);
       setCamOn(true);
       setSelfCam(new MediaStream([track]));
+      try { localStorage.setItem('kd:office:cam', '1'); } catch { /* fine */ }
       setError(null);
     } catch {
       setError('Could not start the camera. Click the padlock left of the web address, set Camera to Allow, and try again.');
