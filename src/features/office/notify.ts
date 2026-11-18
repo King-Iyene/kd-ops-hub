@@ -47,6 +47,7 @@ export function notifyPing(title: string, body: string, onClick?: () => void, ta
     const n = new Notification(title, { body, tag, icon: '/icon-192.png', badge: '/icon-192.png', silent: false });
     n.onclick = () => {
       window.focus();
+      (window as unknown as { kdDesktop?: { focus: () => void } }).kdDesktop?.focus();
       n.close();
       onClick?.();
     };

@@ -1,0 +1,52 @@
+name: Build KD Office desktop app
+
+# Builds the KD Office desktop app (desktop-office/) for Windows, macOS and Linux as downloadable workflow artifacts.
+# It does NOT publish a release: run it by hand (Actions, then "Run workflow"), download the installers from the run page,
+# and publish them only when the owner says so. Each installer is built on its own operating system, because a macOS .dmg
+# cannot be built on Linux.
+#
+# Mac note: the app is not signed with an Apple developer account, so macOS shows a warning the first time
+# (right-click the app, choose Open). Signing needs a paid Apple developer account.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            build-args: --linux
+          - os: windows-latest
+            build-args: --win
+          - os: macos-latest
+            build-args: --mac
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: desktop-office
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Build installer
+        run: npx electron-builder ${{ matrix.build-args }} --publish=never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kd-office-${{ matrix.os }}
+          path: |
+            desktop-office/release/*.exe
+            desktop-office/release/*.dmg
+            desktop-office/release/*.zip
+            desktop-office/release/*.AppImage
+            desktop-office/release/*.deb
+          if-no-files-found: error
+          retention-days: 14

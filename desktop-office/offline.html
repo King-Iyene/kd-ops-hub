@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KD Office</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; background: #0b0f17; color: #e6eaf2; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 18px #f59e0b; animation: p 1.4s ease-in-out infinite; }
+  @keyframes p { 50% { opacity: .35; transform: scale(.8); } }
+  h1 { font-size: 20px; margin: 0; }
+  p { margin: 0; max-width: 360px; color: #9aa6bd; font-size: 14px; line-height: 1.5; }
+  button { margin-top: 6px; border: 0; border-radius: 10px; padding: 9px 18px; font-size: 13px; font-weight: 600; background: #e6eaf2; color: #0b0f17; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="dot"></div>
+  <h1>You are offline</h1>
+  <p>No connection right now, maybe the network or the power. KD Office will reconnect by itself as soon as it can.</p>
+  <button onclick="location.href = 'kd-retry://now'">Try now</button>
+</main>
+</body>
+</html>
