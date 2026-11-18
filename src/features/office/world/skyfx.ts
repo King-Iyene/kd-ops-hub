@@ -137,21 +137,21 @@ export function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, sky
 
   if (season === 'harmattan') {
     // dry, dusty haze that dulls the colours, with dust drifting across
-    ctx.fillStyle = `rgba(214,184,132,${(0.2 + 0.04 * Math.sin(t / 3000)).toFixed(3)})`;
+    ctx.fillStyle = `rgba(214,184,132,${(0.06 + 0.015 * Math.sin(t / 3000)).toFixed(3)})`;
     ctx.fillRect(0, 0, w, h);
     // slow banks of dusty fog drifting through (things stay visible)
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       const cx = (((i * 311 + t * (0.01 + i * 0.004)) % (w + 400)) + w + 400) % (w + 400) - 200;
       const cy = (i * 0.27 + 0.16) * h + Math.sin(t / 5000 + i) * 30;
       const r = 220 + i * 60;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, 'rgba(236,214,172,0.20)');
+      g.addColorStop(0, 'rgba(236,214,172,0.06)');
       g.addColorStop(1, 'rgba(236,214,172,0)');
       ctx.fillStyle = g;
       ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     }
-    ctx.fillStyle = 'rgba(244,226,190,0.5)';
-    for (let i = 0; i < 130; i++) {
+    ctx.fillStyle = 'rgba(244,226,190,0.32)';
+    for (let i = 0; i < 60; i++) {
       const speed = 0.012 + (i % 5) * 0.006;
       const x = (((i * 97.3 + t * speed) % (w + 40)) + w + 40) % (w + 40) - 20;
       const y = ((i * 53.7) % h) + Math.sin(t / 1600 + i) * 7;
