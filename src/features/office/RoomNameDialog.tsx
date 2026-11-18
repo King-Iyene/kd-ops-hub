@@ -24,7 +24,7 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
   }, [zone?.id, current]);
   const isOffice = zone?.kind === 'office';
   const owner = current?.uid ? directory.find((p) => p.id === current.uid) : undefined;
-  const status = current?.free ? 'Free office (nobody assigned)' : owner ? `Assigned to ${owner.name}` : current?.label ? `Custom name: ${current.label}` : 'Automatic (the next leader)';
+  const status = current?.free ? 'Free office (nobody assigned)' : owner ? `Assigned to ${owner.name}` : current?.label ? `Custom name: ${current.label}` : 'Free office (nobody has claimed it)';
   const people = directory.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
   return (
     <Dialog open={!!zone} onOpenChange={(o) => { if (!o) onClose(); }}>

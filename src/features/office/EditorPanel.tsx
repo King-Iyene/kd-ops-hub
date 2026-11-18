@@ -33,7 +33,9 @@ function Thumb({ type, color }: { type: ItemType; color?: number }) {
 }
 
 /** The editing panel: pick an object, pick a colour, click the floor. */
-export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving }: {
+export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited }: {
+  /** an owner decorating their own office: no name plates, only inside their office */
+  limited?: boolean;
   tool: EditTool;
   onTool: (t: EditTool) => void;
   color: number | undefined;
@@ -54,7 +56,7 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
   return (
     <div className="absolute bottom-3 left-3 top-3 z-10 flex w-72 flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="flex items-center justify-between gap-2 border-b border-border p-2">
-        <span className="pl-1 text-sm font-semibold">Edit office</span>
+        <span className="pl-1 text-sm font-semibold">{limited ? 'Customise my office' : 'Edit office'}</span>
         <div className="flex gap-1">
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onCancel}><X className="mr-1 h-3.5 w-3.5" />Cancel</Button>
           <Button size="sm" className="h-7 px-2 text-xs" onClick={onSave} disabled={saving}><Save className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
@@ -93,12 +95,12 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Button size="sm" variant={tool === 'paint' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('paint')} title="Click an object to give it the chosen colour"><Paintbrush className="mr-1 h-3.5 w-3.5" />Paint</Button>
-          <Button size="sm" variant={tool === 'plate' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('plate')} title="Click a private office or meeting room to set who sits there or rename it"><IdCard className="mr-1 h-3.5 w-3.5" />Name plates</Button>
+          {!limited && <Button size="sm" variant={tool === 'plate' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('plate')} title="Click a private office or meeting room to set who sits there or rename it"><IdCard className="mr-1 h-3.5 w-3.5" />Name plates</Button>}
           <Button size="sm" variant={tool === 'erase' ? 'destructive' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('erase')}><Eraser className="mr-1 h-3.5 w-3.5" />Remove</Button>
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onTurn}><RotateCw className="mr-1 h-3.5 w-3.5" />Turn</Button>
           <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={onReset}>Reset</Button>
         </div>
-        <p className="text-[10px] text-muted-foreground">Pick an object, then click the floor. Green means it fits.</p>
+        <p className="text-[10px] text-muted-foreground">{limited ? 'Decorate your own office: pick an object, then click inside it. Walls, name plates and the rest of the building are for admins.' : 'Pick an object, then click the floor. Green means it fits.'}</p>
       </div>
     </div>
   );

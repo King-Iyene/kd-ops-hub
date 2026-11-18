@@ -9,5 +9,6 @@ export const CATEGORIES: { id: string; label: string; types: ItemType[] }[] = [
   { id: 'plants', label: 'Plants and garden', types: ['plant', 'flowers', 'cactus', 'bamboo', 'tree', 'palm', 'hedge', 'grass', 'fountain'] },
   { id: 'floor', label: 'Rugs and mats', types: ['rug', 'mat'] },
   { id: 'decor', label: 'Decor', types: ['lamp', 'balloons', 'frame', 'whiteboard', 'shelf', 'fishtank', 'fireplace', 'piano'] },
+  { id: 'pets', label: 'Pets', types: ['dog', 'cat'] },
   { id: 'kitchen', label: 'Kitchen and more', types: ['coffee', 'cooler', 'vending', 'bin'] },
 ];

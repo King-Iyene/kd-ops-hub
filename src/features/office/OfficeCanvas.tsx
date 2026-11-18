@@ -35,6 +35,14 @@ interface Props {
   /** stop following once I have reached them ("go to" a person) */
   followOnce: boolean;
   onFollowEnd: () => void;
+  /** a click (not a drag) on the map outside edit mode */
+  onMapClick: (tile: { x: number; y: number }) => void;
+  /** while editing, the rectangle that can be changed (an owner may only change their own office) */
+  editArea: { x: number; y: number; w: number; h: number } | null;
+  /** a counter: when it changes the view returns to my avatar */
+  recenter: number;
+  /** emoji reactions floating over people, by person id */
+  emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
   dark: boolean;
   zoom: number;
@@ -60,6 +68,10 @@ export function OfficeCanvas(props: Props) {
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
   const lastJump = useRef(0);
+  const zoomShown = useRef(props.zoom);
+  /** how far the view has been dragged away from following me, in pixels */
+  const pan = useRef({ x: 0, y: 0 });
+  useEffect(() => { pan.current = { x: 0, y: 0 }; }, [props.recenter]);
   const drawFailed = useRef(false);
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
@@ -122,12 +134,38 @@ export function OfficeCanvas(props: Props) {
       const { ox, oy, scale } = cam.current;
       return { x: Math.floor((e.clientX - r.left - ox) / (TILE * scale)), y: Math.floor((e.clientY - r.top - oy) / (TILE * scale)) };
     };
-    const move = (e: MouseEvent) => { hover.current = toTile(e); };
-    const leave = () => { hover.current = null; };
-    const click = (e: MouseEvent) => { if (propsRef.current.editing) propsRef.current.onTile(toTile(e)); };
+    const drag = { down: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 };
+    const move = (e: MouseEvent) => {
+      hover.current = toTile(e);
+      if (!drag.down) return;
+      const dx = e.clientX - drag.sx;
+      const dy = e.clientY - drag.sy;
+      if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
+      if (drag.moved && !propsRef.current.editing) pan.current = { x: drag.px + dx, y: drag.py + dy };
+    };
+    const down = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      drag.down = true;
+      drag.moved = false;
+      drag.sx = e.clientX;
+      drag.sy = e.clientY;
+      drag.px = pan.current.x;
+      drag.py = pan.current.y;
+    };
+    const up = (e: MouseEvent) => {
+      if (!drag.down) return;
+      drag.down = false;
+      if (drag.moved) return;
+      if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
+      else propsRef.current.onMapClick(toTile(e));
+    };
+    const dbl = () => { pan.current = { x: 0, y: 0 }; };
+    const leave = () => { hover.current = null; drag.down = false; };
     canvas.addEventListener('mousemove', move);
     canvas.addEventListener('mouseleave', leave);
-    canvas.addEventListener('click', click);
+    canvas.addEventListener('mousedown', down);
+    canvas.addEventListener('mouseup', up);
+    canvas.addEventListener('dblclick', dbl);
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -230,13 +268,17 @@ export function OfficeCanvas(props: Props) {
       }
 
       // camera: follow me, but never show past the edges (centre the map if it is smaller than the window)
-      const scale = p.zoom;
+      // the zoom glides to its new value instead of jumping
+      zoomShown.current += (p.zoom - zoomShown.current) * (1 - Math.exp(-dt * 9));
+      const scale = zoomShown.current;
       const mapW = p.map.w * TILE * scale;
       const mapH = p.map.h * TILE * scale;
-      let ox = w / 2 - me.x * TILE * scale;
-      let oy = h / 2 - me.y * TILE * scale;
-      ox = mapW <= w ? (w - mapW) / 2 : Math.min(0, Math.max(w - mapW, ox));
-      oy = mapH <= h ? (h - mapH) / 2 : Math.min(0, Math.max(h - mapH, oy));
+      // follow me, plus however far the view was dragged, with a few tiles of room past every edge (so the rooms along the edge can be seen)
+      const pad = TILE * scale * 4;
+      let ox = w / 2 - me.x * TILE * scale + pan.current.x;
+      let oy = h / 2 - me.y * TILE * scale + pan.current.y;
+      ox = mapW + 2 * pad <= w ? (w - mapW) / 2 : Math.min(pad, Math.max(w - mapW - pad, ox));
+      oy = mapH + 2 * pad <= h ? (h - mapH) / 2 : Math.min(pad, Math.max(h - mapH - pad, oy));
       cam.current = { ox, oy, scale };
 
       // draw
@@ -262,10 +304,10 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
@@ -285,12 +327,27 @@ export function OfficeCanvas(props: Props) {
       }
       for (; pi < sortedPeople.length; pi++) drawPerson(ctx, sortedPeople[pi], now, theme);
 
+      // emoji reactions float up above the person and fade
+      const nowMs = Date.now();
+      for (const sp of sortedPeople) {
+        const em = sp.id ? p.emotes.current.get(sp.id) : undefined;
+        if (!em || em.until < nowMs) continue;
+        const age = 1 - (em.until - nowMs) / 3500;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (1 - age) * 3);
+        ctx.font = '26px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(em.e, sp.x * TILE + Math.sin(age * 9) * 3, sp.y * TILE - 56 - age * 34);
+        ctx.restore();
+      }
+
       drawLighting(ctx, p.map, p.items, theme, now);
       drawZoneLabels(ctx, p.map.zones, theme);
 
       // edit mode: grid, the build area and a preview of what is about to be placed
       if (p.editing) {
-        const b = p.map.buildArea;
+        const b = p.editArea ?? p.map.buildArea;
         ctx.strokeStyle = 'rgba(99,102,241,0.25)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -316,9 +373,11 @@ export function OfficeCanvas(props: Props) {
       ro.disconnect();
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseleave', leave);
-      canvas.removeEventListener('click', click);
+      canvas.removeEventListener('mousedown', down);
+      canvas.removeEventListener('mouseup', up);
+      canvas.removeEventListener('dblclick', dbl);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full touch-none select-none outline-none" style={{ cursor: props.editing ? 'crosshair' : 'default' }} />;
+  return <canvas ref={canvasRef} className="h-full w-full touch-none select-none outline-none" style={{ cursor: props.editing ? 'crosshair' : 'grab' }} />;
 }
