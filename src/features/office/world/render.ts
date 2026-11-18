@@ -116,8 +116,8 @@ function pal(dark: boolean) {
         wallCap: '#34415f', wallFront: '#1c2640', wallBase: '#0f1528', glassTop: '#14234a', glassBottom: '#2c4478', frame: '#4a5a80',
       }
     : {
-        floorA: '#eef2f8', floorB: '#e5ebf4', carpet: '#cfe0fb', carpetDot: '#b6cef6', woodA: '#ecc99d', woodB: '#e2bb8b', plank: 'rgba(120,70,20,0.22)',
-        wallCap: '#8794ab', wallFront: '#5e6c85', wallBase: '#3f4b63', glassTop: '#a9dcff', glassBottom: '#e6f6ff', frame: '#e9eef7',
+        floorA: '#f4ead6', floorB: '#efe3cb', carpet: '#dcdaf3', carpetDot: '#c6c3ea', woodA: '#e9c496', woodB: '#dfb685', plank: 'rgba(120,70,20,0.22)',
+        wallCap: '#a3b3c2', wallFront: '#7f93a6', wallBase: '#566a7d', glassTop: '#a9dcff', glassBottom: '#e6f6ff', frame: '#f1f5f9',
       };
 }
 
@@ -971,6 +971,10 @@ export interface DrawPerson {
   name: string;
   avatar: AvatarStyle;
   isMe: boolean;
+  /** this person's live camera, drawn as a bubble above their head */
+  bubble?: HTMLVideoElement | null;
+  /** an emoji for their status, shown in the name tag */
+  status?: string;
 }
 
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
@@ -1212,7 +1216,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const w = ctx.measureText(p.name).width + 16;
+  const label = p.status ? `${p.status} ${p.name}` : p.name;
+  const w = ctx.measureText(label).width + 16 + (p.status ? 0 : 0);
   const ty = py - 38 + bob;
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 8, w, 18, 9);
@@ -1220,8 +1225,52 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillStyle = p.isMe ? 'rgba(37,99,235,0.96)' : theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
   rr(ctx, px - w / 2, ty - 9, w, 18, 9);
   ctx.fill();
-  ctx.fillStyle = p.isMe ? '#bfdbfe' : '#34d399';
-  disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
+  if (!p.status) {
+    ctx.fillStyle = p.isMe ? '#bfdbfe' : '#34d399';
+    disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
+  }
   ctx.fillStyle = '#fff';
-  ctx.fillText(p.name, px + 3, ty + 0.5);
+  ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
+
+  // live camera bubble above the name tag, like Gather
+  const v = p.bubble;
+  if (v && v.readyState >= 2 && v.videoWidth > 0) {
+    const bw = 64;
+    const bh = 48;
+    const bx = px - bw / 2;
+    const by = ty - 9 - 8 - bh;
+    ctx.fillStyle = 'rgba(15,23,42,0.3)';
+    rr(ctx, bx + 1, by + 3, bw, bh, 10);
+    ctx.fill();
+    ctx.save();
+    rr(ctx, bx, by, bw, bh, 10);
+    ctx.clip();
+    const vr = v.videoWidth / v.videoHeight;
+    const br = bw / bh;
+    let sx = 0;
+    let sy = 0;
+    let sw = v.videoWidth;
+    let sh = v.videoHeight;
+    if (vr > br) { sw = v.videoHeight * br; sx = (v.videoWidth - sw) / 2; } else { sh = v.videoWidth / br; sy = (v.videoHeight - sh) / 2; }
+    if (p.isMe) {
+      ctx.translate(bx + bw, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(v, sx, sy, sw, sh, 0, by, bw, bh);
+    } else {
+      ctx.drawImage(v, sx, sy, sw, sh, bx, by, bw, bh);
+    }
+    ctx.restore();
+    const edge = p.isMe ? '#3b82f6' : '#ffffff';
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 2;
+    rr(ctx, bx, by, bw, bh, 10);
+    ctx.stroke();
+    ctx.fillStyle = edge;
+    ctx.beginPath();
+    ctx.moveTo(px - 4, by + bh);
+    ctx.lineTo(px + 4, by + bh);
+    ctx.lineTo(px, by + bh + 5);
+    ctx.closePath();
+    ctx.fill();
+  }
 }

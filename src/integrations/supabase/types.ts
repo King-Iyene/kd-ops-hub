@@ -19094,6 +19094,10 @@ export type Database = {
         Returns: Json
       }
       batch_paid_amount_ngn: { Args: { p_batch_id: string }; Returns: number }
+      can_access_space: { Args: { p_space_id: string }; Returns: boolean }
+      can_access_task: { Args: { p_task_id: string }; Returns: boolean }
+      can_edit_space: { Args: { p_space_id: string }; Returns: boolean }
+      can_edit_task: { Args: { p_task_id: string }; Returns: boolean }
       cancel_advance_request: {
         Args: { p_request_id: string }
         Returns: {
@@ -19526,6 +19530,11 @@ export type Database = {
       effective_co_approval_threshold: {
         Args: { p_user_id: string }
         Returns: number
+      }
+      effective_space_for_list: { Args: { p_list_id: string }; Returns: string }
+      effective_space_for_task: {
+        Args: { p_list_id: string; p_project_id: string }
+        Returns: string
       }
       employee_has_inflight_payroll: {
         Args: { p_employee_id: string }

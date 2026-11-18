@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, Circle, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { BellRing, Building2, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -12,6 +12,8 @@ import { ToastAction } from '@/components/ui/toast';
 import { MessageDialog, type Msg } from './MessageDialog';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
+import { ProfileMenu } from './ProfileMenu';
+import { statusOf } from './status';
 import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
 import { useCalls } from './calls/useCalls';
 import { useRecorder } from './calls/useRecorder';
@@ -24,18 +26,6 @@ import { defaultAvatar } from './world/render';
 import type { Item, ItemType, Zone } from './world/types';
 
 const PALETTE: ItemType[] = ['desk', 'computer', 'papers', 'mug', 'chair', 'plant', 'flowers', 'tree', 'sofa', 'beanbag', 'table', 'coffeetable', 'shelf', 'rug', 'grass', 'whiteboard', 'tv', 'printer', 'cooler', 'lamp', 'coffee', 'bin'];
-
-/** True when the page background is dark (works for both of the app's themes). */
-function pageIsDark(): boolean {
-  try {
-    const m = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
-    if (!m) return true;
-    const [r, g, b] = m.map(Number);
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
-  } catch {
-    return true;
-  }
-}
 
 export default function OfficePage() {
   const { profile } = useAuthStore();
@@ -91,7 +81,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -458,7 +448,33 @@ export default function OfficePage() {
   };
 
   const [zoom, setZoom] = useState(1);
-  const dark = pageIsDark();
+  const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
+  const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
+  useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
+  // the office is bright by default (cream floors, daylight); a switch makes it a night office
+  const [bright, setBright] = useState(() => { try { return localStorage.getItem('kd:office:bright') !== '0'; } catch { return true; } });
+  const dark = !bright;
+  const toggleBright = () => { setBright((b) => { try { localStorage.setItem('kd:office:bright', b ? '0' : '1'); } catch { /* fine */ } return !b; }); };
+
+  // live cameras as bubbles above heads: one hidden, playing video element per person
+  const bubbles = useRef(new Map<string, HTMLVideoElement>());
+  useEffect(() => {
+    const want = new Map<string, MediaStream>();
+    for (const t of calls.tiles) if (!t.screen && t.hasVideo) want.set(t.id, t.stream);
+    if (me && calls.selfCam) want.set(me.id, calls.selfCam);
+    for (const [id, v] of [...bubbles.current]) {
+      if (want.get(id) !== v.srcObject) { v.srcObject = null; bubbles.current.delete(id); }
+    }
+    for (const [id, stream] of want) {
+      if (bubbles.current.has(id)) continue;
+      const v = document.createElement('video');
+      v.muted = true;
+      v.playsInline = true;
+      v.srcObject = stream;
+      void v.play().catch(() => undefined);
+      bubbles.current.set(id, v);
+    }
+  }, [calls.tiles, calls.selfCam, me]);
 
   const nameOfSpace = (id: string | null) => spaces?.find((s) => s.id === id)?.name ?? 'an office';
   const here = roster.filter((r) => r.spaceId === space?.id);
@@ -481,18 +497,6 @@ export default function OfficePage() {
             {space.name}{zone && zone.kind !== 'area' && zone.kind !== 'portal' ? ` · ${zone.name}` : ''} · {here.length} {here.length === 1 ? 'person' : 'people'} here
             {!connected && ' · connecting…'}
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))} aria-label="Zoom out"><Minus className="h-4 w-4" /></Button>
-          <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(1.6, +(z + 0.2).toFixed(1)))} aria-label="Zoom in"><Plus className="h-4 w-4" /></Button>
-          {isMyOffice && (
-            <Button size="sm" variant={myOfficeLocked ? 'default' : 'outline'} onClick={toggleOfficeLock} title="Locked: visitors have to knock and you let them in">
-              <Lock className="mr-1.5 h-4 w-4" />{myOfficeLocked ? 'Office locked' : 'Lock my office'}
-            </Button>
-          )}
-          {canRecord && <Button size="sm" variant="outline" onClick={() => setRecordingsOpen(true)}><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</Button>}
-          <Button size="sm" variant="outline" onClick={() => setAvatarOpen(true)}><Palette className="mr-1.5 h-4 w-4" />Avatar</Button>
-          {canEdit && !editing && <Button size="sm" onClick={startEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit office</Button>}
         </div>
       </div>
 
@@ -547,7 +551,7 @@ export default function OfficePage() {
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
                     <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{nameOfSpace(r.spaceId)}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
                         <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
@@ -583,7 +587,7 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} update={update}
+            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
@@ -600,6 +604,14 @@ export default function OfficePage() {
               roomName={zone && zone.kind === 'meeting' ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={calls.toggleMic} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
+              leading={(
+                <ProfileMenu
+                  name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
+                  bright={bright} onToggleBright={toggleBright} onZoom={(d) => setZoom((z) => Math.min(1.6, Math.max(0.6, +(z + d).toFixed(1))))}
+                  canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)}
+                  isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
+                />
+              )}
               roomLocked={roomLocked} knocks={knocks.filter((k) => k.room === meetingRoom?.id)} onToggleLock={toggleLock} onLetIn={letIn}
               onDismissKnock={(id) => setKnocks((l) => l.filter((x) => x.id !== id))}
               recError={recorder.error} unsent={recorder.unsent} onRecord={recorder.start} onStopRecord={recorder.stop} onDismissUnsent={recorder.dismissUnsent}

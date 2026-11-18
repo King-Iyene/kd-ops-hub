@@ -1,6 +1,5 @@
+import { Circle, DoorOpen, Headphones, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { Circle, DoorOpen, Headphones, Lock, LockOpen, Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import type { Tile } from './useCalls';
 
 interface Props {
@@ -36,6 +35,8 @@ interface Props {
   onToggleLock: () => void;
   onLetIn: (k: { id: string; room: string }) => void;
   onDismissKnock: (id: string) => void;
+  /** the profile card shown at the left of the bar */
+  leading?: React.ReactNode;
 }
 
 function clock(s: number): string {
@@ -51,116 +52,111 @@ function downloadBlob(name: string, blob: Blob) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-function VideoTile({ tile, onMute }: { tile: Tile; onMute: () => void }) {
+/** A shared screen, shown larger; click to open it full size. */
+function ScreenTile({ tile }: { tile: Tile }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = ref.current;
     if (v) { v.srcObject = tile.stream; void v.play().catch(() => undefined); }
-  }, [tile.stream, tile.hasVideo]);
+  }, [tile.stream]);
   return (
-    <div className={`relative overflow-hidden rounded-lg border border-border bg-slate-900 shadow ${tile.screen ? 'h-44 w-72' : 'h-24 w-36'}`}>
-      {/* the sound plays through a separate audio element, so this picture is always muted; a shared screen opens full size on click */}
-      <video
-        ref={ref} muted playsInline
-        onClick={tile.screen ? () => void ref.current?.requestFullscreen?.().catch(() => undefined) : undefined}
-        className={`h-full w-full ${tile.screen ? 'cursor-zoom-in object-contain' : 'object-cover'} ${tile.hasVideo ? '' : 'hidden'}`}
-      />
-      {!tile.hasVideo && (
-        <div className="flex h-full w-full items-center justify-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-lg font-semibold text-primary">{tile.name.slice(0, 1).toUpperCase()}</span>
-        </div>
-      )}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-2 py-0.5 text-[11px] text-white">
-        <span className="truncate">{tile.name}</span>
-        {!tile.screen && <button type="button" onClick={onMute} className="ml-1 shrink-0 rounded p-0.5 hover:bg-white/20" aria-label={tile.muted ? `Unmute ${tile.name}` : `Mute ${tile.name}`} title={tile.muted ? 'Unmute them' : 'Mute them (only for you)'}>
-          {tile.muted ? <VolumeX className="h-3.5 w-3.5 text-red-400" /> : <Volume2 className="h-3.5 w-3.5" />}
-        </button>}
-      </div>
+    <div className="relative h-40 w-64 overflow-hidden rounded-lg border border-border bg-slate-900 shadow-lg">
+      <video ref={ref} muted playsInline onClick={() => void ref.current?.requestFullscreen?.().catch(() => undefined)} className="h-full w-full cursor-zoom-in object-contain" />
+      <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-0.5 text-[11px] text-white">{tile.name}</span>
     </div>
   );
 }
 
-/** My own camera, mirrored like a mirror, so I can see what others see. */
-function SelfTile({ stream, micOn }: { stream: MediaStream; micOn: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const v = ref.current;
-    if (v) { v.srcObject = stream; void v.play().catch(() => undefined); }
-  }, [stream]);
+/** One small icon button. */
+function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
   return (
-    <div className="relative h-24 w-36 overflow-hidden rounded-lg border-2 border-primary/60 bg-slate-900 shadow">
-      <video ref={ref} muted playsInline className="h-full w-full -scale-x-100 object-cover" />
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-2 py-0.5 text-[11px] text-white">
-        <span>You</span>
-        {!micOn && <MicOff className="h-3.5 w-3.5 text-red-400" />}
-      </div>
-    </div>
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${tone}`}>
+      {children}
+    </button>
   );
 }
 
-/** Join button, mic and camera controls, and a tile for each person you are talking to. */
-export function CallDock({ joined, busy, error, micOn, camOn, selfCam, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer, canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent, roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock }: Props) {
+/**
+ * The bottom bar: lock, microphone, camera, share, record and leave, all small and together.
+ * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
+ */
+export function CallDock({
+  joined, busy, error, micOn, camOn, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
+  canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
+  roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
+}: Props) {
+  const screens = tiles.filter((t) => t.screen);
+  const people = tiles.filter((t) => !t.screen);
   return (
     <>
-      {joined && (tiles.length > 0 || selfCam) && (
-        <div className="absolute right-3 top-3 flex max-h-[70%] flex-col gap-2 overflow-y-auto">
-          {selfCam && <SelfTile stream={selfCam} micOn={micOn} />}
-          {tiles.map((t) => <VideoTile key={t.id} tile={t} onMute={() => onMutePeer(t.id)} />)}
+      {joined && (screens.length > 0 || people.length > 0) && (
+        <div className="absolute right-3 top-3 flex max-h-[75%] flex-col items-end gap-1.5 overflow-y-auto">
+          {screens.map((t) => <ScreenTile key={t.id} tile={t} />)}
+          {people.map((t) => (
+            <div key={t.id} className="flex items-center gap-1.5 rounded-full border border-border bg-background/90 py-0.5 pl-2.5 pr-1 text-[11px] shadow backdrop-blur">
+              <span className="max-w-[7rem] truncate">{t.name}</span>
+              <button type="button" onClick={() => onMutePeer(t.id)} aria-label={t.muted ? `Unmute ${t.name}` : `Mute ${t.name}`} title={t.muted ? 'Unmute them' : 'Mute them (only for you)'} className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted">
+                {t.muted ? <VolumeX className="h-3 w-3 text-red-500" /> : <Volume2 className="h-3 w-3" />}
+              </button>
+            </div>
+          ))}
         </div>
       )}
-      <div className="absolute inset-x-0 bottom-3 flex flex-col items-center gap-1.5 px-3">
-        {error && <p className="pointer-events-auto rounded-lg bg-destructive px-3 py-1 text-xs text-destructive-foreground shadow">{error}</p>}
+      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex flex-col items-center gap-1 px-3">
+        {error && <p className="pointer-events-auto rounded-md bg-destructive px-2.5 py-0.5 text-[11px] text-destructive-foreground shadow">{error}</p>}
         {knocks.map((k) => (
-          <div key={k.id} className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs shadow-lg">
-            <DoorOpen className="h-4 w-4 text-primary" />
+          <div key={k.id} className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] shadow-lg">
+            <DoorOpen className="h-3.5 w-3.5 text-primary" />
             <span><strong>{k.name}</strong> is knocking</span>
-            <Button size="sm" className="h-6 px-2 text-xs" onClick={() => onLetIn(k)}>Let in</Button>
+            <button type="button" className="rounded bg-primary px-1.5 py-0.5 font-medium text-primary-foreground" onClick={() => onLetIn(k)}>Let in</button>
             <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => onDismissKnock(k.id)} aria-label="Ignore">✕</button>
           </div>
         ))}
         {recNotice && (
-          <p className="pointer-events-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white shadow">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />{recNotice}
+          <p className="pointer-events-auto flex items-center gap-1.5 rounded-md bg-red-600 px-2.5 py-0.5 text-[11px] font-medium text-white shadow">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />{recNotice}
           </p>
         )}
         {recError && (
-          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg bg-destructive px-3 py-1 text-xs text-destructive-foreground shadow">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-md bg-destructive px-2.5 py-0.5 text-[11px] text-destructive-foreground shadow">
             <span>{recError}</span>
             {unsent.map((u) => <button key={u.name} type="button" className="underline" onClick={() => downloadBlob(u.name, u.blob)}>Download {u.name}</button>)}
-            <button type="button" className="ml-1 opacity-80" onClick={onDismissUnsent} aria-label="Dismiss">✕</button>
+            <button type="button" className="opacity-80" onClick={onDismissUnsent} aria-label="Dismiss">✕</button>
           </div>
         )}
-        <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-border bg-background/95 p-1.5 shadow-lg backdrop-blur">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
+          {leading && (
+            <>
+              {leading}
+              <span className="mx-0.5 h-5 w-px bg-border" />
+            </>
+          )}
           {roomName && (
-            <Button size="sm" variant={roomLocked ? 'default' : 'outline'} onClick={onToggleLock} title={roomLocked ? 'Unlock the room' : 'Lock the room so nobody else can walk in'}>
-              {roomLocked ? <Lock className="mr-1.5 h-4 w-4" /> : <LockOpen className="mr-1.5 h-4 w-4" />}{roomLocked ? 'Locked' : 'Lock'}
-            </Button>
+            <>
+              <Btn on={roomLocked} label={roomLocked ? 'Unlock the room' : 'Lock the room so nobody else can walk in'} onClick={onToggleLock}>
+                {roomLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+              </Btn>
+              <span className="mx-0.5 h-5 w-px bg-border" />
+            </>
           )}
           {!joined ? (
-            <Button size="sm" onClick={onJoin} disabled={busy}><Headphones className="mr-1.5 h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Button>
+            <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (
             <>
-              <Button size="sm" variant={micOn ? 'outline' : 'destructive'} onClick={onMic} aria-label={micOn ? 'Mute microphone' : 'Unmute microphone'} title={micOn ? 'Mute yourself' : 'Unmute yourself'}>
-                {micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-              </Button>
-              <Button size="sm" variant={camOn ? 'default' : 'outline'} onClick={onCam} aria-label={camOn ? 'Turn camera off' : 'Turn camera on'} title={camOn ? 'Turn camera off' : 'Turn camera on'}>
-                {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
-              </Button>
+              <Btn danger={!micOn} label={micOn ? 'Mute yourself' : 'Unmute yourself'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
+              <Btn danger={false} on={camOn} label={camOn ? 'Turn camera off' : 'Turn camera on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
+              <Btn on={sharing} label={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'} onClick={onShare}>{sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}</Btn>
               {canRecord && roomName && (
-                recording ? (
-                  <Button size="sm" variant="destructive" onClick={onStopRecord} title="Stop recording"><Square className="mr-1.5 h-3.5 w-3.5 fill-current" />{clock(recSeconds)}</Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={onRecord} title="Record this meeting (everyone in the room is told)"><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Record</Button>
-                )
+                recording
+                  ? <Btn danger label="Stop recording" onClick={onStopRecord}><Square className="h-3 w-3 fill-current" />{clock(recSeconds)}</Btn>
+                  : <Btn label="Record this meeting (everyone in the room is told)" onClick={onRecord}><Circle className="h-3.5 w-3.5 fill-red-500 text-red-500" /></Btn>
               )}
-              <Button size="sm" variant={sharing ? 'default' : 'outline'} onClick={onShare} aria-label={sharing ? 'Stop sharing your screen' : 'Share your screen'} title={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'}>
-                {sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}
-              </Button>
-              <span className="px-2 text-xs text-muted-foreground">
-                {roomName ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />{roomName}: only people in this room can hear you</span>
-                  : tiles.length ? `Talking with ${tiles.length} nearby` : 'Walk up to someone to talk'}
+              <span className="mx-0.5 h-5 w-px bg-border" />
+              <Btn label="Leave voice" onClick={onLeave}><LogOut className="h-4 w-4" /></Btn>
+              <span className="hidden px-1.5 text-[11px] text-muted-foreground lg:inline">
+                {roomName ? 'Private room' : people.length ? `${people.length} nearby` : 'Walk up to someone'}
               </span>
-              <Button size="sm" variant="outline" onClick={onLeave} aria-label="Leave voice" title="Leave voice"><PhoneOff className="h-4 w-4" /></Button>
             </>
           )}
         </div>

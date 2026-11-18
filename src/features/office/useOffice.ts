@@ -25,6 +25,8 @@ export interface Who {
   rec: boolean;
   /** this person has locked the meeting room they are standing in */
   locked: boolean;
+  /** a status id such as 'focus' (see status.ts), or '' */
+  status: string;
 }
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
@@ -67,6 +69,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const zoneRef = useRef<string | null>(null);
   const recRef = useRef(false);
   const lockRef = useRef(false);
+  const statusRef = useRef('');
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
   const pingHandler = useRef<((raw: unknown) => void) | null>(null);
   const selfRef = useRef(self);
@@ -75,7 +78,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   spaceRef.current = spaceId;
   /** what the lobby knows about me */
   const meta = (s: { name: string; avatar: AvatarStyle }) => ({
-    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0,
+    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current,
   });
 
   const selfId = self?.id ?? null;
@@ -86,12 +89,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: selfId } } });
     lobby.current = ch;
     const sync = () => {
-      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number }[]>;
+      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string }[]>;
       const list: Who[] = [];
       for (const [id, metas] of Object.entries(state)) {
         const m = metas[0];
         if (!m) continue;
-        list.push({ id, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, id), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1 });
+        list.push({ id, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, id), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 12) : '' });
       }
       setRoster(list);
       // forget people who have left
@@ -124,6 +127,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   /** Tell the room that I am (or am no longer) recording. */
   const setRecording = useCallback((on: boolean) => {
     recRef.current = on;
+    const s = selfRef.current;
+    if (lobby.current && s) void lobby.current.track(meta(s));
+  }, []);
+
+  /** Show a status next to my name. */
+  const setStatus = useCallback((id: string) => {
+    statusRef.current = id;
     const s = selfRef.current;
     if (lobby.current && s) void lobby.current.track(meta(s));
   }, []);
@@ -208,5 +218,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler };
+  return { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler };
 }
