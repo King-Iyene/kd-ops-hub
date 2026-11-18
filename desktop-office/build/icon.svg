@@ -1,17 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#0b8cc0"/><stop offset="0.55" stop-color="#00698f"/><stop offset="1" stop-color="#004a69"/></linearGradient>
-    <radialGradient id="glow" cx="0.3" cy="0.18" r="0.75"><stop offset="0" stop-color="#7fd0f0" stop-opacity="0.45"/><stop offset="1" stop-color="#7fd0f0" stop-opacity="0"/></radialGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2d58f"/><stop offset="1" stop-color="#cfa646"/></linearGradient>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c7ebf9"/><stop offset="1" stop-color="#7cc6e6"/></linearGradient>
-    <linearGradient id="white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dcebf3"/></linearGradient>
-    <filter id="soft" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#00243a" flood-opacity="0.35"/></filter>
-  </defs>
-  <rect x="30" y="30" width="964" height="964" rx="236" fill="url(#bg)"/>
-  <rect x="30" y="30" width="964" height="964" rx="236" fill="url(#glow)"/>
-  <g filter="url(#soft)">
-    <circle cx="418" cy="446" r="196" fill="url(#white)"/>
-    <circle cx="606" cy="446" r="196" fill="url(#sky)" stroke="#00698f" stroke-width="14"/>
-    <circle cx="512" cy="610" r="196" fill="url(#gold)" stroke="#00698f" stroke-width="14"/>
-  </g>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#0b8cc0"/><stop offset="0.55" stop-color="#00698f"/><stop offset="1" stop-color="#004a69"/></linearGradient>
+  <radialGradient id="glow" cx="0.3" cy="0.18" r="0.75"><stop offset="0" stop-color="#7fd0f0" stop-opacity="0.4"/><stop offset="1" stop-color="#7fd0f0" stop-opacity="0"/></radialGradient>
+  <linearGradient id="gSky" gradientUnits="userSpaceOnUse" x1="260" y1="260" x2="760" y2="760"><stop offset="0" stop-color="#e2f5fd"/><stop offset="1" stop-color="#7cc6e6"/></linearGradient>
+  <linearGradient id="gWhite" gradientUnits="userSpaceOnUse" x1="260" y1="260" x2="760" y2="760"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d4e6ef"/></linearGradient>
+  <linearGradient id="gGold" gradientUnits="userSpaceOnUse" x1="260" y1="260" x2="760" y2="760"><stop offset="0" stop-color="#f7de9f"/><stop offset="1" stop-color="#cfa23c"/></linearGradient>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="13" flood-color="#00243a" flood-opacity="0.38"/></filter>
+</defs>
+<rect x="30" y="30" width="964" height="964" rx="236" fill="url(#bg)"/>
+<rect x="30" y="30" width="964" height="964" rx="236" fill="url(#glow)"/>
+<g filter="url(#soft)" fill="none" stroke-linecap="round" stroke-width="84">
+  <path d="M431.3 290.2 A236 236 0 0 1 727.6 416.0" stroke="url(#gSky)"/>
+  <path d="M744.4 553.0 A236 236 0 0 1 487.3 746.7" stroke="url(#gWhite)"/>
+  <path d="M360.3 692.8 A236 236 0 0 1 321.1 373.3" stroke="url(#gGold)"/>
+  <circle cx="512" cy="512" r="62" fill="url(#gWhite)" stroke="none"/>
+</g>
 </svg>
