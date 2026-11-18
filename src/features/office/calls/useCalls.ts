@@ -278,7 +278,9 @@ export function useCalls(opts: Opts) {
       local.current = { stream, audio: stream.getAudioTracks()[0] ?? null, video: null, screen: null };
       joinedRef.current = true;
       setJoined(true);
-      setMicOn(!!local.current.audio);
+      // you join with the microphone off; press the mic button when you want to talk
+      if (local.current.audio) local.current.audio.enabled = false;
+      setMicOn(false);
       setCamOn(false);
     } catch (e) {
       const name = (e as DOMException)?.name;
