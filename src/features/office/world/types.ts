@@ -70,12 +70,12 @@ export interface AvatarStyle {
   skin: string;
   hair: string;
   shirt: string;
-  /** 0 short, 1 long, 2 bun, 3 none, 4 curly, 5 quiff, 6 braids, 7 afro */
-  hairStyle: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  /** 0 t-shirt, 1 hoodie, 2 blazer, 3 dress, 4 blouse and skirt */
-  outfit: 0 | 1 | 2 | 3 | 4;
-  /** 0 none, 1 glasses, 2 headset, 3 cap, 4 sunglasses, 5 beanie, 6 head wrap */
-  accessory: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** 0 short, 1 long, 2 bun, 3 none, 4 curly, 5 quiff, 6 braids, 7 afro, 8 bob, 9 mohawk, 10 locs */
+  hairStyle: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  /** 0 t-shirt, 1 hoodie, 2 blazer, 3 dress, 4 blouse and skirt, 5 kaftan, 6 ankara print top */
+  outfit: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** 0 none, 1 glasses, 2 headset, 3 cap, 4 sunglasses, 5 beanie, 6 head wrap, 7 earrings, 8 bow tie */
+  accessory: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   /** 0 none, 1 stubble, 2 moustache, 3 full beard */
   beard: 0 | 1 | 2 | 3;
   pants: string;

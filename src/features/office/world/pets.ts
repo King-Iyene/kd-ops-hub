@@ -32,6 +32,10 @@ export interface PetState {
   hx: number;
   hy: number;
   face: 1 | -1;
+  /** which way it is looking: sideways, towards you (down the screen) or away (up it) */
+  view: 'side' | 'front' | 'back';
+  /** how fast it is going right now (tiles per second), so it speeds up and slows down smoothly */
+  v: number;
   moving: boolean;
   mode: PetMode;
   tx: number;
@@ -56,10 +60,11 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0 };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0 };
 }
 
-const SPEED: Record<PetKind, { walk: number; run: number }> = { dog: { walk: 1.9, run: 4.2 }, cat: { walk: 1.4, run: 3 } };
+// a pet can outrun its owner (4.5 tiles a second) so it never lags behind
+const SPEED: Record<PetKind, { walk: number; run: number }> = { dog: { walk: 2.3, run: 5.6 }, cat: { walk: 1.7, run: 4.8 } };
 const BALL_FLIGHT = 700;
 
 function free(solid: boolean[][], x: number, y: number): boolean {
@@ -85,25 +90,47 @@ function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: 
   const dx = tx - p.x;
   const dy = ty - p.y;
   const d = Math.hypot(dx, dy);
-  if (d <= stopAt) { p.moving = false; return true; }
-  const vx = (dx / d) * speed;
-  const vy = (dy / d) * speed;
+  if (d <= stopAt) { p.moving = false; p.v = 0; return true; }
+  // ease towards the wanted speed instead of jumping to it, and slow down as it arrives
+  const want = Math.min(speed, Math.max(speed * 0.35, d * 2.6));
+  p.v += (want - p.v) * Math.min(1, dt * 9);
+  const vx = (dx / d) * p.v;
+  const vy = (dy / d) * p.v;
   const next = advance(solid, p.x, p.y, vx, vy, dt);
   const gained = Math.hypot(next.x - p.x, next.y - p.y);
-  p.stuck = gained < speed * dt * 0.25 ? p.stuck + dt : 0;
+  p.stuck = gained < p.v * dt * 0.25 ? p.stuck + dt : 0;
   p.x = next.x;
   p.y = next.y;
   p.moving = gained > 0.0005;
-  if (Math.abs(vx) > 0.15) p.face = vx > 0 ? 1 : -1;
+  // it looks the way it is going: mostly up or down the screen shows its front or back, otherwise its side
+  if (Math.abs(vy) > Math.abs(vx) * 1.25 && Math.abs(vy) > 0.3) p.view = vy > 0 ? 'front' : 'back';
+  else if (Math.abs(vx) > 0.15) { p.view = 'side'; p.face = vx > 0 ? 1 : -1; }
   return false;
 }
 
-export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number }, solid: boolean[][], rand: () => number): void {
+/** The spot beside and a little behind its owner where a following pet likes to be (a different side for each pet). */
+export function heelPoint(p: PetState, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }): { x: number; y: number } {
+  const dir = me.dir ?? 0;
+  const fx = dir === 1 ? -1 : dir === 2 ? 1 : 0;
+  const fy = dir === 3 ? -1 : dir === 0 ? 1 : 0;
+  let h = 0;
+  for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) >>> 0;
+  const side = h % 2 ? 1 : -1;
+  // a little behind, and off to one side
+  return { x: me.x - fx * 1.1 + -fy * side * 0.8, y: me.y - fy * 1.1 + fx * side * 0.8 };
+}
+
+export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }, solid: boolean[][], rand: () => number): void {
   const sp = SPEED[p.kind];
   if (p.mode === 'follow') {
     const d = Math.hypot(me.x - p.x, me.y - p.y);
-    if (d > 30) { p.x = me.x; p.y = me.y + 1; return; }
-    walkTo(p, solid, me.x, me.y, d > 5 ? sp.run : sp.walk * 1.5, dt, 1.5);
+    if (d > 30) { p.x = me.x; p.y = me.y + 1; p.v = 0; return; }
+    const heel = heelPoint(p, me);
+    const dh = Math.hypot(heel.x - p.x, heel.y - p.y);
+    // it sets off when you get more than about two tiles away and settles once it is beside you (no jitter in between)
+    if (!p.moving && dh < 1.9) { p.v = 0; return; }
+    // far away it runs flat out; near you it trots
+    walkTo(p, solid, heel.x, heel.y, dh > 5 ? sp.run : Math.max(sp.walk * 1.7, Math.min(sp.run, dh * 2.4)), dt, 0.45);
     return;
   }
   if (p.mode === 'fetch' && p.ball) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Home, Plus, Trash2, Loader2 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -110,8 +110,8 @@ const TaskTablePage = () => {
   return (
     <div className="space-y-4">
       <div>
-        <Link to="/task" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground kd-transition mb-1">
-          <ChevronLeft className="h-3.5 w-3.5" /> All folders
+        <Link to="/task" className="md:hidden inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground kd-transition mb-1">
+          <Home className="h-3.5 w-3.5" /> Home
         </Link>
         <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">{table?.name ?? 'Table'}</h1>
       </div>

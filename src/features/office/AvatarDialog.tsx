@@ -13,10 +13,13 @@ const HAIR_STYLES: { id: AvatarStyle['hairStyle']; label: string }[] = [
   { id: 5, label: 'Quiff' },
   { id: 6, label: 'Braids' },
   { id: 7, label: 'Afro' },
+  { id: 8, label: 'Bob' },
+  { id: 9, label: 'Mohawk' },
+  { id: 10, label: 'Locs' },
 ];
-const OUTFITS: { id: AvatarStyle['outfit']; label: string }[] = [{ id: 0, label: 'T-shirt' }, { id: 1, label: 'Hoodie' }, { id: 2, label: 'Blazer' }, { id: 3, label: 'Dress' }, { id: 4, label: 'Skirt' }];
+const OUTFITS: { id: AvatarStyle['outfit']; label: string }[] = [{ id: 0, label: 'T-shirt' }, { id: 1, label: 'Hoodie' }, { id: 2, label: 'Blazer' }, { id: 3, label: 'Dress' }, { id: 4, label: 'Skirt' }, { id: 5, label: 'Kaftan' }, { id: 6, label: 'Ankara top' }];
 const BEARDS: { id: AvatarStyle['beard']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Stubble' }, { id: 2, label: 'Moustache' }, { id: 3, label: 'Beard' }];
-const ACCESSORIES: { id: AvatarStyle['accessory']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Glasses' }, { id: 2, label: 'Headset' }, { id: 3, label: 'Cap' }, { id: 4, label: 'Sunglasses' }, { id: 5, label: 'Beanie' }, { id: 6, label: 'Head wrap' }];
+const ACCESSORIES: { id: AvatarStyle['accessory']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Glasses' }, { id: 2, label: 'Headset' }, { id: 3, label: 'Cap' }, { id: 4, label: 'Sunglasses' }, { id: 5, label: 'Beanie' }, { id: 6, label: 'Head wrap' }, { id: 7, label: 'Earrings' }, { id: 8, label: 'Bow tie' }];
 
 function Choice<T extends number>({ label, items, value, onPick }: { label: string; items: { id: T; label: string }[]; value: T; onPick: (id: T) => void }) {
   return (
