@@ -402,8 +402,8 @@ function OfficeRoom() {
     : null;
   const [recordingsOpen, setRecordingsOpen] = useState(false);
   // like Gather: on arrival, offer to turn the camera and microphone on (once per visit)
-  const [joinPrompt, setJoinPrompt] = useState(() => { try { return !sessionStorage.getItem('kd:office:prompted'); } catch { return true; } });
-  const closeJoinPrompt = () => { setJoinPrompt(false); try { sessionStorage.setItem('kd:office:prompted', '1'); } catch { /* fine */ } };
+  const [joinPrompt, setJoinPrompt] = useState(() => { try { return !localStorage.getItem('kd:office:prompted'); } catch { return true; } });
+  const closeJoinPrompt = () => { setJoinPrompt(false); try { localStorage.setItem('kd:office:prompted', '1'); } catch { /* fine */ } };
   // like Gather: if the browser has already decided about the microphone, join the call by ourselves
   // (allowed: speak and listen; blocked: listen only). Only a first-time visitor sees the question above.
   const autoJoined = useRef(false);
