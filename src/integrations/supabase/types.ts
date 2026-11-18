@@ -7741,6 +7741,63 @@ export type Database = {
           },
         ]
       }
+      office_desk_claims: {
+        Row: {
+          claimed_at: string
+          office_id: string
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          office_id: string
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          office_id?: string
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_desk_claims_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_desk_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_desk_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_desk_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_desk_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_recordings: {
         Row: {
           created_at: string
