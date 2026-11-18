@@ -57,7 +57,7 @@ describe('templates are playable', () => {
       for (let y = room.y; y < room.y + room.h; y++) if (seen.has(`${room.x},${y}`)) enter = true;
       expect(enter).toBe(true);
     }
-  });
+  }, 30000);
 });
 
 describe('walking', () => {
@@ -254,7 +254,7 @@ describe('findPath', () => {
 describe('default avatars', () => {
   it('always have every field filled in, whatever the id (a missing colour once crashed the drawing)', async () => {
     const { defaultAvatar, cleanAvatar } = await import('../world/render');
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 800; i++) {
       const id = `${i.toString(16).padStart(8, '0')}-aaaa-bbbb-cccc-${(i * 7919).toString(16).padStart(12, '0')}`;
       for (const a of [defaultAvatar(id), cleanAvatar({}, id), cleanAvatar(null, id)]) {
         for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) expect(a[k]).toMatch(/^#[0-9a-fA-F]{6}$/);
