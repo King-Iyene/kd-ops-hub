@@ -351,3 +351,93 @@ fixed during review.
 **Next:** Phase 4 — task views and tools.
 
 Reply `continue` to start Phase 4, or tell me what to fix.
+
+## Phase 4 report
+
+**Phase 4: Task views and tools, done.**
+
+**What was built:** The shared filter engine (AND across top-level
+conditions, one level of nested OR) and the Filter button on the list
+toolbar, filtering by title, status, priority, assignee (including a
+"me" option), due date, start date and created date. Saved views: `+
+View` snapshots the current filter/group/sort/view type under a name,
+listed as tabs alongside the four default views, each independently
+renamable and deletable by whoever can edit the list. Board, Calendar
+and Table views alongside the existing List view, switchable from the
+view tabs. Group by (status, priority, assignee, due date, or none) and
+Sort by (manual, due date, priority, title) on the toolbar, matching
+S1/S2's exact labels. Bulk actions: selecting one or more rows (via the
+new row checkbox) opens a bulk bar for status, priority, assignee, due
+date and delete, applied to every selected task at once. Live updates:
+a task's list and task panel now update within about a second when
+someone else changes it, via two previously-missing fixes to the
+database (see `DECISIONS.md`).
+
+**What you can test now:**
+1. Open a list with a mix of tasks, click Filter, add a condition (for
+   example "Priority is Urgent"), and confirm only matching tasks show;
+   add a second condition and confirm both must hold; add an "or" group
+   and confirm it's either/or within that group.
+2. Set up a filter and a group-by, click `+ View`, name it, and confirm
+   it appears as its own tab; switch to another tab and back, and
+   confirm the saved view's filter and grouping are restored exactly.
+3. Switch the same list between List, Board, Calendar and Table and
+   confirm the same tasks appear consistently in each, laid out per
+   S1/S2.
+4. On Board, drag a card to a different status column and confirm its
+   status updates; try dragging a card while List is grouped by
+   assignee instead of status, and confirm cards are not draggable in
+   that grouping.
+5. Select two or more tasks by their checkboxes, open the bulk bar, and
+   set their priority or due date in one action; confirm all selected
+   tasks update.
+6. With the task list open in two browser tabs (or two different
+   accounts) side by side, change a task's status in one tab and
+   confirm the other tab's list and open task panel (if that task is
+   open there) update on their own within about a second, with no
+   manual refresh.
+7. As a user without edit rights on a space, confirm you can still
+   filter, sort, group and switch views, but cannot create, rename or
+   delete a saved view, and cannot use the bulk bar's actions.
+
+**Compare with:** S1 (Table view's structure) and S2 (the List toolbar's
+Filter, Group and Sort controls and their labels). Board and Calendar
+have no reference screenshot and follow the PRD's section 8 description.
+
+**Known gaps:**
+- No live Supabase connection was reachable from this session (same
+  standing constraint as every earlier phase), so this was not checked
+  against a live, pixel-level screenshot. Verified instead by `tsc`,
+  `eslint`, a full production build, the test suite (686 tests, 16 of
+  them new this phase, all passing), and the local disposable Postgres
+  instance for both database fixes below.
+- Filter conditions cover only the fields that exist on a task today
+  (no custom fields, tags or task links yet — those arrive with the
+  fields that hold them, in Phases 5, 5 and 10 respectively).
+- Table view is not virtualised; a very long list will render every row
+  at once. Acceptable for this phase's scope (see `DECISIONS.md`);
+  revisit only if Phase 9/10's actual Tables feature needs it, which is
+  a different, purpose-built table.
+- Reordering within a single status group (as opposed to moving a task
+  between groups) is not implemented; the prompt's wording for this
+  phase covers group-to-group drag, and within-group manual ordering
+  was not specified as in scope.
+- Calendar view shows a task only on its due date; it does not span a
+  bar from start date to due date.
+
+**Decisions I made:** see `DECISIONS.md`'s "Phase 4 specifics" — the
+filter engine's architecture and field scope, the "Me" sentinel, the two
+previously undetected Phase 1 defects found and fixed this phase (no
+`tk_` table had ever been added to the realtime publication; the
+private-view select policy never checked `is_shared`/`created_by`, and
+how a stale pre-Phase-3 test fixture was correctly told apart from a
+real regression while verifying the fix), List's grouping
+generalisation and why drag is status-only, Board reusing the same
+grouping model, Table view's non-virtualisation, Calendar's single-day
+placement, saved views being snapshot-only with no live auto-sync,
+`BulkBar`'s forward-looking `spanningMultipleSpaces` prop, and the
+retrofitted row-selection checkbox.
+
+**Next:** Phase 5 — task panel extras and the custom field engine.
+
+Reply `continue` to start Phase 5, or tell me what to fix.

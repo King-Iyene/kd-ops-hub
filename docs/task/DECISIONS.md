@@ -284,3 +284,115 @@ One line each, per the master prompt's section 4 discovery and section 11's
   Phases 0 to 2: no live Supabase connection was reachable from this
   session, so this was not checked against a live, pixel-level screenshot
   (S2 is this phase's only visual reference, for the List view structure).
+
+## Phase 4 specifics
+
+- **The filter engine is built once, in `src/features/task/filter/`, with
+  no UI dependency.** `evaluate.ts` exports a pure `matchesFilter(task,
+  tree, ctx)`; `fields.ts` lists the filterable fields and their
+  operators; `FilterBuilder.tsx` / `FilterValueInput.tsx` /
+  `FilterButton.tsx` are the only UI layer on top. Section 8 requires the
+  same filtering behaviour on List views (this phase), Home (Phase 7) and
+  the Team Dashboard (Phase 11); building it generically now, instead of
+  once per screen, is the only way those three stay identical without
+  duplicated logic. `FilterTree` supports AND across top-level entries
+  and one level of nested OR, matching what the reference screenshots
+  show (a flat list of conditions, with an explicit "or" sub-group) and
+  nothing deeper.
+- **Filterable fields this phase cover only what exists on a task today**
+  (title, status, priority, assignee, due date, start date, created
+  date). Custom fields (Phase 5), tags (Phase 5) and task-link columns
+  (Phase 10) are not filterable yet because the fields themselves do not
+  exist yet; `fields.ts` is written so adding one later is one new entry,
+  not a rewrite.
+- **"Me" is a sentinel value, not the viewer's literal id**, for the
+  assignee field's `is` / `is_any_of` operators, so a saved view's
+  "assigned to me" filter means "me" for whoever has that view open, per
+  section 8's own description of that control. Resolved against
+  `ctx.viewerId` at evaluation time, never stored as a specific user id.
+- **Two previously undetected Phase 1 defects, found during this phase's
+  own code audit and fixed in this phase's migration, not deferred:**
+  - No `tk_` table was ever added to the `supabase_realtime` publication
+    across Phases 1 to 3. Nothing in those phases subscribed to
+    `postgres_changes`, so the gap was invisible until this phase's
+    AC-11 ("a task dragged on a board updates for a second person
+    watching it within about a second") and section 9.7's live-updates
+    requirement needed it. Fixed with an idempotent `ALTER PUBLICATION
+    supabase_realtime ADD TABLE` (guarded by a `pg_publication_tables`
+    existence check) for `tk_tasks`, `tk_task_assignees`, `tk_comments`
+    and `tk_activity_log` — the four tables the list page and the open
+    task panel now subscribe to.
+  - `tk_views_select` (written in Phase 1, before any UI ever exposed the
+    private/shared choice) never checked `is_shared` or `created_by`, so
+    a private view was readable by anyone who could see its list, not
+    just its creator. The update and delete policies already had the
+    correct shape; the select policy now mirrors them: `created_by =
+    auth.uid() OR (is_shared AND can_access_field_parent(...))`. Verified
+    against the local Postgres instance: the creator sees both a private
+    and a shared view they made; a second user sees only the shared one;
+    a freshly created list's four seeded default views (all
+    `is_shared=true`) remain visible to everyone. (A first check of this
+    against an old test-fixture list, created before Phase 3's
+    `tk_seed_default_views` trigger existed, showed 0 default views for
+    the second user — a stale test fixture that predates the trigger,
+    not a regression; triggers do not fire retroactively, and a fresh
+    list confirmed the seeding and the privacy fix both work.)
+- **List view's grouping is generalised from "always by status" to a
+  shared `groupTasks(tasks, groupBy, statuses, now)`**, covering status,
+  priority, assignee, due date and no-grouping, per section 8's Group
+  control. Each row still renders its own actual status dot (looked up by
+  `status_id` against the space's statuses) regardless of which dimension
+  the page is currently grouped by. Drag-and-drop between groups is kept
+  working only for the status grouping, since "drag a card to Priority:
+  Urgent" or "drag a card to Assignee: Dave" would silently reassign a
+  field the card's position was never meant to represent; dragging is
+  disabled (cards are not draggable) for every other grouping.
+- **Board view reuses the same `groupTasks`/status columns as List's
+  status grouping** rather than a separate board-specific grouping
+  model, since section 8 describes Board as "the same tasks, one column
+  per status, card instead of row." Board's own group-by control (also
+  supports priority/assignee/due date) swaps the column dimension the
+  same way List's does.
+- **Table view does not virtualise rows.** Section 8's Table reference
+  (S1) is a reporting table, not expected to hold thousands of rows in a
+  single list the way a dedicated data table (Phase 9/10's actual
+  database tables) would; a plain mapped render keeps this phase's scope
+  to "a table layout of the same task fields," not a virtualised grid,
+  which is Phase 9's job for the real Tables feature.
+- **Calendar view places a task on the single day its due date falls on**
+  (no due date: not shown on the calendar at all, consistent with the
+  List/Board empty-state convention of a separate "no date" bucket
+  rather than a visible gap). Multi-day spanning (start date to due date)
+  is not in section 8's Calendar description and was not added.
+- **Saved views (`+ View`) snapshot the current filter/group/sort/type
+  at creation time; they do not live-sync if the view is edited later
+  without re-saving.** Clicking a saved view restores that snapshot as
+  the active state; changing filters afterwards changes the active state
+  only, matching how the reference screenshots show views as named,
+  reusable starting points rather than continuously-synced live
+  bookmarks. No auto-save-on-edit was added because section 8 never asks
+  for one and it would mean a saved view silently drifts out from under
+  whoever else has it open.
+- **`BulkBar`'s "tasks span multiple spaces" flag is always false this
+  phase** (every list belongs to exactly one space, so a selection within
+  one list's view can never span spaces), but the component takes a
+  `spanningMultipleSpaces` prop rather than hardcoding that assumption
+  internally, since Phase 6's My Tasks screen will show tasks from many
+  spaces at once and will need to disable space-specific bulk actions
+  (move to list, for one) when a selection actually does span spaces.
+- **`TaskRow` gained a selection checkbox**, retrofitting a gap in Phase
+  3's row anatomy now that bulk actions exist to select rows for. Hidden
+  until a row is hovered or already selected, matching the reference
+  screenshots' convention of not showing a checkbox on every row by
+  default.
+- Verification: `tsc`, `eslint`, a full production build, the test suite
+  (686 tests, 16 of them new this phase for the filter engine, grouping
+  and sorting, all passing), and the local disposable Postgres instance
+  for both database fixes (realtime publication membership, and views
+  privacy with the private/shared/stale-fixture distinction above). Same
+  standing limitation as every earlier phase: no live Supabase connection
+  was reachable from this session, so this was not checked against a
+  live, pixel-level screenshot (S1 and S2 are this phase's visual
+  references, for Table and List/toolbar structure respectively; Board
+  and Calendar have no reference screenshot and follow the PRD's section
+  8 description instead).

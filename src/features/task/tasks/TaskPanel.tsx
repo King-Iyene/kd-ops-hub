@@ -38,6 +38,7 @@ import { useList } from '../api/lists';
 import { useSpace } from '../api/spaces';
 import { useStatuses } from '../api/statuses';
 import { useVisiblePeople } from '../api/people';
+import { useTaskEntityRealtime } from '../api/realtime';
 import {
   useArchiveTask,
   useDeleteTask,
@@ -61,6 +62,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const { data: statuses } = useStatuses(space?.id);
   const { data: people } = useVisiblePeople();
   const { data: watching } = useIsWatching(taskId, userId);
+
+  useTaskEntityRealtime('task', taskId);
 
   const updateTask = useUpdateTask();
   const archiveTask = useArchiveTask();
