@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
+import { allowed } from './OfficeSettingsDialog';
 import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
@@ -217,7 +218,7 @@ function OfficeRoom() {
   });
 
   // ---- editing furniture ----
-  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (space.layout?.settings?.builders ?? []).includes(profile?.id ?? ''));
+  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
@@ -372,7 +373,7 @@ function OfficeRoom() {
 
   // ---- recording (only designated people; the whole room is told) ----
   // admins record, plus anyone an admin added under Office settings (the database enforces the same rule)
-  const canRecord = isAdmin || (space?.layout?.settings?.recorders ?? []).includes(profile?.id ?? '');
+  const canRecord = isAdmin || allowed(space?.layout?.settings?.recordersMode, space?.layout?.settings?.recorders, profile?.id);
   const meetingRoom = zone && isRoom(zone) ? { id: zone.id, name: zone.name } : null;
   const mapCanvas = useRef<HTMLCanvasElement | null>(null);
   const recorder = useRecorder({

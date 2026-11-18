@@ -5,9 +5,17 @@ import { Button } from '@/components/ui/button';
 import { AvatarFace } from './AvatarFace';
 import type { Person } from './data';
 
-export interface OfficeSettings { builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
+export type Mode = 'all' | 'selected' | 'admins';
+/** Everyone is the default: only an admin's explicit choice narrows it. */
+export function allowed(mode: Mode | undefined, list: string[] | undefined, id: string | undefined): boolean {
+  const m = mode ?? 'all';
+  if (m === 'all') return !!id;
+  return m === 'selected' && !!id && (list ?? []).includes(id);
+}
 
-function PeopleList({ title, hint, ids, directory, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; onChange: (ids: string[]) => void }) {
+export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
+
+function PeopleList({ title, hint, ids, directory, mode, onMode, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; mode: Mode; onMode: (m: Mode) => void; onChange: (ids: string[]) => void }) {
   const [q, setQ] = useState('');
   const chosen = ids.map((id) => directory.find((p) => p.id === id)).filter(Boolean) as Person[];
   const matches = q.trim() ? directory.filter((p) => !ids.includes(p.id) && p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 6) : [];
@@ -17,6 +25,12 @@ function PeopleList({ title, hint, ids, directory, onChange }: { title: string; 
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground">{hint}</p>
       </div>
+      <div className="flex gap-1 rounded-xl bg-muted/60 p-1" role="radiogroup" aria-label={title}>
+        {([['all', 'Everyone'], ['selected', 'Selected people'], ['admins', 'Only admins']] as const).map(([m, l]) => (
+          <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => onMode(m)} className={`h-8 flex-1 rounded-lg px-2 text-xs font-semibold transition-colors ${mode === m ? 'bg-background shadow' : 'text-muted-foreground hover:text-foreground'}`}>{l}</button>
+        ))}
+      </div>
+      {mode === 'selected' && (<>
       <div className="flex flex-wrap gap-1.5">
         {chosen.map((p) => (
           <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-1 pr-2 text-xs">
@@ -34,6 +48,7 @@ function PeopleList({ title, hint, ids, directory, onChange }: { title: string; 
           ))}
         </div>
       )}
+      </>)}
     </section>
   );
 }
@@ -53,11 +68,11 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Office settings</DialogTitle></DialogHeader>
-        <PeopleList title="Builders" hint="Can edit the office (furniture, colours, name plates). Admins always can." ids={draft.builders ?? []} directory={directory} onChange={(builders) => setDraft({ ...draft, builders })} />
-        <PeopleList title="Recorders" hint="Can record meetings (everyone in the room is told). Admins always can." ids={draft.recorders ?? []} directory={directory} onChange={(recorders) => setDraft({ ...draft, recorders })} />
+        <PeopleList title="Builders" hint="Can edit any space: furniture, colours, flowers, name plates. Admins always can." mode={draft.buildersMode ?? 'all'} onMode={(buildersMode) => setDraft({ ...draft, buildersMode })} ids={draft.builders ?? []} directory={directory} onChange={(builders) => setDraft({ ...draft, builders })} />
+        <PeopleList title="Recorders" hint="Can record meetings (everyone in the room is told). Turn it down to save storage." mode={draft.recordersMode ?? 'all'} onMode={(recordersMode) => setDraft({ ...draft, recordersMode })} ids={draft.recorders ?? []} directory={directory} onChange={(recorders) => setDraft({ ...draft, recorders })} />
         <section className="space-y-1">
           <p className="text-sm font-medium">Furniture limit for builders</p>
-          <p className="text-xs text-muted-foreground">The most objects a builder can save in the office (admins have no limit). Empty means no limit.</p>
+          <p className="text-xs text-muted-foreground">The most objects a builder can save in an office (admins have no limit). Empty means no limit.</p>
           <input type="number" min={50} max={2000} value={draft.maxItems ?? ''} onChange={(e) => setDraft({ ...draft, maxItems: e.target.value ? Math.max(50, Math.min(2000, Number(e.target.value))) : undefined })} aria-label="Furniture limit" className="h-8 w-32 rounded-md border border-input bg-background px-2 text-sm" />
         </section>
         <DialogFooter>
