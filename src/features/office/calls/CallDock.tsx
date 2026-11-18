@@ -145,7 +145,7 @@ export function CallDock({
           </div>
         )}
         {emoOpen && <EmojiPicker quick={bar.quick} freq={bar.freq} onPick={react} onQuick={bar.setQuick} onClose={() => setEmoOpen(false)} />}
-        <div className="pointer-events-auto flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
+        <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {leading && (
             <>
               {leading}
