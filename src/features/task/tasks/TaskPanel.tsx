@@ -50,6 +50,7 @@ import {
   useUpdateTask,
   type TaskPriority,
 } from '../api/tasks';
+import { friendlyErrorMessage } from '../lib/errors';
 
 export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       toast({ title: 'Task duplicated' });
       navigate(`/task/t/${copy.id}`);
     } catch (err) {
-      toast({ title: 'Could not duplicate task', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not duplicate task', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -184,7 +185,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       { id: task.id, listId: task.list_id },
       {
         onSuccess: () => { toast({ title: 'Task deleted' }); onClose(); },
-        onError: (err) => toast({ title: 'Could not delete task', description: (err as Error).message, variant: 'destructive' }),
+        onError: (err) => toast({ title: 'Could not delete task', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };

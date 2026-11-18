@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCreateView, type TaskViewConfig, type TaskViewType } from '../api/views';
+import { friendlyErrorMessage } from '../lib/errors';
 
 const TYPE_OPTIONS: { value: TaskViewType; label: string }[] = [
   { value: 'list', label: 'List' },
@@ -59,7 +60,7 @@ export function CreateViewDialog({
       setName('');
       onCreated(view.id);
     } catch (err) {
-      toast({ title: 'Could not create view', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not create view', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 

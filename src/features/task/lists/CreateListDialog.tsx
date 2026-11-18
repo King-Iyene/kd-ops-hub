@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCreateList } from '../api/lists';
+import { friendlyErrorMessage } from '../lib/errors';
 
 export function CreateListDialog({
   spaceId,
@@ -53,7 +54,7 @@ export function CreateListDialog({
       handleOpenChange(false);
       navigate(`/task/l/${list.id}`);
     } catch (err) {
-      toast({ title: 'Could not create list', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not create list', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 

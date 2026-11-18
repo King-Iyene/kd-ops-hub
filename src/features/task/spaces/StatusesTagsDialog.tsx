@@ -17,6 +17,7 @@ import {
   type TaskStatusCategory,
 } from '../api/statuses';
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '../api/tags';
+import { friendlyErrorMessage } from '../lib/errors';
 
 const CATEGORY_LABELS: Record<TaskStatusCategory, string> = {
   not_started: 'Not started',
@@ -65,7 +66,7 @@ function StatusesTab({ spaceId }: { spaceId: string }) {
       { id, spaceId },
       {
         onError: (err) =>
-          toast({ title: 'Cannot delete status', description: (err as Error).message, variant: 'destructive' }),
+          toast({ title: 'Cannot delete status', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };
@@ -77,7 +78,7 @@ function StatusesTab({ spaceId }: { spaceId: string }) {
       { spaceId, name: trimmed, color: TASK_DEFAULT_COLOR, category: newCategory, position: ordered.length },
       {
         onSuccess: () => setNewName(''),
-        onError: (err) => toast({ title: 'Could not add status', description: (err as Error).message, variant: 'destructive' }),
+        onError: (err) => toast({ title: 'Could not add status', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };
@@ -161,7 +162,7 @@ function TagsTab({ spaceId }: { spaceId: string }) {
       { spaceId, name: trimmed, color: TASK_DEFAULT_COLOR },
       {
         onSuccess: () => setNewName(''),
-        onError: (err) => toast({ title: 'Could not add tag', description: (err as Error).message, variant: 'destructive' }),
+        onError: (err) => toast({ title: 'Could not add tag', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };
@@ -184,7 +185,7 @@ function TagsTab({ spaceId }: { spaceId: string }) {
             onClick={() =>
               deleteTag.mutate(
                 { id: t.id, spaceId },
-                { onError: (err) => toast({ title: 'Could not delete tag', description: (err as Error).message, variant: 'destructive' }) },
+                { onError: (err) => toast({ title: 'Could not delete tag', description: friendlyErrorMessage(err), variant: 'destructive' }) },
               )
             }
             className="text-muted-foreground hover:text-destructive"

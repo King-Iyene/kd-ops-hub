@@ -11,6 +11,7 @@ import {
   useSpaceMembersDetailed,
   useUpdateSpaceMemberRole,
 } from '../api/spaces';
+import { friendlyErrorMessage } from '../lib/errors';
 
 export function SpaceMembersDialog({
   spaceId,
@@ -45,7 +46,7 @@ export function SpaceMembersDialog({
                 onValueChange={(role: 'editor' | 'viewer') =>
                   updateRole.mutate(
                     { spaceId, userId: m.user_id, role },
-                    { onError: (err) => toast({ title: 'Could not change role', description: (err as Error).message, variant: 'destructive' }) },
+                    { onError: (err) => toast({ title: 'Could not change role', description: friendlyErrorMessage(err), variant: 'destructive' }) },
                   )
                 }
               >
@@ -62,7 +63,7 @@ export function SpaceMembersDialog({
                 onClick={() =>
                   removeMember.mutate(
                     { spaceId, userId: m.user_id },
-                    { onError: (err) => toast({ title: 'Could not remove member', description: (err as Error).message, variant: 'destructive' }) },
+                    { onError: (err) => toast({ title: 'Could not remove member', description: friendlyErrorMessage(err), variant: 'destructive' }) },
                   )
                 }
                 className="text-muted-foreground hover:text-destructive"
@@ -84,7 +85,7 @@ export function SpaceMembersDialog({
             onSelect={(p) =>
               addMember.mutate(
                 { spaceId, userId: p.id, role: 'editor' },
-                { onError: (err) => toast({ title: 'Could not add member', description: (err as Error).message, variant: 'destructive' }) },
+                { onError: (err) => toast({ title: 'Could not add member', description: friendlyErrorMessage(err), variant: 'destructive' }) },
               )
             }
           />

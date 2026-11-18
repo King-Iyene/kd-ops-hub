@@ -21,6 +21,7 @@ import { PeoplePicker } from '../components/PeoplePicker';
 import { TaskAvatar } from '../components/TaskAvatar';
 import { useVisiblePeople } from '../api/people';
 import { useCreateSpace } from '../api/spaces';
+import { friendlyErrorMessage } from '../lib/errors';
 
 type DraftMember = { userId: string; name: string; photoUrl: string | null; role: 'editor' | 'viewer' };
 
@@ -68,7 +69,7 @@ export function CreateSpaceDialog({ open, onOpenChange }: { open: boolean; onOpe
       handleOpenChange(false);
       navigate(`/task/s/${space.id}`);
     } catch (err) {
-      toast({ title: 'Could not create space', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not create space', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 

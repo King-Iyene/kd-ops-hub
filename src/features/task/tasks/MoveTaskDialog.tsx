@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useLists } from '../api/lists';
 import { useUpdateTask } from '../api/tasks';
+import { friendlyErrorMessage } from '../lib/errors';
 
 export function MoveTaskDialog({
   taskId,
@@ -32,7 +33,7 @@ export function MoveTaskDialog({
       { id: taskId, listId: currentListId, patch: { list_id: target } },
       {
         onSuccess: () => { toast({ title: 'Task moved' }); onOpenChange(false); },
-        onError: (err) => toast({ title: 'Could not move task', description: (err as Error).message, variant: 'destructive' }),
+        onError: (err) => toast({ title: 'Could not move task', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };

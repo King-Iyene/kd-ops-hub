@@ -10,6 +10,7 @@ import { useActivity, type TaskActivityEntry } from '../api/activity';
 import { useComments, useCreateComment, useDeleteComment, type TaskComment } from '../api/comments';
 import type { TaskStatus } from '../api/statuses';
 import type { TaskEntityType } from '../api/comments';
+import { friendlyErrorMessage } from '../lib/errors';
 
 type FeedItem =
   | { kind: 'comment'; at: string; comment: TaskComment }
@@ -83,7 +84,7 @@ export function CommentsActivityFeed({
       setDraft({ json: '', text: '' });
       setComposerKey((k) => k + 1);
     } catch (err) {
-      toast({ title: 'Could not post comment', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not post comment', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 
@@ -92,7 +93,7 @@ export function CommentsActivityFeed({
     if (!ok) return;
     deleteComment.mutate(
       { id: comment.id, entityType, entityId },
-      { onError: (err) => toast({ title: 'Could not delete comment', description: (err as Error).message, variant: 'destructive' }) },
+      { onError: (err) => toast({ title: 'Could not delete comment', description: friendlyErrorMessage(err), variant: 'destructive' }) },
     );
   };
 

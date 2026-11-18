@@ -16,6 +16,7 @@ import { ColorSwatchPicker } from '../components/ColorSwatchPicker';
 import { SpaceMembersDialog } from './SpaceMembersDialog';
 import { StatusesTagsDialog } from './StatusesTagsDialog';
 import { useRecolorSpace, useRenameSpace, useSetSpaceArchived, type TaskSpace } from '../api/spaces';
+import { friendlyErrorMessage } from '../lib/errors';
 
 export function SpaceOverviewMenu({ space, canManage }: { space: TaskSpace; canManage: boolean }) {
   const { toast } = useToast();
@@ -56,7 +57,7 @@ export function SpaceOverviewMenu({ space, canManage }: { space: TaskSpace; canM
           }
         },
         onError: (err) =>
-          toast({ title: 'Could not update the space', description: (err as Error).message, variant: 'destructive' }),
+          toast({ title: 'Could not update the space', description: friendlyErrorMessage(err), variant: 'destructive' }),
       },
     );
   };

@@ -21,6 +21,7 @@ import { getLastUsedListId, setLastUsedListId } from '../lib/lastUsedList';
 import { parseTitleDate } from '../lib/naturalLanguageDate';
 import { CreateSpaceDialog } from '../spaces/CreateSpaceDialog';
 import { CreateListDialog } from '../lists/CreateListDialog';
+import { friendlyErrorMessage } from '../lib/errors';
 
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
@@ -94,7 +95,7 @@ export function QuickCreateDialog({ open, onOpenChange }: { open: boolean; onOpe
       handleOpenChange(false);
       navigate(`/task/l/${effectiveListId}`);
     } catch (err) {
-      toast({ title: 'Could not create task', description: (err as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not create task', description: friendlyErrorMessage(err), variant: 'destructive' });
     }
   };
 
