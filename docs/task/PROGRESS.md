@@ -8,7 +8,7 @@ memory of record; continue from the last phase marked **delivered**.
 | 0 | Teardown | delivered | yes (`4010e0f` on `main`) | See report below and `TEARDOWN.md` |
 | 1 | Database foundation | delivered | yes (`01b38ba` on `main`, workflow run 44252109096, success) | See report below |
 | 2 | Shell and spaces | delivered | yes (`7c7ab10` -> `main`) | See report below |
-| 3 | Lists and tasks, core | not started | | |
+| 3 | Lists and tasks, core | delivered | yes (`7b22528` -> `main`) | See report below |
 | 4 | Task views and tools | not started | | |
 | 5 | Task panel extras, field engine | not started | | |
 | 6 | My Tasks | not started | | |
@@ -262,3 +262,92 @@ flagged to the user as a standing item if they want it investigated
 further.
 
 Reply `continue` to start Phase 3, or tell me what else to fix.
+
+## Phase 3 report
+
+**Phase 3: Lists and tasks, core, done.**
+
+- Commit: `7b22528` (`feat/task-module-rebuild`), merged to `main`.
+- Migration: `20261292000000_task_phase3_lists_and_tasks.sql` (one new
+  trigger, `tk_seed_default_views` — see Decisions below).
+- New dependencies: `chrono-node` (natural-language dates), `@tiptap/*`
+  (description rich text).
+
+**What was built:** `+ Add list` in the sidebar tree and the space
+overview, and the create-list dialog. The list page (`/task/l/:listId`):
+breadcrumb content header (space name, list name), the List view only
+(Board/Calendar/Table arrive in Phase 4), status groups with coloured dots
+and counts (groups with zero tasks still show, with their own `+ Add
+task` row), row anatomy (priority flag, status dot, title, due date,
+assignee avatars), the exact due-date display rule, inline `+ Add task`,
+and drag between status groups. The `+ Task` button in the top bar (only
+on `/task/*` pages) and the `T` shortcut, opening quick create with
+natural-language date parsing in the title. The task panel
+(`/task/t/:taskId`, opens as a full-screen overlay with its own scrim):
+title, status, assignees, start and due dates, priority, a rich-text
+description that autosaves (debounced, flushed on close), a merged
+comments-and-activity feed with a comment composer, and the header
+actions (copy link, watch or unwatch, move to another list in the same
+space, duplicate, archive with an eight-second undo, delete with a
+confirmation naming the task).
+
+**What you can test now:**
+1. Open a space, click `+ Add list`, name it. It opens immediately with
+   its five status groups, each showing `0` and a `+ Add task` row.
+2. Add a few tasks inline across different groups; reload the page and
+   confirm everything is still there.
+3. Press `T` (or click `+ Task` in the top bar) from any Task page, type
+   a title like "Call the client tomorrow 3pm", and confirm the due date
+   preview appears; create it and open it.
+4. In the task panel: change its status, add an assignee, set start and
+   due dates, change priority, type a description, close the panel
+   immediately after typing (before the autosave would normally fire),
+   and reopen the task to confirm the description saved in full.
+5. Post a comment with `Ctrl`/`Cmd`+`Enter`; confirm it appears in the
+   feed alongside the "created this" activity line.
+6. From the panel's `...` menu: duplicate the task, move it to another
+   list in the same space, then archive it and click Undo on the toast
+   before it expires.
+7. Delete a task and confirm the confirmation names it and warns it
+   cannot be undone.
+8. Drag a task card from one status group to another in the list view and
+   confirm its status pill updates to match.
+9. As a plain member without edit rights on a space: confirm there is no
+   `+ Add list` button, only the two empty-state sentences.
+
+**Compare with:** S2 (the List view's structure: content header, toolbar,
+status groups, row anatomy). The task panel has no screenshot (section
+7.7 says so explicitly) and follows the PRD's description instead.
+
+**Known gaps:**
+- No live Supabase connection was reachable from this session (same
+  standing constraint as every earlier phase), so this was not checked
+  against a live, pixel-level screenshot. Verified instead by `tsc`,
+  `eslint`, a full production build, the test suite (670 tests, 12 of
+  them new this phase, all passing), and the local disposable Postgres
+  instance for the one new trigger.
+- "Filter" is not on the toolbar yet (the full filter builder is Phase 4);
+  Group and Sort show their exact S2 labels but are not yet changeable to
+  other options (also Phase 4).
+- Dragging only moves a task between status groups, not within one
+  (reordering is bundled with Phase 4's "all group-by and sort options").
+- Subtasks, checklists, tags, attachments, linked records, @mentions and
+  reactions are not in the task panel yet (all Phase 5).
+- Quick create's assignee field is single-select, matching the PRD's own
+  field list for that dialog; more assignees can be added from the task
+  panel afterwards.
+
+**Decisions I made:** see `DECISIONS.md`'s "Phase 3 specifics" — the
+missing default-views trigger (fixed), the new TipTap and chrono-node
+dependencies, which toolbar controls stay off the screen entirely versus
+render as static labels, drag being between-groups only, defaulting a
+quick-created task to its list's first status so it is not invisible on
+creation, how the priority enum's lack of a true "unset" value was
+reconciled with section 5's colour table, the task panel as a full-screen
+overlay rather than a kept-mounted background route, and a stale-closure
+bug in the description autosave's flush-on-close (AC-13) that I found and
+fixed during review.
+
+**Next:** Phase 4 — task views and tools.
+
+Reply `continue` to start Phase 4, or tell me what to fix.
