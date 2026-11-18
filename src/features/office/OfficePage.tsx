@@ -82,7 +82,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -465,6 +465,30 @@ export default function OfficePage() {
 
   const [zoom, setZoom] = useState(1);
   const [meeting, setMeeting] = useState(false);
+  // the update prompt must not reload the page while I am in a call or recording
+  useEffect(() => { (window as unknown as { __kdBusy?: boolean }).__kdBusy = calls.joined || recorder.recording; return () => { (window as unknown as { __kdBusy?: boolean }).__kdBusy = false; }; }, [calls.joined, recorder.recording]);
+
+  // everyone sees who is talking: my own state is sent out, and what others send is merged with what our audio hears
+  const talking = useRef(new Set<string>());
+  const iAmTalking = calls.speakingIds.has('');
+  useEffect(() => {
+    sendSpeaking(iAmTalking);
+    if (!iAmTalking) return;
+    const beat = setInterval(() => sendSpeaking(true), 2000);
+    return () => clearInterval(beat);
+  }, [iAmTalking, sendSpeaking]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      const next = new Set(calls.speaking.current);
+      const now = Date.now();
+      for (const [id, until] of peerTalking.current) {
+        if (until > now) next.add(id); else peerTalking.current.delete(id);
+      }
+      talking.current = next;
+    }, 100);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => { if (!calls.joined) setMeeting(false); }, [calls.joined]);
   const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
@@ -605,7 +629,7 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} speaking={calls.speaking} update={update}
+            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}

@@ -137,6 +137,14 @@ export function useCalls(opts: Opts) {
       t.onmute = bump;
       t.onunmute = bump;
       t.onended = () => { target.removeTrack(t); bump(); };
+      if (t.kind === 'audio') {
+        // browsers may refuse to play sound until the person has touched the page: start now, and retry on the next touch
+        void audio.play().catch(() => {
+          const again = () => { void audio.play().catch(() => undefined); };
+          window.addEventListener('pointerdown', again, { once: true });
+          window.addEventListener('keydown', again, { once: true });
+        });
+      }
       bump();
     };
     pc.onconnectionstatechange = () => {

@@ -31,7 +31,7 @@ export interface Who {
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
 
-const HIDDEN_LIMIT_MS = 120_000;
+const HIDDEN_LIMIT_MS = 15 * 60_000;
 
 function useAwake(): boolean {
   const [awake, setAwake] = useState(true);
@@ -39,7 +39,10 @@ function useAwake(): boolean {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const onChange = () => {
       if (document.hidden) {
-        timer = setTimeout(() => setAwake(false), HIDDEN_LIMIT_MS);
+        timer = setTimeout(() => {
+          // someone in a call or recording stays connected however long the window is behind another
+          if (!(window as unknown as { __kdBusy?: boolean }).__kdBusy) setAwake(false);
+        }, HIDDEN_LIMIT_MS);
       } else {
         if (timer) clearTimeout(timer);
         timer = null;
@@ -72,6 +75,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const statusRef = useRef('');
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMeta = useRef('');
+  /** people we were told are talking, with the time that stops counting */
+  const peerTalking = useRef(new Map<string, number>());
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
   const pingHandler = useRef<((raw: unknown) => void) | null>(null);
   const selfRef = useRef(self);
@@ -191,6 +196,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       setTimeout(() => { if (roomReady.current) emit(); }, Math.random() * 400);
     });
     // call set-up messages (see calls/useCalls.ts); handled by whoever registered a handler
+    // someone started or stopped talking (shown as a green glow even before their audio reaches us)
+    ch.on('broadcast', { event: 'sp' }, ({ payload }) => {
+      const p = payload as { i?: unknown; on?: unknown } | null;
+      if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === selfId) return;
+      if (p.on === true) peerTalking.current.set(p.i, Date.now() + 4000);
+      else peerTalking.current.delete(p.i);
+    });
     ch.on('broadcast', { event: 'rtc' }, ({ payload }) => { rtcHandler.current?.(payload); });
     // knocking on a locked door, letting someone in, unlocking (see calls/locks.ts)
     ch.on('broadcast', { event: 'door' }, ({ payload }) => { doorHandler.current?.(payload); });
@@ -230,6 +242,11 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     void lobby.current?.send({ type: 'broadcast', event: 'ping', payload });
   }, []);
   const setPingHandler = useCallback((h: ((raw: unknown) => void) | null) => { pingHandler.current = h; }, []);
+  const sendSpeaking = useCallback((on: boolean) => {
+    const ch = room.current;
+    const s = selfRef.current;
+    if (ch && roomReady.current && s) void ch.send({ type: 'broadcast', event: 'sp', payload: { i: s.id, on } });
+  }, []);
   const sendDoor = useCallback((payload: DoorMsg) => {
     const ch = room.current;
     if (ch && roomReady.current) void ch.send({ type: 'broadcast', event: 'door', payload });
@@ -237,5 +254,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler };
+  return { roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking };
 }

@@ -39,6 +39,14 @@ export function PwaUpdatePrompt() {
     navigator.serviceWorker.getRegistration().then((r) => r?.update().catch(() => {}));
   }, []);
 
+  // The virtual office needs everyone on the same version (calls and presence change between versions), so there
+  // a waiting update is applied by itself, as long as nobody is in a call or recording. Elsewhere it stays a prompt.
+  useEffect(() => {
+    if (!needRefresh || !window.location.pathname.startsWith('/office')) return;
+    const busy = (window as unknown as { __kdBusy?: boolean }).__kdBusy;
+    if (!busy) void updateServiceWorker(true);
+  }, [needRefresh, updateServiceWorker]);
+
   if (!needRefresh) return null;
 
   return (
