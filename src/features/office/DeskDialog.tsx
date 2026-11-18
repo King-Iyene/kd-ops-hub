@@ -20,7 +20,7 @@ export function DeskDialog({ zone, owner, mine, iHaveOffice, isAdmin, busy, onCl
 }) {
   return (
     <Dialog open={!!zone} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
         <DialogHeader><DialogTitle>{owner ? `${owner.name}'s office` : 'Free office'}</DialogTitle></DialogHeader>
         <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
           {owner ? <AvatarFace avatar={owner.avatar} size={44} /> : <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-lg">🪑</span>}

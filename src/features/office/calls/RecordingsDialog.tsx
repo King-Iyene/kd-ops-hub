@@ -55,7 +55,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] md:max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Meeting recordings</DialogTitle></DialogHeader>
 
         <section className="space-y-3">

@@ -27,7 +27,7 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[85vh] md:max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">{editing ? 'Edit board' : data.title}</DialogTitle>
           <DialogDescription>{isValues ? 'What we stand for, and how we work.' : 'What the team should know right now.'}</DialogDescription>

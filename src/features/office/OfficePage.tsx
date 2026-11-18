@@ -1198,7 +1198,7 @@ function OfficeRoom() {
       </div>
 
       <Dialog open={joinPrompt && !calls.joined} onOpenChange={(o) => { if (!o) closeJoinPrompt(); }}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
           <DialogHeader><DialogTitle>Turn on your camera and microphone?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
             People near you will see and hear you, and you will see and hear them. Walk away and the sound fades. Inside a meeting room only the people in that room can hear you. You can mute or turn the camera off at any time.
@@ -1211,7 +1211,7 @@ function OfficeRoom() {
         </DialogContent>
       </Dialog>
       <Dialog open={!!renaming} onOpenChange={(o) => { if (!o) setRenaming(null); }}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
           <DialogHeader><DialogTitle>Rename space</DialogTitle></DialogHeader>
           <input value={renameValue} onChange={(e) => setRenameValue(e.target.value.slice(0, 40))} aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
           <div className="flex justify-end gap-2">
@@ -1221,7 +1221,7 @@ function OfficeRoom() {
         </DialogContent>
       </Dialog>
       <Dialog open={newSpaceOpen} onOpenChange={(o) => { if (!o) setNewSpaceOpen(false); }}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-sm">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
           <DialogHeader><DialogTitle>New space</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">An empty room with a wooden floor. Open Edit this office to paint walls and floors and add furniture.</p>
           <input value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value.slice(0, 40))} placeholder="Name, for example Leadership" aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />

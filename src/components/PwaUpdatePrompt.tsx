@@ -50,7 +50,7 @@ export function PwaUpdatePrompt() {
   if (!needRefresh) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] flex justify-center px-4 pb-4 pointer-events-none">
+    <div className="fixed inset-x-0 top-16 z-[100] flex justify-center px-4 pointer-events-none">
       <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
         <RefreshCw className="h-4 w-4 shrink-0 text-primary" />
         <div className="text-sm">

@@ -88,7 +88,7 @@ export function ManageDialog({ open, onClose, startTab, skyPanel, spaceName, isA
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex max-h-[86vh] w-[calc(100vw-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-white/[0.08] bg-popover/95 p-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-2xl">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex max-h-[86vh] w-[calc(100vw-2rem)] md:max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-white/[0.08] bg-popover/95 p-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-2xl">
         <DialogHeader className="space-y-1 px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-xl font-extrabold tracking-tight">Manage {spaceName}</DialogTitle>
           <DialogDescription className="text-[13px]">Offices, seats, people and tools in one place.</DialogDescription>

@@ -39,7 +39,7 @@ export function InviteDialog({ open, onClose, link, canInvite, meId }: { open: b
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-md">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-md">
         <DialogHeader>
           <DialogTitle>Invite someone in</DialogTitle>
           <DialogDescription>

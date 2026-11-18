@@ -28,7 +28,7 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
   const people = directory.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
   return (
     <Dialog open={!!zone} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] md:max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>{isOffice ? 'Who sits in this office?' : 'Rename this room'}</DialogTitle></DialogHeader>
         {isOffice && <p className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs">Now: <strong>{status}</strong></p>}
         {isOffice && (

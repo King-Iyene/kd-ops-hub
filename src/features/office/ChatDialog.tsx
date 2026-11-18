@@ -137,7 +137,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
   let lastDay = '';
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex h-[min(82vh,44rem)] w-[calc(100vw-1.5rem)] max-w-4xl gap-0 overflow-hidden rounded-3xl border-white/[0.08] bg-popover/95 p-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-2xl">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex h-[min(82vh,44rem)] w-[calc(100vw-1.5rem)] md:max-w-4xl gap-0 overflow-hidden rounded-3xl border-white/[0.08] bg-popover/95 p-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-2xl">
         <DialogTitle className="sr-only">Chat</DialogTitle>
         <DialogDescription className="sr-only">Message everyone in the space, or one person.</DialogDescription>
 
