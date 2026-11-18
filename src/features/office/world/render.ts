@@ -1212,13 +1212,14 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     disc(ctx, px, hy - 9, 1.2, ctx.fillStyle);
   }
 
-  // name tag
+  // name tag (skipped when there is no name, as in the avatar preview)
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const label = p.status ? `${p.status} ${p.name}` : p.name;
   const w = ctx.measureText(label).width + 16 + (p.status ? 0 : 0);
   const ty = py - 38 + bob;
+  if (p.name) {
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 8, w, 18, 9);
   ctx.fill();
@@ -1231,6 +1232,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
   ctx.fillStyle = '#fff';
   ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
+  }
 
   // live camera bubble above the name tag, like Gather
   const v = p.bubble;

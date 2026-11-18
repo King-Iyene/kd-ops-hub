@@ -240,7 +240,7 @@ export function useCalls(opts: Opts) {
       setCamOn(false);
     } catch (e) {
       const name = (e as DOMException)?.name;
-      setError(name === 'NotAllowedError' ? 'The browser blocked the microphone. Allow it in the address bar and try again.' : name === 'NotFoundError' ? 'No microphone was found.' : 'Could not start the microphone.');
+      setError(name === 'NotAllowedError' ? 'The browser is blocking the microphone for this site. Click the padlock left of the web address, set Microphone and Camera to Allow, reload, then press Join voice again.' : name === 'NotFoundError' ? 'No microphone was found.' : 'Could not start the microphone.');
     } finally {
       setBusy(false);
     }
@@ -289,7 +289,7 @@ export function useCalls(opts: Opts) {
       setSelfCam(new MediaStream([track]));
       setError(null);
     } catch {
-      setError('Could not start the camera. Check that the browser is allowed to use it.');
+      setError('Could not start the camera. Click the padlock left of the web address, set Camera to Allow, and try again.');
     }
   }, []);
 
