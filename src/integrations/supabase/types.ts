@@ -3074,6 +3074,27 @@ export type Database = {
           },
         ]
       }
+      dashboard_preferences: {
+        Row: {
+          card_order: Json
+          hidden_cards: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_order?: Json
+          hidden_cards?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_order?: Json
+          hidden_cards?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       data_subject_requests: {
         Row: {
           artifact_path: string | null
@@ -19171,6 +19192,10 @@ export type Database = {
       can_access_task: { Args: { p_task_id: string }; Returns: boolean }
       can_edit_space: { Args: { p_space_id: string }; Returns: boolean }
       can_edit_task: { Args: { p_task_id: string }; Returns: boolean }
+      can_view_dashboard_of: {
+        Args: { p_target_user_id: string }
+        Returns: boolean
+      }
       cancel_advance_request: {
         Args: { p_request_id: string }
         Returns: {
