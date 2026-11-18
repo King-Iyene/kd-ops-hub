@@ -100,6 +100,7 @@ const DatabasePage      = lazy(() => import('./features/database/pages/DatabaseP
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
 const TaskHub = lazy(() => import('./pages/TaskHub'));
 const TaskListPage = lazy(() => import('./pages/TaskListPage'));
+const TaskTablePage = lazy(() => import('./pages/TaskTablePage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -908,6 +909,16 @@ function AppRoutes() {
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <TaskListPage />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/task/table/:tableId"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TaskTablePage />
               </ErrorBoundary>
             </RoleGuard>
           }

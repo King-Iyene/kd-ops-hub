@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Folder, ListChecks, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Folder, ListChecks, Trash2, Loader2, Table2 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -23,12 +23,16 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import {
   useTaskFolders,
   useTaskLists,
+  useTaskTables,
   useCreateTaskFolder,
   useDeleteTaskFolder,
   useCreateTaskList,
   useDeleteTaskList,
+  useCreateTaskTable,
+  useDeleteTaskTable,
   type TaskFolder,
   type TaskListRow,
+  type TaskTable,
 } from '@/queries/useTaskModule';
 
 const TaskHub = () => {
@@ -39,23 +43,35 @@ const TaskHub = () => {
 
   const { data: folders, isLoading: foldersLoading } = useTaskFolders();
   const { data: lists, isLoading: listsLoading } = useTaskLists();
+  const { data: tables, isLoading: tablesLoading } = useTaskTables();
   const createFolder = useCreateTaskFolder();
   const deleteFolder = useDeleteTaskFolder();
   const createList = useCreateTaskList();
   const deleteList = useDeleteTaskList();
+  const createTable = useCreateTaskTable();
+  const deleteTable = useDeleteTaskTable();
 
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [creatingListIn, setCreatingListIn] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
+  const [creatingTableIn, setCreatingTableIn] = useState<string | null>(null);
+  const [newTableName, setNewTableName] = useState('');
   const [confirmDeleteFolder, setConfirmDeleteFolder] = useState<TaskFolder | null>(null);
   const [confirmDeleteList, setConfirmDeleteList] = useState<TaskListRow | null>(null);
+  const [confirmDeleteTable, setConfirmDeleteTable] = useState<TaskTable | null>(null);
 
   const listsByFolder = new Map<string, TaskListRow[]>();
   for (const l of lists ?? []) {
     const arr = listsByFolder.get(l.folder_id) ?? [];
     arr.push(l);
     listsByFolder.set(l.folder_id, arr);
+  }
+  const tablesByFolder = new Map<string, TaskTable[]>();
+  for (const t of tables ?? []) {
+    const arr = tablesByFolder.get(t.folder_id) ?? [];
+    arr.push(t);
+    tablesByFolder.set(t.folder_id, arr);
   }
 
   const submitNewFolder = () => {
@@ -82,7 +98,19 @@ const TaskHub = () => {
     );
   };
 
-  const loading = foldersLoading || listsLoading;
+  const submitNewTable = (folderId: string) => {
+    const name = newTableName.trim();
+    if (!name || !profile?.id) return;
+    createTable.mutate(
+      { folderId, name, createdBy: profile.id },
+      {
+        onSuccess: () => { setNewTableName(''); setCreatingTableIn(null); },
+        onError: (err) => toast({ title: 'Could not create table', description: errorMessage(err), variant: 'destructive' }),
+      },
+    );
+  };
+
+  const loading = foldersLoading || listsLoading || tablesLoading;
 
   return (
     <div className="space-y-4">
@@ -146,6 +174,9 @@ const TaskHub = () => {
                       <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => setCreatingListIn(folder.id)}>
                         <Plus className="mr-1 h-3 w-3" /> List
                       </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => setCreatingTableIn(folder.id)}>
+                        <Plus className="mr-1 h-3 w-3" /> Table
+                      </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteFolder(folder)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -171,8 +202,26 @@ const TaskHub = () => {
                       </Button>
                     </div>
                   )}
-                  {folderLists.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-1">No lists yet{isAdmin ? ' — add one above.' : '.'}</p>
+                  {creatingTableIn === folder.id && (
+                    <div className="flex items-center gap-2 pb-2">
+                      <Input
+                        autoFocus
+                        placeholder="Table name…"
+                        value={newTableName}
+                        onChange={(e) => setNewTableName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') submitNewTable(folder.id); if (e.key === 'Escape') setCreatingTableIn(null); }}
+                        className="h-8 text-sm"
+                      />
+                      <Button size="sm" className="h-8" disabled={createTable.isPending || !newTableName.trim()} onClick={() => submitNewTable(folder.id)}>
+                        {createTable.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8" onClick={() => { setCreatingTableIn(null); setNewTableName(''); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                  {folderLists.length === 0 && (tablesByFolder.get(folder.id) ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-1">Nothing here yet{isAdmin ? ' — add a list or table above.' : '.'}</p>
                   ) : (
                     <div className="divide-y divide-border/50">
                       {folderLists.map((list) => (
@@ -187,6 +236,24 @@ const TaskHub = () => {
                               variant="ghost"
                               className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 kd-transition"
                               onClick={() => setConfirmDeleteList(list)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      {(tablesByFolder.get(folder.id) ?? []).map((tbl) => (
+                        <div key={tbl.id} className="flex items-center justify-between gap-2 py-1.5 group">
+                          <Link to={`/task/table/${tbl.id}`} className="flex items-center gap-2 min-w-0 text-sm hover:text-primary kd-transition">
+                            <Table2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{tbl.name}</span>
+                          </Link>
+                          {isAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 shrink-0 text-muted-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 kd-transition"
+                              onClick={() => setConfirmDeleteTable(tbl)}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -246,6 +313,31 @@ const TaskHub = () => {
                   onError: (err) => toast({ title: 'Could not delete list', description: errorMessage(err), variant: 'destructive' }),
                 });
                 setConfirmDeleteList(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!confirmDeleteTable} onOpenChange={(open) => !open && setConfirmDeleteTable(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete table?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes "{confirmDeleteTable?.name}" and every column and row inside it. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!confirmDeleteTable) return;
+                deleteTable.mutate(confirmDeleteTable.id, {
+                  onError: (err) => toast({ title: 'Could not delete table', description: errorMessage(err), variant: 'destructive' }),
+                });
+                setConfirmDeleteTable(null);
               }}
             >
               Delete
