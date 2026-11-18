@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
 import { WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
-import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawPerson, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
+import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 
@@ -233,7 +233,7 @@ export function OfficeCanvas(props: Props) {
       ctx.save();
       ctx.translate(ox, oy);
       ctx.scale(scale, scale);
-      drawFloor(ctx, p.map, theme);
+      drawFloor(ctx, p.map, theme, now);
 
       // people, with identity from the lobby; positions of others are worked out from their last message
       const who = new Map(p.roster.map((r) => [r.id, r]));
@@ -253,8 +253,8 @@ export function OfficeCanvas(props: Props) {
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
       const rugs = sortedItems.filter((i) => i.t === 'rug');
-      drawItems(ctx, rugs, theme);
-      drawWalls(ctx, p.map, theme);
+      drawItems(ctx, rugs, theme, now);
+      drawWalls(ctx, p.map, theme, now);
       const rest = sortedItems.filter((i) => i.t !== 'rug');
       const sortedPeople = [...people].sort((a, b) => a.y - b.y);
       let pi = 0;
@@ -264,10 +264,11 @@ export function OfficeCanvas(props: Props) {
           drawPerson(ctx, sortedPeople[pi], now, theme);
           pi += 1;
         }
-        drawItems(ctx, [it], theme);
+        drawItems(ctx, [it], theme, now);
       }
       for (; pi < sortedPeople.length; pi++) drawPerson(ctx, sortedPeople[pi], now, theme);
 
+      drawLighting(ctx, p.map, p.items, theme, now);
       drawZoneLabels(ctx, p.map.zones, theme);
 
       // edit mode: grid, the build area and a preview of what is about to be placed
@@ -287,6 +288,7 @@ export function OfficeCanvas(props: Props) {
         }
       }
       ctx.restore();
+      drawVignette(ctx, w, h, p.dark);
     };
     raf = requestAnimationFrame(frame);
     return () => {

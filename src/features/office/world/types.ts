@@ -1,7 +1,8 @@
 // Shared types for the virtual office world. Positions are in tiles (1 tile = 1 unit); x grows right, y grows down.
 
 export type ItemType =
-  | 'desk' | 'chair' | 'computer' | 'plant' | 'sofa' | 'table' | 'shelf' | 'rug' | 'whiteboard' | 'lamp' | 'coffee' | 'bin';
+  | 'desk' | 'chair' | 'computer' | 'plant' | 'sofa' | 'table' | 'shelf' | 'rug' | 'whiteboard' | 'lamp' | 'coffee' | 'bin'
+  | 'flowers' | 'tree' | 'grass' | 'papers' | 'mug' | 'tv' | 'printer' | 'cooler' | 'beanbag' | 'coffeetable';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */
 export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3 }
@@ -47,7 +48,13 @@ export interface AvatarStyle {
   skin: string;
   hair: string;
   shirt: string;
-  hairStyle: 0 | 1 | 2 | 3;
+  /** 0 short, 1 long, 2 bun, 3 none, 4 curly, 5 quiff */
+  hairStyle: 0 | 1 | 2 | 3 | 4 | 5;
+  /** 0 t-shirt, 1 hoodie, 2 blazer */
+  outfit: 0 | 1 | 2;
+  /** 0 none, 1 glasses, 2 headset, 3 cap */
+  accessory: 0 | 1 | 2 | 3;
+  pants: string;
 }
 
 export interface PlayerState {

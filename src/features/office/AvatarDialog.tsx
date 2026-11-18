@@ -2,14 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { AvatarStyle } from './world/types';
-import { HAIR_COLORS, SHIRT_COLORS, SKIN_TONES, drawPerson } from './world/render';
+import { HAIR_COLORS, PANTS_COLORS, SHIRT_COLORS, SKIN_TONES, drawPerson } from './world/render';
 
-const HAIR_STYLES: { id: 0 | 1 | 2 | 3; label: string }[] = [
+const HAIR_STYLES: { id: AvatarStyle['hairStyle']; label: string }[] = [
   { id: 0, label: 'Short' },
   { id: 1, label: 'Long' },
   { id: 2, label: 'Bun' },
   { id: 3, label: 'None' },
+  { id: 4, label: 'Curly' },
+  { id: 5, label: 'Quiff' },
 ];
+const OUTFITS: { id: AvatarStyle['outfit']; label: string }[] = [{ id: 0, label: 'T-shirt' }, { id: 1, label: 'Hoodie' }, { id: 2, label: 'Blazer' }];
+const ACCESSORIES: { id: AvatarStyle['accessory']; label: string }[] = [{ id: 0, label: 'None' }, { id: 1, label: 'Glasses' }, { id: 2, label: 'Headset' }, { id: 3, label: 'Cap' }];
+
+function Choice<T extends number>({ label, items, value, onPick }: { label: string; items: { id: T; label: string }[]; value: T; onPick: (id: T) => void }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((h) => (
+          <Button key={h.id} type="button" size="sm" variant={value === h.id ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => onPick(h.id)}>{h.label}</Button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Swatches({ label, colors, value, onPick }: { label: string; colors: string[]; value: string; onPick: (c: string) => void }) {
   return (
@@ -63,7 +80,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Customise your avatar</DialogTitle></DialogHeader>
         <div className="flex gap-5">
           <canvas ref={canvasRef} width={170} height={190} className="shrink-0 rounded-lg bg-muted/40" />
@@ -71,16 +88,10 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
             <Swatches label="Skin" colors={SKIN_TONES} value={draft.skin} onPick={(c) => setDraft({ ...draft, skin: c })} />
             <Swatches label="Hair colour" colors={HAIR_COLORS} value={draft.hair} onPick={(c) => setDraft({ ...draft, hair: c })} />
             <Swatches label="Shirt" colors={SHIRT_COLORS} value={draft.shirt} onPick={(c) => setDraft({ ...draft, shirt: c })} />
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Hair style</p>
-              <div className="flex flex-wrap gap-1.5">
-                {HAIR_STYLES.map((h) => (
-                  <Button key={h.id} type="button" size="sm" variant={draft.hairStyle === h.id ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setDraft({ ...draft, hairStyle: h.id })}>
-                    {h.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            <Swatches label="Trousers" colors={PANTS_COLORS} value={draft.pants} onPick={(c) => setDraft({ ...draft, pants: c })} />
+            <Choice label="Hair style" items={HAIR_STYLES} value={draft.hairStyle} onPick={(id) => setDraft({ ...draft, hairStyle: id })} />
+            <Choice label="Outfit" items={OUTFITS} value={draft.outfit} onPick={(id) => setDraft({ ...draft, outfit: id })} />
+            <Choice label="Accessory" items={ACCESSORIES} value={draft.accessory} onPick={(id) => setDraft({ ...draft, accessory: id })} />
           </div>
         </div>
         <DialogFooter>

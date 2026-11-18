@@ -23,7 +23,7 @@ import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems } from './worl
 import { defaultAvatar } from './world/render';
 import type { Item, ItemType, Zone } from './world/types';
 
-const PALETTE: ItemType[] = ['desk', 'computer', 'chair', 'plant', 'sofa', 'table', 'shelf', 'rug', 'whiteboard', 'lamp', 'coffee', 'bin'];
+const PALETTE: ItemType[] = ['desk', 'computer', 'papers', 'mug', 'chair', 'plant', 'flowers', 'tree', 'sofa', 'beanbag', 'table', 'coffeetable', 'shelf', 'rug', 'grass', 'whiteboard', 'tv', 'printer', 'cooler', 'lamp', 'coffee', 'bin'];
 
 /** True when the page background is dark (works for both of the app's themes). */
 function pageIsDark(): boolean {

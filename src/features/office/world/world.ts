@@ -15,7 +15,20 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   lamp: { w: 1, h: 1, solid: false, label: 'Lamp' },
   coffee: { w: 1, h: 1, solid: true, label: 'Coffee machine' },
   bin: { w: 1, h: 1, solid: false, label: 'Bin' },
+  flowers: { w: 1, h: 1, solid: true, label: 'Flowers' },
+  tree: { w: 1, h: 2, solid: true, label: 'Tree' },
+  grass: { w: 3, h: 2, solid: false, label: 'Grass' },
+  papers: { w: 1, h: 1, solid: false, label: 'Papers' },
+  mug: { w: 1, h: 1, solid: false, label: 'Coffee cup' },
+  tv: { w: 2, h: 1, solid: true, label: 'Screen' },
+  printer: { w: 1, h: 1, solid: true, label: 'Printer' },
+  cooler: { w: 1, h: 1, solid: true, label: 'Water cooler' },
+  beanbag: { w: 1, h: 1, solid: false, label: 'Beanbag' },
+  coffeetable: { w: 2, h: 1, solid: true, label: 'Coffee table' },
 };
+
+/** Small things that sit on top of a desk or table (one of each kind per tile). */
+export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug'];
 
 export const PLAYER_RADIUS = 0.3;
 export const WALK_SPEED = 4.5; // tiles per second
@@ -191,11 +204,11 @@ export function canPlace(map: MapDef, items: Item[], item: Item): PlaceResult {
     if (c.x < b.x || c.x >= b.x + b.w || c.y < b.y || c.y >= b.y + b.h) return { ok: false, reason: 'Outside the room' };
     if (map.walls[c.y]?.[c.x]) return { ok: false, reason: 'That is a wall' };
   }
-  if (item.t === 'computer') {
-    const surfaces = items.filter((i) => i.t === 'desk' || i.t === 'table');
+  if (TOP_ITEMS.includes(item.t)) {
+    const surfaces = items.filter((i) => i.t === 'desk' || i.t === 'table' || i.t === 'coffeetable');
     const onSurface = surfaces.some((s) => itemCells(s).some((c) => c.x === item.x && c.y === item.y));
-    if (!onSurface) return { ok: false, reason: 'A computer goes on a desk' };
-    if (items.some((i) => i.t === 'computer' && i.x === item.x && i.y === item.y)) return { ok: false, reason: 'Already a computer here' };
+    if (!onSurface) return { ok: false, reason: `${ITEM_DEFS[item.t].label} goes on a desk or table` };
+    if (items.some((i) => i.t === item.t && i.x === item.x && i.y === item.y)) return { ok: false, reason: `Already a ${ITEM_DEFS[item.t].label.toLowerCase()} here` };
     return { ok: true };
   }
   if (def.solid) {

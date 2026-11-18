@@ -56,17 +56,22 @@ export function buildTeamOffice(): MapDef {
   // each cluster is two desks facing each other with their chairs between them
   for (const y of [3, 9]) {
     for (const x of [3, 8, 17, 22]) {
-      items.push(it('desk', x, y), it('computer', x, y), it('chair', x, y + 1));
-      items.push(it('chair', x, y + 2), it('desk', x, y + 3), it('computer', x, y + 3));
+      items.push(it('desk', x, y), it('computer', x, y), it('papers', x + 1, y), it('chair', x, y + 1));
+      items.push(it('chair', x, y + 2), it('desk', x, y + 3), it('computer', x, y + 3), it('mug', x + 1, y + 3));
     }
   }
   // plants in the corners and by the door
-  items.push(it('plant', 1, 1), it('plant', 26, 1), it('plant', 1, 14), it('plant', 26, 14), it('plant', 12, 1), it('plant', 15, 1));
+  items.push(it('tree', 1, 1), it('tree', 26, 1), it('plant', 1, 14), it('plant', 26, 14), it('plant', 12, 1), it('plant', 15, 1));
+  // a little garden in the middle of the floor, and a corner for printing and water
+  items.push(it('grass', 11, 5), it('flowers', 11, 5), it('flowers', 13, 6), it('lamp', 12, 7));
+  items.push(it('cooler', 26, 12), it('printer', 26, 13), it('flowers', 14, 1));
   // lounge: rug, sofas, coffee machine
   items.push(it('rug', 4, 19), it('sofa', 3, 17), it('sofa', 3, 22), it('table', 4, 19), it('coffee', 11, 16), it('plant', 11, 22), it('bin', 10, 16));
+  items.push(it('grass', 8, 19), it('beanbag', 8, 19), it('beanbag', 10, 20), it('lamp', 2, 17), it('flowers', 12, 23), it('papers', 5, 19), it('mug', 6, 20));
   // meeting rooms: a table, chairs, a whiteboard
   for (const [x, y] of [[31, 2], [31, 10], [31, 18]] as const) {
-    items.push(it('whiteboard', x + 2, y - 1), it('table', x + 2, y + 1));
+    items.push(it('whiteboard', x + 2, y - 1), it('tv', x + 5, y - 1), it('table', x + 2, y + 1));
+    items.push(it('papers', x + 3, y + 1), it('mug', x + 2, y + 2), it('mug', x + 4, y + 1), it('flowers', x + 7, y - 1), it('plant', x + 7, y + 4));
     for (let dx = 0; dx < 3; dx++) items.push(it('chair', x + 2 + dx, y), it('chair', x + 2 + dx, y + 3));
   }
 
@@ -91,10 +96,11 @@ export function buildPersonalOffice(): MapDef {
   ];
 
   const items: Item[] = [
-    it('desk', 6, 2), it('computer', 6, 2), it('chair', 6, 3),
-    it('shelf', 2, 1), it('shelf', 12, 1),
-    it('plant', 1, 9), it('plant', 14, 1),
+    it('desk', 6, 2), it('computer', 6, 2), it('papers', 7, 2), it('chair', 6, 3),
+    it('shelf', 2, 1), it('shelf', 12, 1), it('tv', 4, 1),
+    it('plant', 1, 9), it('flowers', 14, 1), it('tree', 14, 9),
     it('rug', 6, 5), it('sofa', 10, 8), it('lamp', 13, 8),
+    it('grass', 2, 5), it('beanbag', 3, 5), it('coffeetable', 10, 6), it('mug', 11, 6), it('printer', 1, 7),
   ];
 
   return { w, h, walls, zones, spawn: { x: 7.5, y: 8.5 }, items, buildArea: { x: 1, y: 1, w: w - 2, h: h - 2 } };
