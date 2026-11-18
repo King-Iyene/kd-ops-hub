@@ -141,6 +141,46 @@ One line each, per the master prompt's section 4 discovery and section 11's
   controls in this phase. Not wired up; noted as a known gap, not treated
   as blocking since the master prompt never mentions "view as" before
   Phase 11 (and there, only for Home).
+- **Bugs reported against the deployed Phase 2 build, fixed same phase (no
+  new phase number):**
+  1. Creating a space failed with "new row violates row-level security
+     policy for table tk_spaces". Root cause: `useCreateSpace`'s insert
+     never set `workspace_id` (`NOT NULL`, no default) — reproduced exactly
+     against the local disposable Postgres instance, which raises a
+     different error (a not-null violation) for an admin and the observed
+     RLS-violation error for anyone `tk_is_admin()` returns false for. The
+     real, user-visible error was the RLS one, meaning the account that hit
+     it was not evaluated as admin/owner on the database side at that
+     moment even though the UI had shown the create control. Fixed the
+     missing `workspace_id` (now fetched from `tk_workspaces` before the
+     insert), and separately hardened the likely cause of the UI/DB
+     mismatch: `useTaskRole()` and `useVisiblePeople()` were keyed in
+     React Query by a flat key with no user id, so a role fetched for one
+     signed-in account could be served to a different one in the same
+     browser tab without a hard refresh. Both are now keyed by
+     `user?.id` and disabled until it is known.
+  2. Removed the Task/Track segmented switch from both the desktop and
+     phone Task panels — explicit user instruction. KD Ops's own hub
+     picker (the back chevron) already reaches Track, so the in-panel
+     switch was redundant once Task became a hub rather than a standalone
+     app. This is a deliberate deviation from the master prompt's section
+     6.2 (which describes the switch for the original, hub-less reference
+     app); the live user instruction overrides the stale written spec.
+  3. The desktop panel's header showed the workspace name ("KD Squares")
+     where every other hub shows its own name and icon — explicit user
+     instruction to make it consistent. Replaced with the same
+     icon-label-description header `AppSidebar`'s generic hub view uses,
+     reading from the `task` entry in `SIDEBAR_HUBS` ("Task" /
+     "Spaces, lists & tasks" / the cyan check-circle icon) — single source
+     of truth, no new hard-coded strings.
+- **Restoring the paused Supabase project was blocked.** Tried
+  `mcp__Supabase__restore_project` to inspect the live database directly
+  while chasing the bug above; the auto-mode safety classifier refused it
+  as a destructive/unwanted action (resuming a paused project is a
+  live-infrastructure change). Diagnosed and fixed the bug instead by
+  reproducing the exact error locally (see above) rather than against
+  production. Flagged to the user; they can resume the project themselves
+  from the Supabase dashboard if direct inspection is ever needed.
 - **No live Supabase connection was reachable from this session** (same
   constraint noted in Phase 0/1 — the project is paused). Verification for
   this phase was `tsc --noEmit`, `eslint`, a full production build, the

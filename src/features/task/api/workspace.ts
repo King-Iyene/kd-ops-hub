@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 export interface TaskWorkspace {
   id: string;
@@ -27,10 +28,17 @@ export type TaskRole = 'owner' | 'admin' | 'manager' | 'member';
 
 /** The viewer's real workspace role (owner, admin, manager, member), per
  *  tk_role_of — section 9.2. Reflects the account's actual DB permission,
- *  not the platform's super-admin "view as" simulation. */
+ *  not the platform's super-admin "view as" simulation.
+ *
+ *  Keyed by user id (not just a flat 'role' key) so switching accounts in
+ *  the same tab can never serve a previous account's cached role — a stale
+ *  'admin' here would show the create-space control to someone the
+ *  database correctly rejects. */
 export function useTaskRole() {
+  const userId = useAuthStore((s) => s.user?.id);
   return useQuery({
-    queryKey: ['tk', 'role'],
+    queryKey: ['tk', 'role', userId],
+    enabled: !!userId,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('tk_role_of');
