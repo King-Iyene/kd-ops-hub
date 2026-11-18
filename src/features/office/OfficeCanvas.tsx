@@ -42,6 +42,8 @@ interface Props {
   onFollowEnd: () => void;
   /** a click (not a drag) on the map outside edit mode */
   onMapClick: (tile: { x: number; y: number }) => void;
+  /** the pointer rests on an office or a seat (null when it leaves) */
+  onHoverZone: (h: { zoneId: string; cx: number; cy: number } | null) => void;
   /** the pointer rests on someone (null when it leaves them) */
   onHoverPerson: (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => void;
   /** right-click: where, which tile, and the person under the pointer (if any) */
@@ -184,6 +186,7 @@ export function OfficeCanvas(props: Props) {
     const painting = () => { const t = propsRef.current.tool; return propsRef.current.editing && (t === 'wall' || t === 'unwall' || t === 'floor'); };
     let lastPaint = '';
     const hoverId = { current: null as string | null };
+    const hoverZoneId = { current: null as string | null };
     const personAt = (e: MouseEvent) => {
       const p = propsRef.current;
       const r = canvas.getBoundingClientRect();
@@ -218,6 +221,18 @@ export function OfficeCanvas(props: Props) {
         if (id !== hoverId.current) {
           hoverId.current = id;
           propsRef.current.onHoverPerson(h ? { personId: h.id, isMe: h.isMe, cx: h.headX, cy: h.headY, near: h.near } : null);
+        }
+        // an office or a seat under the pointer (but never while someone is being hovered)
+        let zid: string | null = null;
+        if (!h) {
+          const r = canvas.getBoundingClientRect();
+          const { ox, oy, scale } = cam.current;
+          const z = zoneAt(propsRef.current.map, (e.clientX - r.left - ox) / (TILE * scale), (e.clientY - r.top - oy) / (TILE * scale));
+          if (z && z.kind === 'office') zid = z.id;
+        }
+        if (zid !== hoverZoneId.current) {
+          hoverZoneId.current = zid;
+          propsRef.current.onHoverZone(zid ? { zoneId: zid, cx: e.clientX, cy: e.clientY } : null);
         }
       }
       hover.current = toTile(e);
@@ -299,7 +314,7 @@ export function OfficeCanvas(props: Props) {
       const pet = petAt(e);
       p.onContext({ cx: e.clientX, cy: e.clientY, wx, wy, personId: pet ? 'pet:' + pet.id : hit ? hit.id : null, isMe: !pet && !!hit && hit.isMe });
     };
-    const leave = () => { hover.current = null; drag.down = false; if (hoverId.current) { hoverId.current = null; propsRef.current.onHoverPerson(null); } };
+    const leave = () => { hover.current = null; drag.down = false; if (hoverId.current) { hoverId.current = null; propsRef.current.onHoverPerson(null); } if (hoverZoneId.current) { hoverZoneId.current = null; propsRef.current.onHoverZone(null); } };
     canvas.addEventListener('mousemove', move);
     canvas.addEventListener('mouseleave', leave);
     canvas.addEventListener('mousedown', down);

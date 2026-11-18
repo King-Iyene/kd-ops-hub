@@ -29,6 +29,7 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable } from './ManageDialog';
+import { OfficeCard, type OfficeAction } from './OfficeCard';
 import { petBus, petName, petRegistry } from './world/pets';
 import { PersonCard, type CardAction } from './PersonCard';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
@@ -741,6 +742,14 @@ function OfficeRoom() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [zoneCard, setZoneCard] = useState<{ zoneId: string; cx: number; cy: number } | null>(null);
+  const zoneTimer = useRef<number | undefined>(undefined);
+  const hoverZone = (h: { zoneId: string; cx: number; cy: number } | null) => {
+    window.clearTimeout(zoneTimer.current);
+    zoneTimer.current = window.setTimeout(() => setZoneCard(h), h ? 220 : 280);
+  };
+  const keepZoneCard = () => window.clearTimeout(zoneTimer.current);
+  const leaveZoneCard = () => { window.clearTimeout(zoneTimer.current); zoneTimer.current = window.setTimeout(() => setZoneCard(null), 280); };
   const [card, setCard] = useState<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
   const hoverPerson = (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => {
@@ -992,7 +1001,7 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
@@ -1001,8 +1010,6 @@ function OfficeRoom() {
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
               if (hit) { setPanel(hit); return; }
-              const z = zoneAt(map, t.x + 0.5, t.y + 0.5);
-              if (z && z.kind === 'office') setDeskZone(z);
             }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
@@ -1159,6 +1166,23 @@ function OfficeRoom() {
           setNameZone(null);
         }}
       />
+      {zoneCard && !card && !ctx && !editing && (() => {
+        const z = map.zones.find((q) => q.id === zoneCard.zoneId);
+        if (!z) return null;
+        const c = (claims ?? []).find((x) => x.office_id === z.id) ?? null;
+        const who = c ? (directory ?? []).find((d) => d.id === c.user_id) : undefined;
+        const mine = !!c && c.user_id === profile?.id;
+        const acts: OfficeAction[] = [{ key: 'walk', label: 'Walk there', icon: <Footprints className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); walkToOffice(z.id); } }];
+        if (!c && !myClaim) acts.push({ key: 'claim', label: 'Claim', icon: <Building2 className="h-3.5 w-3.5" />, primary: true, run: () => { setZoneCard(null); void claimOffice(z.id); } });
+        if (mine) acts.push({ key: 'give', label: 'Give up', icon: <Minus className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); void unclaimOffice(z.id); } });
+        if (isAdmin) acts.push({ key: 'manage', label: 'Manage', icon: <Settings className="h-3.5 w-3.5" />, run: () => { setZoneCard(null); setDeskZone(z); } });
+        return (
+          <OfficeCard
+            x={zoneCard.cx} y={zoneCard.cy} title={z.name} kind={z.seat ? 'seat' : 'office'} owner={c ? who?.name ?? 'someone' : null} avatar={who?.avatar}
+            locked={lockedRef.current.has(z.id)} actions={acts.slice(0, 3)} onEnter={keepZoneCard} onLeave={leaveZoneCard}
+          />
+        );
+      })()}
       {card && !ctx && (() => {
         const who = roster.find((r) => r.id === card.personId);
         if (!who) return null;
@@ -1183,7 +1207,7 @@ function OfficeRoom() {
         );
       })()}
       {ctx && (() => {
-        const mi = 'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted';
+        const mi = 'group flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-primary/10';
         const done = (fn: () => void) => () => { setCtx(null); fn(); };
         const pet = ctx.personId?.startsWith('pet:') ? petRegistry.get(ctx.personId.slice(4)) ?? null : null;
         const person = ctx.personId && !ctx.isMe && !pet ? roster.find((r) => r.id === ctx.personId) ?? null : null;
@@ -1196,13 +1220,13 @@ function OfficeRoom() {
         const rows: ReactNode[] = [];
         const item = (key: string, icon: ReactNode, label: string, run: () => void, danger = false, off?: string) => rows.push(
           off
-            ? <button key={key} type="button" disabled title={off} className={mi + ' cursor-not-allowed opacity-40 hover:bg-transparent'}>{icon}<span className="min-w-0 flex-1 truncate">{label}</span><span className="shrink-0 text-xs">{off}</span></button>
-            : <button key={key} type="button" className={mi + (danger ? ' text-red-500' : '')} onClick={done(run)}>{icon}<span>{label}</span></button>,
+            ? <button key={key} type="button" disabled title={off} className={mi + ' cursor-not-allowed opacity-40 hover:bg-transparent'}><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-muted/70">{icon}</span><span className="min-w-0 flex-1 truncate">{label}</span><span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">{off}</span></button>
+            : <button key={key} type="button" className={mi + (danger ? ' text-red-500 hover:bg-red-500/10' : '')} onClick={done(run)}><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors ${danger ? 'bg-red-500/10' : 'bg-muted/70 text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary'}`}>{icon}</span><span className="truncate">{label}</span></button>,
         );
-        const sep = (key: string) => { if (rows.length) rows.push(<div key={key} className="my-1 h-px bg-border" />); };
+        const sep = (key: string) => { if (rows.length) rows.push(<div key={key} className="mx-2 my-1.5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />); };
         const ic = 'h-4 w-4';
         let title = 'Here';
-        const label = (key: string, text: string) => rows.push(<div key={key} className="truncate px-2.5 pb-0.5 pt-1 text-xs font-medium text-muted-foreground">{text}</div>);
+        const label = (key: string, text: string) => rows.push(<div key={key} className="truncate px-2.5 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{text}</div>);
         if (pet) {
           const pn = petName(pet.id, pet.kind);
           title = pn + ' the ' + pet.kind;
@@ -1262,8 +1286,8 @@ function OfficeRoom() {
         const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 56)));
         return createPortal(
           <div className="fixed inset-0 z-[70]" onPointerDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}>
-            <div className="absolute max-h-[80vh] w-60 overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-              <div className="truncate px-2.5 pb-1 pt-0.5 text-xs font-semibold">{title}</div>
+            <div className="animate-in fade-in zoom-in-95 absolute max-h-[80vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-popover/85 p-1.5 text-popover-foreground shadow-2xl ring-1 ring-black/5 backdrop-blur-xl duration-100" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+              <div className="mb-1 flex items-center gap-2 border-b border-border/60 px-2.5 pb-2 pt-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-primary shadow-[0_0_8px] shadow-primary/70" /><span className="truncate text-sm font-semibold tracking-tight">{title}</span></div>
               {rows}
             </div>
           </div>,
