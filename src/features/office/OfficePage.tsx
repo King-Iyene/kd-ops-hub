@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -42,6 +42,17 @@ import type { Item, TileEdits, Zone } from './world/types';
 function SlotAside({ slot, children }: { slot: HTMLElement | null; children: ReactNode }) {
   if (slot) return createPortal(<div className="flex flex-col gap-4 px-3 pb-3 pt-2">{children}</div>, slot);
   return <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">{children}</aside>;
+}
+
+/** A sidebar section title you can click to fold the list away (so there is room for other things). */
+function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) => boolean; flip: (id: string) => void; children: ReactNode }) {
+  const closed = shut(id);
+  return (
+    <button type="button" onClick={() => flip(id)} aria-expanded={!closed} className="mb-1.5 flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
+      <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${closed ? '-rotate-90' : ''}`} />
+      <span className="flex items-center gap-1.5">{children}</span>
+    </button>
+  );
 }
 
 function OfficeRoom() {
@@ -706,6 +717,13 @@ function OfficeRoom() {
   }, [ctx]);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [folded, setFolded] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('kd:office:folded') ?? '[]') as string[]; } catch { return []; } });
+  const shut = (id: string) => folded.includes(id);
+  const flip = (id: string) => setFolded((cur) => {
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    try { localStorage.setItem('kd:office:folded', JSON.stringify(next)); } catch { /* fine */ }
+    return next;
+  });
   const spaceLink = (extra = '') => `${window.location.origin}/office?space=${space?.id ?? ''}${extra}`;
   const copyLink = async (extra: string, what: string) => {
     const url = spaceLink(extra);
@@ -818,7 +836,8 @@ function OfficeRoom() {
           </div>
 
           <section>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spaces</p>
+            <SecHead id="spaces" shut={shut} flip={flip}>Spaces</SecHead>
+            {!shut('spaces') && (<>
             <div className="space-y-0.5">
               {teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).map((sp) => (
                 <div key={sp.id} className={`group flex items-center rounded-lg transition-colors hover:bg-muted ${sp.id === space.id ? 'bg-muted font-medium' : ''}`}>
@@ -835,10 +854,12 @@ function OfficeRoom() {
               ))}
               {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-primary hover:bg-muted"><Plus className="h-4 w-4" />New space</button>}
             </div>
+          </>)}
           </section>
           {roomSpaceId && (
             <section>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rooms</p>
+              <SecHead id="rooms" shut={shut} flip={flip}>Rooms</SecHead>
+            {!shut('rooms') && (<>
               <div className="space-y-1">
                 {teamMap.zones.filter((z) => (z.kind === 'meeting' || z.kind === 'lounge') && matches(z.name, query)).map((z) => {
                   const people = roomPeople(z.id);
@@ -850,11 +871,13 @@ function OfficeRoom() {
                   );
                 })}
               </div>
-            </section>
+            </>)}
+          </section>
           )}
 
           <section>
-            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Users className="h-3.5 w-3.5" />Online ({roster.length})</p>
+            <SecHead id="online" shut={shut} flip={flip}><Users className="h-3.5 w-3.5" />Online ({roster.length})</SecHead>
+            {!shut('online') && (<>
             <div className="space-y-1">
               {roster.filter((r) => matches(r.name, query)).map((r) => {
                 const isMe = r.id === connId;
@@ -881,13 +904,13 @@ function OfficeRoom() {
               })}
               {roster.length === 0 && <p className="px-2.5 text-xs text-muted-foreground">Nobody yet.</p>}
             </div>
+          </>)}
           </section>
 
           {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).length > 0 && (
             <section>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Offline ({(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id)).length})
-              </p>
+              <SecHead id="offline" shut={shut} flip={flip}>Offline ({(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id)).length})</SecHead>
+            {!shut('offline') && (<>
               <div className="space-y-0.5">
                 {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).map((p) => (
                   <div key={p.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1 text-sm text-muted-foreground">
@@ -896,7 +919,8 @@ function OfficeRoom() {
                   </div>
                 ))}
               </div>
-            </section>
+            </>)}
+          </section>
           )}
         </SlotAside>
 
@@ -1084,6 +1108,7 @@ function OfficeRoom() {
         const sep = (key: string) => { if (rows.length) rows.push(<div key={key} className="my-1 h-px bg-border" />); };
         const ic = 'h-4 w-4';
         let title = 'Here';
+        const label = (key: string, text: string) => rows.push(<div key={key} className="truncate px-2.5 pb-0.5 pt-1 text-xs font-medium text-muted-foreground">{text}</div>);
         if (person) {
           title = person.name;
           const tl = calls.tiles.find((t) => t.id === person.id && !t.screen);
@@ -1098,28 +1123,49 @@ function OfficeRoom() {
           if (myClaim) item('mine', <Building2 className={ic} />, 'Walk to my office', () => walkToOffice());
           if (myClaim && !editing) item('cust', <Pencil className={ic} />, 'Customise my office', () => { const z = map.zones.find((q) => q.id === myClaim.office_id); if (z) startEdit(z); });
           item('rc', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
-        } else if (office) {
-          title = office.name;
+        }
+        const owner = claim ? (directory ?? []).find((d) => d.id === claim.user_id) : undefined;
+        if (office) {
+          if (!person && !ctx.isMe) title = office.name;
+          else { sep('z'); label('zl', office.name); }
+          if (!person && !ctx.isMe) label('own', claim ? 'Used by ' + (owner?.name ?? 'someone') : 'Free to claim');
           item('walk', <Footprints className={ic} />, 'Walk to this office', () => walkToOffice(office.id));
           if (!claim && !myClaim) item('claim', <Building2 className={ic} />, 'Claim this office', () => void claimOffice(office.id));
+          if (!claim && myClaim) item('claimno', <Building2 className={ic} />, 'You already have an office', () => walkToOffice());
           if (mine) item('unclaim', <Minus className={ic} />, 'Unclaim my office', () => void unclaimOffice(office.id), true);
           if (mine && !editing) item('cust', <Pencil className={ic} />, 'Customise this office', () => startEdit(office));
-          if (isAdmin) { sep('s1'); item('manage', <Pencil className={ic} />, 'Manage (rename, assign, build)', () => setDeskZone(office)); }
-        } else {
-          if (zone && isRoom(zone)) title = zone.name;
-          item('link', <LinkIcon className={ic} />, zone && isRoom(zone) ? 'Copy link to this room' : 'Copy link to this spot', () => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : `&at=${tx},${ty}`, 'It opens the office right there.'));
+          item('olink', <LinkIcon className={ic} />, 'Copy link to this office', () => void copyLink(`&room=${office.id}`, 'It opens the office at this door.'));
+          if (isAdmin) {
+            sep('adm');
+            label('al', 'Admin');
+            item('assign', <UserPlus className={ic} />, claim ? 'Change who has this office' : 'Assign to someone', () => setDeskZone(office));
+            if (claim && !mine) item('free', <Minus className={ic} />, 'Unclaim (free this office)', () => void unclaimOffice(office.id), true);
+            item('rename', <Pencil className={ic} />, 'Rename this office', () => setNameZone({ id: office.id, name: office.name, kind: office.kind }));
+            if (!editing) item('build', <Pencil className={ic} />, 'Edit this office (objects, walls)', () => startEdit(office));
+          }
+        } else if (zone && isRoom(zone)) {
+          if (!person && !ctx.isMe) title = zone.name;
+          else { sep('z'); label('zl', zone.name); }
+          item('link', <LinkIcon className={ic} />, 'Copy link to this room', () => void copyLink(`&room=${zone.id}`, 'It opens the office at this room.'));
+          if (!person && !ctx.isMe) item('here', <Footprints className={ic} />, 'Walk here', () => setJump({ key: Date.now(), x: tx + 0.5, y: ty + 0.5 }));
+          if (isAdmin) { sep('adm'); label('al', 'Admin'); item('rrename', <Pencil className={ic} />, 'Rename this room', () => setNameZone({ id: zone.id, name: zone.name, kind: zone.kind })); }
+          if (canEdit && !editing) item('redit', <Pencil className={ic} />, 'Edit the space', () => startEdit());
+        } else if (!person && !ctx.isMe) {
+          item('link', <LinkIcon className={ic} />, 'Copy link to this spot', () => void copyLink(`&at=${tx},${ty}`, 'It opens the office right there.'));
           item('here', <Footprints className={ic} />, 'Walk here', () => setJump({ key: Date.now(), x: tx + 0.5, y: ty + 0.5 }));
           item('rc2', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
+          if (canEdit && !editing) { sep('adm'); item('redit', <Pencil className={ic} />, 'Edit the space', () => startEdit()); }
         }
         const left = Math.max(8, Math.min(ctx.cx, window.innerWidth - 232));
-        const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 48)));
-        return (
+        const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 56)));
+        return createPortal(
           <div className="fixed inset-0 z-[70]" onPointerDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}>
-            <div className="absolute w-56 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-              <div className="truncate px-2.5 pb-1 pt-0.5 text-xs font-medium text-muted-foreground">{title}</div>
+            <div className="absolute max-h-[80vh] w-60 overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+              <div className="truncate px-2.5 pb-1 pt-0.5 text-xs font-semibold">{title}</div>
               {rows}
             </div>
-          </div>
+          </div>,
+          document.body,
         );
       })()}
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />

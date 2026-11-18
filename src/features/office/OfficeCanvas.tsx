@@ -85,9 +85,24 @@ export function OfficeCanvas(props: Props) {
   const hover = useRef<{ x: number; y: number } | null>(null);
   const cam = useRef({ ox: 0, oy: 0, scale: 1 });
 
-  // a new office: start at its entrance
+  // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
+  const firstEnter = useRef(true);
+  const lastSaved = useRef(0);
   useEffect(() => {
-    meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0, sx: 0, sy: 0 };
+    let start = { x: props.map.spawn.x, y: props.map.spawn.y };
+    if (firstEnter.current) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('kd:office:pos:' + props.spaceId) ?? 'null') as { x: number; y: number; t: number } | null;
+        if (saved && Date.now() - saved.t < 7 * 24 * 3600_000 && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+          const solid = buildSolid(props.map, props.items);
+          const cx = Math.floor(saved.x);
+          const cy = Math.floor(saved.y);
+          if (cy >= 0 && cy < solid.length && cx >= 0 && cx < (solid[0]?.length ?? 0) && !solid[cy][cx]) start = { x: saved.x, y: saved.y };
+        }
+      } catch { /* start at the entrance */ }
+    }
+    firstEnter.current = false;
+    meRef.current = { x: start.x, y: start.y, dir: 0, vx: 0, vy: 0, sx: 0, sy: 0 };
     zoneId.current = '__none__';
     portalCooldown.current = performance.now() + 800; // do not bounce straight back through the door we just used
   }, [props.spaceId]);
@@ -313,6 +328,10 @@ export function OfficeCanvas(props: Props) {
         me.x = np.x;
         me.y = np.y;
         me.dir = facing(v.vx, v.vy, me.dir);
+        if (now - lastSaved.current > 1500) {
+          lastSaved.current = now;
+          try { localStorage.setItem('kd:office:pos:' + p.spaceId, JSON.stringify({ x: me.x, y: me.y, t: Date.now() })); } catch { /* fine */ }
+        }
         p.update({ x: me.x, y: me.y, vx: stuck ? 0 : v.vx, vy: stuck ? 0 : v.vy }, me.dir, now);
       } else {
         me.vx = 0;
