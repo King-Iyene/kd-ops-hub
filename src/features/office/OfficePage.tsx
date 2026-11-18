@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Building2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -25,7 +25,7 @@ import { useRecorder } from './calls/useRecorder';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
-import { ensurePersonalOffice, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { ensurePersonalOffice, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { canPlace, isRoom, itemCells, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -106,8 +106,19 @@ export default function OfficePage() {
     () => (space && Array.isArray(space.layout?.items) ? sanitizeItems(map, space.layout.items) : map.items),
     [space, map],
   );
+  // each private office shows what its owner put there (the building's own furniture fills the rest)
+  const { data: decor } = useOfficeDecor(space?.id ?? null);
+  const composedItems = useMemo(() => {
+    let list = savedItems;
+    for (const z of map.zones) {
+      if (z.kind !== 'office' || !decor?.[z.id]) continue;
+      const inside = (i: Item) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h;
+      list = [...list.filter((i) => !inside(i)), ...sanitizeItems(map, decor[z.id]).filter(inside)];
+    }
+    return list;
+  }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -154,10 +165,13 @@ export default function OfficePage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [nameZone, setNameZone] = useState<{ id: string; name: string; kind: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const items = editing ? draft : savedItems;
+  const items = editing ? draft : composedItems;
+  const [scope, setScope] = useState<Zone | null>(null);
+  const inScope = (i: { x: number; y: number }) => !scope || (i.x >= scope.x && i.x < scope.x + scope.w && i.y >= scope.y && i.y < scope.y + scope.h);
+  const OFFICE_LIMIT = 40;
 
-  const startEdit = () => { setDraft(savedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
-  const stopEdit = () => { setEditing(false); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
+  const startEdit = (only?: Zone) => { setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
+  const stopEdit = () => { setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
   const itemAt = (tile: { x: number; y: number }) => {
@@ -166,12 +180,14 @@ export default function OfficePage() {
   };
   const ghost = (tile: { x: number; y: number }) => {
     if (tool === 'plate') { const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5); return { ok: !!z && (z.kind === 'office' || z.kind === 'meeting') }; }
+    if (scope && !inScope(tile)) return { ok: false };
     if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
     if (!tool) return { ok: false };
     return { ok: canPlace(map, draft, { id: 'g', t: tool, x: tile.x, y: tile.y, r: rot }).ok };
   };
   const onTile = (tile: { x: number; y: number }) => {
     if (!editing || !tool) return;
+    if (scope && !inScope(tile)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
     if (tool === 'erase') {
       const hit = itemAt(tile);
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
@@ -192,6 +208,7 @@ export default function OfficePage() {
       return;
     }
     const item: Item = { id: newItemId(), t: tool, x: tile.x, y: tile.y, r: rot, ...(color !== undefined ? { c: color } : {}) };
+    if (scope && draft.filter(inScope).length >= OFFICE_LIMIT) { toast({ title: `Your office is full (${OFFICE_LIMIT} things)`, description: 'Remove something to add something new.', variant: 'destructive' }); return; }
     const res = canPlace(map, draft, item);
     if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'Cannot place that here', variant: 'destructive' }); return; }
     setDraft((d) => [...d, item]);
@@ -200,6 +217,13 @@ export default function OfficePage() {
     if (!space) return;
     setSaving(true);
     try {
+      if (scope) {
+        // an owner saves only their own office
+        await actions.saveDecor(space.id, scope.id, draft.filter(inScope), profile?.id);
+        toast({ title: 'Your office is saved' });
+        stopEdit();
+        return;
+      }
       // keep following the template's furniture unless it was really changed
       const limit = space.layout?.settings?.maxItems;
       if (!isAdmin && limit && draft.length > limit) {
@@ -209,6 +233,8 @@ export default function OfficePage() {
       }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
       await actions.saveLayout(space, template, changed ? draft : undefined, overrides);
+      // offices decorated by their owners keep following what the owner sees, so keep them in step
+      for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
       toast({ title: 'Office saved' });
       stopEdit();
     } catch (err) {
@@ -586,6 +612,8 @@ export default function OfficePage() {
 
   const [zoom, setZoom] = useState(1);
   const [meeting, setMeeting] = useState(false);
+  /** a counter: every change brings the view back to my avatar */
+  const [recenter, setRecenter] = useState(0);
   const [traySize, setTraySize] = useState<0 | 1 | 2>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 ? v : 1; } catch { return 1; } });
   const chooseTray = (n: 0 | 1 | 2) => { setTraySize(n); try { localStorage.setItem('kd:office:tray', String(n)); } catch { /* fine */ } };
   // a window that is not the newest one for this account hangs up (so there is never a second copy of me)
@@ -744,9 +772,22 @@ export default function OfficePage() {
             map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
+            editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
+            recenter={recenter} emotes={emotes}
             onMapClick={(t) => { const z = zoneAt(map, t.x + 0.5, t.y + 0.5); if (z && z.kind === 'office') setDeskZone(z); }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
+          {!editing && (
+            <div className="absolute bottom-16 right-3 z-10 flex flex-col gap-1">
+              {[
+                { label: 'Zoom in', icon: <Plus className="h-4 w-4" />, run: () => setZoom((z) => Math.min(2.2, +(z + 0.2).toFixed(1))) },
+                { label: 'Zoom out', icon: <Minus className="h-4 w-4" />, run: () => setZoom((z) => Math.max(0.5, +(z - 0.2).toFixed(1))) },
+                { label: 'Back to my avatar (double-click the map too)', icon: <LocateFixed className="h-4 w-4" />, run: () => setRecenter((n) => n + 1) },
+              ].map((b) => (
+                <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/90 text-foreground shadow backdrop-blur hover:bg-muted">{b.icon}</button>
+              ))}
+            </div>
+          )}
           {superseded && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/90 p-4 backdrop-blur">
               <div className="max-w-sm space-y-3 rounded-xl border border-border bg-card p-5 text-center shadow-lg">
@@ -767,7 +808,7 @@ export default function OfficePage() {
           )}
           {!editing && (
             <CallDock
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} meName={me.name} traySize={traySize} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} onEmote={sendEmote} meName={me.name} traySize={traySize} tiles={calls.tiles}
               roomName={zone && isRoom(zone) ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
@@ -775,8 +816,9 @@ export default function OfficePage() {
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   bright={bright} onToggleBright={toggleBright} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
-                  canEdit={canEdit} editing={editing} onEdit={startEdit} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
+                  canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
+                  canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
                   onClaimOffice={claimFree} onUnclaimOffice={() => { if (myClaim) void unclaimOffice(myClaim.office_id); }} onWalkToOffice={() => walkToOffice()}
                   isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
                 />
@@ -797,7 +839,7 @@ export default function OfficePage() {
               tool={tool} onTool={setTool} color={color} onColor={setColor}
               onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
               onReset={() => setDraft(map.items.map((i) => ({ ...i })))}
-              onCancel={stopEdit} onSave={save} saving={saving}
+              onCancel={stopEdit} onSave={save} saving={saving} limited={!!scope}
             />
           )}
         </div>
@@ -830,6 +872,7 @@ export default function OfficePage() {
         onClaim={() => { if (deskZone) void claimOffice(deskZone.id); }}
         onUnclaim={() => { if (deskZone) void unclaimOffice(deskZone.id); }}
         onWalk={() => { if (deskZone) { walkToOffice(deskZone.id); setDeskZone(null); } }}
+        onCustomise={() => { const z = deskZone; setDeskZone(null); if (z) startEdit(z); }}
         onAssign={() => { if (deskZone) { setNameZone({ id: deskZone.id, name: deskZone.name, kind: deskZone.kind }); setDeskZone(null); } }}
         onClose={() => setDeskZone(null)}
       />

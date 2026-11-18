@@ -23,6 +23,9 @@ interface Props {
   onSettings: () => void;
   /** my private office (its name), if I have claimed one */
   myOffice: string | null;
+  /** I have claimed an office but am not a builder: I can decorate it */
+  canCustomiseMine: boolean;
+  onCustomiseMine: () => void;
   onClaimOffice: () => void;
   onUnclaimOffice: () => void;
   onWalkToOffice: () => void;
@@ -67,6 +70,7 @@ export function ProfileMenu(p: Props) {
         ) : (
           <DropdownMenuItem onSelect={p.onClaimOffice}><DoorOpen className="mr-2 h-4 w-4" />Claim a free office</DropdownMenuItem>
         )}
+        {p.canCustomiseMine && <DropdownMenuItem onSelect={p.onCustomiseMine}><Pencil className="mr-2 h-4 w-4" />Customise my office</DropdownMenuItem>}
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onToggleBright}>{p.bright ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}{p.bright ? 'Night office' : 'Bright office'}</DropdownMenuItem>
         <div className="flex items-center justify-between px-2 py-1.5 text-sm">

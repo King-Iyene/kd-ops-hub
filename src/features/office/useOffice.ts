@@ -36,6 +36,9 @@ export interface Who {
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
 
+/** The reactions people can send. */
+export const EMOTES = ['👍', '👏', '❤️', '🎉', '😂', '😮', '🙌', '✋', '🔥', '💯'];
+
 const HIDDEN_LIMIT_MS = 15 * 60_000;
 
 function useAwake(): boolean {
@@ -94,6 +97,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const statusRef = useRef('');
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMeta = useRef('');
+  /** emoji reactions on show, by person id */
+  const emotes = useRef(new Map<string, { e: string; until: number }>());
   /** people we were told are talking, with the time that stops counting */
   const peerTalking = useRef(new Map<string, number>());
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
@@ -228,6 +233,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       setTimeout(() => { if (roomReady.current) emit(); }, Math.random() * 400);
     });
     // call set-up messages (see calls/useCalls.ts); handled by whoever registered a handler
+    // an emoji reaction (👍 👏 ❤️ ...): floats over the sender for a few seconds
+    ch.on('broadcast', { event: 'emo' }, ({ payload }) => {
+      const p = payload as { i?: unknown; e?: unknown } | null;
+      if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === connId || ghosts.current.has(p.i)) return;
+      if (typeof p.e === 'string' && EMOTES.includes(p.e)) emotes.current.set(p.i, { e: p.e, until: Date.now() + 3500 });
+    });
     // someone started or stopped talking (shown as a green glow even before their audio reaches us)
     ch.on('broadcast', { event: 'sp' }, ({ payload }) => {
       const p = payload as { i?: unknown; on?: unknown } | null;
@@ -280,6 +291,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     void lobby.current?.send({ type: 'broadcast', event: 'ping', payload });
   }, []);
   const setPingHandler = useCallback((h: ((raw: unknown) => void) | null) => { pingHandler.current = h; }, []);
+  const sendEmote = useCallback((e: string) => {
+    if (!EMOTES.includes(e)) return;
+    emotes.current.set(connId, { e, until: Date.now() + 3500 });
+    const ch = room.current;
+    if (ch && roomReady.current && !supersededRef.current) void ch.send({ type: 'broadcast', event: 'emo', payload: { i: connId, e } });
+  }, [connId]);
   const sendSpeaking = useCallback((on: boolean) => {
     const ch = room.current;
     const s = selfRef.current;
@@ -292,5 +309,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking };
+  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes };
 }

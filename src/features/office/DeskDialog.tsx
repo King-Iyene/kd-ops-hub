@@ -4,7 +4,7 @@ import { AvatarFace } from './AvatarFace';
 import type { Person } from './data';
 
 /** A private office: who has it, and what you can do (claim it, unclaim yours, walk there; admins assign or revoke). */
-export function DeskDialog({ zone, owner, mine, iHaveOffice, isAdmin, busy, onClaim, onUnclaim, onWalk, onAssign, onClose }: {
+export function DeskDialog({ zone, owner, mine, iHaveOffice, isAdmin, busy, onClaim, onUnclaim, onWalk, onAssign, onCustomise, onClose }: {
   zone: { id: string; name: string } | null;
   owner: Person | null;
   mine: boolean;
@@ -15,6 +15,7 @@ export function DeskDialog({ zone, owner, mine, iHaveOffice, isAdmin, busy, onCl
   onUnclaim: () => void;
   onWalk: () => void;
   onAssign: () => void;
+  onCustomise: () => void;
   onClose: () => void;
 }) {
   return (
@@ -30,6 +31,7 @@ export function DeskDialog({ zone, owner, mine, iHaveOffice, isAdmin, busy, onCl
         </div>
         <div className="flex flex-col gap-2">
           {!owner && <Button disabled={busy} onClick={onClaim}>{iHaveOffice ? 'Move my office here' : 'Claim this office'}</Button>}
+          {mine && <Button disabled={busy} onClick={onCustomise}>Customise my office</Button>}
           {mine && <Button variant="outline" disabled={busy} onClick={onUnclaim}>Unclaim my office</Button>}
           <Button variant="outline" onClick={onWalk}>Walk there</Button>
           {isAdmin && owner && !mine && <Button variant="outline" disabled={busy} onClick={onUnclaim}>Revoke ({owner.name}) and free it</Button>}

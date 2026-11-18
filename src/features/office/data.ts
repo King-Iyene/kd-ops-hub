@@ -36,6 +36,20 @@ export function shortName(full: string | null | undefined): string {
 
 export interface DeskClaim { office_id: string; user_id: string }
 
+/** What people have put inside their private offices, by office id (refreshes by itself). */
+export function useOfficeDecor(spaceId: string | null) {
+  return useQuery({
+    queryKey: ['office', 'decor', spaceId],
+    enabled: !!spaceId,
+    refetchInterval: 15000,
+    queryFn: async (): Promise<Record<string, unknown>> => {
+      const { data, error } = await supabase.from('office_decor').select('office_id, items').eq('space_id', spaceId!);
+      if (error) throw error;
+      return Object.fromEntries((data ?? []).map((r) => [r.office_id as string, r.items]));
+    },
+  });
+}
+
 /** Who has claimed which private office in this space (refreshes by itself every few seconds). */
 export function useDeskClaims(spaceId: string | null) {
   return useQuery({
@@ -154,6 +168,12 @@ export function useOfficeMutations() {
       const { error } = await supabase.from('office_desk_claims').delete().eq('space_id', spaceId).eq('office_id', officeId);
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'claims', spaceId] });
+    },
+    /** Save what is inside one private office (the owner, or an admin). */
+    async saveDecor(spaceId: string, officeId: string, items: Item[], userId?: string) {
+      const { error } = await supabase.from('office_decor').upsert({ space_id: spaceId, office_id: officeId, items: items as never, updated_by: userId ?? null, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ['office', 'decor', spaceId] });
     },
     async saveSettings(space: SpaceRow, settings: { builders?: string[]; recorders?: string[]; maxItems?: number }) {
       const { error } = await supabase

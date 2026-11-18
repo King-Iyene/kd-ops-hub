@@ -48,6 +48,8 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   roundtable: { w: 2, h: 2, solid: true, label: 'Round table' },
   frame: { w: 1, h: 1, solid: true, label: 'Picture' },
   vending: { w: 1, h: 2, solid: true, label: 'Vending machine' },
+  dog: { w: 1, h: 1, solid: false, label: 'Dog' },
+  cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
 /** Small things that sit on top of a desk or table (one of each kind per tile). */

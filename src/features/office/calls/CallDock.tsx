@@ -1,6 +1,7 @@
-import { Circle, DoorOpen, Headphones, LayoutGrid, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { Tile } from './useCalls';
+import { EMOTES } from '../useOffice';
 
 interface Props {
   joined: boolean;
@@ -12,6 +13,8 @@ interface Props {
   sharing: boolean;
   onShare: () => void;
   onMeeting: () => void;
+  /** send an emoji reaction */
+  onEmote: (e: string) => void;
   /** ids of people talking now ('' is me), and my name, for the video tray */
   speakingIds: Set<string>;
   meName: string;
@@ -116,10 +119,11 @@ function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: bool
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, speakingIds, meName, traySize, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
+  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, onEmote, speakingIds, meName, traySize, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
+  const [emoOpen, setEmoOpen] = useState(false);
   const screens = tiles.filter((t) => t.screen);
   const people = tiles.filter((t) => !t.screen);
   return (
@@ -159,6 +163,13 @@ export function CallDock({
             <button type="button" className="opacity-80" onClick={onDismissUnsent} aria-label="Dismiss">✕</button>
           </div>
         )}
+        {emoOpen && (
+          <div className="pointer-events-auto flex gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
+            {EMOTES.map((e) => (
+              <button key={e} type="button" onClick={() => { onEmote(e); setEmoOpen(false); }} aria-label={`React ${e}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
+            ))}
+          </div>
+        )}
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
           {leading && (
             <>
@@ -174,6 +185,7 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
             </>
           )}
+          <Btn label="React with an emoji" onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
           {!joined ? (
             <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (

@@ -1491,6 +1491,88 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       disc(ctx, x + TILE - 10, y + H - 28, 1.5, Math.floor(t / 600) % 2 ? '#22c55e' : '#14532d');
       break;
     }
+    case 'dog': {
+      // a dog that trots around its spot, turns, pauses, and wags its tail
+      const k = t / 1000;
+      const px = cx + Math.sin(k * 0.7 + seed * 6) * 30;
+      const py = cy + 4 + Math.sin(k * 0.5 + seed * 3) * 10;
+      const vx = Math.cos(k * 0.7 + seed * 6);
+      const face = vx >= 0 ? 1 : -1;
+      const moving = Math.abs(vx) > 0.2;
+      const coat = col ?? ['#c68642', '#e8d9b5', '#5b4636', '#f1f5f9'][Math.floor(seed * 4)];
+      const dark = shade(coat, -0.28);
+      ellipse(ctx, px, py + 8, 11, 3.5, 'rgba(15,23,42,0.22)');
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(face, 1);
+      ctx.strokeStyle = coat;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-9, -3);
+      ctx.quadraticCurveTo(-14, -8 + Math.sin(k * 15) * 3, -13, -12 + Math.sin(k * 15) * 2);
+      ctx.stroke();
+      for (const [lx, ph2] of [[-6, 0], [-2.5, Math.PI], [4, Math.PI], [7.5, 0]] as const) {
+        const swing = moving ? Math.sin(k * 11 + ph2) * 2.6 : 0;
+        ctx.fillStyle = dark;
+        rr(ctx, lx - 1.4 + swing, 2, 2.8, 6.5 - (moving && swing < 0 ? 1 : 0), 1.2);
+        ctx.fill();
+      }
+      ellipse(ctx, 0, -1.5, 10.5, 6.2, coat);
+      ellipse(ctx, 0, 1, 8, 3.2, shade(coat, 0.3));
+      disc(ctx, 10, -6.5, 5.4, coat);
+      ellipse(ctx, 14.6, -4.8, 3.4, 2.4, shade(coat, 0.25));
+      disc(ctx, 17.4, -5.2, 1.3, '#111827');
+      disc(ctx, 11.6, -7.8, 1, '#111827');
+      ellipse(ctx, 8, -10.5 + Math.sin(k * 6) * 0.5, 2.4, 3.8, dark, 0.45);
+      ctx.fillStyle = '#dc2626';
+      rr(ctx, 4.6, -6, 3, 6, 1.3);
+      ctx.fill();
+      if (moving) ellipse(ctx, 15.4, -2.2, 1.4, 2 + Math.sin(k * 14) * 0.4, '#f472b6');
+      ctx.restore();
+      break;
+    }
+    case 'cat': {
+      // a cat asleep in a curl, breathing, with drifting Zs
+      const br = 1 + Math.sin(t / 650 + seed * 4) * 0.035;
+      const fur = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
+      ellipse(ctx, cx, y + 29, 12, 3.6, 'rgba(15,23,42,0.2)');
+      ctx.save();
+      ctx.translate(cx, y + 22);
+      ctx.scale(br, br);
+      ellipse(ctx, 0, 0, 11.5, 7.5, fur);
+      ctx.strokeStyle = fur;
+      ctx.lineWidth = 3.2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(1, 1, 9, Math.PI * 0.15, Math.PI * 0.95);
+      ctx.stroke();
+      disc(ctx, -6, -2, 5, fur);
+      ctx.fillStyle = fur;
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.lineTo(-8.8, -10);
+      ctx.lineTo(-5.8, -6.2);
+      ctx.moveTo(-3, -6.4);
+      ctx.lineTo(-1.6, -10.4);
+      ctx.lineTo(0.4, -5);
+      ctx.fill();
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(-8, -2.6, 1.1, 0, Math.PI);
+      ctx.moveTo(-4.4, -2.6);
+      ctx.arc(-4.4 + 0.2, -2.6, 1.1, 0, Math.PI);
+      ctx.stroke();
+      ctx.restore();
+      const z = ((t / 1800 + seed) % 1);
+      ctx.fillStyle = `rgba(100,116,139,${0.9 * (1 - z)})`;
+      ctx.font = '700 9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('z', cx + 8 + z * 7, y + 10 - z * 9);
+      ctx.fillText('Z', cx + 12 + z * 9, y + 6 - z * 12);
+      break;
+    }
     default:
       return false;
   }
@@ -1603,6 +1685,8 @@ export interface DrawPerson {
   isMe: boolean;
   /** this person's live camera, drawn as a bubble above their head */
   bubble?: HTMLVideoElement | null;
+  /** who this is (used to attach emoji reactions) */
+  id?: string;
   /** an emoji for their status, shown in the name tag */
   status?: string;
   /** talking right now: a green glow on the picture and the name tag */
