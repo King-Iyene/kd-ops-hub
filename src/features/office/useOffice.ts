@@ -6,6 +6,7 @@ import { pack, shouldSend, unpack, type Motion, type SentMotion } from './world/
 import { cleanAvatar } from './world/render';
 import type { RtcSignal } from './calls/rules';
 import type { DoorMsg } from './calls/locks';
+import type { Ping } from './social';
 
 /**
  * Live presence for the office, built to stay quiet (see netSync.ts):
@@ -67,6 +68,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const recRef = useRef(false);
   const lockRef = useRef(false);
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
+  const pingHandler = useRef<((raw: unknown) => void) | null>(null);
   const selfRef = useRef(self);
   selfRef.current = self;
   const spaceRef = useRef(spaceId);
@@ -81,7 +83,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   // lobby: who is here and where
   useEffect(() => {
     if (!selfId || !awake) return;
-    const ch = supabase.channel('office:lobby', { config: { presence: { key: selfId } } });
+    const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: selfId } } });
     lobby.current = ch;
     const sync = () => {
       const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number }[]>;
@@ -96,6 +98,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       const here = new Set(list.map((w) => w.id));
       for (const id of [...peers.current.keys()]) if (!here.has(id)) peers.current.delete(id);
     };
+    // rings and messages addressed to one person (see social.ts); everyone gets the packet, only the addressee acts
+    ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });
     ch.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true);
@@ -141,7 +145,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     peers.current.clear();
     lastSent.current = null;
     roomReady.current = false;
-    const ch = supabase.channel(`office:space:${spaceId}`, { config: { broadcast: { self: false, ack: false } } });
+    const ch = supabase.channel(`office:space:${spaceId}`, { config: { private: true, broadcast: { self: false, ack: false } } });
     room.current = ch;
     const emit = () => {
       const { m, dir } = mine.current;
@@ -193,6 +197,10 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const ch = room.current;
     if (ch && roomReady.current) void ch.send({ type: 'broadcast', event: 'rtc', payload });
   }, []);
+  const sendPing = useCallback((payload: Ping) => {
+    void lobby.current?.send({ type: 'broadcast', event: 'ping', payload });
+  }, []);
+  const setPingHandler = useCallback((h: ((raw: unknown) => void) | null) => { pingHandler.current = h; }, []);
   const sendDoor = useCallback((payload: DoorMsg) => {
     const ch = room.current;
     if (ch && roomReady.current) void ch.send({ type: 'broadcast', event: 'door', payload });
@@ -200,5 +208,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler };
+  return { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler };
 }

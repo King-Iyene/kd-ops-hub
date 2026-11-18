@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { advance, buildSolid, extrapolate, facing, inputVelocity, zoneAt } from './world/world';
+import { WALK_SPEED, advance, buildSolid, collides, extrapolate, facing, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawPerson, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -21,6 +21,11 @@ interface Props {
   canEnter: (roomId: string) => boolean;
   /** I walked into a locked door */
   onBlocked: (zone: Zone) => void;
+  /** "go to": put me next to a person, or at a spot (a new key means a new request) */
+  jump: { key: number; personId?: string; x?: number; y?: number } | null;
+  /** the person I am following (walk toward them automatically), if any */
+  follow: string | null;
+  onFollowEnd: () => void;
   onPortal: (target: 'team' | 'mine') => void;
   dark: boolean;
   zoom: number;
@@ -45,6 +50,9 @@ export function OfficeCanvas(props: Props) {
   const keys = useRef(new Set<string>());
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
+  const lastJump = useRef(0);
+  const pending = useRef<{ key: number; personId?: string; x?: number; y?: number; until: number } | null>(null);
+  const followStuck = useRef<{ t: number; d: number } | null>(null);
   const hover = useRef<{ x: number; y: number } | null>(null);
   const cam = useRef({ ox: 0, oy: 0, scale: 1 });
 
@@ -117,10 +125,59 @@ export function OfficeCanvas(props: Props) {
       const solid = buildSolid(p.map, p.items);
       const me = meRef.current;
 
+      // "go to": jump next to a person or to a spot (waits up to 4 s for a person's position to arrive)
+      const j = p.jump;
+      if (j && j.key !== lastJump.current) { lastJump.current = j.key; pending.current = { ...j, until: now + 4000 }; }
+      const pj = pending.current;
+      if (pj) {
+        let tx = pj.x;
+        let ty = pj.y;
+        if (pj.personId) {
+          const pm = p.peers.current.get(pj.personId);
+          const spot = pm ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].map(([dx, dy]) => ({ x: pm.x + dx, y: pm.y + dy })).find((c) => !collides(solid, c.x, c.y)) : undefined;
+          tx = spot?.x;
+          ty = spot?.y;
+        }
+        if (tx !== undefined && ty !== undefined) {
+          pending.current = null;
+          const tz = zoneAt(p.map, tx, ty);
+          if (tz && tz.kind === 'meeting' && !p.canEnter(tz.id)) p.onBlocked(tz);
+          else {
+            me.x = tx; me.y = ty; me.vx = 0; me.vy = 0;
+            zoneId.current = '__none__';
+            portalCooldown.current = now + 800;
+          }
+        } else if (now > pj.until) pending.current = null;
+      }
+
       // walking
       if (!p.editing) {
         const k = keys.current;
-        const v = inputVelocity(k.has('arrowleft') || k.has('a'), k.has('arrowright') || k.has('d'), k.has('arrowup') || k.has('w'), k.has('arrowdown') || k.has('s'));
+        let v = inputVelocity(k.has('arrowleft') || k.has('a'), k.has('arrowright') || k.has('d'), k.has('arrowup') || k.has('w'), k.has('arrowdown') || k.has('s'));
+        // following someone: walk toward them until close; any key press cancels
+        if (p.follow) {
+          const pm = p.peers.current.get(p.follow);
+          if (v.vx !== 0 || v.vy !== 0 || !pm) {
+            p.onFollowEnd();
+          } else {
+            const t = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
+            const dx = t.x - me.x;
+            const dy = t.y - me.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 1.6) {
+              v = { vx: (dx / dist) * WALK_SPEED, vy: (dy / dist) * WALK_SPEED };
+              // no real progress for a while (a wall in the way): hop next to them instead of pushing on forever
+              const fs = followStuck.current;
+              if (!fs || dist < fs.d - 0.5) followStuck.current = { t: now, d: dist };
+              else if (now - fs.t > 2500) {
+                pending.current = { key: -1, personId: p.follow, until: now + 1000 };
+                followStuck.current = null;
+              }
+            } else {
+              followStuck.current = null;
+            }
+          }
+        }
         me.vx = v.vx;
         me.vy = v.vy;
         const np = advance(solid, me.x, me.y, v.vx, v.vy, dt);

@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Circle, DoorOpen, Lock, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { BellRing, Building2, Circle, DoorOpen, Footprints, LocateFixed, Lock, MessageCircle, Search, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
 import { Button } from '@/components/ui/button';
 import { OfficeCanvas, type EditTool } from './OfficeCanvas';
 import { AvatarDialog } from './AvatarDialog';
+import { supabase } from '@/lib/supabase';
+import { ToastAction } from '@/components/ui/toast';
+import { MessageDialog, type Msg } from './MessageDialog';
+import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
 import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
 import { useCalls } from './calls/useCalls';
@@ -83,7 +87,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, setRecording, setLocked, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -276,6 +280,102 @@ export default function OfficePage() {
     return () => setDoorHandler(null);
   }, [setDoorHandler]);
 
+  // ---- find, go to, follow, ring, message (rules in social.ts) ----
+  const teamMap = useMemo(() => buildTemplate('team'), []);
+  const [query, setQuery] = useState('');
+  const [jump, setJump] = useState<{ key: number; personId?: string; x?: number; y?: number } | null>(null);
+  const [follow, setFollow] = useState<string | null>(null);
+  const [chatWith, setChatWith] = useState<{ id: string; name: string } | null>(null);
+  const chatWithRef = useRef(chatWith);
+  chatWithRef.current = chatWith;
+  const [inbox, setInbox] = useState<Msg[]>([]);
+  const lastSent = useRef(new Map<string, number>());
+  const roomSpaceId = space?.kind === 'team' ? space.id : (lastTeam.current ?? myTeam?.id ?? null);
+
+  const goToPerson = (id: string, theirSpace: string | null) => {
+    if (theirSpace && theirSpace !== space?.id) setSpaceId(theirSpace);
+    setJump({ key: Date.now(), personId: id });
+  };
+  const goToRoom = (z: Zone) => {
+    if (roomSpaceId && roomSpaceId !== space?.id) setSpaceId(roomSpaceId);
+    setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 });
+  };
+  const startFollow = (id: string) => setFollow((f) => (f === id ? null : id));
+  // following someone who walks into another office: follow them through
+  useEffect(() => {
+    if (!follow) return;
+    const t = roster.find((r) => r.id === follow);
+    if (!t) { setFollow(null); return; }
+    if (t.spaceId && t.spaceId !== space?.id) setSpaceId(t.spaceId);
+  }, [follow, roster, space?.id]);
+
+  const ring = (r: { id: string; name: string }) => {
+    if (!me) return;
+    if (!canSendTo(lastSent.current, r.id, Date.now(), 'ring')) { toast({ title: `You just rang ${r.name}`, description: 'Give them a moment.' }); return; }
+    lastSent.current.set(`ring:${r.id}`, Date.now());
+    sendPing({ k: 'ring', f: me.id, n: me.name, t: r.id, s: space?.id ?? null });
+    toast({ title: `Rang ${r.name}` });
+  };
+
+  const sendMessage = async (text: string, file: File | null) => {
+    const target = chatWith;
+    if (!target || !me) return;
+    if (!roster.some((r) => r.id === target.id)) throw new Error(`${target.name} is offline.`);
+    if (!canSendTo(lastSent.current, target.id, Date.now(), 'dm')) throw new Error('Slow down a little.');
+    let img: string | undefined;
+    let imgUrl: string | undefined;
+    if (file) {
+      img = `${me.id}/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${file.type.split('/')[1].replace('jpeg', 'jpg')}`;
+      const up = await supabase.storage.from('office-shared').upload(img, file, { contentType: file.type });
+      if (up.error) throw up.error;
+      imgUrl = URL.createObjectURL(file);
+    }
+    const clean = cleanText(text);
+    if (!clean && !img) return;
+    lastSent.current.set(`dm:${target.id}`, Date.now());
+    sendPing({ k: 'dm', f: me.id, n: me.name, t: target.id, s: space?.id ?? null, text: clean || undefined, img });
+    setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: target.id, mine: true, text: clean || undefined, imgUrl, at: Date.now() }]);
+  };
+
+  const handlePing = async (raw: unknown) => {
+    const m = me ? parsePing(raw, me.id) : null;
+    if (!m) return;
+    if (m.k === 'ring') {
+      try {
+        const ctx = new AudioContext();
+        const o = ctx.createOscillator();
+        o.frequency.value = 880;
+        o.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.25);
+        setTimeout(() => void ctx.close(), 500);
+      } catch { /* no sound is fine */ }
+      toast({
+        title: `${m.n} is ringing you`, description: 'They would like to talk.',
+        action: <ToastAction altText="Go to them" onClick={() => goToPerson(m.f, m.s)}>Go to them</ToastAction>,
+      });
+      return;
+    }
+    let imgUrl: string | undefined;
+    if (m.img) {
+      const s = await supabase.storage.from('office-shared').createSignedUrl(m.img, 3600);
+      imgUrl = s.data?.signedUrl;
+    }
+    setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: m.f, mine: false, text: m.text, imgUrl, at: Date.now() }]);
+    if (chatWithRef.current?.id !== m.f) {
+      toast({
+        title: m.n, description: m.text || 'Sent a picture',
+        action: <ToastAction altText="Reply" onClick={() => setChatWith({ id: m.f, name: m.n })}>Reply</ToastAction>,
+      });
+    }
+  };
+  const handlePingRef = useRef(handlePing);
+  handlePingRef.current = handlePing;
+  useEffect(() => {
+    setPingHandler((raw) => { void handlePingRef.current(raw); });
+    return () => setPingHandler(null);
+  }, [setPingHandler]);
+
   const letIn = (k: { id: string; room: string }) => {
     if (!me) return;
     sendDoor({ k: 'let', f: me.id, t: k.id, r: k.room });
@@ -287,7 +387,7 @@ export default function OfficePage() {
 
   const nameOfSpace = (id: string | null) => spaces?.find((s) => s.id === id)?.name ?? 'an office';
   const here = roster.filter((r) => r.spaceId === space?.id);
-  const roomPeople = (zid: string) => roster.filter((r) => r.spaceId === space?.id && r.zone === zid);
+  const roomPeople = (zid: string) => roster.filter((r) => r.spaceId === roomSpaceId && r.zone === zid);
   const otherOffices = (spaces ?? []).filter((s) => s.kind === 'personal' && s.owner_id !== profile?.id);
 
   if (!me || !spaces) {
@@ -318,6 +418,13 @@ export default function OfficePage() {
 
       <div className="flex min-h-0 flex-1 gap-3">
         <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person or room…" aria-label="Find a person or room"
+              className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm"
+            />
+          </div>
           <section>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Go to</p>
             <div className="space-y-1">
@@ -334,17 +441,17 @@ export default function OfficePage() {
             </div>
           </section>
 
-          {space.kind === 'team' && (
+          {roomSpaceId && (
             <section>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rooms</p>
               <div className="space-y-1">
-                {map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => {
+                {teamMap.zones.filter((z) => (z.kind === 'meeting' || z.kind === 'lounge') && matches(z.name, query)).map((z) => {
                   const people = roomPeople(z.id);
                   return (
-                    <div key={z.id} className="rounded-lg px-2.5 py-1.5 text-sm">
+                    <button key={z.id} type="button" onClick={() => goToRoom(z)} title={`Go to ${z.name}`} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted">
                       <div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5">{z.name}{locked.has(z.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}</span><span className={`text-xs ${people.length ? 'font-semibold text-emerald-500' : 'text-muted-foreground'}`}>{people.length}</span></div>
                       {people.length > 0 && <p className="truncate text-xs text-muted-foreground">{people.map((p) => p.name.split(' ')[0]).join(', ')}</p>}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -354,17 +461,22 @@ export default function OfficePage() {
           <section>
             <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Users className="h-3.5 w-3.5" />Online ({roster.length})</p>
             <div className="space-y-1">
-              {roster.map((r) => {
-                const target = r.spaceId ? spaces.find((s) => s.id === r.spaceId) : null;
+              {roster.filter((r) => matches(r.name, query)).map((r) => {
+                const isMe = r.id === me.id;
+                const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
-                  <button
-                    key={r.id} type="button" disabled={!target} onClick={() => target && setSpaceId(target.id)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-60"
-                    title={target ? `Go to ${target.name}` : ''}
-                  >
+                  <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
                     <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{r.id === me.id ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{nameOfSpace(r.spaceId)}</span></span>
-                  </button>
+                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{nameOfSpace(r.spaceId)}</span></span>
+                    {!isMe && (
+                      <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
+                        <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
+                        <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3.5 w-3.5" /></button>
+                        <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3.5 w-3.5" /></button>
+                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => setChatWith({ id: r.id, name: r.name })}><MessageCircle className="h-3.5 w-3.5" /></button>
+                      </span>
+                    )}
+                  </div>
                 );
               })}
               {roster.length === 0 && <p className="px-2.5 text-xs text-muted-foreground">Nobody yet.</p>}
@@ -375,7 +487,7 @@ export default function OfficePage() {
             <section>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Colleagues' offices</p>
               <div className="space-y-0.5">
-                {otherOffices.map((s) => (
+                {otherOffices.filter((s) => matches(s.name, query)).map((s) => (
                   <button key={s.id} type="button" onClick={() => setSpaceId(s.id)} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${s.id === space.id ? 'bg-muted font-medium' : ''}`}>
                     <span className="truncate">{s.name.replace(/'s office$/, '')}</span>
                     {roster.some((r) => r.spaceId === s.id) && <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />}
@@ -389,9 +501,16 @@ export default function OfficePage() {
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
             map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} update={update}
-            onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked} dark={dark} zoom={zoom}
+            onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
+            jump={jump} follow={follow} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
+          {follow && (
+            <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs shadow">
+              <Footprints className="h-3.5 w-3.5 text-primary" />Following {roster.find((r) => r.id === follow)?.name ?? 'someone'}
+              <button type="button" className="font-medium text-primary" onClick={() => setFollow(null)}>Stop</button>
+            </div>
+          )}
           {!editing && (
             <CallDock
               joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} tiles={calls.tiles}
@@ -427,6 +546,7 @@ export default function OfficePage() {
         </div>
       </div>
 
+      <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
       <AvatarDialog
