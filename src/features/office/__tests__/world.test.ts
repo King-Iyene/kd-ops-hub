@@ -524,3 +524,31 @@ describe('chat', () => {
     expect(shouldNotify(mk({ to_id: me, sender_id: 'x' }), me, { ...ctx, openConv: 'x', focused: false })).toBe('pop');
   });
 });
+
+describe('custom status', () => {
+  it('turns what you write into a status others can read, and rejects rubbish', async () => {
+    const { customStatusId, statusOf } = await import('../status');
+    const id = customStatusId('🚀', 'Back at 2');
+    expect(id).toBe('c:🚀|Back at 2');
+    expect(statusOf(id)).toEqual({ id, emoji: '🚀', label: 'Back at 2' });
+    expect(statusOf('focus')?.label).toBe('Focusing');
+    expect(customStatusId('x', 'no emoji')).toBe('');
+    expect(customStatusId('🚀', '   ')).toBe('');
+    expect(statusOf('c:nope|text')).toBeNull();
+    expect(statusOf('c:🚀|')).toBeNull();
+    expect(statusOf(42)).toBeNull();
+    expect(customStatusId('🚀', 'bad|pipe')).toBe('c:🚀|bad pipe');
+    expect(statusOf(customStatusId('🚀', 'a'.repeat(80)))?.label.length).toBe(30);
+  });
+});
+
+describe('power bikes', () => {
+  it('are placeable things you can ride, faster than walking', async () => {
+    const { ITEM_DEFS, INTERACTIVE, RIDE_SPEED, nearestInteractive } = await import('../world/world');
+    expect(ITEM_DEFS.bike.solid).toBe(false);
+    expect(INTERACTIVE.bike).toMatch(/Ride/);
+    expect(RIDE_SPEED).toBeGreaterThan(1.5);
+    const near = nearestInteractive([{ id: 'b', t: 'bike' as const, x: 5, y: 5 }], 5.5, 6.2);
+    expect(near?.t).toBe('bike');
+  });
+});

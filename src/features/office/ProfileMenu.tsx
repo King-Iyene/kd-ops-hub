@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, Circle, DoorClosed, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { STATUSES, statusOf } from './status';
+import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
 import type { AvatarStyle } from './world/types';
 import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
@@ -63,6 +63,8 @@ type Tab = 'you' | 'space';
 export function ProfileMenu(p: Props) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('you');
+  const [customEmoji, setCustomEmoji] = useState('💬');
+  const [customText, setCustomText] = useState('');
   const st = statusOf(p.status);
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
@@ -132,6 +134,21 @@ export function ProfileMenu(p: Props) {
                       <span>{s.emoji}</span>{s.label}
                     </button>
                   ))}
+                </div>
+                <div className="mt-2.5 rounded-xl bg-white/[0.03] p-2.5 ring-1 ring-white/[0.06]">
+                  <p className="mb-1.5 text-[11.5px] font-semibold text-muted-foreground">Or write your own</p>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {STATUS_EMOJI.map((e) => (
+                      <button key={e} type="button" aria-label={`Use ${e}`} aria-pressed={customEmoji === e} onClick={() => setCustomEmoji(e)} className={`flex h-7 w-7 items-center justify-center rounded-lg text-base transition ${customEmoji === e ? 'bg-primary/20 ring-1 ring-primary/50' : 'hover:bg-white/10'}`}>{e}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input value={customText} maxLength={MAX_STATUS_TEXT} onChange={(e) => setCustomText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { const id = customStatusId(customEmoji, customText); if (id) { p.onStatus(id); setCustomText(''); } } }}
+                      placeholder="For example: Back at 2" className="h-8 min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2.5 text-[12.5px] outline-none ring-1 ring-white/[0.07] placeholder:text-muted-foreground focus:ring-primary/60" />
+                    <button type="button" disabled={!customStatusId(customEmoji, customText)} onClick={() => { p.onStatus(customStatusId(customEmoji, customText)); setCustomText(''); }} className="h-8 rounded-lg bg-white/90 px-3 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-40">Set</button>
+                    {p.status && <button type="button" onClick={() => p.onStatus('')} className="h-8 rounded-lg bg-white/[0.07] px-2.5 text-xs font-semibold transition hover:bg-white/[0.13]">Clear</button>}
+                  </div>
                 </div>
               </div>
               <div>

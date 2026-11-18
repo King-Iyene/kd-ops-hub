@@ -52,6 +52,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
+  bike: { w: 1, h: 1, solid: false, label: 'Power bike' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -72,7 +73,11 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',
   valueswall: 'Core values',
   noticeboard: 'Notice board',
+  bike: 'Ride the power bike',
 };
+
+/** How much faster a power bike is than walking. */
+export const RIDE_SPEED = 1.9;
 
 /** The interactive thing closest to a point, if one is within reach. */
 export function nearestInteractive(items: Item[], x: number, y: number, reach = 1.7): Item | null {

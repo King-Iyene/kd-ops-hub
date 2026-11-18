@@ -34,6 +34,7 @@ class Ambient {
   private layers = new Map<Kind, Layer>();
   private timers: number[] = [];
   private weatherGain: GainNode | null = null;
+  private motor: { osc: OscillatorNode; gain: GainNode } | null = null;
   private windGain: GainNode | null = null;
   private enabled = true;
   private volume = 0.8;
@@ -63,6 +64,7 @@ class Ambient {
     for (const t of this.timers) window.clearTimeout(t);
     this.timers = [];
     this.layers.clear();
+    this.motor = null;
     const c = this.ctx;
     this.ctx = null;
     this.master = null;
@@ -70,7 +72,7 @@ class Ambient {
     if (c) void c.close().catch(() => undefined);
   }
 
-  update(me: { x: number; y: number }, items: Item[], moving: boolean, now: number) {
+  update(me: { x: number; y: number }, items: Item[], moving: boolean, now: number, riding = false) {
     if (!this.enabled || now - this.lastUpdate < 100) return;
     this.lastUpdate = now;
     const c = this.ctx;
@@ -98,8 +100,14 @@ class Ambient {
       layer.pan.pan.setTargetAtTime(b ? Math.max(-1, Math.min(1, (b.x - me.x) / b.range)) * 0.7 : 0, c.currentTime, 0.2);
     }
 
+    // a quiet electric hum while you ride
+    if (this.motor) {
+      this.motor.gain.gain.setTargetAtTime(riding && moving ? 0.045 : 0, c.currentTime, 0.12);
+      this.motor.osc.frequency.setTargetAtTime(riding && moving ? 118 : 80, c.currentTime, 0.2);
+    }
+
     // soft footsteps while you walk (one about every stride)
-    if (moving && now - this.lastStep > 340) {
+    if (moving && !riding && now - this.lastStep > 340) {
       this.lastStep = now;
       this.stepSide = -this.stepSide;
       this.footstep(this.stepSide);
@@ -270,6 +278,21 @@ class Ambient {
       this.noise = buf;
 
       this.buildWeather(c);
+      {
+        const osc = c.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 80;
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 340;
+        const gain = c.createGain();
+        gain.gain.value = 0;
+        osc.connect(lp);
+        lp.connect(gain);
+        gain.connect(master);
+        osc.start();
+        this.motor = { osc, gain };
+      }
       this.buildWater(c);
       this.buildFire(c);
       this.buildTank(c);

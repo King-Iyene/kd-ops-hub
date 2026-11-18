@@ -1089,6 +1089,10 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cx = x + W / 2;
   const cy = y + H / 2;
   switch (item.t) {
+    case 'bike': {
+      bikeSprite(ctx, cx, cy + 4, 'side', 1, 0, col);
+      return true;
+    }
     case 'wallclock': {
       // a row of digital clocks, one for each place
       const zs = officeInfo.zones.length ? officeInfo.zones : DEFAULT_ZONES;
@@ -1914,6 +1918,73 @@ export function drawVignette(ctx: Ctx, w: number, h: number, dark: boolean) {
 
 // ---------- people ----------
 
+/**
+ * A power bike: side view when going left or right, front or back view when going up or down.
+ * (px, py) is the middle of the ground under it; spin turns the wheels.
+ */
+function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, spin: number, col?: string) {
+  const body = col ?? '#dc2626';
+  const dark = '#111827';
+  ellipse(ctx, px, py + 9, view === 'side' ? 17 : 7, 4, 'rgba(15,23,42,0.28)');
+  ctx.save();
+  ctx.translate(px, py);
+  if (view === 'side') {
+    ctx.scale(face, 1);
+    for (const wx of [-11, 11]) {
+      disc(ctx, wx, 5, 7.2, dark);
+      disc(ctx, wx, 5, 4.4, '#cbd5e1');
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = spin + (k * Math.PI) / 3;
+        ctx.moveTo(wx - Math.cos(a) * 4.4, 5 - Math.sin(a) * 4.4);
+        ctx.lineTo(wx + Math.cos(a) * 4.4, 5 + Math.sin(a) * 4.4);
+      }
+      ctx.stroke();
+      disc(ctx, wx, 5, 1.4, dark);
+    }
+    ctx.fillStyle = body;
+    rr(ctx, -12, -1, 24, 5, 2.5);
+    ctx.fill();
+    ctx.fillStyle = shade(body, -0.3);
+    rr(ctx, -5, 0, 10, 6, 2);
+    ctx.fill();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(11, 4);
+    ctx.lineTo(9, -7);
+    ctx.lineTo(13, -9);
+    ctx.stroke();
+    ctx.fillStyle = dark;
+    rr(ctx, -12, -4, 9, 3.5, 1.6);
+    ctx.fill();
+    disc(ctx, 14, -6, 2.1, '#fde047');
+    disc(ctx, -13, 1, 1.4, '#ef4444');
+  } else {
+    ctx.fillStyle = dark;
+    rr(ctx, -3, -2, 6, 17, 2.6);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-1.2, 1 + ((spin * 3) % 5), 2.4, 1.6);
+    ctx.fillStyle = body;
+    rr(ctx, -5, -4, 10, 11, 3);
+    ctx.fill();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-11, -7);
+    ctx.lineTo(11, -7);
+    ctx.stroke();
+    if (view === 'front') disc(ctx, 0, -2, 2.1, '#fde047');
+    else { disc(ctx, -3, 6, 1.5, '#ef4444'); disc(ctx, 3, 6, 1.5, '#ef4444'); }
+  }
+  ctx.restore();
+}
+
 export interface DrawPerson {
   x: number;
   y: number;
@@ -1932,9 +2003,21 @@ export interface DrawPerson {
   status?: string;
   /** talking right now: a green glow on the picture and the name tag */
   speaking?: boolean;
+  /** on a power bike */
+  riding?: boolean;
 }
 
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
+  if (p.riding) {
+    // the bike underneath, and the rider sitting a little higher on it
+    const side = p.dir === 1 || p.dir === 2;
+    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, side ? 'side' : p.dir === 3 ? 'back' : 'front', p.dir === 1 ? -1 : 1, p.moving ? ((p.x + p.y) * TILE) / 4 : 0);
+    ctx.save();
+    ctx.translate(0, -9);
+    drawPerson(ctx, { ...p, riding: false }, t, theme);
+    ctx.restore();
+    return;
+  }
   const a = p.avatar;
   const px = p.x * TILE;
   const py = p.y * TILE;

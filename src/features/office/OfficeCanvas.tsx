@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { INTERACTIVE, ITEM_DEFS, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
+import { INTERACTIVE, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -65,6 +65,9 @@ interface Props {
   onNear: (item: Item | null) => void;
   /** F pressed (or the thing clicked): open it */
   onInteract: (item: Item) => void;
+  /** I am on a power bike, and getting on or off */
+  riding: boolean;
+  onRide: (on: boolean) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -141,7 +144,11 @@ export function OfficeCanvas(props: Props) {
       ambient.resume();
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'f' && nearRef.current && !propsRef.current.editing) { e.preventDefault(); propsRef.current.onInteract(nearRef.current); return; }
+      if (k === 'f' && !propsRef.current.editing) {
+        if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false); return; }
+        const near = nearRef.current;
+        if (near) { e.preventDefault(); if (near.t === 'bike') propsRef.current.onRide(true); else propsRef.current.onInteract(near); return; }
+      }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
@@ -383,6 +390,7 @@ export function OfficeCanvas(props: Props) {
             }
           }
         }
+        if (p.riding) v = { vx: v.vx * RIDE_SPEED, vy: v.vy * RIDE_SPEED };
         me.vx = v.vx;
         me.vy = v.vy;
         const ease = 1 - Math.exp(-dt * 15);
@@ -428,7 +436,7 @@ export function OfficeCanvas(props: Props) {
         me.x = np.x;
         me.y = np.y;
         me.dir = facing(v.vx, v.vy, me.dir);
-        ambient.update({ x: me.x, y: me.y }, p.items, Math.hypot(me.sx, me.sy) > 0.25, now);
+        ambient.update({ x: me.x, y: me.y }, p.items, Math.hypot(me.sx, me.sy) > 0.25, now, p.riding);
         if (now - lastSaved.current > 1500) {
           lastSaved.current = now;
           try { localStorage.setItem('kd:office:pos:' + p.spaceId, JSON.stringify({ x: me.x, y: me.y, t: Date.now() })); } catch { /* fine */ }
@@ -516,10 +524,10 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, riding: !!info.riding, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
@@ -602,7 +610,24 @@ export function OfficeCanvas(props: Props) {
       }
 
       // something to press F on? show a little prompt over it
-      const nearIt = p.editing ? null : nearestInteractive(p.items, me.x, me.y);
+      if (p.riding && !p.editing) {
+        ctx.save();
+        ctx.font = '700 10px system-ui, sans-serif';
+        const lab = 'F  Get off';
+        const lw = ctx.measureText(lab).width + 16;
+        const gx = me.x * TILE;
+        const gy = me.y * TILE - 66;
+        ctx.fillStyle = 'rgba(15,23,42,0.82)';
+        ctx.beginPath();
+        ctx.roundRect(gx - lw / 2, gy - 9, lw, 18, 9);
+        ctx.fill();
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(lab, gx, gy + 0.5);
+        ctx.restore();
+      }
+      const nearIt = p.editing || p.riding ? null : nearestInteractive(p.items, me.x, me.y);
       if ((nearIt?.id ?? null) !== (nearRef.current?.id ?? null)) { nearRef.current = nearIt; p.onNear(nearIt); }
       if (nearIt) {
         const sz = itemSize(nearIt);

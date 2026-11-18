@@ -32,6 +32,8 @@ export interface Who {
   locked: boolean;
   /** a status id such as 'focus' (see status.ts), or '' */
   status: string;
+  /** on a power bike */
+  riding: boolean;
 }
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
@@ -97,6 +99,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const recRef = useRef(false);
   const lockRef = useRef(false);
   const statusRef = useRef('');
+  const ridingRef = useRef(false);
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMeta = useRef('');
   /** emoji reactions on show, by person id */
@@ -111,7 +114,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   spaceRef.current = spaceId;
   /** what the lobby knows about me */
   const meta = (s: { name: string; avatar: AvatarStyle }) => ({
-    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, t: Date.now(), u: selfRef.current?.id, c: since.current,
+    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, rd: ridingRef.current ? 1 : 0, t: Date.now(), u: selfRef.current?.id, c: since.current,
   });
 
   const selfId = self?.id ?? null;
@@ -128,7 +131,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
         const m = metas.reduce((x, y) => ((y.t ?? 0) > (x.t ?? 0) ? y : x), metas[0]);
         if (!m) continue;
         const uid = typeof m.u === 'string' ? m.u : id;
-        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 12) : '' });
+        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1 });
       }
       // the newest tab of each account is the one shown; older tabs of the same account are "ghosts"
       const best = new Map<string, Who>();
@@ -193,6 +196,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   /** Tell the room that I am (or am no longer) recording. */
   const setRecording = useCallback((on: boolean) => {
     recRef.current = on;
+    pushMeta();
+  }, []);
+
+  /** I got on or off a power bike (everyone sees it). */
+  const setRiding = useCallback((on: boolean) => {
+    ridingRef.current = on;
     pushMeta();
   }, []);
 
@@ -311,5 +320,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes };
+  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes };
 }
