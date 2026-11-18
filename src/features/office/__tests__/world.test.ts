@@ -250,3 +250,18 @@ describe('findPath', () => {
     expect(p).not.toBeNull();
   });
 });
+
+describe('default avatars', () => {
+  it('always have every field filled in, whatever the id (a missing colour once crashed the drawing)', async () => {
+    const { defaultAvatar, cleanAvatar } = await import('../world/render');
+    for (let i = 0; i < 3000; i++) {
+      const id = `${i.toString(16).padStart(8, '0')}-aaaa-bbbb-cccc-${(i * 7919).toString(16).padStart(12, '0')}`;
+      for (const a of [defaultAvatar(id), cleanAvatar({}, id), cleanAvatar(null, id)]) {
+        for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) expect(a[k]).toMatch(/^#[0-9a-fA-F]{6}$/);
+        expect([0, 1, 2, 3, 4, 5]).toContain(a.hairStyle);
+        expect([0, 1, 2]).toContain(a.outfit);
+        expect([0, 1, 2, 3]).toContain(a.accessory);
+      }
+    }
+  });
+});

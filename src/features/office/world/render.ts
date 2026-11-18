@@ -18,12 +18,12 @@ export function defaultAvatar(id: string): AvatarStyle {
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return {
     skin: SKIN_TONES[h % SKIN_TONES.length],
-    hair: HAIR_COLORS[(h >> 3) % HAIR_COLORS.length],
-    shirt: SHIRT_COLORS[(h >> 6) % SHIRT_COLORS.length],
-    hairStyle: ((h >> 9) % 6) as Hair,
-    outfit: ((h >> 12) % 3) as 0 | 1 | 2,
-    accessory: ([0, 0, 0, 1, 2, 3][(h >> 14) % 6]) as 0 | 1 | 2 | 3,
-    pants: PANTS_COLORS[(h >> 17) % PANTS_COLORS.length],
+    hair: HAIR_COLORS[(h >>> 3) % HAIR_COLORS.length],
+    shirt: SHIRT_COLORS[(h >>> 6) % SHIRT_COLORS.length],
+    hairStyle: ((h >>> 9) % 6) as Hair,
+    outfit: ((h >>> 12) % 3) as 0 | 1 | 2,
+    accessory: ([0, 0, 0, 1, 2, 3][(h >>> 14) % 6]) as 0 | 1 | 2 | 3,
+    pants: PANTS_COLORS[(h >>> 17) % PANTS_COLORS.length],
   };
 }
 
@@ -98,6 +98,7 @@ function hs(s: string): number {
 
 /** Lighten (amount > 0) or darken (amount < 0) a #rrggbb colour. */
 function shade(hex: string, amount: number): string {
+  if (typeof hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(hex)) return '#808080';
   const n = parseInt(hex.slice(1), 16);
   const t = amount < 0 ? 0 : 255;
   const p = Math.abs(amount);

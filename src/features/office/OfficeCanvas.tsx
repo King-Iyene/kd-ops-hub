@@ -56,6 +56,7 @@ export function OfficeCanvas(props: Props) {
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
   const lastJump = useRef(0);
+  const drawFailed = useRef(false);
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
   const lastPlan = useRef(0);
@@ -236,6 +237,7 @@ export function OfficeCanvas(props: Props) {
       ctx.save();
       ctx.translate(ox, oy);
       ctx.scale(scale, scale);
+      try {
       drawFloor(ctx, p.map, theme, now);
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -289,6 +291,9 @@ export function OfficeCanvas(props: Props) {
           ctx.fillStyle = p.tool === 'erase' ? 'rgba(239,68,68,0.35)' : res.ok ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
           ctx.fillRect(hv.x * TILE, hv.y * TILE, TILE, TILE);
         }
+      }
+      } catch (err) {
+        if (!drawFailed.current) { drawFailed.current = true; console.error('office draw failed', err); }
       }
       ctx.restore();
       drawVignette(ctx, w, h, p.dark);
