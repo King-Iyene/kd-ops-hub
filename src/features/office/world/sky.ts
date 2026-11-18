@@ -90,6 +90,12 @@ export function rainLevel(season: Season, now: number, live?: Weather | null, au
   return Math.max(0, Math.min(1, v * 1.4));
 }
 
+/** The rain to draw: in Auto it comes and goes in showers, but when the season is set to Rainy it always rains (at least steadily). */
+export function rainFor(mode: SeasonMode, season: Season, now: number): number {
+  const r = rainLevel(season, now);
+  return mode === 'rainy' ? Math.max(0.6, r) : r;
+}
+
 /** Lightning: a flash now and then while it rains hard. Returns its strength (0 to 1) and which flash it is. */
 export function lightning(rain: number, now: number): { strength: number; id: number } {
   if (rain < 0.5) return { strength: 0, id: -1 };

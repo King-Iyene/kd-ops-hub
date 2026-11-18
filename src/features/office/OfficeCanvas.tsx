@@ -6,7 +6,7 @@ import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
-import { lightning, rainLevel, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
+import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 import { applyPetCmd, initPet, petBus, petRegistry, stepPet, type PetState } from './world/pets';
 
@@ -619,7 +619,7 @@ export function OfficeCanvas(props: Props) {
       drawFloor(ctx, p.map, theme, now);
       {
         const seasonNow = seasonFor(p.seasonMode, Date.now());
-        drawGroundWeather(ctx, p.map, seasonNow, rainLevel(seasonNow, Date.now()), now);
+        drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now);
       }
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -823,7 +823,7 @@ export function OfficeCanvas(props: Props) {
         const wall = Date.now();
         const sky = skyState(p.timeMode, wall);
         const season = seasonFor(p.seasonMode, wall);
-        const rain = rainLevel(season, wall);
+        const rain = rainFor(p.seasonMode, season, wall);
         const bolt = lightning(rain, wall);
         if (bolt.id !== lastBolt.current) {
           if (bolt.id >= 0) ambient.thunder();
