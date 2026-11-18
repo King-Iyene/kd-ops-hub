@@ -82,7 +82,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { connId, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -191,6 +191,12 @@ export default function OfficePage() {
     announce: setRecording,
   });
   const recorders = meetingRoom ? roster.filter((r) => r.rec && r.spaceId === space?.id && r.zone === meetingRoom.id) : [];
+  const savedRef = useRef(0);
+  useEffect(() => {
+    if (recorder.saved > savedRef.current) toast({ title: 'Recording saved', description: 'Open Recordings in your profile menu to listen or download it.' });
+    savedRef.current = recorder.saved;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.saved]);
   const recNotice = recorders.length
     ? recorders.some((r) => r.id === connId)
       ? 'You are recording this meeting. Everyone in the room can see this.'
@@ -640,7 +646,7 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={{ ...me, id: connId }} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            map={map} spaceId={space.id} items={items} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}

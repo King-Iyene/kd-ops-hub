@@ -79,13 +79,13 @@ function TrayTile({ stream, name, speaking, muted, mirror, onMute, onOpen }: { s
     if (v && stream) { v.srcObject = stream; void v.play().catch(() => undefined); }
   }, [stream]);
   return (
-    <div className={`group relative h-28 w-40 shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-lg sm:h-32 sm:w-44 ${speaking ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.75)]' : 'border-white/70'}`}>
+    <div className={`group relative h-36 w-52 shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-lg sm:h-44 sm:w-64 lg:h-48 lg:w-72 ${speaking ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.75)]' : 'border-white/70'}`}>
       {stream ? (
         <video ref={ref} muted playsInline onClick={onOpen} className={`h-full w-full cursor-pointer object-cover ${mirror ? '-scale-x-100' : ''}`} />
       ) : (
-        <button type="button" onClick={onOpen} className="flex h-full w-full items-center justify-center"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/25 text-xl font-semibold text-primary">{name.slice(0, 1).toUpperCase()}</span></button>
+        <button type="button" onClick={onOpen} className="flex h-full w-full items-center justify-center"><span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/25 text-2xl font-semibold text-primary">{name.slice(0, 1).toUpperCase()}</span></button>
       )}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-2 py-0.5 text-[11px] text-white">
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-2.5 py-1 text-xs text-white">
         <span className="truncate">{name}</span>
         {onMute && (
           <button type="button" onClick={onMute} aria-label={muted ? `Unmute ${name}` : `Mute ${name}`} title={muted ? 'Unmute them' : 'Mute them (only for you)'} className="ml-1 rounded p-0.5 hover:bg-white/25">

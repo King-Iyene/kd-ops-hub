@@ -37,6 +37,17 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
     try { setLinks((l) => ({ ...l, [r.id]: '' })); const url = await signedRecordingUrl(r.path); setLinks((l) => ({ ...l, [r.id]: url })); }
     catch (e) { toast({ title: 'Could not open the recording', description: errorMessage(e), variant: 'destructive' }); }
   };
+  const download = async (r: RecordingRow, room: string) => {
+    try {
+      const ext = r.path.split('.').pop() || 'webm';
+      const name = `${room.replace(/\W+/g, '-')}-${new Date(r.started_at).toISOString().slice(0, 16).replace(/[:T]/g, '-')}-part-${r.part}.${ext}`;
+      const url = await signedRecordingUrl(r.path, name);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+    } catch (e) { toast({ title: 'Could not download', description: errorMessage(e), variant: 'destructive' }); }
+  };
   const remove = async (r: RecordingRow) => {
     if (!window.confirm('Delete this recording part permanently? This cannot be undone.')) return;
     try { await actions.deleteRecording(r); } catch (e) { toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' }); }
@@ -44,7 +55,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Meeting recordings</DialogTitle></DialogHeader>
 
         <section className="space-y-3">
@@ -58,14 +69,8 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
                 {s.parts.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center gap-2 text-xs">
                     <span className="w-28 shrink-0 text-muted-foreground">Part {r.part} · {fmtDuration(r.duration_s)} · {fmtSize(r.size_bytes)}</span>
-                    {links[r.id] ? (
-                      <>
-                        <audio controls src={links[r.id]} className="h-8 min-w-0 flex-1" />
-                        <a href={links[r.id]} download className="text-primary" aria-label="Download"><Download className="h-4 w-4" /></a>
-                      </>
-                    ) : (
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void listen(r)}>Listen</Button>
-                    )}
+                    {links[r.id] ? <audio controls src={links[r.id]} className="h-8 min-w-0 flex-1" /> : <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void listen(r)}>Listen</Button>}
+                    <Button size="sm" className="h-7 text-xs" onClick={() => void download(r, s.room)}><Download className="mr-1 h-3.5 w-3.5" />Download</Button>
                     {(isAdmin || r.recorded_by === meId) && (
                       <button type="button" onClick={() => void remove(r)} aria-label="Delete this part" className="ml-auto text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
                     )}

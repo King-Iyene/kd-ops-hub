@@ -1247,8 +1247,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // live camera bubble above the name tag, like Gather
   const v = p.bubble;
   if (v && v.readyState >= 2 && v.videoWidth > 0) {
-    const bw = 64;
-    const bh = 48;
+    const bw = 96;
+    const bh = 72;
     const bx = px - bw / 2;
     const by = ty - 9 - 8 - bh;
     ctx.fillStyle = 'rgba(15,23,42,0.3)';

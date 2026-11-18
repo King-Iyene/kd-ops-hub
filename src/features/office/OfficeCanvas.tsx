@@ -13,7 +13,9 @@ interface Props {
   /** the office being shown (people announced in a different office are hidden) */
   spaceId: string | null;
   items: Item[];
-  me: { id: string; name: string; avatar: AvatarStyle };
+  me: { id: string; uid: string; name: string; avatar: AvatarStyle };
+  /** testing only: draw other windows of my own account too */
+  showOwnTabs: boolean;
   roster: Who[];
   peers: React.MutableRefObject<Map<string, PeerMotion>>;
   /** live cameras by person id, drawn as bubbles above their heads */
@@ -248,8 +250,11 @@ export function OfficeCanvas(props: Props) {
       for (const [id, pm] of p.peers.current) {
         const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
         const info = who.get(id);
+        // only people the online list knows (so a duplicate or half-connected window is never drawn), never another window of me
+        if (!info) continue;
+        if (!p.showOwnTabs && info.uid === p.me.uid) continue;
         // someone who has walked into another office is not here any more (their last position is just stale)
-        if (info && info.spaceId && info.spaceId !== p.spaceId) continue;
+        if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
           name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,

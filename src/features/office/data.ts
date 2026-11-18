@@ -82,8 +82,8 @@ export function useRecordings(enabled: boolean) {
   });
 }
 
-export async function signedRecordingUrl(path: string): Promise<string> {
-  const { data, error } = await supabase.storage.from('office-recordings').createSignedUrl(path, 600);
+export async function signedRecordingUrl(path: string, downloadAs?: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('office-recordings').createSignedUrl(path, 600, downloadAs ? { download: downloadAs } : undefined);
   if (error || !data) throw error ?? new Error('No link');
   return data.signedUrl;
 }
