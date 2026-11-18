@@ -80,6 +80,9 @@ export function useCalls(opts: Opts) {
   const conns = useRef(new Map<string, Conn>());
   const local = useRef<LocalMedia>({ stream: null, audio: null, video: null, screen: null });
   const [sharing, setSharing] = useState(false);
+  /** who is talking right now ('' is me): a ref for the map (read every frame) and a state for the meeting view */
+  const speaking = useRef(new Set<string>());
+  const [speakingIds, setSpeakingIds] = useState<Set<string>>(new Set());
   const joinedRef = useRef(false);
   const mutedRef = useRef(mutedPeers);
   mutedRef.current = mutedPeers;
@@ -379,6 +382,60 @@ export function useCalls(opts: Opts) {
   }
   const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // listen to the loudness of my microphone and of everyone in the call to know who is talking
+  useEffect(() => {
+    if (!joined) return;
+    const ctx = new AudioContext();
+    const probes = new Map<string, { an: AnalyserNode; src: MediaStreamAudioSourceNode; buf: Uint8Array<ArrayBuffer>; last: number }>();
+    const level = (p: { an: AnalyserNode; buf: Uint8Array<ArrayBuffer> }) => {
+      p.an.getByteTimeDomainData(p.buf);
+      let sum = 0;
+      for (const v of p.buf) { const d = (v - 128) / 128; sum += d * d; }
+      return Math.sqrt(sum / p.buf.length);
+    };
+    const tick = () => {
+      const want = new Map<string, MediaStream>();
+      const l = local.current;
+      if (l.audio && l.audio.enabled) want.set('', new MediaStream([l.audio]));
+      for (const [id, c] of conns.current) if (c.stream.getAudioTracks().length) want.set(id, c.stream);
+      for (const [id, p] of probes) if (!want.has(id)) { p.src.disconnect(); probes.delete(id); }
+      for (const [id, st] of want) {
+        const trackId = st.getAudioTracks()[0]?.id ?? '';
+        const key = id + ':' + trackId;
+        const have = probes.get(id) as ({ key?: string } & ReturnType<typeof probes.get>) | undefined;
+        if (have && (have as unknown as { key: string }).key === key) continue;
+        if (have) { have.src.disconnect(); probes.delete(id); }
+        try {
+          const src = ctx.createMediaStreamSource(st);
+          const an = ctx.createAnalyser();
+          an.fftSize = 512;
+          src.connect(an);
+          const probe = { an, src, buf: new Uint8Array(an.fftSize) as Uint8Array<ArrayBuffer>, last: 0, key };
+          probes.set(id, probe as unknown as { an: AnalyserNode; src: MediaStreamAudioSourceNode; buf: Uint8Array<ArrayBuffer>; last: number });
+        } catch { /* a stream that cannot be listened to is simply never shown as talking */ }
+      }
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [id, p] of probes) {
+        if (level(p) > 0.03) p.last = now;
+        if (now - p.last < 350) next.add(id);
+      }
+      const prev = speaking.current;
+      if (next.size !== prev.size || [...next].some((x) => !prev.has(x))) {
+        speaking.current = next;
+        setSpeakingIds(next);
+      }
+    };
+    const timer = setInterval(tick, 120);
+    return () => {
+      clearInterval(timer);
+      for (const p of probes.values()) p.src.disconnect();
+      void ctx.close().catch(() => undefined);
+      speaking.current = new Set();
+      setSpeakingIds(new Set());
+    };
+  }, [joined]);
+
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__kdCalls = async () => {
       const out: Record<string, unknown>[] = [];
@@ -404,5 +461,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, sharing, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
 }

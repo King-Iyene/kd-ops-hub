@@ -976,6 +976,8 @@ export interface DrawPerson {
   bubble?: HTMLVideoElement | null;
   /** an emoji for their status, shown in the name tag */
   status?: string;
+  /** talking right now: a green glow on the picture and the name tag */
+  speaking?: boolean;
 }
 
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
@@ -995,6 +997,13 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 14, 6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (p.speaking) {
+    ctx.strokeStyle = `rgba(52,211,153,${0.65 + 0.3 * Math.sin(t / 110)})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
   ellipse(ctx, px, py + 11, 11, 4.5, 'rgba(15,23,42,0.24)');
@@ -1263,9 +1272,19 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.drawImage(v, sx, sy, sw, sh, bx, by, bw, bh);
     }
     ctx.restore();
-    const edge = p.isMe ? '#3b82f6' : '#ffffff';
+    const edge = p.speaking ? '#34d399' : p.isMe ? '#3b82f6' : '#ffffff';
+    if (p.speaking) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(52,211,153,0.9)';
+      ctx.shadowBlur = 12 + Math.sin(t / 110) * 4;
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 3;
+      rr(ctx, bx, by, bw, bh, 10);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.strokeStyle = edge;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = p.speaking ? 3 : 2;
     rr(ctx, bx, by, bw, bh, 10);
     ctx.stroke();
     ctx.fillStyle = edge;

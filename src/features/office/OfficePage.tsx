@@ -12,6 +12,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { MessageDialog, type Msg } from './MessageDialog';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
+import { MeetingView } from './calls/MeetingView';
 import { ProfileMenu } from './ProfileMenu';
 import { statusOf } from './status';
 import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
@@ -452,6 +453,8 @@ export default function OfficePage() {
   };
 
   const [zoom, setZoom] = useState(1);
+  const [meeting, setMeeting] = useState(false);
+  useEffect(() => { if (!calls.joined) setMeeting(false); }, [calls.joined]);
   const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
@@ -591,11 +594,14 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} update={update}
+            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} bubbles={bubbles} speaking={calls.speaking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
+          {meeting && calls.joined && (
+            <MeetingView me={me.name} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onClose={() => setMeeting(false)} />
+          )}
           {follow && (
             <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs shadow">
               <Footprints className="h-3.5 w-3.5 text-primary" />Following {roster.find((r) => r.id === follow)?.name ?? 'someone'}
@@ -604,7 +610,7 @@ export default function OfficePage() {
           )}
           {!editing && (
             <CallDock
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} tiles={calls.tiles}
               roomName={zone && zone.kind === 'meeting' ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}

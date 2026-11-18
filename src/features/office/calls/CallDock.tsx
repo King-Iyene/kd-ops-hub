@@ -1,4 +1,4 @@
-import { Circle, DoorOpen, Headphones, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
+import { Circle, DoorOpen, Headphones, LayoutGrid, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { Tile } from './useCalls';
 
@@ -11,6 +11,7 @@ interface Props {
   selfCam: MediaStream | null;
   sharing: boolean;
   onShare: () => void;
+  onMeeting: () => void;
   tiles: Tile[];
   /** name of the meeting room I am standing in, or null in the open */
   roomName: string | null;
@@ -68,8 +69,8 @@ function ScreenTile({ tile }: { tile: Tile }) {
 }
 
 /** One small icon button. */
-function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
+function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: boolean; ok?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : ok ? 'bg-emerald-500/20 text-emerald-600 ring-1 ring-emerald-500/50 hover:bg-emerald-500/30 dark:text-emerald-400' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${tone}`}>
       {children}
@@ -82,7 +83,7 @@ function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean;
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
+  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
@@ -144,9 +145,10 @@ export function CallDock({
             <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (
             <>
-              <Btn danger={!micOn} label={micOn ? 'Mute yourself' : 'Unmute yourself'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
-              <Btn danger={false} on={camOn} label={camOn ? 'Turn camera off' : 'Turn camera on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
+              <Btn ok={micOn} danger={!micOn} label={micOn ? 'Microphone is ON: click to mute' : 'Microphone is OFF: click to turn on'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
+              <Btn ok={camOn} danger={!camOn} label={camOn ? 'Camera is ON: click to turn off' : 'Camera is OFF: click to turn on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
               <Btn on={sharing} label={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'} onClick={onShare}>{sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}</Btn>
+              <Btn label="Meeting view: everyone large, like a meeting" onClick={onMeeting}><LayoutGrid className="h-4 w-4" /></Btn>
               {canRecord && roomName && (
                 recording
                   ? <Btn danger label="Stop recording" onClick={onStopRecord}><Square className="h-3 w-3 fill-current" />{clock(recSeconds)}</Btn>
