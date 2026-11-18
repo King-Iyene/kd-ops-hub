@@ -27,6 +27,30 @@ export function useSpaces() {
 }
 
 /** Makes sure the signed-in person has a personal office (the database also does this automatically). */
+export interface Person { id: string; name: string; avatar: AvatarStyle }
+
+/** First name and last initial, the way people appear in the office. */
+export function shortName(full: string | null | undefined): string {
+  const parts = (full ?? '').split(' ').filter(Boolean);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : (parts[0] ?? 'Someone');
+}
+
+/** Everyone in the company with their avatar, so people who are offline can be listed too. */
+export function useDirectory() {
+  return useQuery({
+    queryKey: ['office', 'directory'],
+    queryFn: async (): Promise<Person[]> => {
+      const [{ data: ppl }, { data: avs }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').order('full_name'),
+        supabase.from('office_avatars').select('profile_id, style'),
+      ]);
+      const styles = new Map((avs ?? []).map((a) => [a.profile_id as string, a.style]));
+      return (ppl ?? []).map((p) => ({ id: p.id as string, name: shortName(p.full_name as string), avatar: cleanAvatar(styles.get(p.id as string), p.id as string) }));
+    },
+    staleTime: 60_000,
+  });
+}
+
 export async function ensurePersonalOffice(userId: string) {
   await supabase.rpc('office_provision_personal', { p_profile: userId });
 }
@@ -82,8 +106,8 @@ export function useRecordings(enabled: boolean) {
   });
 }
 
-export async function signedRecordingUrl(path: string): Promise<string> {
-  const { data, error } = await supabase.storage.from('office-recordings').createSignedUrl(path, 600);
+export async function signedRecordingUrl(path: string, downloadAs?: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('office-recordings').createSignedUrl(path, 600, downloadAs ? { download: downloadAs } : undefined);
   if (error || !data) throw error ?? new Error('No link');
   return data.signedUrl;
 }

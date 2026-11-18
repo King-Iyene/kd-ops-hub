@@ -2,10 +2,13 @@
 
 export type ItemType =
   | 'desk' | 'chair' | 'computer' | 'plant' | 'sofa' | 'table' | 'shelf' | 'rug' | 'whiteboard' | 'lamp' | 'coffee' | 'bin'
-  | 'flowers' | 'tree' | 'grass' | 'papers' | 'mug' | 'tv' | 'printer' | 'cooler' | 'beanbag' | 'coffeetable';
+  | 'flowers' | 'tree' | 'grass' | 'papers' | 'mug' | 'tv' | 'printer' | 'cooler' | 'beanbag' | 'coffeetable'
+  | 'laptop' | 'books' | 'plate' | 'globe' | 'trophy' | 'headphones' | 'pizza' | 'mat' | 'balloons' | 'cactus' | 'bamboo'
+  | 'hedge' | 'fountain' | 'palm' | 'bench' | 'piano' | 'fireplace' | 'fishtank' | 'speaker' | 'stool' | 'roundtable'
+  | 'frame' | 'vending';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */
-export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3 }
+export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3; /** paint colour: an index into ITEM_COLORS (none = the original look) */ c?: number }
 
 export interface ItemDef {
   /** size in tiles, before rotation */

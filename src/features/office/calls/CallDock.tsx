@@ -1,4 +1,4 @@
-import { Circle, DoorOpen, Headphones, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
+import { Circle, DoorOpen, Headphones, LayoutGrid, Lock, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { Tile } from './useCalls';
 
@@ -11,6 +11,12 @@ interface Props {
   selfCam: MediaStream | null;
   sharing: boolean;
   onShare: () => void;
+  onMeeting: () => void;
+  /** ids of people talking now ('' is me), and my name, for the video tray */
+  speakingIds: Set<string>;
+  meName: string;
+  /** size of the video tiles: 0 small, 1 medium, 2 large */
+  traySize: 0 | 1 | 2;
   tiles: Tile[];
   /** name of the meeting room I am standing in, or null in the open */
   roomName: string | null;
@@ -67,9 +73,37 @@ function ScreenTile({ tile }: { tile: Tile }) {
   );
 }
 
+/** A person in the video tray: their picture (or an initial), a green frame while they talk, mute, click for the big view. */
+const TRAY_SIZES = ['h-24 w-36', 'h-36 w-52 sm:h-44 sm:w-64', 'h-48 w-72 sm:h-60 sm:w-80'];
+
+function TrayTile({ stream, name, speaking, muted, mirror, size, onMute, onOpen }: { size: 0 | 1 | 2; stream: MediaStream | null; name: string; speaking: boolean; muted?: boolean; mirror?: boolean; onMute?: () => void; onOpen: () => void }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (v && stream) { v.srcObject = stream; void v.play().catch(() => undefined); }
+  }, [stream]);
+  return (
+    <div className={`group relative ${TRAY_SIZES[size]} shrink-0 overflow-hidden rounded-xl border-2 bg-slate-900 shadow-lg ${speaking ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.75)]' : 'border-white/70'}`}>
+      {stream ? (
+        <video ref={ref} muted playsInline onClick={onOpen} className={`h-full w-full cursor-pointer object-cover ${mirror ? '-scale-x-100' : ''}`} />
+      ) : (
+        <button type="button" onClick={onOpen} className="flex h-full w-full items-center justify-center"><span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/25 text-2xl font-semibold text-primary">{name.slice(0, 1).toUpperCase()}</span></button>
+      )}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-2.5 py-1 text-xs text-white">
+        <span className="truncate">{name}</span>
+        {onMute && (
+          <button type="button" onClick={onMute} aria-label={muted ? `Unmute ${name}` : `Mute ${name}`} title={muted ? 'Unmute them' : 'Mute them (only for you)'} className="ml-1 rounded p-0.5 hover:bg-white/25">
+            {muted ? <VolumeX className="h-3.5 w-3.5 text-red-400" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** One small icon button. */
-function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
+function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: boolean; ok?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : ok ? 'bg-emerald-500/20 text-emerald-600 ring-1 ring-emerald-500/50 hover:bg-emerald-500/30 dark:text-emerald-400' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${tone}`}>
       {children}
@@ -82,7 +116,7 @@ function Btn({ on, danger, label, onClick, disabled, children }: { on?: boolean;
  * Cameras show as bubbles above people on the map; this keeps the people you can hear (with a mute each) and shared screens.
  */
 export function CallDock({
-  joined, busy, error, micOn, camOn, sharing, onShare, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
+  joined, busy, error, micOn, camOn, sharing, onShare, onMeeting, speakingIds, meName, traySize, selfCam, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer,
   canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent,
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
@@ -90,17 +124,17 @@ export function CallDock({
   const people = tiles.filter((t) => !t.screen);
   return (
     <>
-      {joined && (screens.length > 0 || people.length > 0) && (
+      {joined && (people.length > 0 || camOn) && (
+        <div className="pointer-events-auto absolute left-1/2 top-3 z-10 flex max-w-[92%] -translate-x-1/2 gap-2 overflow-x-auto px-1 pb-1">
+          {camOn && selfCam && <TrayTile size={traySize} stream={selfCam} name={`You${meName ? '' : ''}`} speaking={speakingIds.has('')} mirror onOpen={onMeeting} />}
+          {people.map((t) => (
+            <TrayTile key={t.id} size={traySize} stream={t.hasVideo ? t.stream : null} name={t.name} speaking={speakingIds.has(t.id)} muted={t.muted} onMute={() => onMutePeer(t.id)} onOpen={onMeeting} />
+          ))}
+        </div>
+      )}
+      {joined && screens.length > 0 && (
         <div className="absolute right-3 top-3 flex max-h-[75%] flex-col items-end gap-1.5 overflow-y-auto">
           {screens.map((t) => <ScreenTile key={t.id} tile={t} />)}
-          {people.map((t) => (
-            <div key={t.id} className="flex items-center gap-1.5 rounded-full border border-border bg-background/90 py-0.5 pl-2.5 pr-1 text-[11px] shadow backdrop-blur">
-              <span className="max-w-[7rem] truncate">{t.name}</span>
-              <button type="button" onClick={() => onMutePeer(t.id)} aria-label={t.muted ? `Unmute ${t.name}` : `Mute ${t.name}`} title={t.muted ? 'Unmute them' : 'Mute them (only for you)'} className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted">
-                {t.muted ? <VolumeX className="h-3 w-3 text-red-500" /> : <Volume2 className="h-3 w-3" />}
-              </button>
-            </div>
-          ))}
         </div>
       )}
       <div className="pointer-events-none absolute inset-x-0 bottom-2 flex flex-col items-center gap-1 px-3">
@@ -144,9 +178,10 @@ export function CallDock({
             <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (
             <>
-              <Btn danger={!micOn} label={micOn ? 'Mute yourself' : 'Unmute yourself'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
-              <Btn danger={false} on={camOn} label={camOn ? 'Turn camera off' : 'Turn camera on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
+              <Btn ok={micOn} danger={!micOn} label={micOn ? 'Microphone is ON: click to mute' : 'Microphone is OFF: click to turn on'} onClick={onMic}>{micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Btn>
+              <Btn ok={camOn} danger={!camOn} label={camOn ? 'Camera is ON: click to turn off' : 'Camera is OFF: click to turn on'} onClick={onCam}>{camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Btn>
               <Btn on={sharing} label={sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'} onClick={onShare}>{sharing ? <MonitorOff className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}</Btn>
+              <Btn label="Meeting view: everyone large, like a meeting" onClick={onMeeting}><LayoutGrid className="h-4 w-4" /></Btn>
               {canRecord && roomName && (
                 recording
                   ? <Btn danger label="Stop recording" onClick={onStopRecord}><Square className="h-3 w-3 fill-current" />{clock(recSeconds)}</Btn>

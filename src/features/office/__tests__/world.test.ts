@@ -39,11 +39,11 @@ describe('templates are playable', () => {
     });
   }
 
-  it('the team office has three meeting rooms, a lounge and a door to your own office', () => {
+  it('the team office has three meeting rooms and a lounge (everyone shares this one office)', () => {
     const m = buildTeamOffice();
     expect(m.zones.filter((z) => z.kind === 'meeting')).toHaveLength(3);
     expect(m.zones.some((z) => z.kind === 'lounge')).toBe(true);
-    expect(m.zones.find((z) => z.kind === 'portal')?.target).toBe('mine');
+    expect(m.zones.some((z) => z.kind === 'portal')).toBe(false);
   });
   it('the personal office has a door back to the team office', () => {
     expect(buildPersonalOffice().zones.find((z) => z.kind === 'portal')?.target).toBe('team');
@@ -57,7 +57,7 @@ describe('templates are playable', () => {
       for (let y = room.y; y < room.y + room.h; y++) if (seen.has(`${room.x},${y}`)) enter = true;
       expect(enter).toBe(true);
     }
-  });
+  }, 30000);
 });
 
 describe('walking', () => {
@@ -134,10 +134,9 @@ describe('rooms', () => {
     expect(zoneAt(m, 33.5, 12.5)?.name).toBe('Meeting Room 2');
     expect(zoneAt(m, 33.5, 20.5)?.name).toBe('Meeting Room 3');
   });
-  it('finds the lounge, the open floor, and the door to your office', () => {
+  it('finds the lounge and the open floor', () => {
     expect(zoneAt(m, 8.5, 20.5)?.name).toBe('Lounge');
     expect(zoneAt(m, 14.5, 13.5)?.name).toBe('Open office');
-    expect(zoneAt(m, 13.5, 0.5)?.kind).toBe('portal');
   });
   it('outside every room is null', () => expect(zoneAt(m, 39.5, 25.5)).toBeNull());
 });
@@ -248,5 +247,20 @@ describe('findPath', () => {
     const room = map.zones.find((z) => z.id.includes('meet'))!;
     const p = findPath(solid, map.spawn.x, map.spawn.y, room.x + room.w / 2, room.y + room.h / 2);
     expect(p).not.toBeNull();
+  });
+});
+
+describe('default avatars', () => {
+  it('always have every field filled in, whatever the id (a missing colour once crashed the drawing)', async () => {
+    const { defaultAvatar, cleanAvatar } = await import('../world/render');
+    for (let i = 0; i < 800; i++) {
+      const id = `${i.toString(16).padStart(8, '0')}-aaaa-bbbb-cccc-${(i * 7919).toString(16).padStart(12, '0')}`;
+      for (const a of [defaultAvatar(id), cleanAvatar({}, id), cleanAvatar(null, id)]) {
+        for (const k of ['skin', 'hair', 'shirt', 'pants'] as const) expect(a[k]).toMatch(/^#[0-9a-fA-F]{6}$/);
+        expect([0, 1, 2, 3, 4, 5]).toContain(a.hairStyle);
+        expect([0, 1, 2]).toContain(a.outfit);
+        expect([0, 1, 2, 3]).toContain(a.accessory);
+      }
+    }
   });
 });

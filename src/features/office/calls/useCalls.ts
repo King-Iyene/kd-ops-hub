@@ -55,6 +55,8 @@ interface Opts {
   meId: string | null;
   spaceId: string | null;
   roster: Who[];
+  /** everyone whose movement we are receiving in this office (does not depend on the online list) */
+  peerIds: () => string[];
   /** where someone else is standing (null when unknown) */
   lookup: (id: string) => Spot | null;
   /** where I am standing */
@@ -78,6 +80,9 @@ export function useCalls(opts: Opts) {
   const conns = useRef(new Map<string, Conn>());
   const local = useRef<LocalMedia>({ stream: null, audio: null, video: null, screen: null });
   const [sharing, setSharing] = useState(false);
+  /** who is talking right now ('' is me): a ref for the map (read every frame) and a state for the meeting view */
+  const speaking = useRef(new Set<string>());
+  const [speakingIds, setSpeakingIds] = useState<Set<string>>(new Set());
   const joinedRef = useRef(false);
   const mutedRef = useRef(mutedPeers);
   mutedRef.current = mutedPeers;
@@ -132,6 +137,14 @@ export function useCalls(opts: Opts) {
       t.onmute = bump;
       t.onunmute = bump;
       t.onended = () => { target.removeTrack(t); bump(); };
+      if (t.kind === 'audio') {
+        // browsers may refuse to play sound until the person has touched the page: start now, and retry on the next touch
+        void audio.play().catch(() => {
+          const again = () => { void audio.play().catch(() => undefined); };
+          window.addEventListener('pointerdown', again, { once: true });
+          window.addEventListener('keydown', again, { once: true });
+        });
+      }
       bump();
     };
     pc.onconnectionstatechange = () => {
@@ -140,6 +153,7 @@ export function useCalls(opts: Opts) {
 
     const l = local.current;
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
+    else pc.addTransceiver('audio', { direction: 'recvonly' }); // listening only: still receive their voice
     if (l.stream && l.video) c.videoSender = pc.addTrack(l.video, l.stream);
     if (l.screen) c.screenSender = pc.addTrack(l.screen.track, l.screen.stream);
     bump();
@@ -187,21 +201,22 @@ export function useCalls(opts: Opts) {
   useEffect(() => {
     if (!joined) return;
     const tick = () => {
-      const { meId, spaceId, roster, lookup, self } = o.current;
+      const { meId, peerIds, lookup, self } = o.current;
       if (!meId) return;
       const mine = self();
       const here = new Set<string>();
-      for (const r of roster) {
-        if (r.id === meId || r.spaceId !== spaceId) continue;
-        here.add(r.id);
-        const other = lookup(r.id);
+      // who is near comes from the movement we receive, so calls work even when the online list is behind
+      for (const id of peerIds()) {
+        if (id === meId) continue;
+        here.add(id);
+        const other = lookup(id);
         if (!other) continue;
-        const c = conns.current.get(r.id);
+        const c = conns.current.get(id);
         const want = wantsConnection(mine, other, !!c);
-        if (want && !c && isInitiator(meId, r.id)) create(r.id);
-        else if (!want && c) close(r.id);
-        const cur = conns.current.get(r.id);
-        if (cur) cur.audio.volume = mutedRef.current.has(r.id) ? 0 : volumeFor(mine, other);
+        if (want && !c && isInitiator(meId, id)) create(id);
+        else if (!want && c) close(id);
+        const cur = conns.current.get(id);
+        if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other);
       }
       for (const id of [...conns.current.keys()]) if (!here.has(id)) close(id);
     };
@@ -232,11 +247,21 @@ export function useCalls(opts: Opts) {
     setBusy(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (e) {
+        // no microphone (blocked or missing): join listening only, and say why
+        stream = new MediaStream();
+        const n = (e as DOMException)?.name;
+        setError(n === 'NotAllowedError'
+          ? 'Microphone is blocked in your browser, so you can listen but not speak. Click the padlock left of the web address, set Microphone to Allow, then press the mic button.'
+          : 'No microphone found, so you can listen but not speak.');
+      }
       local.current = { stream, audio: stream.getAudioTracks()[0] ?? null, video: null, screen: null };
       joinedRef.current = true;
       setJoined(true);
-      setMicOn(true);
+      setMicOn(!!local.current.audio);
       setCamOn(false);
     } catch (e) {
       const name = (e as DOMException)?.name;
@@ -257,11 +282,26 @@ export function useCalls(opts: Opts) {
 
   useEffect(() => () => { joinedRef.current = false; closeAll(); stopLocal(); }, [closeAll, stopLocal]);
 
-  const toggleMic = useCallback(() => {
-    const t = local.current.audio;
-    if (!t) return;
-    t.enabled = !t.enabled;
-    setMicOn(t.enabled);
+  const toggleMic = useCallback(async () => {
+    const l = local.current;
+    if (!l.stream) return;
+    if (!l.audio) {
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        const track = mic.getAudioTracks()[0];
+        if (!track) return;
+        l.stream.addTrack(track);
+        l.audio = track;
+        for (const c of conns.current.values()) c.pc.addTrack(track, l.stream);
+        setMicOn(true);
+        setError(null);
+      } catch {
+        setError('Microphone is still blocked. Click the padlock left of the web address and set Microphone to Allow.');
+      }
+      return;
+    }
+    l.audio.enabled = !l.audio.enabled;
+    setMicOn(l.audio.enabled);
   }, []);
 
   const toggleCam = useCallback(async () => {
@@ -276,6 +316,7 @@ export function useCalls(opts: Opts) {
       l.video = null;
       setCamOn(false);
       setSelfCam(null);
+      try { localStorage.setItem('kd:office:cam', '0'); } catch { /* fine */ }
       return;
     }
     try {
@@ -287,6 +328,7 @@ export function useCalls(opts: Opts) {
       for (const c of conns.current.values()) c.videoSender = c.pc.addTrack(track, l.stream);
       setCamOn(true);
       setSelfCam(new MediaStream([track]));
+      try { localStorage.setItem('kd:office:cam', '1'); } catch { /* fine */ }
       setError(null);
     } catch {
       setError('Could not start the camera. Click the padlock left of the web address, set Camera to Allow, and try again.');
@@ -350,6 +392,76 @@ export function useCalls(opts: Opts) {
   }
   const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // listen to the loudness of my microphone and of everyone in the call to know who is talking
+  useEffect(() => {
+    if (!joined) return;
+    const ctx = new AudioContext();
+    const probes = new Map<string, { an: AnalyserNode; src: MediaStreamAudioSourceNode; buf: Uint8Array<ArrayBuffer>; last: number }>();
+    const level = (p: { an: AnalyserNode; buf: Uint8Array<ArrayBuffer> }) => {
+      p.an.getByteTimeDomainData(p.buf);
+      let sum = 0;
+      for (const v of p.buf) { const d = (v - 128) / 128; sum += d * d; }
+      return Math.sqrt(sum / p.buf.length);
+    };
+    const tick = () => {
+      const want = new Map<string, MediaStream>();
+      const l = local.current;
+      if (l.audio && l.audio.enabled) want.set('', new MediaStream([l.audio]));
+      for (const [id, c] of conns.current) if (c.stream.getAudioTracks().length) want.set(id, c.stream);
+      for (const [id, p] of probes) if (!want.has(id)) { p.src.disconnect(); probes.delete(id); }
+      for (const [id, st] of want) {
+        const trackId = st.getAudioTracks()[0]?.id ?? '';
+        const key = id + ':' + trackId;
+        const have = probes.get(id) as ({ key?: string } & ReturnType<typeof probes.get>) | undefined;
+        if (have && (have as unknown as { key: string }).key === key) continue;
+        if (have) { have.src.disconnect(); probes.delete(id); }
+        try {
+          const src = ctx.createMediaStreamSource(st);
+          const an = ctx.createAnalyser();
+          an.fftSize = 512;
+          src.connect(an);
+          const probe = { an, src, buf: new Uint8Array(an.fftSize) as Uint8Array<ArrayBuffer>, last: 0, key };
+          probes.set(id, probe as unknown as { an: AnalyserNode; src: MediaStreamAudioSourceNode; buf: Uint8Array<ArrayBuffer>; last: number });
+        } catch { /* a stream that cannot be listened to is simply never shown as talking */ }
+      }
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [id, p] of probes) {
+        if (level(p) > 0.03) p.last = now;
+        if (now - p.last < 350) next.add(id);
+      }
+      const prev = speaking.current;
+      if (next.size !== prev.size || [...next].some((x) => !prev.has(x))) {
+        speaking.current = next;
+        setSpeakingIds(next);
+      }
+    };
+    const timer = setInterval(tick, 120);
+    return () => {
+      clearInterval(timer);
+      for (const p of probes.values()) p.src.disconnect();
+      void ctx.close().catch(() => undefined);
+      speaking.current = new Set();
+      setSpeakingIds(new Set());
+    };
+  }, [joined]);
+
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__kdCalls = async () => {
+      const out: Record<string, unknown>[] = [];
+      for (const [id, c] of conns.current) {
+        let inBytes = 0;
+        let outBytes = 0;
+        (await c.pc.getStats()).forEach((r) => {
+          if (r.type === 'inbound-rtp') inBytes += r.bytesReceived ?? 0;
+          if (r.type === 'outbound-rtp') outBytes += r.bytesSent ?? 0;
+        });
+        out.push({ id: id.slice(0, 8), state: c.pc.connectionState, ice: c.pc.iceConnectionState, inBytes, outBytes, audio: c.stream.getAudioTracks().length, video: c.stream.getVideoTracks().length, screen: c.screen.getVideoTracks().length });
+      }
+      return { joined: joinedRef.current, peers: out };
+    };
+  }, []);
+
   /** Every audio stream in the call right now (mine and everyone connected), for the recorder to mix. */
   const audioStreams = useCallback((): MediaStream[] => {
     const out: MediaStream[] = [];
@@ -359,5 +471,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, sharing, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams };
 }

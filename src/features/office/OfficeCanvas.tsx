@@ -6,18 +6,22 @@ import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
 
-export type EditTool = ItemType | 'erase' | null;
+export type EditTool = ItemType | 'erase' | 'paint' | null;
 
 interface Props {
   map: MapDef;
   /** the office being shown (people announced in a different office are hidden) */
   spaceId: string | null;
   items: Item[];
-  me: { id: string; name: string; avatar: AvatarStyle };
+  me: { id: string; uid: string; name: string; avatar: AvatarStyle };
+  /** testing only: draw other windows of my own account too */
+  showOwnTabs: boolean;
   roster: Who[];
   peers: React.MutableRefObject<Map<string, PeerMotion>>;
   /** live cameras by person id, drawn as bubbles above their heads */
   bubbles: React.MutableRefObject<Map<string, HTMLVideoElement>>;
+  /** ids of people talking now ('' is me) */
+  speaking: React.MutableRefObject<Set<string>>;
   update: (m: Motion, dir: 0 | 1 | 2 | 3, now: number) => void;
   onZone: (zone: Zone | null) => void;
   /** may I walk into this meeting room? (false while it is locked and nobody has let me in) */
@@ -51,11 +55,12 @@ export function OfficeCanvas(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
-  const meRef = useRef({ x: props.map.spawn.x, y: props.map.spawn.y, dir: 0 as 0 | 1 | 2 | 3, vx: 0, vy: 0 });
+  const meRef = useRef({ x: props.map.spawn.x, y: props.map.spawn.y, dir: 0 as 0 | 1 | 2 | 3, vx: 0, vy: 0, sx: 0, sy: 0 });
   const keys = useRef(new Set<string>());
   const zoneId = useRef<string | null>('__none__');
   const portalCooldown = useRef(0);
   const lastJump = useRef(0);
+  const drawFailed = useRef(false);
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
   const lastPlan = useRef(0);
@@ -65,7 +70,7 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance
   useEffect(() => {
-    meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0 };
+    meRef.current = { x: props.map.spawn.x, y: props.map.spawn.y, dir: 0, vx: 0, vy: 0, sx: 0, sy: 0 };
     zoneId.current = '__none__';
     portalCooldown.current = performance.now() + 800; // do not bounce straight back through the door we just used
   }, [props.map]);
@@ -182,7 +187,12 @@ export function OfficeCanvas(props: Props) {
         }
         me.vx = v.vx;
         me.vy = v.vy;
-        const np = advance(solid, me.x, me.y, v.vx, v.vy, dt);
+        const ease = 1 - Math.exp(-dt * 15);
+        me.sx += (v.vx - me.sx) * ease;
+        me.sy += (v.vy - me.sy) * ease;
+        if (v.vx === 0 && Math.abs(me.sx) < 0.08) me.sx = 0;
+        if (v.vy === 0 && Math.abs(me.sy) < 0.08) me.sy = 0;
+        const np = advance(solid, me.x, me.y, me.sx, me.sy, dt);
         // a locked meeting room is a closed door: stay where we are (the page knocks for us)
         const nz = zoneAt(p.map, np.x, np.y);
         if (nz && nz.kind === 'meeting' && !p.canEnter(nz.id)) {
@@ -236,6 +246,7 @@ export function OfficeCanvas(props: Props) {
       ctx.save();
       ctx.translate(ox, oy);
       ctx.scale(scale, scale);
+      try {
       drawFloor(ctx, p.map, theme, now);
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -244,14 +255,17 @@ export function OfficeCanvas(props: Props) {
       for (const [id, pm] of p.peers.current) {
         const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
         const info = who.get(id);
+        // only people the online list knows (so a duplicate or half-connected window is never drawn), never another window of me
+        if (!info) continue;
+        if (!p.showOwnTabs && info.uid === p.me.uid) continue;
         // someone who has walked into another office is not here any more (their last position is just stale)
-        if (info && info.spaceId && info.spaceId !== p.spaceId) continue;
+        if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: me.vx !== 0 || me.vy !== 0, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
@@ -289,6 +303,9 @@ export function OfficeCanvas(props: Props) {
           ctx.fillStyle = p.tool === 'erase' ? 'rgba(239,68,68,0.35)' : res.ok ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
           ctx.fillRect(hv.x * TILE, hv.y * TILE, TILE, TILE);
         }
+      }
+      } catch (err) {
+        if (!drawFailed.current) { drawFailed.current = true; console.error('office draw failed', err); }
       }
       ctx.restore();
       drawVignette(ctx, w, h, p.dark);
