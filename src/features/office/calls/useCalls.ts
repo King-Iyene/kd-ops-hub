@@ -140,6 +140,7 @@ export function useCalls(opts: Opts) {
 
     const l = local.current;
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
+    else pc.addTransceiver('audio', { direction: 'recvonly' }); // listening only: still receive their voice
     if (l.stream && l.video) c.videoSender = pc.addTrack(l.video, l.stream);
     if (l.screen) c.screenSender = pc.addTrack(l.screen.track, l.screen.stream);
     bump();
@@ -232,11 +233,21 @@ export function useCalls(opts: Opts) {
     setBusy(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (e) {
+        // no microphone (blocked or missing): join listening only, and say why
+        stream = new MediaStream();
+        const n = (e as DOMException)?.name;
+        setError(n === 'NotAllowedError'
+          ? 'Microphone is blocked in your browser, so you can listen but not speak. Click the padlock left of the web address, set Microphone to Allow, then press the mic button.'
+          : 'No microphone found, so you can listen but not speak.');
+      }
       local.current = { stream, audio: stream.getAudioTracks()[0] ?? null, video: null, screen: null };
       joinedRef.current = true;
       setJoined(true);
-      setMicOn(true);
+      setMicOn(!!local.current.audio);
       setCamOn(false);
     } catch (e) {
       const name = (e as DOMException)?.name;
@@ -257,11 +268,26 @@ export function useCalls(opts: Opts) {
 
   useEffect(() => () => { joinedRef.current = false; closeAll(); stopLocal(); }, [closeAll, stopLocal]);
 
-  const toggleMic = useCallback(() => {
-    const t = local.current.audio;
-    if (!t) return;
-    t.enabled = !t.enabled;
-    setMicOn(t.enabled);
+  const toggleMic = useCallback(async () => {
+    const l = local.current;
+    if (!l.stream) return;
+    if (!l.audio) {
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        const track = mic.getAudioTracks()[0];
+        if (!track) return;
+        l.stream.addTrack(track);
+        l.audio = track;
+        for (const c of conns.current.values()) c.pc.addTrack(track, l.stream);
+        setMicOn(true);
+        setError(null);
+      } catch {
+        setError('Microphone is still blocked. Click the padlock left of the web address and set Microphone to Allow.');
+      }
+      return;
+    }
+    l.audio.enabled = !l.audio.enabled;
+    setMicOn(l.audio.enabled);
   }, []);
 
   const toggleCam = useCallback(async () => {
@@ -349,6 +375,22 @@ export function useCalls(opts: Opts) {
     }
   }
   const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__kdCalls = async () => {
+      const out: Record<string, unknown>[] = [];
+      for (const [id, c] of conns.current) {
+        let inBytes = 0;
+        let outBytes = 0;
+        (await c.pc.getStats()).forEach((r) => {
+          if (r.type === 'inbound-rtp') inBytes += r.bytesReceived ?? 0;
+          if (r.type === 'outbound-rtp') outBytes += r.bytesSent ?? 0;
+        });
+        out.push({ id: id.slice(0, 8), state: c.pc.connectionState, ice: c.pc.iceConnectionState, inBytes, outBytes, audio: c.stream.getAudioTracks().length, video: c.stream.getVideoTracks().length, screen: c.screen.getVideoTracks().length });
+      }
+      return { joined: joinedRef.current, peers: out };
+    };
+  }, []);
 
   /** Every audio stream in the call right now (mine and everyone connected), for the recorder to mix. */
   const audioStreams = useCallback((): MediaStream[] => {
