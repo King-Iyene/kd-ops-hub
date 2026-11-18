@@ -16605,6 +16605,1110 @@ export type Database = {
           },
         ]
       }
+      tk_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          diff: Json | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          diff?: Json | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          id?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          diff?: Json | null
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["tk_entity_type"]
+          id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_activity_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "tk_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_attachments: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          filename: string
+          id: string
+          mime: string | null
+          size_bytes: number | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          filename: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["tk_entity_type"]
+          filename?: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      tk_checklist_items: {
+        Row: {
+          checklist_id: string
+          created_at: string
+          id: string
+          is_done: boolean
+          position: number
+          text: string
+        }
+        Insert: {
+          checklist_id: string
+          created_at?: string
+          id?: string
+          is_done?: boolean
+          position?: number
+          text: string
+        }
+        Update: {
+          checklist_id?: string
+          created_at?: string
+          id?: string
+          is_done?: boolean
+          position?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_checklist_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "tk_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_checklists: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          position: number
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_checklists_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_comments: {
+        Row: {
+          body: Json
+          body_text: string | null
+          created_at: string
+          created_by: string
+          edited_at: string | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          id: string
+          mentions: string[]
+        }
+        Insert: {
+          body: Json
+          body_text?: string | null
+          created_at?: string
+          created_by: string
+          edited_at?: string | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          id?: string
+          mentions?: string[]
+        }
+        Update: {
+          body?: Json
+          body_text?: string | null
+          created_at?: string
+          created_by?: string
+          edited_at?: string | null
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["tk_entity_type"]
+          id?: string
+          mentions?: string[]
+        }
+        Relationships: []
+      }
+      tk_dashboard_cards: {
+        Row: {
+          config: Json
+          created_at: string
+          dashboard_id: string
+          id: string
+          ignores_global_filter: boolean
+          layout: Json
+          position: number
+          title: string
+          type: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          dashboard_id: string
+          id?: string
+          ignores_global_filter?: boolean
+          layout?: Json
+          position?: number
+          title: string
+          type: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          dashboard_id?: string
+          id?: string
+          ignores_global_filter?: boolean
+          layout?: Json
+          position?: number
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_dashboard_cards_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "tk_dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_dashboards: {
+        Row: {
+          created_at: string
+          global_filters: Json
+          id: string
+          name: string
+          owner_id: string | null
+          scope: Database["public"]["Enums"]["tk_dashboard_scope"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          global_filters?: Json
+          id?: string
+          name?: string
+          owner_id?: string | null
+          scope?: Database["public"]["Enums"]["tk_dashboard_scope"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          global_filters?: Json
+          id?: string
+          name?: string
+          owner_id?: string | null
+          scope?: Database["public"]["Enums"]["tk_dashboard_scope"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_dashboards_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "tk_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_data_tables: {
+        Row: {
+          archived_at: string | null
+          auto_number_seq: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          position: number
+          primary_field_id: string | null
+          space_id: string
+          task_mapping: Json | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          auto_number_seq?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          position?: number
+          primary_field_id?: string | null
+          space_id: string
+          task_mapping?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          auto_number_seq?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          position?: number
+          primary_field_id?: string | null
+          space_id?: string
+          task_mapping?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_data_tables_primary_field_fkey"
+            columns: ["primary_field_id"]
+            isOneToOne: false
+            referencedRelation: "tk_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_data_tables_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tk_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_fields: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          is_hidden: boolean
+          is_required: boolean
+          name: string
+          parent_id: string
+          parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          position: number
+          type: Database["public"]["Enums"]["tk_field_type"]
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          is_hidden?: boolean
+          is_required?: boolean
+          name: string
+          parent_id: string
+          parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          position?: number
+          type: Database["public"]["Enums"]["tk_field_type"]
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          is_hidden?: boolean
+          is_required?: boolean
+          name?: string
+          parent_id?: string
+          parent_type?: Database["public"]["Enums"]["tk_field_parent"]
+          position?: number
+          type?: Database["public"]["Enums"]["tk_field_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tk_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          field_config: Json
+          id: string
+          is_active: boolean
+          name: string
+          notify_user_ids: string[]
+          public_token: string | null
+          require_auth: boolean
+          settings: Json
+          slug: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          field_config?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          notify_user_ids?: string[]
+          public_token?: string | null
+          require_auth?: boolean
+          settings?: Json
+          slug: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          field_config?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          notify_user_ids?: string[]
+          public_token?: string | null
+          require_auth?: boolean
+          settings?: Json
+          slug?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_forms_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tk_data_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_lists: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          position: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          position?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          position?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_lists_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tk_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["tk_entity_type"] | null
+          id: string
+          payload: Json
+          read_at: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["tk_entity_type"] | null
+          id?: string
+          payload?: Json
+          read_at?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["tk_entity_type"] | null
+          id?: string
+          payload?: Json
+          read_at?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tk_reactions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          emoji: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          emoji: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          emoji?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_reactions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "tk_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_record_people: {
+        Row: {
+          field_id: string
+          record_id: string
+          user_id: string
+        }
+        Insert: {
+          field_id: string
+          record_id: string
+          user_id: string
+        }
+        Update: {
+          field_id?: string
+          record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_record_people_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "tk_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_record_task_links: {
+        Row: {
+          field_id: string
+          record_id: string
+          task_id: string
+        }
+        Insert: {
+          field_id: string
+          record_id: string
+          task_id: string
+        }
+        Update: {
+          field_id?: string
+          record_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_record_task_links_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "tk_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_record_task_links_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_records: {
+        Row: {
+          archived_at: string | null
+          auto_number: number | null
+          created_at: string
+          created_by: string | null
+          form_id: string | null
+          id: string
+          search_vector: unknown
+          source: Database["public"]["Enums"]["tk_record_source"]
+          table_id: string
+          updated_at: string
+          values: Json
+        }
+        Insert: {
+          archived_at?: string | null
+          auto_number?: number | null
+          created_at?: string
+          created_by?: string | null
+          form_id?: string | null
+          id?: string
+          search_vector?: unknown
+          source?: Database["public"]["Enums"]["tk_record_source"]
+          table_id: string
+          updated_at?: string
+          values?: Json
+        }
+        Update: {
+          archived_at?: string | null
+          auto_number?: number | null
+          created_at?: string
+          created_by?: string | null
+          form_id?: string | null
+          id?: string
+          search_vector?: unknown
+          source?: Database["public"]["Enums"]["tk_record_source"]
+          table_id?: string
+          updated_at?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_records_form_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "tk_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_records_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tk_data_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_space_members: {
+        Row: {
+          created_at: string
+          role: Database["public"]["Enums"]["tk_space_role"]
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role?: Database["public"]["Enums"]["tk_space_role"]
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: Database["public"]["Enums"]["tk_space_role"]
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tk_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_spaces: {
+        Row: {
+          archived_at: string | null
+          color: string
+          created_at: string
+          created_by: string | null
+          icon: string | null
+          id: string
+          is_private: boolean
+          name: string
+          position: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          is_private?: boolean
+          name: string
+          position?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          is_private?: boolean
+          name?: string
+          position?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_spaces_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "tk_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_statuses: {
+        Row: {
+          category: Database["public"]["Enums"]["tk_status_category"]
+          color: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          space_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["tk_status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          space_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["tk_status_category"]
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_statuses_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tk_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          space_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          space_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_tags_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "tk_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_task_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_task_field_links: {
+        Row: {
+          field_id: string
+          linked_task_id: string
+          task_id: string
+        }
+        Insert: {
+          field_id: string
+          linked_task_id: string
+          task_id: string
+        }
+        Update: {
+          field_id?: string
+          linked_task_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_task_field_links_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_task_field_links_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_task_field_people: {
+        Row: {
+          field_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          field_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          field_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_task_field_people_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_task_tags: {
+        Row: {
+          tag_id: string
+          task_id: string
+        }
+        Insert: {
+          tag_id: string
+          task_id: string
+        }
+        Update: {
+          tag_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_task_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_task_tags_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_task_watchers: {
+        Row: {
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_task_watchers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_tasks: {
+        Row: {
+          archived_at: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          custom_values: Json
+          description: Json | null
+          description_text: string | null
+          due_date: string | null
+          due_has_time: boolean
+          id: string
+          list_id: string
+          parent_task_id: string | null
+          position: number
+          priority: Database["public"]["Enums"]["tk_task_priority"]
+          search_vector: unknown
+          start_date: string | null
+          status_id: string | null
+          time_estimate_min: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_values?: Json
+          description?: Json | null
+          description_text?: string | null
+          due_date?: string | null
+          due_has_time?: boolean
+          id?: string
+          list_id: string
+          parent_task_id?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["tk_task_priority"]
+          search_vector?: unknown
+          start_date?: string | null
+          status_id?: string | null
+          time_estimate_min?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_values?: Json
+          description?: Json | null
+          description_text?: string | null
+          due_date?: string | null
+          due_has_time?: boolean
+          id?: string
+          list_id?: string
+          parent_task_id?: string | null
+          position?: number
+          priority?: Database["public"]["Enums"]["tk_task_priority"]
+          search_vector?: unknown
+          start_date?: string | null
+          status_id?: string | null
+          time_estimate_min?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tk_tasks_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "tk_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tk_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tk_tasks_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "tk_statuses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tk_views: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          is_shared: boolean
+          name: string
+          parent_id: string
+          parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          position: number
+          type: Database["public"]["Enums"]["tk_view_type"]
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_shared?: boolean
+          name: string
+          parent_id: string
+          parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          position?: number
+          type: Database["public"]["Enums"]["tk_view_type"]
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_shared?: boolean
+          name?: string
+          parent_id?: string
+          parent_type?: Database["public"]["Enums"]["tk_field_parent"]
+          position?: number
+          type?: Database["public"]["Enums"]["tk_view_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tk_workspaces: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          settings: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          settings?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          settings?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       training_records: {
         Row: {
           category: string
@@ -20466,6 +21570,78 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tk_can_access_entity: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: Database["public"]["Enums"]["tk_entity_type"]
+          p_user_id?: string
+        }
+        Returns: boolean
+      }
+      tk_can_access_field_parent: {
+        Args: {
+          p_parent_id: string
+          p_parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          p_user_id?: string
+        }
+        Returns: boolean
+      }
+      tk_can_access_record: {
+        Args: { p_record_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_access_space: {
+        Args: { p_space_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_access_task: {
+        Args: { p_task_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_edit_field_parent: {
+        Args: {
+          p_parent_id: string
+          p_parent_type: Database["public"]["Enums"]["tk_field_parent"]
+          p_user_id?: string
+        }
+        Returns: boolean
+      }
+      tk_can_edit_record: {
+        Args: { p_record_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_edit_space: {
+        Args: { p_space_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_edit_task: {
+        Args: { p_task_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_can_fill_form: {
+        Args: { p_form_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      tk_get_or_create_my_dashboard: { Args: never; Returns: string }
+      tk_is_admin: { Args: { p_user_id?: string }; Returns: boolean }
+      tk_is_manager: { Args: { p_user_id?: string }; Returns: boolean }
+      tk_is_manager_of: {
+        Args: { p_manager_id: string; p_target_id: string }
+        Returns: boolean
+      }
+      tk_is_owner: { Args: { p_user_id?: string }; Returns: boolean }
+      tk_role_of: {
+        Args: { p_user_id?: string }
+        Returns: Database["public"]["Enums"]["tk_workspace_role"]
+      }
+      tk_space_of_list: { Args: { p_list_id: string }; Returns: string }
+      tk_space_of_table: { Args: { p_table_id: string }; Returns: string }
+      tk_visible_people: {
+        Args: { p_user_id?: string }
+        Returns: {
+          person_id: string
+        }[]
+      }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
@@ -20505,6 +21681,35 @@ export type Database = {
     }
     Enums: {
       status_category: "not_started" | "active" | "done" | "closed"
+      tk_dashboard_scope: "personal" | "admin" | "template"
+      tk_entity_type: "task" | "record"
+      tk_field_parent: "list" | "table"
+      tk_field_type:
+        | "text"
+        | "long_text"
+        | "number"
+        | "currency"
+        | "date"
+        | "checkbox"
+        | "single_select"
+        | "multi_select"
+        | "url"
+        | "email"
+        | "phone"
+        | "people"
+        | "task_link"
+        | "attachment"
+        | "rating"
+        | "created_by"
+        | "created_at"
+        | "last_modified"
+        | "auto_number"
+      tk_record_source: "grid" | "form" | "api" | "import"
+      tk_space_role: "editor" | "viewer"
+      tk_status_category: "not_started" | "active" | "done" | "closed"
+      tk_task_priority: "urgent" | "high" | "normal" | "low"
+      tk_view_type: "list" | "board" | "calendar" | "table" | "grid"
+      tk_workspace_role: "owner" | "admin" | "manager" | "member"
       tm_status_category: "not_started" | "active" | "done" | "closed"
       tm_task_priority: "urgent" | "high" | "normal" | "low"
       workspace_role: "owner" | "admin" | "manager" | "member"
@@ -20639,6 +21844,36 @@ export const Constants = {
   public: {
     Enums: {
       status_category: ["not_started", "active", "done", "closed"],
+      tk_dashboard_scope: ["personal", "admin", "template"],
+      tk_entity_type: ["task", "record"],
+      tk_field_parent: ["list", "table"],
+      tk_field_type: [
+        "text",
+        "long_text",
+        "number",
+        "currency",
+        "date",
+        "checkbox",
+        "single_select",
+        "multi_select",
+        "url",
+        "email",
+        "phone",
+        "people",
+        "task_link",
+        "attachment",
+        "rating",
+        "created_by",
+        "created_at",
+        "last_modified",
+        "auto_number",
+      ],
+      tk_record_source: ["grid", "form", "api", "import"],
+      tk_space_role: ["editor", "viewer"],
+      tk_status_category: ["not_started", "active", "done", "closed"],
+      tk_task_priority: ["urgent", "high", "normal", "low"],
+      tk_view_type: ["list", "board", "calendar", "table", "grid"],
+      tk_workspace_role: ["owner", "admin", "manager", "member"],
       tm_status_category: ["not_started", "active", "done", "closed"],
       tm_task_priority: ["urgent", "high", "normal", "low"],
       workspace_role: ["owner", "admin", "manager", "member"],
