@@ -1,4 +1,4 @@
-import { Circle, Lock, Minus, Moon, Palette, Pencil, Plus, Sun } from 'lucide-react';
+import { Circle, Settings, Lock, Minus, Moon, Palette, Pencil, Plus, Sun } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { STATUSES, statusOf } from './status';
 
@@ -19,6 +19,8 @@ interface Props {
   onEdit: () => void;
   canRecord: boolean;
   onRecordings: () => void;
+  canSettings: boolean;
+  onSettings: () => void;
   isMyOffice: boolean;
   officeLocked: boolean;
   onOfficeLock: () => void;
@@ -69,9 +71,10 @@ export function ProfileMenu(p: Props) {
             <button type="button" onClick={() => p.onZoom(0.2)} aria-label="Zoom in" className="flex h-6 w-6 items-center justify-center rounded border hover:bg-muted"><Plus className="h-3.5 w-3.5" /></button>
           </span>
         </div>
-        {(p.canEdit && !p.editing) || p.canRecord || p.isMyOffice ? <DropdownMenuSeparator /> : null}
+        {(p.canEdit && !p.editing) || p.canRecord || p.canSettings || p.isMyOffice ? <DropdownMenuSeparator /> : null}
         {p.canEdit && !p.editing && <DropdownMenuItem onSelect={p.onEdit}><Pencil className="mr-2 h-4 w-4" />Edit this office</DropdownMenuItem>}
         {p.isMyOffice && <DropdownMenuItem onSelect={p.onOfficeLock}><Lock className="mr-2 h-4 w-4" />{p.officeLocked ? 'Unlock my office' : 'Lock my office'}</DropdownMenuItem>}
+        {p.canSettings && <DropdownMenuItem onSelect={p.onSettings}><Settings className="mr-2 h-4 w-4" />Office settings</DropdownMenuItem>}
         {p.canRecord && <DropdownMenuItem onSelect={p.onRecordings}><Circle className="mr-2 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>

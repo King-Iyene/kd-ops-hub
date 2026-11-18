@@ -23,11 +23,14 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
     setQ('');
   }, [zone?.id, current]);
   const isOffice = zone?.kind === 'office';
+  const owner = current?.uid ? directory.find((p) => p.id === current.uid) : undefined;
+  const status = current?.free ? 'Free office (nobody assigned)' : owner ? `Assigned to ${owner.name}` : current?.label ? `Custom name: ${current.label}` : 'Automatic (the next leader)';
   const people = directory.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
   return (
     <Dialog open={!!zone} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>{isOffice ? 'Who sits in this office?' : 'Rename this room'}</DialogTitle></DialogHeader>
+        {isOffice && <p className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs">Now: <strong>{status}</strong></p>}
         {isOffice && (
           <div className="space-y-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the team…" aria-label="Search the team" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
@@ -48,11 +51,11 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onSave(null)}>Back to automatic</Button>
-            {isOffice && <Button variant="outline" onClick={() => onSave({ free: true })}>Free office</Button>}
+            {isOffice && <Button variant="outline" onClick={() => onSave({ free: true })}>Unassign (free office)</Button>}
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => onSave(uid ? { uid } : label.trim() ? { label: label.trim() } : null)}>Save</Button>
+            <Button onClick={() => onSave(uid ? { uid } : label.trim() ? { label: label.trim() } : null)}>{uid ? 'Assign' : 'Save'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
