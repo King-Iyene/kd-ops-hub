@@ -552,3 +552,14 @@ describe('power bikes', () => {
     expect(near?.t).toBe('bike');
   });
 });
+
+describe('rain', () => {
+  it('always rains when the season is set to Rainy, and never in Harmattan', async () => {
+    const { rainFor } = await import('../world/sky');
+    for (let i = 0; i < 200; i++) {
+      const t = Date.UTC(2026, 6, 1) + i * 97_000;
+      expect(rainFor('rainy', 'rainy', t)).toBeGreaterThanOrEqual(0.6);
+      expect(rainFor('auto', 'harmattan', t)).toBe(0);
+    }
+  });
+});
