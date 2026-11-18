@@ -115,8 +115,12 @@ named on the invite. Guests accept the recording notice.
 Rough effort assumes focused work. A solid version for about 25 people is about **3.5 to 4.5 months**. Full
 Gather parity would be 6 to 12 months. 3D adds roughly 2 to 4 months and needs 3D art.
 
-- [ ] **Stage 0 (1 to 2 weeks): walkable office.** One fixed modern office, avatars, movement events over
-      Supabase, colleagues visible live. No video.
+- [x] **Stage 0 (built, commit 5c0b7c54): walkable office.** Team office (open floor, lounge, 3 meeting rooms),
+      a personal office per employee, avatars, furniture editor, quiet live presence. Canvas 2D (no new
+      dependencies; renderer kept swappable for 3D later). 50 unit tests. Soft-launched: nav link shows for
+      admins only; page reachable by URL for everyone. Traffic budget: movement is sent only on start, turn and
+      stop plus a 4 s correction; nothing while standing or when the tab is hidden; channels close after 2 min
+      hidden. Not yet verified live: walking and portals in a visible browser, multi-user movement.
 - [ ] **Stage 1 (2 to 3 weeks): calls.** Peer-to-peer proximity audio and video, mute and camera, screen share,
       relay fallback, browser-side recording to Supabase Storage with the consent banner.
 - [ ] **Stage 2 (3 to 5 weeks): build.** Map editor, rooms, private spaces, doors and portals, per-company
