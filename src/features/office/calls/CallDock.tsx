@@ -1,7 +1,8 @@
-import { Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
+import { Hand, Circle, DoorOpen, Headphones, LayoutGrid, Lock, Smile, LockOpen, LogOut, Mic, MicOff, MonitorOff, MonitorUp, Square, Video, VideoOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Tile } from './useCalls';
-import { EMOTES } from '../useOffice';
+import { EmojiPicker } from '../EmojiPicker';
+import { useEmoteBar } from '../emoji';
 
 interface Props {
   joined: boolean;
@@ -92,6 +93,20 @@ export function CallDock({
   roomLocked, knocks, onToggleLock, onLetIn, onDismissKnock, leading,
 }: Props) {
   const [emoOpen, setEmoOpen] = useState(false);
+  const bar = useEmoteBar();
+  const react = (e: string) => { bar.bump(e); onEmote(e); };
+  // H raises your hand
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement | null;
+      if (ev.key.toLowerCase() !== 'h' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      react('✋');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onEmote]);
   const screens = tiles.filter((t) => t.screen);
   const people = tiles.filter((t) => !t.screen);
   return (
@@ -123,13 +138,7 @@ export function CallDock({
             <button type="button" className="opacity-80" onClick={onDismissUnsent} aria-label="Dismiss">✕</button>
           </div>
         )}
-        {emoOpen && (
-          <div className="pointer-events-auto flex gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
-            {EMOTES.map((e) => (
-              <button key={e} type="button" onClick={() => { onEmote(e); setEmoOpen(false); }} aria-label={`React ${e}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
-            ))}
-          </div>
-        )}
+        {emoOpen && <EmojiPicker quick={bar.quick} freq={bar.freq} onPick={react} onQuick={bar.setQuick} onClose={() => setEmoOpen(false)} />}
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-xl border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
           {leading && (
             <>
@@ -145,7 +154,11 @@ export function CallDock({
               <span className="mx-0.5 h-5 w-px bg-border" />
             </>
           )}
-          <Btn label="React with an emoji" onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
+          <Btn label="More emotes" onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
+          {bar.quick.map((e) => (
+            <button key={e} type="button" title={`React ${e}`} aria-label={`React ${e}`} onClick={() => react(e)} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
+          ))}
+          <Btn label="Raise hand (H)" onClick={() => react('✋')}><Hand className="h-4 w-4" /></Btn>
           {!joined ? (
             <Btn label="Join voice and video" onClick={onJoin} disabled={busy}><Headphones className="h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Btn>
           ) : (

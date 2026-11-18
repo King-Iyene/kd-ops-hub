@@ -408,11 +408,51 @@ function drawPlaque(ctx: Ctx, z: Zone, theme: Theme) {
   }
 }
 
+/** One desk seat: a soft outline around it, and the owner's name when it is taken. */
+function drawSeat(ctx: Ctx, z: Zone, theme: Theme) {
+  const s = z.sign;
+  const claimed = !!s && s.name !== 'Free seat';
+  const x = z.x * TILE + 2;
+  const y = z.y * TILE + 2;
+  const w = z.w * TILE - 4;
+  const h = z.h * TILE - 4;
+  ctx.save();
+  if (claimed) {
+    ctx.fillStyle = 'rgba(99,102,241,0.10)';
+    rr(ctx, x, y, w, h, 10);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(99,102,241,0.55)';
+    ctx.lineWidth = 1.5;
+  } else {
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = theme.dark ? 'rgba(203,213,225,0.28)' : 'rgba(71,85,105,0.3)';
+    ctx.lineWidth = 1;
+  }
+  rr(ctx, x, y, w, h, 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (claimed && s) {
+    const parts = s.name.trim().split(/\s+/);
+    const label = parts.length > 1 ? parts[0] + ' ' + parts[parts.length - 1][0] + '.' : parts[0];
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const pw = Math.min(w - 2, ctx.measureText(label).width + 10);
+    ctx.fillStyle = 'rgba(30,41,59,0.92)';
+    rr(ctx, x + w / 2 - pw / 2, y - 6, pw, 12, 6);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(label, x + w / 2, y + 0.5);
+  }
+  ctx.restore();
+}
+
 export function drawZoneLabels(ctx: Ctx, zones: Zone[], theme: Theme) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '600 12px system-ui, sans-serif';
   for (const z of zones) {
+    if (z.seat) { drawSeat(ctx, z, theme); ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, sans-serif'; continue; }
     if (z.sign) { drawPlaque(ctx, z, theme); ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, sans-serif'; continue; }
     if (z.kind === 'area' || z.kind === 'office') continue;
     const cx = (z.x + z.w / 2) * TILE;
@@ -1046,50 +1086,36 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cy = y + H / 2;
   switch (item.t) {
     case 'wallclock': {
+      // a row of digital clocks, one for each place
       const zs = officeInfo.zones.length ? officeInfo.zones : DEFAULT_ZONES;
       const n = zs.length;
       ctx.fillStyle = dark ? '#2f2216' : '#8a5a2b';
       rr(ctx, x + 2, y + 3, W - 4, H - 6, 7);
       ctx.fill();
-      ctx.strokeStyle = dark ? '#7a5a38' : '#c58a4a';
-      ctx.lineWidth = 1.5;
-      rr(ctx, x + 4, y + 5, W - 8, H - 10, 5);
-      ctx.stroke();
       const now = Date.now();
+      const slot = (W - 12) / n;
       for (let i = 0; i < n; i++) {
-        const fx = x + (W * (i + 0.5)) / n;
-        const fy = y + 15.5;
-        const R = 12;
-        disc(ctx, fx, fy, R + 1.6, '#4a3018');
-        disc(ctx, fx, fy, R, dark ? '#e5e7eb' : '#fffaf0');
-        ctx.strokeStyle = '#334155';
-        for (let k = 0; k < 12; k++) {
-          const a = (k / 12) * Math.PI * 2;
-          ctx.lineWidth = k % 3 === 0 ? 1.3 : 0.7;
-          ctx.beginPath();
-          ctx.moveTo(fx + Math.cos(a) * (R - 3.2), fy + Math.sin(a) * (R - 3.2));
-          ctx.lineTo(fx + Math.cos(a) * (R - 1.2), fy + Math.sin(a) * (R - 1.2));
-          ctx.stroke();
-        }
+        const sx = x + 6 + i * slot;
+        ctx.fillStyle = '#0b1220';
+        rr(ctx, sx + 1.5, y + 6, slot - 3, H - 12, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#3b2a18';
+        ctx.lineWidth = 1;
+        rr(ctx, sx + 1.5, y + 6, slot - 3, H - 12, 4);
+        ctx.stroke();
         const { h, m, s } = zoneParts(zs[i], now);
-        const hand = (ang: number, len: number, lw: number, color: string) => {
-          ctx.strokeStyle = color;
-          ctx.lineWidth = lw;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(fx, fy);
-          ctx.lineTo(fx + Math.cos(ang) * len, fy + Math.sin(ang) * len);
-          ctx.stroke();
-        };
-        hand(((h % 12) + m / 60) / 12 * Math.PI * 2 - Math.PI / 2, R * 0.5, 1.9, '#0f172a');
-        hand((m + s / 60) / 60 * Math.PI * 2 - Math.PI / 2, R * 0.78, 1.3, '#0f172a');
-        hand(s / 60 * Math.PI * 2 - Math.PI / 2, R * 0.86, 0.7, '#e11d48');
-        disc(ctx, fx, fy, 1.4, '#e11d48');
-        ctx.font = '700 7px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = '#fde9c8';
-        ctx.fillText(zoneAbbr(zs[i], now), fx, y + H - 3);
+        ctx.textBaseline = 'middle';
+        ctx.font = '700 7px system-ui, sans-serif';
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText(zoneAbbr(zs[i], now), sx + slot / 2, y + 11.5);
+        ctx.font = '700 ' + (n === 3 ? 12 : 15) + 'px ui-monospace, Menlo, Consolas, monospace';
+        ctx.fillStyle = '#34d399';
+        ctx.shadowColor = 'rgba(52,211,153,0.7)';
+        ctx.shadowBlur = 5;
+        const colon = s % 2 === 0 ? ':' : ' ';
+        ctx.fillText(String(h).padStart(2, '0') + colon + String(m).padStart(2, '0'), sx + slot / 2, y + 23);
+        ctx.shadowBlur = 0;
       }
       return true;
     }

@@ -270,8 +270,8 @@ describe('headquarters', () => {
   const people = [{ name: 'Ada L.' }, { name: 'Kelvin J.' }];
   const m = buildHQ(people);
   it('has nine private offices with name plates, three meeting rooms, a boardroom and an auditorium', () => {
-    expect(m.zones.filter((z) => z.kind === 'office' && !z.open)).toHaveLength(9);
-    expect(m.zones.filter((z) => z.kind === 'office' && z.open)).toHaveLength(4);
+    expect(m.zones.filter((z) => z.kind === 'office' && !z.seat)).toHaveLength(9);
+    expect(m.zones.filter((z) => z.seat)).toHaveLength(24);
     expect(m.zones.find((z) => z.id === 'office-1')?.sign?.name).toBe('Ada L.');
     expect(m.zones.find((z) => z.id === 'office-9')?.sign?.name).toBe('Free office');
     expect(m.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)).toEqual(expect.arrayContaining(['meeting-1', 'meeting-2', 'meeting-3', 'boardroom', 'auditorium']));
@@ -374,15 +374,15 @@ describe('sky and seasons', () => {
   });
 });
 
-describe('open desk pods', () => {
-  it('can be claimed like an office but are not private rooms', async () => {
+describe('desk seats', () => {
+  it('every desk is its own claimable, private seat', async () => {
     const { buildHQ } = await import('../world/templates');
     const { isRoom } = await import('../world/world');
     const m = buildHQ([]);
-    const pod = m.zones.find((z) => z.id === 'pod-1');
-    expect(pod?.kind).toBe('office');
-    expect(pod?.sign?.name).toBe('Free desks');
-    expect(isRoom(pod)).toBe(false);
-    expect(isRoom(m.zones.find((z) => z.id === 'office-1'))).toBe(true);
+    const seats = m.zones.filter((z) => z.seat);
+    expect(new Set(seats.map((z) => z.id)).size).toBe(24);
+    expect(seats[0].sign?.name).toBe('Free seat');
+    expect(isRoom(seats[0])).toBe(true);
+    expect(m.zones.find((z) => z.id === 'pod-1')?.kind).toBe('area');
   });
 });

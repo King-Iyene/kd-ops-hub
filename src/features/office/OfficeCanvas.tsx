@@ -5,7 +5,7 @@ import { TILE, defaultAvatar, depth, drawFloor, drawItems, drawLighting, drawPer
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
-import { drawSky } from './world/skyfx';
+import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainLevel, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 
@@ -41,6 +41,8 @@ interface Props {
   onFollowEnd: () => void;
   /** a click (not a drag) on the map outside edit mode */
   onMapClick: (tile: { x: number; y: number }) => void;
+  /** the pointer rests on someone (null when it leaves them) */
+  onHoverPerson: (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => void;
   /** right-click: where, which tile, and the person under the pointer (if any) */
   onContext: (c: { cx: number; cy: number; wx: number; wy: number; personId: string | null; isMe: boolean }) => void;
   /** while editing, the rectangle that can be changed (an owner may only change their own office) */
@@ -179,7 +181,43 @@ export function OfficeCanvas(props: Props) {
     const drag = { down: false, moved: false, sx: 0, sy: 0, px: 0, py: 0 };
     const painting = () => { const t = propsRef.current.tool; return propsRef.current.editing && (t === 'wall' || t === 'unwall' || t === 'floor'); };
     let lastPaint = '';
+    const hoverId = { current: null as string | null };
+    const personAt = (e: MouseEvent) => {
+      const p = propsRef.current;
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const wx = (e.clientX - r.left - ox) / (TILE * scale);
+      const wy = (e.clientY - r.top - oy) / (TILE * scale);
+      const solid = buildSolid(p.map, p.items);
+      const who = new Map(p.roster.map((q) => [q.id, q]));
+      const m = meRef.current;
+      let best: { id: string; isMe: boolean; d: number; x: number; y: number } | null = null;
+      const consider = (id: string, isMe: boolean, x: number, y: number) => {
+        const dx = wx - x;
+        const dy = wy - (y - 0.6);
+        if (Math.abs(dx) > 0.6 || dy < -1 || dy > 0.9) return;
+        const d = Math.hypot(dx, dy);
+        if (!best || d < best.d) best = { id, isMe, d, x, y };
+      };
+      for (const [id, pm] of p.peers.current) {
+        const info = who.get(id);
+        if (!info || (!p.showOwnTabs && info.uid === p.me.uid) || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+        const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
+        consider(id, false, pos.x, pos.y);
+      }
+      consider(p.me.id, true, m.x, m.y);
+      const hit = best as { id: string; isMe: boolean; x: number; y: number } | null;
+      return hit ? { id: hit.id, isMe: hit.isMe, near: Math.hypot(hit.x - m.x, hit.y - m.y) <= 8, headX: r.left + ox + hit.x * TILE * scale, headY: r.top + oy + (hit.y - 1.6) * TILE * scale } : null;
+    };
     const move = (e: MouseEvent) => {
+      if (!propsRef.current.editing && !drag.down) {
+        const h = personAt(e);
+        const id = h ? h.id : null;
+        if (id !== hoverId.current) {
+          hoverId.current = id;
+          propsRef.current.onHoverPerson(h ? { personId: h.id, isMe: h.isMe, cx: h.headX, cy: h.headY, near: h.near } : null);
+        }
+      }
       hover.current = toTile(e);
       if (!drag.down) return;
       if (painting()) {
@@ -241,7 +279,7 @@ export function OfficeCanvas(props: Props) {
       const hit = best as { id: string; isMe: boolean } | null;
       p.onContext({ cx: e.clientX, cy: e.clientY, wx, wy, personId: hit ? hit.id : null, isMe: !!hit && hit.isMe });
     };
-    const leave = () => { hover.current = null; drag.down = false; };
+    const leave = () => { hover.current = null; drag.down = false; if (hoverId.current) { hoverId.current = null; propsRef.current.onHoverPerson(null); } };
     canvas.addEventListener('mousemove', move);
     canvas.addEventListener('mouseleave', leave);
     canvas.addEventListener('mousedown', down);
@@ -397,6 +435,10 @@ export function OfficeCanvas(props: Props) {
       ctx.scale(scale, scale);
       try {
       drawFloor(ctx, p.map, theme, now);
+      {
+        const seasonNow = seasonFor(p.seasonMode, Date.now());
+        drawGroundWeather(ctx, p.map, seasonNow, rainLevel(seasonNow, Date.now()), now);
+      }
 
       // people, with identity from the lobby; positions of others are worked out from their last message
       const who = new Map(p.roster.map((r) => [r.id, r]));

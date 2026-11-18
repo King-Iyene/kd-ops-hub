@@ -155,10 +155,17 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
   ];
   const pods = [[4, 13], [14, 13], [4, 22], [14, 22]] as const;
-  // each open desk pod can be claimed like an office (it gets a name plate), without being a private room
-  pods.forEach(([px, py], i) => {
-    const p = people[9 + i];
-    zones.push({ id: `pod-${i + 1}`, name: p ? `${p.name}'s desks` : 'Free desks', kind: 'office', open: true, x: px, y: py, w: 8, h: 7, floor: 'gray', sign: { name: p ? p.name : 'Free desks', avatar: p?.avatar } });
+  pods.forEach(([px, py], i) => zones.push({ id: `pod-${i + 1}`, name: 'Desks', kind: 'area', x: px, y: py, w: 8, h: 7, floor: 'gray' }));
+  // every desk is its own private seat: claim it, lock it, and what you say there stays there
+  pods.forEach(([px, py], pi) => {
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 3; c++) {
+        const n = pi * 6 + r * 3 + c + 1;
+        const p = people[8 + n];
+        const dy = py + 1 + r * 3;
+        zones.push({ id: `seat-${n}`, name: p ? `${p.name}'s seat` : 'Free seat', kind: 'office', seat: true, x: px + 1 + c * 2, y: r === 0 ? dy : dy - 1, w: 2, h: 2, sign: { name: p ? p.name : 'Free seat', avatar: p?.avatar } });
+      }
+    }
   });
   for (let i = 0; i < OFFICES; i++) {
     const p = people[i];

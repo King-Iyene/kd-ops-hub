@@ -37,6 +37,8 @@ export interface Who {
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
 
 /** The reactions people can send. */
+import { isEmoji } from './emoji';
+
 export const EMOTES = ['👍', '👏', '❤️', '🎉', '😂', '😮', '🙌', '✋', '🔥', '💯'];
 
 const HIDDEN_LIMIT_MS = 15 * 60_000;
@@ -237,7 +239,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     ch.on('broadcast', { event: 'emo' }, ({ payload }) => {
       const p = payload as { i?: unknown; e?: unknown } | null;
       if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === connId || ghosts.current.has(p.i)) return;
-      if (typeof p.e === 'string' && EMOTES.includes(p.e)) emotes.current.set(p.i, { e: p.e, until: Date.now() + 3500 });
+      if (isEmoji(p.e)) emotes.current.set(p.i, { e: p.e, until: Date.now() + 3500 });
     });
     // someone started or stopped talking (shown as a green glow even before their audio reaches us)
     ch.on('broadcast', { event: 'sp' }, ({ payload }) => {
@@ -292,7 +294,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   }, []);
   const setPingHandler = useCallback((h: ((raw: unknown) => void) | null) => { pingHandler.current = h; }, []);
   const sendEmote = useCallback((e: string) => {
-    if (!EMOTES.includes(e)) return;
+    if (!isEmoji(e)) return;
     emotes.current.set(connId, { e, until: Date.now() + 3500 });
     const ch = room.current;
     if (ch && roomReady.current && !supersededRef.current) void ch.send({ type: 'broadcast', event: 'emo', payload: { i: connId, e } });

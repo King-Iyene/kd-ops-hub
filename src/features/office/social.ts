@@ -7,7 +7,7 @@ export const MIN_GAP_MS = 8000;
 /** A short note sent straight to one person: a ring (knock on their shoulder) or a text message. */
 export interface Ping {
   /** ring, text message, knock on a locked personal office, or the owner letting a knocker in */
-  k: 'ring' | 'dm' | 'knock' | 'let';
+  k: 'ring' | 'dm' | 'knock' | 'let' | 'wave';
   /** from */
   f: string;
   /** sender display name */
@@ -57,7 +57,7 @@ export function cleanText(s: string): string {
 export function parsePing(raw: unknown, myId: string): Ping | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Record<string, unknown>;
-  if (p.k !== 'ring' && p.k !== 'dm' && p.k !== 'knock' && p.k !== 'let') return null;
+  if (p.k !== 'ring' && p.k !== 'dm' && p.k !== 'knock' && p.k !== 'let' && p.k !== 'wave') return null;
   if (typeof p.f !== 'string' || p.f.length > 64 || p.f === myId || p.t !== myId) return null;
   if (typeof p.n !== 'string') return null;
   const s = typeof p.s === 'string' && p.s.length <= 64 ? p.s : null;
@@ -68,11 +68,11 @@ export function parsePing(raw: unknown, myId: string): Ping | null {
 }
 
 /** May I send this person another ring or message yet? */
-export function canSendTo(lastSent: Map<string, number>, id: string, now: number, kind: 'ring' | 'dm'): boolean {
+export function canSendTo(lastSent: Map<string, number>, id: string, now: number, kind: 'ring' | 'dm' | 'wave'): boolean {
   const key = `${kind}:${id}`;
   const prev = lastSent.get(key) ?? 0;
   // texts can follow each other quickly (a conversation); rings cannot
-  return now - prev >= (kind === 'ring' ? MIN_GAP_MS : 600);
+  return now - prev >= (kind === 'ring' || kind === 'wave' ? MIN_GAP_MS : 600);
 }
 
 /** Search people and rooms by a few typed letters (every word must appear somewhere in the name). */

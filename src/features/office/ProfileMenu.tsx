@@ -26,6 +26,8 @@ interface Props {
   onRecordings: () => void;
   canSettings: boolean;
   onSettings: () => void;
+  canManage: boolean;
+  onManage: () => void;
   /** my private office (its name), if I have claimed one */
   myOffice: string | null;
   /** I have claimed an office but am not a builder: I can decorate it */
@@ -77,6 +79,7 @@ export function ProfileMenu(p: Props) {
         )}
         {p.canCustomiseMine && <DropdownMenuItem onSelect={p.onCustomiseMine}><Pencil className="mr-2 h-4 w-4" />Customise my office</DropdownMenuItem>}
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
+        {p.canManage && <DropdownMenuItem onSelect={p.onManage}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger><Sun className="mr-2 h-4 w-4" />Time of day</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>

@@ -41,6 +41,8 @@ export interface Zone {
   sign?: { name: string; avatar?: AvatarStyle };
   /** an open-plan area that can be claimed like an office, but is not a private room (voice is not walled in) */
   open?: boolean;
+  /** one desk seat: claimable, private (voice stays inside it) and lockable, like a tiny office */
+  seat?: boolean;
 }
 
 /** Changes an admin painted onto the building: tiles made wall or open, and floors painted. */

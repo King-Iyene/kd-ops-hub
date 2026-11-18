@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { BellRing, Hand, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -28,6 +28,8 @@ import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
+import { ManageDialog, type Claimable } from './ManageDialog';
+import { PersonCard, type CardAction } from './PersonCard';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
@@ -111,8 +113,8 @@ function OfficeRoom() {
   useEffect(() => { setOverrides(savedOverrides ?? {}); }, [savedOverrides]);
   // who has claimed each private office (people claim and unclaim; an admin can also assign or revoke)
   const { data: claims } = useDeskClaims(space?.id ?? null);
-  const plateTable = useMemo(() => Array.from({ length: 13 }, (_, i) => {
-    const id = i < 9 ? 'office-' + (i + 1) : 'pod-' + (i - 8);
+  const plateTable = useMemo(() => Array.from({ length: 33 }, (_, i) => {
+    const id = i < 9 ? 'office-' + (i + 1) : 'seat-' + (i - 8);
     const o = overrides[id];
     if (o?.free) return undefined;
     if (o?.label) return { name: o.label };
@@ -549,7 +551,7 @@ function OfficeRoom() {
   };
   const claimFree = () => {
     const taken = new Set((claims ?? []).map((c) => c.office_id));
-    const free = map.zones.find((z) => z.kind === 'office' && !z.open && !taken.has(z.id));
+    const free = map.zones.find((z) => z.kind === 'office' && !z.seat && !taken.has(z.id));
     if (free) void claimOffice(free.id);
     else toast({ title: 'No free office right now', description: 'Every office has an owner. An admin can free one up for you.' });
   };
@@ -577,6 +579,15 @@ function OfficeRoom() {
     lastSent.current.set(`ring:${r.id}`, Date.now());
     sendPing({ k: 'ring', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     toast({ title: `Rang ${r.name}` });
+  };
+
+  const wave = (r: { id: string; name: string }) => {
+    if (!me) return;
+    if (!canSendTo(lastSent.current, r.id, Date.now(), 'wave')) { toast({ title: `You just waved at ${r.name}`, description: 'Give them a moment.' }); return; }
+    lastSent.current.set(`wave:${r.id}`, Date.now());
+    sendPing({ k: 'wave', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
+    sendEmote('👋');
+    toast({ title: `You waved at ${r.name}`, description: 'If they are free they will come over.' });
   };
 
   const sendMessage = async (text: string, file: File | null) => {
@@ -617,6 +628,14 @@ function OfficeRoom() {
       admittedOffices.current.add(door.id);
       setSpaceIdRaw(door.id);
       toast({ title: 'The door is open', description: `You are in ${door.name}.` });
+      return;
+    }
+    if (m.k === 'wave') {
+      playChime(0.08);
+      toast({
+        title: `${m.n} is waving at you 👋`, description: 'Want to go and say hi?',
+        action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
+      });
       return;
     }
     if (m.k === 'ring') {
@@ -720,6 +739,15 @@ function OfficeRoom() {
   }, [ctx]);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [card, setCard] = useState<{ personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null>(null);
+  const cardTimer = useRef<number | undefined>(undefined);
+  const hoverPerson = (h: { personId: string; isMe: boolean; cx: number; cy: number; near: boolean } | null) => {
+    window.clearTimeout(cardTimer.current);
+    cardTimer.current = window.setTimeout(() => setCard(h), h ? 140 : 360);
+  };
+  const keepCard = () => window.clearTimeout(cardTimer.current);
+  const leaveCard = () => { window.clearTimeout(cardTimer.current); cardTimer.current = window.setTimeout(() => setCard(null), 360); };
   const [panel, setPanel] = useState<Item | null>(null);
   const [savingPanel, setSavingPanel] = useState(false);
   const boardsAll = space?.layout?.settings?.boards ?? {};
@@ -855,6 +883,7 @@ function OfficeRoom() {
           <div className="flex gap-1.5">
             <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5" />Invite</button>
             <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="h-3.5 w-3.5" />Copy link</button>
+            {(isAdmin || canEdit) && <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setManageOpen(true)}><Settings className="h-3.5 w-3.5" />Manage</button>}
           </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -962,7 +991,11 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onNear={() => undefined} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onNear={(it) => {
+              if (!it || it.t !== 'valueswall') return;
+              try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
+              toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
+            }} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
@@ -1011,7 +1044,7 @@ function OfficeRoom() {
                 <ProfileMenu
                   name={me.name} skin={me.avatar.skin} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
                   timeMode={timeMode} onTimeMode={setTimeMode} seasonMode={seasonMode} onSeasonMode={setSeasonMode} sound={sound} onToggleSound={toggleSound} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
-                  canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)}
+                  canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
                   canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
                   onClaimOffice={claimFree} onUnclaimOffice={() => { if (myClaim) void unclaimOffice(myClaim.office_id); }} onWalkToOffice={() => walkToOffice()}
@@ -1125,6 +1158,29 @@ function OfficeRoom() {
           setNameZone(null);
         }}
       />
+      {card && !ctx && (() => {
+        const who = roster.find((r) => r.id === card.personId);
+        if (!who) return null;
+        const st = statusOf(who.status);
+        const acts: CardAction[] = [];
+        if (card.isMe) {
+          acts.push({ key: 'av', label: 'Avatar', icon: <Users className="h-3.5 w-3.5" />, run: () => { setCard(null); setAvatarOpen(true); } });
+          if (myClaim) acts.push({ key: 'mine', label: 'My office', icon: <Building2 className="h-3.5 w-3.5" />, run: () => { setCard(null); walkToOffice(); } });
+          if (myClaim) acts.push({ key: 'un', label: 'Unclaim', icon: <Minus className="h-3.5 w-3.5" />, run: () => { setCard(null); void unclaimOffice(myClaim.office_id); } });
+        } else {
+          acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-3.5 w-3.5" />, primary: !card.near, run: () => { setCard(null); wave(who); } });
+          if (card.near) acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-3.5 w-3.5" />, primary: true, run: () => { setCard(null); ring(who); } });
+          acts.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-3.5 w-3.5" />, run: () => { setCard(null); setChatWith({ id: who.id, name: who.name }); } });
+          acts.push({ key: 'go', label: card.near ? 'Follow' : 'Go to', icon: card.near ? <Footprints className="h-3.5 w-3.5" /> : <LocateFixed className="h-3.5 w-3.5" />, run: () => { setCard(null); if (card.near) startFollow(who.id); else goToPerson(who.id, who.spaceId); } });
+        }
+        return (
+          <PersonCard
+            x={card.cx} y={card.cy} name={who.name + (card.isMe ? ' (you)' : '')} avatar={who.avatar} online status={st ? st.emoji + ' ' + st.label : null}
+            hint={card.isMe ? null : card.near ? 'You are close. Ring to get their attention.' : 'They are far away. Wave and they will see you.'}
+            actions={acts} onEnter={keepCard} onLeave={leaveCard}
+          />
+        );
+      })()}
       {ctx && (() => {
         const mi = 'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted';
         const done = (fn: () => void) => () => { setCtx(null); fn(); };
@@ -1165,10 +1221,10 @@ function OfficeRoom() {
           if (!person && !ctx.isMe) title = office.name;
           else { sep('z'); label('zl', office.name); }
           if (!person && !ctx.isMe) label('own', claim ? 'Claimed by ' + (owner?.name ?? 'someone') : 'Free to claim');
-          item('walk', <Footprints className={ic} />, office.open ? 'Walk to this desk area' : 'Walk to this office', () => walkToOffice(office.id));
+          item('walk', <Footprints className={ic} />, office.seat ? 'Walk to this seat' : 'Walk to this office', () => walkToOffice(office.id));
           // claiming is always listed on an office; it greys out with the reason when it cannot be done
-          item('claim', <Building2 className={ic} />, office.open ? 'Claim this desk area' : 'Claim this office', () => void claimOffice(office.id), false, claim ? (mine ? 'Yours' : 'Taken') : myClaim ? 'You have one' : undefined);
-          if (mine) item('unclaim', <Minus className={ic} />, office.open ? 'Give up my desk area' : 'Give up my office', () => void unclaimOffice(office.id), true);
+          item('claim', <Building2 className={ic} />, office.seat ? 'Claim this seat' : 'Claim this office', () => void claimOffice(office.id), false, claim ? (mine ? 'Yours' : 'Taken') : myClaim ? 'You have one' : undefined);
+          if (mine) item('unclaim', <Minus className={ic} />, office.seat ? 'Give up my seat' : 'Give up my office', () => void unclaimOffice(office.id), true);
           if (mine && !editing) item('cust', <Pencil className={ic} />, 'Customise this office', () => startEdit(office));
           item('olink', <LinkIcon className={ic} />, 'Copy link to this office', () => void copyLink(`&room=${office.id}`, 'It opens the office at this door.'));
           if (isAdmin) {
@@ -1176,7 +1232,7 @@ function OfficeRoom() {
             label('al', 'Admin');
             item('assign', <UserPlus className={ic} />, claim ? 'Change who has this office' : 'Assign to someone', () => setDeskZone(office));
             if (claim && !mine) item('free', <Minus className={ic} />, 'Unclaim (free this office)', () => void unclaimOffice(office.id), true);
-            item('rename', <Pencil className={ic} />, office.open ? 'Rename this desk area' : 'Rename this office', () => setNameZone({ id: office.id, name: office.name, kind: office.kind }));
+            item('rename', <Pencil className={ic} />, office.seat ? 'Rename this seat' : 'Rename this office', () => setNameZone({ id: office.id, name: office.name, kind: office.kind }));
             if (!editing) item('build', <Pencil className={ic} />, 'Edit this office (objects, walls)', () => startEdit(office));
           }
         } else if (zone && isRoom(zone)) {
@@ -1190,7 +1246,8 @@ function OfficeRoom() {
           item('link', <LinkIcon className={ic} />, 'Copy link to this spot', () => void copyLink(`&at=${tx},${ty}`, 'It opens the office right there.'));
           item('here', <Footprints className={ic} />, 'Walk here', () => setJump({ key: Date.now(), x: tx + 0.5, y: ty + 0.5 }));
           item('rc2', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
-          if (canEdit && !editing) { sep('adm'); item('redit', <Pencil className={ic} />, 'Edit the space', () => startEdit()); }
+          if (isAdmin || canEdit) { sep('adm'); item('manage', <Settings className={ic} />, 'Manage this space', () => setManageOpen(true)); }
+          if (canEdit && !editing) item('redit', <Pencil className={ic} />, 'Edit the space', () => startEdit());
         }
         const left = Math.max(8, Math.min(ctx.cx, window.innerWidth - 232));
         const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 56)));
@@ -1212,6 +1269,20 @@ function OfficeRoom() {
         onSave={(d) => { if (panel) void savePanel({ boards: { ...boardsAll, [panel.id]: d } }); }}
       />
       <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
+      <ManageDialog
+        open={manageOpen} onClose={() => setManageOpen(false)} spaceName={space.name} isAdmin={isAdmin} isSuper={isSuper} canEdit={canEdit}
+        canDelete={space.id !== myTeam?.id}
+        rows={map.zones.filter((z) => z.kind === 'office').map((z): Claimable => {
+          const c = (claims ?? []).find((x) => x.office_id === z.id);
+          return { id: z.id, name: z.name, kind: z.seat ? 'seat' : 'office', owner: c ? (directory ?? []).find((d) => d.id === c.user_id)?.name ?? 'Someone' : null };
+        })}
+        onAssign={(id) => { const z = map.zones.find((q) => q.id === id); if (z) setDeskZone(z); }}
+        onUnclaim={(id) => void unclaimOffice(id)}
+        onRename={(id) => { const z = map.zones.find((q) => q.id === id); if (z) setNameZone({ id: z.id, name: z.name, kind: z.kind }); }}
+        onWalk={(id) => walkToOffice(id)}
+        onInvite={() => setInviteOpen(true)} onSettings={() => setSettingsOpen(true)} onEdit={() => startEdit()} onRecordings={() => setRecordingsOpen(true)}
+        onRenameSpace={() => { setRenaming(space); setRenameValue(space.name); }} onDeleteSpace={() => void removeSpace(space)} onNewSpace={() => setNewSpaceOpen(true)}
+      />
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
