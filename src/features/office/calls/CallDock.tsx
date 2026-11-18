@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Headphones, Mic, MicOff, PhoneOff, Video, VideoOff, Volume2, VolumeX, Lock } from 'lucide-react';
+import { Circle, Headphones, Lock, Mic, MicOff, PhoneOff, Square, Video, VideoOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Tile } from './useCalls';
 
@@ -17,6 +17,29 @@ interface Props {
   onMic: () => void;
   onCam: () => void;
   onMutePeer: (id: string) => void;
+  /** recording: allowed to record, am recording, seconds so far, and a notice when anyone in my room is recording */
+  canRecord: boolean;
+  recording: boolean;
+  recSeconds: number;
+  recNotice: string | null;
+  recError: string | null;
+  unsent: { name: string; blob: Blob }[];
+  onRecord: () => void;
+  onStopRecord: () => void;
+  onDismissUnsent: () => void;
+}
+
+function clock(s: number): string {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 function VideoTile({ tile, onMute }: { tile: Tile; onMute: () => void }) {
@@ -45,7 +68,7 @@ function VideoTile({ tile, onMute }: { tile: Tile; onMute: () => void }) {
 }
 
 /** Join button, mic and camera controls, and a tile for each person you are talking to. */
-export function CallDock({ joined, busy, error, micOn, camOn, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer }: Props) {
+export function CallDock({ joined, busy, error, micOn, camOn, tiles, roomName, onJoin, onLeave, onMic, onCam, onMutePeer, canRecord, recording, recSeconds, recNotice, recError, unsent, onRecord, onStopRecord, onDismissUnsent }: Props) {
   return (
     <>
       {joined && tiles.length > 0 && (
@@ -55,6 +78,18 @@ export function CallDock({ joined, busy, error, micOn, camOn, tiles, roomName, o
       )}
       <div className="absolute inset-x-0 bottom-3 flex flex-col items-center gap-1.5 px-3">
         {error && <p className="pointer-events-auto rounded-lg bg-destructive px-3 py-1 text-xs text-destructive-foreground shadow">{error}</p>}
+        {recNotice && (
+          <p className="pointer-events-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white shadow">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />{recNotice}
+          </p>
+        )}
+        {recError && (
+          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg bg-destructive px-3 py-1 text-xs text-destructive-foreground shadow">
+            <span>{recError}</span>
+            {unsent.map((u) => <button key={u.name} type="button" className="underline" onClick={() => downloadBlob(u.name, u.blob)}>Download {u.name}</button>)}
+            <button type="button" className="ml-1 opacity-80" onClick={onDismissUnsent} aria-label="Dismiss">✕</button>
+          </div>
+        )}
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-border bg-background/95 p-1.5 shadow-lg backdrop-blur">
           {!joined ? (
             <Button size="sm" onClick={onJoin} disabled={busy}><Headphones className="mr-1.5 h-4 w-4" />{busy ? 'Starting…' : 'Join voice'}</Button>
@@ -66,6 +101,13 @@ export function CallDock({ joined, busy, error, micOn, camOn, tiles, roomName, o
               <Button size="sm" variant={camOn ? 'default' : 'outline'} onClick={onCam} aria-label={camOn ? 'Turn camera off' : 'Turn camera on'} title={camOn ? 'Turn camera off' : 'Turn camera on'}>
                 {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
               </Button>
+              {canRecord && roomName && (
+                recording ? (
+                  <Button size="sm" variant="destructive" onClick={onStopRecord} title="Stop recording"><Square className="mr-1.5 h-3.5 w-3.5 fill-current" />{clock(recSeconds)}</Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={onRecord} title="Record this meeting (everyone in the room is told)"><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Record</Button>
+                )
+              )}
               <span className="px-2 text-xs text-muted-foreground">
                 {roomName ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />{roomName}: only people in this room can hear you</span>
                   : tiles.length ? `Talking with ${tiles.length} nearby` : 'Walk up to someone to talk'}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, DoorOpen, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
+import { Building2, Circle, DoorOpen, Palette, Pencil, Plus, Minus, Save, Trash2, RotateCw, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -8,8 +8,10 @@ import { OfficeCanvas, type EditTool } from './OfficeCanvas';
 import { AvatarDialog } from './AvatarDialog';
 import { CallDock } from './calls/CallDock';
 import { useCalls } from './calls/useCalls';
+import { useRecorder } from './calls/useRecorder';
+import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
-import { ensurePersonalOffice, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
+import { ensurePersonalOffice, useCanRecord, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, canPlace, itemCells, newItemId, sanitizeItems } from './world/world';
 import { defaultAvatar } from './world/render';
@@ -40,7 +42,11 @@ export default function OfficePage() {
     if (!profile) return null;
     return {
       id: profile.id,
-      name: (profile.full_name || profile.email || 'Me').split(' ')[0],
+      // first name plus last initial, so two people with the same first name can be told apart
+      name: (() => {
+        const parts = (profile.full_name || profile.email || 'Me').split(' ').filter(Boolean);
+        return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : (parts[0] ?? 'Me');
+      })(),
       avatar: myAvatar ?? defaultAvatar(profile.id),
     };
   }, [profile, myAvatar]);
@@ -76,7 +82,7 @@ export default function OfficePage() {
     [space, map],
   );
 
-  const { roster, connected, peers, update, announce, mine, sendRtc, setRtcHandler } = useOffice(me, space?.id ?? null);
+  const { roster, connected, peers, update, announce, setRecording, mine, sendRtc, setRtcHandler } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)), [map]);
@@ -163,6 +169,27 @@ export default function OfficePage() {
     if (target === 'team') setSpaceId(lastTeam.current ?? myTeam?.id ?? null);
   };
 
+  // ---- recording (only designated people; the whole room is told) ----
+  const { data: canRecord } = useCanRecord(profile?.id);
+  const meetingRoom = zone && zone.kind === 'meeting' ? { id: zone.id, name: zone.name } : null;
+  const recorder = useRecorder({
+    meId: me?.id ?? null,
+    spaceId: space?.id ?? null,
+    canRecord: !!canRecord,
+    joined: calls.joined,
+    room: meetingRoom,
+    getStreams: calls.audioStreams,
+    getNames: () => [me?.name ?? 'Me', ...calls.tiles.map((t) => t.name)],
+    announce: setRecording,
+  });
+  const recorders = meetingRoom ? roster.filter((r) => r.rec && r.spaceId === space?.id && r.zone === meetingRoom.id) : [];
+  const recNotice = recorders.length
+    ? recorders.some((r) => r.id === me?.id)
+      ? 'You are recording this meeting. Everyone in the room can see this.'
+      : `This room is being recorded by ${recorders.map((r) => r.name).join(', ')}.`
+    : null;
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
+
   const [zoom, setZoom] = useState(1);
   const dark = pageIsDark();
 
@@ -191,6 +218,7 @@ export default function OfficePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))} aria-label="Zoom out"><Minus className="h-4 w-4" /></Button>
           <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(1.6, +(z + 0.2).toFixed(1)))} aria-label="Zoom in"><Plus className="h-4 w-4" /></Button>
+          {(canRecord || isAdmin) && <Button size="sm" variant="outline" onClick={() => setRecordingsOpen(true)}><Circle className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />Recordings</Button>}
           <Button size="sm" variant="outline" onClick={() => setAvatarOpen(true)}><Palette className="mr-1.5 h-4 w-4" />Avatar</Button>
           {canEdit && !editing && <Button size="sm" onClick={startEdit}><Pencil className="mr-1.5 h-4 w-4" />Edit office</Button>}
         </div>
@@ -268,7 +296,7 @@ export default function OfficePage() {
 
         <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30">
           <OfficeCanvas
-            map={map} items={items} me={me} roster={roster} peers={peers} update={update}
+            map={map} spaceId={space.id} items={items} me={me} roster={roster} peers={peers} update={update}
             onZone={onZone} onPortal={onPortal} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
@@ -277,6 +305,8 @@ export default function OfficePage() {
               joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles}
               roomName={zone && zone.kind === 'meeting' ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={calls.toggleMic} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
+              canRecord={!!canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
+              recError={recorder.error} unsent={recorder.unsent} onRecord={recorder.start} onStopRecord={recorder.stop} onDismissUnsent={recorder.dismissUnsent}
             />
           )}
           {!editing && (
@@ -302,6 +332,8 @@ export default function OfficePage() {
           )}
         </div>
       </div>
+
+      <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
       <AvatarDialog
         open={avatarOpen} onOpenChange={setAvatarOpen} value={me.avatar} name={me.name} saving={savingAvatar}

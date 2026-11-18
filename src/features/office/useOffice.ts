@@ -19,6 +19,8 @@ export interface Who {
   avatar: AvatarStyle;
   spaceId: string | null;
   zone: string | null;
+  /** this person is recording the meeting they are in (everyone in that room is told) */
+  rec: boolean;
 }
 
 export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir: 0 | 1 | 2 | 3; at: number }
@@ -59,6 +61,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const mine = useRef<{ m: Motion; dir: 0 | 1 | 2 | 3 }>({ m: { x: 0, y: 0, vx: 0, vy: 0 }, dir: 0 });
   const rtcHandler = useRef<((raw: unknown) => void) | null>(null);
   const zoneRef = useRef<string | null>(null);
+  const recRef = useRef(false);
   const selfRef = useRef(self);
   selfRef.current = self;
   const spaceRef = useRef(spaceId);
@@ -72,12 +75,12 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const ch = supabase.channel('office:lobby', { config: { presence: { key: selfId } } });
     lobby.current = ch;
     const sync = () => {
-      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null }[]>;
+      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number }[]>;
       const list: Who[] = [];
       for (const [id, metas] of Object.entries(state)) {
         const m = metas[0];
         if (!m) continue;
-        list.push({ id, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, id), spaceId: m.s ?? null, zone: m.z ?? null });
+        list.push({ id, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, id), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1 });
       }
       setRoster(list);
       // forget people who have left
@@ -88,7 +91,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       if (status === 'SUBSCRIBED') {
         setConnected(true);
         const s = selfRef.current;
-        if (s) await ch.track({ n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current });
+        if (s) await ch.track({ n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0 });
       }
     });
     return () => {
@@ -102,7 +105,14 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const announce = useCallback((zone: string | null) => {
     zoneRef.current = zone;
     const s = selfRef.current;
-    if (lobby.current && s) void lobby.current.track({ n: s.name, a: s.avatar, s: spaceRef.current, z: zone });
+    if (lobby.current && s) void lobby.current.track({ n: s.name, a: s.avatar, s: spaceRef.current, z: zone, r: recRef.current ? 1 : 0 });
+  }, []);
+
+  /** Tell the room that I am (or am no longer) recording. */
+  const setRecording = useCallback((on: boolean) => {
+    recRef.current = on;
+    const s = selfRef.current;
+    if (lobby.current && s) void lobby.current.track({ n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: on ? 1 : 0 });
   }, []);
 
   useEffect(() => {
@@ -167,5 +177,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { roster, connected, peers, update, announce, mine, sendRtc, setRtcHandler };
+  return { roster, connected, peers, update, announce, setRecording, mine, sendRtc, setRtcHandler };
 }

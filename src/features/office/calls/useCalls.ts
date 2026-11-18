@@ -289,5 +289,14 @@ export function useCalls(opts: Opts) {
   }
   const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { joined, busy, error, micOn, camOn, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleMutePeer };
+  /** Every audio stream in the call right now (mine and everyone connected), for the recorder to mix. */
+  const audioStreams = useCallback((): MediaStream[] => {
+    const out: MediaStream[] = [];
+    const l = local.current;
+    if (l.stream && l.audio) out.push(new MediaStream([l.audio]));
+    for (const c of conns.current.values()) if (c.stream.getAudioTracks().length) out.push(c.stream);
+    return out;
+  }, []);
+
+  return { joined, busy, error, micOn, camOn, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleMutePeer, audioStreams };
 }
