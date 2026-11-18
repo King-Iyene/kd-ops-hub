@@ -8,7 +8,7 @@ import { statusOf } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
-import { applyPetCmd, initPet, petBus, petRegistry, stepPet, type PetState } from './world/pets';
+import { applyPetCmd, initPet, petBus, petRegistry, playTick, stepPet, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
 export type { EditTool };
@@ -602,9 +602,15 @@ export function OfficeCanvas(props: Props) {
           if (res.hearts) petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: cmd.kind === 'treat' ? '🦴' : '❤️' });
           if (res.sound) ambient.pet(pet.kind, res.sound);
         }
+        playTick(petRegistry.values(), now, dt, Math.random);
         for (const pet of petRegistry.values()) {
           const was = pet.happyUntil;
-          stepPet(pet, dt, now, { x: me.x, y: me.y, dir: me.dir }, solid, Math.random);
+          stepPet(pet, dt, now, { x: me.x, y: me.y, dir: me.dir }, solid, Math.random, petRegistry);
+          if (pet.mode === 'play' && now - pet.fxAt > 900) {
+            pet.fxAt = now;
+            petFx.current.push({ x: pet.x, y: pet.y - 1.1, born: now, e: pet.kind === 'dog' ? '💨' : '😼' });
+            if (Math.random() < 0.35) ambient.pet(pet.kind, pet.kind === 'dog' ? 'bark' : 'meow');
+          }
           if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
           officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now : true });
         }
