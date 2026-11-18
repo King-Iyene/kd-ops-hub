@@ -38,10 +38,14 @@ interface Props {
   onFollowEnd: () => void;
   /** a click (not a drag) on the map outside edit mode */
   onMapClick: (tile: { x: number; y: number }) => void;
+  /** right-click: where, which tile, and the person under the pointer (if any) */
+  onContext: (c: { cx: number; cy: number; wx: number; wy: number; personId: string | null; isMe: boolean }) => void;
   /** while editing, the rectangle that can be changed (an owner may only change their own office) */
   editArea: { x: number; y: number; w: number; h: number } | null;
   /** a counter: when it changes the view returns to my avatar */
   recenter: number;
+  /** size of the video bubbles over people (1 is normal) */
+  bubbleScale: number;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
   onPortal: (target: 'team' | 'mine') => void;
@@ -92,6 +96,7 @@ export function OfficeCanvas(props: Props) {
     const down = (e: KeyboardEvent) => {
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
         e.preventDefault();
@@ -170,12 +175,42 @@ export function OfficeCanvas(props: Props) {
       else propsRef.current.onMapClick(toTile(e));
     };
     const dbl = () => { pan.current = { x: 0, y: 0 }; };
+    const ctxMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      const p = propsRef.current;
+      if (p.editing) return;
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const wx = (e.clientX - r.left - ox) / (TILE * scale);
+      const wy = (e.clientY - r.top - oy) / (TILE * scale);
+      const solid = buildSolid(p.map, p.items);
+      const who = new Map(p.roster.map((q) => [q.id, q]));
+      let best: { id: string; isMe: boolean; d: number } | null = null;
+      const consider = (id: string, isMe: boolean, x: number, y: number) => {
+        const dx = wx - x;
+        const dy = wy - (y - 0.6);
+        if (Math.abs(dx) > 0.6 || dy < -1 || dy > 0.9) return;
+        const d = Math.hypot(dx, dy);
+        if (!best || d < best.d) best = { id, isMe, d };
+      };
+      for (const [id, pm] of p.peers.current) {
+        const info = who.get(id);
+        if (!info || (!p.showOwnTabs && info.uid === p.me.uid) || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+        const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
+        consider(id, false, pos.x, pos.y);
+      }
+      const m = meRef.current;
+      consider(p.me.id, true, m.x, m.y);
+      const hit = best as { id: string; isMe: boolean } | null;
+      p.onContext({ cx: e.clientX, cy: e.clientY, wx, wy, personId: hit ? hit.id : null, isMe: !!hit && hit.isMe });
+    };
     const leave = () => { hover.current = null; drag.down = false; };
     canvas.addEventListener('mousemove', move);
     canvas.addEventListener('mouseleave', leave);
     canvas.addEventListener('mousedown', down);
     canvas.addEventListener('mouseup', up);
     canvas.addEventListener('dblclick', dbl);
+    canvas.addEventListener('contextmenu', ctxMenu);
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
@@ -253,6 +288,26 @@ export function OfficeCanvas(props: Props) {
             route.current = [];
           }
         }
+        // people are solid: you cannot walk through someone (hold Shift to slip through them)
+        if (!k.has('shift') && (np.x !== me.x || np.y !== me.y)) {
+          const who = new Map(p.roster.map((q) => [q.id, q]));
+          const bodies: { x: number; y: number }[] = [];
+          for (const [id, pm] of p.peers.current) {
+            const info = who.get(id);
+            if (!info || info.uid === p.me.uid || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+            bodies.push(extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now()));
+          }
+          const R = 0.8;
+          const blockedAt = (x: number, y: number) => bodies.some((q) => {
+            const dn = Math.hypot(x - q.x, y - q.y);
+            return dn < R && dn < Math.hypot(me.x - q.x, me.y - q.y);
+          });
+          if (blockedAt(np.x, np.y)) {
+            if (!blockedAt(np.x, me.y)) np.y = me.y;
+            else if (!blockedAt(me.x, np.y)) np.x = me.x;
+            else { np.x = me.x; np.y = me.y; }
+          }
+        }
         // if a wall stopped us completely, we are not really moving (so we send "stop", not a walk into a wall)
         const stuck = (v.vx !== 0 || v.vy !== 0) && np.x === me.x && np.y === me.y;
         me.x = np.x;
@@ -314,10 +369,10 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // items and people drawn together so someone walking behind a desk is hidden by it
       const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
@@ -386,6 +441,7 @@ export function OfficeCanvas(props: Props) {
       canvas.removeEventListener('mousedown', down);
       canvas.removeEventListener('mouseup', up);
       canvas.removeEventListener('dblclick', dbl);
+      canvas.removeEventListener('contextmenu', ctxMenu);
     };
   }, []);
 

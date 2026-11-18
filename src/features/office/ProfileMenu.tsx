@@ -12,8 +12,8 @@ interface Props {
   onToggleBright: () => void;
   zoom: number;
   onZoom: (delta: number) => void;
-  traySize: 0 | 1 | 2;
-  onTraySize: (s: 0 | 1 | 2) => void;
+  traySize: 0 | 1 | 2 | 3;
+  onTraySize: (s: 0 | 1 | 2 | 3) => void;
   canEdit: boolean;
   editing: boolean;
   onEdit: () => void;
@@ -74,10 +74,10 @@ export function ProfileMenu(p: Props) {
         <DropdownMenuItem onSelect={p.onAvatar}><Palette className="mr-2 h-4 w-4" />Customise avatar</DropdownMenuItem>
         <DropdownMenuItem onSelect={p.onToggleBright}>{p.bright ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}{p.bright ? 'Night office' : 'Bright office'}</DropdownMenuItem>
         <div className="flex items-center justify-between px-2 py-1.5 text-sm">
-          <span>Video size</span>
+          <span>Video bubble size</span>
           <span className="flex gap-1">
-            {(['S', 'M', 'L'] as const).map((l, i) => (
-              <button key={l} type="button" onClick={() => p.onTraySize(i as 0 | 1 | 2)} aria-label={`Video size ${l}`} className={`flex h-6 w-6 items-center justify-center rounded border text-xs ${p.traySize === i ? 'border-primary bg-primary/15 text-primary' : 'hover:bg-muted'}`}>{l}</button>
+            {(['S', 'M', 'L', 'XL'] as const).map((l, i) => (
+              <button key={l} type="button" onClick={() => p.onTraySize(i as 0 | 1 | 2 | 3)} aria-label={`Video size ${l}`} className={`flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs ${p.traySize === i ? 'border-primary bg-primary/15 text-primary' : 'hover:bg-muted'}`}>{l}</button>
             ))}
           </span>
         </div>

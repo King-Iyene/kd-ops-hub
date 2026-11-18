@@ -182,6 +182,16 @@ export function useOfficeMutations() {
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
       return data.id as string;
     },
+    async renameSpace(id: string, name: string) {
+      const { error } = await supabase.from('office_spaces').update({ name, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
+    },
+    async deleteSpace(id: string) {
+      const { error } = await supabase.from('office_spaces').delete().eq('id', id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
+    },
     async saveSettings(space: SpaceRow, settings: { builders?: string[]; recorders?: string[]; maxItems?: number }) {
       const { error } = await supabase
         .from('office_spaces')

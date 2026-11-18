@@ -325,7 +325,8 @@ export function AppSidebar() {
         </div>
 
         <SidebarContent className="pt-1 pb-2">
-          {hubNavGroups.map((group) => {
+          {activeHubConfig.key === 'office' && <div id="office-sidebar-slot" className="min-h-0 flex-1" />}
+          {activeHubConfig.key !== 'office' && hubNavGroups.map((group) => {
             const groupItems = navItems.filter((n) =>
               (group.titles as readonly string[]).includes(n.title),
             );

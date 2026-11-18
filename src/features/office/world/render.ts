@@ -1687,6 +1687,8 @@ export interface DrawPerson {
   isMe: boolean;
   /** this person's live camera, drawn as a bubble above their head */
   bubble?: HTMLVideoElement | null;
+  /** how big the bubble is drawn (1 is the normal size) */
+  bubbleScale?: number;
   /** who this is (used to attach emoji reactions) */
   id?: string;
   /** an emoji for their status, shown in the name tag */
@@ -1976,8 +1978,9 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // live camera bubble above the name tag, like Gather
   const v = p.bubble;
   if (v && v.readyState >= 2 && v.videoWidth > 0) {
-    const bw = 96;
-    const bh = 72;
+    const bk = p.bubbleScale ?? 1;
+    const bw = 96 * bk;
+    const bh = 72 * bk;
     const bx = px - bw / 2;
     const by = ty - 9 - 8 - bh;
     ctx.fillStyle = 'rgba(15,23,42,0.3)';

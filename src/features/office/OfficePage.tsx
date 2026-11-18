@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BellRing, Building2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { BellRing, Building2, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -31,6 +32,15 @@ import { applyTileEdits, canPlace, isRoom, itemCells, newItemId, sanitizeItems, 
 import { defaultAvatar } from './world/render';
 import type { Item, TileEdits, Zone } from './world/types';
 
+
+/**
+ * The people / rooms / spaces list. It lives in the app's main left sidebar (under "Virtual Office") so the map gets the whole page;
+ * when that sidebar is collapsed or on a phone it stays beside the map as before.
+ */
+function SlotAside({ slot, children }: { slot: HTMLElement | null; children: ReactNode }) {
+  if (slot) return createPortal(<div className="flex flex-col gap-4 px-3 pb-3 pt-2">{children}</div>, slot);
+  return <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">{children}</aside>;
+}
 
 export default function OfficePage() {
   const { profile } = useAuthStore();
@@ -163,6 +173,17 @@ export default function OfficePage() {
   const [brush, setBrush] = useState<1 | 3>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
+  const isSuper = profile?.role === 'super_admin';
+  const [renaming, setRenaming] = useState<SpaceRow | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const removeSpace = async (sp: SpaceRow) => {
+    if (!window.confirm('Delete "' + sp.name + '"? Everything built in it is removed and this cannot be undone.')) return;
+    try {
+      await actions.deleteSpace(sp.id);
+      if (space?.id === sp.id) setSpaceId(myTeam?.id ?? null);
+      toast({ title: 'Space deleted' });
+    } catch (err) { toast({ title: 'Could not delete', description: errorMessage(err), variant: 'destructive' }); }
+  };
   const [newSpaceName, setNewSpaceName] = useState('');
   const [deskZone, setDeskZone] = useState<Zone | null>(null);
   const [deskBusy, setDeskBusy] = useState(false);
@@ -657,8 +678,25 @@ export default function OfficePage() {
   }, [hintSeen]);
   /** a counter: every change brings the view back to my avatar */
   const [recenter, setRecenter] = useState(0);
-  const [traySize, setTraySize] = useState<0 | 1 | 2>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 ? v : 1; } catch { return 1; } });
-  const chooseTray = (n: 0 | 1 | 2) => { setTraySize(n); try { localStorage.setItem('kd:office:tray', String(n)); } catch { /* fine */ } };
+  const [ctx, setCtx] = useState<{ cx: number; cy: number; wx: number; wy: number; personId: string | null; isMe: boolean } | null>(null);
+  useEffect(() => {
+    if (!ctx) return;
+    const close = () => setCtx(null);
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', key);
+    window.addEventListener('blur', close);
+    window.addEventListener('resize', close);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('blur', close); window.removeEventListener('resize', close); };
+  }, [ctx]);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const look = () => { const el = document.getElementById('office-sidebar-slot'); setSlot((cur) => (cur === el ? cur : el)); };
+    look();
+    const t = window.setInterval(look, 400);
+    return () => window.clearInterval(t);
+  }, []);
+  const [traySize, setTraySize] = useState<0 | 1 | 2 | 3>(() => { try { const v = Number(localStorage.getItem('kd:office:tray')); return v === 0 || v === 2 || v === 3 ? v : 1; } catch { return 1; } });
+  const chooseTray = (n: 0 | 1 | 2 | 3) => { setTraySize(n); try { localStorage.setItem('kd:office:tray', String(n)); } catch { /* fine */ } };
   // a window that is not the newest one for this account hangs up (so there is never a second copy of me)
   useEffect(() => { if (superseded && calls.joined) calls.leave(); }, [superseded, calls.joined]); // eslint-disable-line react-hooks/exhaustive-deps
   // the update prompt must not reload the page while I am in a call or recording
@@ -739,7 +777,7 @@ export default function OfficePage() {
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3">
-        <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-card p-3 md:flex">
+        <SlotAside slot={slot}>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -751,10 +789,18 @@ export default function OfficePage() {
           <section>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spaces</p>
             <div className="space-y-0.5">
-              {teamSpaces.map((sp) => (
-                <button key={sp.id} type="button" onClick={() => setSpaceId(sp.id)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted ${sp.id === space.id ? 'bg-muted font-medium' : ''}`}>
-                  <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{sp.name}</span>
-                </button>
+              {teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).map((sp) => (
+                <div key={sp.id} className={`group flex items-center rounded-lg transition-colors hover:bg-muted ${sp.id === space.id ? 'bg-muted font-medium' : ''}`}>
+                  <button type="button" onClick={() => setSpaceId(sp.id)} className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left text-sm">
+                    <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{sp.name}</span>
+                  </button>
+                  {isSuper && (
+                    <span className="mr-1 flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+                      <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-background"><Pencil className="h-3.5 w-3.5" /></button>
+                      {sp.id !== myTeam?.id && <button type="button" aria-label={`Delete ${sp.name}`} title="Delete" onClick={() => void removeSpace(sp)} className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-background"><Trash2 className="h-3.5 w-3.5" /></button>}
+                    </span>
+                  )}
+                </div>
               ))}
               {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-primary hover:bg-muted"><Plus className="h-4 w-4" />New space</button>}
             </div>
@@ -788,6 +834,11 @@ export default function OfficePage() {
                     <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
+                        {calls.tiles.some((t) => t.id === r.id && !t.screen) && (
+                          <button type="button" className={act} title={calls.tiles.find((t) => t.id === r.id)?.muted ? `Unmute ${r.name}` : `Mute ${r.name} (only for you)`} aria-label={`Mute ${r.name}`} onClick={() => calls.toggleMutePeer(r.id)}>
+                            {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3.5 w-3.5 text-red-500" /> : <Volume2 className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
                         <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
                         <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3.5 w-3.5" /></button>
                         <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3.5 w-3.5" /></button>
@@ -816,7 +867,7 @@ export default function OfficePage() {
               </div>
             </section>
           )}
-        </aside>
+        </SlotAside>
 
         <div
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
@@ -827,7 +878,8 @@ export default function OfficePage() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
-            recenter={recenter} emotes={emotes}
+            recenter={recenter} emotes={emotes} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            onContext={(c) => setCtx(c)}
             onMapClick={(t) => { const z = zoneAt(map, t.x + 0.5, t.y + 0.5); if (z && z.kind === 'office') setDeskZone(z); }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} onTile={onTile}
           />
@@ -862,9 +914,9 @@ export default function OfficePage() {
           )}
           {!editing && (
             <CallDock
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} selfCam={calls.selfCam} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} speakingIds={calls.speakingIds} onEmote={sendEmote} meName={me.name} traySize={traySize} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} onEmote={sendEmote} tiles={calls.tiles}
               roomName={zone && isRoom(zone) ? zone.name : null}
-              onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onMutePeer={calls.toggleMutePeer}
+              onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
                 <ProfileMenu
@@ -884,7 +936,7 @@ export default function OfficePage() {
           )}
           {!editing && !hintSeen && (
             <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-background/80 px-3 py-1.5 text-xs text-muted-foreground shadow backdrop-blur">
-              Walk with <kbd className="rounded border px-1">W</kbd><kbd className="ml-0.5 rounded border px-1">A</kbd><kbd className="ml-0.5 rounded border px-1">S</kbd><kbd className="ml-0.5 rounded border px-1">D</kbd> or the arrow keys. Walk through a door to change rooms.
+              Walk with <kbd className="rounded border px-1">W</kbd><kbd className="ml-0.5 rounded border px-1">A</kbd><kbd className="ml-0.5 rounded border px-1">S</kbd><kbd className="ml-0.5 rounded border px-1">D</kbd> or the arrow keys. Walk through a door to change rooms. Hold <kbd className="rounded border px-1">Shift</kbd> to slip through people.
             </div>
           )}
 
@@ -910,6 +962,16 @@ export default function OfficePage() {
             <Button onClick={() => void joinWith(true)}><Video className="mr-2 h-4 w-4" />Join with camera and microphone</Button>
             <Button variant="outline" onClick={() => void joinWith(false)}><Mic className="mr-2 h-4 w-4" />Join with microphone only</Button>
             <Button variant="ghost" onClick={closeJoinPrompt}>Not now</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!renaming} onOpenChange={(o) => { if (!o) setRenaming(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Rename space</DialogTitle></DialogHeader>
+          <input value={renameValue} onChange={(e) => setRenameValue(e.target.value.slice(0, 40))} aria-label="Space name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setRenaming(null)}>Cancel</Button>
+            <Button disabled={!renameValue.trim()} onClick={async () => { if (!renaming) return; try { await actions.renameSpace(renaming.id, renameValue.trim()); setRenaming(null); toast({ title: 'Space renamed' }); } catch (err) { toast({ title: 'Could not rename', description: errorMessage(err), variant: 'destructive' }); } }}>Save</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -974,6 +1036,60 @@ export default function OfficePage() {
           setNameZone(null);
         }}
       />
+      {ctx && (() => {
+        const mi = 'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted';
+        const done = (fn: () => void) => () => { setCtx(null); fn(); };
+        const person = ctx.personId && !ctx.isMe ? roster.find((r) => r.id === ctx.personId) ?? null : null;
+        const zone = zoneAt(map, ctx.wx, ctx.wy);
+        const office = zone && zone.kind === 'office' ? zone : null;
+        const claim = office ? (claims ?? []).find((c) => c.office_id === office.id) ?? null : null;
+        const mine = !!claim && claim.user_id === profile?.id;
+        const tx = Math.floor(ctx.wx);
+        const ty = Math.floor(ctx.wy);
+        const rows: ReactNode[] = [];
+        const item = (key: string, icon: ReactNode, label: string, run: () => void, danger = false) => rows.push(
+          <button key={key} type="button" className={mi + (danger ? ' text-red-500' : '')} onClick={done(run)}>{icon}<span>{label}</span></button>,
+        );
+        const sep = (key: string) => { if (rows.length) rows.push(<div key={key} className="my-1 h-px bg-border" />); };
+        const ic = 'h-4 w-4';
+        let title = 'Here';
+        if (person) {
+          title = person.name;
+          const tl = calls.tiles.find((t) => t.id === person.id && !t.screen);
+          item('go', <LocateFixed className={ic} />, 'Go to ' + person.name, () => goToPerson(person.id, person.spaceId));
+          item('fol', <Footprints className={ic} />, follow === person.id ? 'Stop following' : 'Follow', () => startFollow(person.id));
+          item('ring', <BellRing className={ic} />, 'Ring', () => ring(person));
+          item('msg', <MessageCircle className={ic} />, 'Send a message', () => setChatWith({ id: person.id, name: person.name }));
+          if (tl) item('mute', tl.muted ? <Volume2 className={ic} /> : <VolumeX className={ic} />, tl.muted ? 'Unmute (only for you)' : 'Mute (only for you)', () => calls.toggleMutePeer(person.id));
+        } else if (ctx.isMe) {
+          title = me.name + ' (you)';
+          item('av', <Users className={ic} />, 'Change my avatar', () => setAvatarOpen(true));
+          if (myClaim) item('mine', <Building2 className={ic} />, 'Walk to my office', () => walkToOffice());
+          if (myClaim && !editing) item('cust', <Pencil className={ic} />, 'Customise my office', () => { const z = map.zones.find((q) => q.id === myClaim.office_id); if (z) startEdit(z); });
+          item('rc', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
+        } else if (office) {
+          title = office.name;
+          item('walk', <Footprints className={ic} />, 'Walk to this office', () => walkToOffice(office.id));
+          if (!claim && !myClaim) item('claim', <Building2 className={ic} />, 'Claim this office', () => void claimOffice(office.id));
+          if (mine) item('unclaim', <Minus className={ic} />, 'Unclaim my office', () => void unclaimOffice(office.id), true);
+          if (mine && !editing) item('cust', <Pencil className={ic} />, 'Customise this office', () => startEdit(office));
+          if (isAdmin) { sep('s1'); item('manage', <Pencil className={ic} />, 'Manage (rename, assign, build)', () => setDeskZone(office)); }
+        } else {
+          if (zone && isRoom(zone)) title = zone.name;
+          item('here', <Footprints className={ic} />, 'Walk here', () => setJump({ key: Date.now(), x: tx + 0.5, y: ty + 0.5 }));
+          item('rc2', <LocateFixed className={ic} />, 'Centre the view on me', () => setRecenter((n) => n + 1));
+        }
+        const left = Math.max(8, Math.min(ctx.cx, window.innerWidth - 232));
+        const top = Math.max(8, Math.min(ctx.cy, window.innerHeight - (rows.length * 34 + 48)));
+        return (
+          <div className="fixed inset-0 z-[70]" onPointerDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null); }}>
+            <div className="absolute w-56 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-xl" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+              <div className="truncate px-2.5 pb-1 pt-0.5 text-xs font-medium text-muted-foreground">{title}</div>
+              {rows}
+            </div>
+          </div>
+        );
+      })()}
       <MessageDialog person={chatWith} online={!!chatWith && roster.some((r) => r.id === chatWith.id)} messages={inbox} onClose={() => setChatWith(null)} onSend={sendMessage} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 

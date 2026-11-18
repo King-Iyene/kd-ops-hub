@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
 import { isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
 
@@ -12,8 +13,23 @@ import { isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, t
  * add one by filling VITE_TURN_URL, VITE_TURN_USER and VITE_TURN_CREDENTIAL.
  */
 
+/** relay servers fetched from the office-turn function (empty until the Cloudflare keys are added) */
+let relayServers: RTCIceServer[] = [];
+let relayAt = 0;
+async function loadRelay(): Promise<void> {
+  if (Date.now() - relayAt < 6 * 3600 * 1000) return;
+  try {
+    const { data } = await supabase.functions.invoke('office-turn', { body: {} });
+    const list = (data as { iceServers?: RTCIceServer[] } | null)?.iceServers;
+    relayServers = Array.isArray(list) ? list : [];
+    relayAt = Date.now();
+  } catch {
+    /* keep using STUN only */
+  }
+}
+
 function iceConfig(): RTCConfiguration {
-  const servers: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  const servers: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, ...relayServers];
   const env = import.meta.env as Record<string, string | undefined>;
   if (env.VITE_TURN_URL) servers.push({ urls: env.VITE_TURN_URL.split(','), username: env.VITE_TURN_USER, credential: env.VITE_TURN_CREDENTIAL });
   return { iceServers: servers };
@@ -247,6 +263,7 @@ export function useCalls(opts: Opts) {
     setBusy(true);
     setError(null);
     try {
+      await loadRelay();
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });

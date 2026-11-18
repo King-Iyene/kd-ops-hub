@@ -106,6 +106,9 @@ jobs:
       - name: Deploy export-transfer-audit
         run: supabase functions deploy export-transfer-audit --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
+      - name: Deploy office-turn
+        run: supabase functions deploy office-turn --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       - name: Deploy record-failed-login
         run: supabase functions deploy record-failed-login --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
