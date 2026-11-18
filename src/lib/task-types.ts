@@ -55,7 +55,7 @@ export interface CustomFieldDefinition {
   id: string;
   space_id: string | null;
   name: string;
-  field_type: 'text' | 'number' | 'dropdown' | 'checkbox' | 'date' | 'email' | 'phone' | 'url' | 'currency' | 'rating' | 'labels';
+  field_type: 'text' | 'long_text' | 'number' | 'dropdown' | 'checkbox' | 'date' | 'email' | 'phone' | 'url' | 'currency' | 'rating' | 'labels' | 'people' | 'task_link';
   options: any;
   is_required: boolean;
   sort_order: number;

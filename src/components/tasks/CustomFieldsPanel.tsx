@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { confirm } from '@/hooks/use-confirm';
-import type { CustomFieldDefinition, CustomFieldValue } from '@/lib/task-types';
+import type { CustomFieldDefinition, CustomFieldValue, ProfileRow } from '@/lib/task-types';
 
 interface CustomFieldsPanelProps {
   taskId: string;
@@ -21,6 +22,7 @@ interface CustomFieldsPanelProps {
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
   text: 'Text',
+  long_text: 'Long text',
   number: 'Number',
   dropdown: 'Dropdown',
   checkbox: 'Checkbox',
@@ -31,7 +33,14 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   currency: 'Currency',
   rating: 'Rating',
   labels: 'Labels',
+  people: 'People',
+  task_link: 'Task link',
 };
+
+interface TaskOption {
+  id: string;
+  title: string;
+}
 
 export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
   const { profile } = useAuthStore();
@@ -43,6 +52,8 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState('text');
   const [newFieldOptions, setNewFieldOptions] = useState('');
+  const [people, setPeople] = useState<ProfileRow[]>([]);
+  const [spaceTasks, setSpaceTasks] = useState<TaskOption[]>([]);
 
   const loadFields = useCallback(async () => {
     const filters = spaceId
@@ -65,6 +76,27 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
   }, [taskId, spaceId]);
 
   useEffect(() => { loadFields(); }, [loadFields]);
+
+  // People/task-link pickers only need to load their option lists once a
+  // field of that type actually exists (or is being created).
+  const needsPeople = definitions.some((d) => d.field_type === 'people') || newFieldType === 'people';
+  const needsTaskLink = definitions.some((d) => d.field_type === 'task_link') || newFieldType === 'task_link';
+
+  useEffect(() => {
+    if (!needsPeople || people.length) return;
+    supabase.from('profiles').select('id, full_name, email').order('full_name')
+      .then(({ data }) => setPeople((data as ProfileRow[]) || []));
+  }, [needsPeople, people.length]);
+
+  useEffect(() => {
+    if (!needsTaskLink || !spaceId || spaceTasks.length) return;
+    supabase
+      .from('tasks')
+      .select('id, title, list_id, task_lists!inner(space_id)')
+      .eq('task_lists.space_id', spaceId)
+      .neq('id', taskId)
+      .then(({ data }) => setSpaceTasks(((data as any[]) || []).map((t) => ({ id: t.id, title: t.title }))));
+  }, [needsTaskLink, spaceId, taskId, spaceTasks.length]);
 
   const addField = async () => {
     if (!newFieldName.trim()) return;
@@ -105,7 +137,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
       payload.value_number = rawValue === '' ? null : Number(rawValue);
     } else if (fieldType === 'checkbox') {
       payload.value_json = rawValue;
-    } else if (fieldType === 'dropdown' || fieldType === 'labels') {
+    } else if (fieldType === 'dropdown' || fieldType === 'labels' || fieldType === 'people' || fieldType === 'task_link') {
       payload.value_json = rawValue;
     } else {
       payload.value_text = rawValue || null;
@@ -127,7 +159,9 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
       return v.value_number ?? '';
     }
     if (field.field_type === 'checkbox') return v.value_json ?? false;
-    if (field.field_type === 'dropdown' || field.field_type === 'labels') return v.value_json;
+    if (field.field_type === 'dropdown' || field.field_type === 'labels' || field.field_type === 'people' || field.field_type === 'task_link') {
+      return v.value_json;
+    }
     return v.value_text ?? '';
   };
 
@@ -180,6 +214,13 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
               {field.field_type === 'text' && (
                 <Input
                   className="h-7 text-xs"
+                  value={val}
+                  onChange={(e) => updateValue(field.id, field.field_type, e.target.value)}
+                />
+              )}
+              {field.field_type === 'long_text' && (
+                <Textarea
+                  className="min-h-14 text-xs"
                   value={val}
                   onChange={(e) => updateValue(field.id, field.field_type, e.target.value)}
                 />
@@ -266,6 +307,61 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
                       </button>
                     );
                   })}
+                </div>
+              )}
+              {field.field_type === 'people' && (
+                <div className="flex flex-wrap gap-1">
+                  {people.map((p) => {
+                    const selected = Array.isArray(val) && val.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          const arr: string[] = Array.isArray(val) ? [...val] : [];
+                          if (selected) arr.splice(arr.indexOf(p.id), 1);
+                          else arr.push(p.id);
+                          updateValue(field.id, field.field_type, arr);
+                        }}
+                        className={cn(
+                          'text-3xs px-2 py-0.5 rounded-full border transition-colors',
+                          selected
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : 'bg-muted text-muted-foreground border-border',
+                        )}
+                      >
+                        {p.full_name || p.email}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {field.field_type === 'task_link' && (
+                <div className="flex flex-wrap gap-1">
+                  {spaceTasks.map((t) => {
+                    const selected = Array.isArray(val) && val.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          const arr: string[] = Array.isArray(val) ? [...val] : [];
+                          if (selected) arr.splice(arr.indexOf(t.id), 1);
+                          else arr.push(t.id);
+                          updateValue(field.id, field.field_type, arr);
+                        }}
+                        className={cn(
+                          'text-3xs px-2 py-0.5 rounded-full border transition-colors',
+                          selected
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : 'bg-muted text-muted-foreground border-border',
+                        )}
+                      >
+                        {t.title}
+                      </button>
+                    );
+                  })}
+                  {spaceTasks.length === 0 && (
+                    <p className="text-3xs text-muted-foreground">No other tasks in this space yet.</p>
+                  )}
                 </div>
               )}
             </div>
