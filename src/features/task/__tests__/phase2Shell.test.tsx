@@ -87,7 +87,7 @@ describe('Task Phase 2 — shell and spaces', () => {
     expect(screen.queryByRole('button', { name: /Create space/i })).not.toBeInTheDocument();
   });
 
-  it('SpaceOverview shows the space name, the exact empty-body copy, and no +Add list/+Add table buttons yet', async () => {
+  it('SpaceOverview shows the space name, the exact empty-body copy, an +Add list button for an editor (Phase 3), and no +Add table yet (Phase 9)', async () => {
     const space = {
       id: 'space-1',
       workspace_id: 'ws-1',
@@ -103,6 +103,7 @@ describe('Task Phase 2 — shell and spaces', () => {
     tableResults = {
       tk_spaces: { data: space, error: null },
       tk_space_members: { data: [{ space_id: 'space-1', user_id: FAKE_USER_ID, role: 'editor', created_at: '' }], error: null },
+      tk_lists: { data: [], error: null },
     };
     rpcResults = { tk_role_of: { data: 'member', error: null } };
 
@@ -111,7 +112,7 @@ describe('Task Phase 2 — shell and spaces', () => {
     await waitFor(() => expect(screen.getByText('Engineering')).toBeInTheDocument());
     expect(screen.getByText('This space is empty.')).toBeInTheDocument();
     expect(screen.getByText('Create a list to track tasks, or a table to collect structured data.')).toBeInTheDocument();
-    expect(screen.queryByText(/Add list/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Add list/i })).toBeInTheDocument());
     expect(screen.queryByText(/Add table/i)).not.toBeInTheDocument();
   });
 

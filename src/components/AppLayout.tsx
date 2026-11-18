@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { DesktopAgentHeaderButton } from '@/features/timetrack/pages/activity/shared';
+import { TaskQuickCreateHeaderButton } from '@/features/task/components/TaskQuickCreateHeaderButton';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
@@ -93,6 +94,8 @@ function getRouteTitle(pathname: string): string {
   if (pathname.startsWith('/employees/')) return 'Employee Profile';
   if (pathname.startsWith('/contacts/')) return 'Contact Profile';
   if (pathname.startsWith('/task/s/')) return 'Space';
+  if (pathname.startsWith('/task/l/')) return 'List';
+  if (pathname.startsWith('/task/t/')) return 'Task';
   return '';
 }
 
@@ -193,6 +196,7 @@ export default function AppLayout() {
                 </kbd>
               </button>
               {location.pathname.startsWith('/timetrack') && <DesktopAgentHeaderButton />}
+              {location.pathname.startsWith('/task') && <TaskQuickCreateHeaderButton />}
               <NotificationBell />
               <ThemeToggle />
               <div className="hidden sm:block w-px h-4 bg-border/60" />

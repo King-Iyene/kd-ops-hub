@@ -1,15 +1,22 @@
-import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Loader2, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '../components/EmptyState';
 import { SpaceOverviewMenu } from '../spaces/SpaceOverviewMenu';
 import { useCanManageSpace, useSpace } from '../api/spaces';
+import { useLists } from '../api/lists';
 import { isTaskAdmin, useTaskRole } from '../api/workspace';
+import { CreateListDialog } from '../lists/CreateListDialog';
 
 export default function SpaceOverview() {
   const { spaceId } = useParams<{ spaceId: string }>();
+  const navigate = useNavigate();
   const { data: space, isLoading } = useSpace(spaceId);
+  const { data: lists } = useLists(spaceId);
   const { data: role } = useTaskRole();
   const canManage = useCanManageSpace(spaceId, isTaskAdmin(role));
+  const [createListOpen, setCreateListOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -44,12 +51,33 @@ export default function SpaceOverview() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border">
-        <EmptyState
-          title="This space is empty."
-          description="Create a list to track tasks, or a table to collect structured data."
-        />
-      </div>
+      {lists && lists.length > 0 ? (
+        <div className="rounded-lg border border-border divide-y divide-border">
+          {lists.map((list) => (
+            <button
+              key={list.id}
+              onClick={() => navigate(`/task/l/${list.id}`)}
+              className="w-full flex items-center px-4 py-3 text-sm text-foreground hover:bg-muted/40 kd-transition text-left"
+            >
+              {list.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border">
+          <EmptyState
+            title="This space is empty."
+            description="Create a list to track tasks, or a table to collect structured data."
+            action={canManage && (
+              <Button size="sm" onClick={() => setCreateListOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add list
+              </Button>
+            )}
+          />
+        </div>
+      )}
+
+      {spaceId && <CreateListDialog spaceId={spaceId} open={createListOpen} onOpenChange={setCreateListOpen} />}
     </div>
   );
 }

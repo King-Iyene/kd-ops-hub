@@ -100,6 +100,8 @@ const DatabasePage      = lazy(() => import('./features/database/pages/DatabaseP
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
 const TaskLanding = lazy(() => import('./features/task/pages/TaskLanding'));
 const SpaceOverview = lazy(() => import('./features/task/pages/SpaceOverview'));
+const ListPage = lazy(() => import('./features/task/pages/ListPage'));
+const TaskPanelPage = lazy(() => import('./features/task/pages/TaskPanelPage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -934,6 +936,26 @@ function AppRoutes() {
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
                 <SpaceOverview />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/task/l/:listId"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <ListPage />
+              </ErrorBoundary>
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/task/t/:taskId"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ErrorBoundary>
+                <TaskPanelPage />
               </ErrorBoundary>
             </RoleGuard>
           }
