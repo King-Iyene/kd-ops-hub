@@ -33,11 +33,14 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) => [...queryKeys.expenses.all, 'list', filters] as const,
     detail: (id: string) => [...queryKeys.expenses.all, 'detail', id] as const,
   },
-  tasks: {
-    all: ['tasks'] as const,
-    list: (spaceId?: string) => [...queryKeys.tasks.all, 'list', spaceId] as const,
-    detail: (id: string) => [...queryKeys.tasks.all, 'detail', id] as const,
-    spaces: () => [...queryKeys.tasks.all, 'spaces'] as const,
+  taskModule: {
+    all: ['task-module'] as const,
+    folders: () => [...queryKeys.taskModule.all, 'folders'] as const,
+    lists: (folderId?: string) => [...queryKeys.taskModule.all, 'lists', folderId] as const,
+    tasks: (listId: string) => [...queryKeys.taskModule.all, 'tasks', listId] as const,
+    tables: (folderId?: string) => [...queryKeys.taskModule.all, 'tables', folderId] as const,
+    fields: (tableId: string) => [...queryKeys.taskModule.all, 'fields', tableId] as const,
+    records: (tableId: string) => [...queryKeys.taskModule.all, 'records', tableId] as const,
   },
   fleet: {
     all: ['fleet'] as const,

@@ -19,7 +19,7 @@ import {
   Handshake, Clock, AlertOctagon, Mail, ClipboardList, MessageSquareWarning,
   HandCoins, CalendarRange, GitBranch, BookMarked, Clock3, LayoutGrid,
   Workflow, Megaphone, Building2, Landmark, User as UserIcon, Bot,
-  MessageCircle,
+  MessageCircle, CheckSquare,
 } from 'lucide-react';
 import { useEffectiveRole } from '@/store/authStore';
 import {
@@ -45,6 +45,7 @@ const ITEMS: Item[] = [
   { title: 'Messages',        path: '/messages',      icon: MessageCircle,  roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chat direct message' },
   { title: 'AI Assistant',    path: '/assistant',     icon: Bot,            roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chatbot ask help' },
   { title: 'My Profile',      path: '/profile',       icon: UserIcon,       roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'account settings payslips' },
+  { title: 'Task',            path: '/task',          icon: CheckSquare,    roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'tasks lists folders tables todo' },
   { title: 'Guide',           path: '/guide',         icon: HelpCircle,      roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'help how to manual documentation onboarding roles permissions' },
 
   // Finance

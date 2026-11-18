@@ -223,6 +223,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'NDI Employees',    url: '/ndi/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'NDI Profile',      url: '/ndi/profile',       icon: Building2,       roles: ['super_admin', 'admin'] },
   { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: [] }, // hidden for now (page still reachable at /office); set roles when ready to launch
+  { title: 'Task',             url: '/task',              icon: CheckSquare,     roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
@@ -274,6 +275,7 @@ export const NAV_GROUPS = [
   { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements', 'Database', 'Developer'] },
   { key: 'ndi',        label: 'NDI',                 titles: ['NDI Overview', 'NDI Finance', 'NDI Employees', 'NDI Profile'] },
   { key: 'office',     label: 'Office',              titles: ['Virtual Office'] },
+  { key: 'taskModule', label: 'Task Management',     titles: ['Task'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -367,6 +369,15 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-fuchsia-400',
     iconBg: 'bg-fuchsia-500/15',
     groups: ['office'],
+  },
+  {
+    key: 'task',
+    label: 'Task Management',
+    description: 'Folders, lists & tables',
+    icon: 'CheckSquare',
+    color: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    groups: ['taskModule'],
   },
   {
     key: 'admin',
