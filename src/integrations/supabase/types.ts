@@ -7786,6 +7786,122 @@ export type Database = {
         }
         Relationships: []
       }
+      office_avatars: {
+        Row: {
+          profile_id: string
+          style: Json
+          updated_at: string
+        }
+        Insert: {
+          profile_id: string
+          style?: Json
+          updated_at?: string
+        }
+        Update: {
+          profile_id?: string
+          style?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_avatars_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_avatars_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_avatars_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_avatars_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_spaces: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          layout: Json
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          layout?: Json
+          name: string
+          owner_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          layout?: Json
+          name?: string
+          owner_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_spaces_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_spaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_spaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_spaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_spaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_checklists: {
         Row: {
           checklist_type: string
@@ -19832,6 +19948,15 @@ export type Database = {
         Returns: string[]
       }
       notify_expiring_overrides: { Args: never; Returns: number }
+      office_is_admin: { Args: never; Returns: boolean }
+      office_provision_personal: {
+        Args: { p_profile: string }
+        Returns: undefined
+      }
+      office_provision_personal_internal: {
+        Args: { p_profile: string }
+        Returns: undefined
+      }
       paid_total_in_period: {
         Args: { p_end: string; p_start: string }
         Returns: number
