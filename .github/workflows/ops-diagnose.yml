@@ -34,8 +34,12 @@ on:
         description: 'Postgres RPC name to call instead (e.g. pending_batches_list). Takes precedence over function.'
         required: false
         type: string
+      table:
+        description: 'Table to run a read-only select on instead (e.g. custom_field_definitions). Takes precedence over function/rpc.'
+        required: false
+        type: string
       body:
-        description: 'JSON body / RPC params to send (default: {})'
+        description: 'JSON body / RPC params to send (default: {}). For table mode, the "columns" and "limit" keys are read if present.'
         required: false
         type: string
         default: '{}'
@@ -54,6 +58,7 @@ jobs:
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
       OPS_FUNCTION: ${{ inputs.function }}
       OPS_RPC: ${{ inputs.rpc }}
+      OPS_TABLE: ${{ inputs.table }}
       OPS_BODY: ${{ inputs.body }}
       CI: true
       BASE_URL: http://localhost:4173
