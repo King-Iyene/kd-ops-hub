@@ -26,9 +26,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     if (ErrorBoundary.isChunkError(error)) {
-      const key = 'kdops_chunk_reload';
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, '1');
+      const key = 'kdops_chunk_reload_at';
+      const last = Number(sessionStorage.getItem(key) || 0);
+      // Auto-reload at most once per rolling minute. A stale service worker
+      // or browser cache serving chunks from a deploy that's since moved on
+      // (e.g. a route's lazy-loaded file got removed) makes the reload
+      // itself not fix anything, so without a cooldown this retriggers on
+      // the very next mount of ANY OTHER ErrorBoundary in the tree — this
+      // used to live in componentDidMount(), clearing the guard on every
+      // unrelated successful mount instead of only after a real recovery,
+      // which is what turned one chunk error into a reload loop.
+      if (Date.now() - last > 60_000) {
+        sessionStorage.setItem(key, String(Date.now()));
         window.location.reload();
         return { error: null };
       }
@@ -41,10 +50,6 @@ export class ErrorBoundary extends Component<Props, State> {
     type SentryGlobal = { captureException?: (e: unknown, ctx?: unknown) => void };
     const s = (window as unknown as { Sentry?: SentryGlobal }).Sentry;
     s?.captureException?.(error, { extra: { componentStack: info.componentStack } });
-  }
-
-  componentDidMount() {
-    sessionStorage.removeItem('kdops_chunk_reload');
   }
 
   reset = () => this.setState({ error: null });

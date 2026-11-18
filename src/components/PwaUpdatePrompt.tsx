@@ -44,7 +44,15 @@ export function PwaUpdatePrompt() {
   useEffect(() => {
     if (!needRefresh || !window.location.pathname.startsWith('/office')) return;
     const busy = (window as unknown as { __kdBusy?: boolean }).__kdBusy;
-    if (!busy) void updateServiceWorker(true);
+    if (busy) return;
+    const key = 'kdops_office_auto_update_at';
+    const last = Number(sessionStorage.getItem(key) || 0);
+    // Cooldown so a burst of deploys landing minutes apart can't auto-apply
+    // and reload back to back — past this window it falls back to the same
+    // manual prompt every other page already uses.
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem(key, String(Date.now()));
+    void updateServiceWorker(true);
   }, [needRefresh, updateServiceWorker]);
 
   if (!needRefresh) return null;
