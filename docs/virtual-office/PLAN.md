@@ -202,3 +202,15 @@ Gather parity would be 6 to 12 months. 3D adds roughly 2 to 4 months and needs 3
 3. A KD Squares HQ map generated per company, with one named desk room per member, garden, conference room, auditorium and reception.
 4. Offline members list, visitor "Admit & Meet" prompt, meeting view (video grid).
 5. Relay (TURN) server so calls work on strict or mobile networks.
+
+---
+
+## 11. Status, November 2026 (built and live)
+
+- **Calls:** peer-to-peer voice and video when close, mute/camera per person, screen share, meeting view, "talking" glow shared with everyone, private meeting rooms and private offices (voice stays inside), locking with knock, recording by admins and by people an admin adds (Office settings), downloads, auto-join when the browser already allows the mic.
+- **The headquarters map** (wooden building in a garden): 9 private offices with name plates and avatar faces (assign, unassign, custom name, free office), open desk pods, courtyard with fountain, lounge, music corner, 3 meeting rooms, boardroom, auditorium, reception. Everyone shares this one office; the other company office and personal offices are set aside for later spaces (for example a bigger one for leadership).
+- **Customising:** 50+ objects with pictures, search and categories, paint colours, name plates, per-person limits and builders via Office settings, night/bright look, zoom by scrolling, video size S/M/L.
+- **People:** avatar faces in the list, offline members, statuses, ring, message with links and pictures, follow, walk to a person or room.
+- **Walking and avatars:** eased speed, stride from distance, hair, outfit, accessories, blinking.
+
+**Still to build:** offices as separate spaces (leadership), per-office owner edit rights (own office decor), relay (TURN) service for strict networks, door-knock "Admit and meet" prompt, guests, saved chat history, minimap, mobile layout.
