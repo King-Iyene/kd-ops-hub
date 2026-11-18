@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
+import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
+import { desktopDownload, inDesktopApp } from './desktopApp';
 import type { AvatarStyle } from './world/types';
 import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
@@ -213,6 +214,7 @@ export function ProfileMenu(p: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('guests', <UserPlus className="h-4 w-4" />, p.guestsWaiting ? `Guests (${p.guestsWaiting})` : 'Guests', p.guestsWaiting ? `${p.guestsWaiting} waiting at the door` : 'Invite visitors by email', p.onGuests)}
+                {!inDesktopApp() && tile('download', <Download className="h-4 w-4" />, 'Get the desktop app', `For ${desktopDownload().label}: notifications and always on`, () => { window.open(desktopDownload().url, '_blank', 'noopener'); })}
                 {p.canManage && tile('manage', <Settings className="h-4 w-4" />, 'Manage space', 'Offices, seats, people', p.onManage)}
                 {p.canEdit && !p.editing && tile('edit', <Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors', p.onEdit)}
                 {p.canSettings && tile('settings', <Settings className="h-4 w-4" />, 'Permissions', 'Builders and recorders', p.onSettings)}
