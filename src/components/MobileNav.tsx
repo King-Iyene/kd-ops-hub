@@ -36,7 +36,6 @@ import {
   filterNavByRoleAndPermissions,
 } from '@/lib/navConfig';
 import { supabase } from '@/lib/supabase';
-import { TaskMobilePanel } from '@/features/task/components/TaskMobilePanel';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
   Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, CheckCircle2,
@@ -352,9 +351,7 @@ export function MobileNav() {
                   </button>
                   {isExpanded && (
                     <div className="pb-1.5 px-1.5">
-                      {hub.key === 'task' ? (
-                        <TaskMobilePanel onNavigate={() => { setMoreOpen(false); setExpandedHub(null); }} />
-                      ) : hub.subGroups.length > 1 ? (
+                      {hub.subGroups.length > 1 ? (
                         hub.subGroups.map((group) => (
                           <div key={group.key} className="space-y-0.5 mt-1.5 first:mt-0">
                             <p className="px-3 pb-1 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground/50">

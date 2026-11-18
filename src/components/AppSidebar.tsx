@@ -24,7 +24,6 @@ import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { BrandLogo } from '@/components/BrandLogo';
 import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
-import { TaskSidebarPanel } from '@/features/task/components/TaskSidebarPanel';
 import {
   ALL_NAV,
   NAV_GROUPS,
@@ -289,13 +288,6 @@ export function AppSidebar() {
   const activeHubConfig = activeHub ? SIDEBAR_HUBS.find((h) => h.key === activeHub) : null;
 
   if (activeHubConfig && !sidebarCollapsed) {
-    // Task's sidebar content is live data (workspace header, Task/Track
-    // switch, the Spaces tree — master prompt section 6.2), not the
-    // generic static group/item list every other hub renders below.
-    if (activeHubConfig.key === 'task') {
-      return <TaskSidebarPanel onBack={() => setActiveHub(null)} onSignOut={signOut} />;
-    }
-
     const HubIcon = HUB_ICONS[activeHubConfig.icon] ?? Layers;
     const hubNavGroups = activeHubConfig.groups
       .map((gk) => NAV_GROUPS.find((ng) => ng.key === gk))

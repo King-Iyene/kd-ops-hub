@@ -59,7 +59,6 @@ const Reports          = lazy(() => import('./pages/Reports'));
 const HrAnalytics      = lazy(() => import('./pages/HrAnalytics'));
 const Documents        = lazy(() => import('./pages/Documents'));
 const Knowledge        = lazy(() => import('./pages/Knowledge'));
-const Goals            = lazy(() => import('./pages/Goals'));
 const Contacts         = lazy(() => import('./pages/Contacts'));
 const ContactProfile   = lazy(() => import('./pages/ContactProfile'));
 const Referrals        = lazy(() => import('./pages/Referrals'));
@@ -98,10 +97,6 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
-const TaskLanding = lazy(() => import('./features/task/pages/TaskLanding'));
-const SpaceOverview = lazy(() => import('./features/task/pages/SpaceOverview'));
-const ListPage = lazy(() => import('./features/task/pages/ListPage'));
-const TaskPanelPage = lazy(() => import('./features/task/pages/TaskPanelPage'));
 const TimeDashboardPage = lazy(() => import('./features/timetrack/pages/DashboardPage'));
 const TimeEntriesPage   = lazy(() => import('./features/timetrack/pages/TimePage'));
 const TimeProjectsPage  = lazy(() => import('./features/timetrack/pages/ProjectsPage'));
@@ -138,8 +133,6 @@ const ActivityScreenshotsPage = lazy(() => import('./features/timetrack/pages/ac
 const AgentConfigPage = lazy(() => import('./features/timetrack/pages/activity/AgentConfigPage'));
 const TimeSettingsPage  = lazy(() => import('./features/timetrack/pages/SettingsPage'));
 const SharedViewPage    = lazy(() => import('./features/database/pages/SharedViewPage'));
-const FlexTables        = lazy(() => import('./pages/FlexTables'));
-const FlexFormPublic    = lazy(() => import('./pages/FlexFormPublic'));
 const Developer         = lazy(() => import('./pages/Developer'));
 // NDI — standalone org module
 const NdiDashboard      = lazy(() => import('./pages/ndi/NdiDashboard'));
@@ -266,17 +259,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Tables form — public, no auth required. Separate from the /shared
-          (Database/nc_meta) share links — this is the standalone Tables
-          module's own share token. */}
-      <Route
-        path="/t/f/:token"
-        element={
-          <ErrorBoundary>
-            <FlexFormPublic />
-          </ErrorBoundary>
-        }
-      />
 
       {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
       <Route
@@ -623,19 +605,6 @@ function AppRoutes() {
         />
 
 
-        {/* Tables — standalone Airtable-style module, third item after Tasks
-            and Goals in the Productivity nav. Deliberately separate from the
-            Database/nc_meta feature (own schema, own UI) — but behaves
-            exactly like Tasks/Goals: a normal in-app page inside AppLayout. */}
-        <Route
-          path="/flex-tables"
-          element={
-            <RoleGuard roles={ADMIN_ONLY_ROLES}>
-              <FlexTables />
-            </RoleGuard>
-          }
-        />
-
         {/* Knowledge base — every signed-in employee (access is per-article). */}
         <Route
           path="/knowledge"
@@ -915,52 +884,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Task module — every signed-in employee; access to a given space,
-            and which admin-only controls show, is enforced by RLS and
-            decided per-screen (PRD SEC-01/SEC-02), not by the route itself.
-            Only /task and /task/s/:spaceId exist this phase (shell and
-            spaces) — every other Task route is added in its own phase. */}
-        <Route
-          path="/task"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <TaskLanding />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/task/s/:spaceId"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <SpaceOverview />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/task/l/:listId"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <ListPage />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/task/t/:taskId"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ErrorBoundary>
-                <TaskPanelPage />
-              </ErrorBoundary>
-            </RoleGuard>
-          }
-        />
-
         {/* Employee Self-Service Dashboard — all authenticated users. */}
         <Route
           path="/my-dashboard"
@@ -997,16 +920,6 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin', 'admin']}>
               <AuditLog />
-            </RoleGuard>
-          }
-        />
-
-        {/* Goals — every signed-in employee. */}
-        <Route
-          path="/goals"
-          element={
-            <RoleGuard roles={ADMIN_ONLY_ROLES}>
-              <Goals />
             </RoleGuard>
           }
         />

@@ -33,13 +33,6 @@ interface LeaveRequest {
   status: string;
 }
 
-interface Goal {
-  id: string;
-  title: string;
-  progress_pct: number;
-  status: string;
-}
-
 interface Timesheet {
   id: string;
   week_start: string;
@@ -79,7 +72,6 @@ export default function MyDashboard() {
   const [loading, setLoading] = useState(true);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [pendingPolicies, setPendingPolicies] = useState<Policy[]>([]);
   const [loans, setLoans] = useState<StaffLoan[]>([]);
@@ -103,7 +95,7 @@ export default function MyDashboard() {
 
     const currentYear = new Date().getFullYear();
 
-    const [balance, requests, goalRows, tsRows, policies, loanRows, lpRows] =
+    const [balance, requests, tsRows, policies, loanRows, lpRows] =
       await Promise.all([
         safe<LeaveBalance>(() =>
           supabase
@@ -120,13 +112,6 @@ export default function MyDashboard() {
             .eq('employee_id', user.id)
             .order('created_at', { ascending: false })
             .limit(5),
-        ),
-        safe<Goal[]>(() =>
-          supabase
-            .from('goals')
-            .select('id, title, progress_pct, status')
-            .eq('owner_id', user.id)
-            .order('created_at', { ascending: false }),
         ),
         safe<Timesheet[]>(() =>
           supabase
@@ -173,7 +158,6 @@ export default function MyDashboard() {
 
     setLeaveBalance(balance ?? null);
     setLeaveRequests(requests ?? []);
-    setGoals(goalRows ?? []);
     setTimesheets(tsRows ?? []);
     setPendingPolicies(policies ?? []);
     setLoans(loanRows ?? []);
@@ -273,51 +257,6 @@ export default function MyDashboard() {
                       </MobileCardHeader>
                       <MobileCardRow label="Dates">
                         {format(parseISO(r.start_date), 'dd MMM')} – {format(parseISO(r.end_date), 'dd MMM yyyy')}
-                      </MobileCardRow>
-                    </MobileCard>
-                  ))}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* My Goals */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">My Goals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {goals.length === 0 ? (
-              <EmptyState title="No goals" description="Goals assigned to you will appear here" compact />
-            ) : (
-              <>
-                <div className="hidden md:block space-y-3">
-                  {goals.map((g) => (
-                    <div key={g.id} className="space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">{g.title}</span>
-                        <StatusBadge status={g.status} size="sm" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Progress value={g.progress_pct ?? 0} className="h-2 flex-1" />
-                        <span className="text-xs text-muted-foreground w-8 text-right">{g.progress_pct ?? 0}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="md:hidden space-y-2">
-                  {goals.map((g) => (
-                    <MobileCard key={g.id} accentClassName={g.status === 'complete' ? 'bg-success' : g.status === 'at_risk' ? 'bg-destructive' : 'bg-primary'}>
-                      <MobileCardHeader>
-                        <MobileCardTitle>{g.title}</MobileCardTitle>
-                        <MobileCardMeta><StatusBadge status={g.status} size="sm" /></MobileCardMeta>
-                      </MobileCardHeader>
-                      <MobileCardRow label="Progress">
-                        <div className="flex items-center gap-2">
-                          <Progress value={g.progress_pct ?? 0} className="h-2 w-16" />
-                          <span>{g.progress_pct ?? 0}%</span>
-                        </div>
                       </MobileCardRow>
                     </MobileCard>
                   ))}

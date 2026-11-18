@@ -55,7 +55,6 @@ import { OnboardingChecklist } from '@/components/OnboardingChecklist';
 import { FinancialHealthCard } from '@/components/FinancialHealthCard';
 import { CashBurnCard } from '@/components/CashBurnCard';
 import { MyTasksWidget } from '@/pages/Tasks';
-import { MyGoalsWidget } from '@/pages/Goals';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -792,10 +791,7 @@ const Dashboard = () => {
 
           {/* Compliance + Productivity */}
           <ComplianceCard />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <MyTasksWidget />
-            <MyGoalsWidget />
-          </div>
+          <MyTasksWidget />
         </div>
 
         {/* ── Right column: actions & lists (4/12) ───────────────── */}

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/command';
 import {
   LayoutDashboard, CreditCard, Receipt, Truck, Users, UserCog, Banknote,
-  ShieldCheck, Inbox, BookOpen, FileText, Target, BarChart3,
+  ShieldCheck, Inbox, BookOpen, FileText, BarChart3,
   CalendarDays, ScrollText, PiggyBank, Layers, Contact2, Gift, ArrowUpDown,
   Settings, Plus, Zap, CalendarClock, HelpCircle, FileSpreadsheet, Wallet,
   CircleDollarSign, AlertTriangle, LineChart, Store, Award, Boxes,
@@ -19,7 +19,7 @@ import {
   Handshake, Clock, AlertOctagon, Mail, ClipboardList, MessageSquareWarning,
   HandCoins, CalendarRange, GitBranch, BookMarked, Clock3, LayoutGrid,
   Workflow, Megaphone, Building2, Landmark, User as UserIcon, Bot,
-  MessageCircle, CheckCircle2,
+  MessageCircle,
 } from 'lucide-react';
 import { useEffectiveRole } from '@/store/authStore';
 import {
@@ -42,8 +42,6 @@ const ITEMS: Item[] = [
   { title: 'Dashboard',       path: '/',              icon: LayoutDashboard, shortcut: 'G D', roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'My Dashboard',    path: '/my-dashboard',  icon: LayoutGrid,     roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'self service' },
   { title: 'Approvals',       path: '/approvals',     icon: Inbox,           shortcut: 'G A', roles: APPROVER_ROLES, group: 'navigate' },
-  { title: 'Task',            path: '/task',          icon: CheckCircle2,    roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'spaces lists tasks' },
-  { title: 'Goals',           path: '/goals',         icon: Target,          roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'Messages',        path: '/messages',      icon: MessageCircle,  roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chat direct message' },
   { title: 'AI Assistant',    path: '/assistant',     icon: Bot,            roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chatbot ask help' },
   { title: 'My Profile',      path: '/profile',       icon: UserIcon,       roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'account settings payslips' },
