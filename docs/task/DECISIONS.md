@@ -87,3 +87,68 @@ One line each, per the master prompt's section 4 discovery and section 11's
   this conversation — only S1 to S5 (Reports table, List, Team Dashboard,
   My Tasks, Inbox) came through as real image files. Flagged now, needed
   before Phase 7 (Home), not blocking Phase 0.
+
+## Phase 2 specifics
+
+- **Archive/unarchive needed a dedicated function.** Phase 1's
+  `tk_can_edit_space` requires `archived_at IS NULL`, so once a space is
+  archived the plain `tk_spaces` UPDATE policy can never select that row
+  again — nobody could ever clear `archived_at`, which would make the
+  "archive with undo" behaviour (rule 10.6) impossible. Added
+  `tk_set_space_archived(space_id, archived)`, a `SECURITY DEFINER`
+  function that checks the same admin-or-editor rule without the
+  `archived_at` gate, as the one sanctioned way to flip it. Everything else
+  about an archived space stays exactly as uneditable as rule 10.10
+  requires. See migration `20261291000000_task_phase2_shell_and_spaces.sql`.
+- **The sidebar's Task content is not KD Ops's generic hub list.** Every
+  other hub (Time Tracking, Finance, ...) renders a static group/item list
+  from `navConfig.ts`. Task's sidebar (workspace header, Task/Track switch,
+  the live Spaces tree) is data-driven and has no equivalent in that
+  config, so it is a dedicated `TaskSidebarPanel` / `TaskMobilePanel`
+  component, swapped in by `AppSidebar.tsx` / `MobileNav.tsx` only when the
+  active hub's key is `task`. One static nav item (`Task` -> `/task`) was
+  still added to `navConfig.ts` purely so the hub has a route to activate
+  against and a card to show in the hub picker; it plays no part in Task's
+  own rendered content.
+- **Colour swatches.** The space/tag colour picker offers a fixed set of 8
+  hex swatches, each the resolved value of an existing KD Ops token
+  (primary teal, accent gold, brand cyan, info blue, success green, warning
+  amber, destructive red, a neutral grey) — never a colour from the
+  reference screenshots' dark/pink palette. Defined once in
+  `src/features/task/theme/taskTheme.ts`.
+- **Avatar initials differ from the app-wide helper on purpose.** PRD
+  section 5.6 wants one letter for a single-word name (`K` for `KD`), but
+  the existing `src/lib/utils.ts` `initials()` gives two (`KD`). Added a
+  separate `initials()` in `src/features/task/lib/format.ts` rather than
+  changing the shared one, which other modules still rely on as it is.
+- **"+Task" and the sidebar's "+Add list" / "+Add table" ghost buttons are
+  not in this phase.** They are explicitly phase-gated in the master
+  prompt's own phase table (list creation is Phase 3, table creation is
+  Phase 9), and quick-create's own empty state ("You need a list first")
+  would otherwise show a "Create a list" button with nothing to do yet.
+  Rule 13 (nothing unbuilt is reachable) decided this, not a judgement
+  call.
+- **Tags cannot be reordered.** `tk_tags` has no `position` column in the
+  Phase 1 schema (unlike `tk_statuses`, which does), so "reorder" in
+  "statuses and tags (add, rename, reorder, recategorise)" is read as
+  applying to statuses only; tags support add, rename and delete. Flagged
+  as a minor gap against the letter of the prompt, not a blocker.
+- **Task's role-gating reflects the real role, not "view as."** Whether the
+  "+" to create a space (and similar admin-only controls) shows is decided
+  by `tk_role_of()` — the account's actual, enforced permission — not by
+  KD Ops's super-admin "view as" simulation elsewhere in the platform. A
+  super admin previewing as a lower role will still see Task's admin
+  controls in this phase. Not wired up; noted as a known gap, not treated
+  as blocking since the master prompt never mentions "view as" before
+  Phase 11 (and there, only for Home).
+- **No live Supabase connection was reachable from this session** (same
+  constraint noted in Phase 0/1 — the project is paused). Verification for
+  this phase was `tsc --noEmit`, `eslint`, a full production build, the
+  existing `npm run test` suite (657 tests, all passing) plus 5 new
+  component tests for the Task shell (mocking the Supabase client and auth
+  store), the new archive/unarchive RPC exercised functionally against the
+  local disposable PostgreSQL 16 instance (admin can archive/unarchive, an
+  editor member can too, a non-member is correctly refused, a plain UPDATE
+  on an archived space still correctly fails), and a manual structural
+  comparison against S2's sidebar, which is visible in the background of
+  every screenshot. Not a live, pixel-level screenshot of the running app.
