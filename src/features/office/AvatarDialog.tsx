@@ -68,8 +68,8 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
         const ctx = c.getContext('2d')!;
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.save();
-        ctx.scale(4, 4);
-        drawPerson(ctx, { x: 0.58, y: 0.95, dir: 0, moving: false, name, avatar: draft, isMe: true }, t, { dark: false });
+        ctx.scale(4.6, 4.6);
+        drawPerson(ctx, { x: 0.51, y: 0.96, dir: 0, moving: false, name: '', avatar: draft, isMe: false }, t, { dark: false });
         ctx.restore();
       }
       raf = requestAnimationFrame(draw);
@@ -82,9 +82,9 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Customise your avatar</DialogTitle></DialogHeader>
-        <div className="flex gap-5">
-          <canvas ref={canvasRef} width={170} height={190} className="shrink-0 rounded-lg bg-muted/40" />
-          <div className="min-w-0 space-y-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
+          <canvas ref={canvasRef} width={170} height={230} style={{ width: 170, height: 230 }} className="mx-auto shrink-0 rounded-lg bg-muted/40 sm:mx-0" />
+          <div className="min-w-0 flex-1 space-y-3">
             <Swatches label="Skin" colors={SKIN_TONES} value={draft.skin} onPick={(c) => setDraft({ ...draft, skin: c })} />
             <Swatches label="Hair colour" colors={HAIR_COLORS} value={draft.hair} onPick={(c) => setDraft({ ...draft, hair: c })} />
             <Swatches label="Shirt" colors={SHIRT_COLORS} value={draft.shirt} onPick={(c) => setDraft({ ...draft, shirt: c })} />
