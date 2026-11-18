@@ -15,6 +15,7 @@ import { AvatarDialog } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
 import { MessageDialog, type Msg } from './MessageDialog';
+import { playChime } from './chime';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
 import { MeetingView } from './calls/MeetingView';
@@ -582,15 +583,7 @@ export default function OfficePage() {
       return;
     }
     if (m.k === 'ring') {
-      try {
-        const ctx = new AudioContext();
-        const o = ctx.createOscillator();
-        o.frequency.value = 880;
-        o.connect(ctx.destination);
-        o.start();
-        o.stop(ctx.currentTime + 0.25);
-        setTimeout(() => void ctx.close(), 500);
-      } catch { /* no sound is fine */ }
+      playChime();
       toast({
         title: `${m.n} is ringing you`, description: 'They would like to talk.',
         action: <ToastAction altText="Go to them" onClick={() => goToPerson(m.f, m.s)}>Go to them</ToastAction>,
