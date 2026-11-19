@@ -50,6 +50,8 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
   const missing = m?.reports?.missing ?? [];
   const repeat = m?.repeat ?? [];
   const sites = m?.sites ?? [];
+  // The write-up opens with the period as a heading; the card header already says it.
+  const narrative = summary.narrative?.replace(/^\s*#{1,3} [^\n]*\n+/, '') ?? null;
   const bodyId = `summary-${summary.id}`;
 
   return (
@@ -80,7 +82,7 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
             </div>
           )}
 
-          {summary.narrative && <Markdown text={summary.narrative} className="text-sm" />}
+          {narrative && <Markdown text={narrative} className="text-sm" />}
 
           {(missing.length > 0 || repeat.length > 0) && (
             <div className="grid gap-4 sm:grid-cols-2">

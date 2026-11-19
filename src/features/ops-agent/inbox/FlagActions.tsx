@@ -12,7 +12,7 @@ export function FlagActions({ flag, busy, onAct }: { flag: Pick<LiveFlag, 'id' |
       {flag.status === 'open' ? (
         <>
           <Button size="sm" variant="outline" className="h-8 px-2.5" disabled={busy} onClick={() => onAct(flag, 'handled', 'Marked as handled')} data-testid="flag-handled"><Check className="mr-1 h-3.5 w-3.5" /> Handled</Button>
-          <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(flag, 'snoozed', 'Snoozed for a day')} aria-label="Snooze a day"><AlarmClock className="mr-1 h-3.5 w-3.5" /> Snooze<span className="hidden sm:inline">&nbsp;a day</span></Button>
+          <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(flag, 'snoozed', 'Snoozed for a day')} aria-label="Snooze a day"><AlarmClock className="mr-1 h-3.5 w-3.5" /> <span>Snooze<span className="hidden sm:inline"> a day</span></span></Button>
           <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(flag, 'dismissed', 'Dismissed')}><X className="mr-1 h-3.5 w-3.5" /> Dismiss</Button>
         </>
       ) : (
