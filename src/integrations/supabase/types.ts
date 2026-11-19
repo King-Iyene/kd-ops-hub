@@ -2090,6 +2090,7 @@ export type Database = {
       agent_settings: {
         Row: {
           ai_enabled: boolean
+          app_url: string
           daily_ai_budget_usd: number
           default_country_code: string
           default_work_end: string
@@ -2116,6 +2117,7 @@ export type Database = {
         }
         Insert: {
           ai_enabled?: boolean
+          app_url?: string
           daily_ai_budget_usd?: number
           default_country_code?: string
           default_work_end?: string
@@ -2142,6 +2144,7 @@ export type Database = {
         }
         Update: {
           ai_enabled?: boolean
+          app_url?: string
           daily_ai_budget_usd?: number
           default_country_code?: string
           default_work_end?: string
@@ -23741,6 +23744,10 @@ export type Database = {
         }
         Returns: number
       }
+      agent_age_text: {
+        Args: { p_from: string; p_now: string }
+        Returns: string
+      }
       agent_ai_budget_state: { Args: never; Returns: Json }
       agent_api_key_create: {
         Args: { p_name: string; p_scopes?: string[] }
@@ -23770,6 +23777,7 @@ export type Database = {
         Args: { p_end: string; p_kind: string; p_start: string }
         Returns: Json
       }
+      agent_bump: { Args: { p_sev: string }; Returns: string }
       agent_can_access: { Args: never; Returns: boolean }
       agent_can_configure: { Args: never; Returns: boolean }
       agent_chat_tool: {
@@ -23779,6 +23787,7 @@ export type Database = {
       agent_check_now: { Args: never; Returns: Json }
       agent_clean_domain: { Args: { p_raw: string }; Returns: string }
       agent_company_of: { Args: { p_person: string }; Returns: string }
+      agent_dispatch_ready: { Args: never; Returns: boolean }
       agent_dispatch_tick: { Args: never; Returns: undefined }
       agent_domain_remove: { Args: { p_domain: string }; Returns: boolean }
       agent_domain_set: {
@@ -23792,6 +23801,7 @@ export type Database = {
       }
       agent_flag_detail: { Args: { p_flag: string }; Returns: Json }
       agent_flag_draft: { Args: { p_flag: string }; Returns: Json }
+      agent_flag_link: { Args: { p_flag: string }; Returns: Json }
       agent_flag_recurrence: { Args: { p_flag: string }; Returns: Json }
       agent_flag_set_status: {
         Args: {
@@ -23889,6 +23899,8 @@ export type Database = {
       agent_rule_ct01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_es01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_es02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_hl01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln02: { Args: { p_now?: string }; Returns: Json }
@@ -23901,6 +23913,9 @@ export type Database = {
       agent_rule_py02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_rp01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_rp03: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_sy01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_sy02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_sy04: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk04: { Args: { p_now?: string }; Returns: Json }
