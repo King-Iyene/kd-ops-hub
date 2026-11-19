@@ -17295,6 +17295,34 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "tm_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tm_forms_table_id_fkey"
             columns: ["table_id"]
             isOneToOne: false
@@ -22088,12 +22116,38 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_form_gate: {
+        Args: { p_token: string }
+        Returns: {
+          access: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          field_ids: string[]
+          id: string
+          is_open: boolean
+          success_message: string | null
+          table_id: string
+          title: string
+          token: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tm_forms"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       tm_form_load: { Args: { p_token: string }; Returns: Json }
       tm_form_person_tasks: {
         Args: { p_person: string; p_token: string }
         Returns: Json
       }
-      tm_form_submit: { Args: { p_data: Json; p_token: string }; Returns: string }
+      tm_form_submit: {
+        Args: { p_data: Json; p_token: string }
+        Returns: string
+      }
       tm_my_comment_feed: {
         Args: { p_days?: number }
         Returns: {
