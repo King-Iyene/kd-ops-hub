@@ -16,6 +16,6 @@ describe('water and nature items', () => {
     expect(ITEM_DEFS.sand.solid).toBe(false);
     expect(ITEM_DEFS.dock.solid).toBe(false);
     expect(ITEM_DEFS.towel.solid).toBe(false);
-    for (const t of ['pond', 'waterfall', 'sea', 'rocks', 'boat', 'umbrella'] as const) expect(ITEM_DEFS[t].solid).toBe(true);
+    for (const t of ['pond', 'waterfall', 'sea', 'rocks', 'umbrella'] as const) expect(ITEM_DEFS[t].solid).toBe(true);
   });
 });

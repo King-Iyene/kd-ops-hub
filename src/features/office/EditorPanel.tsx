@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Eraser, IdCard, Paintbrush, RotateCw, Save, Search, X } from 'lucide-react';
+import { Copy, Eraser, Hand, IdCard, Paintbrush, Redo2, RotateCw, Undo2, Save, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CATEGORIES } from './catalog';
 import { ITEM_COLORS, TILE, drawItems } from './world/render';
 import { ITEM_DEFS, itemSize } from './world/world';
 import type { ItemType } from './world/types';
 
-export type EditTool = ItemType | 'erase' | 'paint' | 'plate' | 'wall' | 'unwall' | 'floor' | null;
+export type EditTool = ItemType | 'move' | 'erase' | 'paint' | 'plate' | 'wall' | 'unwall' | 'floor' | null;
 
 export const FLOOR_KINDS: { id: string; label: string; swatch: string }[] = [
   { id: 'wood', label: 'Wood', swatch: '#cf8f50' },
@@ -42,7 +42,13 @@ function Thumb({ type, color }: { type: ItemType; color?: number }) {
 }
 
 /** The editing panel: pick an object, pick a colour, click the floor. */
-export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited, floorKind, onFloorKind, brush, onBrush }: {
+export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited, floorKind, onFloorKind, brush, onBrush }: {
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  /** copy the piece being carried (Move tool) */
+  onDuplicate: () => void;
   floorKind: string;
   onFloorKind: (k: string) => void;
   brush: 1 | 3;
@@ -147,9 +153,13 @@ export function EditorPanel({ tool, onTool, color, onColor, onTurn, onReset, onC
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          <Button size="sm" variant={tool === 'move' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('move')} title="Click anything in the office to pick it up, then click where it should go"><Hand className="mr-1 h-3.5 w-3.5" />Move</Button>
           <Button size="sm" variant={tool === 'paint' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('paint')} title="Click an object to give it the chosen colour"><Paintbrush className="mr-1 h-3.5 w-3.5" />Paint</Button>
           {!limited && <Button size="sm" variant={tool === 'plate' ? 'default' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('plate')} title="Click a private office or meeting room to set who sits there or rename it"><IdCard className="mr-1 h-3.5 w-3.5" />Name plates</Button>}
           <Button size="sm" variant={tool === 'erase' ? 'destructive' : 'outline'} className="h-7 px-2 text-xs" onClick={() => onTool('erase')}><Eraser className="mr-1 h-3.5 w-3.5" />Remove</Button>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!canUndo} onClick={onUndo} title="Undo (Ctrl+Z)"><Undo2 className="mr-1 h-3.5 w-3.5" />Undo</Button>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!canRedo} onClick={onRedo} title="Redo (Ctrl+Y)"><Redo2 className="mr-1 h-3.5 w-3.5" />Redo</Button>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onDuplicate} title="Pick up something with Move first, then copy it (Ctrl+D)"><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onTurn}><RotateCw className="mr-1 h-3.5 w-3.5" />Turn</Button>
           <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={onReset}>Reset</Button>
         </div>

@@ -10,7 +10,7 @@ export interface SpaceRow {
   name: string;
   company_id: string | null;
   owner_id: string | null;
-  layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }; tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> } };
+  layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }; tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> } };
 }
 
 /** Every office the signed-in person can see: the company offices and everyone's personal office. */
@@ -257,7 +257,7 @@ export function useOfficeMutations() {
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
     },
-    async saveSettings(space: SpaceRow, settings: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[] }) {
+    async saveSettings(space: SpaceRow, settings: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[] }) {
       const { error } = await supabase
         .from('office_spaces')
         .update({ layout: { ...space.layout, settings } as never, updated_at: new Date().toISOString() })

@@ -1,4 +1,4 @@
-import { advance } from './world';
+import { advance, findPath } from './world';
 
 /**
  * The office pets. Each dog or cat in the office is alive on your screen: it wanders about its spot, comes when you call,
@@ -52,6 +52,9 @@ export interface PetState {
   playUntil: number;
   /** when it last made a little puff or sound while playing (ms) */
   fxAt: number;
+  /** a way round furniture when walking straight at its goal gets it stuck */
+  route: { x: number; y: number }[];
+  routeGoal: { x: number; y: number } | null;
 }
 
 export type PetCmd =
@@ -65,7 +68,7 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0 };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null };
 }
 
 // a pet can outrun its owner (4.5 tiles a second) so it never lags behind
@@ -92,10 +95,24 @@ export function ballLanding(solid: boolean[][], x: number, y: number, dir: 0 | 1
 
 /** Move a pet one step toward a point; returns true when it has got there. */
 function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: number, dt: number, stopAt: number): boolean {
+  const goalX = tx, goalY = ty;
+  const gd = Math.hypot(tx - p.x, ty - p.y);
+  if (gd <= stopAt) { p.moving = false; p.v = 0; p.route = []; p.routeGoal = null; return true; }
+  // blocked by a chair, a desk or a person-sized gap: find a way round, then follow it
+  if (p.routeGoal && Math.hypot(p.routeGoal.x - goalX, p.routeGoal.y - goalY) > 2.2) { p.route = []; p.routeGoal = null; }
+  if (!p.route.length && p.stuck > 0.3) {
+    const path = findPath(solid, p.x, p.y, goalX, goalY);
+    p.stuck = 0;
+    if (path && path.length) { p.route = path.slice(0, 40); p.routeGoal = { x: goalX, y: goalY }; }
+  }
+  if (p.route.length) {
+    if (Math.hypot(p.route[0].x - p.x, p.route[0].y - p.y) < 0.4) p.route.shift();
+    if (p.route.length) { tx = p.route[0].x; ty = p.route[0].y; stopAt = 0.1; } else p.routeGoal = null;
+  }
   const dx = tx - p.x;
   const dy = ty - p.y;
   const d = Math.hypot(dx, dy);
-  if (d <= stopAt) { p.moving = false; p.v = 0; return true; }
+  if (d <= stopAt) { p.moving = false; p.v = 0; return !p.route.length; }
   // ease towards the wanted speed instead of jumping to it, and slow down as it arrives
   const want = Math.min(speed, Math.max(speed * 0.35, d * 2.6));
   p.v += (want - p.v) * Math.min(1, dt * 9);

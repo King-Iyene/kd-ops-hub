@@ -42,6 +42,14 @@ import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
+import { GamesDialog } from './GamesDialog';
+import { ReactionWheel } from './ReactionWheel';
+import { MiniGamesDialog, type MiniGame } from './MiniGamesDialog';
+import { PollsDialog, TaskBoardDialog } from './BoardDialogs';
+import { useBoards } from './useBoards';
+import { EventsDialog } from './EventsDialog';
+import { isLive, upcoming, useOfficeLife } from './useOfficeLife';
+import { gamesOn } from './games';
 import { useOfficeFont } from './ui';
 import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './notify';
 import { useQuery } from '@tanstack/react-query';
@@ -219,15 +227,55 @@ function OfficeRoom() {
   });
 
   // ---- editing furniture ----
-  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id));
+  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (template !== 'hq' && allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id)));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
+  /** a piece of furniture picked up with the Move tool, and which of its tiles was grabbed */
+  const [held, setHeld] = useState<{ item: Item; dx: number; dy: number; copy?: boolean } | null>(null);
+  // undo and redo: every change to the furniture while editing can be stepped back and forward (Ctrl+Z, Ctrl+Y)
+  const hist = useRef<{ past: Item[][]; future: Item[][]; last: Item[] | null; skip: boolean }>({ past: [], future: [], last: null, skip: false });
+  const [histTick, setHistTick] = useState(0);
+  useEffect(() => { if (tool !== 'move') setHeld(null); }, [tool]);
+  useEffect(() => {
+    if (!held) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setHeld(null); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [held]);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
+  useEffect(() => {
+    const h = hist.current;
+    if (!editing) { h.past = []; h.future = []; h.last = null; h.skip = false; return; }
+    if (h.skip) { h.skip = false; h.last = draft; return; }
+    if (h.last && h.last !== draft) { h.past.push(h.last); if (h.past.length > 100) h.past.shift(); h.future = []; setHistTick((n) => n + 1); }
+    h.last = draft;
+  }, [draft, editing]);
+  const undo = () => { const h = hist.current; const prev = h.past.pop(); if (!prev) return; h.future.push(draft); h.skip = true; setDraft(prev); setHeld(null); setHistTick((n) => n + 1); };
+  const redo = () => { const h = hist.current; const next = h.future.pop(); if (!next) return; h.past.push(draft); h.skip = true; setDraft(next); setHeld(null); setHistTick((n) => n + 1); };
+  const duplicate = () => { if (held) setHeld({ item: { ...held.item, id: newItemId() }, dx: held.dx, dy: held.dy, copy: true }); };
+  const turnHeld = () => { if (held) setHeld({ ...held, item: { ...held.item, r: (((held.item.r ?? 0) + 1) % 4) as 0 | 1 | 2 | 3 } }); };
+  const editKeys = useRef({ undo, redo, duplicate, turnHeld });
+  editKeys.current = { undo, redo, duplicate, turnHeld };
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) editKeys.current.redo(); else editKeys.current.undo(); }
+      else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); editKeys.current.redo(); }
+      else if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); editKeys.current.duplicate(); }
+      else if (k === 'r' && !e.ctrlKey && !e.metaKey) editKeys.current.turnHeld();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
   const [color, setColor] = useState<number | undefined>(undefined);
   const [floorKind, setFloorKind] = useState('wood');
   const [brush, setBrush] = useState<1 | 3>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gamesOpen, setGamesOpen] = useState(false);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const isSuper = profile?.role === 'super_admin';
   const [renaming, setRenaming] = useState<SpaceRow | null>(null);
@@ -256,7 +304,7 @@ function OfficeRoom() {
   const inScope = (i: { x: number; y: number }) => !scope || (i.x >= scope.x && i.x < scope.x + scope.w && i.y >= scope.y && i.y < scope.y + scope.h);
   const OFFICE_LIMIT = 40;
 
-  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
+  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setHeld(null); setTool('move'); setEditing(true); };
   const stopEdit = () => { setTilesEditing(false); setTileDraft(undefined); setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
@@ -290,6 +338,11 @@ function OfficeRoom() {
     if (tool === 'wall' || tool === 'unwall' || tool === 'floor') return { ok: true };
     if (tool === 'plate') { const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5); return { ok: !!z && (z.kind === 'office' || z.kind === 'meeting') }; }
     if (scope && !inScope(tile)) return { ok: false };
+    if (tool === 'move') {
+      if (!held) return { ok: !!itemAt(tile) };
+      const moved = { ...held.item, x: tile.x - held.dx, y: tile.y - held.dy };
+      return { ok: inScope(moved) && canPlace(map, draft.filter((i) => i.id !== held.item.id), moved).ok };
+    }
     if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
     if (!tool) return { ok: false };
     return { ok: canPlace(map, draft, { id: 'g', t: tool, x: tile.x, y: tile.y, r: rot }).ok };
@@ -298,6 +351,21 @@ function OfficeRoom() {
     if (!editing || !tool) return;
     if (scope && !inScope(tile)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
     if (tool === 'wall' || tool === 'unwall' || tool === 'floor') { if (!scope) paintTiles(tile); return; }
+    if (tool === 'move') {
+      if (!held) {
+        const hit = itemAt(tile);
+        if (hit) setHeld({ item: hit, dx: tile.x - hit.x, dy: tile.y - hit.y });
+        return;
+      }
+      const moved = { ...held.item, x: tile.x - held.dx, y: tile.y - held.dy };
+      if (!inScope(moved)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
+      const res = canPlace(map, draft.filter((i) => i.id !== held.item.id), moved);
+      if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'It does not fit there', variant: 'destructive' }); return; }
+      if (held.copy) { setDraft((d) => [...d, moved]); setHeld({ ...held, item: { ...held.item, id: newItemId() } }); return; }
+      setDraft((d) => d.map((i) => (i.id === held.item.id ? moved : i)));
+      setHeld(null);
+      return;
+    }
     if (tool === 'erase') {
       const hit = itemAt(tile);
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
@@ -966,6 +1034,40 @@ function OfficeRoom() {
   const takenBikes = roster.filter((r) => r.bike && r.spaceId === space?.id).map((r) => r.bike as string).concat(riding && rideBike ? [rideBike] : []).sort().join(',');
   // bikes and go-karts stay where the last rider left them, for everybody, until somebody else takes them
   const vehicles = useVehicles(space?.id ?? null);
+  const boards = useBoards(space?.id ?? null, !!space);
+  const life = useOfficeLife(space?.id ?? null, !!space);
+  const [eventsOpen, setEventsOpen] = useState(false);
+  // a heads-up when something is about to start (once per event)
+  const warned = useRef(new Set<string>());
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      for (const e of upcoming(life.events, now)) {
+        const mins = (Date.parse(e.starts_at) - now) / 60000;
+        if ((isLive(e, now) || mins <= 5) && !warned.current.has(e.id) && Date.parse(e.ends_at) > now) {
+          warned.current.add(e.id);
+          toast({ title: isLive(e, now) ? `Happening now: ${e.title}` : `Starting in ${Math.max(1, Math.round(mins))} min: ${e.title}`, description: 'Open the events board to see where.' });
+        }
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 30000);
+    return () => window.clearInterval(id);
+  }, [life.events]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [pollsOpen, setPollsOpen] = useState(false);
+  const [wheelOpen, setWheelOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'e' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      setWheelOpen((o) => !o);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const [mini, setMini] = useState<{ game: MiniGame; key: string } | null>(null);
+  const [taskBoardId, setTaskBoardId] = useState<string | null>(null);
   const vrows = vehicles.rows;
   const myId = me?.id ?? '';
   const parkedItems = useMemo(() => {
@@ -973,8 +1075,9 @@ function OfficeRoom() {
     const heldByOthers = Object.values(vrows).filter((v) => isHeld(v) && v.holder_id !== myId).map((v) => v.item_id);
     return items
       .filter((i) => !away.includes(i.id) && !heldByOthers.includes(i.id))
-      .map((i) => { const v = i.t === 'bike' ? vrows[i.id] : undefined; return v ? { ...i, x: v.x, y: v.y, r: (v.dir === 1 ? 1 : 0) as 0 | 1 } : i; });
+      .map((i) => { const v = i.t === 'bike' || i.t === 'kart' ? vrows[i.id] : undefined; return v ? { ...i, x: v.x, y: v.y, r: (v.dir === 1 ? 1 : 0) as 0 | 1 } : i; });
   }, [items, takenBikes, vrows, myId]);
+  const vehicleKinds = useMemo(() => Object.fromEntries(items.filter((i) => i.t === 'bike' || i.t === 'kart').map((i) => [i.id, i.t as 'bike' | 'kart'])), [items]);
   const handleRide = async (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => {
     if (on && bikeId) {
       const it = items.find((i) => i.id === bikeId);
@@ -993,8 +1096,15 @@ function OfficeRoom() {
   // while you ride you keep hold of it; if you vanish, it is free again after a few seconds
   useEffect(() => {
     if (!riding || !rideBike) return;
-    const id = window.setInterval(() => { void vehicles.keep(rideBike); }, 10000);
-    return () => window.clearInterval(id);
+    // every few seconds (and when the tab is hidden) renew the lease and save where the vehicle is now
+    const beat = () => {
+      let pos: { x?: number; y?: number } = {};
+      try { pos = JSON.parse(localStorage.getItem('kd:office:pos:' + (space?.id ?? '')) ?? '{}') as { x?: number; y?: number }; } catch { /* keep without a position */ }
+      void vehicles.keep(rideBike, pos.x, pos.y);
+    };
+    const id = window.setInterval(beat, 5000);
+    document.addEventListener('visibilitychange', beat);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); };
   }, [riding, rideBike, vehicles.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRidingState(false); setRideBike(null); }, [space?.id, superseded]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
@@ -1201,21 +1311,26 @@ function OfficeRoom() {
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
-            map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
+            noteDesks={myClaim ? (() => { const mine = life.notes.filter((n) => n.desk === myClaim.office_id); return mine.length ? { [myClaim.office_id]: { n: mine.length, gift: mine.find((n) => n.gift)?.gift ?? null } } : undefined; })() : undefined}
             recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={(on, bikeId, pos) => { void handleRide(on, bikeId, pos); }} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
-              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini({ game: hit.t === 'foosball' ? 'football' : 'tennis', key: hit.id }); return; }
+              if (hit && hit.t === 'eventboard') { setEventsOpen(true); return; }
+              if (hit && hit.t === 'pollboard') { setPollsOpen(true); return; }
+              if (hit && hit.t === 'kanban') { setTaskBoardId(hit.id); return; }
               if (hit) { setPanel(hit); return; }
             }} dark={dark} zoom={zoom}
-            editing={editing} tool={tool} ghost={ghost} onTile={onTile}
+            editing={editing} tool={tool} ghost={ghost} held={held} onTile={onTile}
           />
           {!editing && (
             <div className="absolute bottom-16 right-3 z-10 flex flex-col gap-1">
@@ -1278,6 +1393,7 @@ function OfficeRoom() {
 
           {editing && (
             <EditorPanel
+              onUndo={undo} onRedo={redo} canUndo={hist.current.past.length > 0 && histTick >= 0} canRedo={hist.current.future.length > 0} onDuplicate={duplicate}
               tool={tool} onTool={setTool} color={color} onColor={setColor}
               onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
               onReset={() => { if (tool === 'wall' || tool === 'unwall' || tool === 'floor') setTileDraft({ wallsOn: [], wallsOff: [], floors: {} }); else setDraft(map.items.map((i) => ({ ...i }))); }}
@@ -1329,6 +1445,12 @@ function OfficeRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      <EventsDialog open={eventsOpen} onClose={() => setEventsOpen(false)} events={life.events} rooms={map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => ({ id: z.id, name: z.name }))} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={life.createEvent} onDelete={(id) => void life.deleteEvent(id)} onWalk={(zid) => { const z = map.zones.find((q) => q.id === zid); if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 }); }} />
+      <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
+      <TaskBoardDialog open={!!taskBoardId} onClose={() => setTaskBoardId(null)} cards={taskBoardId ? boards.boardCards(taskBoardId) : []} me={profile?.id ?? ''} isAdmin={isAdmin} onAdd={(c, b) => boards.addCard(taskBoardId ?? '', c, b)} onMove={(c, col) => void boards.moveCard(c, col)} onDelete={(c) => void boards.deleteCard(c)} />
+      <MiniGamesDialog game={gamesOn(space?.layout?.settings) ? mini?.game ?? null : null} roomKey={(space?.id ?? "") + ":" + (mini?.key ?? "")} playerId={profile?.id ?? ""} onClose={() => setMini(null)} />
+      <ReactionWheel open={wheelOpen && !editing} onClose={() => setWheelOpen(false)} onPick={(e) => { sendEmote(e); setWheelOpen(false); }} />
+      <GamesDialog open={gamesOpen && gamesOn(space?.layout?.settings)} onClose={() => setGamesOpen(false)} />
       <OfficeSettingsDialog
         open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={space?.layout?.settings ?? {}} directory={directory ?? []} saving={savingSettings}
         onSave={async (st) => {
@@ -1338,6 +1460,8 @@ function OfficeRoom() {
         }}
       />
       <DeskDialog
+        notes={deskZone ? life.notes.filter((n) => n.desk === deskZone.id) : []} authorName={(id) => (directory ?? []).find((p) => p.id === id)?.name ?? 'Someone'} meId={profile?.id ?? ''}
+        onLeaveNote={(b, g) => (deskZone ? life.leaveNote(deskZone.id, b, g) : Promise.resolve('No office chosen'))} onDeleteNote={(id) => void life.deleteNote(id)}
         zone={deskZone} owner={deskZone ? ownerOf(deskZone.id) : null} mine={!!deskZone && myClaim?.office_id === deskZone.id}
         iHaveOffice={!!myClaim} isAdmin={isAdmin} busy={deskBusy}
         onClaim={() => { if (deskZone) void claimOffice(deskZone.id); }}

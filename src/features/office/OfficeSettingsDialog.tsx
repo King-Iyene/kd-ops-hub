@@ -13,7 +13,7 @@ export function allowed(mode: Mode | undefined, list: string[] | undefined, id: 
   return m === 'selected' && !!id && (list ?? []).includes(id);
 }
 
-export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
+export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
 
 function PeopleList({ title, hint, ids, directory, mode, onMode, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; mode: Mode; onMode: (m: Mode) => void; onChange: (ids: string[]) => void }) {
   const [q, setQ] = useState('');
@@ -74,6 +74,15 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
           <p className="text-sm font-medium">Furniture limit for builders</p>
           <p className="text-xs text-muted-foreground">The most objects a builder can save in an office (admins have no limit). Empty means no limit.</p>
           <input type="number" min={50} max={2000} value={draft.maxItems ?? ''} onChange={(e) => setDraft({ ...draft, maxItems: e.target.value ? Math.max(50, Math.min(2000, Number(e.target.value))) : undefined })} aria-label="Furniture limit" className="h-8 w-32 rounded-md border border-input bg-background px-2 text-sm" />
+        </section>
+        <section className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
+          <div>
+            <p className="text-sm font-medium">Games</p>
+            <p className="text-xs text-muted-foreground">Lets people play web games from the arcade machines and game tables. Turn it off to stop all games in this office.</p>
+          </div>
+          <button type="button" role="switch" aria-checked={draft.games !== false} aria-label="Games" onClick={() => setDraft({ ...draft, games: draft.games === false })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${draft.games !== false ? 'bg-primary' : 'bg-muted'}`}>
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draft.games !== false ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
         </section>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
