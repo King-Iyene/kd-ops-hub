@@ -20,6 +20,8 @@ export interface TeamPulse {
   last_run_at: string | null;
   last_run_ok: boolean;
   rules_active: number;
+  /** Can the sender that pushes messages to connections run? Missing on an older database. */
+  dispatch_ready?: boolean;
 }
 
 export type SiteCategory = 'unproductive' | 'unknown' | 'approved';
@@ -28,6 +30,8 @@ export interface SiteVisit { domain: string; seconds: number; category: SiteCate
 export type FlagEvidence = Record<string, unknown> & {
   tracked_minutes_today?: number; last_tracked_at?: string | null; window?: string;
   running_hours?: number; started_at?: string | null;
+  /** ES01 and ES02 point at the item they chase. */
+  flag_id?: string; rule?: string; open_for?: string; handled_for?: string; original_severity?: string;
   sites?: SiteVisit[]; total_seconds?: number;
   task_title?: string; by_name?: string; to?: string; from?: string; due_date?: string; days_overdue?: number; assignee_name?: string;
   day?: string; deadline?: string;
@@ -36,7 +40,7 @@ export type FlagEvidence = Record<string, unknown> & {
 /** A flag row as the screens read it: the usual fields plus the evidence the rule attached. */
 export type LiveFlag = AgentFlag & { evidence?: FlagEvidence | null };
 
-export type FlagCategory = 'not_tracking' | 'sites' | 'reports' | 'tasks' | 'money' | 'people_hr' | 'other';
+export type FlagCategory = 'not_tracking' | 'sites' | 'reports' | 'tasks' | 'money' | 'people_hr' | 'escalations' | 'system' | 'other';
 
 export const CATEGORIES: { key: FlagCategory; label: string }[] = [
   { key: 'not_tracking', label: 'Not tracking' },
@@ -45,6 +49,8 @@ export const CATEGORIES: { key: FlagCategory; label: string }[] = [
   { key: 'tasks', label: 'Tasks' },
   { key: 'money', label: 'Money' },
   { key: 'people_hr', label: 'People & HR' },
+  { key: 'escalations', label: 'Escalations' },
+  { key: 'system', label: 'System' },
   { key: 'other', label: 'Other' },
 ];
 
@@ -56,6 +62,13 @@ export const isSensitiveRule = (ruleCode: string | null | undefined) => {
   return /^[A-Z]{2}[0-9]{2}$/.test((ruleCode ?? '').toUpperCase()) && (MONEY_PREFIXES.includes(p) || PEOPLE_PREFIXES.includes(p));
 };
 
+/** ES01 (Not attended to) and ES02 (Still happening) chase another item. */
+export const isEscalationRule = (ruleCode: string | null | undefined) => ['ES01', 'ES02'].includes((ruleCode ?? '').toUpperCase());
+
+/** Items about the system rather than a person: sensitive-module counts, escalations and the agent's own health checks. No person block, no drafted message. */
+export const isSystemLevel = (ruleCode: string | null | undefined) =>
+  isSensitiveRule(ruleCode) || isEscalationRule(ruleCode) || /^SY[0-9]{2}$/.test((ruleCode ?? '').toUpperCase());
+
 /** TR01 to TR03 are about time not being tracked, TR05 about sites, RP about reports, TK about tasks, PY/BK/LN money, DC/PF/HL/CT people and HR. */
 export function categoryOf(ruleCode: string | null | undefined): FlagCategory {
   const c = (ruleCode ?? '').toUpperCase();
@@ -63,6 +76,8 @@ export function categoryOf(ruleCode: string | null | undefined): FlagCategory {
   if (c === 'TR05') return 'sites';
   if (c.startsWith('RP')) return 'reports';
   if (c.startsWith('TK')) return 'tasks';
+  if (c === 'ES01' || c === 'ES02') return 'escalations';
+  if (c === 'SY01' || c === 'SY02' || c === 'SY04') return 'system';
   if (isSensitiveRule(c)) return MONEY_PREFIXES.includes(c.slice(0, 2)) ? 'money' : 'people_hr';
   return 'other';
 }

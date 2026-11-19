@@ -2,7 +2,7 @@
 // send), the site list question, Summaries (Daily by default), Monitoring rules and the sensitive module confirmation.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 type Call = { table?: string; op: string; args: unknown[] };
@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
   tables: {} as Record<string, unknown>,
   detail: {} as Record<string, unknown>,
   classify: { ok: true, results: [] } as Record<string, unknown>,
-  send: { ok: true } as Record<string, unknown>,
+  send: { ok: true, closed: true } as Record<string, unknown>,
   toasts: [] as { title?: string; description?: string }[],
 }));
 
@@ -42,7 +42,7 @@ vi.mock('@/lib/supabase', () => {
     rpc: (name: string, args?: unknown) => {
       if (name === 'agent_my_scope') return Promise.resolve({ data: { role: 'super_admin', access: true, configure: true, companies: null, modules: null }, error: null });
       if (name === 'agent_ai_budget_state') return Promise.resolve({ data: { level: 'ok', ai_enabled: true, spent_today_usd: 0, spent_month_usd: 0, daily_budget_usd: 5, monthly_budget_usd: 50 }, error: null });
-      if (name === 'agent_team_pulse') return Promise.resolve({ data: null, error: { message: 'not deployed' } });
+      if (name === 'agent_team_pulse') return Promise.resolve(h.pulse ? { data: h.pulse, error: null } : { data: null, error: { message: 'not deployed' } });
       h.calls.push({ op: `rpc:${name}`, args: [args] });
       if (name === 'agent_flag_detail') {
         const id = (args as { p_flag: string }).p_flag;
@@ -72,12 +72,14 @@ import { SummariesTab } from '@/features/ops-agent/tabs/SummariesTab';
 import OpsAgent from '@/pages/OpsAgent';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
 
+function Probe() { const l = useLocation(); return <span data-testid="loc">{l.pathname}{l.search}</span>; }
+
 function renderUi(ui: React.ReactNode, route = '/agent') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[route]}>
-        <Routes><Route path="/agent/*" element={<>{ui}<ConfirmDialogHost /></>} /></Routes>
+        <Routes><Route path="/agent/*" element={<>{ui}<ConfirmDialogHost /><Probe /></>} /></Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -117,7 +119,8 @@ beforeEach(() => {
   h.calls.length = 0;
   h.toasts.length = 0;
   h.classify = { ok: true, results: [] };
-  h.send = { ok: true };
+  h.send = { ok: true, closed: true };
+  h.pulse = null;
   h.detail = { f1: detailFor(trackingFlag), f2: detailFor(sitesFlag, { sites: [
     { domain: 'figmaish.io', seconds: 1500, category: 'unknown', list: null, hint: { verdict: 'unknown', reason: 'Nothing we know connects it to our work yet.' }, days_seen: 4, team_users: 1 },
     { domain: 'youtube.com', seconds: 600, category: 'unproductive', list: 'unproductive', hint: { verdict: 'personal', reason: 'A social, shopping or entertainment site.' }, days_seen: 9, team_users: 3 },
@@ -188,18 +191,19 @@ describe('the card detail sheet', () => {
     fireEvent.change(within(sheet).getByLabelText('Subject'), { target: { value: 'Quick check' } });
     fireEvent.click(within(sheet).getByTestId('send-email'));
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Send this to Cara by email?');
+    expect(dialog).toHaveTextContent('Send this to Cara by email? The item will be marked handled.');
     expect(only('invoke:agent-connections:send_flag')).toHaveLength(0); // never sent without the confirmation
     fireEvent.click(within(dialog).getByRole('button', { name: 'Send email' }));
     await waitFor(() => expect(only('invoke:agent-connections:send_flag')).toHaveLength(1));
     const req = only('invoke:agent-connections:send_flag')[0].args[0] as Record<string, unknown>;
+    // ticked by default: no `close` key at all (the server closes the item)
     expect(req).toEqual({ action: 'send_flag', flag_id: 'f1', channel: 'email', subject: 'Quick check', text: 'Hi Cara, are you in a meeting? Please start your timer when you are back.' });
     expect(JSON.stringify(req)).not.toMatch(/@|cara@kd\.test/);
-    // success: a note and the offer to mark it handled
-    const sent = await within(sheet).findByTestId('sent-note');
-    fireEvent.click(within(sent).getByTestId('sent-mark-handled'));
-    await waitFor(() => expect(only('rpc:agent_flag_set_status')).toHaveLength(1));
-    expect(only('rpc:agent_flag_set_status')[0].args[0]).toMatchObject({ p_id: 'f1', p_status: 'handled' });
+    // success: the server marked it handled, so the person is told and the Sheet closes
+    await waitFor(() => expect(h.toasts.some((t) => t.title === 'Sent to Cara. Marked handled.')).toBe(true));
+    await waitFor(() => expect(screen.queryByTestId('flag-detail')).not.toBeInTheDocument());
+    expect(screen.getByTestId('loc')).not.toHaveTextContent('flag=');
+    expect(only('rpc:agent_flag_set_status')).toHaveLength(0); // the server does the closing, not the screen
   });
 
   it('does not send when the confirmation is cancelled, and Reset restores the suggestion', async () => {
@@ -428,5 +432,168 @@ describe('Coverage: sensitive modules', () => {
     fireEvent.click(within(row).getByRole('switch'));
     await waitFor(() => expect(writes()).toHaveLength(1));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('v5: sending closes the item, links, deep links, escalations, dispatch banner', () => {
+  const open = async (rule = 'TR01') => {
+    const cards = await screen.findAllByTestId('inbox-item');
+    fireEvent.click(within(cards.find((c) => c.getAttribute('data-rule') === rule)!).getByTestId('flag-open'));
+    return screen.findByTestId('flag-detail');
+  };
+  const sendEmail = async (sheet: HTMLElement) => {
+    await within(sheet).findByLabelText('Message');
+    fireEvent.click(within(sheet).getByTestId('send-email'));
+    return screen.findByRole('alertdialog');
+  };
+
+  it('Mark as handled after sending is on by default and the editor says what the message contains', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    const box = await within(sheet).findByRole('checkbox', { name: 'Mark as handled after sending' });
+    expect(box).toBeChecked();
+    expect(within(sheet).getByTestId('draft-editor')).toHaveTextContent('The message names the exact item and includes a link to it.');
+  });
+
+  it('unticked: asks without the handled note, sends close: false, and keeps the Sheet open', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    fireEvent.click(await within(sheet).findByRole('checkbox', { name: 'Mark as handled after sending' }));
+    const dialog = await sendEmail(sheet);
+    expect(dialog).toHaveTextContent('Send this to Cara by email?');
+    expect(dialog).not.toHaveTextContent('marked handled');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send email' }));
+    await waitFor(() => expect(only('invoke:agent-connections:send_flag')).toHaveLength(1));
+    expect(only('invoke:agent-connections:send_flag')[0].args[0]).toMatchObject({ action: 'send_flag', flag_id: 'f1', channel: 'email', close: false });
+    await waitFor(() => expect(h.toasts.some((t) => t.title === 'Sent. Kept open.')).toBe(true));
+    expect(screen.getByTestId('flag-detail')).toBeInTheDocument();
+    expect(within(screen.getByTestId('flag-detail')).getByTestId('sent-note')).toHaveTextContent('Sent. Kept open.');
+  });
+
+  it('says so when the message went out but the server could not close the item', async () => {
+    h.send = { ok: true, closed: false };
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    fireEvent.click(within(await sendEmail(sheet)).getByRole('button', { name: 'Send email' }));
+    await waitFor(() => expect(h.toasts.some((t) => /could not be marked handled/.test(t.title ?? ''))).toBe(true));
+    expect(screen.getByTestId('flag-detail')).toBeInTheDocument();
+  });
+
+  it('shows a button for the item link, and none when the link is the Inbox itself', async () => {
+    h.detail = { ...h.detail,
+      f1: { ...(h.detail.f1 as object), link: { label: 'Open the task', path: '/task?task=abc', url: 'https://app.test/task?task=abc', person_path: '/task?task=abc', person_url: 'https://app.test/task?task=abc', inbox_url: 'https://app.test/agent/inbox?flag=f1' } },
+      f2: { ...(h.detail.f2 as object), link: { label: 'Open in the Ops Agent Inbox', path: '/agent/inbox?flag=f2' } },
+    };
+    renderUi(<InboxTab />);
+    const sheet = await open('TR01');
+    const link = await within(sheet).findByTestId('open-in-kdops');
+    expect(link).toHaveTextContent('Open the task');
+    expect(link).toHaveAttribute('href', '/task?task=abc');
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByTestId('flag-detail')).not.toBeInTheDocument());
+    const sheet2 = await open('TR05');
+    await within(sheet2).findByTestId('detail-happening');
+    expect(within(sheet2).queryByTestId('open-in-kdops')).not.toBeInTheDocument();
+  });
+
+  it('/agent/inbox?flag=<id> opens the Sheet, and closing removes the parameter', async () => {
+    renderUi(<InboxTab />, '/agent/inbox?flag=f2');
+    const sheet = await screen.findByTestId('flag-detail');
+    expect(await within(sheet).findByTestId('site-review')).toBeInTheDocument();
+    expect(only('rpc:agent_flag_detail')[0].args[0]).toEqual({ p_flag: 'f2' });
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByTestId('flag-detail')).not.toBeInTheDocument());
+    expect(screen.getByTestId('loc')).toHaveTextContent('/agent/inbox');
+    expect(screen.getByTestId('loc')).not.toHaveTextContent('flag=');
+  });
+
+  it('opens an item that is not in the loaded list by fetching it through agent_flag_detail', async () => {
+    h.detail = { ...h.detail, f9: detailFor({ ...trackingFlag, id: 'f9', title: 'An older handled item', status: 'handled' }) };
+    renderUi(<InboxTab />, '/agent/inbox?flag=f9');
+    const sheet = await screen.findByTestId('flag-detail');
+    expect(await within(sheet).findByText('An older handled item')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('detail-status')).toHaveTextContent('Handled');
+  });
+
+  it('says plainly when a linked item cannot be found', async () => {
+    renderUi(<InboxTab />, '/agent/inbox?flag=nope');
+    const sheet = await screen.findByTestId('flag-detail');
+    expect(await within(sheet).findByTestId('detail-error')).toBeInTheDocument();
+    expect(within(sheet).getByText('This item could not be opened')).toBeInTheDocument();
+  });
+
+  describe('escalations and system items', () => {
+    const es1 = { ...baseFlag, id: 'e1', rule_code: 'ES01', severity: 'high', subject_type: 'system', subject_id: 'f1', person_id: 'p1', title: 'Not attended to: Cara Obi has not tracked time today', why: 'It has been open for 2 days.', occurrence_count: 1, evidence: { flag_id: 'f1', rule: 'TR01', open_for: '2 days', original_severity: 'medium' } };
+    const sy4 = { ...baseFlag, id: 's4', rule_code: 'SY04', severity: 'high', subject_type: 'system', subject_id: 'dispatch-setup', person_id: null, title: 'Automatic sending is not set up', why: 'The secret is missing.', occurrence_count: 1, evidence: null };
+    beforeEach(() => {
+      h.tables = { ...h.tables, agent_flags: [trackingFlag, es1, sy4] };
+      h.detail = { ...h.detail, e1: detailFor(es1), s4: { ...detailFor(sy4), person: null, today: null, recurrence: null, draft: null } };
+    });
+
+    it('has Escalations and System filters with counts', async () => {
+      renderUi(<InboxTab />);
+      await screen.findAllByTestId('inbox-item');
+      expect(screen.getByTestId('filter-escalations')).toHaveTextContent('Escalations1');
+      expect(screen.getByTestId('filter-system')).toHaveTextContent('System1');
+      fireEvent.click(screen.getByTestId('filter-escalations'));
+      expect(screen.getAllByTestId('inbox-item').map((c) => c.getAttribute('data-rule'))).toEqual(['ES01']);
+    });
+
+    it('shows an escalation in the urgent group with no person and an Original item row', async () => {
+      renderUi(<InboxTab />);
+      const cards = await screen.findAllByTestId('inbox-item');
+      const card = cards.find((c) => c.getAttribute('data-rule') === 'ES01')!;
+      expect(within(screen.getByTestId('group-urgent')).getAllByTestId('inbox-item')).toContain(card);
+      expect(within(card).queryByTestId('person-photo')).not.toBeInTheDocument();
+      expect(within(card).queryByText('CO')).not.toBeInTheDocument();
+      expect(within(card).getByTestId('original-item')).toHaveTextContent('open for 2 days');
+    });
+
+    it('Open original opens that item, and the Sheet for an escalation has no person block and no draft', async () => {
+      renderUi(<InboxTab />);
+      const cards = await screen.findAllByTestId('inbox-item');
+      fireEvent.click(within(cards.find((c) => c.getAttribute('data-rule') === 'ES01')!).getByTestId('flag-open'));
+      const sheet = await screen.findByTestId('flag-detail');
+      await within(sheet).findByTestId('detail-happening');
+      expect(within(sheet).queryByTestId('detail-person')).not.toBeInTheDocument();
+      expect(within(sheet).queryByTestId('draft-editor')).not.toBeInTheDocument();
+      expect(within(sheet).queryByTestId('recurrence-banner')).not.toBeInTheDocument();
+      fireEvent.click(within(sheet).getByTestId('open-original'));
+      await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('flag=f1'));
+      await waitFor(() => expect(only('rpc:agent_flag_detail').some((c) => (c.args[0] as { p_flag: string }).p_flag === 'f1')).toBe(true));
+    });
+
+    it('shows a system item without a person or a draft', async () => {
+      renderUi(<InboxTab />, '/agent/inbox?flag=s4');
+      const sheet = await screen.findByTestId('flag-detail');
+      await within(sheet).findByTestId('detail-happening');
+      expect(within(sheet).queryByTestId('detail-person')).not.toBeInTheDocument();
+      expect(within(sheet).queryByTestId('draft-editor')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the Connections warning', () => {
+    const pulse = (ready?: boolean) => ({ as_of: '2026-11-19T12:00:00Z', tz: 'America/New_York', day: '2026-11-19', working_day: true, in_work_window: true, team_size: 5, tracking_now: 1, tracked_today: 2, reports_in: 1, reports_expected: 5, reports_due_at: '18:00', overdue_tasks: 0, open_flags: 0, high_flags: 0, last_run_at: null, last_run_ok: true, rules_active: 3, ...(ready === undefined ? {} : { dispatch_ready: ready }) });
+    const conn = (events: string[]) => ({ id: 'c1', kind: 'slack', name: 'Ops channel', status: 'connected', config: { host: 'hooks.slack.com', events }, vault_secret_names: [], last_error: null, last_tested_at: null });
+    const banner = 'Automatic sending cannot run yet: the database is missing the shared secret that wakes the sender. The Inbox will also show a System item with the exact steps.';
+
+    it('warns when a connection sends automatically and the sender cannot run', async () => {
+      h.pulse = pulse(false);
+      h.tables = { ...h.tables, agent_connections: [conn(['flag_high'])], agent_api_keys: [] };
+      renderUi(<OpsAgent />, '/agent/connections');
+      expect(await screen.findByTestId('dispatch-warning')).toHaveTextContent(banner);
+    });
+
+    it('says nothing when the sender is ready, when nothing is automatic, or when the pulse call fails', async () => {
+      for (const [p, events] of [[pulse(true), ['flag_high']], [pulse(false), []], [null, ['flag_high']], [pulse(), ['flag_high']]] as [Record<string, unknown> | null, string[]][]) {
+        h.pulse = p;
+        h.tables = { ...h.tables, agent_connections: [conn(events)], agent_api_keys: [] };
+        const { unmount } = renderUi(<OpsAgent />, '/agent/connections');
+        await screen.findByTestId('connection-row');
+        await new Promise((r) => setTimeout(r, 30));
+        expect(screen.queryByTestId('dispatch-warning')).not.toBeInTheDocument();
+        unmount();
+      }
+    });
   });
 });
