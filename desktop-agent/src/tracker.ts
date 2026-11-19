@@ -45,7 +45,7 @@ interface GeoLookup {
 
 // track_only_when_timer_running defaults to TRUE: before the policy has been read (or
 // when offline with nothing cached) the safe behaviour is to record nothing.
-const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 5, stop_tracking_when_unused_minutes: 5, track_only_when_timer_running: true };
+const DEFAULT_IDLE_POLICY: IdlePolicy = { away_time_after_minutes: 7, stop_tracking_when_unused_minutes: 7, track_only_when_timer_running: true };
 // ipapi.co's free tier allows 1,000 lookups/day/IP with no key. A real IP
 // rarely moves within a workday, so looking it up every 5 minutes (not every
 // tick) is both honest-enough freshness and comfortably inside that limit
