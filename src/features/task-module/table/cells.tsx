@@ -132,7 +132,7 @@ function InlineInput({ field, value, onCommit }: { field: TableField; value: unk
   const href = s && (field.type === 'link' ? (/^https?:\/\//i.test(s) ? s : `https://${s}`) : field.type === 'email' ? `mailto:${s}` : field.type === 'phone' ? `tel:${s}` : null);
   return (
     <div className={cn(box, numeric && 'justify-end')} role="button" tabIndex={0} onClick={start} onKeyDown={(e) => { if (e.key === 'Enter') start(); }}>
-      <span className="truncate">{shown}</span>
+      <span className={cn('min-w-0', field.type === 'number' || field.type === 'currency' ? 'truncate' : 'line-clamp-6 break-words whitespace-pre-line')}>{shown}</span>
       {href && (
         <a href={href} target={field.type === 'link' ? '_blank' : undefined} rel="noreferrer noopener" onClick={(e) => e.stopPropagation()} className="ml-auto text-muted-foreground hover:text-primary" aria-label="Open">
           <ExternalLink className="h-3 w-3" />
@@ -148,7 +148,7 @@ function LongTextCell({ value, max, onCommit }: { value: unknown; max?: number; 
   return (
     <Popover onOpenChange={(o) => { if (o) setDraft(s); else onCommit(draft.trim() ? draft : null); }}>
       <PopoverTrigger asChild>
-        <button type="button" className={box}><span className="truncate">{s || empty}</span></button>
+        <button type="button" className={box}><span className="min-w-0 line-clamp-6 break-words whitespace-pre-line">{s || empty}</span></button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-2">
         <Textarea autoFocus rows={6} maxLength={max} value={draft} onChange={(e) => setDraft(e.target.value)} className="text-xs" />
