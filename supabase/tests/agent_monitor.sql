@@ -717,6 +717,29 @@ BEGIN
   RAISE NOTICE 'PASS 11b: an item nobody touches is chased (critical 4 h, high 24 h, medium 48 h), escalated once, closed when attended to, quiet on days off';
 END $$;
 
+-- many late items of one rule are chased as one
+DELETE FROM public.agent_flags;
+DO $$
+DECLARE r jsonb; i integer;
+BEGIN
+  FOR i IN 1..5 LOOP
+    PERFORM public.agent_raise_flag('TK06', 'task', 'a0000000-0000-0000-0000-000000000004', 'person', 'n' || i, '', 'medium', 'No open tasks ' || i, 'w', '{}', NULL, '2026-12-07T15:00:00Z');
+  END LOOP;
+  PERFORM public.agent_raise_flag('TK04', 'task', 'a0000000-0000-0000-0000-000000000003', 'task', 'solo', '', 'high', 'Blocked: one', 'w', '{}', NULL, '2026-12-07T15:00:00Z');
+  r := public.agent_rule_es01('2026-12-09T16:00:00Z');   -- Wed 11:00 EST: all 6 are over their limit
+  PERFORM public.t_eq('five of one rule become one chase, the single one stays its own', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'ES01'), 2::bigint);
+  PERFORM public.t_eq('the roll-up says how many', (SELECT (evidence ->> 'count')::int FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = 'rule:TK06'), 5);
+  IF (SELECT title FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = 'rule:TK06') NOT LIKE 'Not attended to: 5 items for "No open tasks"' THEN RAISE EXCEPTION 'FAIL: roll-up title'; END IF;
+  PERFORM public.t_eq('each of the five is escalated once', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'TK06' AND escalation_level = 2), 5::bigint);
+  r := public.agent_rule_es01('2026-12-09T16:01:00Z');
+  PERFORM public.t_eq('and not escalated again', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'TK06' AND escalation_level = 2), 5::bigint);
+  UPDATE public.agent_flags SET status = 'handled', handled_at = '2026-12-09T16:05:00Z' WHERE rule_code = 'TK06' AND subject_id IN ('n1', 'n2');
+  r := public.agent_rule_es01('2026-12-09T16:10:00Z');   -- three left: below four, so each is chased on its own
+  PERFORM public.t_eq('below four the roll-up gives way to single items', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = 'rule:TK06' AND status = 'open'), 0::bigint);
+  PERFORM public.t_eq('three single chases plus the other one', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'ES01' AND status = 'open'), 4::bigint);
+  RAISE NOTICE 'PASS 11e: four or more late items of one rule are chased as one; fewer are chased one by one';
+END $$;
+
 -- ES02: handled, but still happening
 DELETE FROM public.agent_flags;
 DO $$

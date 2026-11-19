@@ -255,14 +255,36 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.agent_rule_es01(p_now timestamptz DEFAULT now())
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE s public.agent_settings%ROWTYPE; f record; v_created integer := 0; v_resolved integer := 0; v_new boolean;
+DECLARE
+  s public.agent_settings%ROWTYPE; f record; g record; v_created integer := 0; v_resolved integer := 0; v_new boolean;
+  v_rollups text[] := '{}'; v_rollup_rules text[] := '{}'; v_title text; v_ids uuid[];
 BEGIN
   SELECT * INTO s FROM public.agent_settings WHERE id;
   IF public.agent_is_working_day((p_now AT TIME ZONE s.timezone)::date) THEN
+    -- Four or more late items of one rule are chased as ONE item ("14 'No open tasks' items ..."), not fourteen.
+    FOR g IN
+      SELECT o.rule_code, count(*) AS n, min(o.first_seen_at) AS oldest, array_agg(o.id ORDER BY o.first_seen_at) AS ids,
+             (array_agg(o.severity ORDER BY public.agent_sev_rank(o.severity) DESC))[1] AS top_sev
+        FROM public.agent_flags o
+       WHERE o.status = 'open' AND o.item_type IN ('flag', 'human_action') AND o.severity <> 'info'
+         AND o.rule_code NOT IN ('ES01', 'ES02', 'SY03', 'TK13', 'TK14')
+         AND o.first_seen_at < p_now - make_interval(hours => CASE o.severity WHEN 'critical' THEN 4 WHEN 'high' THEN 24 WHEN 'medium' THEN 48 ELSE 96 END)
+       GROUP BY o.rule_code HAVING count(*) >= 4
+    LOOP
+      v_title := coalesce((SELECT r.title FROM public.agent_rules r WHERE r.code = g.rule_code), g.rule_code);
+      v_new := public.agent_raise_flag('ES01', NULL, NULL, 'system', 'rule:' || g.rule_code, '', public.agent_bump(g.top_sev),
+        format('Not attended to: %s items for "%s"', g.n, left(v_title, 80)),
+        format('%s open "%s" items have not been acted on. The oldest has been open for %s.', g.n, v_title, public.agent_age_text(g.oldest, p_now)),
+        jsonb_build_object('rule', g.rule_code, 'count', g.n, 'open_for', public.agent_age_text(g.oldest, p_now), 'flag_ids', to_jsonb(g.ids[1:50])),
+        'Open the Inbox filtered to this rule and work through them, or switch the rule off in Settings if it is not useful.', p_now);
+      v_rollups := v_rollups || ('rule:' || g.rule_code); v_rollup_rules := v_rollup_rules || g.rule_code;
+      IF v_new THEN v_created := v_created + 1; END IF;
+    END LOOP;
+
     FOR f IN
       SELECT * FROM public.agent_flags o
        WHERE o.status = 'open' AND o.item_type IN ('flag', 'human_action') AND o.severity <> 'info'
-         AND o.rule_code NOT IN ('ES01', 'ES02', 'SY03', 'TK13', 'TK14')
+         AND o.rule_code NOT IN ('ES01', 'ES02', 'SY03', 'TK13', 'TK14') AND NOT (o.rule_code = ANY (v_rollup_rules))
          AND o.first_seen_at < p_now - make_interval(hours => CASE o.severity WHEN 'critical' THEN 4 WHEN 'high' THEN 24 WHEN 'medium' THEN 48 ELSE 96 END)
     LOOP
       v_new := public.agent_raise_flag('ES01', f.module, f.person_id, 'system', f.id::text, '', public.agent_bump(f.severity), 'Not attended to: ' || left(f.title, 150),
@@ -276,10 +298,21 @@ BEGIN
       END IF;
     END LOOP;
   END IF;
-  -- attended to (handled, dismissed, snoozed, or gone): the chase closes
+
+  -- each item that a rollup now covers is escalated once
+  FOR f IN SELECT o.id FROM public.agent_flags o WHERE o.status = 'open' AND o.rule_code = ANY (v_rollup_rules) AND o.item_type IN ('flag', 'human_action') AND o.severity <> 'info'
+              AND o.first_seen_at < p_now - interval '24 hours'
+              AND NOT EXISTS (SELECT 1 FROM public.agent_flag_events e WHERE e.flag_id = o.id AND e.kind = 'escalated') LOOP
+    UPDATE public.agent_flags SET escalation_level = least(4, escalation_level + 1), updated_at = p_now WHERE id = f.id;
+    INSERT INTO public.agent_flag_events (flag_id, kind, detail) VALUES (f.id, 'escalated', jsonb_build_object('why', 'not attended to'));
+  END LOOP;
+
+  -- attended to (handled, dismissed, snoozed, or gone), or now covered by a rollup: the single chase closes
   WITH x AS (UPDATE public.agent_flags es SET status = 'auto_resolved', updated_at = p_now
               WHERE es.rule_code = 'ES01' AND es.status IN ('open', 'snoozed')
-                AND NOT EXISTS (SELECT 1 FROM public.agent_flags o WHERE o.id::text = es.subject_id AND o.status = 'open') RETURNING es.id)
+                AND CASE WHEN es.subject_id LIKE 'rule:%' THEN NOT (es.subject_id = ANY (v_rollups))
+                         ELSE NOT EXISTS (SELECT 1 FROM public.agent_flags o WHERE o.id::text = es.subject_id AND o.status = 'open' AND NOT (o.rule_code = ANY (v_rollup_rules))) END
+              RETURNING es.id)
   INSERT INTO public.agent_flag_events (flag_id, kind) SELECT id, 'auto_resolved' FROM x;
   GET DIAGNOSTICS v_resolved = ROW_COUNT;
   RETURN jsonb_build_object('created', v_created, 'resolved', v_resolved);
