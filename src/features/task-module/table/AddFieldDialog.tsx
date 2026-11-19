@@ -52,9 +52,9 @@ export function AddFieldDialog({
   const submit = () => {
     if (!canSave) return;
     const clean: TableFieldConfig = { ...config };
-    // "Off" is the same as absent for every setting except task_undated, whose default is on.
+    // "Off" is the same as absent for every setting except the two that default to on.
     (Object.keys(clean) as (keyof TableFieldConfig)[]).forEach((k) => {
-      if (clean[k] === undefined || (clean[k] === false && k !== 'task_undated')) delete clean[k];
+      if (clean[k] === undefined || (clean[k] === false && k !== 'task_undated' && k !== 'task_this_week')) delete clean[k];
     });
     onSave({ name: name.trim(), type, config: clean });
   };
@@ -205,6 +205,10 @@ export function AddFieldDialog({
               />
               <span>days</span>
             </div>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox checked={config.task_this_week !== false} onCheckedChange={(c) => set({ task_this_week: !!c })} />
+              Also offer anything due earlier this week (Mon–Fri)
+            </label>
             <p className={hint}>Tasks due today or later are always offered.</p>
             <label className="flex items-center gap-2 text-xs cursor-pointer">
               <Checkbox checked={config.task_undated !== false} onCheckedChange={(c) => set({ task_undated: !!c })} />

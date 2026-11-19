@@ -66,7 +66,7 @@ export function defaultConfig(type: TableFieldType): TableFieldConfig {
     case 'currency': return { currency: DEFAULT_CURRENCY, decimals: 2 };
     case 'number': return { decimals: 0 };
     case 'rating': return { rating_max: 5 };
-    case 'task': return { task_statuses: [...DEFAULT_TASK_STATUSES], overdue_grace_days: DEFAULT_OVERDUE_GRACE_DAYS, task_undated: true };
+    case 'task': return { task_statuses: [...DEFAULT_TASK_STATUSES], overdue_grace_days: DEFAULT_OVERDUE_GRACE_DAYS, task_undated: true, task_this_week: true };
     case 'single_select':
     case 'multi_select': return { options: [] };
     default: return {};

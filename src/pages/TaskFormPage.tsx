@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle2, Loader2, Lock, Star } from 'lucide-react';
+import { Check, CheckCircle2, Loader2, Lock, Star, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { rememberReturnTo } from '@/lib/returnTo';
 import { cn } from '@/lib/utils';
@@ -38,6 +38,7 @@ interface TaskOpt { id: string; title: string; due_date?: string | null }
 type Answers = Record<string, unknown>;
 
 const taskLabel = (t: TaskOpt) => (t.due_date ? `${t.title} · due ${format(parseISO(t.due_date), 'd MMM')}` : t.title);
+const asIds = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : typeof v === 'string' && v ? [v] : []);
 const isBlank = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
 function problemText(err: { message?: string; hint?: string } | null): string {
@@ -267,11 +268,17 @@ function Question({ field, value, onChange, people, tasks, tasksLoading, needsPe
       );
     }
     case 'person':
+      if (field.config.multiple) {
+        return <MultiPick id={id} placeholder="Choose people" items={people.map((p) => ({ id: p.id, label: p.name }))} value={asIds(value)} onChange={(v) => onChange(v.length ? v : null)} />;
+      }
       return <SearchPick id={id} placeholder="Choose a person" items={people.map((p) => ({ id: p.id, label: p.name }))} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || null)} />;
     case 'task':
       if (needsPerson) return <p className="text-sm text-muted-foreground">Choose {personLabel ? `“${personLabel}”` : 'a person'} first — this lists their tasks.</p>;
       if (tasksLoading) return <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tasks…</p>;
       if (!tasks?.length) return <p className="text-sm text-muted-foreground">No tasks to choose from right now.</p>;
+      if (field.config.multiple) {
+        return <MultiPick id={id} placeholder="Choose tasks" items={tasks.map((t) => ({ id: t.id, label: taskLabel(t) }))} value={asIds(value)} onChange={(v) => onChange(v.length ? v : null)} />;
+      }
       return tasks.length > 8
         ? <SearchPick id={id} placeholder="Choose a task" items={tasks.map((t) => ({ id: t.id, label: taskLabel(t) }))} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || null)} />
         : (
@@ -317,5 +324,63 @@ function SearchPick({ id, items, value, onChange, placeholder }: {
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// Several people or tasks in one answer: a tick list when short, otherwise a
+// searchable list with the picks shown as chips.
+function MultiPick({ id, items, value, onChange, placeholder }: {
+  id: string; items: { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void; placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const toggle = (itemId: string) => onChange(value.includes(itemId) ? value.filter((x) => x !== itemId) : [...value, itemId]);
+  if (items.length <= 8) {
+    return (
+      <div id={id} className="space-y-1" role="group">
+        {items.map((i) => (
+          <label key={i.id} className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={value.includes(i.id)} onCheckedChange={() => toggle(i.id)} /> {i.label}
+          </label>
+        ))}
+      </div>
+    );
+  }
+  const picked = value.map((v) => items.find((i) => i.id === v)).filter((i): i is { id: string; label: string } => !!i);
+  return (
+    <div className="space-y-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button id={id} type="button" className="w-full h-10 rounded-md border border-input bg-background px-3 text-left text-sm flex items-center">
+            <span className={cn('truncate', !picked.length && 'text-muted-foreground')}>{picked.length ? `${picked.length} chosen — add or remove` : placeholder}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="p-0 w-[var(--radix-popover-trigger-width)]">
+          <Command>
+            <CommandInput placeholder="Type to search…" />
+            <CommandList>
+              <CommandEmpty>Nothing found.</CommandEmpty>
+              <CommandGroup>
+                {items.map((i) => (
+                  <CommandItem key={i.id} value={`${i.label} ${i.id}`} onSelect={() => toggle(i.id)}>
+                    <Check className={cn('h-4 w-4 mr-2 shrink-0', value.includes(i.id) ? 'opacity-100' : 'opacity-0')} />
+                    <span className="truncate">{i.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {picked.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {picked.map((i) => (
+            <span key={i.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs max-w-full">
+              <span className="truncate">{i.label}</span>
+              <button type="button" aria-label={`Remove ${i.label}`} onClick={() => toggle(i.id)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

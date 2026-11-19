@@ -471,6 +471,8 @@ export interface TableFieldConfig {
   task_statuses?: TaskStatus[];
   /** Task link, forms only: hide tasks overdue by more than this many days (default 2). */
   overdue_grace_days?: number;
+  /** Task link, forms only: also offer tasks due earlier this week, Monday on (default true). */
+  task_this_week?: boolean;
   /** Task link, forms only: also offer tasks with no due date (default true). */
   task_undated?: boolean;
 }
