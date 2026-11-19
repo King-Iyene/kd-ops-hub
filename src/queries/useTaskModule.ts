@@ -467,7 +467,7 @@ export interface TableFieldConfig {
   decimals?: number;
   rating_max?: number;
   multiple?: boolean;
-  /** Task link, forms only: which statuses a form offers (default In progress, In review, Blocked). */
+  /** Task link, forms only: which statuses a form offers (default: everything except Complete). */
   task_statuses?: TaskStatus[];
   /** Task link, forms only: hide tasks overdue by more than this many days (default 2). */
   overdue_grace_days?: number;
