@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   endOfDay, endOfMonth, endOfWeek, format, parseISO, startOfDay, startOfMonth, startOfWeek, subDays,
 } from 'date-fns';
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TaskDetailSheet } from '@/features/task-module/TaskDetailSheet';
+import { useOpenTask } from '@/features/task-module/useOpenTask';
 import {
   SummaryCard, MyWorkCard, MyBoardCard, ThisWeekCard, DelegatedCard, MentionsCard, MyRecordsCard,
 } from '@/features/task-module/home/HomeCards';
@@ -83,7 +83,7 @@ const TaskHub = () => {
   const { data: people } = useAssignablePeople();
   const { data: savedLayout, isLoading: layoutLoading } = useHomeLayout(me);
   const saveLayout = useSaveHomeLayout(me);
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const { open: openTask } = useOpenTask();
 
   const layout = sanitize(savedLayout);
 
@@ -135,11 +135,11 @@ const TaskHub = () => {
   const renderBody = (key: HomeCardKey) => {
     switch (key) {
       case 'summary': return <SummaryCard mine={mine} />;
-      case 'my_work': return <MyWorkCard mine={mine} onOpen={setOpenTaskId} />;
-      case 'my_board': return <MyBoardCard mine={mine} onOpen={setOpenTaskId} peopleById={peopleById} />;
-      case 'this_week': return <ThisWeekCard mine={mineAll} onOpen={setOpenTaskId} />;
-      case 'delegated': return <DelegatedCard delegated={delegated} onOpen={setOpenTaskId} peopleById={peopleById} />;
-      case 'mentions': return <MentionsCard onOpen={setOpenTaskId} />;
+      case 'my_work': return <MyWorkCard mine={mine} onOpen={openTask} />;
+      case 'my_board': return <MyBoardCard mine={mine} onOpen={openTask} peopleById={peopleById} />;
+      case 'this_week': return <ThisWeekCard mine={mineAll} onOpen={openTask} />;
+      case 'delegated': return <DelegatedCard delegated={delegated} onOpen={openTask} peopleById={peopleById} />;
+      case 'mentions': return <MentionsCard onOpen={openTask} />;
       case 'my_records': return <MyRecordsCard />;
     }
   };
@@ -221,7 +221,6 @@ const TaskHub = () => {
         </DndContext>
       )}
 
-      <TaskDetailSheet taskId={openTaskId} onClose={() => setOpenTaskId(null)} />
     </div>
   );
 };
