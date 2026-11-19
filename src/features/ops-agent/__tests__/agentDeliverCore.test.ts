@@ -94,3 +94,70 @@ describe('helpers', () => {
     expect(describeStatus(503)).toContain('problem');
   });
 });
+
+describe('more tools', () => {
+  const now = new Date('2026-11-19T12:00:00Z');
+  it('discord, google chat and teams send their own payload shapes', async () => {
+    const d = await buildRequest({ kind: 'discord', name: 'd', config: {} }, { url: 'https://discord.com/api/webhooks/1/x' }, { title: 'T', text: 'body' }, now);
+    const g = await buildRequest({ kind: 'gchat', name: 'g', config: {} }, { url: 'https://chat.googleapis.com/v1/spaces/x' }, { title: 'T', text: 'body' }, now);
+    const m = await buildRequest({ kind: 'teams', name: 'm', config: {} }, { url: 'https://x.logic.azure.com/y' }, { title: 'T', text: 'body' }, now);
+    if (d.type !== 'http' || g.type !== 'http' || m.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(String(d.init.body)).content).toContain('**T**');
+    expect(JSON.parse(String(g.init.body)).text).toContain('*T*');
+    const card = JSON.parse(String(m.init.body));
+    expect(card.attachments[0].contentType).toBe('application/vnd.microsoft.card.adaptive');
+    expect(card.attachments[0].content.body[1].text).toBe('body');
+    expect((await buildRequest({ kind: 'discord', name: 'd', config: {} }, {}, { text: 'x' })).type).toBe('error');
+  });
+  it('telegram builds the bot address and checks the chat id and token', async () => {
+    const token = '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ_0123456789';
+    const r = await buildRequest({ kind: 'telegram', name: 't', config: { chat_id: '-1001234567890' } }, { token }, { title: 'T', text: 'body' }, now);
+    if (r.type !== 'http') throw new Error('expected http');
+    expect(r.url).toBe(`https://api.telegram.org/bot${token}/sendMessage`);
+    expect(JSON.parse(String(r.init.body))).toMatchObject({ chat_id: -1001234567890, text: 'T\n\nbody' });
+    expect((await buildRequest({ kind: 'telegram', name: 't', config: { chat_id: 'nope' } }, { token }, { text: 'x' })).type).toBe('error');
+    expect((await buildRequest({ kind: 'telegram', name: 't', config: { chat_id: '123' } }, { token: 'short' }, { text: 'x' })).type).toBe('error');
+    expect((await buildRequest({ kind: 'telegram', name: 't', config: { chat_id: '123' } }, {}, { text: 'x' })).type).toBe('error');
+  });
+});
+
+describe('the generic API connection', () => {
+  const now = new Date('2026-11-19T12:00:00Z');
+  const msg = { title: 'Say "hi"', text: 'line1\nline2 & more', event: 'flag', meta: { severity: 'high', rule: 'TR01', person: 'Cara' } };
+  it('fills a JSON body and escapes the values', async () => {
+    const r = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com/p', auth_type: 'bearer', body_template: '{"t":"{{title}}","d":"{{text}}","s":"{{severity}}","r":"{{rule}}","p":"{{person}}","x":"{{nothing}}"}' } }, { token: 'k' }, msg, now);
+    if (r.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(String(r.init.body))).toEqual({ t: 'Say "hi"', d: 'line1\nline2 & more', s: 'high', r: 'TR01', p: 'Cara', x: '' });
+    expect(r.init.headers['Content-Type']).toBe('application/json');
+    expect(r.init.headers['Authorization']).toBe('Bearer k');
+  });
+  it('encodes form bodies and sends basic auth', async () => {
+    const r = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://api.twilio.com/m', auth_type: 'basic', content_type: 'form', body_template: 'To=%2B1555&Body={{title}}: {{text}}' } }, { token: 'sid:secret' }, msg, now);
+    if (r.type !== 'http') throw new Error('expected http');
+    expect(r.init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+    expect(r.init.headers['Authorization']).toBe(`Basic ${btoa('sid:secret')}`);
+    expect(r.init.body).toBe('To=%2B1555&Body=Say%20%22hi%22: line1%0Aline2%20%26%20more');
+  });
+  it('can send the token in the address, or in a named header, plus extra headers', async () => {
+    const q = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://api.trello.com/1/cards?key=K&idList=L', auth_type: 'query', query_param: 'token', body_template: '{"name":"{{title}}"}' } }, { token: 'T0K' }, msg, now);
+    if (q.type !== 'http') throw new Error('expected http');
+    expect(q.url).toBe('https://api.trello.com/1/cards?key=K&idList=L&token=T0K');
+    expect(q.init.headers['Authorization']).toBeUndefined();
+    const h = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com', auth_type: 'header', header_name: 'X-Api-Key', extra_headers: { 'Notion-Version': '2022-06-28' }, body_template: '{}' } }, { token: 'abc' }, msg, now);
+    if (h.type !== 'http') throw new Error('expected http');
+    expect(h.init.headers).toMatchObject({ 'X-Api-Key': 'abc', 'Notion-Version': '2022-06-28' });
+  });
+  it('catches a JSON body that is broken after filling in, and bad extra headers', async () => {
+    expect((await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com', body_template: '{"t": {{title}}}' } }, {}, msg, now)).type).toBe('error');
+    expect((await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com', extra_headers: { 'Content-Length': '1' } } }, {}, msg, now)).type).toBe('error');
+    expect((await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com', extra_headers: { 'X-A': 'a\r\nInjected: 1' } } }, {}, msg, now)).type).toBe('error');
+  });
+  it('without a template it still sends the standard JSON, and GET sends no body', async () => {
+    const r = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com' } }, {}, msg, now);
+    if (r.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(String(r.init.body))).toMatchObject({ source: 'kd-ops-agent', event: 'flag', severity: 'high' });
+    const g = await buildRequest({ kind: 'api', name: 'a', config: { url: 'https://a.com', method: 'GET' } }, {}, msg, now);
+    if (g.type !== 'http') throw new Error('expected http');
+    expect(g.init.body).toBeUndefined();
+  });
+});

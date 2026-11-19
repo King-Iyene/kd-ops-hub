@@ -209,3 +209,7 @@ jobs:
       # Ops Agent inbound API: authenticates with an agent API key (hashed, rate limited, revocable), not a user JWT.
       - name: Deploy agent-inbound
         run: supabase functions deploy agent-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Ops Agent dispatcher: sends the outbox to connections. Called by pg_cron with the shared cron secret, not a user JWT.
+      - name: Deploy agent-dispatch
+        run: supabase functions deploy agent-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes

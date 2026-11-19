@@ -1,11 +1,12 @@
 // Ops Agent connections, pure parts: which outbound addresses are allowed, and what request each kind of
 // connection sends. No Deno APIs here, so it can be unit tested. Network access lives in agent-deliver.ts.
 
-export type ConnectionKind = 'slack' | 'cliq' | 'email' | 'webhook' | 'n8n' | 'api' | 'whatsapp';
+export type ConnectionKind = 'slack' | 'cliq' | 'discord' | 'teams' | 'gchat' | 'telegram' | 'email' | 'webhook' | 'n8n' | 'api' | 'whatsapp';
 
 export interface ConnectionLite { kind: ConnectionKind; name: string; config: Record<string, unknown> }
 export interface Secrets { url?: string | null; token?: string | null }
-export interface Outgoing { title?: string; text: string; event?: string }
+export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
+export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -70,6 +71,71 @@ export type BuiltRequest =
   | { type: 'email'; payload: { channel: 'email'; to: string; subject: string; html: string } }
   | { type: 'error'; error: string };
 
+// ── The generic API connection ──────────────────────────────────────────────
+export const API_METHODS = ['GET', 'POST', 'PUT', 'PATCH'] as const;
+export const AUTH_TYPES = ['none', 'bearer', 'header', 'basic', 'query'] as const;
+export const CONTENT_TYPES = { json: 'application/json', form: 'application/x-www-form-urlencoded', text: 'text/plain' } as const;
+const FORBIDDEN_HEADERS = /^(host|content-length|transfer-encoding|connection|content-type|accept-encoding|upgrade|te|trailer|proxy-.*|cookie|set-cookie)$/i;
+const HEADER_NAME = /^[A-Za-z0-9-]{1,60}$/;
+
+export function validHeaderName(name: string): boolean { return HEADER_NAME.test(name) && !FORBIDDEN_HEADERS.test(name); }
+
+/** Fills {{title}} {{text}} {{event}} {{severity}} {{rule}} {{person}} {{sent_at}} into a template, escaped for where the value lands. */
+export function renderTemplate(template: string, vars: Record<string, string>, contentType: keyof typeof CONTENT_TYPES): string {
+  const esc = (v: string) => contentType === 'json' ? JSON.stringify(v).slice(1, -1) : contentType === 'form' ? encodeURIComponent(v) : v;
+  return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, k: string) => esc(vars[k] ?? ''));
+}
+
+export function buildApiRequest(cfg: Record<string, unknown>, secrets: Secrets, msg: Outgoing, title: string, text: string, now: Date): BuiltRequest {
+  let url = String(cfg.url ?? '');
+  if (!url) return { type: 'error', error: 'The address is missing.' };
+  const method = (API_METHODS as readonly string[]).includes(String(cfg.method ?? 'POST').toUpperCase()) ? String(cfg.method ?? 'POST').toUpperCase() : 'POST';
+  const hn = String(cfg.header_name ?? '').trim();
+  if (hn && !validHeaderName(hn) && hn.toLowerCase() !== 'authorization') return { type: 'error', error: 'The token header name is not valid.' };
+  // Connections saved before auth_type existed: a named header other than Authorization carried the raw token, Authorization carried "Bearer ...".
+  const legacyAuth = hn && hn.toLowerCase() !== 'authorization' ? 'header' : 'bearer';
+  const auth = (AUTH_TYPES as readonly string[]).includes(String(cfg.auth_type ?? '')) ? String(cfg.auth_type) : legacyAuth;
+  const ct = (String(cfg.content_type ?? 'json') in CONTENT_TYPES ? String(cfg.content_type ?? 'json') : 'json') as keyof typeof CONTENT_TYPES;
+  const headers: Record<string, string> = { Accept: 'application/json, */*;q=0.5' };
+
+  if (secrets.token && auth !== 'none') {
+    if (auth === 'bearer') headers['Authorization'] = `Bearer ${secrets.token}`;
+    else if (auth === 'basic') headers['Authorization'] = `Basic ${btoa(secrets.token)}`;
+    else if (auth === 'header') {
+      const name = String(cfg.header_name ?? 'Authorization').trim() || 'Authorization';
+      if (!validHeaderName(name) && name.toLowerCase() !== 'authorization') return { type: 'error', error: 'The token header name is not valid.' };
+      headers[name] = secrets.token;
+    } else if (auth === 'query') {
+      const param = String(cfg.query_param ?? 'token').trim() || 'token';
+      if (!/^[A-Za-z0-9_.-]{1,60}$/.test(param)) return { type: 'error', error: 'The token parameter name is not valid.' };
+      try { const u = new URL(url); u.searchParams.set(param, secrets.token); url = u.toString(); } catch { return { type: 'error', error: 'That is not a valid web address.' }; }
+    }
+  }
+
+  const extra = cfg.extra_headers && typeof cfg.extra_headers === 'object' ? Object.entries(cfg.extra_headers as Record<string, unknown>) : [];
+  for (const [k, v] of extra.slice(0, 10)) {
+    if (!validHeaderName(k)) return { type: 'error', error: `The header name "${k}" is not allowed.` };
+    const val = String(v ?? '');
+    if (/[\r\n]/.test(val) || val.length > 300) return { type: 'error', error: `The value of header "${k}" is not valid.` };
+    headers[k] = val;
+  }
+
+  if (method === 'GET') return { type: 'http', url, init: { method, headers } };
+
+  headers['Content-Type'] = CONTENT_TYPES[ct];
+  const vars: Record<string, string> = { title, text, event: msg.event ?? 'message', severity: msg.meta?.severity ?? '', rule: msg.meta?.rule ?? '', person: msg.meta?.person ?? '', sent_at: now.toISOString() };
+  const template = typeof cfg.body_template === 'string' ? cfg.body_template.trim() : '';
+  let body: string;
+  if (template) {
+    body = renderTemplate(template, vars, ct);
+    if (ct === 'json') { try { JSON.parse(body); } catch { return { type: 'error', error: 'The body is not valid JSON once the values are filled in. Check the commas and quotes.' }; } }
+  } else {
+    body = JSON.stringify({ source: 'kd-ops-agent', ...vars });
+    headers['Content-Type'] = 'application/json';
+  }
+  return { type: 'http', url, init: { method, headers, body } };
+}
+
 export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: Outgoing, now: Date = new Date()): Promise<BuiltRequest> {
   const cfg = conn.config ?? {};
   const text = msg.text.slice(0, 3000);
@@ -89,28 +155,40 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     return { type: 'http', url: secrets.url, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };
   }
 
+  if (conn.kind === 'discord' || conn.kind === 'gchat' || conn.kind === 'teams') {
+    if (!secrets.url) return { type: 'error', error: 'The webhook address is missing.' };
+    let payload: unknown;
+    if (conn.kind === 'discord') payload = { content: (title ? `**${title}**\n${text}` : text).slice(0, 1900) };
+    else if (conn.kind === 'gchat') payload = { text: title ? `*${title}*\n${text}` : text };
+    else payload = {
+      type: 'message',
+      attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: {
+        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', type: 'AdaptiveCard', version: '1.4',
+        body: [...(title ? [{ type: 'TextBlock', text: title, weight: 'Bolder', size: 'Medium', wrap: true }] : []), { type: 'TextBlock', text, wrap: true }],
+      } }],
+    };
+    return { type: 'http', url: secrets.url, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } };
+  }
+
+  if (conn.kind === 'telegram') {
+    if (!secrets.token) return { type: 'error', error: 'The bot token is missing.' };
+    const chat = String(cfg.chat_id ?? '').trim();
+    if (!/^(-?\d{1,20}|@[A-Za-z0-9_]{3,64})$/.test(chat)) return { type: 'error', error: 'The chat id is missing or not valid (a number such as -1001234567890, or @channelname).' };
+    if (!/^\d{3,20}:[A-Za-z0-9_-]{20,100}$/.test(secrets.token)) return { type: 'error', error: 'That does not look like a Telegram bot token (123456:ABC…).' };
+    const body = JSON.stringify({ chat_id: /^-?\d+$/.test(chat) ? Number(chat) : chat, text: (title ? `${title}\n\n${text}` : text).slice(0, 4000), disable_web_page_preview: true });
+    return { type: 'http', url: `https://api.telegram.org/bot${secrets.token}/sendMessage`, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };
+  }
+
   if (conn.kind === 'webhook' || conn.kind === 'n8n') {
     const url = String(cfg.url ?? '');
     if (!url) return { type: 'error', error: 'The address is missing.' };
-    const body = JSON.stringify({ source: 'kd-ops-agent', event: msg.event ?? 'message', title, text, sent_at: now.toISOString() });
+    const body = JSON.stringify({ source: 'kd-ops-agent', event: msg.event ?? 'message', title, text, ...(msg.meta ?? {}), sent_at: now.toISOString() });
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (secrets.token) { headers['Authorization'] = `Bearer ${secrets.token}`; headers['X-KDOps-Signature'] = await signBody(body, secrets.token); }
     return { type: 'http', url, init: { method: 'POST', headers, body } };
   }
 
-  if (conn.kind === 'api') {
-    const url = String(cfg.url ?? '');
-    if (!url) return { type: 'error', error: 'The address is missing.' };
-    const method = String(cfg.method ?? 'POST').toUpperCase() === 'GET' ? 'GET' : 'POST';
-    const headerName = String(cfg.header_name ?? 'Authorization').trim() || 'Authorization';
-    if (!/^[A-Za-z0-9-]{1,60}$/.test(headerName)) return { type: 'error', error: 'The header name is not valid.' };
-    if (/^(host|content-length|transfer-encoding|connection)$/i.test(headerName)) return { type: 'error', error: 'That header name is not allowed.' };
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (secrets.token) headers[headerName] = headerName.toLowerCase() === 'authorization' ? `Bearer ${secrets.token}` : secrets.token;
-    if (method === 'GET') return { type: 'http', url, init: { method, headers } };
-    headers['Content-Type'] = 'application/json';
-    return { type: 'http', url, init: { method, headers, body: JSON.stringify({ source: 'kd-ops-agent', event: msg.event ?? 'message', title, text, sent_at: now.toISOString() }) } };
-  }
+  if (conn.kind === 'api') return buildApiRequest(cfg, secrets, msg, title, text, now);
 
   return { type: 'error', error: 'This kind of connection is not available yet.' };
 }

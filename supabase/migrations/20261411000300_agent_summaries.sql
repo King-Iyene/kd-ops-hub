@@ -1,8 +1,8 @@
 -- Ops Agent v4 (4 of 5): summaries, written by the database on a schedule (no AI needed; the numbers are the point).
 --
---   Daily    every working day at 6 AM Eastern: the last working day (Monday covers Friday), plus a look at today.
---   Weekly   the first working day of each week at 6 AM: the week before, Monday to Sunday.
---   Monthly  the last working day of the month at 6 AM: the month so far (through yesterday).
+--   Daily    every working day at 6:30 PM Eastern: that day (after the 6 PM report deadline), plus a look at tomorrow.
+--   Weekly   the last working day of each week at 6:30 PM: the week so far, Monday to that day.
+--   Monthly  the last working day of the month at 6:30 PM: the month so far, through that day.
 --
 -- agent_run_summaries() is called every 10 minutes and is idempotent: it makes whatever is due and missing, so a late or missed
 -- run catches up and nothing is ever made twice. agent_generate_summary(kind) is the "Generate now" button.
@@ -15,7 +15,7 @@
 --     "flags":    { "opened": n, "high": n, "resolved": n, "open_now": n, "by_rule": { "TR01": n } },
 --     "repeat":   [ {"person_id","name","rule","count"} ],
 --     "sites":    [ {"domain","minutes","people"} ],
---     "today":    { "due_today": n, "on_leave": n } }       (daily only)
+--     "tomorrow": { "due_tomorrow": n, "on_leave": n } }    (daily only)
 --
 -- Rollback: supabase/rollbacks/20261411_agent_v4_down.sql
 
@@ -97,12 +97,12 @@ BEGIN
 
   IF p_kind = 'day' THEN
     v_today := jsonb_build_object(
-      'due_today', (SELECT count(*) FROM agent_read.v_tasks t WHERE t.parent_id IS NULL AND t.status <> 'done' AND t.due_date = (now() AT TIME ZONE v_tz)::date),
-      'on_leave', (SELECT count(DISTINCT l.employee_id) FROM agent_read.v_leave l WHERE (now() AT TIME ZONE v_tz)::date BETWEEN l.start_date AND l.end_date));
+      'due_tomorrow', (SELECT count(*) FROM agent_read.v_tasks t WHERE t.parent_id IS NULL AND t.status <> 'done' AND t.due_date = p_end + 1),
+      'on_leave', (SELECT count(DISTINCT l.employee_id) FROM agent_read.v_leave l WHERE p_end + 1 BETWEEN l.start_date AND l.end_date));
   END IF;
 
-  v_label := CASE p_kind WHEN 'day' THEN to_char(p_start, 'FMDay, FMMon FMDD') WHEN 'week' THEN to_char(p_start, 'FMMon FMDD') || ' to ' || to_char(p_end, 'FMMon FMDD')
-                         ELSE to_char(p_start, 'FMMonth YYYY') || ' so far' END;
+  v_label := CASE p_kind WHEN 'day' THEN to_char(p_start, 'FMDay, FMMon FMDD') WHEN 'week' THEN 'Week of ' || to_char(p_start, 'FMMon FMDD') || ' to ' || to_char(p_end, 'FMMon FMDD')
+                         ELSE to_char(p_start, 'FMMonth YYYY') END;
   v_headline := format('%s: %s of %s expected person-days had time tracked (%s h in total); %s of %s daily reports were in; %s items opened, %s high priority.',
                        v_label, v_trk_days, v_exp_days, v_hours, v_rep_sub, v_rep_exp, v_flags ->> 'opened', v_flags ->> 'high');
 
@@ -126,7 +126,7 @@ BEGIN
     v_body := v_body || E'\n\n**Sites flagged.** ' || v_names || '.';
   END IF;
   IF v_today IS NOT NULL THEN
-    v_body := v_body || E'\n\n**Today.** ' || (v_today ->> 'due_today') || ' tasks are due and ' || (v_today ->> 'on_leave') || ' people are on leave.';
+    v_body := v_body || E'\n\n**Tomorrow.** ' || (v_today ->> 'due_tomorrow') || ' tasks are due and ' || (v_today ->> 'on_leave') || ' people are on leave.';
   END IF;
 
   RETURN jsonb_build_object('narrative', v_body, 'metrics', jsonb_build_object(
@@ -134,7 +134,7 @@ BEGIN
     'tracking', jsonb_build_object('expected_days', v_exp_days, 'tracked_days', v_trk_days, 'hours', v_hours,
                                    'avg_hours_per_day', CASE WHEN v_trk_days > 0 THEN round(v_hours / v_trk_days, 1) ELSE 0 END, 'low_days', v_low),
     'tasks', v_tasks, 'reports', jsonb_build_object('expected', v_rep_exp, 'submitted', v_rep_sub, 'missing', v_missing),
-    'flags', v_flags, 'repeat', v_repeat, 'sites', v_sites, 'today', v_today));
+    'flags', v_flags, 'repeat', v_repeat, 'sites', v_sites, 'tomorrow', v_today));
 END $$;
 
 -- Makes one summary if it does not exist yet. Returns true when it was made.
@@ -156,35 +156,35 @@ END $$;
 CREATE OR REPLACE FUNCTION public.agent_run_summaries(p_now timestamptz DEFAULT now())
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  s public.agent_settings%ROWTYPE; v_local timestamp; v_today date; v_prev date; v_mon date; v_made text[] := '{}'; v_i integer; v_last boolean := true; v_first boolean := true;
+  s public.agent_settings%ROWTYPE; v_local timestamp; v_today date; v_mon date; v_made text[] := '{}'; v_i integer; v_last_week boolean := true; v_last_month boolean := true;
 BEGIN
   IF NOT pg_try_advisory_xact_lock(hashtext('agent_run_summaries')) THEN RETURN jsonb_build_object('skipped', true); END IF;
   SELECT * INTO s FROM public.agent_settings WHERE id;
   v_local := p_now AT TIME ZONE s.timezone;
   v_today := v_local::date;
-  IF v_local::time < time '06:00' OR NOT public.agent_is_working_day(v_today) THEN RETURN jsonb_build_object('made', v_made); END IF;
+  IF v_local::time < time '18:30' OR NOT public.agent_is_working_day(v_today) THEN RETURN jsonb_build_object('made', v_made); END IF;
 
-  -- Daily: the last working day before today
-  v_prev := v_today - 1;
-  FOR v_i IN 1..7 LOOP EXIT WHEN public.agent_is_working_day(v_prev); v_prev := v_prev - 1; END LOOP;
-  IF public.agent_make_summary('day', v_prev, v_prev) THEN v_made := v_made || ARRAY['day']; END IF;
+  -- Daily: today
+  IF public.agent_make_summary('day', v_today, v_today) THEN v_made := v_made || ARRAY['day']; END IF;
 
-  -- Weekly: the first working day of the week writes up the week before
+  -- Weekly: the last working day of the week writes up the week so far
   v_mon := v_today - (extract(isodow FROM v_today)::integer - 1);
-  FOR v_i IN 0..(extract(isodow FROM v_today)::integer - 2) LOOP IF public.agent_is_working_day(v_mon + v_i) THEN v_first := false; END IF; END LOOP;
-  IF v_first AND public.agent_make_summary('week', v_mon - 7, v_mon - 1) THEN v_made := v_made || ARRAY['week']; END IF;
+  FOR v_i IN 1..(7 - extract(isodow FROM v_today)::integer) LOOP
+    IF public.agent_is_working_day(v_today + v_i) THEN v_last_week := false; END IF;
+  END LOOP;
+  IF v_last_week AND public.agent_make_summary('week', v_mon, v_today) THEN v_made := v_made || ARRAY['week']; END IF;
 
-  -- Monthly: the last working day of the month writes up the month so far
+  -- Monthly: the last working day of the month writes up the month through today
   FOR v_i IN 1..31 LOOP
     EXIT WHEN date_trunc('month', v_today + v_i) <> date_trunc('month', v_today);
-    IF public.agent_is_working_day(v_today + v_i) THEN v_last := false; END IF;
+    IF public.agent_is_working_day(v_today + v_i) THEN v_last_month := false; END IF;
   END LOOP;
-  IF v_last AND public.agent_make_summary('month', date_trunc('month', v_today)::date, v_today - 1) THEN v_made := v_made || ARRAY['month']; END IF;
+  IF v_last_month AND public.agent_make_summary('month', date_trunc('month', v_today)::date, v_today) THEN v_made := v_made || ARRAY['month']; END IF;
 
   RETURN jsonb_build_object('made', to_jsonb(v_made));
 END $$;
 
--- "Generate now": the latest finished period of a kind, made by a person (a new one each press, marked not automatic).
+-- "Generate now": the current period of a kind, through today, made by a person (a new one each press, marked not automatic).
 CREATE OR REPLACE FUNCTION public.agent_generate_summary(p_kind text)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE s public.agent_settings%ROWTYPE; v_today date; v_start date; v_end date; b jsonb; v_id uuid;
@@ -193,9 +193,10 @@ BEGIN
   IF p_kind NOT IN ('day', 'week', 'month') THEN RAISE EXCEPTION 'bad_kind' USING ERRCODE = '22023'; END IF;
   SELECT * INTO s FROM public.agent_settings WHERE id;
   v_today := (now() AT TIME ZONE s.timezone)::date;
-  IF p_kind = 'day' THEN v_end := v_today - 1; v_start := v_end;
-  ELSIF p_kind = 'week' THEN v_end := v_today - extract(isodow FROM v_today)::integer; v_start := v_end - 6;
-  ELSE v_start := date_trunc('month', v_today)::date; v_end := v_today - 1; IF v_end < v_start THEN v_start := (date_trunc('month', v_today) - interval '1 month')::date; v_end := v_today - 1; END IF; END IF;
+  v_end := v_today;
+  IF p_kind = 'day' THEN v_start := v_today;
+  ELSIF p_kind = 'week' THEN v_start := v_today - (extract(isodow FROM v_today)::integer - 1);
+  ELSE v_start := date_trunc('month', v_today)::date; END IF;
   b := public.agent_build_summary(p_kind, v_start, v_end);
   INSERT INTO public.agent_summaries (period_kind, period_start, period_end, company_id, metrics, narrative, auto, generated_by)
   VALUES (p_kind, v_start, v_end, NULL, b -> 'metrics', b ->> 'narrative', false, auth.uid()) RETURNING id INTO v_id;
@@ -218,7 +219,7 @@ BEGIN
   END IF;
   IF to_regclass('public.cron_job_expectations') IS NOT NULL THEN
     INSERT INTO public.cron_job_expectations (job_name, description, max_gap_minutes)
-    VALUES ('agent_summaries', 'Ops Agent: daily 6 AM, weekly and monthly summaries (checks every 10 minutes)', 30)
+    VALUES ('agent_summaries', 'Ops Agent: daily 6:30 PM, weekly and monthly summaries (checks every 10 minutes)', 30)
     ON CONFLICT (job_name) DO UPDATE SET description = EXCLUDED.description, max_gap_minutes = EXCLUDED.max_gap_minutes;
   END IF;
 END $$;

@@ -2,7 +2,8 @@
 //
 // Deploy: supabase functions deploy agent-connections --no-verify-jwt   (it checks the JWT and the role itself)
 //
-// POST { action: 'save',   id?, kind, name, url?, token?, to?, method?, header_name? }
+// POST { action: 'save',   id?, kind, name, url?, token?, to?, chat_id?, method?, auth_type?, header_name?, query_param?, content_type?,
+//                          extra_headers?, body_template?, events?, min_severity?, preset?, clear_token? }
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
@@ -17,14 +18,19 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { authenticateAgentCaller, jsonResponse } from '../_shared/agent-auth.ts';
 import { serviceClient } from '../_shared/agent-claude.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
-import { checkOutboundUrl, parseRecipients, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
+import { API_METHODS, AUTH_TYPES, CONTENT_TYPES, buildApiRequest, checkOutboundUrl, parseRecipients, validHeaderName, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 
 const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
-const KINDS: ConnectionKind[] = ['slack', 'cliq', 'email', 'webhook', 'n8n', 'api'];
+const KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat', 'telegram', 'email', 'webhook', 'n8n', 'api'];
+const SECRET_URL_KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat'];
+const LABELS: Record<string, string> = { slack: 'Slack incoming webhook', cliq: 'Zoho Cliq webhook', discord: 'Discord webhook', teams: 'Microsoft Teams webhook', gchat: 'Google Chat webhook' };
+const EVENTS = ['flag_high', 'flag_all', 'summary_day', 'summary_week', 'summary_month'];
+const SEVERITIES = ['low', 'medium', 'high', 'critical'];
+const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
-interface Body { flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -72,13 +78,18 @@ Deno.serve(async (req) => {
       const config: Record<string, unknown> = {};
       let secretUrl: string | null = null;
       const url = (body.url ?? '').trim();
-      if (kind === 'slack' || kind === 'cliq') {
+      if (SECRET_URL_KINDS.includes(kind)) {
         if (url) {
           const c = checkOutboundUrl(url);
           if (!c.ok) return jsonResponse(cors(req), { ok: false, error: c.error }, 400);
           secretUrl = c.url.toString(); config.host = c.url.hostname;
-        } else if (!existing) return jsonResponse(cors(req), { ok: false, error: `Paste the ${kind === 'slack' ? 'Slack incoming webhook' : 'Zoho Cliq webhook'} address.` }, 400);
+        } else if (!existing) return jsonResponse(cors(req), { ok: false, error: `Paste the ${LABELS[kind]} address.` }, 400);
         else config.host = existing.config.host;
+      } else if (kind === 'telegram') {
+        const chat = (body.chat_id ?? '').trim();
+        if (!/^(-?\d{1,20}|@[A-Za-z0-9_]{3,64})$/.test(chat)) return jsonResponse(cors(req), { ok: false, error: 'The chat id must be a number such as -1001234567890, or @channelname.' }, 400);
+        config.chat_id = chat;
+        if (!existing && !(body.token ?? '').trim()) return jsonResponse(cors(req), { ok: false, error: 'Paste the bot token from BotFather.' }, 400);
       } else if (kind === 'email') {
         const to = parseRecipients(body.to);
         if (to.length === 0) return jsonResponse(cors(req), { ok: false, error: 'Add at least one email address.' }, 400);
@@ -87,8 +98,44 @@ Deno.serve(async (req) => {
         const c = checkOutboundUrl(url || String(existing?.config.url ?? ''));
         if (!c.ok) return jsonResponse(cors(req), { ok: false, error: c.error }, 400);
         config.url = c.url.toString();
-        if (kind === 'api') { config.method = String(body.method).toUpperCase() === 'GET' ? 'GET' : 'POST'; config.header_name = (body.header_name ?? '').trim() || 'Authorization'; }
+        if (kind === 'api') {
+          const m = String(body.method ?? 'POST').toUpperCase();
+          config.method = (API_METHODS as readonly string[]).includes(m) ? m : 'POST';
+          const auth = String(body.auth_type ?? 'bearer');
+          if (!(AUTH_TYPES as readonly string[]).includes(auth)) return jsonResponse(cors(req), { ok: false, error: 'Choose how the token is sent.' }, 400);
+          config.auth_type = auth;
+          const hn = (body.header_name ?? '').trim() || 'Authorization';
+          if (auth === 'header' && hn.toLowerCase() !== 'authorization' && !validHeaderName(hn)) return jsonResponse(cors(req), { ok: false, error: 'The token header name is not valid.' }, 400);
+          config.header_name = hn;
+          const qp = (body.query_param ?? '').trim() || 'token';
+          if (auth === 'query' && !/^[A-Za-z0-9_.-]{1,60}$/.test(qp)) return jsonResponse(cors(req), { ok: false, error: 'The token parameter name is not valid.' }, 400);
+          config.query_param = qp;
+          config.content_type = body.content_type && body.content_type in CONTENT_TYPES ? body.content_type : 'json';
+          const extra: Record<string, string> = {};
+          for (const [k, v] of Object.entries(body.extra_headers ?? {}).slice(0, 10)) {
+            if (!validHeaderName(k)) return jsonResponse(cors(req), { ok: false, error: `The header name "${k}" is not allowed.` }, 400);
+            const val = String(v ?? '');
+            if (/[\r\n]/.test(val) || val.length > 300) return jsonResponse(cors(req), { ok: false, error: `The value of header "${k}" is not valid.` }, 400);
+            extra[k] = val;
+          }
+          config.extra_headers = extra;
+          const tpl = (body.body_template ?? '').slice(0, 5000);
+          if (tpl.trim()) {
+            config.body_template = tpl;
+            // Prove the template once, with sample values, so a broken body is caught now and not at 3 AM.
+            const probe = buildApiRequest(config, { token: 'x' }, { title: 'Sample', text: 'Sample text', event: 'test', meta: { severity: 'high', rule: 'TR01', person: 'Sample Person' } }, 'Sample', 'Sample text', new Date());
+            if (probe.type === 'error') return jsonResponse(cors(req), { ok: false, error: probe.error }, 400);
+          }
+        }
       }
+
+      // What the agent sends on its own, and the preset the person chose (so the card shows the right tool)
+      const events = Array.isArray(body.events) ? [...new Set(body.events.filter((e): e is string => typeof e === 'string' && EVENTS.includes(e)))] : (existing?.config.events ?? []);
+      config.events = events;
+      if (body.min_severity && SEVERITIES.includes(body.min_severity)) config.min_severity = body.min_severity;
+      else if (existing?.config.min_severity && body.min_severity === undefined) config.min_severity = existing.config.min_severity;
+      if (typeof body.preset === 'string' && PRESET.test(body.preset)) config.preset = body.preset;
+      else if (existing?.config.preset) config.preset = existing.config.preset;
 
       let id = existing?.id;
       if (id) {
