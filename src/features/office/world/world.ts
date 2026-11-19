@@ -172,7 +172,7 @@ export function nearestInteractive(items: Item[], x: number, y: number, reach = 
     const d = Math.hypot(dx, dy);
     const isSeat = SEAT_TYPES.includes(it.t);
     // a bike, a kart or a seat only offers itself when you are right beside it; everything else from a little further
-    const r = it.t === 'bike' || it.t === 'kart' || isSeat ? Math.min(reach, 1.05) : reach;
+    const r = it.t === 'bike' || it.t === 'kart' ? Math.min(reach, 1.05) : isSeat ? Math.min(reach, 0.8) : reach;
     if (d > r) continue;
     if (isSeat) { if (d < sd) { seat = it; sd = d; } }
     else if (d < bd) { best = it; bd = d; }
@@ -218,6 +218,18 @@ export function advance(solid: boolean[][], x: number, y: number, vx: number, vy
   if (!collides(solid, tx, ny)) nx = tx;
   const ty = y + vy * dt;
   if (!collides(solid, nx, ty)) ny = ty;
+  // caught on the corner of a wall or a piece of furniture while walking straight at it: ease round the corner instead of stopping dead
+  if (nx === x && ny === y) {
+    if (vx !== 0 && vy === 0) {
+      for (const k of [0.15, 0.3, 0.45]) for (const sgn of [1, -1]) {
+        if (!collides(solid, tx, y + sgn * k) && !collides(solid, x, y + sgn * k)) return { x, y: y + sgn * Math.min(k, Math.abs(vx) * dt * 0.9) };
+      }
+    } else if (vy !== 0 && vx === 0) {
+      for (const k of [0.15, 0.3, 0.45]) for (const sgn of [1, -1]) {
+        if (!collides(solid, x + sgn * k, ty) && !collides(solid, x + sgn * k, y)) return { x: x + sgn * Math.min(k, Math.abs(vy) * dt * 0.9), y };
+      }
+    }
+  }
   return { x: nx, y: ny };
 }
 

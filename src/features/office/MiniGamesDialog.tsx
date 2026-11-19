@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FOOT, PONG, footAi, manYs, newFoot, newPong, pongAi, stepFoot, stepPong } from './miniGames';
+import { FOOT, PONG, SPEEDS, footAi, manYs, newFoot, newPong, pongAi, speedMult, stepFoot, stepPong } from './miniGames';
 
 export type MiniGame = 'tennis' | 'football';
 type Mode = 'cpu' | 'two' | 'online';
@@ -15,6 +15,7 @@ type Mode = 'cpu' | 'two' | 'online';
 export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: MiniGame | null; /** which table: both players use the same key */ roomKey: string; playerId: string; onClose: () => void }) {
   const [mode, setMode] = useState<Mode>('cpu');
   const [round, setRound] = useState(0);
+  const [speed, setSpeed] = useState('normal');
   const [score, setScore] = useState<{ a: number; b: number; winner: 0 | 1 | 2 }>({ a: 0, b: 0, winner: 0 });
   const [role, setRole] = useState<'host' | 'guest' | 'watch' | 'alone'>('alone');
   const cv = useRef<HTMLCanvasElement | null>(null);
@@ -27,8 +28,8 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const pong = newPong();
-    const foot = newFoot();
+    const pong = newPong(speedMult(speed));
+    const foot = newFoot(speedMult(speed));
     const W = game === 'tennis' ? pong.w : foot.w, H = game === 'tennis' ? pong.h : foot.h;
     canvas.width = W; canvas.height = H;
     const down = (e: KeyboardEvent) => {
@@ -179,14 +180,14 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
       if (channel) void supabase.removeChannel(channel);
       setRole('alone');
     };
-  }, [game, mode, round, roomKey, playerId]);
+  }, [game, mode, round, roomKey, playerId, speed]);
 
   const tennis = game === 'tennis';
   const online = mode === 'online';
   const status = !online ? null : role === 'alone' ? 'Waiting for someone to join this table…' : role === 'host' ? 'Connected: you are blue (left)' : role === 'guest' ? 'Connected: you are the other side (right)' : 'Two people are playing: you are watching';
   return (
     <Dialog open={!!game} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-3xl">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-w-5xl w-[calc(100vw-1.5rem)]">
         <DialogHeader><DialogTitle>{tennis ? '🏓 Table tennis' : '⚽ Table football'}</DialogTitle></DialogHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-1 rounded-xl bg-muted/60 p-1" role="radiogroup" aria-label="Players">
@@ -195,7 +196,19 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
             ))}
           </div>
           <p className="text-lg font-bold tabular-nums"><span className="text-blue-500">{score.a}</span> : <span className={tennis ? 'text-amber-500' : 'text-red-500'}>{score.b}</span></p>
-          {(!online || role === 'host') && <Button size="sm" variant="outline" onClick={() => setRound((r) => r + 1)}>New game</Button>}
+          <div className="flex gap-1.5">
+            {(!online || role === 'host') && <Button size="sm" variant="outline" onClick={() => setRound((r) => r + 1)}>New game</Button>}
+            <Button size="sm" variant="destructive" onClick={onClose}>Leave game</Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">Speed</span>
+          <div className="flex gap-1 rounded-xl bg-muted/60 p-1" role="radiogroup" aria-label="Speed">
+            {SPEEDS.map((x) => (
+              <button key={x.id} type="button" role="radio" aria-checked={speed === x.id} onClick={() => { setSpeed(x.id); setRound((r) => r + 1); }} className={`h-7 rounded-lg px-3 text-xs font-semibold ${speed === x.id ? 'bg-background shadow' : 'text-muted-foreground'}`}>{x.label}</button>
+            ))}
+          </div>
+          <span className="text-[11px] text-muted-foreground">Esc or Leave game takes you back to the office.</span>
         </div>
         {status && <p className="text-xs font-medium text-primary">{status}. Ask a colleague to open the same table and choose "Play a colleague".</p>}
         <canvas ref={cv} className="w-full rounded-xl border border-border bg-black" style={{ aspectRatio: tennis ? '800 / 480' : '800 / 460', cursor: 'none' }} />

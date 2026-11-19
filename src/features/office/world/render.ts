@@ -210,19 +210,42 @@ function pal(dark: boolean) {
 
 // ---------- floor and walls ----------
 
-export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
-  const c = pal(theme.dark);
-  const zoneAt = (x: number, y: number) => map.zones.find((z) => z.kind !== 'area' && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h);
-  /** the ground here: the last zone with a floor that contains the tile */
-  const floorOf = (x: number, y: number) => {
-    const painted = map.floorOverrides?.[`${x},${y}`];
-    if (painted) return painted;
-    let f: string | undefined;
-    for (const z of map.zones) if (z.floor && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) f = z.floor;
-    return f;
-  };
+/** The tiles on screen (so only those get drawn). */
+export interface TileView { x0: number; y0: number; x1: number; y1: number }
+
+/** For every tile of a map: its floor and its room, worked out once per map instead of once per tile per frame. */
+const gridCache = new WeakMap<MapDef, { floor: (string | undefined)[]; zone: (Zone | undefined)[] }>();
+function tileGrid(map: MapDef) {
+  const hit = gridCache.get(map);
+  if (hit) return hit;
+  const floor: (string | undefined)[] = new Array(map.w * map.h);
+  const zone: (Zone | undefined)[] = new Array(map.w * map.h);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
+      let f: string | undefined;
+      let r: Zone | undefined;
+      for (const z of map.zones) {
+        if (x < z.x || x >= z.x + z.w || y < z.y || y >= z.y + z.h) continue;
+        if (z.floor) f = z.floor;
+        if (z.kind !== 'area' && !r) r = z;
+      }
+      floor[y * map.w + x] = map.floorOverrides?.[`${x},${y}`] ?? f;
+      zone[y * map.w + x] = r;
+    }
+  }
+  const g = { floor, zone };
+  gridCache.set(map, g);
+  return g;
+}
+
+export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+  const c = pal(theme.dark);
+  const G = tileGrid(map);
+  const zoneAt = (x: number, y: number) => G.zone[y * map.w + x];
+  /** the ground here: the last zone with a floor that contains the tile */
+  const floorOf = (x: number, y: number) => G.floor[y * map.w + x];
+  for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
+    for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (map.walls[y][x]) continue;
       const px = x * TILE;
       const py = y * TILE;
@@ -333,13 +356,13 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
   }
 }
 
-export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0) {
+export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
   const hq = map.style === 'hq';
   const c = hq
     ? { ...pal(theme.dark), ...(theme.dark ? { wallCap: '#6b4a33', wallFront: '#4a2e1a', wallBase: '#2f1c0f' } : { wallCap: '#a4714b', wallFront: '#7a4a2a', wallBase: '#4f2f19' }) }
     : pal(theme.dark);
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) {
+  for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
+    for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (!map.walls[y][x]) continue;
       const px = x * TILE;
       const py = y * TILE;
@@ -1942,7 +1965,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       // a dog of its own breed that trots around its spot, turns, pauses, and wags its tail
       const k = t / 1000;
       const live = officePets.get(item.id);
-      const breed = dogBreed(col, seed);
+      const breed = dogBreed(col, petSeed(item.id, seed));
       if (live && live.view && live.view !== 'side') {
         drawPetEnd(ctx, live.x * TILE, live.y * TILE - 8, 'dog', live.view, breed, k, live.moving, !!live.carrying);
         break;
@@ -1962,7 +1985,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
     }
     case 'cat': {
       const lv = officePets.get(item.id);
-      const cb = catBreed(col, seed);
+      const cb = catBreed(col, petSeed(item.id, seed));
       if (lv && lv.awake && lv.view && lv.view !== 'side') {
         drawPetEnd(ctx, lv.x * TILE, lv.y * TILE - 8, 'cat', lv.view, cb, t / 1000, lv.moving, false);
         break;
@@ -2717,6 +2740,12 @@ export const DOG_BREEDS: DogBreed[] = [
   { name: 'Pug', coat: '#dcc59b', mark: '#2b2118', belly: '#efe0bd', pattern: 'mask', ear: 'rose', tail: 'curl', len: 0.82, depth: 1.14, leg: 0.7, head: 1.18, snout: 0.45 },
   { name: 'Local breed', coat: '#c68642', mark: '#7c4a21', belly: '#e9c58f', pattern: 'plain', ear: 'prick', tail: 'wag', len: 1, depth: 0.88, leg: 1.18, head: 0.92, snout: 1.15 },
 ];
+/** Spreads pets over the breeds: the number at the end of an item's id, scattered evenly (so neighbouring ids give different breeds). */
+export function petSeed(id: string, fallback: number): number {
+  const m = /(\d+)$/.exec(id);
+  return m ? (Number(m[1]) * 0.6180339887) % 1 : fallback;
+}
+
 export function dogBreed(col: string | undefined, seed: number): DogBreed {
   const b = DOG_BREEDS[Math.floor(seed * DOG_BREEDS.length) % DOG_BREEDS.length];
   return col ? { ...b, coat: col } : b;
