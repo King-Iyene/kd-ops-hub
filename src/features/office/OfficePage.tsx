@@ -219,12 +219,15 @@ function OfficeRoom() {
   });
 
   // ---- editing furniture ----
-  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id));
+  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (template !== 'hq' && allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id)));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
   /** a piece of furniture picked up with the Move tool, and which of its tiles was grabbed */
-  const [held, setHeld] = useState<{ item: Item; dx: number; dy: number } | null>(null);
+  const [held, setHeld] = useState<{ item: Item; dx: number; dy: number; copy?: boolean } | null>(null);
+  // undo and redo: every change to the furniture while editing can be stepped back and forward (Ctrl+Z, Ctrl+Y)
+  const hist = useRef<{ past: Item[][]; future: Item[][]; last: Item[] | null; skip: boolean }>({ past: [], future: [], last: null, skip: false });
+  const [histTick, setHistTick] = useState(0);
   useEffect(() => { if (tool !== 'move') setHeld(null); }, [tool]);
   useEffect(() => {
     if (!held) return;
@@ -233,6 +236,33 @@ function OfficeRoom() {
     return () => window.removeEventListener('keydown', esc);
   }, [held]);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
+  useEffect(() => {
+    const h = hist.current;
+    if (!editing) { h.past = []; h.future = []; h.last = null; h.skip = false; return; }
+    if (h.skip) { h.skip = false; h.last = draft; return; }
+    if (h.last && h.last !== draft) { h.past.push(h.last); if (h.past.length > 100) h.past.shift(); h.future = []; setHistTick((n) => n + 1); }
+    h.last = draft;
+  }, [draft, editing]);
+  const undo = () => { const h = hist.current; const prev = h.past.pop(); if (!prev) return; h.future.push(draft); h.skip = true; setDraft(prev); setHeld(null); setHistTick((n) => n + 1); };
+  const redo = () => { const h = hist.current; const next = h.future.pop(); if (!next) return; h.past.push(draft); h.skip = true; setDraft(next); setHeld(null); setHistTick((n) => n + 1); };
+  const duplicate = () => { if (held) setHeld({ item: { ...held.item, id: newItemId() }, dx: held.dx, dy: held.dy, copy: true }); };
+  const turnHeld = () => { if (held) setHeld({ ...held, item: { ...held.item, r: (((held.item.r ?? 0) + 1) % 4) as 0 | 1 | 2 | 3 } }); };
+  const editKeys = useRef({ undo, redo, duplicate, turnHeld });
+  editKeys.current = { undo, redo, duplicate, turnHeld };
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) editKeys.current.redo(); else editKeys.current.undo(); }
+      else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); editKeys.current.redo(); }
+      else if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); editKeys.current.duplicate(); }
+      else if (k === 'r' && !e.ctrlKey && !e.metaKey) editKeys.current.turnHeld();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
   const [color, setColor] = useState<number | undefined>(undefined);
   const [floorKind, setFloorKind] = useState('wood');
   const [brush, setBrush] = useState<1 | 3>(1);
@@ -322,6 +352,7 @@ function OfficeRoom() {
       if (!inScope(moved)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
       const res = canPlace(map, draft.filter((i) => i.id !== held.item.id), moved);
       if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'It does not fit there', variant: 'destructive' }); return; }
+      if (held.copy) { setDraft((d) => [...d, moved]); setHeld({ ...held, item: { ...held.item, id: newItemId() } }); return; }
       setDraft((d) => d.map((i) => (i.id === held.item.id ? moved : i)));
       setHeld(null);
       return;
@@ -1245,7 +1276,7 @@ function OfficeRoom() {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => setPanel(it)} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
@@ -1314,6 +1345,7 @@ function OfficeRoom() {
 
           {editing && (
             <EditorPanel
+              onUndo={undo} onRedo={redo} canUndo={hist.current.past.length > 0 && histTick >= 0} canRedo={hist.current.future.length > 0} onDuplicate={duplicate}
               tool={tool} onTool={setTool} color={color} onColor={setColor}
               onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
               onReset={() => { if (tool === 'wall' || tool === 'unwall' || tool === 'floor') setTileDraft({ wallsOn: [], wallsOff: [], floors: {} }); else setDraft(map.items.map((i) => ({ ...i }))); }}

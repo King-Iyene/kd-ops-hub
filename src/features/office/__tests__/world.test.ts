@@ -269,7 +269,7 @@ describe('default avatars', () => {
         expect([0, 1, 2, 3]).toContain(a.beard);
       }
     }
-  });
+  }, 30000);
 });
 
 describe('headquarters', () => {

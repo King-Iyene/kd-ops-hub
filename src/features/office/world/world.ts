@@ -77,6 +77,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   tabletennis: { w: 3, h: 2, solid: true, label: 'Table tennis' },
   phonebooth: { w: 1, h: 2, solid: true, label: 'Quiet phone booth' },
   arcade: { w: 1, h: 1, solid: true, label: 'Arcade machine' },
+  gong: { w: 1, h: 1, solid: true, label: 'Gong' },
   flowerbed: { w: 3, h: 1, solid: true, label: 'Flower bed' },
   rocks: { w: 1, h: 1, solid: true, label: 'Rocks' },
   birdbath: { w: 1, h: 1, solid: true, label: 'Bird bath' },
@@ -118,6 +119,7 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   noticeboard: 'Notice board',
   bike: 'Ride the power bike',
   kart: 'Drive the go-kart',
+  gong: 'Ring the gong',
   chair: 'Sit down',
   stool: 'Sit down',
   beanbag: 'Sit down',
@@ -270,18 +272,31 @@ export function isRoom(z: Zone | null | undefined): boolean {
   return !!z && (z.kind === 'meeting' || z.kind === 'office') && !z.open;
 }
 
-/** Tiles reachable on foot from a start tile (4-directional, one tile wide is enough to pass). */
-export function reachable(solid: boolean[][], sx: number, sy: number): Set<string> {
-  const seen = new Set<string>();
-  const q: [number, number][] = [[Math.floor(sx), Math.floor(sy)]];
-  const key = (x: number, y: number) => `${x},${y}`;
-  while (q.length) {
-    const [x, y] = q.pop()!;
-    if (y < 0 || y >= solid.length || x < 0 || x >= solid[0].length || solid[y][x] || seen.has(key(x, y))) continue;
-    seen.add(key(x, y));
-    q.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+/** Tiles reachable on foot, as a flat grid (index y * width + x), 4-directional. Fast: used by every placement check. */
+function reachGrid(solid: boolean[][], sx: number, sy: number): { seen: Uint8Array; w: number; h: number } {
+  const h = solid.length;
+  const w = solid[0]?.length ?? 0;
+  const seen = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const x0 = Math.floor(sx), y0 = Math.floor(sy);
+  if (x0 >= 0 && y0 >= 0 && x0 < w && y0 < h && !solid[y0][x0]) { seen[y0 * w + x0] = 1; stack.push(y0 * w + x0); }
+  while (stack.length) {
+    const c = stack.pop()!;
+    const x = c % w, y = (c - x) / w;
+    if (x + 1 < w && !seen[c + 1] && !solid[y][x + 1]) { seen[c + 1] = 1; stack.push(c + 1); }
+    if (x > 0 && !seen[c - 1] && !solid[y][x - 1]) { seen[c - 1] = 1; stack.push(c - 1); }
+    if (y + 1 < h && !seen[c + w] && !solid[y + 1][x]) { seen[c + w] = 1; stack.push(c + w); }
+    if (y > 0 && !seen[c - w] && !solid[y - 1][x]) { seen[c - w] = 1; stack.push(c - w); }
   }
-  return seen;
+  return { seen, w, h };
+}
+
+/** Tiles reachable on foot from a start tile (4-directional, one tile wide is enough to pass), as "x,y" keys. */
+export function reachable(solid: boolean[][], sx: number, sy: number): Set<string> {
+  const { seen, w, h } = reachGrid(solid, sx, sy);
+  const out = new Set<string>();
+  for (let i = 0; i < w * h; i++) if (seen[i]) out.add((i % w) + ',' + Math.floor(i / w));
+  return out;
 }
 
 /**
@@ -358,16 +373,17 @@ export function canPlace(map: MapDef, items: Item[], item: Item): PlaceResult {
     }
     // must not trap anyone or block a door
     const solid = buildSolid(map, [...items, item]);
-    const seen = reachable(solid, map.spawn.x, map.spawn.y);
+    const rg = reachGrid(solid, map.spawn.x, map.spawn.y);
+    const has = (x: number, y: number) => x >= 0 && y >= 0 && x < rg.w && y < rg.h && rg.seen[y * rg.w + x] === 1;
     for (const z of map.zones) {
       if (z.kind === 'area') continue;
       const mid = { x: Math.floor(z.x + z.w / 2), y: Math.floor(z.y + z.h / 2) };
       // some tile of the zone must still be reachable
       let ok = false;
-      for (let y = z.y; y < z.y + z.h && !ok; y++) for (let x = z.x; x < z.x + z.w && !ok; x++) if (seen.has(`${x},${y}`) || (solid[y]?.[x] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has(`${x + dx},${y + dy}`)))) ok = true;
+      for (let y = z.y; y < z.y + z.h && !ok; y++) for (let x = z.x; x < z.x + z.w && !ok; x++) if (has(x, y) || (solid[y]?.[x] && (has(x + 1, y) || has(x - 1, y) || has(x, y + 1) || has(x, y - 1)))) ok = true;
       if (!ok && !solid[mid.y]?.[mid.x]) return { ok: false, reason: 'That would block a door or room' };
     }
-    if (!seen.has(`${Math.floor(map.spawn.x)},${Math.floor(map.spawn.y)}`)) return { ok: false, reason: 'That would block the entrance' };
+    if (!has(Math.floor(map.spawn.x), Math.floor(map.spawn.y))) return { ok: false, reason: 'That would block the entrance' };
   }
   return { ok: true };
 }

@@ -1647,6 +1647,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawDogBall(ctx, x, y, W, H, t, seed);
       break;
     }
+    case 'gong': { drawGong(ctx, x, y, W, H, t, seed); break; }
     case 'standingdesk': { drawStandingDesk(ctx, x, y, W, H, t, seed, col); break; }
     case 'execdesk': { drawExecDesk(ctx, x, y, W, H, col); break; }
     case 'cornerdesk': { drawCornerDesk(ctx, x, y, W, H, col); break; }
@@ -2848,6 +2849,29 @@ function drawCatBody(ctx: Ctx, b: CatBreed, k: number, moving: boolean) {
 export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, t: number, moving = false) {
   if (kind === 'dog') drawDogBody(ctx, DOG_BREEDS[index % DOG_BREEDS.length], t / 1000, moving, false);
   else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
+}
+
+/** A big brass gong on a wooden frame. */
+function drawGong(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2;
+  ellipse(ctx, cx + 2, y + H - 3, 14, 4, 'rgba(30,20,10,0.28)');
+  ctx.fillStyle = '#6b4423';
+  rr(ctx, x + 3, y + 6, 4, H - 8, 1.5); ctx.fill();
+  rr(ctx, x + W - 7, y + 6, 4, H - 8, 1.5); ctx.fill();
+  rr(ctx, x + 2, y + 4, W - 4, 4, 2); ctx.fill();
+  rr(ctx, x + 1, y + H - 6, 9, 4, 2); ctx.fill();
+  rr(ctx, x + W - 10, y + H - 6, 9, 4, 2); ctx.fill();
+  const sway = Math.sin(t / 700 + seed * 5) * 0.6;
+  const gy = y + H / 2 + 3;
+  const g = ctx.createRadialGradient(cx - 3, gy - 3, 1, cx, gy, 11);
+  g.addColorStop(0, '#fde68a'); g.addColorStop(0.55, '#d4a017'); g.addColorStop(1, '#8a5a0b');
+  ctx.strokeStyle = '#d6c8a8'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 6, y + 8); ctx.lineTo(cx - 5 + sway, gy - 9); ctx.moveTo(cx + 6, y + 8); ctx.lineTo(cx + 5 + sway, gy - 9); ctx.stroke();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx + sway, gy, 10.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#7a4f08'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx + sway, gy, 10.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(122,79,8,0.45)'; ctx.beginPath(); ctx.arc(cx + sway, gy, 6.5, 0, Math.PI * 2); ctx.stroke();
+  disc(ctx, cx + sway, gy, 2.4, '#b8860b');
+  ctx.fillStyle = '#7c2d12'; ctx.beginPath(); ctx.arc(x + W - 5, y + H - 9, 2.6, 0, Math.PI * 2); ctx.fill();
 }
 
 const WOODS = ['#c08a55', '#a9794a', '#8a5a33', '#e4c9a0'];

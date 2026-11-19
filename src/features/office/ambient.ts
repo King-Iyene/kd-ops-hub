@@ -179,6 +179,28 @@ class Ambient {
     this.windGain = wg;
   }
 
+  /** a deep gong: a low tone with a few inharmonic partials that ring and fade over a few seconds */
+  gong() {
+    if (!this.enabled) return;
+    const c = this.ensure();
+    if (!c || !this.master || c.state !== 'running') return;
+    const now = c.currentTime;
+    for (const [mul, peak, len] of [[1, 0.28, 3.4], [1.51, 0.14, 2.6], [2.03, 0.1, 2.0], [2.76, 0.06, 1.4], [4.1, 0.03, 0.9]] as const) {
+      const o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(110 * mul, now);
+      o.frequency.exponentialRampToValueAtTime(106 * mul, now + len);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(peak, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + len);
+      o.connect(g);
+      g.connect(this.master);
+      o.start(now);
+      o.stop(now + len + 0.05);
+    }
+  }
+
   /** a bark, a meow, or a happy purr or yip */
   pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy') {
     if (!this.enabled) return;

@@ -86,7 +86,7 @@ interface Props {
   tool: EditTool;
   ghost: (tile: { x: number; y: number }) => { ok: boolean };
   /** furniture picked up with the Move tool (drawn following the pointer) */
-  held?: { item: Item; dx: number; dy: number } | null;
+  held?: { item: Item; dx: number; dy: number; copy?: boolean } | null;
   onTile: (tile: { x: number; y: number }) => void;
 }
 
@@ -135,6 +135,10 @@ export function OfficeCanvas(props: Props) {
   /** the seat I am sitting on (its tile centre), and a seat I am walking to */
   const sitRef = useRef<{ x: number; y: number } | null>(null);
   const wantSit = useRef<string | null>(null);
+  /** the minimap: where it is on screen (null when hidden), whether it is shown, and its cached picture of the building */
+  const miniRect = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const miniOn = useRef(true);
+  const miniPic = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   const standRef = useRef<() => void>(() => undefined);
   const sitRef2 = useRef<(item: Item, tile?: { x: number; y: number }) => void>(() => undefined);
   const petFx = useRef<{ x: number; y: number; born: number; e: string }[]>([]);
@@ -171,6 +175,7 @@ export function OfficeCanvas(props: Props) {
         const near = nearRef.current;
         if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
       }
+      if (k === 'm') { miniOn.current = !miniOn.current; return; }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
@@ -287,7 +292,10 @@ export function OfficeCanvas(props: Props) {
       }
       hover.current = toTile(e);
       if (!drag.down) {
-        if (propsRef.current.editing) setCursor('crosshair');
+        const mr = miniRect.current;
+        const cr0 = canvas.getBoundingClientRect();
+        if (mr && !propsRef.current.editing && e.clientX - cr0.left >= mr.x && e.clientX - cr0.left <= mr.x + mr.w && e.clientY - cr0.top >= mr.y && e.clientY - cr0.top <= mr.y + mr.h) setCursor('pointer');
+        else if (propsRef.current.editing) setCursor('crosshair');
         else {
           const t = hover.current;
           const onItem = propsRef.current.items.some((i) => INTERACTIVE[i.t] && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
@@ -315,6 +323,18 @@ export function OfficeCanvas(props: Props) {
     const down = (e: MouseEvent) => {
       ambient.resume();
       if (e.button !== 0) return;
+      const mr = miniRect.current;
+      if (mr && !propsRef.current.editing) {
+        const cr = canvas.getBoundingClientRect();
+        const mx = e.clientX - cr.left - mr.x, my = e.clientY - cr.top - mr.y;
+        if (mx >= 0 && my >= 0 && mx <= mr.w && my <= mr.h) {
+          const tx = (mx / mr.w) * propsRef.current.map.w, ty = (my / mr.h) * propsRef.current.map.h;
+          ripples.push({ x: Math.floor(tx) + 0.5, y: Math.floor(ty) + 0.5, t: performance.now() });
+          propsRef.current.onWalkTo(Math.floor(tx) + 0.5, Math.floor(ty) + 0.5);
+          pan.current = { x: 0, y: 0 };
+          return;
+        }
+      }
       drag.down = true;
       drag.moved = false;
       inertia.x = 0; inertia.y = 0;
@@ -929,6 +949,66 @@ export function OfficeCanvas(props: Props) {
         drawBirds(ctx, w, h, sky.light, rain, wall);
       }
       drawVignette(ctx, w, h, p.dark);
+      // the minimap: the whole campus in a corner, with the rooms, everyone, and what you can see; click it to walk there
+      if (!p.editing && miniOn.current && w > 560 && p.map.w * p.map.h > 1500) {
+        const mw = Math.min(210, Math.round(w * 0.2));
+        const mh = Math.round(mw * (p.map.h / p.map.w));
+        const mx0 = 14, my0 = 14;
+        miniRect.current = { x: mx0, y: my0, w: mw, h: mh };
+        const key = p.map.w + 'x' + p.map.h + ':' + p.items.length + ':' + p.map.zones.length + ':' + (p.dark ? 1 : 0);
+        if (!miniPic.current || miniPic.current.key !== key) {
+          const cv = document.createElement('canvas');
+          cv.width = mw * 2; cv.height = mh * 2;
+          const c2 = cv.getContext('2d')!;
+          const k2 = (mw * 2) / p.map.w;
+          const FLOORS: Record<string, string> = { wood: '#d8c3a0', grass: '#7bb35f', stone: '#c3c8cf', gray: '#aab2bd', carpet: '#9aa0e0', sand: '#ecdca6' };
+          c2.fillStyle = '#7bb35f';
+          c2.fillRect(0, 0, cv.width, cv.height);
+          for (const z of p.map.zones) {
+            if (z.floor) { c2.fillStyle = FLOORS[z.floor] ?? '#d8c3a0'; c2.fillRect(z.x * k2, z.y * k2, z.w * k2, z.h * k2); }
+            if (z.kind === 'meeting' || z.kind === 'lounge') { c2.fillStyle = z.kind === 'meeting' ? 'rgba(99,102,241,0.28)' : 'rgba(245,158,11,0.3)'; c2.fillRect(z.x * k2, z.y * k2, z.w * k2, z.h * k2); }
+          }
+          for (const it of p.items) {
+            if (it.t === 'pond' || it.t === 'sea' || it.t === 'waterfall') { const sz = itemSize(it); c2.fillStyle = '#5aa9e6'; c2.fillRect(it.x * k2, it.y * k2, sz.w * k2, sz.h * k2); }
+            else if (it.t === 'sand') { const sz = itemSize(it); c2.fillStyle = '#ecdca6'; c2.fillRect(it.x * k2, it.y * k2, sz.w * k2, sz.h * k2); }
+            else if (it.t === 'tree' || it.t === 'palm' || it.t === 'pinetree') { c2.fillStyle = '#2f7d4a'; c2.fillRect(it.x * k2, it.y * k2, Math.max(1.6, k2), Math.max(1.6, k2)); }
+          }
+          c2.fillStyle = '#475569';
+          for (let y = 0; y < p.map.h; y++) for (let x = 0; x < p.map.w; x++) if (p.map.walls[y][x]) c2.fillRect(x * k2, y * k2, Math.max(1, k2), Math.max(1, k2));
+          c2.font = '700 ' + Math.max(7, Math.round(k2 * 2.2)) + 'px system-ui, sans-serif';
+          c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillStyle = 'rgba(15,23,42,0.75)';
+          for (const z of p.map.zones) if ((z.kind === 'meeting' || z.kind === 'lounge') && z.w * k2 > 30) c2.fillText(z.name.length > 14 ? z.name.slice(0, 13) + '.' : z.name, (z.x + z.w / 2) * k2, (z.y + z.h / 2) * k2);
+          miniPic.current = { key, canvas: cv };
+        }
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = 'rgba(15,23,42,0.55)';
+        ctx.beginPath(); ctx.roundRect(mx0 - 4, my0 - 4, mw + 8, mh + 8, 10); ctx.fill();
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(mx0, my0, mw, mh, 7); ctx.clip();
+        ctx.drawImage(miniPic.current.canvas, mx0, my0, mw, mh);
+        const ks = mw / p.map.w;
+        // what the screen shows right now
+        const cm = cam.current;
+        const vx = (-cm.ox / (TILE * cm.scale)) * ks, vy = (-cm.oy / (TILE * cm.scale)) * ks;
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.2;
+        ctx.strokeRect(mx0 + vx, my0 + vy, (w / (TILE * cm.scale)) * ks, (h / (TILE * cm.scale)) * ks);
+        const whoM = new Map(p.roster.map((q) => [q.id, q]));
+        for (const [id, pm] of p.peers.current) {
+          const info = whoM.get(id);
+          if (!info || info.uid === p.me.uid || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(mx0 + pm.x * ks, my0 + pm.y * ks, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+        const mm = meRef.current;
+        const pulse = 3 + Math.sin(now / 260) * 0.9;
+        ctx.strokeStyle = 'rgba(250,204,21,0.8)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(mx0 + mm.x * ks, my0 + mm.y * ks, pulse + 1.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath(); ctx.arc(mx0 + mm.x * ks, my0 + mm.y * ks, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        ctx.restore();
+      } else miniRect.current = null;
     };
     raf = requestAnimationFrame(frame);
     return () => {

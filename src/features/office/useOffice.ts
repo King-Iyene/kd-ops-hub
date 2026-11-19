@@ -42,6 +42,7 @@ export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir:
 
 /** The reactions people can send. */
 import { isEmoji } from './emoji';
+import { ambient } from './ambient';
 
 export const EMOTES = ['👍', '👏', '❤️', '🎉', '😂', '😮', '🙌', '✋', '🔥', '💯'];
 
@@ -252,7 +253,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     ch.on('broadcast', { event: 'emo' }, ({ payload }) => {
       const p = payload as { i?: unknown; e?: unknown } | null;
       if (!p || typeof p.i !== 'string' || p.i.length > 64 || p.i === connId || ghosts.current.has(p.i)) return;
-      if (isEmoji(p.e)) emotes.current.set(p.i, { e: p.e, until: Date.now() + 3500 });
+      if (isEmoji(p.e)) { emotes.current.set(p.i, { e: p.e, until: Date.now() + 3500 }); if (p.e === '🔔') ambient.gong(); }
     });
     // someone started or stopped talking (shown as a green glow even before their audio reaches us)
     ch.on('broadcast', { event: 'sp' }, ({ payload }) => {

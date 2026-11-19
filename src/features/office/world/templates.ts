@@ -113,8 +113,8 @@ export interface HqPerson { name: string; avatar?: AvatarStyle }
  */
 export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   seq = 200;
-  const w = 64;
-  const h = 66; // the building, and the nature park south of it
+  const w = 104; // the main building, Campus East beside it, and the park south of both
+  const h = 66;
   const walls = grid(w, h);
   // the building shell, with the entrance in the middle of the bottom wall
   wallRect(walls, 2, 2, 61, 2);
@@ -148,11 +148,39 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   wallRect(walls, 37, 31, 37, 48);
   gap(walls, 37, 39, 37, 40);
 
+  // Campus East: a second building joined by a covered walkway, a four-tile avenue down the middle, rooms on both sides
+  wallRect(walls, 64, 2, 101, 2);
+  wallRect(walls, 64, 49, 101, 49);
+  wallRect(walls, 64, 2, 64, 49);
+  wallRect(walls, 101, 2, 101, 49);
+  gap(walls, 61, 4, 61, 5); // out of the main building
+  gap(walls, 64, 4, 64, 5); // into Campus East
+  gap(walls, 82, 49, 83, 49); // its own front door
+  wallRect(walls, 65, 7, 79, 7); // under the walkway
+  wallRect(walls, 80, 7, 80, 48);
+  wallRect(walls, 65, 17, 79, 17);
+  wallRect(walls, 65, 32, 79, 32);
+  gap(walls, 80, 11, 80, 12); // game room
+  gap(walls, 80, 24, 80, 25); // library
+  gap(walls, 80, 40, 80, 41); // wellness room
+  wallRect(walls, 85, 3, 85, 48);
+  wallRect(walls, 86, 11, 100, 11);
+  wallRect(walls, 86, 25, 100, 25);
+  gap(walls, 85, 6, 85, 7); // focus pods
+  gap(walls, 85, 17, 85, 18); // workshop
+  gap(walls, 85, 36, 85, 37); // event hall
+
   const zones: Zone[] = [
     { id: 'outdoor', name: 'Garden', kind: 'area', x: 0, y: 0, w, h, floor: 'grass' },
     { id: 'path', name: 'Path', kind: 'area', x: 30, y: 49, w: 2, h: 15, floor: 'stone' },
     { id: 'building', name: 'Headquarters', kind: 'area', x: 3, y: 3, w: 58, h: 46, floor: 'wood' },
     { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
+    { id: 'annex', name: 'Campus East', kind: 'area', x: 65, y: 3, w: 36, h: 46, floor: 'wood' },
+    { id: 'link', name: 'Walkway', kind: 'area', x: 62, y: 3, w: 3, h: 6, floor: 'stone' },
+    { id: 'walkway', name: 'Walkway', kind: 'area', x: 65, y: 3, w: 15, h: 4, floor: 'stone' },
+    { id: 'avenue', name: 'Main avenue', kind: 'area', x: 81, y: 3, w: 4, h: 46, floor: 'stone' },
+    { id: 'eastpath', name: 'Path', kind: 'area', x: 32, y: 50, w: 53, h: 2, floor: 'stone' },
+    { id: 'terrace', name: 'Terrace garden', kind: 'area', x: 64, y: 52, w: 37, h: 12, floor: 'grass' },
   ];
   const pods = [[4, 13], [14, 13], [4, 22], [14, 22]] as const;
   pods.forEach(([px, py], i) => zones.push({ id: `pod-${i + 1}`, name: 'Desks', kind: 'area', x: px, y: py, w: 8, h: 7, floor: 'gray' }));
@@ -180,7 +208,13 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     { id: 'auditorium', name: 'Auditorium', kind: 'meeting', x: 38, y: 32, w: 23, h: 17, floor: 'stone' },
     { id: 'lounge', name: 'Lounge', kind: 'lounge', x: 33, y: 24, w: 12, h: 7 },
     { id: 'music', name: 'Music corner', kind: 'lounge', x: 3, y: 34, w: 11, h: 13 },
+    { id: 'game', name: 'Game room', kind: 'lounge', x: 65, y: 8, w: 15, h: 9, floor: 'carpet' },
+    { id: 'library', name: 'Quiet library', kind: 'meeting', x: 65, y: 18, w: 15, h: 14, floor: 'carpet' },
+    { id: 'wellness', name: 'Wellness room', kind: 'lounge', x: 65, y: 33, w: 15, h: 15, floor: 'carpet' },
+    { id: 'workshop', name: 'Workshop', kind: 'meeting', x: 86, y: 12, w: 15, h: 13, floor: 'carpet' },
+    { id: 'hall', name: 'Event hall', kind: 'meeting', x: 86, y: 26, w: 15, h: 22, floor: 'stone' },
   );
+  for (let i = 0; i < 5; i++) zones.push({ id: `focus-${i + 1}`, name: `Focus pod ${i + 1}`, kind: 'meeting', x: 86 + i * 3, y: 3, w: 3, h: 7, floor: 'gray' });
 
   const items: Item[] = [];
   const desk = (x: number, y: number, extra: 'papers' | 'mug' | 'globe' | 'laptop') => {
@@ -274,6 +308,49 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (const y of [46, 54, 62]) items.push(it('tree', 0, y), it('tree', 62, y));
   for (let x = 2; x < 60; x += 2) if (x !== 30) items.push(it('hedge', x, 64));
   items.push(it('cat', 40, 62), it('dog', 51, 61));
+
+  // ---- Campus East ----
+  // the walkway: the team map and chart, plants
+  items.push(it('worldmap', 66, 3), it('orgchart', 72, 3), it('kanban', 76, 3), it('plant', 65, 6), it('plant', 79, 6), it('lamp', 70, 6), it('flowers', 75, 6));
+  // game room: table football, table tennis, a row of arcade machines, beanbags
+  items.push(it('foosball', 66, 9), it('foosball', 70, 9), it('tabletennis', 66, 12), it('tabletennis', 71, 12));
+  for (const x of [75, 76, 77, 78]) items.push(it('arcade', x, 9));
+  items.push(it('rug', 74, 13), it('beanbag', 75, 15), it('beanbag', 77, 15), it('beanbag', 78, 13), it('vending', 79, 14), it('lamp', 65, 8), it('plant', 79, 8), it('plant', 65, 16), it('balloons', 69, 15), it('flowers', 73, 16));
+  // quiet library: shelves, two reading tables with lamps, a reading nook
+  for (const x of [66, 68, 70, 72, 74, 76, 78]) items.push(it('shelf', x, 18));
+  items.push(it('table', 67, 22), it('table', 72, 22), it('books', 68, 22), it('books', 73, 23), it('lamp', 69, 23), it('globe', 74, 22));
+  for (const x of [67, 68, 69, 72, 73, 74]) items.push(it('chair', x, 21), it('chair', x, 24));
+  items.push(it('rug', 66, 27), it('beanbag', 66, 29), it('beanbag', 68, 29), it('sofa', 73, 29), it('lamp', 65, 28), it('plant', 79, 19), it('plant', 65, 19), it('orchid', 70, 30), it('flowers', 79, 30));
+  // wellness room: beanbags and yoga mats, lavender and orchids, a fish tank
+  items.push(it('fishtank', 73, 33), it('sofa', 66, 44), it('sofa', 71, 44), it('rug', 66, 37), it('rug', 71, 36));
+  for (const [x, y] of [[66, 35], [68, 35], [70, 35], [76, 35], [76, 38], [77, 44], [66, 40], [69, 40]] as const) items.push(it('beanbag', x, y));
+  for (const [x, y] of [[67, 38], [72, 38], [67, 42], [72, 41]] as const) items.push(it('mat', x, y));
+  items.push(it('lavender', 65, 34), it('lavender', 79, 34), it('orchid', 66, 47), it('orchid', 78, 47), it('monstera', 79, 46), it('monstera', 65, 46), it('lamp', 75, 42), it('lamp', 68, 33), it('flowers', 70, 47), it('tulips', 75, 47));
+  // focus pods
+  for (let i = 0; i < 5; i++) items.push(it('phonebooth', 87 + i * 3, 3), it('lamp', 86 + i * 3, 8), it('plant', 88 + i * 3, 9));
+  // workshop: the boards on the wall, four tables with chairs
+  items.push(it('kanban', 87, 12), it('whiteboard', 91, 12), it('barchart', 94, 12), it('orgchart', 97, 12));
+  for (const [tx, ty] of [[89, 16], [94, 16], [89, 20], [94, 20]] as const) {
+    items.push(it('table', tx, ty), it('papers', tx + 1, ty), it('mug', tx, ty + 1));
+    for (let dx = 0; dx < 3; dx++) items.push(it('chair', tx + dx, ty - 1), it('chair', tx + dx, ty + 2));
+  }
+  items.push(it('tv', 99, 14), it('plant', 86, 24), it('plant', 100, 24), it('lamp', 100, 12));
+  // event hall: a stage with screens and a podium, then rows of seats either side of an aisle
+  items.push(it('tv', 88, 26), it('tv', 96, 26), it('desk', 92, 28), it('computer', 92, 28), it('speaker', 90, 27), it('speaker', 95, 27), it('plant', 86, 26), it('plant', 100, 26), it('flowers', 87, 29), it('flowers', 99, 29), it('sunflowers', 89, 29), it('sunflowers', 97, 29));
+  for (const y of [32, 34, 39, 41, 43, 45, 47]) for (let x = 87; x <= 99; x++) if (x < 92 || x > 93) items.push(it('chair', x, y));
+  // the main avenue: lamps, flowers and plants down both sides, a meeting gong at the middle
+  for (const y of [4, 9, 15, 21, 28, 34, 44]) items.push(it('lamp', 81, y));
+  for (const y of [4, 10, 14, 21, 28, 33, 44]) items.push(it('flowers', 84, y));
+  for (const y of [6, 13, 20, 29, 38, 46]) items.push(it('plant', 81, y));
+  for (const y of [8, 15, 22, 31, 40, 47]) items.push(it('sunflowers', 84, y));
+  items.push(it('gong', 82, 26), it('gong', 33, 47));
+  // outside: Campus East's front door, a path to it, trees along the edge and a picnic terrace
+  for (const y of [6, 14, 22, 30, 38, 46, 54, 62]) items.push(it('tree', 102, y));
+  for (let x = 62; x < 101; x += 2) if (x !== 82) items.push(it('hedge', x, 64));
+  items.push(it('palm', 81, 50), it('palm', 84, 50), it('flowers', 80, 51), it('flowers', 85, 51), it('lamp', 81, 52), it('lamp', 84, 52));
+  for (const [tx, ty] of [[68, 55], [75, 55], [92, 55], [97, 58]] as const) items.push(it('roundtable', tx, ty), it('stool', tx - 1, ty), it('stool', tx + 2, ty), it('stool', tx, ty - 1), it('umbrella', tx + 1, ty - 2));
+  items.push(it('bench', 70, 60), it('bench', 76, 60), it('bench', 93, 61), it('flowerbed', 66, 58), it('flowerbed', 86, 56), it('flowerbed', 98, 54), it('flowerbed', 80, 60));
+  items.push(it('tree', 84, 58), it('tree', 88, 61), it('palm', 72, 62), it('palm', 90, 58), it('lantern', 73, 58), it('lantern', 95, 56), it('lamp', 79, 56), it('lamp', 88, 54), it('coffeebar', 76, 57), it('stool', 76, 58), it('stool', 78, 58));
 
   return { w, h, walls, zones, spawn: { x: 31, y: 47.6 }, items, buildArea: { x: 0, y: 0, w, h }, style: 'hq' };
 }
