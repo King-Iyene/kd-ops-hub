@@ -192,7 +192,7 @@ describe('Ops Agent screens', () => {
 
   it('never writes anything just by opening any section', async () => {
     const routes = ['/agent', '/agent/chat', '/agent/summaries', '/agent/memory', '/agent/connections', '/agent/settings',
-      '/agent/settings/claude', '/agent/settings/team', '/agent/settings/calendar', '/agent/settings/coverage', '/agent/settings/rules', '/agent/settings/sites', '/agent/settings/changes'];
+      '/agent/settings/claude', '/agent/settings/team', '/agent/settings/calendar', '/agent/settings/coverage', '/agent/settings/rules', '/agent/settings/brief', '/agent/settings/sites', '/agent/settings/changes'];
     for (const route of routes) {
       h.calls.length = 0;
       const { unmount } = renderAt(route);
@@ -213,12 +213,12 @@ describe('Ops Agent screens', () => {
       ['/agent/settings/claude', () => { expect(screen.queryByLabelText('Claude API key')).not.toBeInTheDocument(); expect(screen.queryByTestId('ai-test-fast')).not.toBeInTheDocument(); }],
       ['/agent/settings/team', () => expect(screen.queryByTestId('fill-groups')).not.toBeInTheDocument()],
       ['/agent/settings/coverage', () => expect(screen.queryByText('Admin access')).not.toBeInTheDocument()],
-      ['/agent/settings/rules', () => expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument()],
+      ['/agent/settings/brief', () => expect(screen.queryByRole('button', { name: /^Save$/ })).not.toBeInTheDocument()],
     ] as [string, () => void][]) {
       const { unmount } = renderAt(route);
       await screen.findByTestId('agent-settings');
       expect(screen.getByRole('note')).toHaveTextContent('read only');
-      if (route.endsWith('rules')) fireEvent.change(await screen.findByLabelText('Operating Rules'), { target: { value: 'changed' } });
+      if (route.endsWith('brief')) fireEvent.change(await screen.findByLabelText('Operating Rules'), { target: { value: 'changed' } });
       absent();
       unmount();
     }
@@ -234,7 +234,7 @@ describe('Ops Agent screens', () => {
   });
 
   it('only enables Save once something changed, and sends only the changed field', async () => {
-    renderAt('/agent/settings/rules');
+    renderAt('/agent/settings/brief');
     const rules = await screen.findByLabelText('Operating Rules');
     const saveButtons = () => screen.queryAllByRole('button', { name: /^Save$/ });
     expect(saveButtons().every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
@@ -251,11 +251,11 @@ describe('Ops Agent screens', () => {
     expect(Object.keys(patch).filter((k) => k !== 'updated_by')).toEqual(['operating_rules']);
   });
 
-  it('shows a sensitive module as locked and refuses to let it be switched', async () => {
+  it('shows a sensitive module as switchable (the confirmation is covered in opsAgentV4.test.tsx)', async () => {
     renderAt('/agent/settings/coverage');
     const row = await screen.findByTestId('module-payroll');
-    expect(within(row).getByText(/locked off/i)).toBeInTheDocument();
-    expect(within(row).getByRole('switch')).toBeDisabled();
+    expect(within(row).getByText(/counts only/i)).toBeInTheDocument();
+    expect(within(row).getByRole('switch')).toBeEnabled();
     expect(within(await screen.findByTestId('module-task')).getByRole('switch')).toBeEnabled();
   });
 
@@ -502,15 +502,16 @@ describe('Settings sections', () => {
     expect(await screen.findByTestId('agent-settings')).toHaveAttribute('data-section', 'claude');
   });
 
-  it('lists the seven sections in a rail with their own addresses and moves between them', async () => {
+  it('lists the eight sections in a rail with their own addresses and moves between them', async () => {
     renderAt('/agent/settings/claude');
     const rail = await screen.findByTestId('settings-rail');
-    for (const l of [/Claude & budget/, /Team/, /Calendar & reports/, /Coverage/, /Operating rules/, /Sites & apps/, /Change log/]) expect(within(rail).getByRole('link', { name: l })).toBeInTheDocument();
-    expect(within(rail).getByRole('link', { name: /Operating rules/ })).toHaveAttribute('href', '/agent/settings/rules');
+    for (const l of [/Claude & budget/, /Team/, /Calendar & reports/, /Coverage/, /Monitoring rules/, /Operating rules/, /Sites & apps/, /Change log/]) expect(within(rail).getByRole('link', { name: l })).toBeInTheDocument();
+    expect(within(rail).getByRole('link', { name: /Monitoring rules/ })).toHaveAttribute('href', '/agent/settings/rules');
+    expect(within(rail).getByRole('link', { name: /Operating rules/ })).toHaveAttribute('href', '/agent/settings/brief');
     expect(within(rail).getByRole('link', { name: /Claude & budget/ })).toHaveAttribute('aria-current', 'page');
     fireEvent.click(within(rail).getByRole('link', { name: /Operating rules/ }));
     expect(await screen.findByLabelText('Operating Rules')).toBeInTheDocument();
-    expect(screen.getByTestId('agent-settings')).toHaveAttribute('data-section', 'rules');
+    expect(screen.getByTestId('agent-settings')).toHaveAttribute('data-section', 'brief');
     expect(within(screen.getByTestId('settings-rail')).getByRole('link', { name: /Operating rules/ })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -533,7 +534,7 @@ describe('Settings sections', () => {
   });
 
   it('shows the Save bar only while there are unsaved edits', async () => {
-    renderAt('/agent/settings/rules');
+    renderAt('/agent/settings/brief');
     const rules = await screen.findByLabelText('Operating Rules');
     expect(screen.queryByTestId('save-bar')).not.toBeInTheDocument();
     fireEvent.change(rules, { target: { value: '# Rules\nmore' } });

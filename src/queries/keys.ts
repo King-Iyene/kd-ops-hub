@@ -21,6 +21,10 @@ export const queryKeys = {
     apiKeys: () => [...queryKeys.opsAgent.all, 'api-keys'] as const,
     chatThreads: () => [...queryKeys.opsAgent.all, 'chat-threads'] as const,
     chatMessages: (threadId: string) => [...queryKeys.opsAgent.all, 'chat-messages', threadId] as const,
+    flagDetail: (id: string) => [...queryKeys.opsAgent.all, 'flag-detail', id] as const,
+    classifySites: (domains: string[]) => [...queryKeys.opsAgent.all, 'classify-sites', ...domains] as const,
+    rules: () => [...queryKeys.opsAgent.all, 'rules'] as const,
+    pulse: () => [...queryKeys.opsAgent.all, 'team-pulse'] as const,
   },
   employees: {
     all: ['employees'] as const,

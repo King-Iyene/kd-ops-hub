@@ -82,3 +82,14 @@ export function greeting(now: Input = new Date()): string {
 export function dayGroup(iso: Input, now: Input = new Date()): 'Today' | 'Earlier' {
   return estDayKey(iso) === estDayKey(now) ? 'Today' : 'Earlier';
 }
+
+const DAY_ONLY = new Intl.DateTimeFormat('en-US', { timeZone: AGENT_TZ, month: 'short', day: 'numeric', year: 'numeric' });
+
+/** "Nov 19" (or "Nov 19, 2026" with `year`) for the Eastern calendar day an instant falls on. */
+export function formatEstDay(iso: Input, opts: { year?: boolean; fallback?: string } = {}): string {
+  const d = toDate(iso);
+  if (!d) return opts.fallback ?? '';
+  const out: Record<string, string> = {};
+  for (const p of DAY_ONLY.formatToParts(d)) out[p.type] = p.value;
+  return `${out.month} ${out.day}${opts.year ? `, ${out.year}` : ''}`;
+}

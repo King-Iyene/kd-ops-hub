@@ -8,7 +8,7 @@ export function useAgentToast() {
     saved: (what = 'Saved') => toast({ title: what }),
     failed: (err: unknown) => {
       const raw = errorMessage(err);
-      const message = /module_locked/.test(raw) ? 'That module holds sensitive data and cannot be switched on.' : /not_allowed|permission denied|row-level security/i.test(raw) ? 'Only a Super Admin can change this.' : raw;
+      const message = /not_allowed|permission denied|row-level security/i.test(raw) ? 'Only a Super Admin can change this.' : raw;
       toast({ title: 'Could not save', description: message, variant: 'destructive' });
     },
   };

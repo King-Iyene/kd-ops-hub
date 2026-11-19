@@ -1,59 +1,65 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlarmClock, Bot, Check, CheckCircle2, Inbox, Loader2, RefreshCw, RotateCcw, UserRoundCheck, X } from 'lucide-react';
+import { Bot, CheckCircle2, ChevronRight, Globe, Inbox, Loader2, RefreshCw, ShieldCheck, UserRoundCheck } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { useAgentFlags, useAgentPeople, useFlagAction } from '@/queries/useOpsAgent';
+import { useAgentFlags, useFlagAction } from '@/queries/useOpsAgent';
 import { useCheckNow, useTeamPulse } from '@/queries/useOpsAgentLive';
+import { usePeopleDirectory, type DirectoryPerson } from '@/queries/useOpsAgentV4';
 import { PersonAvatar } from '../PersonAvatar';
-import { CATEGORIES, categoryOf, isCalm, type FlagCategory, type LiveFlag } from '../liveTypes';
+import { CATEGORIES, categoryOf, isCalm, isSensitiveRule, type FlagCategory, type LiveFlag } from '../liveTypes';
 import { Evidence } from '../inbox/Evidence';
+import { FlagActions, type FlagStatus } from '../inbox/FlagActions';
+import { FlagDetailSheet } from '../inbox/FlagDetailSheet';
+import { ORDER, SeverityPill, STRIPE } from '../inbox/severity';
 import { MonitorStatus, TeamPulseSkeleton, TeamPulseTiles, useNow } from '../inbox/TeamPulse';
 import { useAgentToast } from '../settings/useAgentToast';
 import { formatEst, relativeTime } from '../time';
 
-type Severity = LiveFlag['severity'];
-const STRIPE: Record<Severity, string> = {
-  critical: 'bg-destructive', high: 'bg-orange-500', medium: 'bg-warning', low: 'bg-sky-500', info: 'bg-muted-foreground/40',
-};
-const PILL: Record<Severity, string> = {
-  critical: 'bg-destructive/10 text-destructive',
-  high: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  medium: 'bg-warning/10 text-warning',
-  low: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  info: 'bg-muted text-muted-foreground',
-};
-const LABEL: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
-const ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const URGENT = (f: LiveFlag) => (f.severity === 'critical' || f.severity === 'high') && !isCalm(f);
 
-type Status = 'open' | 'snoozed' | 'handled' | 'dismissed';
+type Status = FlagStatus;
 
-function Flag({ f, name, now, busy, onAct }: { f: LiveFlag; name: string | null; now: number; busy: boolean; onAct: (f: LiveFlag, s: Status, done: string) => void }) {
+/** True when a TR05 card names a site that is not on the list yet, so the question "Is it part of our work?" is worth asking. */
+const hasUnlistedSite = (f: LiveFlag) => (f.rule_code ?? '').toUpperCase() === 'TR05' && !!f.evidence?.sites?.some((s) => s.category === 'unknown');
+
+function Flag({ f, person, assigneeName, now, busy, onAct, onOpen }: {
+  f: LiveFlag; person: DirectoryPerson | null; assigneeName: string | null; now: number; busy: boolean;
+  onAct: (f: Pick<LiveFlag, 'id'>, s: Status, done: string) => void; onOpen: (f: LiveFlag) => void;
+}) {
   const calm = isCalm(f);
   const human = f.item_type === 'human_action';
-  const who = name ?? f.evidence?.assignee_name ?? null;
+  // Items about a sensitive module are system-level counts: no person, and nothing is looked up for one.
+  const countOnly = isSensitiveRule(f.rule_code);
+  const who = countOnly ? null : person?.name ?? assigneeName ?? f.evidence?.assignee_name ?? null;
+  const open = () => onOpen(f);
   return (
-    <li className="relative flex gap-3 py-4 pl-4 pr-1 sm:gap-4 sm:pl-5" data-testid="inbox-item" data-severity={f.severity} data-rule={f.rule_code} data-calm={calm || undefined}>
+    <li
+      className="group relative flex cursor-pointer gap-3 py-4 pl-4 pr-1 hover:bg-muted/30 sm:gap-4 sm:pl-5 kd-transition" data-testid="inbox-item" data-severity={f.severity} data-rule={f.rule_code} data-calm={calm || undefined}
+      onClick={(e) => { if (!(e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) open(); }}
+    >
       {!calm && <span className={cn('absolute bottom-3 left-0 top-3 w-1 rounded-full', STRIPE[f.severity])} aria-hidden="true" />}
       <div className="pt-0.5">
         {calm ? (
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-success/12 text-success" aria-hidden="true"><CheckCircle2 className="h-[18px] w-[18px]" /></span>
-        ) : who ? <PersonAvatar name={who} /> : (
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">{human ? <UserRoundCheck className="h-4 w-4" /> : <Bot className="h-4 w-4" />}</span>
+        ) : who ? <PersonAvatar name={who} photoUrl={person?.photo} /> : (
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">{human ? <UserRoundCheck className="h-4 w-4" /> : countOnly ? <ShieldCheck className="h-4 w-4" /> : <Bot className="h-4 w-4" />}</span>
         )}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="text-sm font-semibold leading-snug">{f.title}</h3>
+            <h3 className="text-sm font-semibold leading-snug">
+              <button type="button" onClick={open} aria-label={`Open details: ${f.title}`} data-testid="flag-open" className="rounded text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{f.title}</button>
+            </h3>
             {human
               ? <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-2xs font-semibold text-violet-600 dark:text-violet-300"><UserRoundCheck className="h-3 w-3" /> Human action required</span>
               : calm
                 ? <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-2xs font-semibold text-success">{f.rule_code === 'TK13' ? 'For review' : 'Done'}</span>
-                : <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold', PILL[f.severity])}>{LABEL[f.severity]}</span>}
+                : <SeverityPill severity={f.severity} />}
+            {countOnly && <span className="text-2xs text-muted-foreground" data-testid="count-only">Count only</span>}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {who && <span className="font-medium text-foreground/80">{who}</span>}
@@ -67,16 +73,16 @@ function Flag({ f, name, now, busy, onAct }: { f: LiveFlag; name: string | null;
         {f.why && <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{f.why}</p>}
         <Evidence flag={f} now={now} />
         {f.suggested_action && <p className="text-sm"><span className="text-muted-foreground">Suggested:</span> {f.suggested_action}</p>}
-        <div className="flex flex-wrap gap-1 pt-0.5">
-          {f.status === 'open' ? (
-            <>
-              <Button size="sm" variant="outline" className="h-8 px-2.5" disabled={busy} onClick={() => onAct(f, 'handled', 'Marked as handled')} data-testid="flag-handled"><Check className="mr-1 h-3.5 w-3.5" /> Handled</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(f, 'snoozed', 'Snoozed for a day')} aria-label="Snooze a day"><AlarmClock className="mr-1 h-3.5 w-3.5" /> Snooze<span className="hidden sm:inline">&nbsp;a day</span></Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(f, 'dismissed', 'Dismissed')}><X className="mr-1 h-3.5 w-3.5" /> Dismiss</Button>
-            </>
-          ) : (
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => onAct(f, 'open', 'Back in the Inbox')}><RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reopen</Button>
+        <div className="flex flex-wrap items-center gap-1 pt-0.5">
+          <FlagActions flag={f} busy={busy} onAct={onAct} />
+          {hasUnlistedSite(f) && f.status === 'open' && (
+            <button type="button" onClick={open} data-testid="add-to-list-chip" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-3 text-xs font-medium text-foreground hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring kd-transition">
+              <Globe className="h-3.5 w-3.5" aria-hidden="true" /> Add to list?
+            </button>
           )}
+          <button type="button" onClick={open} className="ml-auto inline-flex h-8 items-center gap-0.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring kd-transition">
+            Details <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       </div>
     </li>
@@ -102,7 +108,8 @@ function Group({ title, count, urgent, children }: { title: string; count: numbe
  */
 export function InboxTab() {
   const flags = useAgentFlags();
-  const people = useAgentPeople();
+  const people = usePeopleDirectory();
+  const [openId, setOpenId] = useState<string | null>(null);
   const pulse = useTeamPulse();
   const act = useFlagAction();
   const check = useCheckNow();
@@ -111,7 +118,6 @@ export function InboxTab() {
   const now = useNow();
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [filter, setFilter] = useState<FlagCategory | 'all'>('all');
-  const names = useMemo(() => new Map((people.data ?? []).map((p) => [p.id, p.full_name ?? 'Unknown'])), [people.data]);
 
   const all = useMemo(() => (flags.data ?? []) as LiveFlag[], [flags.data]);
   const open = useMemo(() => all.filter((f) => f.status === 'open'), [all]);
@@ -128,10 +134,11 @@ export function InboxTab() {
   const urgent = visible.filter(URGENT);
   const rest = visible.filter((f) => !URGENT(f));
 
-  const run = (f: LiveFlag, status: Status, done: string) =>
+  const run = (f: Pick<LiveFlag, 'id'>, status: Status, done: string) =>
     act.mutate({ id: f.id, status }, { onSuccess: () => toast.saved(done), onError: toast.failed });
-  const nameOf = (f: LiveFlag) => (f.person_id ? names.get(f.person_id) ?? null : null);
-  const row = (f: LiveFlag) => <Flag key={f.id} f={f} name={nameOf(f)} now={now} busy={act.isPending} onAct={run} />;
+  const row = (f: LiveFlag) => (
+    <Flag key={f.id} f={f} person={f.person_id ? people.get(f.person_id) ?? null : null} assigneeName={null} now={now} busy={act.isPending} onAct={run} onOpen={(x) => setOpenId(x.id)} />
+  );
 
   const checkNow = () => check.mutate(undefined, {
     onSuccess: (r) => notify({ title: `Checked: ${r.created} new, ${r.resolved} cleared`, description: r.errors > 0 ? `${r.errors} ${r.errors === 1 ? 'rule' : 'rules'} failed to run.` : undefined }),
@@ -206,6 +213,8 @@ export function InboxTab() {
           {showSnoozed && <ul className="divide-y">{snoozed.map(row)}</ul>}
         </div>
       )}
+
+      <FlagDetailSheet flagId={openId} listFlag={all.find((f) => f.id === openId) ?? null} onClose={() => setOpenId(null)} busy={act.isPending} onAct={run} />
     </div>
   );
 }

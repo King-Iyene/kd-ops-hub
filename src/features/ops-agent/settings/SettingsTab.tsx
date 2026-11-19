@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { CalendarClock, History, Globe, Network, ScrollText, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import { CalendarClock, History, Globe, ListChecks, Network, ScrollText, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAiStatus, useAgentSettings } from '@/queries/useOpsAgent';
@@ -9,11 +9,12 @@ import { AiCard } from './AiCard';
 import { CalendarCard, CalendarSummary } from './CalendarCard';
 import { AuditCard, DomainsCard } from './DomainsAuditCard';
 import { PeopleCard } from './PeopleCard';
+import { MonitoringRulesCard } from './MonitoringRulesCard';
 import { RulesCard } from './RulesCard';
 import { ScopeCard } from './ScopeCard';
 
 const ICONS: Record<SettingsSectionKey, LucideIcon> = {
-  claude: Sparkles, team: Users, calendar: CalendarClock, coverage: Network, rules: ScrollText, sites: Globe, changes: History,
+  claude: Sparkles, team: Users, calendar: CalendarClock, coverage: Network, rules: ListChecks, brief: ScrollText, sites: Globe, changes: History,
 };
 
 /** The rail: a vertical list on desktop, a row of scrollable chips on a phone. One section is shown at a time. */
@@ -77,7 +78,8 @@ export function SettingsTab({ canConfigure }: { canConfigure: boolean }) {
         {section === 'team' && <PeopleCard settings={s} readOnly={readOnly} />}
         {section === 'calendar' && <><CalendarSummary settings={s} /><CalendarCard settings={s} readOnly={readOnly} /></>}
         {section === 'coverage' && <><ScopeCard readOnly={readOnly} />{canConfigure && <AdminScopeCard />}</>}
-        {section === 'rules' && <RulesCard settings={s} readOnly={readOnly} />}
+        {section === 'rules' && <MonitoringRulesCard readOnly={readOnly} />}
+        {section === 'brief' && <RulesCard settings={s} readOnly={readOnly} />}
         {section === 'sites' && <DomainsCard readOnly={readOnly} />}
         {section === 'changes' && <AuditCard />}
       </div>

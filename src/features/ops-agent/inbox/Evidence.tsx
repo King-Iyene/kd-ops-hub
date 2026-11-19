@@ -64,7 +64,7 @@ function Sites({ sites, total }: { sites: SiteVisit[]; total: number }) {
 }
 
 /** What the rule saw, in the form that rule's reader needs. Returns nothing when a rule has no evidence to show. */
-export function Evidence({ flag, now }: { flag: LiveFlag; now: number }) {
+export function Evidence({ flag, now }: { flag: Pick<LiveFlag, 'rule_code' | 'evidence'>; now: number }) {
   const e = flag.evidence;
   if (!e || typeof e !== 'object') return null;
   const code = (flag.rule_code ?? '').toUpperCase();
@@ -123,5 +123,13 @@ export function Evidence({ flag, now }: { flag: LiveFlag; now: number }) {
       </Facts>
     );
   }
-  return null;
+  // Any other rule: show the plain facts it attached, if it attached any.
+  const generic: [string, ReactNode][] = [];
+  if (e.task_title) generic.push(['Task', e.task_title]);
+  if (e.assignee_name) generic.push(['Assigned to', e.assignee_name]);
+  if (e.due_date) generic.push(['Was due', dayLabel(e.due_date)]);
+  if (typeof e.days_overdue === 'number') generic.push(['Overdue', `${e.days_overdue} ${e.days_overdue === 1 ? 'day' : 'days'}`]);
+  if (e.day) generic.push(['For', dayLabel(e.day)]);
+  if (generic.length === 0) return null;
+  return <Facts>{generic.map(([k, v]) => <Fact key={k} label={k}>{v}</Fact>)}</Facts>;
 }

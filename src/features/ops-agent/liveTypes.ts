@@ -36,23 +36,34 @@ export type FlagEvidence = Record<string, unknown> & {
 /** A flag row as the screens read it: the usual fields plus the evidence the rule attached. */
 export type LiveFlag = AgentFlag & { evidence?: FlagEvidence | null };
 
-export type FlagCategory = 'not_tracking' | 'sites' | 'reports' | 'tasks' | 'other';
+export type FlagCategory = 'not_tracking' | 'sites' | 'reports' | 'tasks' | 'money' | 'people_hr' | 'other';
 
 export const CATEGORIES: { key: FlagCategory; label: string }[] = [
   { key: 'not_tracking', label: 'Not tracking' },
   { key: 'sites', label: 'Sites' },
   { key: 'reports', label: 'Reports' },
   { key: 'tasks', label: 'Tasks' },
+  { key: 'money', label: 'Money' },
+  { key: 'people_hr', label: 'People & HR' },
   { key: 'other', label: 'Other' },
 ];
 
-/** TR01 and TR02 are about time not being tracked, TR05 about sites, RP about reports, TK about tasks. */
+/** Rules about the sensitive modules (payroll, banking, loans, disciplinary, performance, HR letters, contractors). They only count things. */
+const MONEY_PREFIXES = ['PY', 'BK', 'LN'];
+const PEOPLE_PREFIXES = ['DC', 'PF', 'HL', 'CT'];
+export const isSensitiveRule = (ruleCode: string | null | undefined) => {
+  const p = (ruleCode ?? '').toUpperCase().slice(0, 2);
+  return /^[A-Z]{2}[0-9]{2}$/.test((ruleCode ?? '').toUpperCase()) && (MONEY_PREFIXES.includes(p) || PEOPLE_PREFIXES.includes(p));
+};
+
+/** TR01 to TR03 are about time not being tracked, TR05 about sites, RP about reports, TK about tasks, PY/BK/LN money, DC/PF/HL/CT people and HR. */
 export function categoryOf(ruleCode: string | null | undefined): FlagCategory {
   const c = (ruleCode ?? '').toUpperCase();
-  if (c === 'TR01' || c === 'TR02') return 'not_tracking';
+  if (c === 'TR01' || c === 'TR02' || c === 'TR03') return 'not_tracking';
   if (c === 'TR05') return 'sites';
   if (c.startsWith('RP')) return 'reports';
   if (c.startsWith('TK')) return 'tasks';
+  if (isSensitiveRule(c)) return MONEY_PREFIXES.includes(c.slice(0, 2)) ? 'money' : 'people_hr';
   return 'other';
 }
 

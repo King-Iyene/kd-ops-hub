@@ -17,10 +17,10 @@ import { SettingsTab } from '@/features/ops-agent/settings/SettingsTab';
 const DESCRIPTIONS = {
   inbox: 'Live monitoring of the KD Squares team, and everything the agent wants a person to look at. It never changes a record and never sends anything by itself.',
   chat: 'Ask about tasks, daily reports, hours and leave. Answers come from live data you are allowed to see.',
-  summaries: 'Daily, weekly and monthly write-ups.',
+  summaries: 'Daily, weekly and monthly write-ups, made on a schedule.',
   memory: 'What the agent has been taught.',
   connections: 'Where the agent can send messages, and how other systems can send it items.',
-  settings: 'The Claude key and budget, the team, the business calendar, coverage and the Operating Rules.',
+  settings: 'The Claude key and budget, the team, the business calendar, coverage, the monitoring rules and the standing brief.',
 } as const;
 
 /**
