@@ -506,4 +506,67 @@ DO $$ BEGIN PERFORM public.t_denied($q$SELECT public.agent_domain_set('example.o
 RESET ROLE;
 
 
+-- ── 9. what the Inbox shows when a card is opened ──────────────────────────
+SELECT public.t_as(NULL);
+DELETE FROM public.agent_flags;
+UPDATE public.profiles SET reporting_manager_id = 'a0000000-0000-0000-0000-000000000002' WHERE id IN ('a0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000003');
+UPDATE public.profiles SET photo_url = 'https://img.example/cara.png' WHERE id = 'a0000000-0000-0000-0000-000000000004';
+SELECT public.agent_raise_flag('RP01', 'reports', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-01', 'high', 'Daily report missing', 'No daily report from Cara for Dec 1.', '{}', NULL, '2026-12-01T23:10:00Z');
+SELECT public.agent_raise_flag('RP01', 'reports', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-02', 'high', 'Daily report missing', 'No daily report from Cara for Dec 2.', '{}', NULL, '2026-12-02T23:10:00Z');
+SELECT public.agent_raise_flag('RP01', 'reports', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-03', 'high', 'Daily report missing', 'No daily report from Cara for Dec 3.', '{}', NULL, '2026-12-03T23:10:00Z');
+SELECT public.agent_raise_flag('TK08', 'task', 'a0000000-0000-0000-0000-000000000003', 'task', 'b2000000-0000-0000-0000-000000000005', '', 'medium', 'Waiting for review: Review 2 days', 'Bob''s task has waited 2 days in review.', '{}', NULL, '2026-12-03T15:00:00Z');
+SELECT public.agent_raise_flag('TR05', 'track', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-03', 'medium', 'Unfamiliar sites (2)', 'Today: x.', jsonb_build_object('sites', jsonb_build_array(jsonb_build_object('domain', 'zzzqqq.xyz', 'seconds', 600, 'category', 'unknown'), jsonb_build_object('domain', 'youtube.com', 'seconds', 300, 'category', 'unproductive'))), NULL, '2026-12-03T16:00:00Z');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+DO $$
+DECLARE
+  v_id uuid; v_first uuid; d jsonb;
+BEGIN
+  RESET ROLE; SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'RP01' AND period_key = '2026-12-03';
+  SELECT id INTO v_first FROM public.agent_flags WHERE rule_code = 'RP01' AND period_key = '2026-12-01'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_detail(v_id);
+  PERFORM public.t_eq('recurrence: third time', (d -> 'recurrence' ->> 'count_in_window')::int, 3);
+  PERFORM public.t_eq('recurrence label', d -> 'recurrence' ->> 'label', 'The 3rd time in the last 14 days');
+  PERFORM public.t_eq('person name', d -> 'person' ->> 'full_name', 'Cara');
+  PERFORM public.t_eq('profile picture is passed through', d -> 'person' ->> 'photo_url', 'https://img.example/cara.png');
+  PERFORM public.t_eq('manager is shown', d -> 'person' -> 'manager' ->> 'full_name', 'Alice');
+  PERFORM public.t_eq('today block exists', d -> 'today' ? 'tracked_minutes', true);
+  PERFORM public.t_eq('timeline has the creation', jsonb_array_length(d -> 'timeline') >= 1, true);
+  PERFORM public.t_eq('draft goes to the person', d -> 'draft' ->> 'to', 'person');
+  IF d -> 'draft' ->> 'body' NOT LIKE 'Hi Cara,%' OR d -> 'draft' ->> 'body' NOT LIKE '%This is the 3rd time in the last 14 days%' OR d -> 'draft' ->> 'body' NOT LIKE '%take it up with your manager%'
+     OR d -> 'draft' ->> 'body' NOT LIKE '%Please send your daily report now.%' THEN RAISE EXCEPTION 'FAIL: draft wording %', d -> 'draft' ->> 'body'; END IF;
+  d := public.agent_flag_detail(v_first);
+  PERFORM public.t_eq('first time label', d -> 'recurrence' ->> 'label', 'First time in the last 14 days');
+  IF d -> 'draft' ->> 'body' LIKE '%This is the%' THEN RAISE EXCEPTION 'FAIL: the first time should not say it is a repeat'; END IF;
+
+  -- reviews go to the manager
+  RESET ROLE; SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TK08'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_id);
+  PERFORM public.t_eq('a review is addressed to the manager', d ->> 'to', 'manager');
+  PERFORM public.t_eq('manager name', d ->> 'recipient_name', 'Alice');
+  IF d ->> 'body' NOT LIKE 'Hi Alice,%' OR d ->> 'body' NOT LIKE '%Bob%' THEN RAISE EXCEPTION 'FAIL: review draft %', d ->> 'body'; END IF;
+
+  -- a site card: list status, work / personal hint, and the wording asks about unfamiliar sites
+  RESET ROLE; SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR05'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_detail(v_id);
+  PERFORM public.t_eq('two sites listed', jsonb_array_length(d -> 'sites'), 2);
+  PERFORM public.t_eq('the longest first', d -> 'sites' -> 0 ->> 'domain', 'zzzqqq.xyz');
+  IF d -> 'draft' ->> 'body' NOT LIKE '%zzzqqq.xyz (about 10 min)%' OR d -> 'draft' ->> 'body' NOT LIKE '%add it to our list%' THEN RAISE EXCEPTION 'FAIL: site draft %', d -> 'draft' ->> 'body'; END IF;
+  PERFORM public.t_eq('hint: a tool we use', public.agent_site_hint('https://www.github.com/x') ->> 'verdict', 'work');
+  PERFORM public.t_eq('hint: entertainment', public.agent_site_hint('youtube.com') ->> 'verdict', 'personal');
+  PERFORM public.t_eq('hint: nothing known', public.agent_site_hint('zzzqqq.xyz') ->> 'verdict', 'unknown');
+  PERFORM public.t_eq('hint: looks like a business tool', public.agent_site_hint('pay.someapp.com') ->> 'verdict', 'work');
+  PERFORM public.t_eq('hint: a bare .dev is not enough', public.agent_site_hint('qqqzzz.dev') ->> 'verdict', 'unknown');
+  PERFORM public.t_eq('hint: nothing at all', public.agent_site_hint('') ->> 'verdict', 'unknown');
+  RESET ROLE;
+  RAISE NOTICE 'PASS 9: the card detail has the person, their picture, today, the recurrence (3rd time), the history and a worded draft; reviews go to the manager; sites carry a work / personal hint';
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+DO $$ BEGIN
+  PERFORM public.t_denied($q$SELECT public.agent_flag_detail(gen_random_uuid())$q$, 'an Admin opening a card');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_draft(gen_random_uuid())$q$, 'an Admin drafting');
+  PERFORM public.t_denied($q$SELECT public.agent_site_hint('github.com')$q$, 'an Admin asking for a site hint');
+END $$;
+RESET ROLE;
+
+
 ROLLBACK;
