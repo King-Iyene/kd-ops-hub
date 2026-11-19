@@ -22174,10 +22174,6 @@ export type Database = {
         }
       }
       tm_form_load: { Args: { p_token: string }; Returns: Json }
-      tm_reorder_table_fields: {
-        Args: { p_ids: string[]; p_table: string }
-        Returns: undefined
-      }
       tm_form_person_tasks: {
         Args: { p_person: string; p_token: string }
         Returns: Json
@@ -22226,6 +22222,10 @@ export type Database = {
       tm_next_due: {
         Args: { p_due: string; p_rec: Json; p_today?: string }
         Returns: string
+      }
+      tm_reorder_table_fields: {
+        Args: { p_ids: string[]; p_table: string }
+        Returns: undefined
       }
       tm_set_record_cell: {
         Args: { p_field_id: string; p_record_id: string; p_value: Json }
