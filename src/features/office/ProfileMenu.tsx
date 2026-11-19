@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, statusOf } from './status';
+import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
 import { desktopDownload, inDesktopApp } from './desktopApp';
 import type { AvatarStyle } from './world/types';
@@ -95,11 +95,11 @@ export function ProfileMenu(p: Props) {
         <button type="button" className="flex h-8 items-center gap-2 rounded-lg px-1.5 pr-2.5 text-left transition-colors hover:bg-muted" aria-label="Your profile, sky and settings">
           <span className="relative flex h-7 w-7 shrink-0">
             <AvatarFace avatar={p.avatar} size={28} />
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background transition-colors" style={{ background: dotColor(p.status) }} />
           </span>
           <span className="hidden min-w-0 sm:block">
             <span className="block max-w-[8rem] truncate text-xs font-medium leading-tight">{p.name}</span>
-            <span className="block max-w-[8rem] truncate text-[10px] leading-tight text-muted-foreground">{st ? `${st.emoji} ${st.label}` : 'Set a status'}</span>
+            <span className="block max-w-[8rem] truncate text-[10px] leading-tight text-muted-foreground">{st ? st.label : 'Set a status'}</span>
           </span>
         </button>
       </PopoverTrigger>
@@ -107,11 +107,14 @@ export function ProfileMenu(p: Props) {
         <div className="flex items-center gap-3 px-4 pt-4">
           <span className="relative flex h-12 w-12 shrink-0">
             <AvatarFace avatar={p.avatar} size={48} />
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-popover bg-emerald-500" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-popover transition-colors" style={{ background: dotColor(p.status) }} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
-            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? `${st.emoji} ${st.label}` : 'Available'}</p>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
+              {!inDesktopApp() && <button type="button" title={`Download the desktop app for ${desktopDownload().label}`} aria-label="Download the desktop app" onClick={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
+            </div>
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? st.label : 'Available'}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-white/[0.08]" title="The sky, the same for everyone">
             {phaseOf(sky.hour).icon}{p.myWeather ? `${p.myWeather.temp}°` : phaseOf(sky.hour).label}
@@ -135,7 +138,7 @@ export function ProfileMenu(p: Props) {
                 <div className="relative">
                   <button type="button" onClick={() => setStatusOpen((o) => !o)} aria-expanded={statusOpen}
                     className="flex h-10 w-full items-center gap-2 rounded-xl bg-white/[0.06] px-3 text-left text-[13px] font-semibold ring-1 ring-white/[0.08] transition hover:bg-white/[0.1]">
-                    <span>{(STATUSES.find((s) => s.id === p.status) ?? (st ? { emoji: st.emoji } : STATUSES[0])).emoji}</span>
+                    {STATUSES.some((s) => s.id === (p.status || 'available')) ? <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor(p.status || 'available') }} /> : <span className="text-[13px]">{st?.emoji}</span>}
                     <span className="min-w-0 flex-1 truncate">{st ? st.label : 'Available'}</span>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${statusOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -144,7 +147,7 @@ export function ProfileMenu(p: Props) {
                       {STATUSES.map((s) => (
                         <button key={s.id} type="button" onClick={() => { p.onStatus(s.id); setStatusOpen(false); }} aria-pressed={p.status === s.id}
                           className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${p.status === s.id ? 'bg-primary/15 text-primary' : 'hover:bg-white/[0.08]'}`}>
-                          <span>{s.emoji}</span><span className="flex-1">{s.label}</span>
+                          {s.id === 'available' || s.id === 'busy' || s.id === 'dnd' ? <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor(s.id) }} /> : <span className="text-[13px]">{s.emoji}</span>}<span className="flex-1">{s.label}</span>
                           {s.id === 'busy' && <span className="text-[10.5px] text-muted-foreground">Ctrl+I</span>}
                           {s.id === 'dnd' && <span className="text-[10.5px] text-muted-foreground">Ctrl+U</span>}
                           {s.id === 'available' && <span className="text-[10.5px] text-muted-foreground">Ctrl+O</span>}

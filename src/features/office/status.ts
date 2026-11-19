@@ -16,6 +16,19 @@ export type StatusId = (typeof STATUSES)[number]['id'];
 
 export interface StatusInfo { id: string; emoji: string; label: string }
 
+/** The colour of the little dot on someone's picture: green when free, amber busy, red do not disturb, and so on. It is the only status mark on the picture. */
+export function dotColor(id: unknown): string {
+  switch (id) {
+    case 'busy': return '#f59e0b';
+    case 'dnd': return '#ef4444';
+    case 'focus': return '#6366f1';
+    case 'meeting': return '#3b82f6';
+    case 'lunch': return '#f97316';
+    case 'away': return '#94a3b8';
+    default: return typeof id === 'string' && id.startsWith('c:') ? '#a855f7' : '#10b981';
+  }
+}
+
 export const MAX_STATUS_TEXT = 30;
 /** Emoji offered for a status you write yourself. */
 export const STATUS_EMOJI = ['💬', '🎧', '🚀', '🍽️', '🏠', '✈️', '🤒', '📞', '✍️', '🎯', '☕', '🎉'];
