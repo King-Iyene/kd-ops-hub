@@ -1,4 +1,4 @@
-import { addDays, endOfDay, parseISO, startOfDay, startOfWeek, subDays, subWeeks } from 'date-fns';
+import { addDays, endOfDay, parseISO, startOfDay, startOfWeek, subWeeks } from 'date-fns';
 import { TASK_STATUSES, type TaskRow, type TaskStatus } from '@/queries/useTaskModule';
 import { dueDateOf, isOverdue } from './taskDates';
 
@@ -25,11 +25,21 @@ export interface DashboardStats {
 
 export const WEEKS_SHOWN = 8;
 
-export function computeDashboard(tasks: TaskRow[], rangeDays: number, now = new Date()): DashboardStats {
+export interface DateRange { from: Date; to: Date }
+
+/**
+ * Completed / created counts use the date range; the weekly chart shows the
+ * 8 weeks ending with the range's last week. Open, overdue and due-soon are
+ * always as of today.
+ */
+export function computeDashboard(tasks: TaskRow[], range: DateRange, now = new Date()): DashboardStats {
   const today = startOfDay(now);
   const soonEnd = endOfDay(addDays(today, 7));
-  const rangeStart = subDays(today, rangeDays - 1);
-  const firstWeek = startOfWeek(subWeeks(today, WEEKS_SHOWN - 1), { weekStartsOn: 1 });
+  const rangeStart = startOfDay(range.from);
+  const rangeEnd = endOfDay(range.to);
+  const inRange = (d: Date) => d >= rangeStart && d <= rangeEnd;
+  const firstWeek = startOfWeek(subWeeks(startOfDay(range.to), WEEKS_SHOWN - 1), { weekStartsOn: 1 });
+  const lastWeekEnd = endOfDay(addDays(firstWeek, WEEKS_SHOWN * 7 - 1));
 
   const byStatus = new Map<TaskStatus, number>(TASK_STATUSES.map((s) => [s, 0]));
   const weekly = Array.from({ length: WEEKS_SHOWN }, (_, i) => ({ weekStart: addDays(firstWeek, i * 7), completed: 0 }));
@@ -53,17 +63,17 @@ export function computeDashboard(tasks: TaskRow[], rangeDays: number, now = new 
     byStatus.set(t.status, (byStatus.get(t.status) ?? 0) + 1);
     const l = list(t.list_id);
     l.total += 1;
-    if (parseISO(t.created_at) >= rangeStart) createdInRange += 1;
+    if (inRange(parseISO(t.created_at))) createdInRange += 1;
 
     if (t.status === 'done') {
       l.done += 1;
       const at = t.completed_at ? parseISO(t.completed_at) : null;
-      if (at && at >= rangeStart) {
+      if (at && inRange(at)) {
         completedInRange += 1;
         l.completed += 1;
         person(t.assignee_id).completed += 1;
       }
-      if (at && at >= firstWeek) {
+      if (at && at >= firstWeek && at <= lastWeekEnd) {
         const w = Math.floor((startOfWeek(at, { weekStartsOn: 1 }).getTime() - firstWeek.getTime()) / (7 * 864e5));
         if (w >= 0 && w < WEEKS_SHOWN) weekly[w].completed += 1;
       }

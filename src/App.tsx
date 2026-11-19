@@ -27,6 +27,7 @@ import Privacy from './pages/legal/Privacy';
 import Terms from './pages/legal/Terms';
 import Careers from './pages/Careers';
 const PublicForm = lazy(() => import('./pages/PublicForm'));
+const TaskFormPage = lazy(() => import('./pages/TaskFormPage'));
 const GuestVisit = lazy(() => import('./pages/GuestVisit'));
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
@@ -244,6 +245,8 @@ function AppRoutes() {
       <Route path="/legal/terms" element={<ErrorBoundary><Terms /></ErrorBoundary>} />
       {/* Public careers page — reads job_openings.status='published'. */}
       <Route path="/careers" element={<ErrorBoundary><Careers /></ErrorBoundary>} />
+      {/* Task module table forms: shared link, signed in or not (the form decides). */}
+      <Route path="/tf/:token" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><TaskFormPage /></Suspense></ErrorBoundary>} />
       <Route path="/forms/:formId" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><PublicForm /></Suspense></ErrorBoundary>} />
       {/* A guest's emailed link to the Virtual Office visitor room: public, no sign-in, and nothing else is reachable from it. */}
       <Route path="/visit/:token" element={<ErrorBoundary><Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><GuestVisit /></Suspense></ErrorBoundary>} />

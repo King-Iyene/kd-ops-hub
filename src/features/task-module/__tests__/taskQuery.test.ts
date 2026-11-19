@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TaskRow, TaskStatus } from '@/queries/useTaskModule';
 import { matchesFilters, planMove, sortTasks, type FilterCond } from '../taskQuery';
 import { computeDashboard, daysOverdue } from '../dashboardStats';
+import { subDays } from 'date-fns';
 
 // Thursday 19 November 2026, mid-morning.
 const NOW = new Date(2026, 10, 19, 10, 0, 0);
@@ -113,7 +114,7 @@ describe('company dashboard numbers', () => {
     task('done this week', { status: 'done', assignee_id: 'u2', completed_at: '2026-11-17T10:00:00Z', created_at: '2026-11-16T10:00:00Z' }),
     task('done long ago', { status: 'done', assignee_id: 'u2', completed_at: '2026-08-01T10:00:00Z', created_at: '2026-07-01T10:00:00Z', list_id: 'L2' }),
   ];
-  const s = computeDashboard(rows, 30, NOW);
+  const s = computeDashboard(rows, { from: subDays(NOW, 29), to: NOW }, NOW);
 
   it('headline numbers', () => {
     expect(s).toMatchObject({ total: 5, open: 3, overdue: 1, dueSoon: 1, unassignedOpen: 1, completedInRange: 1, createdInRange: 4 });
@@ -129,6 +130,12 @@ describe('company dashboard numbers', () => {
     expect(s.weekly).toHaveLength(8);
     expect(s.weekly[7].completed).toBe(1);
     expect(s.weekly.reduce((a, w) => a + w.completed, 0)).toBe(1);
+  });
+  it('a custom range counts only inside it', () => {
+    const r = computeDashboard(rows, { from: new Date(2026, 6, 1), to: new Date(2026, 7, 31) }, NOW);
+    expect(r).toMatchObject({ completedInRange: 1, createdInRange: 1 });
+    expect(r.weekly.reduce((a, w) => a + w.completed, 0)).toBe(1);
+    expect(r.open).toBe(3);
   });
   it('per-list progress and overdue list', () => {
     expect(s.lists.find((l) => l.listId === 'L2')).toMatchObject({ total: 1, done: 1, open: 0 });

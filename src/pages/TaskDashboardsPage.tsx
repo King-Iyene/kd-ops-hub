@@ -1,23 +1,29 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { AlertTriangle, CalendarClock, CheckCircle2, CircleDot, Loader2, PlusCircle, UserX } from 'lucide-react';
+import { format, subDays } from 'date-fns';
+import type { DateRange as DayRange } from 'react-day-picker';
+import { AlertTriangle, CalendarClock, CalendarRange, CheckCircle2, CircleDot, Loader2, PlusCircle, Users, UserX } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import {
   DASHBOARD_TASK_LIMIT, STATUS_META, useAllTasksForDashboard, useAssignablePeople, useTaskFolders, useTaskLists,
   type PersonOption,
 } from '@/queries/useTaskModule';
-import { computeDashboard, daysOverdue, type DashboardStats } from '@/features/task-module/dashboardStats';
+import { computeDashboard, daysOverdue, type DashboardStats, type DateRange } from '@/features/task-module/dashboardStats';
 import { PersonAvatar } from '@/features/task-module/pickers';
 import { useOpenTask } from '@/features/task-module/useOpenTask';
 
 // Company-wide view of every task. Admins only (route guard + hidden nav
 // link); everyone else's overview is their personal Home.
 
-const RANGES = [7, 30, 90] as const;
-type Range = (typeof RANGES)[number];
+const PRESETS = [7, 30, 90] as const;
+type Preset = (typeof PRESETS)[number];
+const UNASSIGNED = 'unassigned';
 
 const card = 'min-w-0 rounded-xl border border-border/70 bg-card p-4';
 const cardTitle = 'text-sm font-semibold';
@@ -29,18 +35,32 @@ const TaskDashboardsPage = () => {
   const { data: folders } = useTaskFolders();
   const { data: people } = useAssignablePeople();
   const { open } = useOpenTask();
-  const [range, setRange] = useState<Range>(30);
+  const [preset, setPreset] = useState<Preset | 'custom'>(30);
+  const [custom, setCustom] = useState<DayRange | undefined>();
   const [space, setSpace] = useState<string>('all');
+  const [who, setWho] = useState<string[]>([]);
+
+  const range: DateRange = useMemo(() => {
+    const now = new Date();
+    if (preset === 'custom' && custom?.from) return { from: custom.from, to: custom.to ?? custom.from };
+    return { from: subDays(now, (preset === 'custom' ? 30 : preset) - 1), to: now };
+  }, [preset, custom]);
+  const rangeLabel = preset === 'custom' && custom?.from
+    ? `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`
+    : `last ${preset === 'custom' ? 30 : preset} days`;
 
   const listById = useMemo(() => new Map((lists ?? []).map((l) => [l.id, l])), [lists]);
   const folderById = useMemo(() => new Map((folders ?? []).map((f) => [f.id, f])), [folders]);
   const peopleById = useMemo(() => new Map((people ?? []).map((p) => [p.id, p])), [people]);
 
   const scoped = useMemo(
-    () => (tasks ?? []).filter((t) => space === 'all' || listById.get(t.list_id)?.folder_id === space),
-    [tasks, space, listById],
+    () => (tasks ?? []).filter((t) =>
+      (space === 'all' || listById.get(t.list_id)?.folder_id === space)
+      && (who.length === 0 || who.includes(t.assignee_id ?? UNASSIGNED))),
+    [tasks, space, listById, who],
   );
   const stats = useMemo(() => computeDashboard(scoped, range), [scoped, range]);
+  const rangeShort = preset === 'custom' ? 'in range' : `${preset}d`;
 
   return (
     <div className="space-y-4">
@@ -57,18 +77,44 @@ const TaskDashboardsPage = () => {
               {(folders ?? []).map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <PeopleFilter people={people ?? []} value={who} onChange={setWho} />
           <div className="inline-flex rounded-md border border-border p-0.5" role="group" aria-label="Date range">
-            {RANGES.map((r) => (
+            {PRESETS.map((r) => (
               <button
                 key={r}
                 type="button"
-                aria-pressed={range === r}
-                onClick={() => setRange(r)}
-                className={cn('h-7 px-2.5 rounded text-xs', range === r ? 'bg-secondary text-secondary-foreground font-medium' : 'text-muted-foreground hover:text-foreground')}
+                aria-pressed={preset === r}
+                onClick={() => setPreset(r)}
+                className={cn('h-7 px-2.5 rounded text-xs', preset === r ? 'bg-secondary text-secondary-foreground font-medium' : 'text-muted-foreground hover:text-foreground')}
               >
                 {r} days
               </button>
             ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-pressed={preset === 'custom'}
+                  className={cn('h-7 px-2.5 rounded text-xs inline-flex items-center gap-1', preset === 'custom' ? 'bg-secondary text-secondary-foreground font-medium' : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <CalendarRange className="h-3.5 w-3.5" /> {preset === 'custom' && custom?.from ? rangeLabel : 'Custom'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <Calendar
+                  mode="range"
+                  numberOfMonths={2}
+                  selected={custom}
+                  defaultMonth={custom?.from ?? subDays(new Date(), 30)}
+                  onSelect={(r) => { setCustom(r); if (r?.from) setPreset('custom'); }}
+                  disabled={{ after: new Date() }}
+                />
+                <div className="flex items-center justify-between border-t border-border px-3 py-2 text-2xs text-muted-foreground">
+                  <span>{custom?.from ? rangeLabel : 'Pick a start and an end date.'}</span>
+                  {preset === 'custom' && <button type="button" className="hover:text-foreground" onClick={() => { setCustom(undefined); setPreset(30); }}>Reset</button>}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
@@ -76,7 +122,7 @@ const TaskDashboardsPage = () => {
       {isLoading ? (
         <div className="py-20 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : stats.total === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-16">No tasks yet{space !== 'all' ? ' in this space' : ''}.</p>
+        <p className="text-sm text-muted-foreground text-center py-16">No tasks{space !== 'all' || who.length ? ' for this selection' : ' yet'}.</p>
       ) : (
         <>
           {(tasks?.length ?? 0) >= DASHBOARD_TASK_LIMIT && (
@@ -88,8 +134,8 @@ const TaskDashboardsPage = () => {
             <Tile icon={AlertTriangle} label="Overdue" value={stats.overdue} tone={stats.overdue > 0 ? 'critical' : undefined} />
             <Tile icon={CalendarClock} label="Due in next 7 days" value={stats.dueSoon} />
             <Tile icon={UserX} label="Open and unassigned" value={stats.unassignedOpen} />
-            <Tile icon={CheckCircle2} label={`Completed, last ${range} days`} value={stats.completedInRange} />
-            <Tile icon={PlusCircle} label={`Created, last ${range} days`} value={stats.createdInRange} />
+            <Tile icon={CheckCircle2} label={`Completed, ${rangeLabel}`} value={stats.completedInRange} />
+            <Tile icon={PlusCircle} label={`Created, ${rangeLabel}`} value={stats.createdInRange} />
           </div>
 
           <div className="grid lg:grid-cols-2 gap-3">
@@ -101,14 +147,14 @@ const TaskDashboardsPage = () => {
             <section className={card}>
               <h2 className={cardTitle}>Workload by person</h2>
               <p className="text-2xs text-muted-foreground mb-3">Open tasks per person, busiest first.</p>
-              <PeopleTable stats={stats} peopleById={peopleById} range={range} />
+              <PeopleTable stats={stats} peopleById={peopleById} rangeShort={rangeShort} />
             </section>
             <section className={card}>
               <h2 className={cardTitle}>Lists</h2>
               <p className="text-2xs text-muted-foreground mb-3">Progress is completed tasks out of all tasks in the list.</p>
               <ListsTable
                 stats={stats}
-                range={range}
+                rangeShort={rangeShort}
                 nameOf={(id) => {
                   const l = listById.get(id);
                   return { list: l?.name ?? 'Unknown list', space: l ? folderById.get(l.folder_id)?.name ?? '' : '' };
@@ -202,7 +248,7 @@ function WeeklyCompleted({ stats }: { stats: DashboardStats }) {
   return (
     <section className={card}>
       <h2 className={cardTitle}>Tasks completed per week</h2>
-      <p className="text-2xs text-muted-foreground mb-3">Last {stats.weekly.length} weeks, weeks start on Monday.</p>
+      <p className="text-2xs text-muted-foreground mb-3">{stats.weekly.length} weeks ending {format(stats.weekly[stats.weekly.length - 1].weekStart, 'd MMM')}, weeks start on Monday.</p>
       <div className="relative flex items-end gap-2 h-32 border-b border-border/70" aria-hidden>
         {/* Recessive scale: one hairline at the busiest week. */}
         <span className="absolute inset-x-0 top-0 border-t border-dashed border-border/60" />
@@ -238,13 +284,13 @@ function WeeklyCompleted({ stats }: { stats: DashboardStats }) {
 const th = 'py-1.5 pr-3 text-left text-3xs font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap';
 const td = 'py-1.5 pr-3 text-xs tabular-nums whitespace-nowrap';
 
-function PeopleTable({ stats, peopleById, range }: { stats: DashboardStats; peopleById: Map<string, PersonOption>; range: Range }) {
+function PeopleTable({ stats, peopleById, rangeShort }: { stats: DashboardStats; peopleById: Map<string, PersonOption>; rangeShort: string }) {
   const max = Math.max(1, ...stats.people.map((p) => p.open));
   if (stats.people.length === 0) return <p className="text-xs text-muted-foreground">No one has tasks yet.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead><tr><th className={th}>Person</th><th className={cn(th, 'w-[35%]')}>Open</th><th className={th}>Overdue</th><th className={th}>Due ≤ 7d</th><th className={th}>Done {range}d</th></tr></thead>
+        <thead><tr><th className={th}>Person</th><th className={cn(th, 'w-[35%]')}>Open</th><th className={th}>Overdue</th><th className={th}>Due ≤ 7d</th><th className={th}>Done {rangeShort}</th></tr></thead>
         <tbody className="divide-y divide-border/40">
           {stats.people.map((p) => {
             const who = p.id ? peopleById.get(p.id) : undefined;
@@ -274,11 +320,11 @@ function PeopleTable({ stats, peopleById, range }: { stats: DashboardStats; peop
   );
 }
 
-function ListsTable({ stats, range, nameOf }: { stats: DashboardStats; range: Range; nameOf: (id: string) => { list: string; space: string } }) {
+function ListsTable({ stats, rangeShort, nameOf }: { stats: DashboardStats; rangeShort: string; nameOf: (id: string) => { list: string; space: string } }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead><tr><th className={th}>List</th><th className={th}>Open</th><th className={th}>Overdue</th><th className={th}>Done {range}d</th><th className={cn(th, 'w-[30%]')}>Progress</th></tr></thead>
+        <thead><tr><th className={th}>List</th><th className={th}>Open</th><th className={th}>Overdue</th><th className={th}>Done {rangeShort}</th><th className={cn(th, 'w-[30%]')}>Progress</th></tr></thead>
         <tbody className="divide-y divide-border/40">
           {stats.lists.map((l) => {
             const n = nameOf(l.listId);
@@ -304,5 +350,45 @@ function ListsTable({ stats, range, nameOf }: { stats: DashboardStats; range: Ra
         </tbody>
       </table>
     </div>
+  );
+}
+
+function PeopleFilter({ people, value, onChange }: { people: PersonOption[]; value: string[]; onChange: (v: string[]) => void }) {
+  const [q, setQ] = useState('');
+  const shown = people.filter((p) => p.full_name.toLowerCase().includes(q.trim().toLowerCase()));
+  const toggle = (id: string, on: boolean) => onChange(on ? [...value, id] : value.filter((x) => x !== id));
+  const label = value.length === 0 ? 'Everyone' : value.length === 1
+    ? (value[0] === UNASSIGNED ? 'Unassigned' : people.find((p) => p.id === value[0])?.full_name ?? '1 person')
+    : `${value.length} people`;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant={value.length ? 'secondary' : 'outline'} className="h-8 text-xs gap-1.5 max-w-[200px]">
+          <Users className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{label}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search people…"
+          className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs mb-1.5 outline-none focus:ring-1 focus:ring-primary/50"
+        />
+        <div className="max-h-64 overflow-y-auto space-y-0.5">
+          <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted/50 cursor-pointer">
+            <Checkbox checked={value.includes(UNASSIGNED)} onCheckedChange={(c) => toggle(UNASSIGNED, !!c)} /> Unassigned
+          </label>
+          {shown.map((p) => (
+            <label key={p.id} className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted/50 cursor-pointer">
+              <Checkbox checked={value.includes(p.id)} onCheckedChange={(c) => toggle(p.id, !!c)} />
+              <PersonAvatar person={p} size={18} /> <span className="truncate">{p.full_name}</span>
+            </label>
+          ))}
+        </div>
+        {value.length > 0 && (
+          <button type="button" onClick={() => onChange([])} className="w-full text-left px-1 pt-1.5 text-2xs text-muted-foreground hover:text-foreground">Show everyone</button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
