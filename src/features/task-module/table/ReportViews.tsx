@@ -82,6 +82,7 @@ export function ReportInbox({ records, personFields, people, day, dayOf, onDay, 
         <span className="text-sm font-medium ml-1" data-inbox-day>{dayLabel(day, today)}</span>
       </div>
 
+      <p className="text-2xs text-muted-foreground" data-inbox-scope>KD Squares staff, not including Field Agents.</p>
       <p className="text-xs text-muted-foreground" data-inbox-summary>
         {missing.length === 0 ? 'Everyone has reported.' : `${missing.length} ${missing.length === 1 ? 'person has' : 'people have'} not reported`} · {done} of {expected} reported
       </p>
