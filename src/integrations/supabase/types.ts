@@ -300,6 +300,32 @@ export type Database = {
           },
         ]
       }
+      agent_api_hits: {
+        Row: {
+          key_id: string
+          minute: string
+          n: number
+        }
+        Insert: {
+          key_id: string
+          minute: string
+          n?: number
+        }
+        Update: {
+          key_id?: string
+          minute?: string
+          n?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_api_hits_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "agent_api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_api_keys: {
         Row: {
           created_at: string
@@ -21754,6 +21780,11 @@ export type Database = {
         Returns: number
       }
       agent_ai_budget_state: { Args: never; Returns: Json }
+      agent_api_key_create: {
+        Args: { p_name: string; p_scopes?: string[] }
+        Returns: Json
+      }
+      agent_api_key_verify: { Args: { p_key: string }; Returns: Json }
       agent_audit: {
         Args: {
           p_action: string
@@ -21775,10 +21806,27 @@ export type Database = {
       }
       agent_can_access: { Args: never; Returns: boolean }
       agent_can_configure: { Args: never; Returns: boolean }
+      agent_chat_tool: {
+        Args: { p_args?: Json; p_tool: string }
+        Returns: Json
+      }
       agent_company_of: { Args: { p_person: string }; Returns: string }
+      agent_flag_set_status: {
+        Args: {
+          p_id: string
+          p_note?: string
+          p_snooze_until?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       agent_in_scope: {
         Args: { p_company: string; p_module: string; p_person: string }
         Returns: boolean
+      }
+      agent_inbound_create: {
+        Args: { p_key_id: string; p_payload: Json }
+        Returns: Json
       }
       agent_log_ai_usage: {
         Args: {
@@ -21797,6 +21845,14 @@ export type Database = {
       }
       agent_my_scope: { Args: never; Returns: Json }
       agent_role: { Args: never; Returns: string }
+      agent_safe_date: { Args: { p: string }; Returns: string }
+      agent_secret_delete: { Args: { p_name: string }; Returns: undefined }
+      agent_secret_exists: { Args: { p_name: string }; Returns: boolean }
+      agent_secret_get: { Args: { p_name: string }; Returns: string }
+      agent_secret_set: {
+        Args: { p_name: string; p_value: string }
+        Returns: undefined
+      }
       agent_seed_domains: { Args: never; Returns: number }
       agent_shorten_json: { Args: { j: Json }; Returns: Json }
       agent_shorten_val: { Args: { v: Json }; Returns: Json }
