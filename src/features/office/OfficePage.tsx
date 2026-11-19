@@ -42,6 +42,8 @@ import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
+import { GamesDialog } from './GamesDialog';
+import { gamesOn } from './games';
 import { useOfficeFont } from './ui';
 import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './notify';
 import { useQuery } from '@tanstack/react-query';
@@ -267,6 +269,7 @@ function OfficeRoom() {
   const [floorKind, setFloorKind] = useState('wood');
   const [brush, setBrush] = useState<1 | 3>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gamesOpen, setGamesOpen] = useState(false);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const isSuper = profile?.role === 'super_admin';
   const [renaming, setRenaming] = useState<SpaceRow | null>(null);
@@ -1276,7 +1279,7 @@ function OfficeRoom() {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => { if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
@@ -1397,6 +1400,7 @@ function OfficeRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      <GamesDialog open={gamesOpen && gamesOn(space?.layout?.settings)} onClose={() => setGamesOpen(false)} />
       <OfficeSettingsDialog
         open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={space?.layout?.settings ?? {}} directory={directory ?? []} saving={savingSettings}
         onSave={async (st) => {

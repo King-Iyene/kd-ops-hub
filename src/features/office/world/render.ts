@@ -1647,6 +1647,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawDogBall(ctx, x, y, W, H, t, seed);
       break;
     }
+    case 'gametable': { drawGameTable(ctx, x, y, W, H, t, seed); break; }
     case 'gong': { drawGong(ctx, x, y, W, H, t, seed); break; }
     case 'standingdesk': { drawStandingDesk(ctx, x, y, W, H, t, seed, col); break; }
     case 'execdesk': { drawExecDesk(ctx, x, y, W, H, col); break; }
@@ -2849,6 +2850,28 @@ function drawCatBody(ctx: Ctx, b: CatBreed, k: number, moving: boolean) {
 export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, t: number, moving = false) {
   if (kind === 'dog') drawDogBody(ctx, DOG_BREEDS[index % DOG_BREEDS.length], t / 1000, moving, false);
   else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
+}
+
+/** A round game table with a board, cards and dice, and a screen glowing on one side. */
+function drawGameTable(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2, cy = y + H / 2 + 2;
+  softShadow(ctx, x, y, W, H, 12);
+  ellipse(ctx, cx, cy + 3, W * 0.42, H * 0.38, 'rgba(60,35,15,0.35)');
+  const g = ctx.createRadialGradient(cx - 8, cy - 8, 3, cx, cy, W * 0.42);
+  g.addColorStop(0, '#2f9e6d'); g.addColorStop(1, '#1b6b4a');
+  ctx.fillStyle = '#7a4b2a'; ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.43, H * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.37, H * 0.33, 0, 0, Math.PI * 2); ctx.fill();
+  // a fan of cards, dice and counters
+  ctx.save(); ctx.translate(cx - 12, cy - 4);
+  for (let i = 0; i < 4; i++) { ctx.save(); ctx.rotate(-0.5 + i * 0.3); ctx.fillStyle = '#f8fafc'; rr(ctx, -4, -9, 8, 12, 1.5); ctx.fill(); ctx.fillStyle = i % 2 ? '#dc2626' : '#111827'; ctx.fillRect(-1.5, -6, 3, 3); ctx.restore(); }
+  ctx.restore();
+  const roll = Math.floor(t / 1800 + seed * 7) % 6;
+  ctx.fillStyle = '#f8fafc'; rr(ctx, cx + 8, cy - 3, 7, 7, 1.5); ctx.fill();
+  ctx.fillStyle = '#111827'; for (let i = 0; i <= roll % 3; i++) disc(ctx, cx + 10 + (i % 2) * 3, cy - 1 + Math.floor(i / 2) * 3, 0.9, '#111827');
+  for (const [dx, dy, c] of [[4, 8, '#ef4444'], [8, 9, '#3b82f6'], [12, 8, '#facc15'], [-4, 9, '#a855f7']] as const) disc(ctx, cx + dx, cy + dy, 2, c);
+  // a small glowing screen on the rim says it is playable
+  const on = 0.7 + Math.sin(t / 500 + seed * 9) * 0.3;
+  ctx.fillStyle = `rgba(56,189,248,${on})`; rr(ctx, cx - 5, y + 2, 10, 5, 1.5); ctx.fill();
 }
 
 /** A big brass gong on a wooden frame. */
