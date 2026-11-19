@@ -14,6 +14,6 @@ export function desktopDownload(platform: string = typeof navigator === 'undefin
   if (/android|iphone|ipad|ipod/.test(p)) return { label: 'computer', url: DESKTOP_RELEASE_PAGE };
   if (/win/.test(p) && !/darwin/.test(p)) return { label: 'Windows', url: `${base}/KD-Ops-Setup-${DESKTOP_VERSION}.exe` };
   if (/mac/.test(p)) return { label: 'Mac', url: `${base}/KD-Ops-${DESKTOP_VERSION}.dmg` };
-  if (/linux|x11/.test(p)) return { label: 'Linux', url: `${base}/KD.Ops-${DESKTOP_VERSION}.AppImage` };
+  if (/linux|x11/.test(p)) return { label: 'Linux', url: `${base}/KD-Ops-${DESKTOP_VERSION}.AppImage` };
   return { label: 'computer', url: DESKTOP_RELEASE_PAGE };
 }

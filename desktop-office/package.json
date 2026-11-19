@@ -42,7 +42,8 @@
         "deb"
       ],
       "category": "Office",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "KD-Ops-${version}.${ext}"
     },
     "win": {
       "target": [
@@ -71,7 +72,8 @@
         "NSMicrophoneUsageDescription": "KD Ops uses your microphone so you can talk to people in the office.",
         "NSCameraUsageDescription": "KD Ops uses your camera so people in the office can see you.",
         "NSScreenCaptureUsageDescription": "KD Ops shares your screen when you choose to."
-      }
+      },
+      "artifactName": "KD-Ops-${version}-${arch}-mac.${ext}"
     },
     "dmg": {
       "artifactName": "KD-Ops-${version}.${ext}"
