@@ -1647,6 +1647,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawDogBall(ctx, x, y, W, H, t, seed);
       break;
     }
+    case 'eventboard': { drawEventBoard(ctx, x, y, W, H, t); break; }
     case 'pollboard': { drawPollBoard(ctx, x, y, W, H, t, seed); break; }
     case 'gametable': { drawGameTable(ctx, x, y, W, H, t, seed); break; }
     case 'gong': { drawGong(ctx, x, y, W, H, t, seed); break; }
@@ -2851,6 +2852,18 @@ function drawCatBody(ctx: Ctx, b: CatBreed, k: number, moving: boolean) {
 export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, t: number, moving = false) {
   if (kind === 'dog') drawDogBody(ctx, DOG_BREEDS[index % DOG_BREEDS.length], t / 1000, moving, false);
   else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
+}
+
+/** An events board: a little calendar page with a pin and a clock hand that moves. */
+function drawEventBoard(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  boardFrame(ctx, x, y, W, H, '#fff7ed');
+  ctx.fillStyle = '#ea580c'; ctx.fillRect(x + 6, y + 6, W - 12, 6);
+  ctx.fillStyle = '#fff'; ctx.font = '700 5px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('WHAT\u2019S ON', x + 9, y + 9);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) { ctx.fillStyle = (r + c) % 3 === 0 ? '#fdba74' : 'rgba(15,23,42,0.1)'; ctx.fillRect(x + 8 + c * ((W - 18) / 6), y + 15 + r * 7, (W - 18) / 6 - 2, 5); }
+  const ang = t / 4000;
+  const cx = x + W - 12, cy = y + 24;
+  disc(ctx, cx, cy, 6, '#f8fafc'); ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * 4.5, cy + Math.sin(ang) * 4.5); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang / 12) * 3, cy + Math.sin(ang / 12) * 3); ctx.stroke();
 }
 
 /** A poll board: a question, bars that wiggle as votes come in, and a ballot box. */

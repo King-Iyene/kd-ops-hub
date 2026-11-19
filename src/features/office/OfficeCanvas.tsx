@@ -54,6 +54,8 @@ interface Props {
   editArea: { x: number; y: number; w: number; h: number } | null;
   /** a counter: when it changes the view returns to my avatar */
   recenter: number;
+  /** offices with notes or gifts waiting for me: how many, and the gift (shown as a little sticky note by the door) */
+  noteDesks?: Record<string, { n: number; gift: string | null }>;
   /** size of the video bubbles over people (1 is normal) */
   bubbleScale: number;
   /** ambient sound (water, fire, footsteps) on or off */
@@ -112,6 +114,8 @@ export function OfficeCanvas(props: Props) {
   const portalCooldown = useRef(0);
   const lastJump = useRef(0);
   const zoomShown = useRef(props.zoom);
+  /** where the camera is looking: it glides after me instead of being glued to me, and jumps straight there after a teleport */
+  const camFocus = useRef<{ x: number; y: number } | null>(null);
   /** how far the view has been dragged away from following me, in pixels */
   const pan = useRef({ x: 0, y: 0 });
   const pulseAt = useRef(-1e9);
@@ -666,8 +670,12 @@ export function OfficeCanvas(props: Props) {
         pan.current = { x: pan.current.x + inertia.x, y: pan.current.y + inertia.y };
         inertia.x *= 0.91; inertia.y *= 0.91;
       } else if (!drag.down) { inertia.x = 0; inertia.y = 0; }
-      let ox = w / 2 - me.x * TILE * scale + pan.current.x;
-      let oy = h / 2 - me.y * TILE * scale + pan.current.y;
+      const cf = camFocus.current;
+      if (!cf || Math.hypot(me.x - cf.x, me.y - cf.y) > 14) camFocus.current = { x: me.x, y: me.y };
+      else { const kc = 1 - Math.exp(-dt * 6.5); cf.x += (me.x - cf.x) * kc; cf.y += (me.y - cf.y) * kc; }
+      const focus = camFocus.current ?? me;
+      let ox = w / 2 - focus.x * TILE * scale + pan.current.x;
+      let oy = h / 2 - focus.y * TILE * scale + pan.current.y;
       ox = mapW + 2 * pad <= w ? (w - mapW) / 2 : Math.min(pad, Math.max(w - mapW - pad, ox));
       oy = mapH + 2 * pad <= h ? (h - mapH) / 2 : Math.min(pad, Math.max(h - mapH - pad, oy));
       cam.current = { ox, oy, scale };
@@ -886,6 +894,24 @@ export function OfficeCanvas(props: Props) {
         ctx.fillText('F', cx0, cy0 + 0.5);
       }
 
+      // a sticky note (or a gift) by the door of my office when somebody has left me something
+      if (p.noteDesks) {
+        for (const z of p.map.zones) {
+          const nd = p.noteDesks[z.id];
+          if (!nd) continue;
+          const nx = (z.x + 0.9) * TILE, ny = (z.y + z.h - 1.1) * TILE + Math.sin(now / 420 + z.x) * 2;
+          ctx.save();
+          ctx.translate(nx, ny);
+          ctx.rotate(-0.12);
+          ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(2, 3, 20, 20);
+          ctx.fillStyle = '#fde047'; ctx.fillRect(0, 0, 20, 20);
+          ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(14, 20); ctx.lineTo(20, 14); ctx.lineTo(20, 20); ctx.fill();
+          ctx.fillStyle = 'rgba(15,23,42,0.45)'; ctx.fillRect(3, 5, 12, 1.5); ctx.fillRect(3, 9, 10, 1.5); ctx.fillRect(3, 13, 7, 1.5);
+          ctx.restore();
+          if (nd.gift) { ctx.font = '15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(nd.gift, nx + 24, ny + 4); }
+          if (nd.n > 1) { ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(nx + 20, ny, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '700 8px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(nd.n), nx + 20, ny + 0.5); }
+        }
+      }
       drawLighting(ctx, p.map, p.items, theme, now);
       drawZoneLabels(ctx, p.map.zones, theme);
 

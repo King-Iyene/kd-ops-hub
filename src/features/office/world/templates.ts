@@ -344,6 +344,7 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (const y of [6, 13, 20, 29, 38, 46]) items.push(it('plant', 81, y));
   for (const y of [8, 15, 22, 31, 40, 47]) items.push(it('sunflowers', 84, y));
   items.push(it('gong', 82, 26), it('gong', 33, 47));
+  items.push(it('eventboard', 24, 45), it('eventboard', 70, 6));
   items.push(it('pollboard', 69, 3), it('pollboard', 30, 10), it('kanban', 96, 24));
   items.push(it('gametable', 72, 9), it('gametable', 89, 56), it('gametable', 45, 35));
   // outside: Campus East's front door, a path to it, trees along the edge and a picnic terrace

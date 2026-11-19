@@ -43,9 +43,12 @@ import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
 import { GamesDialog } from './GamesDialog';
+import { ReactionWheel } from './ReactionWheel';
 import { MiniGamesDialog, type MiniGame } from './MiniGamesDialog';
 import { PollsDialog, TaskBoardDialog } from './BoardDialogs';
 import { useBoards } from './useBoards';
+import { EventsDialog } from './EventsDialog';
+import { isLive, upcoming, useOfficeLife } from './useOfficeLife';
 import { gamesOn } from './games';
 import { useOfficeFont } from './ui';
 import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './notify';
@@ -1032,8 +1035,38 @@ function OfficeRoom() {
   // bikes and go-karts stay where the last rider left them, for everybody, until somebody else takes them
   const vehicles = useVehicles(space?.id ?? null);
   const boards = useBoards(space?.id ?? null, !!space);
+  const life = useOfficeLife(space?.id ?? null, !!space);
+  const [eventsOpen, setEventsOpen] = useState(false);
+  // a heads-up when something is about to start (once per event)
+  const warned = useRef(new Set<string>());
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      for (const e of upcoming(life.events, now)) {
+        const mins = (Date.parse(e.starts_at) - now) / 60000;
+        if ((isLive(e, now) || mins <= 5) && !warned.current.has(e.id) && Date.parse(e.ends_at) > now) {
+          warned.current.add(e.id);
+          toast({ title: isLive(e, now) ? `Happening now: ${e.title}` : `Starting in ${Math.max(1, Math.round(mins))} min: ${e.title}`, description: 'Open the events board to see where.' });
+        }
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 30000);
+    return () => window.clearInterval(id);
+  }, [life.events]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pollsOpen, setPollsOpen] = useState(false);
-  const [mini, setMini] = useState<MiniGame | null>(null);
+  const [wheelOpen, setWheelOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'e' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      setWheelOpen((o) => !o);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const [mini, setMini] = useState<{ game: MiniGame; key: string } | null>(null);
   const [taskBoardId, setTaskBoardId] = useState<string | null>(null);
   const vrows = vehicles.rows;
   const myId = me?.id ?? '';
@@ -1282,15 +1315,17 @@ function OfficeRoom() {
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
+            noteDesks={myClaim ? (() => { const mine = life.notes.filter((n) => n.desk === myClaim.office_id); return mine.length ? { [myClaim.office_id]: { n: mine.length, gift: mine.find((n) => n.gift)?.gift ?? null } } : undefined; })() : undefined}
             recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} onRide={(on, bikeId, pos) => { void handleRide(on, bikeId, pos); }} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => { if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini(it.t === 'foosball' ? 'football' : 'tennis'); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
-              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
-              if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini(hit.t === 'foosball' ? 'football' : 'tennis'); return; }
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini({ game: hit.t === 'foosball' ? 'football' : 'tennis', key: hit.id }); return; }
+              if (hit && hit.t === 'eventboard') { setEventsOpen(true); return; }
               if (hit && hit.t === 'pollboard') { setPollsOpen(true); return; }
               if (hit && hit.t === 'kanban') { setTaskBoardId(hit.id); return; }
               if (hit) { setPanel(hit); return; }
@@ -1410,9 +1445,11 @@ function OfficeRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      <EventsDialog open={eventsOpen} onClose={() => setEventsOpen(false)} events={life.events} rooms={map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => ({ id: z.id, name: z.name }))} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={life.createEvent} onDelete={(id) => void life.deleteEvent(id)} onWalk={(zid) => { const z = map.zones.find((q) => q.id === zid); if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 }); }} />
       <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
       <TaskBoardDialog open={!!taskBoardId} onClose={() => setTaskBoardId(null)} cards={taskBoardId ? boards.boardCards(taskBoardId) : []} me={profile?.id ?? ''} isAdmin={isAdmin} onAdd={(c, b) => boards.addCard(taskBoardId ?? '', c, b)} onMove={(c, col) => void boards.moveCard(c, col)} onDelete={(c) => void boards.deleteCard(c)} />
-      <MiniGamesDialog game={gamesOn(space?.layout?.settings) ? mini : null} onClose={() => setMini(null)} />
+      <MiniGamesDialog game={gamesOn(space?.layout?.settings) ? mini?.game ?? null : null} roomKey={(space?.id ?? "") + ":" + (mini?.key ?? "")} playerId={profile?.id ?? ""} onClose={() => setMini(null)} />
+      <ReactionWheel open={wheelOpen && !editing} onClose={() => setWheelOpen(false)} onPick={(e) => { sendEmote(e); setWheelOpen(false); }} />
       <GamesDialog open={gamesOpen && gamesOn(space?.layout?.settings)} onClose={() => setGamesOpen(false)} />
       <OfficeSettingsDialog
         open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={space?.layout?.settings ?? {}} directory={directory ?? []} saving={savingSettings}
@@ -1423,6 +1460,8 @@ function OfficeRoom() {
         }}
       />
       <DeskDialog
+        notes={deskZone ? life.notes.filter((n) => n.desk === deskZone.id) : []} authorName={(id) => (directory ?? []).find((p) => p.id === id)?.name ?? 'Someone'} meId={profile?.id ?? ''}
+        onLeaveNote={(b, g) => (deskZone ? life.leaveNote(deskZone.id, b, g) : Promise.resolve('No office chosen'))} onDeleteNote={(id) => void life.deleteNote(id)}
         zone={deskZone} owner={deskZone ? ownerOf(deskZone.id) : null} mine={!!deskZone && myClaim?.office_id === deskZone.id}
         iHaveOffice={!!myClaim} isAdmin={isAdmin} busy={deskBusy}
         onClaim={() => { if (deskZone) void claimOffice(deskZone.id); }}
