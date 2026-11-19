@@ -13,7 +13,7 @@ function task(title: string, extra: Partial<TaskRow> = {}): TaskRow {
     id: `t${n}`, list_id: 'L1', title, description: null, status: 'to_do' as TaskStatus, priority: null,
     assignee_id: null, due_date: null, position: n * 1024, created_by: 'me',
     created_at: '2026-11-10T09:00:00Z', updated_at: '2026-11-10T09:00:00Z', completed_at: null,
-    parent_id: null, tags: [], custom: {}, ...extra,
+    parent_id: null, tags: [], custom: {}, recurrence: null, recurrence_source_id: null, ...extra,
   };
 }
 const cond = (field: FilterCond['field'], values: string[], extra: Partial<FilterCond> = {}): FilterCond =>

@@ -30,6 +30,9 @@ function describe(a: TaskActivity, name: (id: unknown) => string): string {
     case 'tags': return 'updated the tags';
     case 'subtask_added': return `added the subtask "${d.title}"`;
     case 'attachment_added': return `attached ${d.file_name}`;
+    case 'recurred': return `created the next one${d.due_date ? `, due ${format(parseISO(String(d.due_date)), 'd MMM')}` : ''}`;
+    case 'repeated': return 'created this task as the next repeat';
+    case 'recurrence_ended': return `finished the repeat (it ended on ${d.until ? format(parseISO(String(d.until)), 'd MMM yyyy') : 'its end date'})`;
     default: return a.kind;
   }
 }

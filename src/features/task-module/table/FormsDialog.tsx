@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, ExternalLink, Globe, Loader2, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, ExternalLink, GitBranch, Globe, Loader2, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { errorMessage } from '@/lib/db-errors';
@@ -11,12 +11,14 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
-  useDeleteForm, useSaveForm, useTableForms,
-  type FormDraft, type TableField, type TaskForm,
+  useAssignablePeople, useDeleteForm, useSaveForm, useTableForms,
+  type FormDraft, type FormRule, type TableField, type TaskForm,
 } from '@/queries/useTaskModule';
 import { FIELD_TYPES } from './fieldTypes';
 import { FieldLabel } from './cells';
 import { formLink } from './tableActions';
+import { RuleEditor } from './FormLogicEditor';
+import { cleanLogic, describeRule, firstIncomplete } from './formLogic';
 
 // Forms built from a table. Everyone can see and copy the links; admins
 // create and edit them.
@@ -112,10 +114,12 @@ function FormEditor({ tableId, tableName, fields, form, onDone }: {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const save = useSaveForm(tableId);
+  const { data: people } = useAssignablePeople();
   const formable = fields.filter((f) => FIELD_TYPES[f.type].formable);
+  const [openLogic, setOpenLogic] = useState<string | null>(null);
   const [draft, setDraft] = useState<FormDraft>(() => form
-    ? { title: form.title, description: form.description, field_ids: form.field_ids.filter((id) => formable.some((f) => f.id === id)), access: form.access, is_open: form.is_open, success_message: form.success_message }
-    : { title: tableName, description: null, field_ids: formable.map((f) => f.id), access: 'members', is_open: true, success_message: null });
+    ? { title: form.title, description: form.description, field_ids: form.field_ids.filter((id) => formable.some((f) => f.id === id)), access: form.access, is_open: form.is_open, success_message: form.success_message, logic: form.logic ?? {} }
+    : { title: tableName, description: null, field_ids: formable.map((f) => f.id), access: 'members', is_open: true, success_message: null, logic: {} });
   const set = (patch: Partial<FormDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
   const asked = draft.field_ids.map((id) => formable.find((f) => f.id === id)).filter((f): f is TableField => !!f);
@@ -130,11 +134,29 @@ function FormEditor({ tableId, tableName, fields, form, onDone }: {
   };
   const hasTask = asked.some((f) => f.type === 'task');
   const hasPerson = asked.some((f) => f.type === 'person');
+  const byId = new Map(asked.map((f) => [f.id, f]));
+  const orderedIds = asked.map((f) => f.id);
+  const setRule = (id: string, rule: FormRule | undefined) => setDraft((d) => {
+    const logic = { ...d.logic };
+    if (rule) logic[id] = rule; else delete logic[id];
+    return { ...d, logic };
+  });
+  const peopleName = (id: string) => (people ?? []).find((p) => p.id === id)?.full_name ?? 'someone';
+  const valueText = (type: TableField['type'], value: unknown) =>
+    Array.isArray(value) ? value.map((v) => (type === 'person' ? peopleName(String(v)) : String(v))).join(' / ') : String(value ?? '');
 
   const submit = () => {
     if (!profile?.id || !draft.title.trim() || !draft.field_ids.length) return;
+    const unfinished = firstIncomplete(draft.logic, orderedIds, byId);
+    if (unfinished) {
+      setOpenLogic(unfinished);
+      toast({ title: 'Finish the conditions first', description: `A condition on “${byId.get(unfinished)?.name}” still needs a value.`, variant: 'destructive' });
+      return;
+    }
+    // Questions that were switched off, or conditions that no longer make sense, are dropped.
+    const logic = cleanLogic(draft.logic, orderedIds, byId);
     save.mutate(
-      { id: form?.id, createdBy: profile.id, draft: { ...draft, title: draft.title.trim(), description: draft.description?.trim() || null, success_message: draft.success_message?.trim() || null } },
+      { id: form?.id, createdBy: profile.id, draft: { ...draft, logic, title: draft.title.trim(), description: draft.description?.trim() || null, success_message: draft.success_message?.trim() || null } },
       {
         onSuccess: () => { toast({ title: form ? 'Form saved' : 'Form created — copy its link to share it' }); onDone(); },
         onError: (e) => toast({ title: 'Could not save the form', description: errorMessage(e), variant: 'destructive' }),
@@ -157,16 +179,38 @@ function FormEditor({ tableId, tableName, fields, form, onDone }: {
 
       <div className="space-y-1">
         <span className={label}>Questions</span>
-        <p className="text-2xs text-muted-foreground">In the order people see them. Required fields must be answered.</p>
+        <p className="text-2xs text-muted-foreground">In the order people see them. Required questions must be answered — unless a condition hides them. Use the branch icon to show or hide a question based on an earlier answer.</p>
         <div className="rounded-md border border-border/70 divide-y divide-border/50">
-          {asked.map((f, i) => (
-            <div key={f.id} className="flex items-center gap-2 px-2 py-1.5 text-xs">
-              <Checkbox checked onCheckedChange={() => set({ field_ids: draft.field_ids.filter((x) => x !== f.id) })} aria-label={`Don't ask ${f.name}`} />
-              <FieldLabel field={f} className="flex-1" />
-              <button type="button" disabled={i === 0} onClick={() => move(f.id, -1)} aria-label="Move up" className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
-              <button type="button" disabled={i === asked.length - 1} onClick={() => move(f.id, 1)} aria-label="Move down" className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
-            </div>
-          ))}
+          {asked.map((f, i) => {
+            const rule = draft.logic[f.id];
+            return (
+              <div key={f.id} data-asked={f.name}>
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs">
+                  <Checkbox checked onCheckedChange={() => { set({ field_ids: draft.field_ids.filter((x) => x !== f.id) }); setRule(f.id, undefined); }} aria-label={`Don't ask ${f.name}`} />
+                  <FieldLabel field={f} className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => setOpenLogic(openLogic === f.id ? null : f.id)}
+                    aria-label={`Conditions for ${f.name}`}
+                    aria-expanded={openLogic === f.id}
+                    title={rule ? 'Has a condition' : 'Add a condition'}
+                    className={cn('relative inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted', rule ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                  >
+                    <GitBranch className="h-3.5 w-3.5" />
+                    {rule && <span className="text-3xs font-semibold">If</span>}
+                  </button>
+                  <button type="button" disabled={i === 0} onClick={() => move(f.id, -1)} aria-label="Move up" className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+                  <button type="button" disabled={i === asked.length - 1} onClick={() => move(f.id, 1)} aria-label="Move down" className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+                </div>
+                {rule && openLogic !== f.id && (
+                  <p className="px-2 pb-1.5 pl-8 text-2xs text-primary/90" data-rule-summary>{describeRule(rule, byId, valueText)}</p>
+                )}
+                {openLogic === f.id && (
+                  <RuleEditor question={f} asked={asked} rule={rule} people={people ?? []} onChange={(r) => setRule(f.id, r)} />
+                )}
+              </div>
+            );
+          })}
           {notAsked.map((f) => (
             <div key={f.id} className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
               <Checkbox checked={false} onCheckedChange={() => set({ field_ids: [...draft.field_ids, f.id] })} aria-label={`Ask ${f.name}`} />
@@ -174,7 +218,7 @@ function FormEditor({ tableId, tableName, fields, form, onDone }: {
             </div>
           ))}
         </div>
-        {hasTask && hasPerson && <p className="text-2xs text-primary">Picking someone in the People question limits the Task question to that person’s open tasks.</p>}
+        {hasTask && hasPerson && <p className="text-2xs text-primary">Picking someone in the People question limits the Task question to that person’s tasks (the Task field’s own status and due-date settings still apply).</p>}
         {hasTask && !hasPerson && <p className="text-2xs text-amber-600 dark:text-amber-400">Without a People question, the Task question lists every open task.</p>}
       </div>
 
@@ -188,7 +232,7 @@ function FormEditor({ tableId, tableName, fields, form, onDone }: {
               <span className="block text-2xs text-muted-foreground">
                 {a === 'members'
                   ? 'People must sign in to KD Ops first. Their name is recorded as Created by.'
-                  : 'No sign-in. Anyone holding the link can see the names in People questions and, once they pick a person, that person’s open task titles.'}
+                  : 'No sign-in. Anyone holding the link can see the names in People questions and, once they pick a person, that person’s task titles.'}
               </span>
             </span>
           </label>

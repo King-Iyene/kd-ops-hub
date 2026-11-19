@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useAssignablePeople, useCreateTask, useTaskFolders, useTaskLists,
-  type TaskPriority, type TaskStatus,
+  type Recurrence, type TaskPriority, type TaskStatus,
 } from '@/queries/useTaskModule';
-import { AssigneePicker, DuePicker, PriorityPicker, StatusPicker } from './pickers';
+import { AssigneePicker, DuePicker, PriorityPicker, RecurrencePicker, StatusPicker } from './pickers';
 import { dueLabel, parseDueFromName } from './taskDates';
 import { useOpenTask } from './useOpenTask';
 
@@ -64,6 +64,7 @@ export function NewTaskDialog({
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [pickedDue, setPickedDue] = useState<string | null>(null);
   const [priority, setPriority] = useState<TaskPriority | null>(null);
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(null);
   const [ignoreParsed, setIgnoreParsed] = useState(false);
 
   // Default list: the one you're looking at, else the one you used last, else the first.
@@ -97,6 +98,7 @@ export function NewTaskDialog({
         assigneeId,
         dueDate: finalDue,
         priority,
+        recurrence,
       },
       {
         onSuccess: (row) => {
@@ -186,6 +188,7 @@ export function NewTaskDialog({
               <span className="inline-flex items-center gap-1">Assignee <AssigneePicker value={assigneeId} people={people ?? []} onChange={setAssigneeId} compact /></span>
               <span className="inline-flex items-center gap-1">Due <DuePicker value={finalDue} onChange={(d) => { setPickedDue(d); if (!d) setIgnoreParsed(true); }} /></span>
               <span className="inline-flex items-center gap-1">Priority <PriorityPicker value={priority} onChange={setPriority} /></span>
+              <span className="inline-flex items-center gap-1">Repeat <RecurrencePicker value={recurrence} onChange={setRecurrence} emptyLabel="Never" /></span>
             </div>
 
             <div className="flex items-center justify-between gap-2 pt-1">

@@ -9,7 +9,7 @@ import {
 } from 'date-fns';
 import {
   ArrowDownUp, Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3,
-  Flag, GripVertical, List as ListIcon, Loader2, Search,
+  Flag, GripVertical, List as ListIcon, Loader2, Repeat, Search,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -303,6 +303,7 @@ function TaskLine({ task, mode, peopleById, listNameById, subtaskCounts, onOpen,
         <FlagIcon priority={task.priority} />
         {mode === 'mine' ? <StatusPill status={task.status} /> : <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_META[task.status].dot)} />}
         <span className={cn('min-w-0 truncate text-sm', done && 'line-through text-muted-foreground')}>{task.title}</span>
+        {task.recurrence && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Repeats" />}
         {sub && <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">{sub.done}/{sub.total}</span>}
         {mode === 'mine' && listNameById.get(task.list_id) && (
           <span className="text-2xs text-primary/80 shrink-0 truncate max-w-[30%]">{listNameById.get(task.list_id)}</span>
@@ -383,6 +384,11 @@ function ListView({ groups, canDrag, moveAcrossStatus, onAdd, ...ctx }: RowCtx &
     const at = overId.startsWith('end:') ? items.length : items.findIndex((t) => `row:${t.id}` === overId);
     const moves = planMove(items, task, at, moveAcrossStatus && target.status !== task.status ? target.status : undefined);
     moveTasks.mutate(moves, {
+      onSuccess: () => {
+        if (moves.some((m) => m.status === 'done' && m.task.status !== 'done' && m.task.recurrence)) {
+          toast({ title: 'Completed — the next one has been created' });
+        }
+      },
       onError: (err) => toast({ title: 'Could not move task', description: errorMessage(err), variant: 'destructive' }),
     });
   };
@@ -459,6 +465,7 @@ function BoardView({ tasks, showClosed, mode, peopleById, listNameById, subtaskC
     const status = e.over?.id as TaskStatus | undefined;
     if (!task || !status || status === task.status) return;
     updateTask.mutate({ task, patch: { status } }, {
+      onSuccess: () => { if (status === 'done' && task.recurrence) toast({ title: 'Completed — the next one has been created' }); },
       onError: (err) => toast({ title: 'Could not move task', description: errorMessage(err), variant: 'destructive' }),
     });
   };
@@ -520,7 +527,9 @@ function CardBody({ task, mode, peopleById, listNameById, subtaskCounts, onOpen,
       onClick={() => onOpen(task.id)}
       className={cn('w-full text-left rounded-md border border-border/70 bg-card p-2.5 hover:border-primary/50 kd-transition space-y-2 cursor-grab', className)}
     >
-      <p className={cn('text-sm font-medium line-clamp-2', task.status === 'done' && 'line-through text-muted-foreground')}>{task.title}</p>
+      <p className={cn('text-sm font-medium line-clamp-2', task.status === 'done' && 'line-through text-muted-foreground')}>
+        {task.recurrence && <Repeat className="inline h-3 w-3 mr-1 -mt-0.5 text-muted-foreground" aria-label="Repeats" />}{task.title}
+      </p>
       {mode === 'mine' && listNameById.get(task.list_id) && (
         <p className="text-2xs text-primary/80 truncate">{listNameById.get(task.list_id)}</p>
       )}

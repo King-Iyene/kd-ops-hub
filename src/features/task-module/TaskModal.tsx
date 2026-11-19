@@ -19,10 +19,11 @@ import {
   useWatchers, useToggleWatch,
   type PersonOption, type TaskPatch, type TaskRow,
 } from '@/queries/useTaskModule';
-import { AssigneePicker, DuePicker, PriorityPicker, StatusPicker } from './pickers';
+import { AssigneePicker, DuePicker, PriorityPicker, RecurrencePicker, StatusPicker } from './pickers';
 import { AttachmentsSection, ChecklistsSection, FieldsSection, SubtasksSection } from './TaskSections';
 import { TaskTimeline } from './TaskTimeline';
 import { isOverdue } from './taskDates';
+import { recurrenceLabel } from './recurrence';
 import { taskLink, useOpenTask } from './useOpenTask';
 
 // Mounted once in the app layout: whenever the address has ?task=<id>,
@@ -67,6 +68,12 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
 
   const save = (patch: TaskPatch) =>
     updateTask.mutate({ task, patch }, {
+      onSuccess: () => {
+        // The database has just created the next one; say so.
+        if (patch.status === 'done' && task.status !== 'done' && task.recurrence) {
+          toast({ title: 'Completed — the next one has been created', description: `Repeats ${recurrenceLabel(task.recurrence).toLowerCase()}.` });
+        }
+      },
       onError: (err) => toast({ title: 'Could not update task', description: errorMessage(err), variant: 'destructive' }),
     });
 
@@ -142,6 +149,13 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
             <div><PriorityPicker value={task.priority} onChange={(priority) => save({ priority })} showLabel={!!task.priority} /></div>
             <span className="text-muted-foreground">Tags</span>
             <TagsEditor tags={task.tags ?? []} onChange={(tags) => save({ tags })} />
+            {/* Only top-level tasks repeat; subtasks come back with their parent. */}
+            {!task.parent_id && (
+              <>
+                <span className="text-muted-foreground">Repeat</span>
+                <div><RecurrencePicker value={task.recurrence} onChange={(recurrence) => save({ recurrence })} /></div>
+              </>
+            )}
           </div>
 
           <div className="border-t border-border/70" />

@@ -57,6 +57,17 @@ export const STAGE_OF: Record<TaskStatus, StatusStage> = {
   to_do: 'not_started', in_progress: 'active', in_review: 'active', blocked: 'active', done: 'done',
 };
 
+export type RecurrenceUnit = 'day' | 'week' | 'month';
+/** How a task repeats. daily = every 1 day, weekly = every 1 week, monthly = every 1 month. */
+export interface Recurrence {
+  unit: RecurrenceUnit;
+  every: number;
+  /** yyyy-MM-dd: no new task is made past this date. */
+  until?: string;
+  /** Set by the database for monthly rules, so a task from the 31st doesn't drift to the 28th. */
+  anchor_day?: number;
+}
+
 export interface TaskRow {
   id: string;
   list_id: string;
@@ -74,6 +85,9 @@ export interface TaskRow {
   parent_id: string | null;
   tags: string[];
   custom: Record<string, unknown>;
+  recurrence: Recurrence | null;
+  /** The task this one was created from when that one was completed. */
+  recurrence_source_id: string | null;
 }
 
 export interface PersonOption {
@@ -172,6 +186,7 @@ export interface NewTask {
   assigneeId?: string | null;
   dueDate?: string | null;
   priority?: TaskPriority | null;
+  recurrence?: Recurrence | null;
 }
 
 export function useCreateTask() {
@@ -190,6 +205,7 @@ export function useCreateTask() {
           assignee_id: v.assigneeId ?? null,
           due_date: v.dueDate ?? null,
           priority: v.priority ?? null,
+          recurrence: (v.recurrence ?? null) as unknown as Json,
         })
         .select()
         .single(),
@@ -197,7 +213,7 @@ export function useCreateTask() {
   );
 }
 
-export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date' | 'tags'>>;
+export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date' | 'tags' | 'recurrence'>>;
 
 // Patch a task in place in every cached task-module query (lists, My Tasks,
 // Home, the open task) so a change — e.g. a card dropped on another board
@@ -451,6 +467,12 @@ export interface TableFieldConfig {
   decimals?: number;
   rating_max?: number;
   multiple?: boolean;
+  /** Task link, forms only: which statuses a form offers (default In progress, In review, Blocked). */
+  task_statuses?: TaskStatus[];
+  /** Task link, forms only: hide tasks overdue by more than this many days (default 2). */
+  overdue_grace_days?: number;
+  /** Task link, forms only: also offer tasks with no due date (default true). */
+  task_undated?: boolean;
 }
 
 export interface TaskTable {
@@ -660,6 +682,14 @@ export function useTaskTitles(ids: string[]) {
 
 // ── Forms ──────────────────────────────────────────────────────────────
 
+export type CondOp =
+  | 'is' | 'is_not' | 'is_any_of' | 'is_none_of' | 'contains' | 'not_contains'
+  | 'is_empty' | 'not_empty' | 'checked' | 'unchecked' | 'gt' | 'gte' | 'lt' | 'lte';
+export interface FormCondition { field: string; op: CondOp; value?: unknown }
+/** Show a question only when the conditions hold ("show"), or hide it when they do ("hide"). */
+export interface FormRule { mode: 'show' | 'hide'; match: 'all' | 'any'; conditions: FormCondition[] }
+export type FormLogic = Record<string, FormRule>;
+
 export interface TaskForm {
   id: string;
   table_id: string;
@@ -670,6 +700,8 @@ export interface TaskForm {
   access: 'members' | 'public';
   is_open: boolean;
   success_message: string | null;
+  /** Show/hide rules keyed by question (field) id. */
+  logic: FormLogic;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -684,15 +716,18 @@ export function useTableForms(tableId: string) {
   );
 }
 
-export type FormDraft = Pick<TaskForm, 'title' | 'description' | 'field_ids' | 'access' | 'is_open' | 'success_message'>;
+export type FormDraft = Pick<TaskForm, 'title' | 'description' | 'field_ids' | 'access' | 'is_open' | 'success_message' | 'logic'>;
 
 export function useSaveForm(tableId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (vars: { id?: string; draft: FormDraft; createdBy: string }) =>
-      vars.id
-        ? supabase.from('tm_forms').update(vars.draft).eq('id', vars.id).select().single()
-        : supabase.from('tm_forms').insert({ ...vars.draft, table_id: tableId, created_by: vars.createdBy }).select().single(),
+    (vars: { id?: string; draft: FormDraft; createdBy: string }) => {
+      // The rules are stored as JSON; their shape is FormLogic.
+      const draft = { ...vars.draft, logic: vars.draft.logic as unknown as Json };
+      return vars.id
+        ? supabase.from('tm_forms').update(draft).eq('id', vars.id).select().single()
+        : supabase.from('tm_forms').insert({ ...draft, table_id: tableId, created_by: vars.createdBy }).select().single();
+    },
     { onSuccess: () => invalidate([...queryKeys.taskModule.all, 'forms', tableId]) },
   );
 }

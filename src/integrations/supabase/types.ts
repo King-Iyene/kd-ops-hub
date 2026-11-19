@@ -17259,6 +17259,7 @@ export type Database = {
           field_ids: string[]
           id: string
           is_open: boolean
+          logic: Json
           success_message: string | null
           table_id: string
           title: string
@@ -17273,6 +17274,7 @@ export type Database = {
           field_ids?: string[]
           id?: string
           is_open?: boolean
+          logic?: Json
           success_message?: string | null
           table_id: string
           title: string
@@ -17287,6 +17289,7 @@ export type Database = {
           field_ids?: string[]
           id?: string
           is_open?: boolean
+          logic?: Json
           success_message?: string | null
           table_id?: string
           title?: string
@@ -17994,6 +17997,8 @@ export type Database = {
           parent_id: string | null
           position: number
           priority: string | null
+          recurrence: Json | null
+          recurrence_source_id: string | null
           status: string
           tags: string[]
           title: string
@@ -18012,6 +18017,8 @@ export type Database = {
           parent_id?: string | null
           position?: number
           priority?: string | null
+          recurrence?: Json | null
+          recurrence_source_id?: string | null
           status?: string
           tags?: string[]
           title: string
@@ -18030,6 +18037,8 @@ export type Database = {
           parent_id?: string | null
           position?: number
           priority?: string | null
+          recurrence?: Json | null
+          recurrence_source_id?: string | null
           status?: string
           tags?: string[]
           title?: string
@@ -22144,6 +22153,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      tm_form_field_tasks: {
+        Args: { p_field: string; p_person?: string; p_token: string }
+        Returns: Json
       }
       tm_form_load: { Args: { p_token: string }; Returns: Json }
       tm_form_person_tasks: {
