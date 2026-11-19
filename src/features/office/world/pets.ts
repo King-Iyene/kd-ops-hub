@@ -166,19 +166,20 @@ export const PLAY_MS = 7000;
  * they swap and the cat chases the dog, then they settle down again. (dt is the seconds since the last call.)
  */
 export function playTick(pets: Iterable<PetState>, now: number, dt: number, rand: () => number): void {
+  // any two resting pets close together (a dog and a cat, two dogs or two cats) may start a game
   const list = [...pets].filter((p) => p.mode === 'wander' && !p.moving && p.wait > 0.4);
-  const dogs = list.filter((p) => p.kind === 'dog');
-  const cats = list.filter((p) => p.kind === 'cat');
-  for (const d of dogs) {
-    if (d.mode !== 'wander') continue;
-    for (const c of cats) {
-      if (c.mode !== 'wander') continue;
-      if (Math.hypot(d.x - c.x, d.y - c.y) > 3.4) continue;
-      if (rand() > 0.05 * dt) continue; // about one game in twenty seconds when they are together
-      d.mode = 'play'; c.mode = 'play';
-      d.partner = c.id; c.partner = d.id;
-      d.playUntil = c.playUntil = now + PLAY_MS;
-      d.stuck = c.stuck = 0;
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    if (a.mode !== 'wander') continue;
+    for (let j = i + 1; j < list.length; j++) {
+      const b = list[j];
+      if (b.mode !== 'wander') continue;
+      if (Math.hypot(a.x - b.x, a.y - b.y) > 5) continue;
+      if (rand() > 0.09 * dt) continue; // about one game in ten seconds when they are together
+      a.mode = 'play'; b.mode = 'play';
+      a.partner = b.id; b.partner = a.id;
+      a.playUntil = b.playUntil = now + PLAY_MS;
+      a.stuck = b.stuck = 0;
       break;
     }
   }

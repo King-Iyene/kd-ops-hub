@@ -108,7 +108,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
 export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug', 'laptop', 'books', 'plate', 'globe', 'trophy', 'headphones', 'pizza', 'dualmonitor', 'ultrawide'];
 
 export const PLAYER_RADIUS = 0.3;
-export const WALK_SPEED = 5.8; // tiles per second
+export const WALK_SPEED = 6.4; // tiles per second
 
 /** Size of an item in tiles after rotation. */
 export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } {
@@ -157,7 +157,7 @@ export function seatAt(items: Item[], x: number, y: number): { item: Item; x: nu
 }
 
 /** How much faster a power bike is than walking. */
-export const RIDE_SPEED = 1.9;
+export const RIDE_SPEED = 1.95;
 
 /** The interactive thing closest to a point, if one is within reach. */
 export function nearestInteractive(items: Item[], x: number, y: number, reach = 1.25): Item | null {
@@ -195,12 +195,23 @@ export function itemCells(item: Item): { x: number; y: number }[] {
   return out;
 }
 
+/** Tall plants that only block at their base. */
+const TRUNK_ONLY = new Set<string>(['tree', 'pinetree', 'palm']);
+
 /** The grid people collide with: walls, plus the tiles under solid furniture. */
 export function buildSolid(map: MapDef, items: Item[]): boolean[][] {
   const solid = map.walls.map((row) => row.slice());
   for (const it of items) {
     if (!ITEM_DEFS[it.t].solid) continue;
-    for (const c of itemCells(it)) if (solid[c.y] && c.x >= 0 && c.x < map.w) solid[c.y][c.x] = true;
+    // a tall tree blocks you at its trunk (the bottom row), not all the way up through its leaves
+    let cells = TRUNK_ONLY.has(it.t) ? itemCells(it).filter((c) => c.y === it.y + itemSize(it).h - 1) : itemCells(it);
+    // a pond is round: only the tiles under the water block you, not the empty corners of its box
+    if (it.t === 'pond') {
+      const sz = itemSize(it);
+      const ccx = it.x + sz.w / 2, ccy = it.y + sz.h / 2, rx = sz.w / 2 + 0.1, ry = sz.h / 2 + 0.1;
+      cells = cells.filter((c) => ((c.x + 0.5 - ccx) / rx) ** 2 + ((c.y + 0.5 - ccy) / ry) ** 2 <= 1);
+    }
+    for (const c of cells) if (solid[c.y] && c.x >= 0 && c.x < map.w) solid[c.y][c.x] = true;
   }
   return solid;
 }

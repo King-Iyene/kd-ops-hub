@@ -89,6 +89,18 @@ describe('game speed', () => {
   });
 });
 
+describe('trees and ponds only block where they really are', () => {
+  it('a tree blocks at its trunk, not up through its leaves, and a pond leaves its corners open', async () => {
+    const { buildSolid } = await import('../world/world');
+    const map = { w: 30, h: 20, walls: grid(30, 20), zones: [], spawn: { x: 1, y: 1 }, items: [] } as never;
+    const s = buildSolid(map, [{ id: 'p', t: 'pinetree', x: 3, y: 3, r: 0 }, { id: 'o', t: 'pond', x: 12, y: 5, r: 0 }] as never);
+    expect(s[3][3]).toBe(false); // the top of the tree
+    expect(s[5][3]).toBe(true); // its trunk
+    expect(s[5][12]).toBe(false); // a corner of the pond's box
+    expect(s[7][16]).toBe(true); // the middle of the water
+  });
+});
+
 describe('which thing the F key picks', () => {
   const kart = { id: 'k', t: 'kart', x: 10, y: 10, r: 0 } as const;
   const arcade = { id: 'a', t: 'arcade', x: 11, y: 10, r: 0 } as const;
