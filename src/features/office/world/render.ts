@@ -1643,6 +1643,34 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawSandItem(ctx, x, y, W, H, seed);
       break;
     }
+    case 'dogball': {
+      drawDogBall(ctx, x, y, W, H, t, seed);
+      break;
+    }
+    case 'standingdesk': { drawStandingDesk(ctx, x, y, W, H, t, seed, col); break; }
+    case 'execdesk': { drawExecDesk(ctx, x, y, W, H, col); break; }
+    case 'cornerdesk': { drawCornerDesk(ctx, x, y, W, H, col); break; }
+    case 'dualmonitor': { drawMonitors(ctx, x, y, t, seed, 2); break; }
+    case 'ultrawide': { drawMonitors(ctx, x, y, t, seed, 1); break; }
+    case 'barchart': { drawBarChart(ctx, x, y, W, H, t); break; }
+    case 'orgchart': { drawOrgChart(ctx, x, y, W, H); break; }
+    case 'worldmap': { drawWorldMap(ctx, x, y, W, H, t); break; }
+    case 'kanban': { drawKanban(ctx, x, y, W, H, seed); break; }
+    case 'sunflowers': case 'orchid': case 'lavender': case 'tulips': case 'monstera': { drawBloom(ctx, item.t, x, y, W, H, t, seed, col); break; }
+    case 'filecabinet': { drawFileCabinet(ctx, x, y, W, H, col); break; }
+    case 'foosball': { drawFoosball(ctx, x, y, W, H, t, seed); break; }
+    case 'tabletennis': { drawTableTennis(ctx, x, y, W, H, t); break; }
+    case 'phonebooth': { drawPhoneBooth(ctx, x, y, W, H, t, col); break; }
+    case 'arcade': { drawArcade(ctx, x, y, W, H, t, seed); break; }
+    case 'pinetree': { drawPine(ctx, x, y, W, H, t, seed); break; }
+    case 'campfire': { drawCampfire(ctx, x, y, W, H, t, seed); break; }
+    case 'log': { drawLog(ctx, x, y, W, H, seed); break; }
+    case 'stump': { drawStump(ctx, x, y, W, H); break; }
+    case 'tent': { drawTent(ctx, x, y, W, H, col, t); break; }
+    case 'mushrooms': { drawMushrooms(ctx, x, y, W, H, seed); break; }
+    case 'firewood': { drawFirewood(ctx, x, y, W, H); break; }
+    case 'lantern': { drawLantern(ctx, x, y, W, H, t, seed); break; }
+    case 'coffeebar': { drawCoffeeBar(ctx, x, y, W, H, t, seed); break; }
     case 'beachchair': {
       drawBeachChair(ctx, x, y, W, H, col, seed);
       break;
@@ -1668,6 +1696,12 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       break;
     }
     case 'flowerbed': {
+      for (let b = 0; b < 3; b++) {
+        const sec = t / 1000;
+        const bx = x + W / 2 + Math.sin(sec * (0.55 + b * 0.13) + b * 2.1 + seed * 5) * (W * 0.46);
+        const by = y + H * 0.1 - 6 + Math.sin(sec * (1.1 + b * 0.2) + b * 1.7) * 7 - (Math.sin(sec * 0.3 + b) + 1) * 9;
+        drawButterfly(ctx, bx, by, t, b);
+      }
       ctx.fillStyle = '#6b4423';
       rr(ctx, x + 1, y + H * 0.45, W - 2, H * 0.5, 6);
       ctx.fill();
@@ -1895,11 +1929,12 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       break;
     }
     case 'dog': {
-      // a dog that trots around its spot, turns, pauses, and wags its tail
+      // a dog of its own breed that trots around its spot, turns, pauses, and wags its tail
       const k = t / 1000;
       const live = officePets.get(item.id);
+      const breed = dogBreed(col, seed);
       if (live && live.view && live.view !== 'side') {
-        drawPetEnd(ctx, live.x * TILE, live.y * TILE - 8, 'dog', live.view, col ?? ['#c68642', '#e8d9b5', '#5b4636', '#f1f5f9'][Math.floor(seed * 4)], k, live.moving, !!live.carrying);
+        drawPetEnd(ctx, live.x * TILE, live.y * TILE - 8, 'dog', live.view, breed, k, live.moving, !!live.carrying);
         break;
       }
       const px = live ? live.x * TILE : cx + Math.sin(k * 0.7 + seed * 6) * 30;
@@ -1907,99 +1942,52 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       const vx = Math.cos(k * 0.7 + seed * 6);
       const face = live ? live.face : vx >= 0 ? 1 : -1;
       const moving = live ? live.moving : Math.abs(vx) > 0.2;
-      const coat = col ?? ['#c68642', '#e8d9b5', '#5b4636', '#f1f5f9'][Math.floor(seed * 4)];
-      const dark = shade(coat, -0.28);
-      ellipse(ctx, px, py + 8, 11, 3.5, 'rgba(15,23,42,0.22)');
+      ellipse(ctx, px, py + 8, 11 * breed.len, 3.5, 'rgba(15,23,42,0.22)');
       ctx.save();
       ctx.translate(px, py);
       ctx.scale(face, 1);
-      ctx.strokeStyle = coat;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-9, -3);
-      ctx.quadraticCurveTo(-14, -8 + Math.sin(k * 15) * 3, -13, -12 + Math.sin(k * 15) * 2);
-      ctx.stroke();
-      for (const [lx, ph2] of [[-6, 0], [-2.5, Math.PI], [4, Math.PI], [7.5, 0]] as const) {
-        const swing = moving ? Math.sin(k * 11 + ph2) * 2.6 : 0;
-        ctx.fillStyle = dark;
-        rr(ctx, lx - 1.4 + swing, 2, 2.8, 6.5 - (moving && swing < 0 ? 1 : 0), 1.2);
-        ctx.fill();
-      }
-      ellipse(ctx, 0, -1.5, 10.5, 6.2, coat);
-      ellipse(ctx, 0, 1, 8, 3.2, shade(coat, 0.3));
-      disc(ctx, 10, -6.5, 5.4, coat);
-      ellipse(ctx, 14.6, -4.8, 3.4, 2.4, shade(coat, 0.25));
-      disc(ctx, 17.4, -5.2, 1.3, '#111827');
-      disc(ctx, 11.6, -7.8, 1, '#111827');
-      ellipse(ctx, 8, -10.5 + Math.sin(k * 6) * 0.5, 2.4, 3.8, dark, 0.45);
-      ctx.fillStyle = '#dc2626';
-      rr(ctx, 4.6, -6, 3, 6, 1.3);
-      ctx.fill();
-      if (moving) ellipse(ctx, 15.4, -2.2, 1.4, 2 + Math.sin(k * 14) * 0.4, '#f472b6');
-      if (live?.carrying) { disc(ctx, 19.5, -2.5, 3.2, '#d9f99d'); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(19.5, -2.5, 3.2, 0.4, 2.6); ctx.stroke(); }
+      drawDogBody(ctx, breed, k, moving, !!live?.carrying);
       ctx.restore();
       break;
     }
     case 'cat': {
       const lv = officePets.get(item.id);
+      const cb = catBreed(col, seed);
       if (lv && lv.awake && lv.view && lv.view !== 'side') {
-        drawPetEnd(ctx, lv.x * TILE, lv.y * TILE - 8, 'cat', lv.view, col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)], t / 1000, lv.moving, false);
+        drawPetEnd(ctx, lv.x * TILE, lv.y * TILE - 8, 'cat', lv.view, cb, t / 1000, lv.moving, false);
         break;
       }
       if (lv && lv.awake) {
         // an awake cat: walks, tail up, ears pricked
-        const fur2 = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
-        const kk = t / 1000;
-        const px2 = lv.x * TILE;
-        const py2 = lv.y * TILE - 8;
-        ellipse(ctx, px2, py2 + 8, 10, 3, 'rgba(15,23,42,0.2)');
+        ellipse(ctx, lv.x * TILE, lv.y * TILE, 10 * cb.fluff, 3, 'rgba(15,23,42,0.2)');
         ctx.save();
-        ctx.translate(px2, py2);
+        ctx.translate(lv.x * TILE, lv.y * TILE - 8);
         ctx.scale(lv.face, 1);
-        ctx.strokeStyle = fur2;
-        ctx.lineWidth = 2.6;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(-8, -3);
-        ctx.quadraticCurveTo(-15, -6 + Math.sin(kk * 4) * 2, -13, -15);
-        ctx.stroke();
-        for (const [lx, ph] of [[-5.5, 0], [-2, Math.PI], [4, Math.PI], [7, 0]] as const) {
-          const sw = lv.moving ? Math.sin(kk * 12 + ph) * 2.4 : 0;
-          ctx.fillStyle = shade(fur2, -0.2);
-          rr(ctx, lx - 1.2 + sw, 2, 2.4, 6, 1);
-          ctx.fill();
-        }
-        ellipse(ctx, 0, -1.5, 9.5, 5.2, fur2);
-        disc(ctx, 9, -5, 4.6, fur2);
-        ctx.fillStyle = fur2;
-        ctx.beginPath();
-        ctx.moveTo(6, -8.5); ctx.lineTo(7, -13); ctx.lineTo(9.6, -9);
-        ctx.moveTo(10, -9); ctx.lineTo(12.4, -12.6); ctx.lineTo(13, -7.6);
-        ctx.fill();
-        disc(ctx, 11, -5.8, 0.9, '#111827');
-        disc(ctx, 13.4, -4.2, 0.9, '#f472b6');
+        drawCatBody(ctx, cb, t / 1000, lv.moving);
         ctx.restore();
         break;
       }
       // a cat asleep in a curl, breathing, with drifting Zs
       const br = 1 + Math.sin(t / 650 + seed * 4) * 0.035;
-      const fur = col ?? ['#94a3b8', '#f59e0b', '#1f2937', '#e5e7eb'][Math.floor(seed * 4)];
+      const fur = cb.coat;
       const sx = lv ? lv.x * TILE : cx;
       const sy = lv ? lv.y * TILE - 14 : y + 22;
-      ellipse(ctx, sx, sy + 7, 12, 3.6, 'rgba(15,23,42,0.2)');
+      ellipse(ctx, sx, sy + 7, 12 * cb.fluff, 3.6, 'rgba(15,23,42,0.2)');
       ctx.save();
       ctx.translate(sx, sy);
       ctx.scale(br, br);
-      ellipse(ctx, 0, 0, 11.5, 7.5, fur);
-      ctx.strokeStyle = fur;
-      ctx.lineWidth = 3.2;
+      ellipse(ctx, 0, 0, 11.5 * cb.fluff, 7.5 * cb.fluff, fur);
+      if (cb.pattern === 'tabby' || cb.pattern === 'ginger') { ctx.strokeStyle = cb.mark ?? shade(fur, -0.3); ctx.lineWidth = 1.5; for (let q = -3; q <= 3; q++) { ctx.beginPath(); ctx.moveTo(q * 2.8, -6); ctx.lineTo(q * 2.8 + 1, -1); ctx.stroke(); } }
+      if (cb.pattern === 'calico') { disc(ctx, 3, -2, 3.4, '#f59e0b'); disc(ctx, -2, 3, 3, '#1f2937'); }
+      if (cb.pattern === 'tux') ellipse(ctx, 1, 3, 6, 3, '#f8fafc');
+      ctx.strokeStyle = cb.pattern === 'points' ? (cb.mark ?? '#4b3a2a') : fur;
+      ctx.lineWidth = 3.2 * (cb.fluff > 1.05 ? 1.3 : 1);
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.arc(1, 1, 9, Math.PI * 0.15, Math.PI * 0.95);
       ctx.stroke();
-      disc(ctx, -6, -2, 5, fur);
-      ctx.fillStyle = fur;
+      disc(ctx, -6, -2, 5, cb.pattern === 'points' ? (cb.mark ?? '#4b3a2a') : fur);
+      ctx.fillStyle = cb.pattern === 'points' ? (cb.mark ?? '#4b3a2a') : fur;
       ctx.beginPath();
       ctx.moveTo(-10, -5);
       ctx.lineTo(-8.8, -10);
@@ -2031,7 +2019,8 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
 }
 
 /** A dog or cat seen from the front (walking towards you) or the back (walking away). */
-function drawPetEnd(ctx: Ctx, px: number, py: number, kind: 'dog' | 'cat', view: 'front' | 'back', coat: string, k: number, moving: boolean, carrying: boolean) {
+function drawPetEnd(ctx: Ctx, px: number, py: number, kind: 'dog' | 'cat', view: 'front' | 'back', breed: DogBreed | CatBreed, k: number, moving: boolean, carrying: boolean) {
+  const coat = breed.coat;
   const dark = shade(coat, -0.28);
   const light = shade(coat, 0.3);
   const bob = moving ? -Math.abs(Math.sin(k * 11)) * 1.4 : 0;
@@ -2061,20 +2050,38 @@ function drawPetEnd(ctx: Ctx, px: number, py: number, kind: 'dog' | 'cat', view:
   // head
   const hy = view === 'front' ? -9.5 : -9;
   disc(ctx, 0, hy, 5.8, coat);
-  if (kind === 'dog') {
-    ctx.fillStyle = dark;
-    ellipse(ctx, -5.2, hy + 0.5, 2.2, 4, dark, 0.2);
-    ellipse(ctx, 5.2, hy + 0.5, 2.2, 4, dark, -0.2);
+  const dg = kind === 'dog' ? (breed as DogBreed) : null;
+  const ct = kind === 'cat' ? (breed as CatBreed) : null;
+  const earCol = dg ? (dg.ear === 'flop' || dg.ear === 'long' || dg.ear === 'rose' ? (dg.pattern === 'mask' || dg.pattern === 'tricolor' || dg.pattern === 'spots' ? (dg.mark ?? dark) : dark) : coat) : ct?.pattern === 'points' ? (ct.mark ?? dark) : coat;
+  if (dg) {
+    if (dg.ear === 'prick' || dg.ear === 'big') {
+      ctx.fillStyle = earCol;
+      ctx.beginPath();
+      ctx.moveTo(-5.4, hy - 1); ctx.lineTo(-4.4, hy - (dg.ear === 'big' ? 11 : 8.4)); ctx.lineTo(-1, hy - 4.6);
+      ctx.moveTo(5.4, hy - 1); ctx.lineTo(4.4, hy - (dg.ear === 'big' ? 11 : 8.4)); ctx.lineTo(1, hy - 4.6);
+      ctx.fill();
+    } else {
+      const eh = dg.ear === 'long' ? 5.4 : dg.ear === 'rose' ? 2.6 : 4;
+      ellipse(ctx, -5.4, hy + 0.5, 2.2, eh, earCol, 0.2);
+      ellipse(ctx, 5.4, hy + 0.5, 2.2, eh, earCol, -0.2);
+    }
+    if (dg.pattern === 'mask' || dg.pattern === 'husky') { ctx.fillStyle = dg.pattern === 'husky' ? '#f8fafc' : (dg.mark ?? dark); ctx.beginPath(); ctx.ellipse(0, hy + 2.2, 3.6, 3, 0, 0, Math.PI * 2); ctx.fill(); }
   } else {
-    ctx.fillStyle = coat;
+    ctx.fillStyle = earCol;
     ctx.beginPath();
     ctx.moveTo(-5.6, hy - 2); ctx.lineTo(-4.6, hy - 8.6); ctx.lineTo(-1.2, hy - 4.6);
     ctx.moveTo(5.6, hy - 2); ctx.lineTo(4.6, hy - 8.6); ctx.lineTo(1.2, hy - 4.6);
     ctx.fill();
+    if (ct && (ct.pattern === 'tabby' || ct.pattern === 'ginger')) { ctx.strokeStyle = ct.mark ?? shade(coat, -0.3); ctx.lineWidth = 0.9; for (const q of [-2.6, 0, 2.6]) { ctx.beginPath(); ctx.moveTo(q, hy - 5.4); ctx.lineTo(q, hy - 2.6); ctx.stroke(); } }
+    if (ct && ct.pattern === 'tux') { ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.ellipse(0, hy + 2.4, 2.6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (ct && ct.pattern === 'points') { ctx.fillStyle = ct.mark ?? '#4b3a2a'; ctx.beginPath(); ctx.ellipse(0, hy + 1.6, 3.2, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
   }
+  if (dg && (dg.pattern === 'spots')) { ctx.fillStyle = dg.mark ?? '#111827'; for (const [qx, qy] of [[-4, -3], [3, -1], [-1, 2], [4, 4]] as const) { disc(ctx, qx, qy, 1.3, dg.mark ?? '#111827'); } }
+  if (dg && (dg.pattern === 'saddle' || dg.pattern === 'tricolor') && view === 'back') { ctx.fillStyle = dg.mark ?? '#1f2937'; ctx.beginPath(); ctx.ellipse(0, -2, 5.4, 5, 0, 0, Math.PI * 2); ctx.fill(); }
   if (view === 'front') {
-    disc(ctx, -2.3, hy - 0.6, 0.95, '#111827');
-    disc(ctx, 2.3, hy - 0.6, 0.95, '#111827');
+    const eyeC = dg?.eye ?? ct?.eye ?? '#111827';
+    disc(ctx, -2.3, hy - 0.6, 0.95, eyeC);
+    disc(ctx, 2.3, hy - 0.6, 0.95, eyeC);
     ellipse(ctx, 0, hy + 2.6, 2.4, 1.7, light);
     disc(ctx, 0, hy + 1.9, 1, '#111827');
     if (kind === 'dog' && moving) ellipse(ctx, 0, hy + 4.8, 1.2, 1.8 + Math.sin(k * 14) * 0.4, '#f472b6');
@@ -2288,6 +2295,49 @@ function drawPondItem(ctx: Ctx, x: number, y: number, W: number, H: number, t: n
         ctx.beginPath(); ctx.ellipse(jx, jy, 3 + ph * 13, 1.5 + ph * 5.5, 0, 0, Math.PI * 2); ctx.stroke();
       }
     }
+  }
+
+  // frogs sitting on the lily pads: now and then one hops to another pad, with a ripple where it lands, and croaks
+  const pads: [number, number][] = [[-0.42, 0.22], [-0.12, -0.3], [0.4, 0.3], [0.22, -0.18]];
+  const padAt = (k: number): [number, number] => [cx + pads[k][0] * rx, cy + pads[k][1] * ry];
+  for (const [fa, fb, off] of [[0, 2, 0], [1, 3, 4.6]] as const) {
+    const cyc = ((sec + off + seed * 3) % 9) / 9;
+    const a0 = padAt(fa), b0 = padAt(fb);
+    let fxp = a0[0], fyp = a0[1], air = 0, croak = 0, onB = false;
+    if (cyc < 0.1) { const u = cyc / 0.1; fxp = a0[0] + (b0[0] - a0[0]) * u; fyp = a0[1] + (b0[1] - a0[1]) * u; air = Math.sin(Math.PI * u) * 9; }
+    else if (cyc < 0.5) { fxp = b0[0]; fyp = b0[1]; onB = true; croak = cyc > 0.28 && cyc < 0.4 ? Math.abs(Math.sin((cyc - 0.28) * 70)) : 0; }
+    else if (cyc < 0.6) { const u = (cyc - 0.5) / 0.1; fxp = b0[0] + (a0[0] - b0[0]) * u; fyp = b0[1] + (a0[1] - b0[1]) * u; air = Math.sin(Math.PI * u) * 9; }
+    else { croak = cyc > 0.8 && cyc < 0.9 ? Math.abs(Math.sin((cyc - 0.8) * 70)) : 0; }
+    const landed = cyc < 0.1 ? 1 : cyc < 0.6 && cyc > 0.5 ? 1 : 0;
+    if (!landed || air < 0.5) {
+      // a ripple spreads from a pad a moment after a landing
+      const since = cyc < 0.5 ? cyc - 0.1 : cyc < 0.7 ? cyc - 0.6 : 1;
+      if (since >= 0 && since < 0.1) { ctx.strokeStyle = `rgba(255,255,255,${0.7 * (1 - since / 0.1)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(onB || cyc > 0.6 ? (cyc < 0.7 ? a0[0] : a0[0]) : b0[0], cyc < 0.5 ? b0[1] : a0[1], 4 + (since / 0.1) * 12, 2 + (since / 0.1) * 5, 0, 0, Math.PI * 2); ctx.stroke(); }
+    }
+    const fy2 = fyp - air - 2;
+    ctx.fillStyle = 'rgba(0,40,60,0.25)';
+    ctx.beginPath(); ctx.ellipse(fxp + 1, fyp + 1, 4.4, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath(); ctx.ellipse(fxp, fy2, 4.6, 3.1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#22a35a';
+    ctx.beginPath(); ctx.ellipse(fxp - 3.6, fy2 + 1.2, 2.2, 1.3, -0.5, 0, Math.PI * 2); ctx.ellipse(fxp + 3.6, fy2 + 1.2, 2.2, 1.3, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4ade80';
+    disc(ctx, fxp - 2, fy2 - 3, 1.7, '#4ade80'); disc(ctx, fxp + 2, fy2 - 3, 1.7, '#4ade80');
+    disc(ctx, fxp - 2, fy2 - 3.2, 0.8, '#111827'); disc(ctx, fxp + 2, fy2 - 3.2, 0.8, '#111827');
+    if (croak > 0.05) { ctx.fillStyle = '#d9f99d'; ctx.beginPath(); ctx.ellipse(fxp, fy2 + 2.2, 1.8 + croak * 2, 1 + croak * 1.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '700 6px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ribbit', fxp, fy2 - 8 - croak * 2); }
+  }
+  // a dragonfly hovering and darting over the water
+  {
+    const dx = cx + Math.sin(sec * 0.9 + seed * 4) * rx * 0.55 + Math.sin(sec * 2.3) * 4;
+    const dy = cy + Math.cos(sec * 0.7 + seed * 2) * ry * 0.4 - 10 + Math.sin(sec * 3.1) * 2;
+    ctx.fillStyle = 'rgba(0,40,60,0.18)';
+    ctx.beginPath(); ctx.ellipse(dx, dy + 12, 4, 1.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(dx - 4, dy); ctx.lineTo(dx + 4, dy); ctx.stroke();
+    disc(ctx, dx + 4.4, dy, 1.3, '#0369a1');
+    ctx.fillStyle = 'rgba(224,242,254,0.65)';
+    const w = Math.sin(sec * 60) * 1.4;
+    ctx.beginPath(); ctx.ellipse(dx - 1, dy - 2.4 - w, 4, 1.2, -0.3, 0, Math.PI * 2); ctx.ellipse(dx + 1.4, dy - 2.4 - w, 4, 1.2, 0.3, 0, Math.PI * 2); ctx.ellipse(dx - 1, dy + 2.4 + w, 4, 1.2, 0.3, 0, Math.PI * 2); ctx.ellipse(dx + 1.4, dy + 2.4 + w, 4, 1.2, -0.3, 0, Math.PI * 2); ctx.fill();
   }
 
   // the stream flowing: moving dashes of light along both channels
@@ -2631,6 +2681,775 @@ function drawTowel(ctx: Ctx, x: number, y: number, W: number, H: number, col: st
   ctx.restore();
 }
 
+// ---------- dog and cat breeds ----------
+
+type DogPattern = 'plain' | 'saddle' | 'spots' | 'mask' | 'husky' | 'tricolor' | 'patches';
+export interface DogBreed {
+  name: string;
+  coat: string;
+  /** the second colour (saddle, spots, mask, patches) */
+  mark?: string;
+  belly?: string;
+  pattern: DogPattern;
+  ear: 'flop' | 'prick' | 'long' | 'big' | 'rose';
+  tail: 'wag' | 'otter' | 'curl' | 'stub';
+  /** body length, body depth, leg length, head size, snout length (1 is average) */
+  len: number; depth: number; leg: number; head: number; snout: number;
+  eye?: string;
+}
+export const DOG_BREEDS: DogBreed[] = [
+  { name: 'Labrador', coat: '#e2b45e', belly: '#f2d79a', pattern: 'plain', ear: 'flop', tail: 'otter', len: 1.04, depth: 1.05, leg: 1, head: 1.05, snout: 1.05 },
+  { name: 'German Shepherd', coat: '#c58a3a', mark: '#1f2937', belly: '#e0b878', pattern: 'saddle', ear: 'prick', tail: 'wag', len: 1.1, depth: 1, leg: 1.05, head: 1, snout: 1.25 },
+  { name: 'Dalmatian', coat: '#f8fafc', mark: '#111827', belly: '#ffffff', pattern: 'spots', ear: 'flop', tail: 'wag', len: 1.08, depth: 0.95, leg: 1.12, head: 0.98, snout: 1.1 },
+  { name: 'Husky', coat: '#8f9aa8', mark: '#1e293b', belly: '#f8fafc', pattern: 'husky', ear: 'prick', tail: 'curl', len: 1.05, depth: 1.02, leg: 1, head: 1, snout: 1, eye: '#38bdf8' },
+  { name: 'Beagle', coat: '#f6ecd6', mark: '#7a4a21', belly: '#ffffff', pattern: 'tricolor', ear: 'long', tail: 'wag', len: 0.95, depth: 0.95, leg: 0.85, head: 1, snout: 0.95 },
+  { name: 'Corgi', coat: '#e08a3a', mark: '#f8fafc', belly: '#ffffff', pattern: 'patches', ear: 'big', tail: 'stub', len: 1.12, depth: 0.95, leg: 0.5, head: 1.02, snout: 1 },
+  { name: 'Pug', coat: '#dcc59b', mark: '#2b2118', belly: '#efe0bd', pattern: 'mask', ear: 'rose', tail: 'curl', len: 0.82, depth: 1.14, leg: 0.7, head: 1.18, snout: 0.45 },
+  { name: 'Local breed', coat: '#c68642', mark: '#7c4a21', belly: '#e9c58f', pattern: 'plain', ear: 'prick', tail: 'wag', len: 1, depth: 0.88, leg: 1.18, head: 0.92, snout: 1.15 },
+];
+export function dogBreed(col: string | undefined, seed: number): DogBreed {
+  const b = DOG_BREEDS[Math.floor(seed * DOG_BREEDS.length) % DOG_BREEDS.length];
+  return col ? { ...b, coat: col } : b;
+}
+
+type CatPattern = 'plain' | 'tabby' | 'points' | 'tux' | 'calico' | 'ginger' | 'fluffy';
+export interface CatBreed {
+  name: string;
+  coat: string;
+  mark?: string;
+  pattern: CatPattern;
+  /** how big and fluffy (1 is a sleek cat) */
+  fluff: number;
+  eye: string;
+}
+export const CAT_BREEDS: CatBreed[] = [
+  { name: 'Tabby', coat: '#a98965', mark: '#5b4630', pattern: 'tabby', fluff: 1, eye: '#84cc16' },
+  { name: 'Black cat', coat: '#27303f', pattern: 'plain', fluff: 1, eye: '#facc15' },
+  { name: 'Siamese', coat: '#f1e4c8', mark: '#4b3a2a', pattern: 'points', fluff: 0.95, eye: '#38bdf8' },
+  { name: 'Ginger', coat: '#f59e0b', mark: '#c2410c', pattern: 'ginger', fluff: 1.02, eye: '#84cc16' },
+  { name: 'Tuxedo', coat: '#1f2937', pattern: 'tux', fluff: 1, eye: '#84cc16' },
+  { name: 'Calico', coat: '#f8fafc', mark: '#f59e0b', pattern: 'calico', fluff: 1, eye: '#a3e635' },
+  { name: 'Persian', coat: '#f3f4f6', pattern: 'fluffy', fluff: 1.2, eye: '#fb923c' },
+  { name: 'Grey fluffy cat', coat: '#94a3b8', mark: '#64748b', pattern: 'fluffy', fluff: 1.15, eye: '#facc15' },
+];
+export function catBreed(col: string | undefined, seed: number): CatBreed {
+  const b = CAT_BREEDS[Math.floor(seed * CAT_BREEDS.length) % CAT_BREEDS.length];
+  return col ? { ...b, coat: col } : b;
+}
+
+/** A dog of the given breed from the side, centred on the middle of its body (the caller moves and flips the canvas). */
+function drawDogBody(ctx: Ctx, b: DogBreed, k: number, moving: boolean, carrying: boolean, mode: 'office' | 'beach' = 'office') {
+  const coat = b.coat;
+  const dark = shade(coat, -0.28);
+  const belly = b.belly ?? shade(coat, 0.3);
+  const mark = b.mark ?? dark;
+  const bx = 10.5 * b.len, by = 6.2 * b.depth;
+  const legH = 6.5 * b.leg;
+  // tail
+  ctx.strokeStyle = coat;
+  ctx.lineCap = 'round';
+  const wag = Math.sin(k * (mode === 'beach' ? 12 : 15));
+  if (b.tail === 'otter') {
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-bx + 1, -3); ctx.quadraticCurveTo(-bx - 4, -2 + wag * 1.4, -bx - 7, 0 + wag * 2); ctx.stroke();
+  } else if (b.tail === 'curl') {
+    ctx.lineWidth = 3.2;
+    ctx.beginPath(); ctx.moveTo(-bx + 1, -4); ctx.bezierCurveTo(-bx - 5, -7, -bx - 3, -14 + wag, -bx + 3, -11); ctx.stroke();
+  } else if (b.tail === 'stub') {
+    disc(ctx, -bx + 0.5, -4 + wag * 0.4, 2.1, coat);
+  } else {
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-bx + 1.5, -3); ctx.quadraticCurveTo(-bx - 4, -8 + wag * 3, -bx - 3, -12 + wag * 2); ctx.stroke();
+  }
+  // legs (the far pair a little darker)
+  for (const [lx, ph, far] of [[-bx * 0.57, 0, true], [-bx * 0.24, Math.PI, false], [bx * 0.38, Math.PI, true], [bx * 0.7, 0, false]] as const) {
+    const swing = moving ? Math.sin(k * 11 + ph) * (mode === 'beach' ? 3.4 : 2.6) : 0;
+    ctx.fillStyle = far ? shade(coat, -0.34) : (b.pattern === 'patches' || b.pattern === 'tricolor' || b.pattern === 'husky' ? belly : dark);
+    rr(ctx, lx - 1.4 + swing, 2 + (6.5 - legH) * 0.4, 2.8, legH - (moving && swing < 0 ? 1 : 0), 1.2);
+    ctx.fill();
+  }
+  // body
+  ellipse(ctx, 0, -1.5, bx, by, coat);
+  ellipse(ctx, 0, 1, bx * 0.76, by * 0.52, belly);
+  if (b.pattern === 'saddle') ellipse(ctx, -1, -4.4, bx * 0.66, by * 0.5, mark, 0);
+  if (b.pattern === 'tricolor') { ellipse(ctx, -1, -4.2, bx * 0.6, by * 0.5, '#1f2937'); ellipse(ctx, 4.5, -1, 3.6, 2.6, mark); }
+  if (b.pattern === 'patches') { ellipse(ctx, -2, -3.6, bx * 0.55, by * 0.55, coat); ellipse(ctx, bx * 0.6, 0.4, 3, 3.6, mark); }
+  if (b.pattern === 'husky') ellipse(ctx, -1, -4.8, bx * 0.82, by * 0.42, mark);
+  if (b.pattern === 'spots') { for (const [qx, qy, qr] of [[-6, -3, 1.9], [-2, -5, 1.4], [2, -2, 2], [6, -4, 1.5], [-4, 1, 1.3], [8, 0, 1.2], [0, 1.5, 1.1]] as const) disc(ctx, qx * b.len, qy, qr, mark); }
+  // head
+  const hs = b.head;
+  const hx = bx * 0.95;
+  disc(ctx, hx, -6.5, 5.4 * hs, coat);
+  if (b.pattern === 'husky') { ctx.fillStyle = mark; ctx.beginPath(); ctx.arc(hx, -6.5, 5.4 * hs, Math.PI * 1.05, Math.PI * 1.95); ctx.fill(); ellipse(ctx, hx + 2.6, -4.6, 3.4 * hs, 2.8 * hs, '#f8fafc'); }
+  if (b.pattern === 'mask') ellipse(ctx, hx + 3.2, -4.4, 3.8 * hs, 3.2 * hs, mark);
+  const snx = hx + 4.6 * b.snout * 0.9 + 0.4;
+  ellipse(ctx, snx, -4.8, 3.4 * b.snout, 2.4 * hs, b.pattern === 'mask' ? mark : shade(coat, 0.25));
+  disc(ctx, snx + 2.8 * b.snout, -5.2, 1.3, '#111827');
+  disc(ctx, hx + 1.8, -7.8, 1, b.eye ?? '#111827');
+  // ears
+  if (b.ear === 'prick' || b.ear === 'big') {
+    const eh = b.ear === 'big' ? 9 : 7;
+    ctx.fillStyle = b.pattern === 'saddle' || b.pattern === 'husky' ? mark : coat;
+    ctx.beginPath(); ctx.moveTo(hx - 3.6, -9); ctx.lineTo(hx - 1.4, -9 - eh); ctx.lineTo(hx + 1.6, -10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(coat, 0.3);
+    ctx.beginPath(); ctx.moveTo(hx - 2.8, -9.4); ctx.lineTo(hx - 1.4, -9 - eh * 0.7); ctx.lineTo(hx + 0.4, -10); ctx.closePath(); ctx.fill();
+  } else {
+    const long = b.ear === 'long' ? 1.5 : b.ear === 'rose' ? 0.55 : 1;
+    ellipse(ctx, hx - 2.4, -10.5 + (b.ear === 'long' ? 3 : 0) + Math.sin(k * 6) * 0.5, 2.4 * hs, 3.8 * long * hs, b.pattern === 'mask' || b.pattern === 'tricolor' || b.pattern === 'spots' ? mark : dark, 0.45);
+  }
+  // collar and tongue
+  ctx.fillStyle = '#dc2626';
+  rr(ctx, hx - 5.6, -6, 3, 6, 1.3);
+  ctx.fill();
+  if (moving) ellipse(ctx, snx + 0.8, -2.2, 1.4, 2 + Math.sin(k * 14) * 0.4, '#f472b6');
+  if (carrying) { disc(ctx, snx + 4.8, -2.5, 3.2, mode === 'beach' ? '#38bdf8' : '#d9f99d'); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(snx + 4.8, -2.5, 3.2, 0.4, 2.6); ctx.stroke(); }
+}
+
+/** A cat of the given breed, awake and walking, from the side. */
+function drawCatBody(ctx: Ctx, b: CatBreed, k: number, moving: boolean) {
+  const coat = b.coat;
+  const f = b.fluff;
+  const mark = b.mark ?? shade(coat, -0.3);
+  const point = b.pattern === 'points' ? mark : coat;
+  // the tail: long and thin, or a big plume for the fluffy breeds
+  ctx.strokeStyle = b.pattern === 'points' ? mark : coat;
+  ctx.lineWidth = (b.pattern === 'fluffy' ? 4.6 : 2.6);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-8 * f, -3);
+  ctx.quadraticCurveTo(-15 * f, -6 + Math.sin(k * 4) * 2, -13 * f, -15);
+  ctx.stroke();
+  if (b.pattern === 'tabby' || b.pattern === 'ginger') { ctx.strokeStyle = mark; ctx.lineWidth = 2.6; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(-8 * f, -3); ctx.quadraticCurveTo(-15 * f, -6 + Math.sin(k * 4) * 2, -13 * f, -15); ctx.stroke(); ctx.setLineDash([]); }
+  for (const [lx, ph] of [[-5.5, 0], [-2, Math.PI], [4, Math.PI], [7, 0]] as const) {
+    const sw = moving ? Math.sin(k * 12 + ph) * 2.4 : 0;
+    ctx.fillStyle = b.pattern === 'points' ? mark : b.pattern === 'tux' || b.pattern === 'calico' ? '#f8fafc' : shade(coat, -0.2);
+    rr(ctx, lx * f - 1.2 + sw, 2, 2.4, 6, 1);
+    ctx.fill();
+  }
+  ellipse(ctx, 0, -1.5, 9.5 * f, 5.2 * f, coat);
+  if (b.pattern === 'fluffy') { ellipse(ctx, 7, -1, 4 * f, 5 * f, shade(coat, 0.12)); }
+  if (b.pattern === 'tabby' || b.pattern === 'ginger') { ctx.strokeStyle = mark; ctx.lineWidth = 1.3; for (let q = -3; q <= 3; q++) { ctx.beginPath(); ctx.moveTo(q * 2.6, -5.8 * f); ctx.lineTo(q * 2.6 + 0.8, -1.5); ctx.stroke(); } }
+  if (b.pattern === 'tux') ellipse(ctx, 4, 1.4, 5, 3, '#f8fafc');
+  if (b.pattern === 'calico') { ellipse(ctx, -3, -3, 3.6, 2.4, '#f59e0b'); ellipse(ctx, 3, -1, 3, 2.4, '#1f2937'); }
+  // head
+  disc(ctx, 9 * f, -5, 4.6 * f, b.pattern === 'points' ? shade(coat, -0.05) : coat);
+  if (b.pattern === 'points') ellipse(ctx, 10.4 * f, -4.4, 3, 2.6, mark);
+  if (b.pattern === 'tux') ellipse(ctx, 11 * f, -3.8, 2.6, 2.4, '#f8fafc');
+  ctx.fillStyle = point;
+  ctx.beginPath();
+  ctx.moveTo(6 * f, -8.5); ctx.lineTo(7 * f, -13); ctx.lineTo(9.6 * f, -9);
+  ctx.moveTo(10 * f, -9); ctx.lineTo(12.4 * f, -12.6); ctx.lineTo(13 * f, -7.6);
+  ctx.fill();
+  disc(ctx, 11 * f, -5.8, 0.95, b.eye);
+  disc(ctx, 13.4 * f - (b.pattern === 'fluffy' ? 1.2 : 0), -4.2, 0.9, '#f472b6');
+}
+
+/** One breed drawn on its own, centred on (0, 0): for pickers and previews. */
+export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, t: number, moving = false) {
+  if (kind === 'dog') drawDogBody(ctx, DOG_BREEDS[index % DOG_BREEDS.length], t / 1000, moving, false);
+  else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
+}
+
+const WOODS = ['#c08a55', '#a9794a', '#8a5a33', '#e4c9a0'];
+
+function deskTop(ctx: Ctx, x: number, y: number, W: number, H: number, wood: string) {
+  softShadow(ctx, x, y, W, H, 6);
+  ctx.fillStyle = shade(wood, -0.35);
+  rr(ctx, x + 2, y + H * 0.55, W - 4, H * 0.45 - 1, 4);
+  ctx.fill();
+  ctx.fillStyle = vgrad(ctx, y + 3, y + H * 0.7, shade(wood, 0.18), wood);
+  rr(ctx, x + 1, y + 3, W - 2, H * 0.62, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(70,40,15,0.22)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x + 6, y + 3 + i * (H * 0.62) / 4); ctx.lineTo(x + W - 6, y + 3 + i * (H * 0.62) / 4); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  rr(ctx, x + 4, y + 4, W - 8, 2.2, 1);
+  ctx.fill();
+}
+
+/** A sit-stand desk: a white top on two steel legs, with a little height display. */
+function drawStandingDesk(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number, col: string | undefined) {
+  softShadow(ctx, x, y, W, H, 4);
+  ctx.fillStyle = '#94a3b8';
+  rr(ctx, x + 6, y + 15, 5, H - 17, 2); ctx.fill();
+  rr(ctx, x + W - 11, y + 15, 5, H - 17, 2); ctx.fill();
+  ctx.fillStyle = '#64748b';
+  rr(ctx, x + 2, y + H - 5, 16, 3, 1.5); ctx.fill();
+  rr(ctx, x + W - 18, y + H - 5, 16, 3, 1.5); ctx.fill();
+  ctx.fillStyle = vgrad(ctx, y + 3, y + 17, shade(col ?? '#e2e8f0', 0.2), col ?? '#cbd5e1');
+  rr(ctx, x + 1, y + 3, W - 2, 14, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  rr(ctx, x + 4, y + 4.5, W - 8, 2, 1); ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  rr(ctx, x + W - 22, y + 10, 14, 5, 1.5); ctx.fill();
+  ctx.fillStyle = '#4ade80';
+  ctx.font = '700 4.4px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(105 + Math.floor(seed * 20)) + 'cm', x + W - 15, y + 12.6);
+  const up = 0.5 + Math.sin(t / 2600 + seed * 6) * 0;
+  disc(ctx, x + 12, y + 10.5, 1.4 + up, '#38bdf8');
+}
+
+/** A big executive desk: dark leather top, a drawer pedestal on each side and a brass lamp. */
+function drawExecDesk(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined) {
+  const wood = col ?? '#7a4b2a';
+  softShadow(ctx, x, y, W, H, 8);
+  ctx.fillStyle = shade(wood, -0.3);
+  rr(ctx, x + 3, y + H * 0.38, 20, H * 0.6, 4); ctx.fill();
+  rr(ctx, x + W - 23, y + H * 0.38, 20, H * 0.6, 4); ctx.fill();
+  ctx.fillStyle = shade(wood, -0.1);
+  for (const dx of [5, W - 21]) for (let i = 0; i < 3; i++) { rr(ctx, x + dx, y + H * 0.42 + i * 11, 16, 9, 2); ctx.fill(); ctx.fillStyle = '#e4c36a'; ctx.fillRect(x + dx + 6, y + H * 0.42 + 3.5 + i * 11, 4, 1.6); ctx.fillStyle = shade(wood, -0.1); }
+  ctx.fillStyle = vgrad(ctx, y + 4, y + H * 0.5, shade(wood, 0.16), wood);
+  rr(ctx, x + 1, y + 4, W - 2, H * 0.46, 7); ctx.fill();
+  ctx.fillStyle = '#1f2a1f';
+  rr(ctx, x + W / 2 - 24, y + 9, 48, H * 0.3, 3); ctx.fill();
+  ctx.strokeStyle = '#d6b45a'; ctx.lineWidth = 1;
+  rr(ctx, x + W / 2 - 24, y + 9, 48, H * 0.3, 3); ctx.stroke();
+  ctx.fillStyle = '#d6b45a';
+  ctx.beginPath(); ctx.arc(x + W - 14, y + 13, 4.5, Math.PI, 0); ctx.fill();
+  ctx.fillRect(x + W - 15, y + 13, 2, 7);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; rr(ctx, x + 5, y + 6, W - 10, 2.4, 1); ctx.fill();
+  ctx.fillStyle = '#f8fafc'; rr(ctx, x + 12, y + 12, 10, 12, 1); ctx.fill();
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(x + 14, y + 15, 6, 1); ctx.fillRect(x + 14, y + 18, 6, 1); ctx.fillRect(x + 14, y + 21, 4, 1);
+}
+
+/** An L-shaped corner desk for two screens. */
+function drawCornerDesk(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined) {
+  const wood = col ?? '#b98a58';
+  softShadow(ctx, x, y, W, H, 6);
+  ctx.fillStyle = shade(wood, -0.38);
+  rr(ctx, x + 3, y + 8, W - 6, 14, 4); ctx.fill();
+  rr(ctx, x + 3, y + 8, 18, H - 12, 4); ctx.fill();
+  ctx.fillStyle = vgrad(ctx, y + 3, y + 20, shade(wood, 0.2), wood);
+  rr(ctx, x + 1, y + 3, W - 2, 16, 6); ctx.fill();
+  ctx.fillStyle = vgrad(ctx, y + 3, y + H, shade(wood, 0.12), wood);
+  rr(ctx, x + 1, y + 3, 20, H - 8, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  rr(ctx, x + 4, y + 4.5, W - 8, 2, 1); ctx.fill();
+  rr(ctx, x + 3.5, y + 6, 2, H - 16, 1); ctx.fill();
+  ctx.strokeStyle = 'rgba(70,40,15,0.2)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + 21, y + 4); ctx.lineTo(x + 21, y + 19); ctx.stroke();
+}
+
+/** One or two monitors on a stand with live charts on the screens. */
+function drawMonitors(ctx: Ctx, x: number, y: number, t: number, seed: number, n: 1 | 2) {
+  const screens = n === 2 ? [[x + 2, 14], [x + 18, 14]] : [[x + 2, 31]];
+  ctx.fillStyle = 'rgba(15,23,42,0.18)';
+  rr(ctx, x + 6, y + 20, 26, 4, 2); ctx.fill();
+  const tick = Math.floor(t / 900 + seed * 9);
+  screens.forEach(([sx, sw], k) => {
+    ctx.fillStyle = '#111827';
+    rr(ctx, sx, y + 3, sw, n === 2 ? 15 : 13, 2.5); ctx.fill();
+    ctx.fillStyle = vgrad(ctx, y + 4.5, y + 16, k ? '#0f766e' : '#1e3a8a', k ? '#0ea5e9' : '#6366f1');
+    rr(ctx, sx + 1.5, y + 4.5, sw - 3, n === 2 ? 12 : 10, 1.5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    const bars = Math.floor((sw - 6) / 3);
+    for (let i = 0; i < bars; i++) { const bh = 2 + h2(tick + k * 3, i + 1) * (n === 2 ? 8 : 6); ctx.fillRect(sx + 3 + i * 3, y + (n === 2 ? 15.5 : 13.5) - bh, 2, bh); }
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(sx + sw / 2 - 1, y + (n === 2 ? 18 : 16), 2, 3);
+  });
+  ctx.fillStyle = '#4b5563';
+  rr(ctx, x + 11, y + 20, 14, 2, 1); ctx.fill();
+  ctx.fillStyle = '#e5e7eb'; rr(ctx, x + 7, y + 24, 22, 4, 1.5); ctx.fill();
+}
+
+function boardFrame(ctx: Ctx, x: number, y: number, W: number, H: number, face: string) {
+  softShadow(ctx, x, y, W, H, 4);
+  ctx.fillStyle = '#64748b';
+  rr(ctx, x + 1, y + 1, W - 2, H - 4, 4); ctx.fill();
+  ctx.fillStyle = face;
+  rr(ctx, x + 4, y + 4, W - 8, H - 11, 3); ctx.fill();
+}
+
+/** A wall chart of sales: bars that grow in, a trend line and a target. */
+function drawBarChart(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  boardFrame(ctx, x, y, W, H, '#f8fafc');
+  const bx = x + 9, by = y + H - 13, bw = W - 18;
+  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(bx, by - 5 - i * 6); ctx.lineTo(bx + bw, by - 5 - i * 6); ctx.stroke(); }
+  const vals = [0.35, 0.5, 0.42, 0.7, 0.62, 0.9];
+  const grow = Math.min(1, ((t / 1000) % 9) / 1.4);
+  vals.forEach((v, i) => { ctx.fillStyle = i === 5 ? '#16a34a' : '#3b82f6'; const bh = v * 20 * grow; ctx.fillRect(bx + 2 + i * (bw / 6), by - bh, bw / 6 - 3, bh); });
+  ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1.5; ctx.beginPath();
+  vals.forEach((v, i) => { const px = bx + 2 + i * (bw / 6) + (bw / 12 - 1.5), py = by - v * 20 * grow - 2; if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+  ctx.stroke();
+  ctx.fillStyle = '#334155'; ctx.font = '700 5px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('SALES', x + 8, y + 9);
+}
+
+/** A team chart: a boss, a row of leads and their people. */
+function drawOrgChart(ctx: Ctx, x: number, y: number, W: number, H: number) {
+  boardFrame(ctx, x, y, W, H, '#fffbeb');
+  const box = (cx: number, cy: number, c: string) => { ctx.fillStyle = c; rr(ctx, cx - 6, cy - 3.5, 12, 7, 2); ctx.fill(); };
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+  const top = { x: x + W / 2, y: y + 11 };
+  const mid = [x + W * 0.25, x + W * 0.5, x + W * 0.75].map((cx) => ({ x: cx, y: y + 23 }));
+  ctx.beginPath(); ctx.moveTo(top.x, top.y + 4); ctx.lineTo(top.x, y + 17); ctx.moveTo(mid[0].x, y + 17); ctx.lineTo(mid[2].x, y + 17); mid.forEach((m) => { ctx.moveTo(m.x, y + 17); ctx.lineTo(m.x, m.y - 4); }); ctx.stroke();
+  box(top.x, top.y, '#6366f1');
+  mid.forEach((m, i) => box(m.x, m.y, ['#0ea5e9', '#10b981', '#f59e0b'][i]));
+  for (const m of mid) disc(ctx, m.x, y + 35, 2.4, '#94a3b8');
+}
+
+/** A world map with glowing pins where the team works. */
+function drawWorldMap(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  boardFrame(ctx, x, y, W, H, '#bfdbfe');
+  ctx.fillStyle = '#86b87c';
+  const land: [number, number, number, number][] = [[0.1, 0.25, 0.2, 0.28], [0.22, 0.58, 0.08, 0.2], [0.44, 0.2, 0.1, 0.18], [0.46, 0.42, 0.1, 0.3], [0.58, 0.2, 0.26, 0.26], [0.78, 0.6, 0.1, 0.12]];
+  for (const [lx, ly, lw, lh] of land) { ctx.beginPath(); ctx.ellipse(x + 5 + (W - 10) * (lx + lw / 2), y + 5 + (H - 14) * (ly + lh / 2), (W - 10) * lw / 2, (H - 14) * lh / 2, 0, 0, Math.PI * 2); ctx.fill(); }
+  const pins: [number, number, string][] = [[0.5, 0.5, '#ef4444'], [0.3, 0.32, '#f59e0b'], [0.72, 0.3, '#6366f1']];
+  pins.forEach(([px, py, c], i) => {
+    const cx = x + 5 + (W - 10) * px, cy = y + 5 + (H - 14) * py;
+    const pulse = ((t / 1400 + i * 0.3) % 1);
+    ctx.strokeStyle = c; ctx.globalAlpha = 1 - pulse; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cx, cy, 2 + pulse * 7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+    disc(ctx, cx, cy, 2.2, c);
+  });
+}
+
+/** A task board: three columns of sticky notes. */
+function drawKanban(ctx: Ctx, x: number, y: number, W: number, H: number, seed: number) {
+  boardFrame(ctx, x, y, W, H, '#f1f5f9');
+  const cw = (W - 14) / 3;
+  const heads = ['#94a3b8', '#3b82f6', '#16a34a'];
+  for (let c = 0; c < 3; c++) {
+    ctx.fillStyle = heads[c]; rr(ctx, x + 6 + c * cw, y + 6, cw - 3, 4, 1.5); ctx.fill();
+    const n = 3 - c + (Math.floor(seed * 10) % 2);
+    for (let i = 0; i < Math.min(3, n); i++) { ctx.fillStyle = ['#fde047', '#fb7185', '#7dd3fc', '#86efac'][(c + i) % 4]; ctx.fillRect(x + 7 + c * cw, y + 12 + i * 8, cw - 5, 6.4); }
+  }
+}
+
+/** Flowers and a big leaf plant in a pot: each a different, hand-drawn shape. */
+function drawBloom(ctx: Ctx, kind: string, x: number, y: number, W: number, H: number, t: number, seed: number, col: string | undefined) {
+  const cx = x + W / 2, base = y + H - 5;
+  const sway = Math.sin(t / 1100 + seed * 6) * 1.2;
+  ellipse(ctx, cx + 2, base + 1, 11, 4, 'rgba(30,20,10,0.25)');
+  const pot = col ?? (kind === 'orchid' ? '#f8fafc' : kind === 'monstera' ? '#334155' : '#c2703d');
+  ctx.fillStyle = shade(pot, -0.2); rr(ctx, cx - 7, base - 9, 14, 10, 2.5); ctx.fill();
+  ctx.fillStyle = pot; rr(ctx, cx - 8, base - 11, 16, 4, 2); ctx.fill();
+  ctx.fillStyle = '#5b3a1e'; ctx.fillRect(cx - 6, base - 11, 12, 1.6);
+  const stem = (sx: number, sy: number, ex: number, ey: number) => { ctx.strokeStyle = '#3f8f4a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx + (ex - sx) * 0.2, sy - (sy - ey) * 0.6, ex + sway * 0.4, ey); ctx.stroke(); };
+  if (kind === 'sunflowers') {
+    for (const [dx, hgt, r] of [[-6, 20, 6], [0, 26, 7], [6, 18, 5.5]] as const) {
+      const ex = cx + dx + sway * 0.6, ey = base - 11 - hgt;
+      stem(cx + dx * 0.4, base - 11, ex, ey);
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.ellipse(ex + Math.cos(a) * r * 0.85, ey + Math.sin(a) * r * 0.85, r * 0.5, r * 0.22, a, 0, Math.PI * 2); ctx.fill(); }
+      disc(ctx, ex, ey, r * 0.55, '#6b3f16'); disc(ctx, ex - 1, ey - 1, r * 0.22, '#8a5a2a');
+    }
+  } else if (kind === 'orchid') {
+    stem(cx, base - 11, cx + 5 + sway, base - 32);
+    for (let i = 0; i < 4; i++) { const px = cx + 1 + i * 1.6 + sway * (i / 4), py = base - 18 - i * 5; for (const a of [0, 1.26, 2.5, 3.8, 5.0]) { ctx.fillStyle = i % 2 ? '#e879f9' : '#f0abfc'; ctx.beginPath(); ctx.ellipse(px + Math.cos(a) * 3.2, py + Math.sin(a) * 3.2, 3, 1.8, a, 0, Math.PI * 2); ctx.fill(); } disc(ctx, px, py, 1.4, '#fde047'); }
+    ctx.fillStyle = '#2f8a46'; ctx.beginPath(); ctx.ellipse(cx - 7, base - 15, 7, 2.4, -0.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(cx + 8, base - 14, 7, 2.4, 0.5, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === 'lavender') {
+    for (let i = 0; i < 9; i++) { const dx = (i - 4) * 2.1, ex = cx + dx * 1.4 + sway * (0.4 + (i % 3) * 0.2), ey = base - 24 - (i % 3) * 3; stem(cx + dx * 0.5, base - 11, ex, ey); for (let k = 0; k < 6; k++) { ctx.fillStyle = k % 2 ? '#a78bfa' : '#8b5cf6'; ctx.beginPath(); ctx.ellipse(ex + (k % 2 ? 1 : -1) * 0.8, ey + k * 2.1, 1.5, 1.2, 0, 0, Math.PI * 2); ctx.fill(); } }
+  } else if (kind === 'tulips') {
+    for (const [dx, hgt, c] of [[-6, 18, '#ef4444'], [0, 24, '#f472b6'], [6, 17, '#fbbf24']] as const) {
+      const ex = cx + dx + sway * 0.5, ey = base - 11 - hgt;
+      stem(cx + dx * 0.4, base - 11, ex, ey);
+      ctx.fillStyle = shade(c, -0.18); ctx.beginPath(); ctx.ellipse(ex, ey + 1, 4.4, 5.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(ex - 4, ey + 1); ctx.lineTo(ex - 2.6, ey - 5); ctx.lineTo(ex, ey - 1.5); ctx.lineTo(ex + 2.6, ey - 5); ctx.lineTo(ex + 4, ey + 1); ctx.quadraticCurveTo(ex, ey + 6, ex - 4, ey + 1); ctx.fill();
+    }
+  } else {
+    // monstera: big glossy split leaves
+    for (const [dx, hgt, r, rot] of [[-7, 14, 9, -0.5], [7, 17, 10, 0.5], [0, 26, 11, 0]] as const) {
+      const ex = cx + dx + sway * 0.7, ey = base - 11 - hgt;
+      stem(cx + dx * 0.3, base - 11, ex, ey);
+      ctx.save(); ctx.translate(ex, ey); ctx.rotate(rot + sway * 0.03);
+      ctx.fillStyle = '#237a43'; ctx.beginPath(); ctx.ellipse(0, -2, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#34a85a'; ctx.beginPath(); ctx.ellipse(-1, -3, r * 0.75, r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#17572f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(0, -9); ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.0)';
+      for (const a of [-0.9, -0.3, 0.3, 0.9]) { ctx.fillStyle = '#e8f1e0'; ctx.beginPath(); ctx.ellipse(Math.sin(a) * r * 0.9, -2 + Math.cos(a) * 0.2 * r, 1.4, 2.6, a, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
+  }
+}
+
+function drawFileCabinet(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined) {
+  const c = col ?? '#94a3b8';
+  softShadow(ctx, x, y, W, H, 4);
+  ctx.fillStyle = shade(c, -0.25); rr(ctx, x + 6, y + 4, W - 12, H - 6, 3); ctx.fill();
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = vgrad(ctx, y + 6 + i * 9, y + 14 + i * 9, shade(c, 0.15), c); rr(ctx, x + 8, y + 6 + i * 9.4, W - 16, 8.4, 2); ctx.fill();
+    ctx.fillStyle = '#1e293b'; rr(ctx, x + W / 2 - 4, y + 9.4 + i * 9.4, 8, 2.2, 1); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(x + W / 2 - 3, y + 7.2 + i * 9.4, 6, 1.6);
+  }
+}
+
+/** Table football: a green pitch with rods of little players that slide back and forth. */
+function drawFoosball(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  softShadow(ctx, x, y, W, H, 5);
+  ctx.fillStyle = '#7c4a21'; rr(ctx, x + 1, y + 4, W - 2, H - 7, 5); ctx.fill();
+  ctx.fillStyle = '#2f9e44'; rr(ctx, x + 5, y + 8, W - 10, H - 16, 3); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x + 8, y + 10.5, W - 16, H - 21);
+  ctx.beginPath(); ctx.moveTo(x + W / 2, y + 10.5); ctx.lineTo(x + W / 2, y + H - 10.5); ctx.stroke();
+  for (let i = 0; i < 4; i++) {
+    const rx = x + 14 + i * ((W - 28) / 3);
+    const slide = Math.sin(t / 700 + i * 1.7 + seed * 5) * 3.4;
+    ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(rx, y + 3); ctx.lineTo(rx, y + H - 4); ctx.stroke();
+    for (let k = 0; k < 3; k++) { ctx.fillStyle = i % 2 ? '#3b82f6' : '#ef4444'; ctx.fillRect(rx - 1.6, y + 12 + k * 7 + slide, 3.2, 4.6); }
+  }
+  const bx = x + W / 2 + Math.sin(t / 900) * 9, by = y + H / 2 + Math.cos(t / 620 + seed) * 2.2;
+  disc(ctx, bx, by, 1.6, '#fff');
+  ctx.fillStyle = '#111827'; rr(ctx, x + W - 4, y + H / 2 - 3, 4, 6, 1); ctx.fill(); rr(ctx, x, y + H / 2 - 3, 4, 6, 1); ctx.fill();
+}
+
+/** A table-tennis table with a net and a ball flying back and forth. */
+function drawTableTennis(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  softShadow(ctx, x, y, W, H, 7);
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(x + 8, y + H - 10, 3, 8); ctx.fillRect(x + W - 11, y + H - 10, 3, 8);
+  ctx.fillStyle = vgrad(ctx, y + 6, y + H - 8, '#1d4ed8', '#1e40af'); rr(ctx, x + 3, y + 6, W - 6, H - 15, 5); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; rr(ctx, x + 6, y + 9, W - 12, H - 21, 3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 6, y + (H - 9) / 2 + 1); ctx.lineTo(x + W - 6, y + (H - 9) / 2 + 1); ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x + W / 2 - 0.8, y + 4, 1.6, H - 12);
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(x + W / 2 - 2.5, y + 4, 5, H - 12);
+  const ph = (t / 800) % 2, u = ph < 1 ? ph : 2 - ph;
+  const bx = x + 14 + u * (W - 28), arc = Math.sin(u * Math.PI) * 7;
+  ellipse(ctx, bx, y + H / 2 + 1, 2, 1, 'rgba(0,0,0,0.25)'); disc(ctx, bx, y + H / 2 - arc, 2, '#fb923c');
+}
+
+/** A soundproof phone booth with a frosted glass door and a "busy" light. */
+function drawPhoneBooth(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, col: string | undefined) {
+  const c = col ?? '#334155';
+  softShadow(ctx, x, y, W, H, 6);
+  ctx.fillStyle = shade(c, -0.25); rr(ctx, x + 3, y + 2, W - 6, H - 4, 6); ctx.fill();
+  ctx.fillStyle = c; rr(ctx, x + 3, y + 2, W - 6, 10, 5); ctx.fill();
+  ctx.fillStyle = vgrad(ctx, y + 14, y + H - 6, 'rgba(186,230,253,0.85)', 'rgba(125,180,220,0.7)'); rr(ctx, x + 7, y + 14, W - 14, H - 22, 4); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 11, y + 20); ctx.lineTo(x + 17, y + 14); ctx.moveTo(x + 11, y + 30); ctx.lineTo(x + 24, y + 16); ctx.stroke();
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(x + W - 12, y + H * 0.55, 2, 8);
+  const on = Math.floor(t / 900) % 5 !== 0;
+  disc(ctx, x + W / 2, y + 7, 2.2, on ? '#22c55e' : '#166534');
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '700 4.6px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('QUIET', x + W / 2, y + H - 5);
+}
+
+/** An arcade cabinet with a glowing, changing screen and a joystick. */
+function drawArcade(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  softShadow(ctx, x, y, W, H, 4);
+  const body = ['#7c3aed', '#dc2626', '#0ea5e9'][Math.floor(seed * 3)];
+  ctx.fillStyle = shade(body, -0.25); rr(ctx, x + 6, y - 6, W - 12, H + 2, 4); ctx.fill();
+  ctx.fillStyle = body; rr(ctx, x + 8, y - 6, W - 16, H, 4); ctx.fill();
+  const hue = Math.floor(t / 400 + seed * 9) % 4;
+  ctx.fillStyle = '#0b1020'; rr(ctx, x + 11, y - 2, W - 22, 13, 2); ctx.fill();
+  const g = ctx.createLinearGradient(0, y - 2, 0, y + 11);
+  g.addColorStop(0, ['#22d3ee', '#a3e635', '#f472b6', '#fbbf24'][hue]); g.addColorStop(1, '#312e81');
+  ctx.fillStyle = g; rr(ctx, x + 12.5, y - 0.5, W - 25, 10, 1.5); ctx.fill();
+  ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) ctx.fillRect(x + 15 + h2(hue, i) * 10, y + 1.5 + i * 2, 2, 1.2);
+  ctx.fillStyle = '#111827'; rr(ctx, x + 9, y + 13, W - 18, 8, 2); ctx.fill();
+  disc(ctx, x + 15, y + 17, 2.4, '#ef4444'); ctx.fillStyle = '#e5e7eb'; ctx.fillRect(x + 14.4, y + 14, 1.2, 3);
+  disc(ctx, x + W - 17, y + 17, 1.6, '#fde047'); disc(ctx, x + W - 12, y + 16, 1.6, '#60a5fa');
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '700 4px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('PLAY', x + W / 2, y + 25);
+}
+
+/** A tall pine tree: layered dark boughs that sway a little in the wind. */
+function drawPine(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2;
+  const base = y + H - 4;
+  ellipse(ctx, cx + 3, base, W * 0.42, 5, 'rgba(15,40,20,0.3)');
+  ctx.fillStyle = '#6b4423';
+  rr(ctx, cx - 3.4, base - 17, 6.8, 16, 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(cx + 0.8, base - 17, 2.6, 16);
+  const tiers = 4;
+  for (let k = 0; k < tiers; k++) {
+    const top = y + 3 + k * ((H - 26) / tiers);
+    const bot = y + 15 + k * ((H - 26) / tiers) + (H - 26) / tiers * 0.9;
+    const half = W * 0.26 + k * ((W * 0.5 - W * 0.26) / (tiers - 1)) + 1;
+    const sway = Math.sin(t / 1500 + seed * 6 + k * 0.5) * (0.6 + k * 0.35);
+    const g = ctx.createLinearGradient(cx - half, 0, cx + half, 0);
+    g.addColorStop(0, '#2f7d4a'); g.addColorStop(0.5, '#1f6137'); g.addColorStop(1, '#15492a');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(cx + sway * 0.4, top);
+    ctx.quadraticCurveTo(cx + half * 0.6 + sway, (top + bot) / 2, cx + half + sway, bot);
+    ctx.quadraticCurveTo(cx + sway, bot - 5, cx - half + sway, bot);
+    ctx.quadraticCurveTo(cx - half * 0.6 + sway, (top + bot) / 2, cx + sway * 0.4, top);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,240,180,0.28)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - half * 0.3 + sway, top + 6);
+    ctx.lineTo(cx - half * 0.8 + sway, bot - 3);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#92400e';
+  for (const [px, py] of [[-6, 0.62], [5, 0.78]] as const) { ctx.beginPath(); ctx.ellipse(cx + px, y + H * py, 1.6, 2.4, 0.3, 0, Math.PI * 2); ctx.fill(); }
+}
+
+/** A campfire: a ring of stones, crossed logs, flames that flicker, sparks, smoke and a glow on the ground. */
+function drawCampfire(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2, cy = y + H / 2 + 5;
+  const sec = t / 1000;
+  const flick = 0.85 + Math.sin(sec * 11 + seed) * 0.08 + Math.sin(sec * 17.3) * 0.07;
+  const glow = ctx.createRadialGradient(cx, cy - 4, 2, cx, cy - 4, 56 * flick);
+  glow.addColorStop(0, 'rgba(255,170,60,0.45)');
+  glow.addColorStop(0.5, 'rgba(255,120,30,0.16)');
+  glow.addColorStop(1, 'rgba(255,100,20,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(cx, cy - 4, 56 * flick, 0, Math.PI * 2); ctx.fill();
+  ellipse(ctx, cx, cy + 1, 21, 10, 'rgba(30,20,10,0.55)');
+  ellipse(ctx, cx, cy, 17, 8, '#2b1f16');
+  // stones round the edge
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const sx = cx + Math.cos(a) * 18, sy = cy + Math.sin(a) * 8.4;
+    ellipse(ctx, sx + 0.8, sy + 1.4, 4.2, 2.8, 'rgba(0,0,0,0.3)');
+    ellipse(ctx, sx, sy, 4, 2.9, i % 2 ? '#9ca3af' : '#78716c');
+    ellipse(ctx, sx - 1, sy - 0.8, 2, 1.1, 'rgba(255,255,255,0.35)');
+  }
+  // the logs
+  ctx.lineCap = 'round';
+  for (const [ang, col2] of [[-0.45, '#6b4423'], [0.5, '#7c5230'], [1.55, '#5a381c']] as const) {
+    ctx.save();
+    ctx.translate(cx, cy - 1);
+    ctx.rotate(ang);
+    ctx.fillStyle = col2; rr(ctx, -14, -2.6, 28, 5.2, 2.6); ctx.fill();
+    ctx.fillStyle = '#b98a58'; ctx.beginPath(); ctx.ellipse(14, 0, 1.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,140,40,0.55)'; rr(ctx, -9, -2.2, 18, 2, 1); ctx.fill();
+    ctx.restore();
+  }
+  // glowing embers
+  for (let i = 0; i < 6; i++) { const e = (Math.sin(sec * 3 + i * 2.1) + 1) / 2; disc(ctx, cx + (i - 2.5) * 4.4, cy - 1 + Math.sin(i * 3) * 2, 1.4, `rgba(255,${120 + e * 100},40,${0.6 + e * 0.4})`); }
+  // flames: tall tongues of orange, yellow and a pale heart
+  for (let i = 0; i < 6; i++) {
+    const fx = cx + (i - 2.5) * 3.8;
+    const hgt = (14 + Math.sin(sec * 9 + i * 1.9 + seed * 3) * 5 + Math.sin(sec * 15 + i) * 2.5) * (1 - Math.abs(i - 2.5) * 0.12);
+    const lean = Math.sin(sec * 5 + i * 1.3) * 2.2;
+    for (const [sc, col3] of [[1, '#f97316'], [0.7, '#fbbf24'], [0.4, '#fef9c3']] as const) {
+      ctx.fillStyle = col3;
+      ctx.beginPath();
+      ctx.moveTo(fx - 3.2 * sc, cy - 2);
+      ctx.quadraticCurveTo(fx - 3 * sc + lean * 0.4, cy - 2 - hgt * sc * 0.6, fx + lean * sc, cy - 2 - hgt * sc);
+      ctx.quadraticCurveTo(fx + 3 * sc + lean * 0.4, cy - 2 - hgt * sc * 0.6, fx + 3.2 * sc, cy - 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  // sparks drifting up
+  for (let i = 0; i < 9; i++) {
+    const ph = ((sec * 0.7 + i * 0.113 + seed) % 1);
+    const sx = cx + Math.sin(i * 2.7 + sec * 1.6) * (6 + ph * 10);
+    const sy = cy - 12 - ph * 42;
+    ctx.fillStyle = `rgba(255,${190 - ph * 80},60,${1 - ph})`;
+    ctx.fillRect(sx, sy, 1.6, 1.6);
+  }
+  // smoke curling up and thinning out
+  for (let i = 0; i < 5; i++) {
+    const ph = ((sec * 0.22 + i / 5) % 1);
+    ctx.fillStyle = `rgba(120,120,125,${(0.16 * (1 - ph)).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(cx + Math.sin(sec + i * 2) * (4 + ph * 12), cy - 24 - ph * 46, 4 + ph * 10, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** A log to sit on, lying on its side with rings at the ends, bark and a little moss. */
+function drawLog(ctx: Ctx, x: number, y: number, W: number, H: number, seed: number) {
+  const cy = y + H / 2 + 2;
+  ellipse(ctx, x + W / 2 + 2, cy + 9, W * 0.46, 4.2, 'rgba(30,20,10,0.28)');
+  const g = ctx.createLinearGradient(0, cy - 9, 0, cy + 9);
+  g.addColorStop(0, '#8b5e34'); g.addColorStop(0.5, '#6b4423'); g.addColorStop(1, '#4a2f17');
+  ctx.fillStyle = g;
+  rr(ctx, x + 5, cy - 9, W - 10, 17, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(30,15,5,0.35)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) { const bx = x + 12 + i * ((W - 28) / 5) + (i % 2) * 3; ctx.beginPath(); ctx.moveTo(bx, cy - 8); ctx.quadraticCurveTo(bx + 2, cy, bx - 1, cy + 7); ctx.stroke(); }
+  for (const ex of [x + 6, x + W - 6]) {
+    ellipse(ctx, ex, cy, 4.2, 8.4, '#d8b98a');
+    ctx.strokeStyle = '#9a7648'; ctx.lineWidth = 0.8;
+    for (let r = 1; r <= 3; r++) { ctx.beginPath(); ctx.ellipse(ex, cy, r * 1.3, r * 2.6, 0, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  ctx.fillStyle = 'rgba(80,140,50,0.8)';
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(x + 16 + i * 14 + grain(seed, i) * 5, cy - 8, 4 + (i % 2), 1.8, 0, 0, Math.PI * 2); ctx.fill(); }
+}
+
+function drawStump(ctx: Ctx, x: number, y: number, W: number, H: number) {
+  const cx = x + W / 2, cy = y + H / 2;
+  ellipse(ctx, cx + 2, cy + 11, 13, 4.4, 'rgba(30,20,10,0.28)');
+  ctx.fillStyle = '#6b4423';
+  rr(ctx, cx - 11, cy - 2, 22, 13, 4);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(30,15,5,0.3)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(cx - 8 + i * 5, cy); ctx.lineTo(cx - 8 + i * 5 - 1, cy + 9); ctx.stroke(); }
+  ellipse(ctx, cx, cy - 2, 11.5, 6, '#d8b98a');
+  ctx.strokeStyle = '#a07a52'; ctx.lineWidth = 0.9;
+  for (let r = 1; r <= 4; r++) { ctx.beginPath(); ctx.ellipse(cx, cy - 2, r * 2.6, r * 1.3, 0, 0, Math.PI * 2); ctx.stroke(); }
+}
+
+/** A camping tent with its door flap open, pegs and guy ropes. */
+function drawTent(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined, t: number) {
+  const main = col ?? '#f97316';
+  const cx = x + W / 2, base = y + H - 5;
+  ellipse(ctx, cx + 4, base + 1, W * 0.46, 6, 'rgba(20,40,20,0.3)');
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 0.9;
+  for (const [sx, ex] of [[cx - W * 0.4, x + 1], [cx + W * 0.4, x + W - 1]] as const) { ctx.beginPath(); ctx.moveTo(sx, y + H * 0.55); ctx.lineTo(ex, base + 1); ctx.stroke(); ctx.fillStyle = '#6b7280'; ctx.fillRect(ex - 1, base, 2, 3); }
+  // the roof: two slopes meeting at a ridge
+  ctx.fillStyle = shade(main, -0.22);
+  ctx.beginPath(); ctx.moveTo(cx, y + 6); ctx.lineTo(cx + W * 0.44, base - 1); ctx.lineTo(cx + W * 0.08, base - 1); ctx.closePath(); ctx.fill();
+  const g = ctx.createLinearGradient(cx - W * 0.44, 0, cx, 0);
+  g.addColorStop(0, shade(main, 0.18)); g.addColorStop(1, main);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(cx, y + 6); ctx.lineTo(cx - W * 0.44, base - 1); ctx.lineTo(cx + W * 0.08, base - 1); ctx.closePath(); ctx.fill();
+  // the door: a dark opening with the flap pulled back
+  ctx.fillStyle = '#1c1917';
+  ctx.beginPath(); ctx.moveTo(cx - 1, y + 14); ctx.lineTo(cx + W * 0.2, base - 1); ctx.lineTo(cx - W * 0.16, base - 1); ctx.closePath(); ctx.fill();
+  const flap = Math.sin(t / 1100) * 0.8;
+  ctx.fillStyle = shade(main, 0.1);
+  ctx.beginPath(); ctx.moveTo(cx - 1, y + 14); ctx.lineTo(cx - W * 0.16 + flap, base - 1); ctx.lineTo(cx - W * 0.28 + flap, base - 1); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, y + 6); ctx.lineTo(cx, y + 14); ctx.stroke();
+  // a sleeping bag peeking out
+  ctx.fillStyle = '#2563eb';
+  rr(ctx, cx - 6, base - 6, 13, 5, 2.5); ctx.fill();
+}
+
+function drawMushrooms(ctx: Ctx, x: number, y: number, W: number, H: number, seed: number) {
+  const cx = x + W / 2, by = y + H - 8;
+  for (const [dx, dy, s] of [[-7, 1, 0.9], [2, -1, 1.2], [8, 3, 0.75]] as const) {
+    const mx = cx + dx, my = by + dy;
+    ellipse(ctx, mx + 1, my + 2, 5 * s, 1.8, 'rgba(20,40,20,0.25)');
+    ctx.fillStyle = '#f5ecd6';
+    rr(ctx, mx - 1.8 * s, my - 6 * s, 3.6 * s, 7 * s, 1.6);
+    ctx.fill();
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath(); ctx.ellipse(mx, my - 6 * s, 6 * s, 4.4 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (const [qx, qy] of [[-2.6, -8], [1.4, -9], [3.4, -6.6]] as const) disc(ctx, mx + qx * s, my + qy * s * 0.95 + (seed > 0.5 ? 0 : 0.4), 0.9 * s, '#fff');
+  }
+}
+
+function drawFirewood(ctx: Ctx, x: number, y: number, W: number, H: number) {
+  const cx = x + W / 2, by = y + H - 6;
+  ellipse(ctx, cx + 2, by + 2, 14, 4.4, 'rgba(30,20,10,0.28)');
+  const logs: [number, number][] = [[-9, 0], [-3, 0], [3, 0], [9, 0], [-6, -6], [0, -6], [6, -6], [-3, -12], [3, -12]];
+  for (const [lx, ly] of logs) {
+    ctx.fillStyle = '#6b4423'; rr(ctx, cx + lx - 3.4, by + ly - 3.2, 6.8, 7, 3.2); ctx.fill();
+    ellipse(ctx, cx + lx, by + ly, 2.6, 2.6, '#d8b98a');
+    ctx.strokeStyle = '#a07a52'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(cx + lx, by + ly, 1.3, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+/** A hanging camp lantern with a flickering glow. */
+function drawLantern(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2, cy = y + H / 2;
+  const fl = 0.8 + Math.sin(t / 130 + seed * 9) * 0.1 + Math.sin(t / 53) * 0.06;
+  const g = ctx.createRadialGradient(cx, cy - 4, 1, cx, cy - 4, 34 * fl);
+  g.addColorStop(0, 'rgba(255,210,120,0.5)');
+  g.addColorStop(1, 'rgba(255,190,90,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy - 4, 34 * fl, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(cx, y + 2); ctx.lineTo(cx, cy - 9); ctx.stroke();
+  ctx.fillStyle = '#334155'; rr(ctx, cx - 5, cy - 9, 10, 3, 1); ctx.fill();
+  ctx.fillStyle = `rgba(254,240,138,${0.85 * fl})`; rr(ctx, cx - 4, cy - 6, 8, 11, 2); ctx.fill();
+  ctx.fillStyle = '#334155'; rr(ctx, cx - 5, cy + 4, 10, 3, 1); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - 1, cy - 4, 2, 6);
+}
+
+/** A coffee and snack bar: a wooden counter with an espresso machine (steaming), cups, jars and a tray of pastries. */
+function drawCoffeeBar(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const sec = t / 1000;
+  softShadow(ctx, x, y, W, H, 5);
+  // the back shelf with jars
+  ctx.fillStyle = '#5a3a22';
+  rr(ctx, x + 2, y + 2, W - 4, 13, 3);
+  ctx.fill();
+  for (let i = 0; i < 7; i++) { ctx.fillStyle = ['#f59e0b', '#a16207', '#f8fafc', '#d97706'][i % 4]; rr(ctx, x + 8 + i * ((W - 24) / 6.4), y + 4, 8, 9, 2); ctx.fill(); ctx.fillStyle = '#e2e8f0'; ctx.fillRect(x + 8 + i * ((W - 24) / 6.4), y + 3, 8, 2); }
+  // the counter
+  const wg = ctx.createLinearGradient(0, y + 15, 0, y + H);
+  wg.addColorStop(0, '#b98a58'); wg.addColorStop(0.35, '#a9794a'); wg.addColorStop(1, '#7a4e2a');
+  ctx.fillStyle = wg;
+  rr(ctx, x + 1, y + 15, W - 2, H - 16, 4);
+  ctx.fill();
+  ctx.fillStyle = '#e8d3a8';
+  rr(ctx, x, y + 14, W, 6, 3);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(60,35,15,0.3)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x + i * (W / 6), y + 21); ctx.lineTo(x + i * (W / 6), y + H - 3); ctx.stroke(); }
+  // the espresso machine with steam
+  const mx = x + 16;
+  ctx.fillStyle = '#cbd5e1'; rr(ctx, mx, y + 2, 28, 14, 3); ctx.fill();
+  ctx.fillStyle = '#94a3b8'; rr(ctx, mx + 2, y + 10, 24, 5, 2); ctx.fill();
+  ctx.fillStyle = '#334155'; rr(ctx, mx + 5, y + 4, 6, 4, 1); ctx.fill();
+  disc(ctx, mx + 22, y + 6, 2.4, '#ef4444');
+  for (let i = 0; i < 3; i++) { const ph = ((sec * 0.6 + i / 3) % 1); ctx.fillStyle = `rgba(255,255,255,${0.4 * (1 - ph)})`; ctx.beginPath(); ctx.arc(mx + 9 + Math.sin(sec * 2 + i) * 2, y - 2 - ph * 14, 2.5 + ph * 3.5, 0, Math.PI * 2); ctx.fill(); }
+  // cups and a pastry tray
+  for (const cxp of [x + 58, x + 66]) { ctx.fillStyle = '#f8fafc'; rr(ctx, cxp, y + 12, 6, 6, 2); ctx.fill(); ctx.fillStyle = '#7c4a21'; ctx.fillRect(cxp + 1, y + 12.6, 4, 1.2); }
+  ctx.fillStyle = 'rgba(186,230,253,0.55)'; rr(ctx, x + W - 52, y + 8, 38, 11, 4); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1; ctx.stroke();
+  for (let i = 0; i < 4; i++) { ctx.fillStyle = ['#d97706', '#b45309', '#fbbf24', '#92400e'][i]; ctx.beginPath(); ctx.ellipse(x + W - 46 + i * 9, y + 15, 4, 3, 0.3, Math.PI, 0); ctx.fill(); }
+  // the menu board on the front
+  ctx.fillStyle = '#1f2937'; rr(ctx, x + W / 2 - 20, y + 24, 40, 11, 2); ctx.fill();
+  ctx.fillStyle = '#f8fafc'; ctx.font = '700 6.5px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('COFFEE  SNACKS', x + W / 2, y + 29.6);
+}
+
+/** A butterfly with beating wings. */
+function drawButterfly(ctx: Ctx, bx: number, by: number, t: number, i: number) {
+  const flap = Math.abs(Math.sin(t / (85 + i * 14) + i * 2));
+  const main = ['#f97316', '#38bdf8', '#e879f9', '#facc15'][i % 4];
+  ctx.save();
+  ctx.translate(bx, by);
+  for (const sgn of [-1, 1]) {
+    ctx.fillStyle = main;
+    ctx.beginPath(); ctx.ellipse(sgn * (1 + 3 * flap), -1.6, 0.8 + 3.6 * flap, 3.3, sgn * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = shade(main, -0.2);
+    ctx.beginPath(); ctx.ellipse(sgn * (0.8 + 2.2 * flap), 2, 0.6 + 2.4 * flap, 2.4, -sgn * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    disc(ctx, sgn * (1.4 + 2.4 * flap), -2.4, 0.7, 'rgba(255,255,255,0.7)');
+  }
+  ctx.fillStyle = '#1f2937';
+  rr(ctx, -0.6, -3.6, 1.2, 7, 0.6);
+  ctx.fill();
+  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(0, -3.6); ctx.lineTo(-1.6, -6); ctx.moveTo(0, -3.6); ctx.lineTo(1.6, -6); ctx.stroke();
+  ctx.restore();
+}
+
+/** A small dog drawn from the side (used by the beach scene). */
+function drawBeachDog(ctx: Ctx, dx: number, dy: number, face: 1 | -1, run: number, carrying: boolean, breed: DogBreed) {
+  ellipse(ctx, dx, dy + 9, 11 * breed.len, 3.4, 'rgba(70,50,25,0.25)');
+  ctx.save();
+  ctx.translate(dx, dy - 1 - Math.abs(Math.sin(run * 2)) * 1.4 * (run ? 1 : 0));
+  ctx.scale(face, 1);
+  drawDogBody(ctx, breed, run / 2.4 + 1, run !== 0, carrying, 'beach');
+  ctx.restore();
+}
+
+/** A dog and a beach ball: it chases the thrown ball, brings it back, and waits for the next throw. */
+function drawDogBall(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const sec = t / 1000;
+  const p = ((sec + seed * 5) % 7.5) / 7.5;
+  const x0 = x + 14, x1 = x + W - 18, gy = y + H - 14;
+  const breed = dogBreed(undefined, seed);
+  let dogX = x0, face: 1 | -1 = 1, run = 0, carrying = false, ballX = x0 + 8, ballY = gy, rot = 0;
+  const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
+  if (p < 0.14) { // the throw: the ball flies out in an arc
+    const u = p / 0.14; ballX = lerp(x0 + 8, x1, u); ballY = gy - Math.sin(Math.PI * u) * 24; rot = u * 8; dogX = x0; run = 0;
+  } else if (p < 0.5) { // the dog races after it while it bounces to a stop
+    const u = (p - 0.14) / 0.36; dogX = lerp(x0, x1 - 6, Math.min(1, u * 1.15)); run = sec * 14; ballX = x1 + Math.min(1, u * 2) * 8; ballY = gy - Math.abs(Math.sin(u * 9)) * 6 * (1 - u); rot = 8 + u * 4;
+  } else if (p < 0.56) { // picks it up
+    dogX = x1 - 6; ballX = x1 + 8; ballY = gy; carrying = false; run = 0;
+  } else if (p < 0.9) { // brings it back
+    const u = (p - 0.56) / 0.34; dogX = lerp(x1 - 6, x0 + 2, u); face = -1; run = sec * 14; carrying = true; ballX = dogX - 16; ballY = gy - 2;
+  } else { // drops it at their feet and wags
+    dogX = x0 + 2; face = -1; ballX = x0 - 12; ballY = gy; run = 0; rot = 0;
+  }
+  if (!carrying) {
+    ellipse(ctx, ballX, gy + 4, 5, 1.8, 'rgba(70,50,25,0.28)');
+    ctx.save();
+    ctx.translate(ballX, ballY - 4);
+    ctx.rotate(rot);
+    disc(ctx, 0, 0, 4.6, '#ffffff');
+    for (const [ca, cc] of [[0, '#ef4444'], [2.1, '#38bdf8'], [4.2, '#facc15']] as const) { ctx.fillStyle = cc; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 4.6, ca, ca + 1.05); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  drawBeachDog(ctx, dogX, gy - 4, face, run, carrying, breed);
+  if (p < 0.14 || p > 0.9) {
+    // a happy wag at the start and the end
+    ctx.fillStyle = 'rgba(244,63,94,0.9)';
+    ctx.font = '700 9px system-ui, sans-serif'; ctx.textAlign = 'center';
+    if (p > 0.92) ctx.fillText('♥', dogX, gy - 26 - ((p - 0.92) / 0.08) * 6);
+  }
+}
+
 /** A little sandcastle with towers, battlements and a flag. */
 function drawSandcastle(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
   const cx = x + W / 2, by = y + H - 6;
@@ -2758,7 +3577,8 @@ function drawBoat(ctx: Ctx, x: number, y: number, W: number, H: number, t: numbe
 export function depth(item: Item): number {
   if (item.t === 'dog' || item.t === 'cat') { const live = officePets.get(item.id); if (live) return live.y + 0.4; }
   const { h } = itemSize(item);
-  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat' || item.t === 'sand' || item.t === 'sea' || item.t === 'pond' || item.t === 'towel' || item.t === 'dock') return -100 + item.y;
+  if (item.t === 'dock') return -60 + item.y;
+  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat' || item.t === 'sand' || item.t === 'sea' || item.t === 'pond' || item.t === 'towel') return -100 + item.y;
   if (TOP.includes(item.t)) return item.y + 1.2; // always on top of the desk it sits on
   return item.y + h;
 }

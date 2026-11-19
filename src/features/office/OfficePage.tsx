@@ -223,6 +223,15 @@ function OfficeRoom() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
+  /** a piece of furniture picked up with the Move tool, and which of its tiles was grabbed */
+  const [held, setHeld] = useState<{ item: Item; dx: number; dy: number } | null>(null);
+  useEffect(() => { if (tool !== 'move') setHeld(null); }, [tool]);
+  useEffect(() => {
+    if (!held) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setHeld(null); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [held]);
   const [rot, setRot] = useState<0 | 1 | 2 | 3>(0);
   const [color, setColor] = useState<number | undefined>(undefined);
   const [floorKind, setFloorKind] = useState('wood');
@@ -256,7 +265,7 @@ function OfficeRoom() {
   const inScope = (i: { x: number; y: number }) => !scope || (i.x >= scope.x && i.x < scope.x + scope.w && i.y >= scope.y && i.y < scope.y + scope.h);
   const OFFICE_LIMIT = 40;
 
-  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setTool('desk'); setEditing(true); };
+  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setHeld(null); setTool('move'); setEditing(true); };
   const stopEdit = () => { setTilesEditing(false); setTileDraft(undefined); setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
@@ -290,6 +299,11 @@ function OfficeRoom() {
     if (tool === 'wall' || tool === 'unwall' || tool === 'floor') return { ok: true };
     if (tool === 'plate') { const z = zoneAt(map, tile.x + 0.5, tile.y + 0.5); return { ok: !!z && (z.kind === 'office' || z.kind === 'meeting') }; }
     if (scope && !inScope(tile)) return { ok: false };
+    if (tool === 'move') {
+      if (!held) return { ok: !!itemAt(tile) };
+      const moved = { ...held.item, x: tile.x - held.dx, y: tile.y - held.dy };
+      return { ok: inScope(moved) && canPlace(map, draft.filter((i) => i.id !== held.item.id), moved).ok };
+    }
     if (tool === 'erase' || tool === 'paint') return { ok: !!itemAt(tile) };
     if (!tool) return { ok: false };
     return { ok: canPlace(map, draft, { id: 'g', t: tool, x: tile.x, y: tile.y, r: rot }).ok };
@@ -298,6 +312,20 @@ function OfficeRoom() {
     if (!editing || !tool) return;
     if (scope && !inScope(tile)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
     if (tool === 'wall' || tool === 'unwall' || tool === 'floor') { if (!scope) paintTiles(tile); return; }
+    if (tool === 'move') {
+      if (!held) {
+        const hit = itemAt(tile);
+        if (hit) setHeld({ item: hit, dx: tile.x - hit.x, dy: tile.y - hit.y });
+        return;
+      }
+      const moved = { ...held.item, x: tile.x - held.dx, y: tile.y - held.dy };
+      if (!inScope(moved)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
+      const res = canPlace(map, draft.filter((i) => i.id !== held.item.id), moved);
+      if (!res.ok) { toast({ title: 'reason' in res ? res.reason : 'It does not fit there', variant: 'destructive' }); return; }
+      setDraft((d) => d.map((i) => (i.id === held.item.id ? moved : i)));
+      setHeld(null);
+      return;
+    }
     if (tool === 'erase') {
       const hit = itemAt(tile);
       if (hit) setDraft((d) => d.filter((i) => i.id !== hit.id));
@@ -994,8 +1022,15 @@ function OfficeRoom() {
   // while you ride you keep hold of it; if you vanish, it is free again after a few seconds
   useEffect(() => {
     if (!riding || !rideBike) return;
-    const id = window.setInterval(() => { void vehicles.keep(rideBike); }, 10000);
-    return () => window.clearInterval(id);
+    // every few seconds (and when the tab is hidden) renew the lease and save where the vehicle is now
+    const beat = () => {
+      let pos: { x?: number; y?: number } = {};
+      try { pos = JSON.parse(localStorage.getItem('kd:office:pos:' + (space?.id ?? '')) ?? '{}') as { x?: number; y?: number }; } catch { /* keep without a position */ }
+      void vehicles.keep(rideBike, pos.x, pos.y);
+    };
+    const id = window.setInterval(beat, 5000);
+    document.addEventListener('visibilitychange', beat);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); };
   }, [riding, rideBike, vehicles.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRidingState(false); setRideBike(null); }, [space?.id, superseded]);
   // the office is bright by default (cream floors, daylight); a switch makes it a night office
@@ -1216,7 +1251,7 @@ function OfficeRoom() {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
               if (hit) { setPanel(hit); return; }
             }} dark={dark} zoom={zoom}
-            editing={editing} tool={tool} ghost={ghost} onTile={onTile}
+            editing={editing} tool={tool} ghost={ghost} held={held} onTile={onTile}
           />
           {!editing && (
             <div className="absolute bottom-16 right-3 z-10 flex flex-col gap-1">

@@ -45,9 +45,9 @@ export function useVehicles(spaceId: string | null) {
   }, [spaceId]);
 
   /** Keep hold of the vehicle while riding. */
-  const keep = useCallback(async (item: string) => {
+  const keep = useCallback(async (item: string, x?: number, y?: number) => {
     if (!spaceId) return;
-    try { await sb.rpc('office_vehicle_keep', { p_space: spaceId, p_item: item }); } catch { /* the next beat will try again */ }
+    try { await sb.rpc('office_vehicle_keep', { p_space: spaceId, p_item: item, p_x: x ?? null, p_y: y ?? null }); } catch { /* the next beat will try again */ }
   }, [spaceId]);
 
   /** Get off: the vehicle stays exactly here. */

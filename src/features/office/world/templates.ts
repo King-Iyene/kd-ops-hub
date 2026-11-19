@@ -114,7 +114,7 @@ export interface HqPerson { name: string; avatar?: AvatarStyle }
 export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   seq = 200;
   const w = 64;
-  const h = 52;
+  const h = 66; // the building, and the nature park south of it
   const walls = grid(w, h);
   // the building shell, with the entrance in the middle of the bottom wall
   wallRect(walls, 2, 2, 61, 2);
@@ -150,7 +150,7 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
 
   const zones: Zone[] = [
     { id: 'outdoor', name: 'Garden', kind: 'area', x: 0, y: 0, w, h, floor: 'grass' },
-    { id: 'path', name: 'Path', kind: 'area', x: 30, y: 49, w: 2, h: 3, floor: 'stone' },
+    { id: 'path', name: 'Path', kind: 'area', x: 30, y: 49, w: 2, h: 15, floor: 'stone' },
     { id: 'building', name: 'Headquarters', kind: 'area', x: 3, y: 3, w: 58, h: 46, floor: 'wood' },
     { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
   ];
@@ -257,6 +257,23 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (const x of [6, 14, 22, 40, 48, 56]) items.push(it('palm', x, 0));
   for (const x of [4, 8, 12, 16, 20, 40, 44, 48, 52, 56]) items.push(it('hedge', x, 50));
   items.push(it('palm', 27, 50), it('palm', 34, 50), it('flowers', 28, 50), it('flowers', 33, 50), it('flowers', 26, 51), it('flowers', 35, 51), it('bench', 23, 50));
+
+  // the nature park south of the building: a beach with a jetty and a boat, a pond with a waterfall, gardens
+  items.push(it('sea', 2, 53), it('sand', 2, 58), it('sand', 16, 58), it('dock', 9, 55), it('boat', 4, 54));
+  items.push(it('umbrella', 4, 59), it('umbrella', 11, 59), it('beachchair', 2, 61), it('beachchair', 6, 61), it('beachchair', 9, 61), it('beachchair', 13, 61));
+  items.push(it('towel', 7, 59), it('sandcastle', 14, 60), it('dogball', 17, 59), it('rocks', 22, 59), it('palm', 19, 58), it('palm', 25, 58), it('palm', 28, 58));
+  items.push(it('pond', 36, 54), it('waterfall', 47, 52), it('rocks', 35, 60), it('rocks', 46, 56), it('birdbath', 47, 58));
+  items.push(it('flowerbed', 33, 52), it('flowerbed', 33, 61), it('flowerbed', 44, 61), it('flowerbed', 49, 58));
+  items.push(it('coffeebar', 20, 54), it('stool', 20, 55), it('stool', 22, 55), it('roundtable', 24, 54), it('stool', 23, 56), it('stool', 26, 55), it('umbrella', 27, 53), it('lamp', 19, 56));
+  items.push(it('bench', 38, 61), it('bench', 41, 61), it('lamp', 36, 61), it('lamp', 46, 61), it('lamp', 29, 56), it('lamp', 32, 56));
+  items.push(it('palm', 33, 57), it('palm', 33, 59));
+  // the woods: pines all round a clearing with a campfire, log seats, a tent and mushrooms
+  items.push(it('pinetree', 53, 51), it('pinetree', 56, 51), it('pinetree', 58, 51), it('pinetree', 60, 53), it('pinetree', 52, 54), it('pinetree', 52, 61), it('pinetree', 55, 61), it('pinetree', 58, 61), it('pinetree', 60, 59));
+  items.push(it('campfire', 55, 57), it('log', 53, 57), it('log', 57, 57), it('log', 55, 59), it('log', 55, 55), it('tent', 57, 54), it('stump', 53, 59), it('stump', 58, 59), it('firewood', 59, 57));
+  items.push(it('mushrooms', 54, 54), it('mushrooms', 53, 56), it('lantern', 57, 56), it('lantern', 54, 58));
+  for (const y of [46, 54, 62]) items.push(it('tree', 0, y), it('tree', 62, y));
+  for (let x = 2; x < 60; x += 2) if (x !== 30) items.push(it('hedge', x, 64));
+  items.push(it('cat', 40, 62), it('dog', 51, 61));
 
   return { w, h, walls, zones, spawn: { x: 31, y: 47.6 }, items, buildArea: { x: 0, y: 0, w, h }, style: 'hq' };
 }

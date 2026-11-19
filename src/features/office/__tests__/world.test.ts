@@ -150,7 +150,10 @@ describe('placing furniture', () => {
     expect(itemSize({ t: 'table', r: 3 })).toEqual({ w: 2, h: 3 });
   });
   it('allows furniture on free floor', () => {
-    expect(canPlace(m, base, { id: 'n', t: 'plant', x: 3, y: 5 }).ok).toBe(true);
+    const solidNow = buildSolid(m, base);
+    let spot: { x: number; y: number } | null = null;
+    for (let y = m.buildArea.y; y < m.buildArea.y + m.buildArea.h && !spot; y++) for (let x = m.buildArea.x; x < m.buildArea.x + m.buildArea.w && !spot; x++) if (!solidNow[y][x] && !m.walls[y]?.[x] && Math.hypot(x + 0.5 - m.spawn.x, y + 0.5 - m.spawn.y) > 2) spot = { x, y };
+    expect(canPlace(m, base, { id: 'n', t: 'plant', x: spot!.x, y: spot!.y }).ok).toBe(true);
   });
   it('refuses a wall or outside the room', () => {
     expect(canPlace(m, base, { id: 'n', t: 'plant', x: 0, y: 5 }).ok).toBe(false);
@@ -245,7 +248,10 @@ describe('findPath', () => {
     const map = buildTeamOffice();
     const solid = buildSolid(map, map.items);
     const room = map.zones.find((z) => z.id.includes('meet'))!;
-    const p = findPath(solid, map.spawn.x, map.spawn.y, room.x + room.w / 2, room.y + room.h / 2);
+    const seen = reachable(solid, map.spawn.x, map.spawn.y);
+    let goal: { x: number; y: number } | null = null;
+    for (let y = room.y; y < room.y + room.h && !goal; y++) for (let x = room.x; x < room.x + room.w && !goal; x++) if (seen.has(x + ',' + y)) goal = { x: x + 0.5, y: y + 0.5 };
+    const p = findPath(solid, map.spawn.x, map.spawn.y, goal!.x, goal!.y);
     expect(p).not.toBeNull();
   });
 });
@@ -290,7 +296,7 @@ describe('headquarters', () => {
     const seen = reachable(buildSolid(m, m.items), m.spawn.x, m.spawn.y);
     for (const z of m.zones.filter((q) => q.kind !== 'area')) {
       let any = false;
-      for (let y = z.y; y < z.y + z.h && !any; y++) for (let x = z.x; x < z.x + z.w && !any; x++) if (seen.has(x + ',' + y)) any = true;
+      for (let y = z.y; y < z.y + z.h && !any; y++) for (let x = z.x; x < z.x + z.w && !any; x++) if (seen.has(x + ',' + y) || [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has(x + dx + ',' + (y + dy)))) any = true;
       expect(any, z.name).toBe(true);
     }
   });

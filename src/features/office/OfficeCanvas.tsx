@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { INTERACTIVE, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
+import { INTERACTIVE, SEAT_TYPES, seatAt, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -85,6 +85,8 @@ interface Props {
   editing: boolean;
   tool: EditTool;
   ghost: (tile: { x: number; y: number }) => { ok: boolean };
+  /** furniture picked up with the Move tool (drawn following the pointer) */
+  held?: { item: Item; dx: number; dy: number } | null;
   onTile: (tile: { x: number; y: number }) => void;
 }
 
@@ -130,6 +132,11 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const nearRef = useRef<Item | null>(null);
+  /** the seat I am sitting on (its tile centre), and a seat I am walking to */
+  const sitRef = useRef<{ x: number; y: number } | null>(null);
+  const wantSit = useRef<string | null>(null);
+  const standRef = useRef<() => void>(() => undefined);
+  const sitRef2 = useRef<(item: Item, tile?: { x: number; y: number }) => void>(() => undefined);
   const petFx = useRef<{ x: number; y: number; born: number; e: string }[]>([]);
   const lastBolt = useRef(-1);
   const firstEnter = useRef(true);
@@ -159,9 +166,10 @@ export function OfficeCanvas(props: Props) {
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 'f' && !propsRef.current.editing) {
+        if (sitRef.current) { e.preventDefault(); standRef.current(); return; }
         if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false, undefined, { x: meRef.current.x, y: meRef.current.y, dir: meRef.current.dir }); return; }
         const near = nearRef.current;
-        if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else propsRef.current.onInteract(near); return; }
+        if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
       }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
@@ -387,6 +395,7 @@ export function OfficeCanvas(props: Props) {
       p.onHoverPerson(null);
       const item = p.items.find((i) => INTERACTIVE[i.t] && tile.x >= i.x && tile.y >= i.y && tile.x < i.x + itemSize(i).w && tile.y < i.y + itemSize(i).h);
       if (item) {
+        if (SEAT_TYPES.includes(item.t)) { sitRef2.current(item, tile); return; }
         if (item.t !== 'bike' && item.t !== 'kart') { p.onMapClick(tile); return; }
         const m = meRef.current;
         if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding, item.id, { x: m.x, y: m.y, dir: m.dir }); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
@@ -460,7 +469,61 @@ export function OfficeCanvas(props: Props) {
       // walking
       if (!p.editing) {
         const k = keys.current;
+        // sitting: helpers that need this frame's walls and people
+        const peerBodies = () => {
+          const who2 = new Map(p.roster.map((q) => [q.id, q]));
+          const out: { x: number; y: number }[] = [];
+          for (const [id, pm] of p.peers.current) {
+            const info = who2.get(id);
+            if (!info || info.uid === p.me.uid || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+            out.push(extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now()));
+          }
+          return out;
+        };
+        standRef.current = () => {
+          const s0 = sitRef.current;
+          if (!s0) return;
+          const bodies = peerBodies();
+          const order: [number, number][] = me.dir === 3 ? [[0, -1], [1, 0], [-1, 0], [0, 1]] : me.dir === 1 ? [[-1, 0], [0, 1], [0, -1], [1, 0]] : me.dir === 2 ? [[1, 0], [0, 1], [0, -1], [-1, 0]] : [[0, 1], [1, 0], [-1, 0], [0, -1]];
+          for (const [dx, dy] of order) {
+            const nx = s0.x + dx, ny = s0.y + dy;
+            if (solid[Math.floor(ny)]?.[Math.floor(nx)] !== false) continue;
+            if (bodies.some((q) => Math.hypot(q.x - nx, q.y - ny) < 0.8)) continue;
+            me.x = nx; me.y = ny; me.sx = 0; me.sy = 0;
+            break;
+          }
+          sitRef.current = null;
+          wantSit.current = null;
+        };
+        sitRef2.current = (item, tile) => {
+          if (sitRef.current) return;
+          const bodies = peerBodies();
+          // the seat tile nearest to where I am (or the one tapped), if nobody is in it
+          const cells = itemCells(item).filter((c) => !bodies.some((q) => Math.hypot(q.x - (c.x + 0.5), q.y - (c.y + 0.5)) < 0.8));
+          if (!cells.length) { ripples.push({ x: item.x + 0.5, y: item.y + 0.5, t: performance.now() }); return; }
+          const pick = (tile && cells.find((c) => c.x === tile.x && c.y === tile.y)) ?? cells.sort((a, b) => Math.hypot(a.x + 0.5 - me.x, a.y + 0.5 - me.y) - Math.hypot(b.x + 0.5 - me.x, b.y + 0.5 - me.y))[0];
+          if (Math.hypot(pick.x + 0.5 - me.x, pick.y + 0.5 - me.y) < 2.1) {
+            me.x = pick.x + 0.5; me.y = pick.y + 0.5; me.sx = 0; me.sy = 0; me.vx = 0; me.vy = 0;
+            sitRef.current = { x: me.x, y: me.y };
+            walkGoal.current = null; route.current = []; wantSit.current = null;
+          } else {
+            wantSit.current = item.id;
+            propsRef.current.onWalkTo(pick.x + 0.5, pick.y + 0.5);
+          }
+        };
+        // arrived next to the seat I was walking to: sit down
+        if (wantSit.current && !sitRef.current) {
+          const it = p.items.find((q) => q.id === wantSit.current);
+          if (!it) wantSit.current = null;
+          else if (!walkGoal.current && !p.follow) wantSit.current = null;
+          else if (itemCells(it).some((c) => Math.hypot(c.x + 0.5 - me.x, c.y + 0.5 - me.y) < 1.3)) sitRef2.current(it);
+        }
         let v = inputVelocity(k.has('arrowleft') || k.has('a'), k.has('arrowright') || k.has('d'), k.has('arrowup') || k.has('w'), k.has('arrowdown') || k.has('s'));
+        if (sitRef.current) {
+          if (v.vx !== 0 || v.vy !== 0) standRef.current();
+          else if (walkGoal.current) standRef.current();
+          if (sitRef.current) v = { vx: 0, vy: 0 };
+        }
         // automatic walking: toward a person being followed, or toward a spot. Any key press cancels.
         const pm = p.follow ? p.peers.current.get(p.follow) : undefined;
         const goal = p.follow
@@ -509,7 +572,7 @@ export function OfficeCanvas(props: Props) {
         me.sy += (v.vy - me.sy) * ease;
         if (v.vx === 0 && Math.abs(me.sx) < 0.08) me.sx = 0;
         if (v.vy === 0 && Math.abs(me.sy) < 0.08) me.sy = 0;
-        const np = advance(solid, me.x, me.y, me.sx, me.sy, dt);
+        const np = sitRef.current ? { x: me.x, y: me.y } : advance(solid, me.x, me.y, me.sx, me.sy, dt);
         // a locked meeting room is a closed door: stay where we are (the page knocks for us)
         const nz = zoneAt(p.map, np.x, np.y);
         if (nz && isRoom(nz) && !p.canEnter(nz.id)) {
@@ -645,10 +708,10 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, riding: !!info.riding, vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info.riding, vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // trails: smoke behind a rider, a little dust at the feet of anyone walking, and the ring where you clicked
       for (const q of people) {
@@ -780,13 +843,13 @@ export function OfficeCanvas(props: Props) {
         ctx.fillText(lab, gx, gy + 0.5);
         ctx.restore();
       }
-      const nearIt = p.editing || p.riding ? null : nearestInteractive(p.items, me.x, me.y);
+      const nearIt = p.editing || p.riding || sitRef.current ? null : nearestInteractive(p.items, me.x, me.y);
       if ((nearIt?.id ?? null) !== (nearRef.current?.id ?? null)) { nearRef.current = nearIt; p.onNear(nearIt); }
       if (nearIt) {
         const sz = itemSize(nearIt);
-        const label = INTERACTIVE[nearIt.t] ?? ITEM_DEFS[nearIt.t].label;
+        
         ctx.font = '700 11px system-ui, sans-serif';
-        const tw = ctx.measureText(label).width + 34;
+        const tw = 28;
         const cx0 = (nearIt.x + sz.w / 2) * TILE;
         const cy0 = (nearIt.y + sz.h) * TILE + 16 + Math.sin(now / 280) * 2;
         ctx.fillStyle = 'rgba(15,23,42,0.88)';
@@ -795,15 +858,12 @@ export function OfficeCanvas(props: Props) {
         ctx.fill();
         ctx.fillStyle = '#fbbf24';
         ctx.beginPath();
-        ctx.roundRect(cx0 - tw / 2 + 4, cy0 - 7, 15, 14, 4);
+        ctx.roundRect(cx0 - tw / 2 + 4, cy0 - 7, 20, 14, 5);
         ctx.fill();
         ctx.fillStyle = '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('F', cx0 - tw / 2 + 11.5, cy0 + 0.5);
-        ctx.fillStyle = '#f8fafc';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, cx0 - tw / 2 + 24, cy0 + 0.5);
+        ctx.fillText('F', cx0, cy0 + 0.5);
       }
 
       drawLighting(ctx, p.map, p.items, theme, now);
@@ -819,7 +879,32 @@ export function OfficeCanvas(props: Props) {
         for (let y = b.y; y <= b.y + b.h; y++) { ctx.moveTo(b.x * TILE, y * TILE); ctx.lineTo((b.x + b.w) * TILE, y * TILE); }
         ctx.stroke();
         const hv = hover.current;
-        if (hv && p.tool) {
+        if (p.held) {
+          // the piece being carried: its old spot is dashed, and an outline follows the pointer
+          const sz = itemSize(p.held.item);
+          ctx.save();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = 'rgba(245,158,11,0.95)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(p.held.item.x * TILE + 1, p.held.item.y * TILE + 1, sz.w * TILE - 2, sz.h * TILE - 2);
+          ctx.restore();
+          if (hv) {
+            const ok = p.ghost(hv).ok;
+            const gx = (hv.x - p.held.dx) * TILE, gy = (hv.y - p.held.dy) * TILE;
+            ctx.globalAlpha = 0.72;
+            drawItems(ctx, [{ ...p.held.item, x: hv.x - p.held.dx, y: hv.y - p.held.dy }], theme, now);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = ok ? 'rgba(34,197,94,0.28)' : 'rgba(239,68,68,0.34)';
+            ctx.fillRect(gx, gy, sz.w * TILE, sz.h * TILE);
+            ctx.strokeStyle = ok ? 'rgba(34,197,94,0.95)' : 'rgba(239,68,68,0.95)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(gx + 1, gy + 1, sz.w * TILE - 2, sz.h * TILE - 2);
+          }
+        } else if (hv && p.tool === 'move') {
+          const res = p.ghost(hv);
+          ctx.fillStyle = res.ok ? 'rgba(245,158,11,0.3)' : 'rgba(148,163,184,0.18)';
+          ctx.fillRect(hv.x * TILE, hv.y * TILE, TILE, TILE);
+        } else if (hv && p.tool) {
           const res = p.ghost(hv);
           ctx.fillStyle = p.tool === 'erase' ? 'rgba(239,68,68,0.35)' : res.ok ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
           ctx.fillRect(hv.x * TILE, hv.y * TILE, TILE, TILE);
