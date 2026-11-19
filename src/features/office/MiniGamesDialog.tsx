@@ -41,6 +41,10 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
     window.addEventListener('keyup', up);
     const move = (e: MouseEvent) => { const r = canvas.getBoundingClientRect(); mouseY.current = ((e.clientY - r.top) / r.height) * H; };
     canvas.addEventListener('mousemove', move);
+    // a click kicks (table football)
+    let kickUntil = 0;
+    const click = () => { kickUntil = performance.now() + 140; };
+    canvas.addEventListener('mousedown', click);
 
     // ---- playing over the network ----
     type Wire = { p2?: number; r?: { y: number; kick: boolean }[]; st?: Record<string, unknown> };
@@ -117,8 +121,8 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
         const key = guest ? 'p2' : 'p1';
         if (!watcher) {
           if (mouseY.current !== null && mode !== 'two') pong[key] += Math.max(-sp * 2, Math.min(sp * 2, mouseY.current - pong[key]));
-          if (k.has('w')) { pong[key] -= sp; mouseY.current = null; }
-          if (k.has('s')) { pong[key] += sp; mouseY.current = null; }
+          if (k.has('w') || (mode !== 'two' && k.has('arrowup'))) { pong[key] -= sp; mouseY.current = null; }
+          if (k.has('s') || (mode !== 'two' && k.has('arrowdown'))) { pong[key] += sp; mouseY.current = null; }
         }
         if (mode === 'two') { if (k.has('arrowup')) pong.p2 -= sp; if (k.has('arrowdown')) pong.p2 += sp; }
         else if (mode === 'cpu') pong.p2 = pongAi(pong, pong.p2, dt);
@@ -140,9 +144,9 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
         const mine = foot.rods.filter((r) => r.team === team), theirs = foot.rods.filter((r) => r.team === 2);
         if (!watcher) {
           if (mouseY.current !== null && mode !== 'two') for (const r of mine) r.y += Math.max(-sp * 2, Math.min(sp * 2, mouseY.current - H / 2 - r.y));
-          if (k.has('w')) { for (const r of mine) r.y -= sp; mouseY.current = null; }
-          if (k.has('s')) { for (const r of mine) r.y += sp; mouseY.current = null; }
-          if (k.has(' ') || k.has('d')) for (const r of mine) if (r.kick <= 0) r.kick = 0.16;
+          if (k.has('w') || (mode !== 'two' && k.has('arrowup'))) { for (const r of mine) r.y -= sp; mouseY.current = null; }
+          if (k.has('s') || (mode !== 'two' && k.has('arrowdown'))) { for (const r of mine) r.y += sp; mouseY.current = null; }
+          if (k.has(' ') || k.has('d') || (mode !== 'two' && (k.has('enter') || k.has('arrowright'))) || performance.now() < kickUntil) for (const r of mine) if (r.kick <= 0) r.kick = 0.16;
         }
         if (mode === 'two') {
           if (k.has('arrowup')) for (const r of theirs) r.y -= sp;
@@ -176,6 +180,7 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
       canvas.removeEventListener('mousemove', move);
+    canvas.removeEventListener('mousedown', click);
       k.clear();
       if (channel) void supabase.removeChannel(channel);
       setRole('alone');
@@ -215,8 +220,8 @@ export function MiniGamesDialog({ game, roomKey, playerId, onClose }: { game: Mi
         {score.winner !== 0 && <p className="text-center text-sm font-semibold">{score.winner === 1 ? (mode === 'cpu' ? 'You win! 🎉' : 'Left side wins! 🎉') : (mode === 'cpu' ? 'The computer wins this time.' : 'Right side wins! 🎉')} {(!online || role === 'host') ? 'Press New game to play again.' : 'The host can start a new game.'}</p>}
         <p className="text-xs text-muted-foreground">
           {tennis
-            ? 'Move your mouse up and down, or use W and S. At one keyboard: player 1 uses W and S, player 2 the up and down arrows. First to 7.'
-            : 'Move your mouse, or W and S, to slide all your rods; press Space to kick. At one keyboard: player 1 uses W, S and Space; player 2 the arrows and Left arrow or Enter to kick. First to 5.'}
+            ? 'Use the keyboard (W and S, or the up and down arrows), or move your mouse up and down. At one keyboard: player 1 uses W and S, player 2 the up and down arrows. First to 7.'
+            : 'Slide all your rods with W and S (or the up and down arrows, or your mouse). Kick with Space, Enter, the right arrow or a click. At one keyboard: player 1 uses W, S and Space; player 2 the arrows and Left arrow or Enter to kick. First to 5.'}
         </p>
       </DialogContent>
     </Dialog>

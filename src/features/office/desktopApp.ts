@@ -1,5 +1,5 @@
 /** Where to get the KD Office desktop app, and whether we are already inside it. */
-export const DESKTOP_VERSION = '0.1.1';
+export const DESKTOP_VERSION = '0.1.2';
 const REPO = 'https://github.com/King-Iyene/kd-ops-hub/releases';
 export const DESKTOP_RELEASE_PAGE = `${REPO}/tag/office-desktop-v${DESKTOP_VERSION}`;
 
