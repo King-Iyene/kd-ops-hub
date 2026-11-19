@@ -192,3 +192,8 @@ jobs:
       # JWT call for the Export Center's "Send now" button.
       - name: Deploy timetrack-export-runner
         run: supabase functions deploy timetrack-export-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Ops Agent: AI status and test. Checks the caller's JWT and Super Admin / Admin role itself.
+      # Needs the ANTHROPIC_API_KEY secret (supabase secrets set), which is never kept in this repo.
+      - name: Deploy agent-ai
+        run: supabase functions deploy agent-ai --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes

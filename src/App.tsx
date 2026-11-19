@@ -81,6 +81,7 @@ const Attendance       = lazy(() => import('./pages/Attendance'));
 const Placements       = lazy(() => import('./pages/Placements'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
+const OpsAgent         = lazy(() => import('./pages/OpsAgent'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const GuidePage        = lazy(() => import('./pages/Guide'));
 const DirectorDisbursements = lazy(() => import('./pages/DirectorDisbursements'));
@@ -966,6 +967,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin', 'admin']}>
               <AuditLog />
+            </RoleGuard>
+          }
+        />
+
+        {/* Ops Agent — Super Admin and Admin only. Deliberately no `permission` prop: the agent has its own scope rules in the database. */}
+        <Route
+          path="/agent"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <OpsAgent />
             </RoleGuard>
           }
         />

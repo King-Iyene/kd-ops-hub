@@ -1,0 +1,104 @@
+// The agent_* tables are newer than the generated database types, so the agent screens talk to them through an
+// untyped client. Every row shape the screens use is declared in this file instead.
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+
+export const adb = supabase as unknown as SupabaseClient;
+
+export type AgentMode = 'observe' | 'remind' | 'enforce';
+export type AgentGroup = 'leadership' | 'core' | 'placement';
+
+export interface ModelPrice { input?: number; output?: number; cache_read?: number; cache_write?: number }
+
+export interface AgentSettings {
+  id: true;
+  mode: AgentMode;
+  ai_enabled: boolean;
+  model_fast: string;
+  model_smart: string;
+  model_prices: Record<string, ModelPrice>;
+  monthly_ai_budget_usd: number;
+  daily_ai_budget_usd: number;
+  timezone: string;
+  report_deadline: string;
+  default_working_days: number[];
+  default_work_start: string;
+  default_work_end: string;
+  default_country_code: string;
+  report_table_id: string | null;
+  hr_contact_id: string | null;
+  hide_own_flags: boolean;
+  leadership_flags_super_admin_only: boolean;
+  readonly_query_enabled: boolean;
+  escalation_window_days: number;
+  operating_rules: string;
+  updated_at: string;
+}
+
+export interface AgentScope {
+  role: string | null;
+  access: boolean;
+  configure?: boolean;
+  companies?: string[] | null;
+  modules?: string[] | null;
+}
+
+export interface AgentModule { key: string; label: string; description: string; sensitive: boolean; sort_order: number; enabled: boolean }
+export interface AgentCompanyScope { company_id: string; enabled: boolean }
+export interface AgentPersonProfile {
+  person_id: string;
+  group_name: AgentGroup | null;
+  group_source: 'auto' | 'manual';
+  manager_id: string | null;
+  timezone: string | null;
+  country_code: string | null;
+  working_days: number[] | null;
+  work_start: string | null;
+  work_end: string | null;
+  exemptions: Record<string, boolean>;
+  notes: string | null;
+}
+export interface AgentAdminScope { admin_id: string; company_ids: string[] | null; module_keys: string[] | null }
+export interface AgentAuditRow { id: number; at: string; actor_id: string | null; action: string; entity_type: string | null; entity_id: string | null; detail: Record<string, unknown> }
+export interface AgentUsageRow { id: string; created_at: string; feature: string; model: string; input_tokens: number; output_tokens: number; cost_usd: number; ok: boolean; error: string | null }
+export interface AgentBudget { level: 'ok' | 'warn' | 'off'; ai_enabled: boolean; spent_today_usd: number; spent_month_usd: number; daily_budget_usd: number; monthly_budget_usd: number }
+export interface AiStatus { key_configured: boolean; ai_enabled: boolean; mode: AgentMode; models: { fast: string; smart: string }; budget: AgentBudget }
+export interface AiTestResult { ok: boolean; reason?: string; error?: string | null; model?: string; text?: string; cost_usd?: number; key_configured?: boolean }
+
+export interface AgentFlag {
+  id: string; company_id: string | null; module: string | null; rule_code: string; severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
+  subject_type: string; subject_id: string; person_id: string | null; manager_id: string | null; title: string; why: string;
+  suggested_action: string | null; draft_message: string | null; escalation_level: number; occurrence_count: number;
+  first_seen_at: string; last_seen_at: string; status: 'open' | 'snoozed' | 'handled' | 'dismissed' | 'auto_resolved'; item_type: string;
+}
+export interface AgentSummary { id: string; period_kind: string; period_start: string; period_end: string; company_id: string | null; narrative: string | null; auto: boolean; created_at: string }
+export interface AgentMemory { id: string; type: string; content: string; scope: string; scope_ref: string | null; source: string; status: 'proposed' | 'active' | 'rejected' | 'archived'; created_at: string }
+export interface AgentConnection { id: string; kind: string; name: string; status: 'disconnected' | 'connected' | 'error'; last_error: string | null; last_tested_at: string | null }
+
+export const WEEKDAYS: { n: number; short: string }[] = [
+  { n: 1, short: 'Mon' }, { n: 2, short: 'Tue' }, { n: 3, short: 'Wed' }, { n: 4, short: 'Thu' }, { n: 5, short: 'Fri' }, { n: 6, short: 'Sat' }, { n: 7, short: 'Sun' },
+];
+
+export const MODE_META: Record<AgentMode, { label: string; help: string }> = {
+  observe: { label: 'Observe', help: 'Finds problems and shows them in the Inbox. Sends nothing to anyone.' },
+  remind: { label: 'Remind', help: 'Also drafts reminders. A person still reads and sends each one.' },
+  enforce: { label: 'Enforce', help: 'Drafts reminders and escalations on schedule. A person still approves each message.' },
+};
+
+/** Time columns come back as HH:MM:SS; the inputs want HH:MM. */
+export const hhmm = (t: string | null | undefined) => (t ?? '').slice(0, 5);
+
+export const GROUP_LABEL: Record<AgentGroup, string> = { leadership: 'Leadership', core: 'Core team', placement: 'Placement' };
+
+export const usd = (n: number | null | undefined, digits = 2) =>
+  `$${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+
+/** A small, readable list of IANA zones for the pickers. */
+export const COMMON_TIMEZONES = [
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Africa/Lagos', 'Africa/Accra', 'Africa/Nairobi',
+  'Europe/London', 'Europe/Paris', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Manila', 'UTC',
+];
+
+export function isValidTimezone(tz: string): boolean {
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch { return false; }
+}
