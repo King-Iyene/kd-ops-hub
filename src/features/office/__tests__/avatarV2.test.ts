@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cleanAvatar, defaultAvatar } from '../world/render';
-import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_STYLES, HATS, OUTFITS, SHOES } from '../world/avatarParts';
+import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, OUTFITS, SHOES, SKIN_CHOICES } from '../world/avatarParts';
 import { COSTUME_KINDS } from '../world/avatarCostumes';
 
 describe('avatar options', () => {
@@ -58,7 +58,7 @@ describe('avatar options', () => {
 describe('the editor: surprise me and the ready-made looks', () => {
   it('only ever picks things you can also pick by hand', async () => {
     const { surprise, COLORS } = await import('../AvatarDialog');
-    const { HAIR_COLORS, PANTS_COLORS, SHIRT_COLORS, SKIN_TONES } = await import('../world/render');
+    const { PANTS_COLORS, SHIRT_COLORS } = await import('../world/render');
     const base = defaultAvatar('someone');
     for (let i = 0; i < 400; i++) {
       const a = surprise(base, i % 2 === 0);
@@ -71,8 +71,8 @@ describe('the editor: surprise me and the ready-made looks', () => {
       expect(a.extra).toBeLessThan(EXTRAS.length);
       expect(a.bottom).toBeLessThan(BOTTOMS.length);
       expect(a.costume).toBeLessThan(COSTUMES.length);
-      expect(SKIN_TONES).toContain(a.skin);
-      expect(HAIR_COLORS).toContain(a.hair);
+      expect(SKIN_CHOICES).toContain(a.skin);
+      expect(HAIR_CHOICES).toContain(a.hair);
       expect([...SHIRT_COLORS, ...COLORS]).toContain(a.shirt);
       expect([...PANTS_COLORS, ...COLORS]).toContain(a.pants);
       for (const c of [a.jacketColor, a.inner, a.tieColor, a.shoeColor, a.hatColor]) expect(COLORS).toContain(c);

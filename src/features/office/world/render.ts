@@ -4350,7 +4350,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (a.outfit === 3) { ctx.fillStyle = shade(a.shirt, -0.28); ctx.fillRect(px - 8.8, py - 4.2 + bob, 17.6, 2.2); }
   }
 
-  if (a.outfit >= 7 && a.outfit <= 17) drawOutfitX(ctx, a, P);
+  if (a.outfit >= 7 && a.outfit !== 18) drawOutfitX(ctx, a, P);
 
   // head
   const hg = ctx.createRadialGradient(px - 2, hy - 3, 1, px, hy, 10);

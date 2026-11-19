@@ -27,24 +27,28 @@ export function shade(hex: string, amount: number): string {
 }
 
 // ---------- the lists the editor shows (the position in each list is the number saved on the avatar) ----------
-export const HAIR_STYLES = ['Short', 'Long', 'Bun', 'None', 'Curly', 'Quiff', 'Braids', 'Afro', 'Bob', 'Mohawk', 'Locs', 'Pigtails', 'Ponytail', 'Cornrows', 'Locs bun', 'Space buns', 'Side part', 'Fade'];
-export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top'];
+export const HAIR_STYLES = ['Short', 'Long', 'Bun', 'None', 'Curly', 'Quiff', 'Braids', 'Afro', 'Bob', 'Mohawk', 'Locs', 'Pigtails', 'Ponytail', 'Cornrows', 'Locs bun', 'Space buns', 'Side part', 'Fade', 'Topknot', 'Long and straight', 'Bob with fringe', 'Afro puffs', 'Bantu knots', 'Twists', 'Mullet', 'Crown braid', 'Long braid'];
+export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top', 'Kimono', 'Sari', 'Kurta', 'Cheongsam', 'Hanbok', 'Ao dai', 'Poncho', 'Charro suit', 'Flamenco dress', 'Thobe', 'Kilt', 'Maasai shuka', 'Sherwani'];
 export const BEARDS = ['None', 'Stubble', 'Moustache', 'Beard', 'Goatee', 'Handlebar', 'Long beard'];
 export const SHOES = ['Sneakers', 'Formal', 'Boots', 'Sandals', 'Heels', 'Slippers', 'Barefoot'];
 export const BOTTOMS = ['Trousers', 'Shorts', 'Capri', 'Leggings', 'Joggers', 'Bermuda', 'Bare legs'];
-export const HATS = ['None', 'Cap', 'Beanie', 'Head wrap', 'Beret', 'Cowboy hat', 'Fila cap', 'Gele', 'Hijab', 'Turban', 'Top hat', 'Chef hat', 'Crown', 'Hard hat', 'Graduation cap', 'Igbo red cap', 'Kufi', 'Bucket hat', 'Fedora', 'Flat cap', 'Backwards cap', 'Trucker cap', 'Visor', 'Bandana', 'Sun hat', 'Sombrero', 'Pom beanie', 'Newsboy', 'Bowler', 'Santa hat'];
+export const HATS = ['None', 'Cap', 'Beanie', 'Head wrap', 'Beret', 'Cowboy hat', 'Fila cap', 'Gele', 'Hijab', 'Turban', 'Top hat', 'Chef hat', 'Crown', 'Hard hat', 'Graduation cap', 'Igbo red cap', 'Kufi', 'Bucket hat', 'Fedora', 'Flat cap', 'Backwards cap', 'Trucker cap', 'Visor', 'Bandana', 'Sun hat', 'Sombrero', 'Pom beanie', 'Newsboy', 'Bowler', 'Santa hat', 'Dastar', 'Ghutra and agal', 'Conical hat'];
 export const GLASSES = ['None', 'Glasses', 'Sunglasses', 'Round glasses', 'Monocle', '3D glasses', 'Star glasses'];
-export const EXTRAS = ['None', 'Headset', 'Earrings', 'Face mask', 'Flower', 'Face paint', 'Big hoops', 'Eye patch'];
-export const COSTUMES = ['None', 'Robot', 'Zombie', 'Ghost', 'Pirate', 'Rat', 'Alien', 'Clown', 'Skeleton', 'Cat', 'Dog', 'Bear', 'Astronaut', 'Ninja', 'Wizard', 'Knight', 'Superhero', 'Devil', 'Angel', 'Pumpkin', 'Banana', 'Duck'];
+export const EXTRAS = ['None', 'Headset', 'Earrings', 'Face mask', 'Flower', 'Face paint', 'Big hoops', 'Eye patch', 'Bindi', 'Nose ring'];
+export const COSTUMES = ['None', 'Robot', 'Zombie', 'Ghost', 'Pirate', 'Rat', 'Alien', 'Clown', 'Skeleton', 'Cat', 'Dog', 'Bear', 'Astronaut', 'Ninja', 'Wizard', 'Knight', 'Superhero', 'Devil', 'Angel', 'Pumpkin', 'Banana', 'Duck', 'Cyborg', 'Vampire', 'Mummy', 'Dinosaur', 'Penguin', 'Frog'];
 export const JACKETS = ['None', 'Blazer', 'Denim', 'Bomber', 'Waistcoat'];
 export const TIES = ['None', 'Tie', 'Bow tie', 'Scarf'];
 
 /** Outfits whose sleeves reach the wrist or beyond. */
-export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17];
+export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17, 19, 21, 22, 24, 26, 28, 31];
 /** Outfits that hide the legs (a gown or robe to the floor). */
-export const FLOOR_OUTFITS = [7, 10, 11, 12, 13];
+export const FLOOR_OUTFITS = [7, 10, 11, 12, 13, 19, 20, 23, 27, 28];
+
+/** The skin tones and hair colours the editor offers (the first few are the original ones; the rest cover many more people). */
+export const SKIN_CHOICES = ['#fde7d3', '#f6d3b3', '#f4d6b4', '#e8b98f', '#e0b48a', '#d8a47a', '#d9a066', '#c98d63', '#c68a5c', '#b97a4a', '#9c6644', '#8d5a3b', '#6f4a33', '#5c3b28', '#4a3022', '#3a2418'];
+export const HAIR_CHOICES = ['#0f0f0f', '#1c1917', '#2b1b12', '#3f2a1d', '#7c4a21', '#8a5a2b', '#c08a3e', '#e6c27a', '#f4e3b2', '#d8d3c9', '#9ca3af', '#ffffff', '#b91c1c', '#f97316', '#ec4899', '#a855f7', '#4f46e5', '#38bdf8', '#22c55e'];
 /** Hats that cover all the hair. */
-export const HAIR_HIDING_HATS = [7, 8, 9, 14, 15, 16, 23];
+export const HAIR_HIDING_HATS = [7, 8, 9, 14, 15, 16, 23, 30, 31, 32];
 
 // ---------- hair ----------
 /** The newer hair styles, drawn on top of the plain scalp. */
@@ -80,6 +84,44 @@ export function drawHairX(ctx: Ctx, a: AvatarStyle, P: Pose) {
     case 16: // a side part, swept and shiny
       ctx.fillStyle = h; ctx.beginPath(); ctx.ellipse(px - fx * 1 + 1, hy - 5.2, 8.4, 4.2, 0.2, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = shade(h, 0.45); ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 3, hy - 9.2); ctx.quadraticCurveTo(px - 4, hy - 6.5, px - 5, hy - 3.6); ctx.stroke();
+      break;
+    case 18: // a topknot: a small bun high up, short at the sides
+      disc(ctx, px, hy - 12.4, 3.6, h); rr(ctx, px - 1.4, hy - 10, 2.8, 2.4, 1); ctx.fillStyle = shade(h, -0.3); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(px - 8.8, hy - 5, 2.4, 4); ctx.fillRect(px + 6.4, hy - 5, 2.4, 4);
+      break;
+    case 19: // long, straight hair with a fringe
+      for (const s of [-1, 1]) { rr(ctx, px + s * 8.4 - 2.2, hy - 5, 4.4, 20, 2.2); ctx.fillStyle = h; ctx.fill(); }
+      ctx.fillStyle = h; ctx.beginPath(); ctx.ellipse(px, hy - 5.4, 8.8, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = shade(h, 0.35); ctx.lineWidth = 0.7; for (const k of [-2.5, 0, 2.5]) { ctx.beginPath(); ctx.moveTo(px + k, hy - 8.6); ctx.lineTo(px + k * 1.4, hy - 3); ctx.stroke(); }
+      break;
+    case 20: // a bob with a fringe
+      rr(ctx, px - 9.8, hy - 4, 19.6, 11, 5); ctx.fillStyle = h; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(px, hy - 4.6, 9, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(px - 5, hy - 8, 4, 1);
+      break;
+    case 21: // afro puffs
+      for (const s of [-1, 1]) { disc(ctx, px + s * 8.6, hy - 8, 5, h); disc(ctx, px + s * 8.6 - 1, hy - 9, 1.6, shade(h, 0.25)); rr(ctx, px + s * 6.4 - 1, hy - 5, 2, 2, 0.6); ctx.fillStyle = '#ec4899'; ctx.fill(); }
+      break;
+    case 22: // bantu knots
+      for (let k = -2; k <= 2; k++) { disc(ctx, px + k * 3.8, hy - 9.4 - (Math.abs(k) === 2 ? -1.6 : 0), 2.6, h); disc(ctx, px + k * 3.8 - 0.6, hy - 10 - (Math.abs(k) === 2 ? -1.6 : 0), 0.8, shade(h, 0.3)); }
+      break;
+    case 23: // short twists
+      ctx.strokeStyle = h; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(px + k * 2.6, hy - 8); ctx.lineTo(px + k * 3.4 + k * 0.2, hy - 12 - (3 - Math.abs(k)) * 0.8); ctx.stroke(); }
+      ctx.lineCap = 'butt'; ctx.strokeStyle = shade(h, 0.3); ctx.lineWidth = 0.6;
+      for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(px + k * 2.9, hy - 9); ctx.lineTo(px + k * 3.2, hy - 11.4); ctx.stroke(); }
+      break;
+    case 24: // a mullet: short on top, long at the back
+      ctx.fillStyle = h; ctx.beginPath(); ctx.ellipse(px, hy - 6.2, 8.2, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+      if (back || side) { rr(ctx, px - 7.4 - fx * 1.4, hy - 3, 14.8, 15, 5); ctx.fill(); } else { for (const s of [-1, 1]) { rr(ctx, px + s * 8.6 - 1.6, hy - 3, 3.2, 8, 1.6); ctx.fill(); } }
+      break;
+    case 25: // a crown braid across the forehead
+      ctx.strokeStyle = h; ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(px, hy - 1, 8.8, Math.PI * 1.04, Math.PI * 1.96); ctx.stroke();
+      ctx.strokeStyle = shade(h, -0.3); ctx.lineWidth = 0.7; for (let k = 0; k < 9; k++) { const an = Math.PI * (1.08 + k * 0.1); ctx.beginPath(); ctx.moveTo(px + Math.cos(an) * 7.2, hy - 1 + Math.sin(an) * 7.2); ctx.lineTo(px + Math.cos(an) * 10.4, hy - 1 + Math.sin(an) * 10.4); ctx.stroke(); }
+      ctx.lineCap = 'butt';
+      break;
+    case 26: // one long braid
+      { const bx = back ? px : px + (side ? -fx * 8 : 9.4); for (let k = 0; k < 5; k++) { oval(ctx, bx + (k % 2 ? 0.6 : -0.6), hy + 1 + k * 3.2, 2.2, 1.9, k % 2 ? shade(h, -0.15) : h); } disc(ctx, bx, hy + 17, 1.6, '#ef4444'); }
       break;
     case 17: // a fade: short on top, skin showing at the sides
       ctx.fillStyle = h; ctx.beginPath(); ctx.ellipse(px, hy - 6.4, 7.2, 3.2, 0, 0, Math.PI * 2); ctx.fill();
@@ -149,6 +191,10 @@ export function drawExtraX(ctx: Ctx, a: AvatarStyle, P: Pose) {
   } else if (a.extra === 6 && !back) { // big hoop earrings
     ctx.strokeStyle = '#d6ac50'; ctx.lineWidth = 1.3;
     for (const x of side ? [px - fx * 6.5] : [px - 8.8, px + 8.8]) { ctx.beginPath(); ctx.arc(x, hy + 7, 3.2, 0, Math.PI * 2); ctx.stroke(); }
+  } else if (a.extra === 8 && !back) { // a bindi
+    disc(ctx, px + ex * 0.8, hy - 3.2, 1.2, '#dc2626'); disc(ctx, px + ex * 0.8 - 0.3, hy - 3.5, 0.4, '#fecaca');
+  } else if (a.extra === 9 && !back) { // a nose ring
+    ctx.strokeStyle = '#d6ac50'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(px + ex * 0.8 + (side ? fx * 1.5 : 1.2), hy + 4, 1.1, -1.2, 2.2); ctx.stroke();
   } else if (a.extra === 7 && !back) { // an eye patch
     const e = side ? px + ex + fx * 1.5 : px + 3.2 + ex;
     ctx.strokeStyle = '#111827'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 9, hy - 3.6); ctx.lineTo(e + 3.2, hy + 3); ctx.moveTo(px + 9, hy - 2.6); ctx.lineTo(e - 3, hy + 3.4); ctx.stroke();
@@ -338,6 +384,24 @@ export function drawHatX(ctx: Ctx, a: AvatarStyle, P: Pose) {
       disc(ctx, px + 13, hy - 5, 3, '#f8fafc');
       break;
     }
+    case 30: { // a dastar: a neatly wound turban with a sharp front
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px, hy - 2, 10.2, Math.PI, Math.PI * 2); ctx.fill(); oval(ctx, px, hy - 8.4, 8, 6.4, shade(c, 0.1));
+      ctx.strokeStyle = shade(c, -0.35); ctx.lineWidth = 0.9; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(px - 10 + k * 0.8, hy - 2.4 - k * 2.4); ctx.lineTo(px + 6 - k * 0.6, hy - 6.6 - k * 2.4 + 2); ctx.stroke(); }
+      if (!back) { ctx.fillStyle = shade(c, -0.15); ctx.beginPath(); ctx.moveTo(px + fx * 1.6 - 3, hy - 6); ctx.lineTo(px + fx * 1.6, hy - 11); ctx.lineTo(px + fx * 1.6 + 3, hy - 6); ctx.closePath(); ctx.fill(); }
+      break;
+    }
+    case 31: { // a ghutra with an agal: a white cloth over the head held by a black cord
+      ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(px - 11, hy + 1); ctx.quadraticCurveTo(px - 12.4, hy - 12, px, hy - 12.4); ctx.quadraticCurveTo(px + 12.4, hy - 12, px + 11, hy + 1); ctx.lineTo(px + 12, hy + 12); ctx.lineTo(px + 7, hy + 9); ctx.lineTo(px + 6.4, hy - 5); ctx.quadraticCurveTo(px, hy - 8.4, px - 6.4, hy - 5); ctx.lineTo(px - 7, hy + 9); ctx.lineTo(px - 12, hy + 12); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = c === '#f8fafc' ? '#ef4444' : c; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(px - 10, hy - 3); ctx.lineTo(px + 10, hy - 3); ctx.stroke();
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(px, hy - 5.6, 9.6, 3, 0, Math.PI * 1.06, Math.PI * 1.94); ctx.stroke(); ctx.beginPath(); ctx.ellipse(px, hy - 3.8, 9.6, 3, 0, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+      break;
+    }
+    case 32: { // a conical straw hat
+      ctx.fillStyle = '#e8cfa6'; ctx.beginPath(); ctx.moveTo(px - 14, hy - 2.4); ctx.lineTo(px, hy - 15); ctx.lineTo(px + 14, hy - 2.4); ctx.quadraticCurveTo(px, hy + 1, px - 14, hy - 2.4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,53,15,0.4)'; ctx.lineWidth = 0.7; for (let k = 1; k <= 4; k++) { ctx.beginPath(); ctx.moveTo(px - 14 * k / 4.4 - 0.8, hy - 2.4 - (1 - k / 4.4) * 0); ctx.lineTo(px, hy - 15 + (4 - k) * 0); ctx.stroke(); }
+      ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 7, hy - 1.8); ctx.lineTo(px - 6, hy + 8); ctx.moveTo(px + 7, hy - 1.8); ctx.lineTo(px + 6, hy + 8); ctx.stroke();
+      break;
+    }
   }
   void side; void t;
 }
@@ -436,6 +500,81 @@ export function drawOutfitX(ctx: Ctx, a: AvatarStyle, P: Pose) {
     for (const s of [-1, 1]) { ctx.fillRect(px + s * 5 - 1, top, 2, 6); }
     if (!back) { disc(ctx, px - 5, py - 5 + bob, 0.9, gold); disc(ctx, px + 5, py - 5 + bob, 0.9, gold); rr(ctx, px - 2.6, py - 3.4 + bob, 5.2, 3.2, 0.8); ctx.strokeStyle = shade(a.pants, -0.3); ctx.lineWidth = 0.7; ctx.stroke(); }
     for (const s of [-1, 1]) { rr(ctx, px + (s < 0 ? -6.4 : 0.2), py + 2 + bob, 6.2, 9, 2); ctx.fillStyle = a.pants; ctx.fill(); }
+  } else if (o === 19) { // a kimono: a wrap robe with a wide obi and long sleeves
+    ctx.fillStyle = grad(top, py + 10 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11.4 + sway, py + 10 + bob); ctx.lineTo(px - 11.4 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    for (const s of [-1, 1]) { ctx.fillStyle = shade(col, -0.06); ctx.beginPath(); ctx.moveTo(px + s * 9, top + 1); ctx.lineTo(px + s * 19, py + 4 + bob); ctx.lineTo(px + s * 14, py + 7 + bob); ctx.lineTo(px + s * 8.6, py - 3 + bob); ctx.closePath(); ctx.fill(); disc(ctx, px + s * 15.6, py + 5 + bob, 2, a.skin); }
+    if (!back) { ctx.fillStyle = a.inner; ctx.beginPath(); ctx.moveTo(px - 3.8, top); ctx.lineTo(px + 3.8, top); ctx.lineTo(px, py - 3.4 + bob); ctx.closePath(); ctx.fill(); ctx.strokeStyle = shade(col, -0.35); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 4, top); ctx.lineTo(px + 3, py - 3 + bob); ctx.stroke(); }
+    ctx.fillStyle = a.pants; ctx.fillRect(px - 9.6, py - 5 + bob, 19.2, 5); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px - 9.6, py - 4.2 + bob, 19.2, 0.9);
+    pattern(ctx, 'dots', px - 11, py + 2 + bob, 22, 7, '#fda4af', '#fde68a');
+  } else if (o === 20) { // a sari: a blouse, a long wrapped skirt and a pallu draped over the shoulder
+    ctx.fillStyle = grad(py - 4 + bob, py + 10 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 8.6, py - 4 + bob); ctx.lineTo(px + 8.6, py - 4 + bob); ctx.lineTo(px + 11.6 + sway, py + 10 + bob); ctx.lineTo(px - 11.6 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = gold; ctx.fillRect(px - 11.6 + sway, py + 8 + bob, 23.2, 2);
+    ctx.fillStyle = a.inner; rr(ctx, px - 8.4, top, 16.8, 7, 3); ctx.fill();
+    if (!back) { ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top + 0.6, 3.6, 0, Math.PI); ctx.fill(); ctx.fillRect(px - 5, py - 3.8 + bob, 10, 1.4); }
+    ctx.fillStyle = shade(col, 0.06); ctx.beginPath(); ctx.moveTo(px - 9, top); ctx.lineTo(px - 4.6, top); ctx.lineTo(px + 9, py + 6 + bob); ctx.lineTo(px + 4, py + 9 + bob); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = gold; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 4.6, top); ctx.lineTo(px + 9, py + 6 + bob); ctx.stroke();
+  } else if (o === 21) { // a kurta: a long tunic with a mandarin collar and slim trousers
+    for (const s of [-1, 1]) { rr(ctx, px + (s < 0 ? -6.8 : 1.4), py + 3 + bob, 5.4, 9, 2); ctx.fillStyle = shade(a.pants, 0.1); ctx.fill(); }
+    ctx.fillStyle = grad(top, py + 7 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.2, top); ctx.lineTo(px + 9.2, top); ctx.lineTo(px + 11 + sway, py + 7 + bob); ctx.lineTo(px - 11 + sway, py + 7 + bob); ctx.closePath(); ctx.fill();
+    if (!back) { ctx.fillStyle = shade(col, 0.2); rr(ctx, px - 3.4, top - 0.6, 6.8, 2.6, 1); ctx.fill(); for (let k = 0; k < 4; k++) disc(ctx, px, py - 8 + k * 3 + bob, 0.7, gold); ctx.strokeStyle = gold; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 11 + sway, py + 6 + bob); ctx.lineTo(px + 11 + sway, py + 6 + bob); ctx.stroke(); }
+  } else if (o === 22) { // a cheongsam: a fitted dress with a mandarin collar, frog buttons and a slit
+    ctx.fillStyle = grad(top, py + 8 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 8.4, top); ctx.lineTo(px + 8.4, top); ctx.lineTo(px + 9.4 + sway, py + 8 + bob); ctx.lineTo(px - 9.4 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = a.skin; ctx.fillRect(px - 3, py + 4 + bob, 6, 4);
+    if (!back) { ctx.fillStyle = shade(col, 0.22); rr(ctx, px - 3.2, top - 0.6, 6.4, 2.6, 1); ctx.fill(); ctx.strokeStyle = gold; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 2, top + 2); ctx.lineTo(px + 6, py - 2 + bob); ctx.stroke(); for (let k = 0; k < 3; k++) disc(ctx, px + 1 + k * 2, top + 3 + k * 2.6, 0.8, gold); for (let k = 0; k < 4; k++) { disc(ctx, px - 6 + k * 3.4, py + 1 + (k % 2) * 3 + bob, 1.1, '#fda4af'); } }
+  } else if (o === 23) { // a hanbok: a short jacket with a long ribbon over a huge bell skirt
+    ctx.fillStyle = grad(py - 4 + bob, py + 11 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 6.4, py - 4 + bob); ctx.lineTo(px + 6.4, py - 4 + bob); ctx.lineTo(px + 17 + sway, py + 10 + bob); ctx.quadraticCurveTo(px, py + 13 + bob, px - 17 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = a.inner; rr(ctx, px - 8.4, top, 16.8, 8, 3); ctx.fill();
+    ctx.fillStyle = shade(a.inner, -0.12); for (const s of [-1, 1]) { ctx.fillRect(px + s * 8.4 - 1.2, top + 1, 2.4, 8); }
+    if (!back) { ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top, 2.8, 0, Math.PI); ctx.fill(); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px - 1, top + 1); ctx.lineTo(px + 1, top + 1); ctx.lineTo(px + 2.4, py + 4 + bob); ctx.lineTo(px - 2.4, py + 5 + bob); ctx.closePath(); ctx.fill(); }
+  } else if (o === 24) { // an ao dai: a long fitted tunic split at the sides over wide trousers
+    for (const s of [-1, 1]) { rr(ctx, px + (s < 0 ? -8 : 1), py + 3 + bob, 7, 9, 2); ctx.fillStyle = a.pants; ctx.fill(); }
+    ctx.fillStyle = grad(top, py + 9 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 8.6, top); ctx.lineTo(px + 8.6, top); ctx.lineTo(px + 9.6 + sway, py + 9 + bob); ctx.lineTo(px + 1.6, py + 9 + bob); ctx.lineTo(px + 1, py + 2 + bob); ctx.lineTo(px - 1, py + 2 + bob); ctx.lineTo(px - 1.6, py + 9 + bob); ctx.lineTo(px - 9.6 + sway, py + 9 + bob); ctx.closePath(); ctx.fill();
+    if (!back) { ctx.fillStyle = shade(col, 0.2); rr(ctx, px - 3.2, top - 0.6, 6.4, 2.6, 1); ctx.fill(); ctx.strokeStyle = gold; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(px - 2, top + 2); ctx.lineTo(px + 7, py - 2 + bob); ctx.stroke(); }
+  } else if (o === 25) { // a poncho: a striped cloth over the shoulders with a fringe
+    ctx.save(); ctx.beginPath(); ctx.moveTo(px - 4, top - 1); ctx.lineTo(px + 4, top - 1); ctx.lineTo(px + 15 + sway, py + 5 + bob); ctx.lineTo(px - 15 + sway, py + 5 + bob); ctx.closePath(); ctx.clip();
+    for (let k = 0; k < 9; k++) { ctx.fillStyle = [col, '#facc15', '#16a34a', '#111827', col][k % 5]; ctx.fillRect(px - 16 + k * 3.6, top - 2, 3.6, 20); }
+    ctx.restore();
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 0.8; for (let k = 0; k < 14; k++) { ctx.beginPath(); ctx.moveTo(px - 14 + k * 2.1 + sway, py + 5 + bob); ctx.lineTo(px - 14 + k * 2.1 + sway, py + 7.4 + bob); ctx.stroke(); }
+  } else if (o === 26) { // a charro suit: a short jacket with gold embroidery and a bow, trousers with a gold side stripe
+    for (const s of [-1, 1]) { rr(ctx, px + (s < 0 ? -7 : 1), py + 2 + bob, 6, 10, 2); ctx.fillStyle = a.pants; ctx.fill(); ctx.fillStyle = gold; ctx.fillRect(px + (s < 0 ? -7.4 : 6.8), py + 2 + bob, 0.8, 10); }
+    ctx.fillStyle = grad(top, py + 3 + bob, col); rr(ctx, px - 10, top - 0.4, 20, 14.4, 4); ctx.fill();
+    if (!back) { ctx.fillStyle = a.inner; ctx.beginPath(); ctx.moveTo(px - 3, top); ctx.lineTo(px + 3, top); ctx.lineTo(px, py - 2 + bob); ctx.closePath(); ctx.fill(); ctx.strokeStyle = gold; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 3, top); ctx.lineTo(px, py - 2 + bob); ctx.lineTo(px + 3, top); ctx.stroke(); for (let k = 0; k < 3; k++) { disc(ctx, px - 6.4, py - 8 + k * 3.4 + bob, 0.9, gold); disc(ctx, px + 6.4, py - 8 + k * 3.4 + bob, 0.9, gold); } ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(px, top + 1); ctx.lineTo(px - 3, top - 0.6); ctx.lineTo(px - 3, top + 2.8); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(px, top + 1); ctx.lineTo(px + 3, top - 0.6); ctx.lineTo(px + 3, top + 2.8); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = gold; ctx.fillRect(px - 10, py + 2 + bob, 20, 1.6);
+  } else if (o === 27) { // a flamenco dress: a fitted bodice and a tiered, ruffled, spotted skirt
+    ctx.fillStyle = grad(py - 4 + bob, py + 11 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 7, py - 4 + bob); ctx.lineTo(px + 7, py - 4 + bob); ctx.lineTo(px + 16 + sway, py + 10 + bob); ctx.lineTo(px - 16 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    for (let k = 0; k < 3; k++) { ctx.fillStyle = shade(col, k % 2 ? -0.08 : 0.1); ctx.beginPath(); const y0 = py + 1 + k * 3.4 + bob; ctx.moveTo(px - 9 - k * 2 + sway, y0); for (let j = 0; j < 6; j++) ctx.quadraticCurveTo(px - 9 - k * 2 + (j + 0.5) * ((18 + k * 4) / 6) + sway, y0 + 3, px - 9 - k * 2 + (j + 1) * ((18 + k * 4) / 6) + sway, y0); ctx.lineTo(px + 9 + k * 2 + sway, y0 - 2); ctx.lineTo(px - 9 - k * 2 + sway, y0 - 2); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; for (let k = 0; k < 9; k++) disc(ctx, px - 11 + k * 2.8 + sway * 0.5, py + 2 + (k % 3) * 3 + bob, 0.8, ctx.fillStyle as string);
+    ctx.fillStyle = shade(col, 0.1); rr(ctx, px - 8, top, 16, 7.6, 4); ctx.fill();
+    if (!back) { ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top + 0.4, 4, 0, Math.PI); ctx.fill(); }
+  } else if (o === 28) { // a thobe: a long, plain robe with a small collar and buttons
+    ctx.fillStyle = grad(top, py + 10 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11.4 + sway, py + 10 + bob); ctx.lineTo(px - 11.4 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    if (!back) { ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top, 2.6, 0, Math.PI); ctx.fill(); ctx.strokeStyle = shade(col, -0.25); ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(px, top + 2); ctx.lineTo(px, py + 8 + bob); ctx.stroke(); for (let k = 0; k < 3; k++) disc(ctx, px, top + 3 + k * 3.4, 0.7, shade(col, -0.3)); }
+  } else if (o === 29) { // a kilt: a tartan skirt to the knee, a sporran and a long sock
+    ctx.fillStyle = a.pants; ctx.beginPath(); ctx.moveTo(px - 8.4, py - 3 + bob); ctx.lineTo(px + 8.4, py - 3 + bob); ctx.lineTo(px + 10.4 + sway, py + 6 + bob); ctx.lineTo(px - 10.4 + sway, py + 6 + bob); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.moveTo(px - 8.4, py - 3 + bob); ctx.lineTo(px + 8.4, py - 3 + bob); ctx.lineTo(px + 10.4 + sway, py + 6 + bob); ctx.lineTo(px - 10.4 + sway, py + 6 + bob); ctx.closePath(); ctx.clip();
+    ctx.fillStyle = 'rgba(17,24,39,0.45)'; for (let k = 0; k < 8; k++) { ctx.fillRect(px - 12 + k * 3, py - 4 + bob, 1.2, 12); ctx.fillRect(px - 12, py - 3 + k * 1.6 + bob, 26, 0.7); }
+    ctx.fillStyle = 'rgba(250,204,21,0.5)'; for (let k = 0; k < 4; k++) ctx.fillRect(px - 11 + k * 6, py - 4 + bob, 0.7, 12);
+    ctx.restore();
+    if (!back) { rr(ctx, px - 2.4, py - 0.4 + bob, 4.8, 4.6, 1.4); ctx.fillStyle = '#6b4423'; ctx.fill(); }
+    ctx.fillStyle = shade(col, 0.15); ctx.fillRect(px - 9, py - 4.2 + bob, 18, 1.6);
+  } else if (o === 30) { // a Maasai shuka: a red checked cloth over the shoulder with a wide beaded collar
+    ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11 + sway, py + 9 + bob); ctx.lineTo(px - 11 + sway, py + 9 + bob); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11 + sway, py + 9 + bob); ctx.lineTo(px - 11 + sway, py + 9 + bob); ctx.closePath(); ctx.clip();
+    ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 0.9; for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(px - 11 + k * 3.6, top); ctx.lineTo(px - 11 + k * 3.6, py + 10 + bob); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px - 11, top + k * 3); ctx.lineTo(px + 12, top + k * 3); ctx.stroke(); }
+    ctx.restore();
+    if (!back) for (let k = 0; k < 11; k++) { const an = Math.PI * (0.1 + k * 0.08); disc(ctx, px + Math.cos(an) * 6.6, top + 0.6 + Math.sin(an) * 3.4, 1, ['#2563eb', '#f8fafc', '#dc2626', '#16a34a', '#facc15'][k % 5]); }
+  } else if (o === 31) { // a sherwani: a long fitted coat with a stand collar, buttons and embroidery
+    ctx.fillStyle = grad(top, py + 8 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11 + sway, py + 8 + bob); ctx.lineTo(px - 11 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
+    if (!back) { ctx.fillStyle = shade(col, 0.2); rr(ctx, px - 3.4, top - 0.6, 6.8, 2.6, 1); ctx.fill(); for (let k = 0; k < 5; k++) disc(ctx, px, top + 3 + k * 2.6, 0.8, gold); ctx.strokeStyle = gold; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 3.4, top); ctx.lineTo(px - 2, py + 7.4 + bob); ctx.moveTo(px + 3.4, top); ctx.lineTo(px + 2, py + 7.4 + bob); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px - 11 + sway, py + 7 + bob); ctx.lineTo(px + 11 + sway, py + 7 + bob); ctx.stroke(); }
   } else if (o === 17) { // a lab coat
     ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(px - 9.6, top); ctx.lineTo(px + 9.6, top); ctx.lineTo(px + 11 + sway, py + 8 + bob); ctx.lineTo(px - 11 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
     if (!back) {

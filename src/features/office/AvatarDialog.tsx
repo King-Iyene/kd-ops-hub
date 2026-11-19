@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dices, Footprints, RotateCcw } from 'lucide-react';
-import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, TIES } from './world/avatarParts';
+import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, SKIN_CHOICES, TIES } from './world/avatarParts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { AvatarStyle } from './world/types';
@@ -37,8 +37,8 @@ interface Section {
 const TABS: { id: string; label: string; sections: Section[] }[] = [
   {
     id: 'base', label: 'Base', sections: [
-      { id: 'skin', label: 'Skin', focus: 'head', color: 'skin', palette: SKIN_TONES },
-      { id: 'hair', label: 'Hair', focus: 'head', color: 'hair', palette: HAIR_COLORS, option: 'hairStyle', labels: HAIR_STYLES },
+      { id: 'skin', label: 'Skin', focus: 'head', color: 'skin', palette: SKIN_CHOICES },
+      { id: 'hair', label: 'Hair', focus: 'head', color: 'hair', palette: HAIR_CHOICES, option: 'hairStyle', labels: HAIR_STYLES },
       { id: 'beard', label: 'Facial hair', focus: 'head', option: 'beard', labels: BEARDS },
     ],
   },
@@ -108,11 +108,11 @@ const upTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 /** Everything chosen at random from what you can pick by hand, and never a clash that looks silly (a gown under a blazer, say). */
 export function surprise(a: AvatarStyle, characters = false): AvatarStyle {
   const outfit = pickOf(upTo(OUTFITS.length));
-  const dressy = outfit === 3 || outfit === 4 || (outfit >= 7 && outfit <= 17 && outfit !== 8 && outfit !== 14 && outfit !== 16);
+  const dressy = outfit === 3 || outfit === 4 || (outfit >= 7 && ![8, 14, 16, 18, 21, 24, 26, 29].includes(outfit));
   const costume = characters && Math.random() < 0.35 ? pickOf(upTo(COSTUMES.length).slice(1)) : 0;
   return {
     ...a,
-    skin: pickOf(SKIN_TONES), hair: pickOf(HAIR_COLORS), hairStyle: pickOf(upTo(HAIR_STYLES.length)), beard: pickOf([0, 0, 0, ...upTo(BEARDS.length)]),
+    skin: pickOf(SKIN_CHOICES), hair: pickOf(HAIR_CHOICES), hairStyle: pickOf(upTo(HAIR_STYLES.length)), beard: pickOf([0, 0, 0, ...upTo(BEARDS.length)]),
     outfit, shirt: pickOf([...SHIRT_COLORS, ...COLORS]), pants: pickOf([...PANTS_COLORS, ...COLORS]), bottom: pickOf(upTo(BOTTOMS.length)), inner: pickOf(COLORS),
     jacket: dressy ? 0 : pickOf([0, 0, ...upTo(JACKETS.length)]), jacketColor: pickOf(COLORS),
     tie: dressy ? 0 : pickOf([0, 0, ...upTo(TIES.length)]), tieColor: pickOf(COLORS), shoes: pickOf(upTo(SHOES.length)), shoeColor: pickOf(COLORS),
