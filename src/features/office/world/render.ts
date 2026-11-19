@@ -4106,8 +4106,8 @@ export interface DrawPerson {
   id?: string;
   /** an emoji for their status, shown in the name tag */
   status?: string;
-  /** which status (busy and do not disturb change how the avatar looks) */
-  statusId?: string;
+  /** colour of the small status dot in the name tag (green free, amber busy, red do not disturb) */
+  dot?: string;
   /** dancing (press X) */
   dancing?: boolean;
   /** talking right now: a green glow on the picture and the name tag */
@@ -4183,7 +4183,7 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
 
   // a soft ring under me, and the ground shadow
   if (p.isMe) {
-    ctx.strokeStyle = `rgba(20,184,166,${0.5 + 0.2 * Math.sin(t / 400)})`;
+    ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.2 * Math.sin(t / 400)})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 14, 6, 0, 0, Math.PI * 2);
@@ -4195,20 +4195,6 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
     ctx.stroke();
-  }
-  if (p.statusId === 'busy') {
-    // busy: a slow amber pulse on the floor and little sparks circling, like someone working hard
-    ctx.strokeStyle = 'rgba(245,158,11,' + (0.5 + 0.25 * Math.sin(t / 300)) + ')';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(px, py + 11, 16 + Math.sin(t / 300), 6.8, 0, 0, Math.PI * 2); ctx.stroke();
-    for (let k = 0; k < 3; k++) { const an = t / 420 + (k * Math.PI * 2) / 3; disc(ctx, px + Math.cos(an) * 16, py + 11 + Math.sin(an) * 6.8, 1.7, '#fbbf24'); }
-  } else if (p.statusId === 'dnd') {
-    // do not disturb: a red dashed barrier ring that turns, and a no-entry badge over the head
-    ctx.save();
-    ctx.setLineDash([5, 4]); ctx.lineDashOffset = -t / 90;
-    ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(px, py + 11, 17, 7.2, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
   }
   ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
 
@@ -4728,26 +4714,23 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     }
   }
   // name tag (skipped when there is no name, as in the avatar preview)
-  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.font = '600 9.5px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const label = p.status ? `${p.status} ${p.name}` : p.name;
-  const w = ctx.measureText(label).width + 16 + (p.status ? 0 : 0);
+  const label = p.name;
+  const dotW = p.dot ? 8 : 0;
+  const w = ctx.measureText(label).width + 12 + dotW;
   const ty = py - 38 + bob;
   if (p.name) {
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
-  rr(ctx, px - w / 2 + 1, ty - 8, w, 18, 9);
+  rr(ctx, px - w / 2 + 1, ty - 7, w, 14, 7);
   ctx.fill();
-  ctx.fillStyle = p.isMe ? 'rgba(13,148,136,0.96)' : theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
-  rr(ctx, px - w / 2, ty - 9, w, 18, 9);
+  ctx.fillStyle = theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
+  rr(ctx, px - w / 2, ty - 7.5, w, 14, 7);
   ctx.fill();
-  if (!p.status) {
-    ctx.fillStyle = p.isMe ? '#99f6e4' : '#34d399';
-    disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
-  }
+  if (p.dot) disc(ctx, px - w / 2 + 7, ty, 2.1, p.dot);
   ctx.fillStyle = '#fff';
-  ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
-  if (p.statusId === 'dnd') { const bx = px + w / 2 + 2; disc(ctx, bx, ty, 6.5, '#ef4444'); ctx.fillStyle = '#fff'; ctx.fillRect(bx - 3.6, ty - 1.2, 7.2, 2.4); }
+  ctx.fillText(label, px + dotW / 2, ty + 0.5);
   }
 
   // live camera bubble above the name tag, like Gather
