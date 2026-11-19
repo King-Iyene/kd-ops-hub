@@ -125,7 +125,8 @@ export function OfficeCanvas(props: Props) {
   const walkGoal = useRef<{ x: number; y: number } | null>(null);
   const route = useRef<{ x: number; y: number }[]>([]);
   const lastPlan = useRef(0);
-  const autoStuck = useRef<{ t: number; d: number } | null>(null);
+  /** where I was when I last made headway on an automatic walk (so a long way round a wall is not mistaken for being stuck) */
+  const autoStuck = useRef<{ t: number; x: number; y: number } | null>(null);
   const hover = useRef<{ x: number; y: number } | null>(null);
   const cam = useRef({ ox: 0, oy: 0, scale: 1 });
 
@@ -370,6 +371,7 @@ export function OfficeCanvas(props: Props) {
       pan.current = { x: 0, y: 0 };
       if (propsRef.current.editing) return;
       const t = toTile(e);
+      ripples.push({ x: t.x + 0.5, y: t.y + 0.5, t: performance.now() });
       propsRef.current.onWalkTo(t.x + 0.5, t.y + 0.5);
     };
     const ctxMenu = (e: MouseEvent) => {
@@ -584,8 +586,8 @@ export function OfficeCanvas(props: Props) {
               v = { vx: (dx / d) * WALK_SPEED, vy: (dy / d) * WALK_SPEED };
               // no real progress for a while: give up rather than push into a wall forever
               const st = autoStuck.current;
-              if (!st || dist < st.d - 0.4) autoStuck.current = { t: now, d: dist };
-              else if (now - st.t > 3000) {
+              if (!st || Math.hypot(me.x - st.x, me.y - st.y) > 0.5) autoStuck.current = { t: now, x: me.x, y: me.y };
+              else if (now - st.t > 1800) {
                 autoStuck.current = null;
                 route.current = [];
                 if (p.follow) p.onFollowEnd(); else walkGoal.current = null;
@@ -767,6 +769,23 @@ export function OfficeCanvas(props: Props) {
         ctx.beginPath();
         ctx.arc(sp.x, sp.y - age * (sp.dust ? 6 : 14), sp.r + age * (sp.dust ? 3 : 6), 0, Math.PI * 2);
         ctx.fill();
+      }
+      // the place I am walking to stays marked until I get there
+      if (walkGoal.current && !p.editing) {
+        const wg = walkGoal.current;
+        const pulse = (now / 700) % 1;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = 'rgba(59,130,246,0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(wg.x * TILE, wg.y * TILE + 6, 11, 5.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.globalAlpha = 1 - pulse;
+        ctx.beginPath(); ctx.ellipse(wg.x * TILE, wg.y * TILE + 6, 11 + pulse * 12, 5.5 + pulse * 6, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        const bobY = Math.sin(now / 220) * 2;
+        ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.moveTo(wg.x * TILE, wg.y * TILE - 1 + bobY); ctx.lineTo(wg.x * TILE - 5, wg.y * TILE - 9 + bobY); ctx.lineTo(wg.x * TILE + 5, wg.y * TILE - 9 + bobY); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.restore();
       }
       while (ripples.length && now - ripples[0].t > 700) ripples.shift();
       for (const rp of ripples) {

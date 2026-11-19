@@ -1,6 +1,7 @@
+import { rememberReturnTo } from './lib/returnTo';
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
@@ -173,6 +174,7 @@ const queryClient = new QueryClient({
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -182,7 +184,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    rememberReturnTo(location.pathname + location.search);
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
