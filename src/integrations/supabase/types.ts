@@ -22184,7 +22184,12 @@ export type Database = {
         Returns: string
       }
       tm_form_task_eligible: {
-        Args: { p_config: Json; p_due: string; p_status: string }
+        Args: {
+          p_config: Json
+          p_due: string
+          p_status: string
+          p_today?: string
+        }
         Returns: boolean
       }
       tm_my_comment_feed: {
