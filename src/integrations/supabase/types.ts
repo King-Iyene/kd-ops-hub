@@ -18115,6 +18115,13 @@ export type Database = {
             referencedRelation: "tm_tasks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tm_tasks_recurrence_source_id_fkey"
+            columns: ["recurrence_source_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
         ]
       }
       training_records: {
@@ -22131,6 +22138,14 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_form_cond_met: {
+        Args: { p_ans: Json; p_op: string; p_val: Json }
+        Returns: boolean
+      }
+      tm_form_field_tasks: {
+        Args: { p_field: string; p_person?: string; p_token: string }
+        Returns: Json
+      }
       tm_form_gate: {
         Args: { p_token: string }
         Returns: {
@@ -22141,6 +22156,7 @@ export type Database = {
           field_ids: string[]
           id: string
           is_open: boolean
+          logic: Json
           success_message: string | null
           table_id: string
           title: string
@@ -22154,18 +22170,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      tm_form_field_tasks: {
-        Args: { p_field: string; p_person?: string; p_token: string }
-        Returns: Json
-      }
       tm_form_load: { Args: { p_token: string }; Returns: Json }
       tm_form_person_tasks: {
         Args: { p_person: string; p_token: string }
         Returns: Json
       }
+      tm_form_rule_visible: {
+        Args: { p_answers: Json; p_rule: Json }
+        Returns: boolean
+      }
       tm_form_submit: {
         Args: { p_data: Json; p_token: string }
         Returns: string
+      }
+      tm_form_task_eligible: {
+        Args: { p_config: Json; p_due: string; p_status: string }
+        Returns: boolean
       }
       tm_my_comment_feed: {
         Args: { p_days?: number }
@@ -22190,6 +22210,10 @@ export type Database = {
           table_name: string
           updated_at: string
         }[]
+      }
+      tm_next_due: {
+        Args: { p_due: string; p_rec: Json; p_today?: string }
+        Returns: string
       }
       tm_set_record_cell: {
         Args: { p_field_id: string; p_record_id: string; p_value: Json }
@@ -22225,6 +22249,8 @@ export type Database = {
           parent_id: string | null
           position: number
           priority: string | null
+          recurrence: Json | null
+          recurrence_source_id: string | null
           status: string
           tags: string[]
           title: string
@@ -22237,6 +22263,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      tm_valid_recurrence: { Args: { p: Json }; Returns: boolean }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       update_webhook_success: { Args: { p_ids: string[] }; Returns: undefined }
       upsert_payroll_draft: {
