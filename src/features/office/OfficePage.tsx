@@ -43,6 +43,9 @@ import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
 import { GamesDialog } from './GamesDialog';
+import { MiniGamesDialog, type MiniGame } from './MiniGamesDialog';
+import { PollsDialog, TaskBoardDialog } from './BoardDialogs';
+import { useBoards } from './useBoards';
 import { gamesOn } from './games';
 import { useOfficeFont } from './ui';
 import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './notify';
@@ -1028,6 +1031,10 @@ function OfficeRoom() {
   const takenBikes = roster.filter((r) => r.bike && r.spaceId === space?.id).map((r) => r.bike as string).concat(riding && rideBike ? [rideBike] : []).sort().join(',');
   // bikes and go-karts stay where the last rider left them, for everybody, until somebody else takes them
   const vehicles = useVehicles(space?.id ?? null);
+  const boards = useBoards(space?.id ?? null, !!space);
+  const [pollsOpen, setPollsOpen] = useState(false);
+  const [mini, setMini] = useState<MiniGame | null>(null);
+  const [taskBoardId, setTaskBoardId] = useState<string | null>(null);
   const vrows = vehicles.rows;
   const myId = me?.id ?? '';
   const parkedItems = useMemo(() => {
@@ -1279,10 +1286,13 @@ function OfficeRoom() {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => { if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini(it.t === 'foosball' ? 'football' : 'tennis'); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
-              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini(hit.t === 'foosball' ? 'football' : 'tennis'); return; }
+              if (hit && hit.t === 'pollboard') { setPollsOpen(true); return; }
+              if (hit && hit.t === 'kanban') { setTaskBoardId(hit.id); return; }
               if (hit) { setPanel(hit); return; }
             }} dark={dark} zoom={zoom}
             editing={editing} tool={tool} ghost={ghost} held={held} onTile={onTile}
@@ -1400,6 +1410,9 @@ function OfficeRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
+      <TaskBoardDialog open={!!taskBoardId} onClose={() => setTaskBoardId(null)} cards={taskBoardId ? boards.boardCards(taskBoardId) : []} me={profile?.id ?? ''} isAdmin={isAdmin} onAdd={(c, b) => boards.addCard(taskBoardId ?? '', c, b)} onMove={(c, col) => void boards.moveCard(c, col)} onDelete={(c) => void boards.deleteCard(c)} />
+      <MiniGamesDialog game={gamesOn(space?.layout?.settings) ? mini : null} onClose={() => setMini(null)} />
       <GamesDialog open={gamesOpen && gamesOn(space?.layout?.settings)} onClose={() => setGamesOpen(false)} />
       <OfficeSettingsDialog
         open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={space?.layout?.settings ?? {}} directory={directory ?? []} saving={savingSettings}

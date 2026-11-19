@@ -1647,6 +1647,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawDogBall(ctx, x, y, W, H, t, seed);
       break;
     }
+    case 'pollboard': { drawPollBoard(ctx, x, y, W, H, t, seed); break; }
     case 'gametable': { drawGameTable(ctx, x, y, W, H, t, seed); break; }
     case 'gong': { drawGong(ctx, x, y, W, H, t, seed); break; }
     case 'standingdesk': { drawStandingDesk(ctx, x, y, W, H, t, seed, col); break; }
@@ -2852,6 +2853,20 @@ export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, 
   else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
 }
 
+/** A poll board: a question, bars that wiggle as votes come in, and a ballot box. */
+function drawPollBoard(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  boardFrame(ctx, x, y, W, H, '#f0fdf4');
+  ctx.fillStyle = '#166534'; ctx.font = '700 6px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('VOTE!', x + 8, y + 9);
+  const tick = Math.floor(t / 1500 + seed * 9);
+  [['#22c55e', 0.7], ['#3b82f6', 0.45], ['#f59e0b', 0.3]].forEach(([c, base], i) => {
+    const wv = (base as number) * (0.85 + h2(tick, i) * 0.3);
+    ctx.fillStyle = 'rgba(15,23,42,0.08)'; ctx.fillRect(x + 8, y + 14 + i * 7, W - 20, 4.6);
+    ctx.fillStyle = c as string; ctx.fillRect(x + 8, y + 14 + i * 7, (W - 20) * wv, 4.6);
+  });
+  ctx.fillStyle = '#64748b'; rr(ctx, x + W - 12, y + 6, 6, 8, 1.5); ctx.fill(); ctx.fillStyle = '#e2e8f0'; ctx.fillRect(x + W - 11, y + 8, 4, 1);
+}
+
 /** A round game table with a board, cards and dice, and a screen glowing on one side. */
 function drawGameTable(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
   const cx = x + W / 2, cy = y + H / 2 + 2;
@@ -3685,11 +3700,32 @@ export function drawLighting(ctx: Ctx, map: MapDef, items: Item[], theme: Theme,
     }
     ctx.globalAlpha = 1;
   }
+  // how dark it is outside: full in the dark theme, and by the clock in the light one (so fires and lanterns come alive at dusk)
+  const hourNow = new Date().getHours() + new Date().getMinutes() / 60;
+  const nightF = theme.dark ? 1 : hourNow >= 20 || hourNow < 6 ? 1 : hourNow >= 17 ? (hourNow - 17) / 3 : hourNow < 7 ? 7 - hourNow : 0;
+  const glow = (cx: number, cy: number, r: number, rgb: string, a: number) => {
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+    g.addColorStop(0, `rgba(${rgb},${a})`);
+    g.addColorStop(0.55, `rgba(${rgb},${a * 0.35})`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  };
   // lamps glow warm; screens glow cool after dark
   for (const it of items) {
     const cx = (it.x + 0.5) * TILE;
     const cy = (it.y + 0.5) * TILE;
-    if (it.t === 'lamp') {
+    const flick = 0.9 + Math.sin(t / 130 + it.x * 3 + it.y) * 0.06 + Math.sin(t / 47 + it.y) * 0.04;
+    if (it.t === 'campfire') glow(cx + TILE / 2, cy + TILE / 2, TILE * (3.2 + nightF * 2.2) * flick, '255,150,50', 0.16 + nightF * 0.38);
+    else if (it.t === 'lantern') glow(cx, cy, TILE * (1.8 + nightF * 1.6) * flick, '255,205,120', 0.1 + nightF * 0.42);
+    else if (it.t === 'arcade' && nightF > 0) glow(cx, cy - 6, TILE * 2.1, ['80,220,255', '200,120,255', '255,120,200'][(it.x + it.y) % 3], 0.34 * nightF);
+    else if (it.t === 'gametable' && nightF > 0) glow(cx + TILE / 2, cy + TILE / 2, TILE * 2.4, '255,235,170', 0.3 * nightF);
+    else if (it.t === 'phonebooth' && nightF > 0) glow(cx, cy + TILE / 2, TILE * 1.6, '120,200,255', 0.26 * nightF);
+    else if (it.t === 'coffeebar' && nightF > 0) glow(cx + TILE * 2, cy, TILE * 3.2, '255,200,130', 0.28 * nightF);
+    else if (it.t === 'fireplace') glow(cx, cy + TILE / 2, TILE * 3, '255,140,60', 0.18 + nightF * 0.3);
+    else if ((it.t === 'ultrawide' || it.t === 'dualmonitor' || it.t === 'laptop') && nightF > 0) glow(cx, cy, TILE * 1.2, '110,170,255', 0.2 * nightF);
+    else if ((it.t === 'worldmap' || it.t === 'kanban' || it.t === 'barchart' || it.t === 'orgchart') && nightF > 0.4) glow(cx + TILE, cy, TILE * 2, '255,240,200', 0.12 * nightF);
+    else if (it.t === 'lamp') {
       const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, TILE * 3);
       g.addColorStop(0, theme.dark ? 'rgba(255,200,110,0.45)' : 'rgba(255,205,120,0.22)');
       g.addColorStop(1, 'rgba(255,200,110,0)');
