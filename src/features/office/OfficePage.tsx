@@ -973,8 +973,9 @@ function OfficeRoom() {
     const heldByOthers = Object.values(vrows).filter((v) => isHeld(v) && v.holder_id !== myId).map((v) => v.item_id);
     return items
       .filter((i) => !away.includes(i.id) && !heldByOthers.includes(i.id))
-      .map((i) => { const v = i.t === 'bike' ? vrows[i.id] : undefined; return v ? { ...i, x: v.x, y: v.y, r: (v.dir === 1 ? 1 : 0) as 0 | 1 } : i; });
+      .map((i) => { const v = i.t === 'bike' || i.t === 'kart' ? vrows[i.id] : undefined; return v ? { ...i, x: v.x, y: v.y, r: (v.dir === 1 ? 1 : 0) as 0 | 1 } : i; });
   }, [items, takenBikes, vrows, myId]);
+  const vehicleKinds = useMemo(() => Object.fromEntries(items.filter((i) => i.t === 'bike' || i.t === 'kart').map((i) => [i.id, i.t as 'bike' | 'kart'])), [items]);
   const handleRide = async (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => {
     if (on && bikeId) {
       const it = items.find((i) => i.id === bikeId);
@@ -1201,7 +1202,7 @@ function OfficeRoom() {
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
-            map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}

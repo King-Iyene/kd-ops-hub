@@ -11,7 +11,7 @@ export const CATEGORIES: { id: string; label: string; types: ItemType[] }[] = [
   { id: 'floor', label: 'Rugs and mats', types: ['rug', 'mat'] },
   { id: 'decor', label: 'Decor', types: ['lamp', 'balloons', 'frame', 'whiteboard', 'shelf', 'fishtank', 'fireplace', 'piano'] },
   { id: 'info', label: 'Info boards', types: ['valueswall', 'noticeboard', 'wallclock'] },
-  { id: 'fun', label: 'Fun', types: ['bike'] },
+  { id: 'fun', label: 'Fun', types: ['bike', 'kart'] },
   { id: 'pets', label: 'Pets', types: ['dog', 'cat'] },
   { id: 'kitchen', label: 'Kitchen and more', types: ['coffee', 'cooler', 'vending', 'bin'] },
 ];

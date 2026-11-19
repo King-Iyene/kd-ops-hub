@@ -1169,6 +1169,11 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       bikeSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col);
       return true;
     }
+    case 'kart': {
+      kartSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col, 'under');
+      kartSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col, 'over');
+      return true;
+    }
     case 'wallclock': {
       // a row of digital clocks, one for each place
       const zs = officeInfo.zones.length ? officeInfo.zones : DEFAULT_ZONES;
@@ -2977,6 +2982,81 @@ function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | '
   ctx.restore();
 }
 
+/**
+ * A go-kart: a low racing body with four fat wheels, a seat, a steering wheel, a rear engine and a number plate.
+ * Drawn in two layers so the driver can sit inside it: 'under' (wheels, floor, engine, seat back) and 'over' (nose, steering wheel).
+ */
+function kartSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, spin: number, col: string | undefined, layer: 'under' | 'over') {
+  const body = col ?? '#dc2626';
+  const dark = '#0f172a';
+  const light = shade(body, 0.35);
+  if (layer === 'under') ellipse(ctx, px, py + 9, view === 'side' ? 19 : 12, 4.4, 'rgba(15,23,42,0.3)');
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (view === 'side') {
+    ctx.scale(face, 1);
+    if (layer === 'under') {
+      // rear wheel (big, slick), floor pan and the engine at the back
+      for (const wx of [-12, 12]) {
+        disc(ctx, wx, 5.5, 6.4, dark);
+        disc(ctx, wx, 5.5, 3.6, '#cbd5e1');
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1; ctx.beginPath();
+        for (let k = 0; k < 3; k++) { const an = spin + (k * Math.PI) / 3; ctx.moveTo(wx - Math.cos(an) * 3.6, 5.5 - Math.sin(an) * 3.6); ctx.lineTo(wx + Math.cos(an) * 3.6, 5.5 + Math.sin(an) * 3.6); }
+        ctx.stroke();
+        disc(ctx, wx, 5.5, 1.2, '#facc15');
+      }
+      ctx.fillStyle = shade(body, -0.35);
+      rr(ctx, -15, 0, 30, 5, 2.4); ctx.fill();
+      // engine block and exhaust
+      ctx.fillStyle = '#334155'; rr(ctx, -16, -5, 9, 8, 2); ctx.fill();
+      ctx.fillStyle = '#94a3b8'; rr(ctx, -18, -2, 5, 2.4, 1.2); ctx.fill();
+      // seat back
+      ctx.fillStyle = '#1e293b'; rr(ctx, -8, -10, 6, 11, 2.4); ctx.fill();
+    } else {
+      // the side pod, nose cone, number plate and steering wheel
+      const g = ctx.createLinearGradient(0, -7, 0, 5);
+      g.addColorStop(0, light); g.addColorStop(0.5, body); g.addColorStop(1, shade(body, -0.3));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-8, 1); ctx.lineTo(-4, -4); ctx.quadraticCurveTo(4, -5, 14, -2); ctx.lineTo(19, 0.5); ctx.lineTo(17, 4); ctx.lineTo(-8, 4); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(5, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = dark; ctx.font = '700 5px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.save(); ctx.translate(5, 0.4); ctx.scale(face, 1); ctx.fillText('7', 0, 0); ctx.restore();
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-3, 1.5); ctx.lineTo(15, 1.5); ctx.stroke();
+      // front bumper and the steering wheel
+      ctx.strokeStyle = '#475569'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(19, 4); ctx.lineTo(21, 4); ctx.stroke();
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(9, -7); ctx.lineTo(12, -3); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(8.4, -7.4, 2, 3, 0.5, 0, Math.PI * 2); ctx.stroke();
+      disc(ctx, 20, 2, 1.4, '#fde047');
+    }
+  } else {
+    // seen from the front or the back
+    if (layer === 'under') {
+      for (const wx of [-10.5, 10.5]) {
+        ctx.fillStyle = dark; rr(ctx, wx - 3.2, -4, 6.4, 13, 2.6); ctx.fill();
+        ctx.fillStyle = '#94a3b8'; ctx.fillRect(wx - 0.8, -2 + ((spin * 2.4) % 6), 1.6, 1.8);
+      }
+      ctx.fillStyle = shade(body, -0.3); rr(ctx, -8, -2, 16, 10, 3); ctx.fill();
+      if (view === 'back') { ctx.fillStyle = '#334155'; rr(ctx, -6, -9, 12, 8, 2); ctx.fill(); ctx.fillStyle = '#94a3b8'; ctx.fillRect(-1, 0, 2, 4); }
+      ctx.fillStyle = '#1e293b'; rr(ctx, -5, -10, 10, 6, 2.4); ctx.fill();
+    } else {
+      const g = ctx.createLinearGradient(-9, 0, 9, 0);
+      g.addColorStop(0, shade(body, -0.25)); g.addColorStop(0.5, light); g.addColorStop(1, shade(body, -0.25));
+      ctx.fillStyle = g;
+      rr(ctx, -9, -3, 18, 11, 4); ctx.fill();
+      ctx.fillStyle = '#fff'; rr(ctx, -2.8, -1, 5.6, 5.6, 2.6); ctx.fill();
+      ctx.fillStyle = dark; ctx.font = '700 5px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('7', 0, 2);
+      if (view === 'front') {
+        disc(ctx, -6, 1, 1.5, '#fde047'); disc(ctx, 6, 1, 1.5, '#fde047');
+        ctx.strokeStyle = '#111827'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, -6, 4.6, 1.8, 0, 0, Math.PI * 2); ctx.stroke();
+      } else { disc(ctx, -6, 2, 1.4, '#ef4444'); disc(ctx, 6, 2, 1.4, '#ef4444'); }
+    }
+  }
+  ctx.restore();
+}
+
 export interface DrawPerson {
   x: number;
   y: number;
@@ -2997,6 +3077,10 @@ export interface DrawPerson {
   speaking?: boolean;
   /** on a power bike */
   riding?: boolean;
+  /** which vehicle they are on */
+  vehicle?: 'bike' | 'kart';
+  /** sitting down (on a bike or in a kart): the legs do not run, the hands are on the bars */
+  seated?: boolean;
 }
 
 /** How far each person has walked in total, so the walk cycle always moves forward (x + y shrinks when walking left or up). */
@@ -3015,12 +3099,25 @@ function stridePhase(p: DrawPerson, t: number): number {
 
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   if (p.riding) {
-    // the bike underneath, and the rider sitting a little higher on it
     const side = p.dir === 1 || p.dir === 2;
-    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, side ? 'side' : p.dir === 3 ? 'back' : 'front', p.dir === 1 ? -1 : 1, p.moving ? ((p.x + p.y) * TILE) / 4 : 0);
+    const view = side ? 'side' : p.dir === 3 ? 'back' : 'front';
+    const face = p.dir === 1 ? -1 : 1;
+    const roll = p.moving ? stridePhase(p, t) * 1.6 : 0;
+    if (p.vehicle === 'kart') {
+      // a go-kart: the body and wheels first, the driver sitting low inside it, then the front of the kart over their lap
+      kartSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'under');
+      ctx.save();
+      ctx.translate(0, -4);
+      drawPerson(ctx, { ...p, riding: false, seated: true }, t, theme);
+      ctx.restore();
+      kartSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'over');
+      return;
+    }
+    // the bike underneath, and the rider sitting on it
+    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll);
     ctx.save();
     ctx.translate(0, -9);
-    drawPerson(ctx, { ...p, riding: false }, t, theme);
+    drawPerson(ctx, { ...p, riding: false, seated: true }, t, theme);
     ctx.restore();
     return;
   }
@@ -3028,8 +3125,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const px = p.x * TILE;
   const py = p.y * TILE;
   const ph = stridePhase(p, t); // one stride about every 1.2 tiles walked, counted along the way actually walked
-  const step = p.moving ? Math.sin(ph) : 0;
-  const bob = p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
+  const step = p.moving && !p.seated ? Math.sin(ph) : 0;
+  const bob = p.seated ? (p.moving ? Math.sin(t / 130) * 0.45 : 0) : p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
   const lean = p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
   const side = p.dir === 1 || p.dir === 2;
   const back = p.dir === 3;
@@ -3077,9 +3174,9 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const lift = (v: number) => -Math.max(0, v) * 2.6;
   const stride = side ? step * 4.5 : 0;
   ctx.fillStyle = dressy ? a.skin : a.pants;
-  rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, 8, 2);
+  rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, p.seated ? 4 : 8, 2);
   ctx.fill();
-  rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, 8, 2);
+  rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, p.seated ? 4 : 8, 2);
   ctx.fill();
   const shoe = (sx: number, sy: number) => {
     const sc = a.shoeColor;
@@ -3104,8 +3201,10 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(sx - 0.2, sy + 11.2, 7.4, 1.1); ctx.fillRect(sx + 2.4, sy + 9.4, 2.6, 0.7);
     }
   };
-  shoe(px - 7.5 + fx * 1.5 + stride, py + lift(step));
-  shoe(px + 0.5 + fx * 1.5 - stride, py + lift(-step));
+  if (!p.seated) {
+    shoe(px - 7.5 + fx * 1.5 + stride, py + lift(step));
+    shoe(px + 0.5 + fx * 1.5 - stride, py + lift(-step));
+  }
 
   // arms swing opposite to the legs
   const jacketSleeves = a.jacket >= 1 && a.jacket <= 3;

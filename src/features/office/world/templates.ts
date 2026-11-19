@@ -198,7 +198,7 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   // a dog and a cat in the lounge
   items.push(it('dog', 36, 27), it('cat', 41, 26));
   // power bikes by the front door: press F to ride, F again to get off
-  items.push(it('bike', 28, 50), it('bike', 33, 50), it('bike', 43, 20));
+  items.push(it('bike', 28, 50), it('bike', 33, 50), it('bike', 43, 20), it('kart', 37, 50), it('kart', 38, 51));
   // more pets out in the courtyard and the garden
   items.push(it('dog', 38, 16), it('cat', 35, 20), it('dog', 24, 50), it('cat', 40, 50));
   // open desk pods: six desks facing each other, chairs between

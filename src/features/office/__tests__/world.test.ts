@@ -563,3 +563,12 @@ describe('rain', () => {
     }
   });
 });
+
+describe('vehicles', () => {
+  it('a go-kart can be ridden like a bike, and the headquarters has some by the door', async () => {
+    const { nearestInteractive } = await import('../world/world');
+    const { buildHQ } = await import('../world/templates');
+    expect(nearestInteractive([{ id: 'k', t: 'kart' as const, x: 5, y: 5 }], 5.5, 6.2)?.t).toBe('kart');
+    expect(buildHQ([]).items.filter((i) => i.t === 'kart').length).toBeGreaterThanOrEqual(2);
+  });
+});

@@ -66,6 +66,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
   bike: { w: 1, h: 1, solid: false, label: 'Power bike' },
+  kart: { w: 1, h: 1, solid: false, label: 'Go-kart' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -87,6 +88,7 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   valueswall: 'Core values',
   noticeboard: 'Notice board',
   bike: 'Ride the power bike',
+  kart: 'Drive the go-kart',
 };
 
 /** How much faster a power bike is than walking. */

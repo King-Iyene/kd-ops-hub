@@ -5,7 +5,7 @@ export type ItemType =
   | 'flowers' | 'tree' | 'grass' | 'papers' | 'mug' | 'tv' | 'printer' | 'cooler' | 'beanbag' | 'coffeetable'
   | 'laptop' | 'books' | 'plate' | 'globe' | 'trophy' | 'headphones' | 'pizza' | 'mat' | 'balloons' | 'cactus' | 'bamboo'
   | 'hedge' | 'fountain' | 'palm' | 'bench' | 'piano' | 'fireplace' | 'fishtank' | 'speaker' | 'stool' | 'roundtable'
-  | 'frame' | 'vending' | 'dog' | 'cat' | 'wallclock' | 'valueswall' | 'noticeboard' | 'bike'
+  | 'frame' | 'vending' | 'dog' | 'cat' | 'wallclock' | 'valueswall' | 'noticeboard' | 'bike' | 'kart'
   | 'pond' | 'waterfall' | 'sea' | 'sand' | 'flowerbed' | 'rocks' | 'birdbath'
   | 'beachchair' | 'umbrella' | 'towel' | 'sandcastle' | 'dock' | 'boat';
 

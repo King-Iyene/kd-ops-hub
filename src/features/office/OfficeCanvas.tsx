@@ -71,6 +71,9 @@ interface Props {
   onWalkTo: (x: number, y: number) => void;
   /** I am on a power bike, and getting on or off */
   riding: boolean;
+  /** which kind of vehicle each vehicle item is, and the one I am on */
+  vehicleKinds?: Record<string, 'bike' | 'kart'>;
+  rideKind?: 'bike' | 'kart';
   /** pos is where you are when you get off, so the vehicle stays there */
   onRide: (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => void;
   /** emoji reactions floating over people, by person id */
@@ -158,7 +161,7 @@ export function OfficeCanvas(props: Props) {
       if (k === 'f' && !propsRef.current.editing) {
         if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false, undefined, { x: meRef.current.x, y: meRef.current.y, dir: meRef.current.dir }); return; }
         const near = nearRef.current;
-        if (near) { e.preventDefault(); if (near.t === 'bike') propsRef.current.onRide(true, near.id); else propsRef.current.onInteract(near); return; }
+        if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else propsRef.current.onInteract(near); return; }
       }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
@@ -384,7 +387,7 @@ export function OfficeCanvas(props: Props) {
       p.onHoverPerson(null);
       const item = p.items.find((i) => INTERACTIVE[i.t] && tile.x >= i.x && tile.y >= i.y && tile.x < i.x + itemSize(i).w && tile.y < i.y + itemSize(i).h);
       if (item) {
-        if (item.t !== 'bike') { p.onMapClick(tile); return; }
+        if (item.t !== 'bike' && item.t !== 'kart') { p.onMapClick(tile); return; }
         const m = meRef.current;
         if (Math.hypot(item.x + 0.5 - m.x, item.y + 0.5 - m.y) < 3) p.onRide(!p.riding, item.id, { x: m.x, y: m.y, dir: m.dir }); else p.onWalkTo(item.x + 0.5, item.y + 1.5);
         return;
@@ -642,10 +645,10 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, riding: !!info.riding, bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, riding: !!info.riding, vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
+      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji });
 
       // trails: smoke behind a rider, a little dust at the feet of anyone walking, and the ring where you clicked
       for (const q of people) {
