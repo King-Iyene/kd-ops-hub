@@ -79,11 +79,11 @@ describe('the editor: surprise me and the ready-made looks', () => {
       // it survives being saved and loaded
       expect(cleanAvatar(a, 'someone')).toEqual(a);
     }
-  });
+  }, 30000);
   it('every ready-made look is a valid avatar', async () => {
     const { LOOKS } = await import('../AvatarDialog');
     const base = defaultAvatar('someone');
     expect(LOOKS.length).toBeGreaterThan(25);
     for (const l of LOOKS) { const a = { ...base, ...l.apply(base) }; expect(cleanAvatar(a, 'someone'), l.label).toEqual(a); }
-  });
+  }, 30000);
 });

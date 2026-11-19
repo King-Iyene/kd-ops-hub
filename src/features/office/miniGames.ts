@@ -10,17 +10,23 @@ export interface PongState {
   /** seconds to wait before the next serve */
   wait: number;
   winner: 0 | 1 | 2;
+  /** how fast everything goes: 1 is normal */
+  speed: number;
 }
 export const PONG = { padX: 28, padHalf: 44, ball: 8, winAt: 7, maxSpeed: 760 };
 
-export function newPong(): PongState {
-  return { w: 800, h: 480, bx: 400, by: 240, vx: 0, vy: 0, p1: 240, p2: 240, s1: 0, s2: 0, wait: 0.8, winner: 0 };
+/** The speeds you can choose, from a gentle rally to a blur. */
+export const SPEEDS = [{ id: 'slow', label: 'Slow', mult: 0.7 }, { id: 'normal', label: 'Normal', mult: 1 }, { id: 'fast', label: 'Fast', mult: 1.45 }, { id: 'insane', label: 'Insane', mult: 2 }] as const;
+export const speedMult = (id: string): number => SPEEDS.find((x) => x.id === id)?.mult ?? 1;
+
+export function newPong(speed = 1): PongState {
+  return { w: 800, h: 480, bx: 400, by: 240, vx: 0, vy: 0, p1: 240, p2: 240, s1: 0, s2: 0, wait: 0.8, winner: 0, speed };
 }
 
 function serve(s: PongState, toward: 1 | -1, rand: () => number) {
   s.bx = s.w / 2; s.by = s.h / 2;
   const a = (rand() - 0.5) * 0.8;
-  s.vx = Math.cos(a) * 320 * toward; s.vy = Math.sin(a) * 320;
+  s.vx = Math.cos(a) * 320 * s.speed * toward; s.vy = Math.sin(a) * 320 * s.speed;
 }
 
 /** Move the ball and settle bounces and points. (Paddle positions are set by the players before each step.) */
@@ -34,7 +40,7 @@ export function stepPong(s: PongState, dt: number, rand: () => number = Math.ran
   if (s.by > s.h - PONG.ball) { s.by = s.h - PONG.ball; s.vy = -Math.abs(s.vy); }
   const hit = (px: number, py: number, dir: 1 | -1) => {
     const off = (s.by - py) / PONG.padHalf; // -1 top .. 1 bottom
-    const speed = Math.min(PONG.maxSpeed, Math.hypot(s.vx, s.vy) * 1.06);
+    const speed = Math.min(PONG.maxSpeed * s.speed, Math.hypot(s.vx, s.vy) * 1.06);
     const ang = off * 0.95;
     s.vx = Math.cos(ang) * speed * dir; s.vy = Math.sin(ang) * speed;
     s.bx = px + dir * (PONG.ball + 3);
@@ -64,15 +70,16 @@ export interface FootState {
   s1: number; s2: number;
   wait: number;
   winner: 0 | 1 | 2;
+  speed: number;
 }
 export const FOOT = { ball: 9, man: 13, goalHalf: 70, winAt: 5, spacing: 92 };
 
-export function newFoot(): FootState {
+export function newFoot(speed = 1): FootState {
   const rod = (x: number, men: number, team: 1 | 2): Rod => ({ x, men, team, y: 0, kick: 0 });
   return {
     w: 800, h: 460, bx: 400, by: 230, vx: 0, vy: 0,
     rods: [rod(60, 1, 1), rod(200, 2, 1), rod(330, 3, 1), rod(470, 3, 2), rod(600, 2, 2), rod(740, 1, 2)],
-    s1: 0, s2: 0, wait: 0.8, winner: 0,
+    s1: 0, s2: 0, wait: 0.8, winner: 0, speed,
   };
 }
 
@@ -99,7 +106,7 @@ export function stepFoot(s: FootState, dt: number, rand: () => number = Math.ran
   }
   if (s.wait > 0) {
     s.wait -= dt;
-    if (s.wait <= 0) { const a = (rand() - 0.5) * 1.2; const dir = rand() < 0.5 ? 1 : -1; s.vx = Math.cos(a) * 260 * dir; s.vy = Math.sin(a) * 260; }
+    if (s.wait <= 0) { const a = (rand() - 0.5) * 1.2; const dir = rand() < 0.5 ? 1 : -1; s.vx = Math.cos(a) * 260 * s.speed * dir; s.vy = Math.sin(a) * 260 * s.speed; }
     return;
   }
   s.bx += s.vx * dt; s.by += s.vy * dt;
@@ -122,9 +129,10 @@ export function stepFoot(s: FootState, dt: number, rand: () => number = Math.ran
         s.bx = r.x + nx * min; s.by = my + ny * min;
         const vn = s.vx * nx + s.vy * ny;
         if (vn < 0) { s.vx -= 1.7 * vn * nx; s.vy -= 1.7 * vn * ny; }
-        if (r.kick > 0) { const dir = r.team === 1 ? 1 : -1; s.vx = dir * (520 + rand() * 120); s.vy += (s.by - my) * 6; r.kick = 0; }
+        if (r.kick > 0) { const dir = r.team === 1 ? 1 : -1; s.vx = dir * (520 + rand() * 120) * s.speed; s.vy += (s.by - my) * 6 * s.speed; r.kick = 0; }
         const sp = Math.hypot(s.vx, s.vy);
-        if (sp > 900) { s.vx *= 900 / sp; s.vy *= 900 / sp; }
+        const cap = 900 * s.speed;
+        if (sp > cap) { s.vx *= cap / sp; s.vy *= cap / sp; }
       }
     }
   }

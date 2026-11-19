@@ -55,6 +55,8 @@ export interface PetState {
   /** a way round furniture when walking straight at its goal gets it stuck */
   route: { x: number; y: number }[];
   routeGoal: { x: number; y: number } | null;
+  /** seconds the straight line to its goal has been blocked by a wall or furniture */
+  blockedFor: number;
 }
 
 export type PetCmd =
@@ -68,7 +70,7 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0 };
 }
 
 // a pet can outrun its owner (4.5 tiles a second) so it never lags behind
@@ -93,6 +95,17 @@ export function ballLanding(solid: boolean[][], x: number, y: number, dir: 0 | 1
   return { x, y };
 }
 
+/** Is the straight line between two points free of walls and furniture? */
+export function lineClear(solid: boolean[][], x0: number, y0: number, x1: number, y1: number): boolean {
+  const d = Math.hypot(x1 - x0, y1 - y0);
+  const n = Math.max(1, Math.ceil(d / 0.3));
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    if (!free(solid, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false;
+  }
+  return true;
+}
+
 /** Move a pet one step toward a point; returns true when it has got there. */
 function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: number, dt: number, stopAt: number): boolean {
   const goalX = tx, goalY = ty;
@@ -100,9 +113,12 @@ function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: 
   if (gd <= stopAt) { p.moving = false; p.v = 0; p.route = []; p.routeGoal = null; return true; }
   // blocked by a chair, a desk or a person-sized gap: find a way round, then follow it
   if (p.routeGoal && Math.hypot(p.routeGoal.x - goalX, p.routeGoal.y - goalY) > 2.2) { p.route = []; p.routeGoal = null; }
-  if (!p.route.length && p.stuck > 0.3) {
+  // a wall or a piece of furniture between the pet and where it is going: work out the way round at once, do not push along it
+  if (!p.route.length) p.blockedFor = lineClear(solid, p.x, p.y, goalX, goalY) ? 0 : p.blockedFor + dt;
+  if (!p.route.length && (p.stuck > 0.3 || p.blockedFor > 0.2)) {
     const path = findPath(solid, p.x, p.y, goalX, goalY);
     p.stuck = 0;
+    p.blockedFor = 0;
     if (path && path.length) { p.route = path.slice(0, 40); p.routeGoal = { x: goalX, y: goalY }; }
   }
   if (p.route.length) {

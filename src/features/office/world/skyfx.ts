@@ -25,11 +25,11 @@ function floors(map: MapDef): string[][] {
  * The weather on the ground itself (drawn in the map, under the furniture): in the Harmattan the grass dries to dusty brown
  * ground full of cracks and a film of dust settles indoors; in the rains the ground goes dark and wet with puddles that ripple.
  */
-export function drawGroundWeather(ctx: CanvasRenderingContext2D, map: MapDef, season: Season, rain: number, t: number) {
+export function drawGroundWeather(ctx: CanvasRenderingContext2D, map: MapDef, season: Season, rain: number, t: number, view?: { x0: number; y0: number; x1: number; y1: number }) {
   if (season === 'clear') return;
   const grid = floors(map);
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) {
+  for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
+    for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (map.walls[y][x]) continue;
       const f = grid[y][x];
       if (!f) continue;

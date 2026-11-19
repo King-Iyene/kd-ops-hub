@@ -104,6 +104,15 @@ function typing(e: KeyboardEvent): boolean {
 }
 
 /** The world: draws the office and moves you with WASD or the arrow keys. All state lives in refs so the loop never re-renders React. */
+/** The walking grid for a layout, remembered until the walls or furniture change (it was being rebuilt on every frame). */
+let solidMemo: { map: MapDef; items: Item[]; solid: boolean[][] } | null = null;
+function cachedSolid(map: MapDef, items: Item[]): boolean[][] {
+  if (solidMemo && solidMemo.map === map && solidMemo.items === items) return solidMemo.solid;
+  const solid = buildSolid(map, items);
+  solidMemo = { map, items, solid };
+  return solid;
+}
+
 export function OfficeCanvas(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const propsRef = useRef(props);
@@ -116,6 +125,8 @@ export function OfficeCanvas(props: Props) {
   const zoomShown = useRef(props.zoom);
   /** where the camera is looking: it glides after me instead of being glued to me, and jumps straight there after a teleport */
   const camFocus = useRef<{ x: number; y: number } | null>(null);
+  /** the furniture sorted back to front, remembered until it changes */
+  const sortCache = useRef<{ src: Item[]; rugs: Item[]; rest: Item[] } | null>(null);
   /** how far the view has been dragged away from following me, in pixels */
   const pan = useRef({ x: 0, y: 0 });
   const pulseAt = useRef(-1e9);
@@ -161,7 +172,7 @@ export function OfficeCanvas(props: Props) {
       try {
         const saved = JSON.parse(localStorage.getItem('kd:office:pos:' + props.spaceId) ?? 'null') as { x: number; y: number; t: number } | null;
         if (saved && Date.now() - saved.t < 7 * 24 * 3600_000 && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-          const solid = buildSolid(props.map, props.items);
+          const solid = cachedSolid(props.map, props.items);
           const cx = Math.floor(saved.x);
           const cy = Math.floor(saved.y);
           if (cy >= 0 && cy < solid.length && cx >= 0 && cx < (solid[0]?.length ?? 0) && !solid[cy][cx]) start = { x: saved.x, y: saved.y };
@@ -245,7 +256,7 @@ export function OfficeCanvas(props: Props) {
       const { ox, oy, scale } = cam.current;
       const wx = (e.clientX - r.left - ox) / (TILE * scale);
       const wy = (e.clientY - r.top - oy) / (TILE * scale);
-      const solid = buildSolid(p.map, p.items);
+      const solid = cachedSolid(p.map, p.items);
       const who = new Map(p.roster.map((q) => [q.id, q]));
       const m = meRef.current;
       let best: { id: string; isMe: boolean; d: number; x: number; y: number } | null = null;
@@ -382,7 +393,7 @@ export function OfficeCanvas(props: Props) {
       const { ox, oy, scale } = cam.current;
       const wx = (e.clientX - r.left - ox) / (TILE * scale);
       const wy = (e.clientY - r.top - oy) / (TILE * scale);
-      const solid = buildSolid(p.map, p.items);
+      const solid = cachedSolid(p.map, p.items);
       const who = new Map(p.roster.map((q) => [q.id, q]));
       let best: { id: string; isMe: boolean; d: number } | null = null;
       const consider = (id: string, isMe: boolean, x: number, y: number) => {
@@ -490,7 +501,7 @@ export function OfficeCanvas(props: Props) {
       const p = propsRef.current;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      const solid = buildSolid(p.map, p.items);
+      const solid = cachedSolid(p.map, p.items);
       const me = meRef.current;
 
       // "go to a spot": a new request sets a walking goal (the route is worked out below)
@@ -730,11 +741,14 @@ export function OfficeCanvas(props: Props) {
       ctx.save();
       ctx.translate(ox, oy);
       ctx.scale(scale, scale);
+      // only what is on screen is drawn: the tiles, and the furniture inside the window (with a little margin)
+      const view = { x0: Math.floor(-ox / scale / TILE) - 1, y0: Math.floor(-oy / scale / TILE) - 1, x1: Math.ceil((w - ox) / scale / TILE) + 1, y1: Math.ceil((h - oy) / scale / TILE) + 1 };
+      const onScreen = (it: Item) => { const zs = itemSize(it); return it.x + zs.w + 2 >= view.x0 && it.x - 2 <= view.x1 && it.y + zs.h + 3 >= view.y0 && it.y - 3 <= view.y1; };
       try {
-      drawFloor(ctx, p.map, theme, now);
+      drawFloor(ctx, p.map, theme, now, view);
       {
         const seasonNow = seasonFor(p.seasonMode, Date.now());
-        drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now);
+        drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now, view);
       }
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -805,11 +819,14 @@ export function OfficeCanvas(props: Props) {
       }
 
       // items and people drawn together so someone walking behind a desk is hidden by it
-      const sortedItems = [...p.items].sort((a, b) => depth(a) - depth(b));
-      const rugs = sortedItems.filter((i) => i.t === 'rug');
+      if (!sortCache.current || sortCache.current.src !== p.items) {
+        const sorted = [...p.items].sort((a, b) => depth(a) - depth(b));
+        sortCache.current = { src: p.items, rugs: sorted.filter((i) => i.t === 'rug'), rest: sorted.filter((i) => i.t !== 'rug') };
+      }
+      const rugs = sortCache.current.rugs.filter(onScreen);
       drawItems(ctx, rugs, theme, now);
-      drawWalls(ctx, p.map, theme, now);
-      const rest = sortedItems.filter((i) => i.t !== 'rug');
+      drawWalls(ctx, p.map, theme, now, view);
+      const rest = sortCache.current.rest;
       const sortedPeople = [...people].sort((a, b) => a.y - b.y);
       let pi = 0;
       for (const it of rest) {
@@ -818,7 +835,7 @@ export function OfficeCanvas(props: Props) {
           drawPerson(ctx, sortedPeople[pi], now, theme);
           pi += 1;
         }
-        drawItems(ctx, [it], theme, now);
+        if (onScreen(it)) drawItems(ctx, [it], theme, now);
       }
       for (; pi < sortedPeople.length; pi++) drawPerson(ctx, sortedPeople[pi], now, theme);
 
@@ -976,8 +993,8 @@ export function OfficeCanvas(props: Props) {
       }
       const stageZone = p.map.zones.find((z) => z.id === 'stage');
       const onStage = !!stageZone && people.some((q) => q.x >= stageZone.x && q.x < stageZone.x + stageZone.w && q.y >= stageZone.y && q.y < stageZone.y + stageZone.h);
-      drawLighting(ctx, p.map, p.items, theme, now, onStage);
-      drawZoneLabels(ctx, p.map.zones, theme);
+      drawLighting(ctx, p.map, p.items.filter(onScreen), theme, now, onStage);
+      drawZoneLabels(ctx, p.map.zones.filter((z) => z.x + z.w >= view.x0 && z.x <= view.x1 && z.y + z.h >= view.y0 && z.y <= view.y1), theme);
 
       // edit mode: grid, the build area and a preview of what is about to be placed
       if (p.editing) {
