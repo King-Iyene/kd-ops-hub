@@ -20,7 +20,7 @@ export function tabFromSplat(splat: string | undefined): AgentTabKey {
   return (AGENT_TABS.find((t) => t.key === first)?.key ?? 'inbox') as AgentTabKey;
 }
 
-export type SettingsSectionKey = 'claude' | 'team' | 'calendar' | 'coverage' | 'rules' | 'sites' | 'changes';
+export type SettingsSectionKey = 'claude' | 'team' | 'calendar' | 'coverage' | 'rules' | 'brief' | 'sites' | 'changes';
 
 export interface SettingsSection { key: SettingsSectionKey; label: string; blurb: string }
 
@@ -30,7 +30,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { key: 'team', label: 'Team', blurb: "Who the agent watches, and each person's group, manager and hours." },
   { key: 'calendar', label: 'Calendar & reports', blurb: 'When reports are due and when the team works.' },
   { key: 'coverage', label: 'Coverage', blurb: 'Which companies and modules the agent may look at.' },
-  { key: 'rules', label: 'Operating rules', blurb: "The agent's standing brief and who sees which flags." },
+  { key: 'rules', label: 'Monitoring rules', blurb: 'Every check the agent runs. Switch each one on or off.' },
+  { key: 'brief', label: 'Operating rules', blurb: "The agent's standing brief and privacy." },
   { key: 'sites', label: 'Sites & apps', blurb: 'Approved and unproductive sites the rules compare against.' },
   { key: 'changes', label: 'Change log', blurb: 'Who changed what in the agent, and when.' },
 ];

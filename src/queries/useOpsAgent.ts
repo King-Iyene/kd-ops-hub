@@ -75,12 +75,12 @@ export function useSetModuleAccess() {
 }
 
 // ── People ─────────────────────────────────────────────────────────────────
-export interface AgentPerson { id: string; full_name: string | null; role: string | null; job_title: string | null; pay_group_id: string | null; reporting_manager_id: string | null }
+export interface AgentPerson { id: string; full_name: string | null; role: string | null; job_title: string | null; pay_group_id: string | null; reporting_manager_id: string | null; photo_url?: string | null }
 
 export function useAgentPeople(enabled = true) {
   return useSupabaseQuery<AgentPerson[]>(
     K.people(),
-    () => supabase.from('profiles').select('id, full_name, role, job_title, pay_group_id, reporting_manager_id').eq('status', 'active').order('full_name') as never,
+    () => supabase.from('profiles').select('id, full_name, role, job_title, pay_group_id, reporting_manager_id, photo_url').eq('status', 'active').order('full_name') as never,
     { enabled, staleTime: 60_000 },
   );
 }
@@ -205,7 +205,7 @@ export function useAgentFlags() {
   );
 }
 export function useAgentSummaries() {
-  return useSupabaseQuery<AgentSummary[]>(K.summaries(), () => adb.from('agent_summaries').select('id, period_kind, period_start, period_end, company_id, narrative, auto, created_at').order('created_at', { ascending: false }).limit(50));
+  return useSupabaseQuery<AgentSummary[]>(K.summaries(), () => adb.from('agent_summaries').select('id, period_kind, period_start, period_end, company_id, narrative, auto, created_at, metrics').order('period_end', { ascending: false }).order('created_at', { ascending: false }).limit(200));
 }
 export function useAgentMemory() {
   return useSupabaseQuery<AgentMemory[]>(K.memory(), () => adb.from('agent_memory').select('id, type, content, scope, scope_ref, source, status, created_at').neq('status', 'archived').order('created_at', { ascending: false }).limit(100));

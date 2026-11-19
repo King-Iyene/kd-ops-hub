@@ -72,7 +72,25 @@ export interface AgentFlag {
   suggested_action: string | null; draft_message: string | null; escalation_level: number; occurrence_count: number;
   first_seen_at: string; last_seen_at: string; status: 'open' | 'snoozed' | 'handled' | 'dismissed' | 'auto_resolved'; item_type: string;
 }
-export interface AgentSummary { id: string; period_kind: string; period_start: string; period_end: string; company_id: string | null; narrative: string | null; auto: boolean; created_at: string }
+export interface AgentSummary { id: string; period_kind: string; period_start: string; period_end: string; company_id: string | null; narrative: string | null; auto: boolean; created_at: string; metrics?: SummaryMetrics | null }
+
+/** The numbers inside a summary (see the header of the agent_summaries migration). Older rows may lack any part of this. */
+export interface SummaryMetrics {
+  headline?: string; team_size?: number; working_days?: number;
+  tracking?: { expected_days?: number; tracked_days?: number; hours?: number; avg_hours_per_day?: number; low_days?: number };
+  tasks?: { completed?: number; created?: number; overdue?: number; in_review?: number; blocked?: number };
+  reports?: { expected?: number; submitted?: number; missing?: { person_id: string; name: string; days: number }[] };
+  flags?: { opened?: number; high?: number; resolved?: number; open_now?: number; by_rule?: Record<string, number> };
+  repeat?: { person_id: string; name: string; rule: string; count: number }[];
+  sites?: { domain: string; minutes: number; people: number }[];
+  today?: { due_today?: number; on_leave?: number };
+}
+
+export interface AgentRule {
+  code: string; module_key: string | null; title: string; description: string; enabled: boolean;
+  severity: 'info' | 'low' | 'medium' | 'high' | 'critical'; params: Record<string, unknown>;
+  status: 'ready' | 'waiting_for_data' | 'reserved' | 'later_phase'; status_note?: string | null;
+}
 export interface AgentMemory { id: string; type: string; content: string; scope: string; scope_ref: string | null; source: string; status: 'proposed' | 'active' | 'rejected' | 'archived'; created_at: string }
 export type ConnectionKind = 'slack' | 'cliq' | 'email' | 'webhook' | 'n8n' | 'api';
 export interface AgentConnection {

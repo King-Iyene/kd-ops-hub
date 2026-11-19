@@ -52,7 +52,7 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
     <li className="py-3" data-testid="agent-person">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-[11rem] flex-1 items-center gap-3">
-          <PersonAvatar name={person.full_name} />
+          <PersonAvatar name={person.full_name} photoUrl={person.photo_url} />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{person.full_name ?? 'Unnamed'}</p>
             <p className="truncate text-xs text-muted-foreground">{person.job_title ?? person.role ?? ''}{saved?.group_source === 'manual' && saved.group_name ? ' · group set by hand' : ''}</p>
