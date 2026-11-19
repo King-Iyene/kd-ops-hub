@@ -110,7 +110,10 @@ export function ProfileMenu(p: Props) {
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-popover bg-emerald-500" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
+              {!inDesktopApp() && <button type="button" title={`Download the desktop app for ${desktopDownload().label}`} aria-label="Download the desktop app" onClick={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
+            </div>
             <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? `${st.emoji} ${st.label}` : 'Available'}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-white/[0.08]" title="The sky, the same for everyone">

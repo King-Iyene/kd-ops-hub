@@ -879,7 +879,7 @@ export function OfficeCanvas(props: Props) {
         ctx.font = '700 11px system-ui, sans-serif';
         const tw = 28;
         const cx0 = (nearIt.x + sz.w / 2) * TILE;
-        const cy0 = (nearIt.y + sz.h) * TILE + 16 + Math.sin(now / 280) * 2;
+        const cy0 = nearIt.y * TILE - 8 + Math.sin(now / 280) * 2;
         ctx.fillStyle = 'rgba(15,23,42,0.88)';
         ctx.beginPath();
         ctx.roundRect(cx0 - tw / 2, cy0 - 11, tw, 22, 11);

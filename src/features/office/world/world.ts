@@ -167,7 +167,9 @@ export function nearestInteractive(items: Item[], x: number, y: number, reach = 
     const dx = Math.max(it.x - x, 0, x - (it.x + w));
     const dy = Math.max(it.y - y, 0, y - (it.y + h));
     const d = Math.hypot(dx, dy);
-    if (d <= reach && d < bd) { best = it; bd = d; }
+    // a bike or a kart only offers itself when you are right beside it; everything else from a little further
+    const r = it.t === 'bike' || it.t === 'kart' || SEAT_TYPES.includes(it.t) ? Math.min(reach, 1.05) : reach;
+    if (d <= r && d < bd) { best = it; bd = d; }
   }
   return best;
 }
