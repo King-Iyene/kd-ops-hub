@@ -7443,6 +7443,72 @@ export type Database = {
           },
         ]
       }
+      office_board_cards: {
+        Row: {
+          board: string
+          body: string
+          col: number
+          created_at: string
+          created_by: string | null
+          id: string
+          space_id: string
+        }
+        Insert: {
+          board: string
+          body: string
+          col?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          space_id: string
+        }
+        Update: {
+          board?: string
+          body?: string
+          col?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_board_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_board_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_board_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_board_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_board_cards_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_decor: {
         Row: {
           items: Json
@@ -7556,6 +7622,144 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_desk_notes: {
+        Row: {
+          body: string
+          created_at: string
+          desk: string
+          from_id: string | null
+          gift: string | null
+          id: string
+          space_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          desk: string
+          from_id?: string | null
+          gift?: string | null
+          id?: string
+          space_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          desk?: string
+          from_id?: string | null
+          gift?: string | null
+          id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_desk_notes_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_desk_notes_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_desk_notes_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_desk_notes_from_id_fkey"
+            columns: ["from_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_desk_notes_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          details: string | null
+          ends_at: string
+          id: string
+          space_id: string
+          starts_at: string
+          title: string
+          zone: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          details?: string | null
+          ends_at: string
+          id?: string
+          space_id: string
+          starts_at: string
+          title: string
+          zone?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          details?: string | null
+          ends_at?: string
+          id?: string
+          space_id?: string
+          starts_at?: string
+          title?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_events_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
             referencedColumns: ["id"]
           },
         ]
@@ -7934,6 +8138,129 @@ export type Database = {
             columns: ["to_id"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_poll_votes: {
+        Row: {
+          option: number
+          poll_id: string
+          user_id: string
+          voted_at: string
+        }
+        Insert: {
+          option: number
+          poll_id: string
+          user_id: string
+          voted_at?: string
+        }
+        Update: {
+          option?: number
+          poll_id?: string
+          user_id?: string
+          voted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "office_polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_polls: {
+        Row: {
+          closed: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          options: Json
+          question: string
+          space_id: string
+        }
+        Insert: {
+          closed?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          options: Json
+          question: string
+          space_id: string
+        }
+        Update: {
+          closed?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          options?: Json
+          question?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_polls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_polls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_polls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_polls_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_polls_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
             referencedColumns: ["id"]
           },
         ]
@@ -20178,6 +20505,62 @@ export type Database = {
         Returns: string[]
       }
       notify_expiring_overrides: { Args: never; Returns: number }
+      office_card_add: {
+        Args: {
+          p_board: string
+          p_body: string
+          p_col: number
+          p_space: string
+        }
+        Returns: {
+          board: string
+          body: string
+          col: number
+          created_at: string
+          created_by: string | null
+          id: string
+          space_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "office_board_cards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      office_card_delete: { Args: { p_card: string }; Returns: boolean }
+      office_card_move: {
+        Args: { p_card: string; p_col: number }
+        Returns: boolean
+      }
+      office_event_create: {
+        Args: {
+          p_details: string
+          p_ends: string
+          p_space: string
+          p_starts: string
+          p_title: string
+          p_zone: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          details: string | null
+          ends_at: string
+          id: string
+          space_id: string
+          starts_at: string
+          title: string
+          zone: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "office_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      office_event_delete: { Args: { p_event: string }; Returns: boolean }
       office_guest_directory: {
         Args: { p_space: string }
         Returns: {
@@ -20190,8 +20573,41 @@ export type Database = {
       office_is_admin: { Args: never; Returns: boolean }
       office_is_recorder: { Args: never; Returns: boolean }
       office_member_ids: { Args: never; Returns: string[] }
+      office_note_delete: { Args: { p_note: string }; Returns: boolean }
+      office_note_leave: {
+        Args: {
+          p_body: string
+          p_desk: string
+          p_gift: string
+          p_space: string
+        }
+        Returns: boolean
+      }
       office_owns: {
         Args: { p_office: string; p_space: string }
+        Returns: boolean
+      }
+      office_poll_close: { Args: { p_poll: string }; Returns: boolean }
+      office_poll_create: {
+        Args: { p_options: Json; p_question: string; p_space: string }
+        Returns: {
+          closed: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          options: Json
+          question: string
+          space_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "office_polls"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      office_poll_vote: {
+        Args: { p_option: number; p_poll: string }
         Returns: boolean
       }
       office_provision_personal: {
@@ -20229,7 +20645,7 @@ export type Database = {
         }
       }
       office_vehicle_keep: {
-        Args: { p_item: string; p_space: string }
+        Args: { p_item: string; p_space: string; p_x?: number; p_y?: number }
         Returns: boolean
       }
       office_vehicle_take: {
