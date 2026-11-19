@@ -4240,7 +4240,11 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // a calm sit: hands rest, with a short gentle bit of typing now and then (no shaking)
   const typingNow = p.seated && !p.moving && (t % 5200) < 1900;
   const armStep = typingNow ? Math.sin(t / 110) * 0.32 : dancing ? Math.sin(beat) * 2.6 : step;
-  if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
+  if (dancing) {
+    // arms thrown up and pumping in turn
+    arm(-10.5 - 2, -3.6 - Math.sin(beat) * 3.2);
+    arm(10.5 + 2, -3.6 + Math.sin(beat) * 3.2);
+  } else if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
 
   // body
   const tw = a.outfit === 1 ? 20 : 18;
