@@ -24,6 +24,23 @@ export function idleDecision(mode: IdleMode, idleSec: number, stopAfterMin: numb
   };
 }
 
+/** How long after an idle pause the tracker will still restart by itself when the person is back at the keyboard. */
+export const IDLE_RESUME_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * After the timer paused because nobody was at the computer: should it start again now? Yes, as soon as there is
+ * real input (the system idle time is a couple of seconds at most), unless the pause is hours old (the person went home).
+ */
+export function shouldAutoResume(o: { pausedByIdle: boolean; pausedAtMs: number | null; nowMs: number; idleSec: number }): boolean {
+  return o.pausedByIdle && o.pausedAtMs != null && o.nowMs - o.pausedAtMs <= IDLE_RESUME_WINDOW_MS && o.idleSec < 3;
+}
+
+/** True during the last minute before the idle pause, so the person can be warned once and keep their timer by moving the mouse. */
+export function idleWarning(mode: IdleMode, idleSec: number, stopAfterMin: number): boolean {
+  const limit = stopAfterMin * 60;
+  return mode === 'pause' && limit >= 120 && idleSec >= limit - 60 && idleSec < limit;
+}
+
 /** "20 minutes", "1 hour", "1 h 05 min" */
 export function formatIdle(sec: number): string {
   const m = Math.max(1, Math.round(sec / 60));

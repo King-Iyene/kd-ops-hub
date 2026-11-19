@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTaskToday, formatIdle, taskDisplayName, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
+import { idleWarning, shouldAutoResume, addTaskToday, formatIdle, taskDisplayName, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
 import { matchProductivityRule } from '../src/productivityRules';
 
 describe('idleDecision', () => {
@@ -146,5 +146,54 @@ describe('taskDisplayName (tracking a project itself)', () => {
   });
   it('with no project name it falls back to the task name', () => {
     expect(taskDisplayName({ taskName: 'General', projectName: '' })).toBe('General');
+  });
+});
+
+describe('coming back after an idle pause', () => {
+  const now = 10_000_000;
+  it('restarts as soon as there is real input', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 12 * 60_000, nowMs: now, idleSec: 1 })).toBe(true);
+  });
+  it('waits while the computer is still untouched', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 12 * 60_000, nowMs: now, idleSec: 40 })).toBe(false);
+  });
+  it('never restarts a pause the person asked for', () => {
+    expect(shouldAutoResume({ pausedByIdle: false, pausedAtMs: now - 60_000, nowMs: now, idleSec: 0 })).toBe(false);
+  });
+  it('does not restart on its own when the pause is hours old', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 4 * 3600_000, nowMs: now, idleSec: 0 })).toBe(false);
+  });
+  it('warns once in the last minute before the pause, only in pause mode', () => {
+    expect(idleWarning('pause', 4 * 60 + 5, 5)).toBe(true);
+    expect(idleWarning('pause', 3 * 60, 5)).toBe(false);
+    expect(idleWarning('pause', 5 * 60, 5)).toBe(false);
+    expect(idleWarning('track', 4 * 60 + 5, 5)).toBe(false);
+  });
+});
+
+describe('a whole idle spell, with the limit at 7 minutes (the watchdog checks every 30 seconds)', () => {
+  it('warns once at the sixth minute, pauses at the seventh back-dated to when the person stopped, and restarts on the first input', () => {
+    const LIMIT = 7;
+    const stoppedAt = 1_000_000; // the person last touched the computer here
+    const warnings: number[] = [];
+    let paused: { endMs: number } | null = null;
+    let warned = false;
+    for (let t = stoppedAt + 30_000; t <= stoppedAt + 12 * 60_000 && !paused; t += 30_000) {
+      const idleSec = (t - stoppedAt) / 1000;
+      const d = idleDecision('pause', idleSec, LIMIT, LIMIT);
+      if (d.pauseTimer) { paused = { endMs: t - idleSec * 1000 }; break; }
+      if (idleSec < 10) warned = false;
+      else if (!warned && idleWarning('pause', idleSec, LIMIT)) { warned = true; warnings.push(idleSec); }
+    }
+    expect(warnings).toEqual([360]); // once, one minute before the pause
+    expect(paused).not.toBeNull();
+    expect(paused!.endMs).toBe(stoppedAt); // the idle minutes are not counted
+    // ten minutes later the person touches the mouse: the same task starts again
+    const back = stoppedAt + 17 * 60_000;
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: paused!.endMs, nowMs: back, idleSec: 1 })).toBe(true);
+  });
+  it('a person who only paused for six minutes is never paused', () => {
+    for (let s = 0; s < 7 * 60; s += 30) expect(idleDecision('pause', s, 7, 7).pauseTimer).toBe(false);
+    expect(idleDecision('pause', 7 * 60, 7, 7).pauseTimer).toBe(true);
   });
 });

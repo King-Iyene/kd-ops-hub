@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, endOfDay, format, startOfDay } from 'date-fns';
 import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Rows3, GalleryHorizontal } from 'lucide-react';
@@ -11,7 +11,7 @@ import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScreenPanels } from '@/features/timetrack/ui/ScreenPanels';
+import { ScreenPanels, estimateScreens, useImageDims } from '@/features/timetrack/ui/ScreenPanels';
 import { EmployeeSelect } from '@/features/timetrack/ui/EmployeeSelect';
 import { DaySelect } from '@/features/timetrack/ui/DateRangeSelect';
 import {
@@ -44,8 +44,28 @@ export default function ScreenshotsPage() {
   const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
   const [zoom, setZoom] = useState(1);
   const [layout, setLayout] = useState<'stacked' | 'wide'>('stacked');
-  const openViewer = (r: ScreenshotRow) => { setZoom(1); setViewing(r); };
-  const clampZoom = (z: number) => Math.min(6, Math.max(1, Number(z.toFixed(2))));
+  // which screen is shown on its own (null = all of them)
+  const [only, setOnly] = useState<number | null>(null);
+  const openViewer = (r: ScreenshotRow) => { setZoom(1); setOnly(null); setViewing(r); };
+  const clampZoom = (z: number) => Math.min(8, Math.max(0.4, Number(z.toFixed(2))));
+  const viewerUrl = viewing ? urls[viewing.id] : undefined;
+  const screenCount = estimateScreens(useImageDims(viewerUrl));
+  const pane = useRef<HTMLDivElement | null>(null);
+  const drag = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+  // keys: left and right change screen, + and - zoom, 0 resets
+  useEffect(() => {
+    if (!viewing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowRight' && screenCount > 1) { e.preventDefault(); setOnly((o) => (o == null ? 0 : (o + 1) % screenCount)); setZoom(1); }
+      else if (e.key === 'ArrowLeft' && screenCount > 1) { e.preventDefault(); setOnly((o) => (o == null ? screenCount - 1 : (o - 1 + screenCount) % screenCount)); setZoom(1); }
+      else if (e.key === '+' || e.key === '=') setZoom((z) => clampZoom(z * 1.25));
+      else if (e.key === '-') setZoom((z) => clampZoom(z / 1.25));
+      else if (e.key === '0') setZoom(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewing, screenCount]);
 
   const dayDate = new Date(`${day}T00:00:00`);
   const shiftDay = (n: number) => setDay(format(addDays(dayDate, n), 'yyyy-MM-dd'));
@@ -247,21 +267,35 @@ export default function ScreenshotsPage() {
               {layout === 'stacked' ? <GalleryHorizontal className="mr-1.5 h-3.5 w-3.5" /> : <Rows3 className="mr-1.5 h-3.5 w-3.5" />}
               {layout === 'stacked' ? 'Side by side' : 'One screen per row'}
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z - 0.5))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z + 0.5))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></Button>
+            {screenCount > 1 && (
+              <div className="flex items-center gap-1" role="group" aria-label="Which screen">
+                <Button variant={only == null ? 'default' : 'outline'} size="sm" className="h-8" onClick={() => { setOnly(null); setZoom(1); }}>All screens</Button>
+                {Array.from({ length: screenCount }, (_, i) => (
+                  <Button key={i} variant={only === i ? 'default' : 'outline'} size="sm" className="h-8 px-3" onClick={() => { setOnly(i); setZoom(1); }} aria-label={`Screen ${i + 1}`}>{i + 1}</Button>
+                ))}
+              </div>
+            )}
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z / 1.25))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => clampZoom(z * 1.25))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></Button>
             <Button variant="outline" size="sm" className="h-8" onClick={() => setZoom(1)}><Maximize2 className="mr-1.5 h-3.5 w-3.5" />Fit</Button>
-            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(zoom * 100)}% · zoom is optional · scroll to move</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(zoom * 100)}% · + and − keys zoom · {screenCount > 1 ? 'arrow keys change screen · ' : ''}drag to move</span>
           </div>
           <div
-            className="max-h-[80vh] overflow-auto rounded-md bg-black"
-            onWheel={(e) => { if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25))); }}
+            ref={pane}
+            className="max-h-[80vh] cursor-grab overflow-auto rounded-md bg-black active:cursor-grabbing"
+            onWheel={(e) => { if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(e.deltaY < 0 ? z * 1.15 : z / 1.15)); }}
+            onMouseDown={(e) => { if (pane.current) drag.current = { x: e.clientX, y: e.clientY, sl: pane.current.scrollLeft, st: pane.current.scrollTop }; }}
+            onMouseMove={(e) => { const d = drag.current; if (d && pane.current && e.buttons === 1) { pane.current.scrollLeft = d.sl - (e.clientX - d.x); pane.current.scrollTop = d.st - (e.clientY - d.y); } }}
+            onMouseUp={() => { drag.current = null; }}
+            onMouseLeave={() => { drag.current = null; }}
           >
             {viewing && urls[viewing.id] && (
               <ScreenPanels
                 url={urls[viewing.id]}
                 layout={layout}
                 zoom={zoom}
-                onClickImage={() => setZoom((z) => (z >= 3 ? 1 : clampZoom(z + 1)))}
+                only={only}
+                onClickImage={() => setZoom((z) => (z >= 2 ? 1 : 2.5))}
               />
             )}
           </div>
