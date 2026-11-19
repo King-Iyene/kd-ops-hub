@@ -210,6 +210,9 @@ export function useOfficeMutations() {
       const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style: style as never, updated_at: new Date().toISOString() });
       if (error) throw error;
       qc.setQueryData(['office', 'avatar', userId], style);
+      // everywhere that shows people (the sidebar lists, name plates, your office sign) changes straight away
+      qc.setQueryData<Person[]>(['office', 'directory'], (old) => old?.map((p) => (p.id === userId ? { ...p, avatar: style } : p)));
+      void qc.invalidateQueries({ queryKey: ['office', 'directory'] });
     },
     async deleteRecording(row: RecordingRow) {
       await supabase.storage.from('office-recordings').remove([row.path]);

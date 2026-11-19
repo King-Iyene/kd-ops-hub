@@ -17,7 +17,29 @@ export const PANTS_COLORS = ['#334155', '#1e293b', '#475569', '#78350f', '#1e3a8
 type Hair = AvatarStyle['hairStyle'];
 
 /** A stable default look from someone's id, until they pick their own. */
+type LegacyAvatar = Omit<AvatarStyle, 'jacket' | 'jacketColor' | 'inner' | 'tie' | 'tieColor' | 'shoes' | 'shoeColor' | 'hat' | 'hatColor' | 'glasses' | 'extra'>;
+
+/** The old single "accessory" slot, spread over the new hat, glasses, extra and tie slots. */
+function fromAccessory(acc: number): { hat: AvatarStyle['hat']; glasses: AvatarStyle['glasses']; extra: AvatarStyle['extra']; tie: AvatarStyle['tie'] } {
+  return {
+    hat: acc === 3 ? 1 : acc === 5 ? 2 : acc === 6 ? 3 : 0,
+    glasses: acc === 1 ? 1 : acc === 4 ? 2 : 0,
+    extra: acc === 2 ? 1 : acc === 7 ? 2 : 0,
+    tie: acc === 8 ? 2 : 0,
+  };
+}
+
+/** An avatar in the old shape, given the new layers (nothing changes how it looks). */
+export function upgradeAvatar(a: LegacyAvatar): AvatarStyle {
+  const m = fromAccessory(a.accessory);
+  return { ...a, accessory: 0, jacket: 0, jacketColor: '#1f2937', inner: '#f8fafc', tie: m.tie, tieColor: '#b91c1c', shoes: 0, shoeColor: '#0f172a', hat: m.hat, hatColor: a.shirt, glasses: m.glasses, extra: m.extra };
+}
+
 export function defaultAvatar(id: string, gender?: string | null): AvatarStyle {
+  return upgradeAvatar(defaultAvatarBase(id, gender));
+}
+
+function defaultAvatarBase(id: string, gender?: string | null): LegacyAvatar {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   const g = (gender ?? '').toLowerCase();
@@ -66,15 +88,34 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
   const o = raw as Record<string, unknown>;
   const col = (v: unknown, fb: string) => (typeof v === 'string' && hexRe.test(v) ? v : fb);
   const pick = <T extends number>(v: unknown, allowed: readonly number[], fb: T): T => (typeof v === 'number' && allowed.includes(v) ? (v as T) : fb);
+  // an avatar saved before the layers existed carries the old accessory slot: turn it into hat, glasses, extra and tie
+  const hasLayers = ['jacket', 'tie', 'hat', 'glasses', 'extra', 'shoes'].some((k) => k in o);
+  const oldAcc = pick<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(o.accessory, [0, 1, 2, 3, 4, 5, 6, 7, 8], 0);
+  const mig = hasLayers ? { hat: d.hat, glasses: d.glasses, extra: d.extra, tie: d.tie } : o.accessory === undefined ? { hat: d.hat, glasses: d.glasses, extra: d.extra, tie: d.tie } : fromAccessory(oldAcc);
+  const shirtNow = col(o.shirt, d.shirt);
+  const layers = {
+    jacket: pick<AvatarStyle['jacket']>(o.jacket, [0, 1, 2, 3, 4], d.jacket),
+    jacketColor: col(o.jacketColor, d.jacketColor),
+    inner: col(o.inner, d.inner),
+    tie: pick<AvatarStyle['tie']>(o.tie, [0, 1, 2, 3], mig.tie),
+    tieColor: col(o.tieColor, d.tieColor),
+    shoes: pick<AvatarStyle['shoes']>(o.shoes, [0, 1, 2, 3], d.shoes),
+    shoeColor: col(o.shoeColor, d.shoeColor),
+    hat: pick<AvatarStyle['hat']>(o.hat, [0, 1, 2, 3, 4], mig.hat),
+    hatColor: col(o.hatColor, hasLayers ? d.hatColor : shirtNow),
+    glasses: pick<AvatarStyle['glasses']>(o.glasses, [0, 1, 2], mig.glasses),
+    extra: pick<AvatarStyle['extra']>(o.extra, [0, 1, 2], mig.extra),
+  };
   return {
     skin: col(o.skin, d.skin),
     hair: col(o.hair, d.hair),
     shirt: col(o.shirt, d.shirt),
     hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], d.hairStyle),
     outfit: pick<0 | 1 | 2 | 3 | 4 | 5 | 6>(o.outfit, [0, 1, 2, 3, 4, 5, 6], d.outfit),
-    accessory: pick<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(o.accessory, [0, 1, 2, 3, 4, 5, 6, 7, 8], d.accessory),
+    accessory: 0,
     pants: col(o.pants, d.pants),
     beard: pick<0 | 1 | 2 | 3>(o.beard, [0, 1, 2, 3], d.beard),
+    ...layers,
   };
 }
 
@@ -3040,21 +3081,39 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fill();
   rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, 8, 2);
   ctx.fill();
-  ctx.fillStyle = '#0f172a';
-  rr(ctx, px - 7.5 + fx * 1.5 + stride, py + 9 + lift(step), 7, 3.2, 1.6);
-  ctx.fill();
-  rr(ctx, px + 0.5 + fx * 1.5 - stride, py + 9 + lift(-step), 7, 3.2, 1.6);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(px - 7 + fx * 1.5 + stride, py + 11 + lift(step), 6, 0.8);
-  ctx.fillRect(px + 1 + fx * 1.5 - stride, py + 11 + lift(-step), 6, 0.8);
+  const shoe = (sx: number, sy: number) => {
+    const sc = a.shoeColor;
+    if (a.shoes === 3) {
+      // sandals: bare foot, two straps and a thin sole
+      ctx.fillStyle = a.skin; rr(ctx, sx, sy + 9.4, 7, 2.6, 1.3); ctx.fill();
+      ctx.fillStyle = sc; ctx.fillRect(sx + 1.5, sy + 9.4, 1.4, 2.6); ctx.fillRect(sx + 4.2, sy + 9.4, 1.4, 2.6);
+      ctx.fillStyle = shade(sc, -0.3); ctx.fillRect(sx, sy + 11.6, 7, 0.9);
+    } else if (a.shoes === 2) {
+      // boots: a shaft up the ankle
+      ctx.fillStyle = sc; rr(ctx, sx + 0.4, sy + 5.5, 5.8, 5.5, 1.5); ctx.fill(); rr(ctx, sx - 0.4, sy + 9, 7.6, 3.4, 1.6); ctx.fill();
+      ctx.fillStyle = shade(sc, -0.35); ctx.fillRect(sx - 0.4, sy + 11.6, 7.6, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(sx + 1, sy + 6, 1.1, 3);
+    } else if (a.shoes === 1) {
+      // formal shoes: slim and polished
+      ctx.fillStyle = sc; rr(ctx, sx - 0.4, sy + 9, 7.4, 3, 1.4); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fillRect(sx + 1, sy + 9.5, 3, 0.8);
+      ctx.fillStyle = shade(sc, -0.4); ctx.fillRect(sx - 0.4, sy + 11.6, 7.4, 0.8);
+    } else {
+      // sneakers: coloured upper, white sole, laces
+      ctx.fillStyle = sc; rr(ctx, sx, sy + 9, 7, 3.2, 1.6); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(sx - 0.2, sy + 11.2, 7.4, 1.1); ctx.fillRect(sx + 2.4, sy + 9.4, 2.6, 0.7);
+    }
+  };
+  shoe(px - 7.5 + fx * 1.5 + stride, py + lift(step));
+  shoe(px + 0.5 + fx * 1.5 - stride, py + lift(-step));
 
   // arms swing opposite to the legs
-  const sleeveLong = a.outfit === 1 || a.outfit === 2;
+  const jacketSleeves = a.jacket >= 1 && a.jacket <= 3;
+  const sleeveLong = a.outfit === 1 || a.outfit === 2 || jacketSleeves;
   const arm = (dx: number, swing: number) => {
     const ay = py - 9 + bob + swing * 1.6;
     const axs = side ? swing * 3.2 : 0;
-    ctx.fillStyle = a.shirt;
+    ctx.fillStyle = jacketSleeves ? a.jacketColor : a.shirt;
     rr(ctx, px + dx - 2.4 + axs + lean, ay, 4.8, sleeveLong ? 10 : 5, 2.4);
     ctx.fill();
     if (!sleeveLong) {
@@ -3133,6 +3192,83 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.moveTo(px + 4, py - 11 + bob);
       ctx.lineTo(px + 0.5, py - 1 + bob);
       ctx.stroke();
+    }
+  }
+
+  // jacket: worn over the top, with the inner shirt showing at the collar
+  if (a.jacket > 0) {
+    const jw = tw + 2;
+    const jc = a.jacketColor;
+    const jg = vgrad(ctx, py - 11 + bob, py + 4 + bob, shade(jc, 0.12), shade(jc, -0.14));
+    if (a.jacket === 4) {
+      // a waistcoat: narrower, the shirt sleeves show either side
+      ctx.fillStyle = jg;
+      rr(ctx, px - (tw - 5) / 2, py - 10.5 + bob, tw - 5, 14, 4);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = jg;
+      rr(ctx, px - jw / 2, py - 11.5 + bob, jw, 16, 6);
+      ctx.fill();
+    }
+    if (!back) {
+      // the opening at the front: the shirt underneath
+      ctx.fillStyle = a.inner;
+      ctx.beginPath();
+      ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = a.skin;
+      ctx.beginPath(); ctx.arc(px, py - 11.2 + bob, 2.6, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = shade(jc, -0.35);
+      ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.stroke();
+      if (a.jacket === 1) {
+        // blazer: lapels, buttons and a breast pocket
+        ctx.fillStyle = shade(jc, 0.2);
+        ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 6.6, py - 7.5 + bob); ctx.lineTo(px - 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 6.6, py - 7.5 + bob); ctx.lineTo(px + 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
+        disc(ctx, px + 1.9, py - 3 + bob, 0.8, '#e5e7eb'); disc(ctx, px + 1.9, py + 0.4 + bob, 0.8, '#e5e7eb');
+        ctx.fillStyle = shade(jc, -0.25); ctx.fillRect(px - 7.4, py - 7.6 + bob, 3.4, 0.9);
+      } else if (a.jacket === 2) {
+        // denim: collar, pockets and stitching
+        ctx.fillStyle = shade(jc, 0.18);
+        ctx.fillRect(px - 5.2, py - 11.6 + bob, 3.2, 2.4); ctx.fillRect(px + 2, py - 11.6 + bob, 3.2, 2.4);
+        ctx.strokeStyle = 'rgba(253,224,171,0.85)'; ctx.lineWidth = 0.6;
+        for (const sx2 of [-6.2, 3.4]) { ctx.strokeRect(px + sx2, py - 8 + bob, 2.8, 2.6); }
+        ctx.beginPath(); ctx.moveTo(px - 8.4, py + 1.8 + bob); ctx.lineTo(px + 8.4, py + 1.8 + bob); ctx.stroke();
+        disc(ctx, px + 1.4, py - 5 + bob, 0.7, '#fcd34d'); disc(ctx, px + 1.4, py - 1.6 + bob, 0.7, '#fcd34d');
+      } else if (a.jacket === 3) {
+        // bomber: ribbed collar and hem, a zip down the middle
+        ctx.fillStyle = shade(jc, -0.3);
+        rr(ctx, px - jw / 2, py + 1.6 + bob, jw, 3, 1.4); ctx.fill();
+        rr(ctx, px - 5.5, py - 12 + bob, 11, 3, 1.4); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(px, py - 9 + bob); ctx.lineTo(px, py + 2 + bob); ctx.stroke();
+      } else {
+        // waistcoat: buttons down the front
+        for (let b = 0; b < 3; b++) disc(ctx, px, py - 8 + b * 3.2 + bob, 0.8, '#e5e7eb');
+      }
+    }
+  }
+  // a tie, bow tie or scarf
+  if (a.tie > 0) {
+    const ty = py - 10.6 + bob;
+    if (a.tie === 1 && !back) {
+      ctx.fillStyle = a.tieColor;
+      ctx.beginPath(); ctx.moveTo(px - 1.8, ty); ctx.lineTo(px + 1.8, ty); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px - 1.1, ty + 2.2); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(px - 1.1, ty + 2.2); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px + 2, ty + 9.4); ctx.lineTo(px, ty + 11); ctx.lineTo(px - 2, ty + 9.4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(px - 0.5, ty + 3, 0.9, 5);
+    } else if (a.tie === 2 && !back) {
+      ctx.fillStyle = a.tieColor;
+      ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px - 5, ty - 2.2); ctx.lineTo(px - 5, ty + 3); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px + 5, ty - 2.2); ctx.lineTo(px + 5, ty + 3); ctx.closePath(); ctx.fill();
+      disc(ctx, px, ty + 0.4, 1.6, shade(a.tieColor, -0.3));
+    } else if (a.tie === 3) {
+      ctx.fillStyle = a.tieColor;
+      ctx.beginPath(); ctx.ellipse(px, ty + 0.4, 7, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = shade(a.tieColor, -0.2);
+      ctx.beginPath(); ctx.ellipse(px, ty + 1.4, 7, 1.6, 0, 0, Math.PI); ctx.fill();
+      if (!back) { ctx.fillStyle = a.tieColor; rr(ctx, px + 1.2, ty + 1, 3.6, 8.4, 1.4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px + 1.8, ty + 7, 2.4, 0.8); ctx.fillRect(px + 1.8, ty + 8.4, 2.4, 0.8); }
     }
   }
 
@@ -3304,21 +3440,21 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (side) { ctx.fillStyle = shade(a.skin, -0.12); disc(ctx, px + fx * 8.2, hy + 2, 1.2, ctx.fillStyle); }
 
     // accessories
-    if (a.accessory === 4) {
+    if (a.glasses === 2) {
       ctx.fillStyle = '#0b1220';
       for (const e of eyes) { rr(ctx, e - 3.6, eyeY - 2.6, 7.2, 5, 2); ctx.fill(); }
       if (!side) ctx.fillRect(eyes[0] + 3.4, eyeY - 1.4, eyes[1] - eyes[0] - 6.8, 1.2);
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       for (const e of eyes) ctx.fillRect(e - 2.4, eyeY - 1.9, 2.2, 0.9);
     }
-    if (a.accessory === 1) {
+    if (a.glasses === 1) {
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1.2;
       for (const e of eyes) { ctx.beginPath(); ctx.arc(e, eyeY, 3.2, 0, Math.PI * 2); ctx.stroke(); }
       if (!side) { ctx.beginPath(); ctx.moveTo(eyes[0] + 3.2, eyeY); ctx.lineTo(eyes[1] - 3.2, eyeY); ctx.stroke(); }
     }
   }
-  if (a.accessory === 2) {
+  if (a.extra === 1) {
     ctx.strokeStyle = '#1f2937';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -3335,8 +3471,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       disc(ctx, px - 2, hy + 8, 1.4, '#111827');
     }
   }
-  if (a.accessory === 3) {
-    const cap = shade(a.shirt, -0.1);
+  if (a.hat === 1) {
+    const cap = a.hatColor;
     ctx.fillStyle = cap;
     ctx.beginPath();
     ctx.arc(px, hy - 2, 9.4, Math.PI, Math.PI * 2);
@@ -3351,8 +3487,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     disc(ctx, px, hy - 9, 1.2, ctx.fillStyle);
   }
 
-  if (a.accessory === 5) {
-    const bc = shade(a.shirt, 0.05);
+  if (a.hat === 2) {
+    const bc = a.hatColor;
     ctx.fillStyle = bc;
     ctx.beginPath();
     ctx.arc(px, hy - 2.5, 9.6, Math.PI, Math.PI * 2);
@@ -3362,8 +3498,22 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.fill();
     disc(ctx, px, hy - 13, 2.4, shade(bc, 0.25));
   }
-  if (a.accessory === 6) {
-    const wc = shade(a.shirt, 0.18);
+  if (a.hat === 4) {
+    // a beret: a soft flat cap pulled to one side, with a little stalk
+    ctx.fillStyle = a.hatColor;
+    ctx.beginPath();
+    ctx.ellipse(px + 1.6, hy - 7, 10.4, 4.6, -0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shade(a.hatColor, -0.22);
+    ctx.beginPath();
+    ctx.ellipse(px, hy - 3.4, 9.2, 1.8, 0, 0, Math.PI);
+    ctx.fill();
+    disc(ctx, px + 1.8, hy - 11.4, 1.1, shade(a.hatColor, -0.3));
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(px - 2.4, hy - 8.4, 3.4, 1.1, -0.3, 0, Math.PI * 2); ctx.fill();
+  }
+  if (a.hat === 3) {
+    const wc = a.hatColor;
     ctx.fillStyle = wc;
     ctx.beginPath();
     ctx.arc(px, hy - 1.5, 9.8, Math.PI * 0.96, Math.PI * 2.04);
@@ -3379,22 +3529,12 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.stroke();
   }
 
-  if (a.accessory === 7 && !back) {
+  if (a.extra === 2 && !back) {
     for (const ex of side ? [px - fx * 6.5] : [px - 8.6, px + 8.6]) {
       disc(ctx, ex, hy + 4.4, 1.9, '#d6ac50');
       disc(ctx, ex - 0.4, hy + 3.9, 0.7, '#fff3c4');
     }
   }
-  if (a.accessory === 8 && !back) {
-    const by = py - 10.4 + bob;
-    ctx.fillStyle = '#b91c1c';
-    ctx.beginPath();
-    ctx.moveTo(px, by); ctx.lineTo(px - 5, by - 2.6); ctx.lineTo(px - 5, by + 2.6); ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(px, by); ctx.lineTo(px + 5, by - 2.6); ctx.lineTo(px + 5, by + 2.6); ctx.closePath(); ctx.fill();
-    disc(ctx, px, by, 1.6, '#7f1d1d');
-  }
-
   // name tag (skipped when there is no name, as in the avatar preview)
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
