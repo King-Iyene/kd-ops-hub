@@ -145,6 +145,1905 @@ export type Database = {
           },
         ]
       }
+      agent_admin_scope: {
+        Row: {
+          admin_id: string
+          company_ids: string[] | null
+          module_keys: string[] | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          admin_id: string
+          company_ids?: string[] | null
+          module_keys?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          admin_id?: string
+          company_ids?: string[] | null
+          module_keys?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_admin_scope_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_admin_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_ai_usage: {
+        Row: {
+          cache_write_tokens: number
+          cached_input_tokens: number
+          cost_usd: number
+          created_at: string
+          error: string | null
+          feature: string
+          id: string
+          input_tokens: number
+          model: string
+          ok: boolean
+          output_tokens: number
+          user_id: string | null
+        }
+        Insert: {
+          cache_write_tokens?: number
+          cached_input_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          error?: string | null
+          feature: string
+          id?: string
+          input_tokens?: number
+          model: string
+          ok?: boolean
+          output_tokens?: number
+          user_id?: string | null
+        }
+        Update: {
+          cache_write_tokens?: number
+          cached_input_tokens?: number
+          cost_usd?: number
+          created_at?: string
+          error?: string | null
+          feature?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          ok?: boolean
+          output_tokens?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_ai_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          rate_limit_per_min: number
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          rate_limit_per_min?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          rate_limit_per_min?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          at: string
+          detail: Json
+          entity_id: string | null
+          entity_type: string | null
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          at?: string
+          detail?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          at?: string
+          detail?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          thread_id: string
+          tool_calls: Json | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          role: string
+          thread_id: string
+          tool_calls?: Json | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          thread_id?: string
+          tool_calls?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "agent_chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_chat_threads: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_chat_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_chat_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_chat_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_chat_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_company_scope: {
+        Row: {
+          company_id: string
+          enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_company_scope_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_company_scope_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_company_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_company_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_company_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_company_scope_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_connections: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          last_tested_at: string | null
+          name: string
+          status: string
+          updated_at: string
+          vault_secret_names: string[]
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          last_error?: string | null
+          last_tested_at?: string | null
+          name: string
+          status?: string
+          updated_at?: string
+          vault_secret_names?: string[]
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          last_tested_at?: string | null
+          name?: string
+          status?: string
+          updated_at?: string
+          vault_secret_names?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_domain_list: {
+        Row: {
+          category: string
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          domain: string
+          id: string
+          source: string
+          team: string | null
+        }
+        Insert: {
+          category: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain: string
+          id?: string
+          source?: string
+          team?: string | null
+        }
+        Update: {
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain?: string
+          id?: string
+          source?: string
+          team?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_domain_list_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_domain_list_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_domain_list_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_domain_list_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_domain_list_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_domain_list_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_feature_proposals: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          detail: Json
+          id: string
+          kind: string
+          status: string
+          subject: string
+          suggested_rules: Json
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          detail?: Json
+          id?: string
+          kind: string
+          status?: string
+          subject: string
+          suggested_rules?: Json
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          detail?: Json
+          id?: string
+          kind?: string
+          status?: string
+          subject?: string
+          suggested_rules?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_feature_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_feature_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_feature_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_feature_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_flag_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          flag_id: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          flag_id: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          flag_id?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_flag_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flag_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flag_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flag_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flag_events_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_flags: {
+        Row: {
+          assigned_to: string | null
+          company_id: string | null
+          created_at: string
+          dismiss_reason: string | null
+          draft_channel: string | null
+          draft_message: string | null
+          escalation_level: number
+          evidence: Json
+          first_seen_at: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          item_type: string
+          last_seen_at: string
+          manager_id: string | null
+          module: string | null
+          occurrence_count: number
+          period_key: string
+          person_id: string | null
+          resolution_note: string | null
+          rule_code: string
+          severity: string
+          snoozed_until: string | null
+          status: string
+          subject_id: string
+          subject_type: string
+          suggested_action: string | null
+          title: string
+          updated_at: string
+          why: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id?: string | null
+          created_at?: string
+          dismiss_reason?: string | null
+          draft_channel?: string | null
+          draft_message?: string | null
+          escalation_level?: number
+          evidence?: Json
+          first_seen_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          item_type?: string
+          last_seen_at?: string
+          manager_id?: string | null
+          module?: string | null
+          occurrence_count?: number
+          period_key?: string
+          person_id?: string | null
+          resolution_note?: string | null
+          rule_code: string
+          severity?: string
+          snoozed_until?: string | null
+          status?: string
+          subject_id: string
+          subject_type: string
+          suggested_action?: string | null
+          title: string
+          updated_at?: string
+          why?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string | null
+          created_at?: string
+          dismiss_reason?: string | null
+          draft_channel?: string | null
+          draft_message?: string | null
+          escalation_level?: number
+          evidence?: Json
+          first_seen_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          item_type?: string
+          last_seen_at?: string
+          manager_id?: string | null
+          module?: string | null
+          occurrence_count?: number
+          period_key?: string
+          person_id?: string | null
+          resolution_note?: string | null
+          rule_code?: string
+          severity?: string
+          snoozed_until?: string | null
+          status?: string
+          subject_id?: string
+          subject_type?: string
+          suggested_action?: string | null
+          title?: string
+          updated_at?: string
+          why?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_flags_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_flags_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_flags_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_identity_map: {
+        Row: {
+          cliq_user_id: string | null
+          email: string | null
+          matched_by: string
+          person_id: string
+          slack_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cliq_user_id?: string | null
+          email?: string | null
+          matched_by?: string
+          person_id: string
+          slack_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cliq_user_id?: string | null
+          email?: string | null
+          matched_by?: string
+          person_id?: string
+          slack_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_identity_map_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_identity_map_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_identity_map_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_identity_map_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_memory: {
+        Row: {
+          approved_by: string | null
+          content: string
+          created_at: string
+          id: string
+          proposed_by: string | null
+          scope: string
+          scope_ref: string | null
+          source: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          proposed_by?: string | null
+          scope?: string
+          scope_ref?: string | null
+          source?: string
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          proposed_by?: string | null
+          scope?: string
+          scope_ref?: string | null
+          source?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memory_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_memory_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_memory_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memory_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memory_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_memory_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_memory_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memory_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_messages: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string
+          error: string | null
+          flag_id: string | null
+          id: string
+          provider_response: Json | null
+          recipient_id: string | null
+          recipient_label: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+        }
+        Insert: {
+          body: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          flag_id?: string | null
+          id?: string
+          provider_response?: Json | null
+          recipient_id?: string | null
+          recipient_label?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          flag_id?: string | null
+          id?: string
+          provider_response?: Json | null
+          recipient_id?: string | null
+          recipient_label?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_module_access: {
+        Row: {
+          enabled: boolean
+          module_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          module_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          module_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_module_access_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: true
+            referencedRelation: "agent_module_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "agent_module_access_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_module_access_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_module_access_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_module_access_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_module_catalog: {
+        Row: {
+          description: string
+          key: string
+          label: string
+          sensitive: boolean
+          sort_order: number
+          tables: string[]
+          views: string[]
+        }
+        Insert: {
+          description?: string
+          key: string
+          label: string
+          sensitive?: boolean
+          sort_order?: number
+          tables?: string[]
+          views?: string[]
+        }
+        Update: {
+          description?: string
+          key?: string
+          label?: string
+          sensitive?: boolean
+          sort_order?: number
+          tables?: string[]
+          views?: string[]
+        }
+        Relationships: []
+      }
+      agent_person_profile: {
+        Row: {
+          country_code: string | null
+          exemptions: Json
+          group_name: string | null
+          group_source: string
+          manager_id: string | null
+          notes: string | null
+          person_id: string
+          timezone: string | null
+          updated_at: string
+          updated_by: string | null
+          work_end: string | null
+          work_start: string | null
+          working_days: number[] | null
+        }
+        Insert: {
+          country_code?: string | null
+          exemptions?: Json
+          group_name?: string | null
+          group_source?: string
+          manager_id?: string | null
+          notes?: string | null
+          person_id: string
+          timezone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          work_end?: string | null
+          work_start?: string | null
+          working_days?: number[] | null
+        }
+        Update: {
+          country_code?: string | null
+          exemptions?: Json
+          group_name?: string | null
+          group_source?: string
+          manager_id?: string | null
+          notes?: string | null
+          person_id?: string
+          timezone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          work_end?: string | null
+          work_start?: string | null
+          working_days?: number[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_person_profile_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_person_profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_questions: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          answered_by: string | null
+          context: Json
+          created_at: string
+          flag_id: string | null
+          id: string
+          memory_id: string | null
+          options: Json | null
+          question: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          context?: Json
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          memory_id?: string | null
+          options?: Json | null
+          question: string
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          context?: Json
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          memory_id?: string | null
+          options?: Json | null
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_questions_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_questions_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "agent_memory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_rule_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          flags_created: number | null
+          flags_resolved: number | null
+          id: string
+          rows_found: number | null
+          rule_code: string
+          started_at: string
+          trigger: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          flags_created?: number | null
+          flags_resolved?: number | null
+          id?: string
+          rows_found?: number | null
+          rule_code: string
+          started_at?: string
+          trigger?: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          flags_created?: number | null
+          flags_resolved?: number | null
+          id?: string
+          rows_found?: number | null
+          rule_code?: string
+          started_at?: string
+          trigger?: string
+        }
+        Relationships: []
+      }
+      agent_rules: {
+        Row: {
+          applies_to_groups: string[]
+          code: string
+          description: string
+          enabled: boolean
+          module_key: string | null
+          params: Json
+          quiet_hours: Json
+          severity: string
+          status: string
+          status_note: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          applies_to_groups?: string[]
+          code: string
+          description?: string
+          enabled?: boolean
+          module_key?: string | null
+          params?: Json
+          quiet_hours?: Json
+          severity?: string
+          status?: string
+          status_note?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          applies_to_groups?: string[]
+          code?: string
+          description?: string
+          enabled?: boolean
+          module_key?: string | null
+          params?: Json
+          quiet_hours?: Json
+          severity?: string
+          status?: string
+          status_note?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_rules_module_key_fkey"
+            columns: ["module_key"]
+            isOneToOne: false
+            referencedRelation: "agent_module_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "agent_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_schema_snapshots: {
+        Row: {
+          hash: string
+          id: string
+          tables: Json
+          taken_at: string
+        }
+        Insert: {
+          hash: string
+          id?: string
+          tables: Json
+          taken_at?: string
+        }
+        Update: {
+          hash?: string
+          id?: string
+          tables?: Json
+          taken_at?: string
+        }
+        Relationships: []
+      }
+      agent_settings: {
+        Row: {
+          ai_enabled: boolean
+          daily_ai_budget_usd: number
+          default_country_code: string
+          default_work_end: string
+          default_work_start: string
+          default_working_days: number[]
+          digest: Json
+          escalation_window_days: number
+          hide_own_flags: boolean
+          hr_contact_id: string | null
+          id: boolean
+          leadership_flags_super_admin_only: boolean
+          mode: string
+          model_fast: string
+          model_prices: Json
+          model_smart: string
+          monthly_ai_budget_usd: number
+          operating_rules: string
+          readonly_query_enabled: boolean
+          report_deadline: string
+          report_table_id: string | null
+          timezone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ai_enabled?: boolean
+          daily_ai_budget_usd?: number
+          default_country_code?: string
+          default_work_end?: string
+          default_work_start?: string
+          default_working_days?: number[]
+          digest?: Json
+          escalation_window_days?: number
+          hide_own_flags?: boolean
+          hr_contact_id?: string | null
+          id?: boolean
+          leadership_flags_super_admin_only?: boolean
+          mode?: string
+          model_fast?: string
+          model_prices?: Json
+          model_smart?: string
+          monthly_ai_budget_usd?: number
+          operating_rules?: string
+          readonly_query_enabled?: boolean
+          report_deadline?: string
+          report_table_id?: string | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ai_enabled?: boolean
+          daily_ai_budget_usd?: number
+          default_country_code?: string
+          default_work_end?: string
+          default_work_start?: string
+          default_working_days?: number[]
+          digest?: Json
+          escalation_window_days?: number
+          hide_own_flags?: boolean
+          hr_contact_id?: string | null
+          id?: boolean
+          leadership_flags_super_admin_only?: boolean
+          mode?: string
+          model_fast?: string
+          model_prices?: Json
+          model_smart?: string
+          monthly_ai_budget_usd?: number
+          operating_rules?: string
+          readonly_query_enabled?: boolean
+          report_deadline?: string
+          report_table_id?: string | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_settings_hr_contact_id_fkey"
+            columns: ["hr_contact_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_settings_hr_contact_id_fkey"
+            columns: ["hr_contact_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_settings_hr_contact_id_fkey"
+            columns: ["hr_contact_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_settings_hr_contact_id_fkey"
+            columns: ["hr_contact_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_settings_report_table_id_fkey"
+            columns: ["report_table_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_summaries: {
+        Row: {
+          auto: boolean
+          company_id: string | null
+          created_at: string
+          generated_by: string | null
+          id: string
+          metrics: Json
+          model: string | null
+          narrative: string | null
+          period_end: string
+          period_kind: string
+          period_start: string
+        }
+        Insert: {
+          auto?: boolean
+          company_id?: string | null
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          metrics?: Json
+          model?: string | null
+          narrative?: string | null
+          period_end: string
+          period_kind: string
+          period_start: string
+        }
+        Update: {
+          auto?: boolean
+          company_id?: string | null
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          metrics?: Json
+          model?: string | null
+          narrative?: string | null
+          period_end?: string
+          period_kind?: string
+          period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_summaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_summaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_wallet_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_summaries_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_summaries_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_summaries_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_summaries_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_text_checks: {
+        Row: {
+          check_kind: string
+          created_at: string
+          model: string | null
+          text_hash: string
+          verdict: Json
+        }
+        Insert: {
+          check_kind: string
+          created_at?: string
+          model?: string | null
+          text_hash: string
+          verdict: Json
+        }
+        Update: {
+          check_kind?: string
+          created_at?: string
+          model?: string | null
+          text_hash?: string
+          verdict?: Json
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           body: string | null
@@ -19854,6 +21753,58 @@ export type Database = {
         }
         Returns: number
       }
+      agent_ai_budget_state: { Args: never; Returns: Json }
+      agent_audit: {
+        Args: {
+          p_action: string
+          p_detail?: Json
+          p_entity_id?: string
+          p_entity_type?: string
+        }
+        Returns: undefined
+      }
+      agent_audit_write: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_detail?: Json
+          p_entity_id?: string
+          p_entity_type?: string
+        }
+        Returns: undefined
+      }
+      agent_can_access: { Args: never; Returns: boolean }
+      agent_can_configure: { Args: never; Returns: boolean }
+      agent_company_of: { Args: { p_person: string }; Returns: string }
+      agent_in_scope: {
+        Args: { p_company: string; p_module: string; p_person: string }
+        Returns: boolean
+      }
+      agent_log_ai_usage: {
+        Args: {
+          p_cache_write_tokens: number
+          p_cached_input_tokens: number
+          p_cost_usd: number
+          p_error?: string
+          p_feature: string
+          p_input_tokens: number
+          p_model: string
+          p_ok?: boolean
+          p_output_tokens: number
+          p_user?: string
+        }
+        Returns: string
+      }
+      agent_my_scope: { Args: never; Returns: Json }
+      agent_role: { Args: never; Returns: string }
+      agent_seed_domains: { Args: never; Returns: number }
+      agent_shorten_json: { Args: { j: Json }; Returns: Json }
+      agent_shorten_val: { Args: { v: Json }; Returns: Json }
+      agent_suggest_person_profiles: {
+        Args: { p_leadership_pay_groups?: string[] }
+        Returns: Json
+      }
+      agent_valid_timezone: { Args: { p: string }; Returns: boolean }
       approve_advance_request: {
         Args: { p_request_id: string }
         Returns: {
