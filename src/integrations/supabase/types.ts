@@ -8091,6 +8091,78 @@ export type Database = {
           },
         ]
       }
+      office_vehicles: {
+        Row: {
+          dir: number
+          holder_id: string | null
+          item_id: string
+          lease_expires_at: string | null
+          space_id: string
+          updated_at: string
+          version: number
+          x: number
+          y: number
+        }
+        Insert: {
+          dir?: number
+          holder_id?: string | null
+          item_id: string
+          lease_expires_at?: string | null
+          space_id: string
+          updated_at?: string
+          version?: number
+          x: number
+          y: number
+        }
+        Update: {
+          dir?: number
+          holder_id?: string | null
+          item_id?: string
+          lease_expires_at?: string | null
+          space_id?: string
+          updated_at?: string
+          version?: number
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_vehicles_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_vehicles_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_vehicles_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_vehicles_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_vehicles_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "office_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_checklists: {
         Row: {
           checklist_type: string
@@ -20129,6 +20201,56 @@ export type Database = {
       office_provision_personal_internal: {
         Args: { p_profile: string }
         Returns: undefined
+      }
+      office_vehicle_drop: {
+        Args: {
+          p_dir: number
+          p_item: string
+          p_space: string
+          p_x: number
+          p_y: number
+        }
+        Returns: {
+          dir: number
+          holder_id: string | null
+          item_id: string
+          lease_expires_at: string | null
+          space_id: string
+          updated_at: string
+          version: number
+          x: number
+          y: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "office_vehicles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      office_vehicle_keep: {
+        Args: { p_item: string; p_space: string }
+        Returns: boolean
+      }
+      office_vehicle_take: {
+        Args: { p_item: string; p_space: string; p_x: number; p_y: number }
+        Returns: {
+          dir: number
+          holder_id: string | null
+          item_id: string
+          lease_expires_at: string | null
+          space_id: string
+          updated_at: string
+          version: number
+          x: number
+          y: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "office_vehicles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       paid_total_in_period: {
         Args: { p_end: string; p_start: string }
