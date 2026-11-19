@@ -17604,7 +17604,28 @@ export type Database = {
             foreignKeyName: "tm_task_activity_actor_id_fkey"
             columns: ["actor_id"]
             isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
           {
@@ -17659,7 +17680,28 @@ export type Database = {
             foreignKeyName: "tm_task_attachments_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -17822,7 +17864,28 @@ export type Database = {
             foreignKeyName: "tm_task_watchers_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_task_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -17833,9 +17896,9 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          custom: Json
           description: string | null
           due_date: string | null
-          custom: Json
           id: string
           list_id: string
           parent_id: string | null
@@ -17851,9 +17914,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          custom?: Json
           description?: string | null
           due_date?: string | null
-          custom?: Json
           id?: string
           list_id: string
           parent_id?: string | null
@@ -17869,9 +17932,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          custom?: Json
           description?: string | null
           due_date?: string | null
-          custom?: Json
           id?: string
           list_id?: string
           parent_id?: string | null
@@ -17944,6 +18007,13 @@ export type Database = {
             columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "tm_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_tasks_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
             referencedColumns: ["id"]
           },
         ]
