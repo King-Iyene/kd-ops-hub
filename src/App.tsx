@@ -100,7 +100,6 @@ const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
 const TaskHub = lazy(() => import('./pages/TaskHub'));
-const TaskInboxPage = lazy(() => import('./pages/TaskInboxPage'));
 const TaskMyTasksPage = lazy(() => import('./pages/TaskMyTasksPage'));
 const TaskDashboardsPage = lazy(() => import('./pages/TaskDashboardsPage'));
 const TaskListPage = lazy(() => import('./pages/TaskListPage'));
@@ -900,7 +899,7 @@ function AppRoutes() {
 
         {/* Task module: every signed-in employee (space/list/table creation
             is admin-only, enforced by RLS — the pages themselves hide those
-            controls for everyone else). Its Home/Inbox/My Tasks/Dashboards +
+            controls for everyone else). Its Home/My Tasks/Dashboards +
             Spaces nav lives in the main sidebar's Task Management hub panel
             (TaskSidebarNav), not on the page. */}
         <Route
@@ -914,7 +913,6 @@ function AppRoutes() {
           }
         >
           <Route index element={<TaskHub />} />
-          <Route path="inbox" element={<TaskInboxPage />} />
           <Route path="my-tasks" element={<TaskMyTasksPage />} />
           <Route path="dashboards" element={<TaskDashboardsPage />} />
           <Route path="list/:listId" element={<TaskListPage />} />

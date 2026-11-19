@@ -1,3 +1,4 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryKeys } from './keys';
 import { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupabaseQuery';
@@ -26,12 +27,25 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export const TASK_STATUSES: TaskStatus[] = ['to_do', 'in_progress', 'in_review', 'blocked', 'done'];
 
-export const STATUS_META: Record<TaskStatus, { label: string; dot: string; badge: string }> = {
-  to_do:       { label: 'To Do',       dot: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-300' },
-  in_progress: { label: 'In Progress', dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' },
-  in_review:   { label: 'In Review',   dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' },
-  blocked:     { label: 'Blocked',     dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' },
-  done:        { label: 'Done',        dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' },
+export const STATUS_META: Record<TaskStatus, { label: string; dot: string; badge: string; text: string }> = {
+  to_do:       { label: 'To Do',       dot: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-300',         text: 'text-slate-500 dark:text-slate-300' },
+  in_progress: { label: 'In Progress', dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',              text: 'text-blue-600 dark:text-blue-400' },
+  in_review:   { label: 'In Review',   dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',          text: 'text-amber-600 dark:text-amber-400' },
+  blocked:     { label: 'Blocked',     dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',                  text: 'text-red-600 dark:text-red-400' },
+  done:        { label: 'Complete',    dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',  text: 'text-emerald-600 dark:text-emerald-400' },
+};
+
+export const PRIORITY_META: Record<TaskPriority, { label: string; className: string }> = {
+  low:    { label: 'Low',    className: 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400' },
+  medium: { label: 'Medium', className: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' },
+  high:   { label: 'High',   className: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' },
+  urgent: { label: 'Urgent', className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' },
+};
+
+// Board columns group the five statuses into three stages.
+export type StatusStage = 'not_started' | 'active' | 'done';
+export const STAGE_OF: Record<TaskStatus, StatusStage> = {
+  to_do: 'not_started', in_progress: 'active', in_review: 'active', blocked: 'active', done: 'done',
 };
 
 export interface TaskRow {
@@ -132,6 +146,9 @@ export function useTasks(listId: string) {
   );
 }
 
+// A task shows up in many places at once (its list, My Tasks, every Home
+// card, the open detail panel), so any task write refreshes all
+// task-module queries rather than trying to enumerate which ones it touched.
 export function useCreateTask(listId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
@@ -141,21 +158,41 @@ export function useCreateTask(listId: string) {
         .insert({ list_id: listId, title: vars.title, created_by: vars.createdBy, ...(vars.status ? { status: vars.status } : {}) })
         .select()
         .single(),
-    { onSuccess: () => invalidate(queryKeys.taskModule.tasks(listId)) },
+    { onSuccess: () => invalidate(queryKeys.taskModule.all) },
   );
 }
 
-export function useUpdateTask(listId: string) {
+export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date'>>;
+
+export function useUpdateTask() {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (vars: { id: string; patch: Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date'>> }) => {
+    (vars: { task: TaskRow; patch: TaskPatch }) => {
       const patch: Record<string, unknown> = { ...vars.patch };
-      if (vars.patch.status) {
+      // Only stamp completed_at on an actual transition, so re-saving a
+      // finished task doesn't move its completion date.
+      if (vars.patch.status && vars.patch.status !== vars.task.status) {
         patch.completed_at = vars.patch.status === 'done' ? new Date().toISOString() : null;
       }
-      return supabase.from('tm_tasks').update(patch).eq('id', vars.id).select().single();
+      return supabase.from('tm_tasks').update(patch).eq('id', vars.task.id).select().single();
     },
-    { onSuccess: () => invalidate(queryKeys.taskModule.tasks(listId)) },
+    { onSuccess: () => invalidate(queryKeys.taskModule.all) },
+  );
+}
+
+export function useDeleteTask() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (taskId: string) => supabase.from('tm_tasks').delete().eq('id', taskId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.all) },
+  );
+}
+
+export function useTask(taskId: string | null) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.task(taskId ?? ''),
+    () => supabase.from('tm_tasks').select('*').eq('id', taskId ?? '').maybeSingle(),
+    { enabled: !!taskId },
   );
 }
 
@@ -168,12 +205,114 @@ export function useMyTasks(userId: string) {
   );
 }
 
-export function useDeleteTask(listId: string) {
+// Everything Home needs in one query: tasks assigned to me (My Work, My
+// Board, This Week, Summary) plus tasks I created for someone else
+// (Delegated).
+export function useHomeTasks(userId: string) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.homeTasks(userId),
+    () =>
+      supabase
+        .from('tm_tasks')
+        .select('*')
+        .or(`assignee_id.eq.${userId},created_by.eq.${userId}`)
+        .order('due_date', { nullsFirst: false })
+        .limit(1000),
+    { enabled: !!userId },
+  );
+}
+
+// ── Comments ───────────────────────────────────────────────────────────
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author_id: string | null;
+  body: string;
+  mentions: string[];
+  created_at: string;
+}
+
+export function useTaskComments(taskId: string | null) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.comments(taskId ?? ''),
+    () => supabase.from('tm_task_comments').select('*').eq('task_id', taskId ?? '').order('created_at'),
+    { enabled: !!taskId },
+  );
+}
+
+export function useAddComment(taskId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (taskId: string) => supabase.from('tm_tasks').delete().eq('id', taskId).select().single(),
-    { onSuccess: () => invalidate(queryKeys.taskModule.tasks(listId)) },
+    (vars: { authorId: string; body: string; mentions: string[] }) =>
+      supabase
+        .from('tm_task_comments')
+        .insert({ task_id: taskId, author_id: vars.authorId, body: vars.body, mentions: vars.mentions })
+        .select()
+        .single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.comments(taskId), queryKeys.taskModule.commentFeed()) },
   );
+}
+
+export function useDeleteComment(taskId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (commentId: string) => supabase.from('tm_task_comments').delete().eq('id', commentId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.comments(taskId), queryKeys.taskModule.commentFeed()) },
+  );
+}
+
+export function useMyCommentFeed() {
+  return useSupabaseQuery(queryKeys.taskModule.commentFeed(), () => supabase.rpc('tm_my_comment_feed', { p_days: 7 }));
+}
+
+export function useMyRecords() {
+  return useSupabaseQuery(queryKeys.taskModule.myRecords(), () => supabase.rpc('tm_my_records'));
+}
+
+// ── Home layout ────────────────────────────────────────────────────────
+
+export const HOME_CARDS = ['summary', 'my_work', 'my_board', 'this_week', 'delegated', 'mentions', 'my_records'] as const;
+export type HomeCardKey = (typeof HOME_CARDS)[number];
+export type HomeDateRange = 'all' | 'week' | 'month' | 'last30';
+
+export interface HomeLayout {
+  cards: HomeCardKey[];
+  dateRange: HomeDateRange;
+}
+
+export const DEFAULT_HOME_LAYOUT: HomeLayout = { cards: [...HOME_CARDS], dateRange: 'all' };
+
+// Read once; nothing is written until the person actually changes the
+// layout (CLAUDE.md: no writes on mount).
+export function useHomeLayout(userId: string) {
+  return useSupabaseQuery(
+    queryKeys.taskModule.homeLayout(userId),
+    () => supabase.from('tm_home_layouts').select('cards, date_range').eq('user_id', userId).maybeSingle(),
+    { enabled: !!userId, staleTime: Infinity },
+  );
+}
+
+// Optimistic: the new layout shows immediately (a dragged card stays where
+// it was dropped) and is rolled back only if the save fails.
+export function useSaveHomeLayout(userId: string) {
+  const qc = useQueryClient();
+  const key = queryKeys.taskModule.homeLayout(userId);
+  return useMutation<unknown, Error, HomeLayout, { previous: unknown }>({
+    mutationFn: async (layout) => {
+      const { error } = await supabase
+        .from('tm_home_layouts')
+        .upsert({ user_id: userId, cards: layout.cards, date_range: layout.dateRange });
+      if (error) throw new Error(error.message);
+    },
+    onMutate: async (layout) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData(key);
+      qc.setQueryData(key, { cards: layout.cards, date_range: layout.dateRange });
+      return { previous };
+    },
+    onError: (_err, _layout, ctx) => qc.setQueryData(key, ctx?.previous),
+  });
 }
 
 // ── Tables ─────────────────────────────────────────────────────────────
@@ -327,7 +466,7 @@ export function useAllTasksForPicker() {
 // other people-picker in the app uses (see Tasks.tsx, TaskTeamDashboard.tsx).
 
 export function useAssignablePeople() {
-  return useSupabaseQuery(['task-module', 'assignable-people'] as const, () =>
+  return useSupabaseQuery(queryKeys.taskModule.people(), () =>
     supabase
       .from('profiles_directory')
       .select('id, full_name, email, photo_url')
