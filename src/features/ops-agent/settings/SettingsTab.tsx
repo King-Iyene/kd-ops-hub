@@ -4,7 +4,6 @@ import { AdminScopeCard } from './AdminScopeCard';
 import { AiCard } from './AiCard';
 import { CalendarCard } from './CalendarCard';
 import { AuditCard, DomainsCard } from './DomainsAuditCard';
-import { ModeCard } from './ModeCard';
 import { PeopleCard } from './PeopleCard';
 import { RulesCard } from './RulesCard';
 import { ScopeCard } from './ScopeCard';
@@ -23,7 +22,6 @@ export function SettingsTab({ canConfigure }: { canConfigure: boolean }) {
   return (
     <div className="space-y-4" data-testid="agent-settings">
       {readOnly && <p className="rounded-lg border bg-muted/40 p-3 text-sm" role="note">These settings are read only. A Super Admin changes them.</p>}
-      <ModeCard settings={s} readOnly={readOnly} />
       <AiCard settings={s} readOnly={readOnly} />
       <CalendarCard settings={s} readOnly={readOnly} />
       <ScopeCard readOnly={readOnly} />

@@ -62,8 +62,9 @@ export interface AgentAdminScope { admin_id: string; company_ids: string[] | nul
 export interface AgentAuditRow { id: number; at: string; actor_id: string | null; action: string; entity_type: string | null; entity_id: string | null; detail: Record<string, unknown> }
 export interface AgentUsageRow { id: string; created_at: string; feature: string; model: string; input_tokens: number; output_tokens: number; cost_usd: number; ok: boolean; error: string | null }
 export interface AgentBudget { level: 'ok' | 'warn' | 'off'; ai_enabled: boolean; spent_today_usd: number; spent_month_usd: number; daily_budget_usd: number; monthly_budget_usd: number }
-export interface AiStatus { key_configured: boolean; ai_enabled: boolean; mode: AgentMode; models: { fast: string; smart: string }; budget: AgentBudget }
+export interface AiStatus { key_configured: boolean; key_source: 'env' | 'vault' | null; ai_enabled: boolean; models: { fast: string; smart: string }; budget: AgentBudget }
 export interface AiTestResult { ok: boolean; reason?: string; error?: string | null; model?: string; text?: string; cost_usd?: number; key_configured?: boolean }
+export interface KeyResult { ok: boolean; reason?: string; error?: string }
 
 export interface AgentFlag {
   id: string; company_id: string | null; module: string | null; rule_code: string; severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
@@ -73,17 +74,30 @@ export interface AgentFlag {
 }
 export interface AgentSummary { id: string; period_kind: string; period_start: string; period_end: string; company_id: string | null; narrative: string | null; auto: boolean; created_at: string }
 export interface AgentMemory { id: string; type: string; content: string; scope: string; scope_ref: string | null; source: string; status: 'proposed' | 'active' | 'rejected' | 'archived'; created_at: string }
-export interface AgentConnection { id: string; kind: string; name: string; status: 'disconnected' | 'connected' | 'error'; last_error: string | null; last_tested_at: string | null }
+export type ConnectionKind = 'slack' | 'cliq' | 'email' | 'webhook' | 'n8n' | 'api';
+export interface AgentConnection {
+  id: string; kind: ConnectionKind | 'whatsapp'; name: string; status: 'disconnected' | 'connected' | 'error';
+  config: { url?: string; host?: string; to?: string; method?: string; header_name?: string };
+  vault_secret_names: string[]; last_error: string | null; last_tested_at: string | null;
+}
+export interface SaveConnectionInput { id?: string; kind: ConnectionKind; name: string; url?: string; token?: string; clear_token?: boolean; to?: string; method?: string; header_name?: string }
+export interface AgentApiKey { id: string; name: string; key_prefix: string; scopes: string[]; rate_limit_per_min: number; created_at: string; last_used_at: string | null; revoked_at: string | null }
+export interface ChatThread { id: string; title: string; updated_at: string }
+export interface ChatMessage { id: string; thread_id: string; role: 'user' | 'assistant' | 'tool'; content: string; tool_calls: string[] | null; created_at: string }
+export interface ChatReply { ok: boolean; thread_id?: string; reply?: string; tools_used?: string[]; title?: string; reason?: string; message?: string }
+
+export const CONNECTION_KINDS: { kind: ConnectionKind; label: string; help: string }[] = [
+  { kind: 'slack', label: 'Slack', help: 'Posts to a channel through an incoming webhook.' },
+  { kind: 'cliq', label: 'Zoho Cliq', help: 'Posts to a Cliq channel or bot through its webhook.' },
+  { kind: 'email', label: 'Email', help: 'Sends a message to one to five addresses.' },
+  { kind: 'webhook', label: 'Webhook', help: 'Sends a signed JSON message to any address.' },
+  { kind: 'n8n', label: 'n8n', help: 'Starts an n8n workflow through its webhook trigger.' },
+  { kind: 'api', label: 'API', help: 'Calls any HTTPS API with a token.' },
+];
 
 export const WEEKDAYS: { n: number; short: string }[] = [
   { n: 1, short: 'Mon' }, { n: 2, short: 'Tue' }, { n: 3, short: 'Wed' }, { n: 4, short: 'Thu' }, { n: 5, short: 'Fri' }, { n: 6, short: 'Sat' }, { n: 7, short: 'Sun' },
 ];
-
-export const MODE_META: Record<AgentMode, { label: string; help: string }> = {
-  observe: { label: 'Observe', help: 'Finds problems and shows them in the Inbox. Sends nothing to anyone.' },
-  remind: { label: 'Remind', help: 'Also drafts reminders. A person still reads and sends each one.' },
-  enforce: { label: 'Enforce', help: 'Drafts reminders and escalations on schedule. A person still approves each message.' },
-};
 
 /** Time columns come back as HH:MM:SS; the inputs want HH:MM. */
 export const hhmm = (t: string | null | undefined) => (t ?? '').slice(0, 5);

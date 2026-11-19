@@ -199,7 +199,7 @@ END $$;
 RESET ROLE;
 DO $$
 BEGIN
-  IF (SELECT mode FROM public.agent_settings) <> 'observe' OR (SELECT ai_enabled FROM public.agent_settings) THEN RAISE EXCEPTION 'FAIL: an admin changed settings'; END IF;
+  IF (SELECT mode FROM public.agent_settings) <> 'observe' OR NOT (SELECT ai_enabled FROM public.agent_settings) THEN RAISE EXCEPTION 'FAIL: an admin changed settings'; END IF;
 END $$;
 
 -- ═════ 4. Admin who sees every company ═══════════════════════════════════

@@ -4,7 +4,7 @@ import { useAiBudget, useAiStatus } from '@/queries/useOpsAgent';
 import { usd } from './agentDb';
 
 /** Plain-language notices at the top of the module: key missing, budget close, budget spent. */
-export function AgentBanners({ canConfigure, onOpenSettings }: { canConfigure: boolean; onOpenSettings: () => void }) {
+export function AgentBanners({ canConfigure, onOpenSettings }: { canConfigure: boolean; onOpenSettings?: () => void }) {
   const status = useAiStatus();
   const budget = useAiBudget();
   const notices: { id: string; tone: 'warn' | 'bad'; icon: typeof KeyRound; text: string; action?: boolean }[] = [];
@@ -13,8 +13,8 @@ export function AgentBanners({ canConfigure, onOpenSettings }: { canConfigure: b
     notices.push({
       id: 'key', tone: 'warn', icon: KeyRound, action: canConfigure,
       text: canConfigure
-        ? 'The Claude key is not set. Rules still run; summaries, chat and message drafts stay off until a Super Admin adds the key as the ANTHROPIC_API_KEY secret.'
-        : 'AI features are off because the Claude key is not set. Rules still run.',
+        ? 'Claude is not connected yet: chat and message drafts need a key. Paste one in Settings, under AI and budget.'
+        : 'Claude is not connected yet, so chat is unavailable. A Super Admin adds the key in Settings.',
     });
   }
   const b = budget.data;
@@ -39,7 +39,7 @@ export function AgentBanners({ canConfigure, onOpenSettings }: { canConfigure: b
         >
           <Icon className={tone === 'bad' ? 'mt-0.5 h-4 w-4 shrink-0 text-destructive' : 'mt-0.5 h-4 w-4 shrink-0 text-amber-500'} />
           <p className="flex-1">{text}</p>
-          {action && <Button size="sm" variant="outline" onClick={onOpenSettings}>Open settings</Button>}
+          {action && onOpenSettings && <Button size="sm" variant="outline" onClick={onOpenSettings}>Open settings</Button>}
         </div>
       ))}
     </div>

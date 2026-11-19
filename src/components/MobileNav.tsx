@@ -30,6 +30,7 @@ import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TaskSidebarNav } from '@/components/TaskSidebarNav';
+import { OpsAgentSidebarNav } from '@/components/OpsAgentSidebarNav';
 import type { Role } from '@/lib/roles';
 import {
   ALL_NAV,
@@ -355,6 +356,8 @@ export function MobileNav() {
                     <div className="pb-1.5 px-1.5">
                       {hub.key === 'task' ? (
                         <TaskSidebarNav variant="mobile" onNavigate={() => { setMoreOpen(false); setExpandedHub(null); }} />
+                      ) : hub.key === 'opsAgent' ? (
+                        <OpsAgentSidebarNav variant="mobile" onNavigate={() => { setMoreOpen(false); setExpandedHub(null); }} />
                       ) : hub.subGroups.length > 1 ? (
                         hub.subGroups.map((group) => (
                           <div key={group.key} className="space-y-0.5 mt-1.5 first:mt-0">
