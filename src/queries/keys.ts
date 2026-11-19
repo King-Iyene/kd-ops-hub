@@ -41,6 +41,15 @@ export const queryKeys = {
     tables: (folderId?: string) => [...queryKeys.taskModule.all, 'tables', folderId] as const,
     fields: (tableId: string) => [...queryKeys.taskModule.all, 'fields', tableId] as const,
     records: (tableId: string) => [...queryKeys.taskModule.all, 'records', tableId] as const,
+    task: (id: string) => [...queryKeys.taskModule.all, 'task', id] as const,
+    comments: (taskId: string) => [...queryKeys.taskModule.all, 'comments', taskId] as const,
+    homeTasks: (userId: string) => [...queryKeys.taskModule.all, 'home-tasks', userId] as const,
+    commentFeed: () => [...queryKeys.taskModule.all, 'comment-feed'] as const,
+    myRecords: () => [...queryKeys.taskModule.all, 'my-records'] as const,
+    // Own root on purpose: invalidating every task-module query after a task
+    // edit shouldn't also refetch the people directory or the saved layout.
+    people: () => ['task-module-people'] as const,
+    homeLayout: (userId: string) => ['task-module-home-layout', userId] as const,
   },
   fleet: {
     all: ['fleet'] as const,

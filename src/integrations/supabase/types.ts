@@ -17250,6 +17250,35 @@ export type Database = {
           },
         ]
       }
+      tm_home_layouts: {
+        Row: {
+          cards: string[]
+          date_range: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cards: string[]
+          date_range?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cards?: string[]
+          date_range?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_home_layouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_lists: {
         Row: {
           created_at: string
@@ -17482,6 +17511,48 @@ export type Database = {
             columns: ["folder_id"]
             isOneToOne: false
             referencedRelation: "tm_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          mentions: string[]
+          task_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          mentions?: string[]
+          task_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          mentions?: string[]
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -21612,6 +21683,30 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_my_comment_feed: {
+        Args: { p_days?: number }
+        Returns: {
+          author_id: string
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          list_id: string
+          mentioned: boolean
+          task_id: string
+          task_title: string
+        }[]
+      }
+      tm_my_records: {
+        Args: never
+        Returns: {
+          id: string
+          label: string
+          table_id: string
+          table_name: string
+          updated_at: string
+        }[]
+      }
       tm_set_record_cell: {
         Args: { p_field_id: string; p_record_id: string; p_value: Json }
         Returns: {

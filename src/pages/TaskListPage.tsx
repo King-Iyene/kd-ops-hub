@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
-  Home, Plus, Trash2, Loader2, Flag, List as ListIcon, Columns3, Calendar, Table as TableIcon,
+  Home, Plus, Loader2, Flag, List as ListIcon, Columns3, Calendar, Table as TableIcon,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
@@ -12,39 +12,23 @@ import { initialsOf } from '@/lib/name';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { AvatarBubble } from '@/components/AvatarBubble';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
-} from '@/components/ui/sheet';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { TaskDetailSheet } from '@/features/task-module/TaskDetailSheet';
 import {
   useTaskLists,
   useTasks,
   useCreateTask,
-  useUpdateTask,
-  useDeleteTask,
   useAssignablePeople,
   TASK_STATUSES,
   STATUS_META,
+  PRIORITY_META,
   type TaskRow,
   type TaskStatus,
-  type TaskPriority,
 } from '@/queries/useTaskModule';
 
-const PRIORITY_META: Record<TaskPriority, { label: string; className: string }> = {
-  low:    { label: 'Low',    className: 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-400' },
-  medium: { label: 'Medium', className: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' },
-  high:   { label: 'High',   className: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' },
-  urgent: { label: 'Urgent', className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' },
-};
-
-const NONE = '__none__';
 type ViewMode = 'list' | 'board';
 
 const TaskListPage = () => {
@@ -59,14 +43,12 @@ const TaskListPage = () => {
   const { data: tasks, isLoading } = useTasks(listId ?? '');
   const { data: people } = useAssignablePeople();
   const createTask = useCreateTask(listId ?? '');
-  const updateTask = useUpdateTask(listId ?? '');
-  const deleteTask = useDeleteTask(listId ?? '');
 
   const [view, setView] = useState<ViewMode>('list');
   const [showClosed, setShowClosed] = useState(false);
   const [addingTo, setAddingTo] = useState<TaskStatus | null>(null);
   const [newTitle, setNewTitle] = useState('');
-  const [openTask, setOpenTask] = useState<TaskRow | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
   const peopleById = new Map((people ?? []).map((p) => [p.id, p]));
 
@@ -95,7 +77,7 @@ const TaskListPage = () => {
     return (
       <div className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 kd-transition">
         <Flag className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-        <button type="button" onClick={() => setOpenTask(task)} className="flex-1 min-w-0 text-left text-sm truncate">
+        <button type="button" onClick={() => setOpenTaskId(task.id)} className="flex-1 min-w-0 text-left text-sm truncate">
           {task.title}
         </button>
         {task.priority && (
@@ -210,7 +192,7 @@ const TaskListPage = () => {
                     <button
                       key={task.id}
                       type="button"
-                      onClick={() => setOpenTask(task)}
+                      onClick={() => setOpenTaskId(task.id)}
                       className="w-full text-left rounded-lg border border-border/70 p-2.5 hover:border-primary/50 kd-transition space-y-1.5"
                     >
                       <p className="text-sm font-medium truncate">{task.title}</p>
@@ -236,115 +218,9 @@ const TaskListPage = () => {
         </div>
       )}
 
-      <Sheet open={!!openTask} onOpenChange={(open) => !open && setOpenTask(null)}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          {openTask && (
-            <TaskDetailForm
-              task={openTask}
-              people={people ?? []}
-              onUpdate={(patch) => updateTask.mutate({ id: openTask.id, patch }, {
-                onError: (err) => toast({ title: 'Could not update task', description: errorMessage(err), variant: 'destructive' }),
-              })}
-              onDelete={() => {
-                deleteTask.mutate(openTask.id, {
-                  onError: (err) => toast({ title: 'Could not delete task', description: errorMessage(err), variant: 'destructive' }),
-                });
-                setOpenTask(null);
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      <TaskDetailSheet taskId={openTaskId} onClose={() => setOpenTaskId(null)} />
     </div>
   );
 };
-
-function TaskDetailForm({
-  task, people, onUpdate, onDelete,
-}: {
-  task: TaskRow;
-  people: { id: string; full_name: string }[];
-  onUpdate: (patch: Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date'>>) => void;
-  onDelete: () => void;
-}) {
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description ?? '');
-
-  return (
-    <div className="space-y-4 mt-2">
-      <SheetHeader className="text-left">
-        <SheetTitle>Task details</SheetTitle>
-      </SheetHeader>
-
-      <Input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => { if (title.trim() && title !== task.title) onUpdate({ title: title.trim() }); }}
-        className="font-medium"
-      />
-
-      <Textarea
-        placeholder="Description…"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onBlur={() => { if (description !== (task.description ?? '')) onUpdate({ description: description || null }); }}
-        rows={4}
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Status</label>
-          <Select value={task.status} onValueChange={(v) => onUpdate({ status: v as TaskStatus })}>
-            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {TASK_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_META[s].label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Priority</label>
-          <Select value={task.priority ?? NONE} onValueChange={(v) => onUpdate({ priority: v === NONE ? null : v as TaskPriority })}>
-            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>None</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Assignee</label>
-          <Select value={task.assignee_id ?? NONE} onValueChange={(v) => onUpdate({ assignee_id: v === NONE ? null : v })}>
-            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>Unassigned</SelectItem>
-              {people.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Due date</label>
-          <Input
-            type="date"
-            className="h-9"
-            value={task.due_date ?? ''}
-            onChange={(e) => onUpdate({ due_date: e.target.value || null })}
-          />
-        </div>
-      </div>
-
-      <SheetFooter className="pt-2">
-        <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete}>
-          <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete task
-        </Button>
-      </SheetFooter>
-    </div>
-  );
-}
 
 export default TaskListPage;

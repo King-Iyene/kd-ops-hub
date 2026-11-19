@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  Home, Inbox, ListTodo, LayoutDashboard, Plus, ChevronDown, ChevronRight,
+  Home, ListTodo, LayoutDashboard, Plus, ChevronDown, ChevronRight,
   ListChecks, Table2, Trash2, Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +22,6 @@ import {
 
 const NAV_LINKS = [
   { to: '/task', label: 'Home', icon: Home, end: true },
-  { to: '/task/inbox', label: 'Inbox', icon: Inbox, end: false },
   { to: '/task/my-tasks', label: 'My Tasks', icon: ListTodo, end: false },
   { to: '/task/dashboards', label: 'Dashboards', icon: LayoutDashboard, end: false },
 ];
