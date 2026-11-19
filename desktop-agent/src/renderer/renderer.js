@@ -50,6 +50,8 @@ document.getElementById('toggle-pw').addEventListener('click', () => {
   document.getElementById('toggle-pw').title = show ? 'Hide password' : 'Show password';
 });
 
+document.getElementById('quit-btn').addEventListener('click', () => window.agent.quit());
+
 document.getElementById('sign-out-btn').addEventListener('click', async () => {
   await window.agent.signOut();
   showSignedOut();

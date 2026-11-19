@@ -90,6 +90,14 @@ app.on('second-instance', () => {
 // autoUpdater.checkForUpdatesAndNotify() downloads silently in the
 // background and shows a native OS notification once it's ready to install
 // on next quit — never interrupts an active tracking session.
+/** The version that has been downloaded and is waiting to be installed (null when there is none). */
+let updateReadyVersion: string | null = null;
+
+/** Quit, install the downloaded version and start the tracker again. A running timer is ended first (see before-quit). */
+function installUpdateNow() {
+  try { autoUpdater.quitAndInstall(false, true); } catch { app.quit(); }
+}
+
 function initAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -99,10 +107,14 @@ function initAutoUpdater() {
     console.error('[auto-update] check failed:', err?.message ?? err);
   });
   autoUpdater.on('update-downloaded', (info) => {
-    new Notification({
+    updateReadyVersion = info.version;
+    rebuildTrayMenu();
+    const n = new Notification({
       title: 'KD Ops Time Tracker',
-      body: `Version ${info.version} is ready. It installs when you quit and reopen the tracker (tray menu, Exit).`,
-    }).show();
+      body: `Version ${info.version} is ready. Click here to restart and install it now, or use "Restart to update" in the tray menu. Closing the window does not install it.`,
+    });
+    n.on('click', () => installUpdateNow());
+    n.show();
   });
   autoUpdater.checkForUpdatesAndNotify().catch(() => {
     // Same reasoning as the .on('error', ...) handler above.
@@ -153,6 +165,7 @@ let mainWindow: BrowserWindow | null = null;
 // (createWindow) knows the difference between the user closing the window
 // (hide it, stay in the tray) and the app actually quitting (let it close).
 let isQuitting = false;
+let closeHintShown = false;
 let widgetWindow: BrowserWindow | null = null;
 let taskPickerWindow: BrowserWindow | null = null;
 
@@ -491,6 +504,14 @@ function createWindow() {
     if (isQuitting) return; // let the real app.quit() path actually close it
     event.preventDefault();
     mainWindow?.hide();
+    // say once what closing did, because it is easy to think the tracker has stopped
+    if (!closeHintShown) {
+      closeHintShown = true;
+      new Notification({
+        title: 'KD Ops Time Tracker is still running',
+        body: 'Closing the window does not quit it. It keeps tracking in the background while a task timer runs. To quit it, right-click its icon near the clock (it may be under the ^ arrow) and choose Exit, or open it and press Quit.',
+      }).show();
+    }
   });
 }
 
@@ -788,6 +809,7 @@ function rebuildTrayMenu() {
           },
         ];
   tray.setContextMenu(Menu.buildFromTemplate([
+    ...(updateReadyVersion ? [{ label: `Restart to update to ${updateReadyVersion}${activeTimer ? ' (ends your running timer)' : ''}`, click: () => installUpdateNow() }, { type: 'separator' as const }] : []),
     { label: 'Settings…', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { type: 'separator' },
     ...taskItems,
@@ -1068,6 +1090,9 @@ ipcMain.handle('sign-out', async () => {
   await supabase?.auth.signOut({ scope: 'local' });
   return { ok: true };
 });
+
+// The Quit button in the window: a real quit (it ends a running timer at this moment, see before-quit).
+ipcMain.on('quit-app', () => { app.quit(); });
 
 ipcMain.on('open-main-window', () => {
   mainWindow?.show();
