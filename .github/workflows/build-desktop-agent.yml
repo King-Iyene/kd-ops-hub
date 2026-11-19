@@ -146,3 +146,6 @@ jobs:
           files: artifacts/**
           draft: false
           prerelease: false
+          # Installed Time Tracker apps update from the repo's "latest" release, so it must always be this one.
+          # (KD Office releases are published with --latest=false.)
+          make_latest: true
