@@ -242,6 +242,42 @@ export function useUpdateTask() {
   );
 }
 
+export interface TaskMove { task: TaskRow; position: number; status?: TaskStatus }
+
+// Drag-to-reorder in a list: saves new positions (and a new status when a
+// row is dropped into another status group). Shown at once, rolled back if
+// any save fails.
+export function useMoveTasks() {
+  const invalidate = useInvalidate();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (moves: TaskMove[]) => {
+      const results = await Promise.all(moves.map((m) => {
+        const patch: TablesUpdate<'tm_tasks'> = { position: m.position };
+        if (m.status && m.status !== m.task.status) {
+          patch.status = m.status;
+          patch.completed_at = m.status === 'done' ? new Date().toISOString() : null;
+        }
+        return supabase.from('tm_tasks').update(patch).eq('id', m.task.id);
+      }));
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(failed.error.message);
+    },
+    onMutate: async (moves: TaskMove[]) => {
+      await qc.cancelQueries({ queryKey: queryKeys.taskModule.all });
+      const snapshot = qc.getQueriesData({ queryKey: queryKeys.taskModule.all });
+      for (const m of moves) {
+        patchCachedTask(qc, m.task.id, m.status ? { position: m.position, status: m.status } : { position: m.position });
+      }
+      return { snapshot };
+    },
+    onError: (_err, _moves, context) => {
+      context?.snapshot?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => invalidate(queryKeys.taskModule.all),
+  });
+}
+
 export function useDeleteTask() {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
@@ -761,5 +797,24 @@ export function useTaskActivity(taskId: string | null) {
     [...tm, 'activity', taskId ?? ''] as const,
     () => supabase.from('tm_task_activity').select('*').eq('task_id', taskId ?? '').order('created_at').overrideTypes<TaskActivity[], { merge: false }>(),
     { enabled: !!taskId },
+  );
+}
+
+// Company-wide dashboard (admins only): every top-level task in the org.
+// The module is deliberately small, so this is one capped query that the
+// page aggregates client-side.
+export const DASHBOARD_TASK_LIMIT = 5000;
+export function useAllTasksForDashboard(enabled: boolean) {
+  return useSupabaseQuery(
+    [...tm, 'dashboard'] as const,
+    () =>
+      supabase
+        .from('tm_tasks')
+        .select('*')
+        .is('parent_id', null)
+        .order('created_at', { ascending: false })
+        .limit(DASHBOARD_TASK_LIMIT)
+        .overrideTypes<TaskRow[], { merge: false }>(),
+    { enabled },
   );
 }

@@ -86,7 +86,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/approval-workflows':   'Approval Workflows',
   '/task':                 'Task',
   '/task/my-tasks':        'My Tasks',
-  '/task/dashboards':      'Task Dashboards',
+  '/task/dashboards':      'Task Dashboard',
 };
 
 function getRouteTitle(pathname: string): string {
@@ -175,7 +175,8 @@ export default function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <NewTaskButton />
+              {/* Only inside the Task module (not /tasks, the older module). */}
+              {(location.pathname === '/task' || location.pathname.startsWith('/task/')) && <NewTaskButton />}
               {/* Mobile search button */}
               <button
                 type="button"
