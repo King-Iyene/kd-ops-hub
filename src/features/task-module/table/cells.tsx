@@ -34,9 +34,13 @@ export interface CellCtx {
   onOpenTask: (id: string) => void;
   /** People field used to narrow Task link pickers in the same row, if any. */
   personFieldId?: string;
+  /** How many lines of text a row shows before cutting it off with an ellipsis (rows never grow). */
+  rowLines?: number;
 }
 
-const box = 'w-full min-h-[30px] px-2 py-1 text-xs flex items-center gap-1 text-left rounded-sm hover:bg-muted/40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/50';
+const box = 'w-full h-full min-h-[28px] px-2 py-1 text-xs flex items-center gap-1 text-left rounded-sm hover:bg-muted/40 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/50';
+/** Text never makes a row taller: one line is cut with an ellipsis, taller rows show two. */
+const clampText = (lines: number, single = false) => (single || lines <= 1 ? 'truncate' : 'line-clamp-2 break-words whitespace-pre-line');
 const empty = <span className="text-muted-foreground/40">—</span>;
 
 export function TableCell({
@@ -60,9 +64,9 @@ export function TableCell({
     case 'phone':
     case 'number':
     case 'currency':
-      return <InlineInput field={field} value={value} onCommit={commit} />;
+      return <InlineInput field={field} value={value} onCommit={commit} lines={ctx.rowLines ?? 1} />;
     case 'long_text':
-      return <LongTextCell value={value} max={field.config.max_length} onCommit={commit} />;
+      return <LongTextCell value={value} max={field.config.max_length} onCommit={commit} lines={ctx.rowLines ?? 1} />;
     case 'date':
       return <DateCell value={value} onCommit={commit} />;
     case 'checkbox':
@@ -96,7 +100,7 @@ export function TableCell({
   }
 }
 
-function InlineInput({ field, value, onCommit }: { field: TableField; value: unknown; onCommit: (v: unknown) => void }) {
+function InlineInput({ field, value, onCommit, lines }: { field: TableField; value: unknown; onCommit: (v: unknown) => void; lines: number }) {
   const numeric = field.type === 'number' || field.type === 'currency';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -121,7 +125,7 @@ function InlineInput({ field, value, onCommit }: { field: TableField; value: unk
         onChange={(e) => setDraft(e.target.value)}
         onBlur={done}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditing(false); }}
-        className="w-full h-[30px] px-2 text-xs bg-background border border-primary/60 rounded-sm outline-none"
+        className="w-full h-full min-h-[28px] px-2 text-xs bg-background border border-primary/60 rounded-sm outline-none"
       />
     );
   }
@@ -132,7 +136,7 @@ function InlineInput({ field, value, onCommit }: { field: TableField; value: unk
   const href = s && (field.type === 'link' ? (/^https?:\/\//i.test(s) ? s : `https://${s}`) : field.type === 'email' ? `mailto:${s}` : field.type === 'phone' ? `tel:${s}` : null);
   return (
     <div className={cn(box, numeric && 'justify-end')} role="button" tabIndex={0} onClick={start} onKeyDown={(e) => { if (e.key === 'Enter') start(); }}>
-      <span className={cn('min-w-0', field.type === 'number' || field.type === 'currency' ? 'truncate' : 'line-clamp-6 break-words whitespace-pre-line')}>{shown}</span>
+      <span className={cn('min-w-0', clampText(lines, field.type === 'number' || field.type === 'currency'))}>{shown}</span>
       {href && (
         <a href={href} target={field.type === 'link' ? '_blank' : undefined} rel="noreferrer noopener" onClick={(e) => e.stopPropagation()} className="ml-auto text-muted-foreground hover:text-primary" aria-label="Open">
           <ExternalLink className="h-3 w-3" />
@@ -142,13 +146,13 @@ function InlineInput({ field, value, onCommit }: { field: TableField; value: unk
   );
 }
 
-function LongTextCell({ value, max, onCommit }: { value: unknown; max?: number; onCommit: (v: unknown) => void }) {
+function LongTextCell({ value, max, onCommit, lines }: { value: unknown; max?: number; onCommit: (v: unknown) => void; lines: number }) {
   const [draft, setDraft] = useState('');
   const s = typeof value === 'string' ? value : '';
   return (
     <Popover onOpenChange={(o) => { if (o) setDraft(s); else onCommit(draft.trim() ? draft : null); }}>
       <PopoverTrigger asChild>
-        <button type="button" className={box}><span className="min-w-0 line-clamp-6 break-words whitespace-pre-line">{s || empty}</span></button>
+        <button type="button" className={box}><span className={cn('min-w-0', clampText(lines))}>{s || empty}</span></button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-2">
         <Textarea autoFocus rows={6} maxLength={max} value={draft} onChange={(e) => setDraft(e.target.value)} className="text-xs" />

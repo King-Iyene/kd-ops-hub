@@ -45,3 +45,17 @@ describe('column widths', () => {
     expect(effectiveWidth(900, 400, 1200)).toBe(900);
   });
 });
+
+describe('row height', () => {
+  it('has three fixed heights, default in the middle, and only the tall one shows two lines', async () => {
+    const { ROW_HEIGHTS, asRowHeight, DEFAULT_ROW_HEIGHT } = await import('../table/columnWidths');
+    expect(ROW_HEIGHTS.compact.px).toBeLessThan(ROW_HEIGHTS.default.px);
+    expect(ROW_HEIGHTS.default.px).toBeLessThan(ROW_HEIGHTS.tall.px);
+    expect([ROW_HEIGHTS.compact.lines, ROW_HEIGHTS.default.lines, ROW_HEIGHTS.tall.lines]).toEqual([1, 1, 2]);
+    expect(DEFAULT_ROW_HEIGHT).toBe('default');
+    expect(asRowHeight('tall')).toBe('tall');
+    expect(asRowHeight('compact')).toBe('compact');
+    expect(asRowHeight('huge')).toBe('default');
+    expect(asRowHeight(undefined)).toBe('default');
+  });
+});
