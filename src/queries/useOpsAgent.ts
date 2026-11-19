@@ -6,9 +6,9 @@ import { useSupabaseMutation, useSupabaseQuery } from './useSupabaseQuery';
 import {
   adb,
   type AgentAdminScope, type AgentAuditRow, type AgentBudget, type AgentCompanyScope, type AgentConnection, type AgentFlag,
-  type AgentMemory, type AgentModule, type AgentPersonProfile, type AgentScope, type AgentSettings, type AgentSummary,
+  type AgentModule, type AgentPersonProfile, type AgentScope, type AgentSettings, type AgentSummary,
   type AgentUsageRow, type AiStatus, type AiTestResult, type AgentApiKey, type ChatMessage, type ChatReply, type ChatThread,
-  type KeyResult, type SaveConnectionInput,
+  type KeyResult, type OutboxRow, type SaveConnectionInput,
 } from '@/features/ops-agent/agentDb';
 
 /** Every hook here only reads on mount. Writes happen from a button or a changed field, never from a render. */
@@ -207,11 +207,23 @@ export function useAgentFlags() {
 export function useAgentSummaries() {
   return useSupabaseQuery<AgentSummary[]>(K.summaries(), () => adb.from('agent_summaries').select('id, period_kind, period_start, period_end, company_id, narrative, auto, created_at, metrics').order('period_end', { ascending: false }).order('created_at', { ascending: false }).limit(200));
 }
-export function useAgentMemory() {
-  return useSupabaseQuery<AgentMemory[]>(K.memory(), () => adb.from('agent_memory').select('id, type, content, scope, scope_ref, source, status, created_at').neq('status', 'archived').order('created_at', { ascending: false }).limit(100));
-}
 export function useAgentConnections(enabled = true) {
   return useSupabaseQuery<AgentConnection[]>(K.connections(), () => adb.from('agent_connections').select('id, kind, name, status, config, vault_secret_names, last_error, last_tested_at').order('created_at') as never, { enabled });
+}
+
+/** Recent deliveries to connections. If the table cannot be read (not deployed yet, or no access) the answer is an empty list. */
+export function useOutbox(enabled = true) {
+  return useQuery<OutboxRow[], Error>({
+    queryKey: K.outbox(),
+    enabled,
+    retry: false,
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await adb.from('agent_outbox').select('id, connection_id, kind, ref_id, status, attempts, error, created_at, sent_at').order('created_at', { ascending: false }).limit(300);
+      return error ? [] : ((data ?? []) as OutboxRow[]);
+    },
+  });
 }
 
 /**

@@ -154,7 +154,8 @@ describe('sidebar sections', () => {
     renderAt('/agent', <OpsAgentSidebarNav />);
     const nav = await screen.findByTestId('agent-sidebar-nav');
     await waitFor(() => expect(within(nav).getByRole('link', { name: /Connections/ })).toBeInTheDocument());
-    for (const label of ['Inbox', 'Chat', 'Summaries', 'Memory', 'Connections', 'Settings']) expect(within(nav).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
+    for (const label of ['Inbox', 'Chat', 'Summaries', 'Connections', 'Settings']) expect(within(nav).getByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: /Memory/ })).not.toBeInTheDocument(); // Memory moved into Settings
     expect(within(nav).getByRole('link', { name: /Inbox/ })).toHaveTextContent('1'); // snoozed items are not counted
     expect(within(nav).getByRole('link', { name: /Chat/ })).toHaveAttribute('href', '/agent/chat');
   });
@@ -191,8 +192,8 @@ describe('Ops Agent screens', () => {
   });
 
   it('never writes anything just by opening any section', async () => {
-    const routes = ['/agent', '/agent/chat', '/agent/summaries', '/agent/memory', '/agent/connections', '/agent/settings',
-      '/agent/settings/claude', '/agent/settings/team', '/agent/settings/calendar', '/agent/settings/coverage', '/agent/settings/rules', '/agent/settings/brief', '/agent/settings/sites', '/agent/settings/changes'];
+    const routes = ['/agent', '/agent/chat', '/agent/summaries', '/agent/connections', '/agent/settings',
+      '/agent/settings/claude', '/agent/settings/team', '/agent/settings/calendar', '/agent/settings/coverage', '/agent/settings/rules', '/agent/settings/brief', '/agent/settings/memory', '/agent/settings/sites', '/agent/settings/changes'];
     for (const route of routes) {
       h.calls.length = 0;
       const { unmount } = renderAt(route);
@@ -362,23 +363,39 @@ describe('Chat', () => {
 });
 
 describe('Connections', () => {
-  it('starts empty, then adds a Slack connection without ever echoing its address', async () => {
+  it('starts empty, then connects Slack in two steps without ever echoing its address', async () => {
     renderAt('/agent/connections');
     expect(await screen.findByText('No connections yet')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('connection-add'));
     const dialog = await screen.findByTestId('connection-dialog');
+    // step 1: the tool grid, "Any other tool (API)" last
+    const grid = within(dialog).getByTestId('tool-picker');
+    const tools = within(grid).getAllByRole('button');
+    expect(tools.length).toBeGreaterThan(10);
+    expect(tools[tools.length - 1]).toHaveTextContent('Any other tool (API)');
+    fireEvent.click(within(grid).getByTestId('tool-slack'));
+    // step 2: how to connect, then only the fields Slack needs
+    expect(within(dialog).getByTestId('setup-steps')).toHaveTextContent('Incoming Webhooks');
     const save = within(dialog).getByTestId('connection-save');
     expect(save).toBeDisabled();
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops channel' } });
-    const url = within(dialog).getByLabelText('Slack incoming webhook address') as HTMLInputElement;
+    const url = within(dialog).getByLabelText('Slack webhook address') as HTMLInputElement;
     expect(url.type).toBe('password');
+    expect(within(dialog).queryByLabelText('Bot token')).not.toBeInTheDocument();
     fireEvent.change(url, { target: { value: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ' } });
     await waitFor(() => expect(save).toBeEnabled());
     fireEvent.click(save);
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
-    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ action: 'save', kind: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ' });
-    // nothing is sent by adding
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({ action: 'save', kind: 'slack', preset: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ', events: ['flag_high', 'summary_day'] });
+    // the address is cleared from the box once saved, and nothing is sent by saving
+    await waitFor(() => expect((within(dialog).getByLabelText('Slack webhook address') as HTMLInputElement).value).toBe(''));
+    expect(document.body.innerHTML).not.toContain('SECRETXYZ');
     expect(only('invoke:agent-connections:test')).toHaveLength(0);
+    // Send test uses the saved connection
+    fireEvent.click(within(dialog).getByTestId('connection-send-test'));
+    await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(1));
+    expect(only('invoke:agent-connections:test')[0].args[0]).toMatchObject({ action: 'test', id: 'conn-new' });
   });
 
   it('shows the dialog error when the server refuses an address', async () => {
@@ -386,8 +403,9 @@ describe('Connections', () => {
     renderAt('/agent/connections');
     fireEvent.click(await screen.findByTestId('connection-add'));
     const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-slack'));
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'x' } });
-    fireEvent.change(within(dialog).getByLabelText('Slack incoming webhook address'), { target: { value: 'https://localhost/x' } });
+    fireEvent.change(within(dialog).getByLabelText('Slack webhook address'), { target: { value: 'https://localhost/x' } });
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     expect(await within(dialog).findByTestId('connection-error')).toHaveTextContent('Internal addresses');
   });
@@ -416,7 +434,8 @@ describe('Connections', () => {
     const { container } = renderAt('/agent/connections');
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops channel' }));
     const dialog = await screen.findByTestId('connection-dialog');
-    const url = within(dialog).getByLabelText('Slack incoming webhook address') as HTMLInputElement;
+    expect(within(dialog).queryByTestId('tool-picker')).not.toBeInTheDocument(); // editing opens step 2 with the tool fixed
+    const url = within(dialog).getByLabelText('Slack webhook address') as HTMLInputElement;
     expect(url.value).toBe('');
     expect(url.placeholder).toContain('saved');
     expect(container.ownerDocument.body.innerHTML).not.toContain('SECRET');
@@ -427,6 +446,108 @@ describe('Connections', () => {
     const body = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
     expect(body.id).toBe('c-1');
     expect(body.url).toBeUndefined();
+  });
+
+  it('sends the preset fields and the chosen automatic events for Telegram, with the token write only', async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.change(within(dialog).getByLabelText('Search tools'), { target: { value: 'tele' } });
+    expect(within(dialog).getAllByRole('button', { name: /Telegram|Message a chat/ })).toHaveLength(1);
+    expect(within(dialog).queryByTestId('tool-slack')).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByTestId('tool-telegram'));
+    expect(within(dialog).getByTestId('setup-steps')).toHaveTextContent('BotFather');
+    expect((within(dialog).getByLabelText('Bot token') as HTMLInputElement).type).toBe('password');
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops Telegram' } });
+    fireEvent.change(within(dialog).getByLabelText('Bot token'), { target: { value: '123:TOPSECRETTOKEN' } });
+    fireEvent.change(within(dialog).getByLabelText('Chat id'), { target: { value: '-1001' } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'New high-priority items' })); // off
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Weekly summary' })); // on
+    // with no flag events left the severity choice goes away
+    expect(within(dialog).queryByLabelText('Lowest severity to send')).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({ kind: 'telegram', preset: 'telegram', name: 'Ops Telegram', token: '123:TOPSECRETTOKEN', chat_id: '-1001', events: ['summary_day', 'summary_week'] });
+    expect(sent.min_severity).toBeUndefined();
+    expect(sent.url).toBeUndefined();
+    await waitFor(() => expect((within(dialog).getByLabelText('Bot token') as HTMLInputElement).value).toBe(''));
+    expect(document.body.innerHTML).not.toContain('TOPSECRETTOKEN');
+    expect(within(dialog).getByLabelText('Bot token')).toHaveProperty('placeholder', expect.stringContaining('saved'));
+  });
+
+  it('sends a minimum severity for flag events', async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-email'));
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops mail' } });
+    fireEvent.change(within(dialog).getByLabelText('Send to'), { target: { value: 'ops@example.com' } });
+    expect(within(dialog).getByTestId('setup-steps')).toHaveTextContent('Emails go out through KD Ops');
+    expect(within(dialog).getByLabelText('Lowest severity to send')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ kind: 'email', preset: 'email', to: 'ops@example.com', events: ['flag_high', 'summary_day'] });
+  });
+
+  it('an API tool shows the method, how the token is sent, extra headers and a live body preview', async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-notion'));
+    expect(within(dialog).getByTestId('setup-steps')).toHaveTextContent('internal integration');
+    expect(within(dialog).getByLabelText('Method')).toBeInTheDocument();
+    expect(within(dialog).getByText('How is the token sent?')).toBeInTheDocument();
+    // the preset's extra header is prefilled
+    expect(within(dialog).getAllByTestId('header-row')).toHaveLength(1);
+    expect((within(dialog).getByLabelText('Header 1 name') as HTMLInputElement).value).toBe('Notion-Version');
+    // the preview substitutes the sample values
+    const preview = within(dialog).getByTestId('body-preview');
+    expect(preview).toHaveTextContent('Cara Obi has not tracked time today');
+    expect(preview.textContent).not.toContain('{{title}}');
+    fireEvent.change(within(dialog).getByLabelText('Body template'), { target: { value: '{"a":"{{title}}","b":"{{nope}}"}' } });
+    expect(within(dialog).getByTestId('body-preview')).toHaveTextContent('{"a":"Cara Obi has not tracked time today","b":"{{nope}}"}');
+    expect(within(dialog).getByText(/\{\{nope\}\} is not a known variable/)).toBeInTheDocument();
+    expect(within(dialog).getByTestId('variable-legend')).toHaveTextContent('{{severity}}');
+    // fill and save: the API fields travel with the preset id
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Notion log' } });
+    fireEvent.change(within(dialog).getByLabelText('Address'), { target: { value: 'https://api.notion.com/v1/pages' } });
+    fireEvent.change(within(dialog).getByLabelText('Integration secret'), { target: { value: 'secret_NOTIONTOKEN' } });
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      kind: 'api', preset: 'notion', url: 'https://api.notion.com/v1/pages', token: 'secret_NOTIONTOKEN', method: 'POST', auth_type: 'bearer', content_type: 'json',
+      extra_headers: { 'Notion-Version': '2022-06-28' }, body_template: '{"a":"{{title}}","b":"{{nope}}"}',
+    });
+    await waitFor(() => expect(document.body.innerHTML).not.toContain('secret_NOTIONTOKEN'));
+  });
+
+  it('shows each connection as a card with its tool, what it sends, and pending or failed deliveries', async () => {
+    h.tables = { ...BASE_TABLES,
+      agent_connections: [{ id: 'c-1', kind: 'telegram', name: 'Ops Telegram', status: 'connected', config: { preset: 'telegram', events: ['flag_high', 'summary_day'], min_severity: 'high' }, vault_secret_names: ['x_token'], last_error: null, last_tested_at: null }],
+      agent_outbox: [
+        { id: 'o1', connection_id: 'c-1', kind: 'flag', ref_id: 'f1', status: 'pending', attempts: 0, error: null, created_at: '2026-11-19T10:00:00Z', sent_at: null },
+        { id: 'o2', connection_id: 'c-1', kind: 'summary', ref_id: 's1', status: 'failed', attempts: 3, error: 'HTTP 500', created_at: '2026-11-19T09:00:00Z', sent_at: null },
+        { id: 'o3', connection_id: 'c-1', kind: 'flag', ref_id: 'f0', status: 'sent', attempts: 1, error: null, created_at: '2026-11-18T09:00:00Z', sent_at: '2026-11-18T09:00:05Z' },
+      ] };
+    renderAt('/agent/connections');
+    const card = await screen.findByTestId('connection-row');
+    expect(card).toHaveAttribute('data-preset', 'telegram');
+    expect(card).toHaveTextContent('Telegram');
+    expect(within(card).getByTestId('connection-events')).toHaveTextContent('High-priority items');
+    expect(within(card).getByTestId('connection-events')).toHaveTextContent('Daily summary');
+    expect(within(card).getByTestId('connection-events')).toHaveTextContent('High and above');
+    await waitFor(() => expect(within(card).getByTestId('connection-outbox')).toHaveTextContent('1 pending, 1 failed deliveries'));
+    expect(card).toHaveTextContent('Last sent');
+  });
+
+  it('still shows the card when the delivery table cannot be read', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [{ id: 'c-1', kind: 'slack', name: 'Ops channel', status: 'connected', config: { host: 'hooks.slack.com' }, vault_secret_names: [], last_error: null, last_tested_at: null }] };
+    renderAt('/agent/connections');
+    const card = await screen.findByTestId('connection-row');
+    expect(within(card).queryByTestId('connection-outbox')).not.toBeInTheDocument();
+    expect(within(card).getByTestId('connection-events')).toHaveTextContent('Sends nothing automatically');
   });
 
   it('creates an API key, shows it once, and lists only its prefix afterwards', async () => {
@@ -502,10 +623,10 @@ describe('Settings sections', () => {
     expect(await screen.findByTestId('agent-settings')).toHaveAttribute('data-section', 'claude');
   });
 
-  it('lists the eight sections in a rail with their own addresses and moves between them', async () => {
+  it('lists the nine sections in a rail with their own addresses and moves between them', async () => {
     renderAt('/agent/settings/claude');
     const rail = await screen.findByTestId('settings-rail');
-    for (const l of [/Claude & budget/, /Team/, /Calendar & reports/, /Coverage/, /Monitoring rules/, /Operating rules/, /Sites & apps/, /Change log/]) expect(within(rail).getByRole('link', { name: l })).toBeInTheDocument();
+    for (const l of [/Claude & budget/, /Team/, /Calendar & reports/, /Coverage/, /Monitoring rules/, /Operating rules/, /Memory/, /Sites & apps/, /Change log/]) expect(within(rail).getByRole('link', { name: l })).toBeInTheDocument();
     expect(within(rail).getByRole('link', { name: /Monitoring rules/ })).toHaveAttribute('href', '/agent/settings/rules');
     expect(within(rail).getByRole('link', { name: /Operating rules/ })).toHaveAttribute('href', '/agent/settings/brief');
     expect(within(rail).getByRole('link', { name: /Claude & budget/ })).toHaveAttribute('aria-current', 'page');

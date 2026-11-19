@@ -12,7 +12,7 @@ import { useAgentToast } from '../settings/useAgentToast';
 import { SummaryCard } from './SummaryCard';
 import { byNewest, groupByMonth, KIND_LABEL, loadKinds, saveKinds, type KindsShown } from './summaryFormat';
 
-const SCHEDULE = 'Daily at 6 AM Eastern on working days; weekly on the first working day of the week; monthly on the last working day of the month.';
+const SCHEDULE = 'Daily at 6:30 PM Eastern on working days; weekly on the last working day of the week; monthly on the last working day of the month.';
 const KINDS: SummaryKind[] = ['day', 'week', 'month'];
 
 /**
