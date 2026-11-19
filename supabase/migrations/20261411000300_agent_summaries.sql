@@ -167,19 +167,19 @@ BEGIN
   -- Daily: the last working day before today
   v_prev := v_today - 1;
   FOR v_i IN 1..7 LOOP EXIT WHEN public.agent_is_working_day(v_prev); v_prev := v_prev - 1; END LOOP;
-  IF public.agent_make_summary('day', v_prev, v_prev) THEN v_made := v_made || 'day'; END IF;
+  IF public.agent_make_summary('day', v_prev, v_prev) THEN v_made := v_made || ARRAY['day']; END IF;
 
   -- Weekly: the first working day of the week writes up the week before
   v_mon := v_today - (extract(isodow FROM v_today)::integer - 1);
   FOR v_i IN 0..(extract(isodow FROM v_today)::integer - 2) LOOP IF public.agent_is_working_day(v_mon + v_i) THEN v_first := false; END IF; END LOOP;
-  IF v_first AND public.agent_make_summary('week', v_mon - 7, v_mon - 1) THEN v_made := v_made || 'week'; END IF;
+  IF v_first AND public.agent_make_summary('week', v_mon - 7, v_mon - 1) THEN v_made := v_made || ARRAY['week']; END IF;
 
   -- Monthly: the last working day of the month writes up the month so far
   FOR v_i IN 1..31 LOOP
     EXIT WHEN date_trunc('month', v_today + v_i) <> date_trunc('month', v_today);
     IF public.agent_is_working_day(v_today + v_i) THEN v_last := false; END IF;
   END LOOP;
-  IF v_last AND public.agent_make_summary('month', date_trunc('month', v_today)::date, v_today - 1) THEN v_made := v_made || 'month'; END IF;
+  IF v_last AND public.agent_make_summary('month', date_trunc('month', v_today)::date, v_today - 1) THEN v_made := v_made || ARRAY['month']; END IF;
 
   RETURN jsonb_build_object('made', to_jsonb(v_made));
 END $$;
