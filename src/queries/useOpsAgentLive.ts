@@ -79,7 +79,7 @@ export function useAgentFlagsRealtime(onUrgent?: (flag: LiveFlag) => void) {
   }, [qc]);
 }
 
-export interface KdPerson { id: string; full_name: string; job_title: string | null; role: string | null; pay_group_id: string | null; photo_url?: string | null }
+export interface KdPerson { id: string; full_name: string; job_title: string | null; role: string | null; pay_group_id: string | null; photo_url?: string | null; email?: string | null }
 
 /**
  * The KD Squares team the agent watches: active people whose pay group belongs to the company named like "KD Squares",
@@ -87,7 +87,7 @@ export interface KdPerson { id: string; full_name: string; job_title: string | n
  */
 export function useKdTeam(enabled = true) {
   const profiles = useSupabaseQuery<KdPerson[]>([...K.all, 'kd-profiles'], () =>
-    supabase.from('profiles').select('id, full_name, job_title, role, pay_group_id, photo_url').eq('is_anonymised', false).eq('status', 'active').order('full_name').limit(1000) as never,
+    supabase.from('profiles').select('id, full_name, job_title, role, pay_group_id, photo_url, email').eq('is_anonymised', false).eq('status', 'active').order('full_name').limit(1000) as never,
     { enabled, staleTime: 60_000 });
   const groups = useSupabaseQuery<{ id: string; company_id: string | null }[]>([...K.all, 'kd-pay-groups'], () =>
     supabase.from('pay_groups').select('id, company_id').limit(500) as never, { enabled, staleTime: 60_000 });

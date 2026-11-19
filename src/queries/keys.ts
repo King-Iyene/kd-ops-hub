@@ -25,6 +25,7 @@ export const queryKeys = {
     classifySites: (domains: string[]) => [...queryKeys.opsAgent.all, 'classify-sites', ...domains] as const,
     rules: () => [...queryKeys.opsAgent.all, 'rules'] as const,
     memorySuggestions: (threadId: string) => [...queryKeys.opsAgent.all, 'memory-suggestions', threadId] as const,
+    identities: () => [...queryKeys.opsAgent.all, 'identities'] as const,
     outbox: () => [...queryKeys.opsAgent.all, 'outbox'] as const,
     pulse: () => [...queryKeys.opsAgent.all, 'team-pulse'] as const,
   },

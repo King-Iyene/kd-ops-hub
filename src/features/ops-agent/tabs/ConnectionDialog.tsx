@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, AtSign, Check, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSaveConnection, useTestConnection } from '@/queries/useOpsAgent';
 import type { AgentConnection, MinSeverity, SaveConnectionInput } from '../agentDb';
 import { AUTO_EVENTS, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
+import { MENTION_DEFAULTS, MENTION_MAX, mentionTemplateProblem, supportsMentions } from '../connectionTemplate';
 import { Field } from '../settings/shared';
+import { useAgentToast } from '../settings/useAgentToast';
 import { ApiOptions, headerProblem, type ApiForm } from './ApiOptions';
 import { ToolIcon, presetForConnection } from './ToolIcon';
 import { ToolPicker } from './ToolPicker';
@@ -79,6 +81,12 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
 }) {
   const save = useSaveConnection();
   const test = useTestConnection();
+  const toast = useAgentToast();
+  const tags = supportsMentions(preset.kind);
+  const defaultFormat = MENTION_DEFAULTS[preset.kind] ?? '';
+  const savedFormat = editing?.config.mention_template ?? '';
+  const [mentionPeople, setMentionPeople] = useState(editing?.config.mention_people ?? true);
+  const [format, setFormat] = useState(savedFormat || defaultFormat);
   const isApi = preset.kind === 'api';
   const fields = preset.fields.filter((f) => !['method', 'header_name', 'query_param', 'body_template'].includes(f.field));
   const bodyField = preset.fields.find((f) => f.field === 'body_template');
@@ -103,7 +111,8 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
     const filled = (values[f.field] ?? '').trim().length > 0;
     return !(filled || (f.secret && (f.field === 'url' || f.field === 'token') && hasSaved(f.field)));
   });
-  const apiBad = isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim()));
+  const formatBad = tags ? mentionTemplateProblem(format) : null;
+  const apiBad = !!formatBad || (isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim())));
   const ready = name.trim().length > 0 && !missing && !apiBad;
 
   const body = (): SaveConnectionInput => {
@@ -113,6 +122,14 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       url: v('url'), token: tokenUsed ? v('token') : undefined, clear_token: clearToken || undefined, to: v('to'), chat_id: v('chat_id'),
       events, min_severity: flagEvents && minSeverity !== ANY ? minSeverity : undefined,
     };
+    if (tags) {
+      input.mention_people = mentionPeople;
+      // A format equal to the default (or empty) is left out so the server keeps using its default. If a custom one was saved before,
+      // an empty string tells the server to drop it.
+      const f = format.trim();
+      if (f !== '' && f !== defaultFormat) input.mention_template = f;
+      else if (savedFormat) input.mention_template = '';
+    }
     if (isApi) {
       input.method = api.method;
       input.auth_type = api.auth;
@@ -146,11 +163,12 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
     });
   };
 
-  const sendTest = () => {
+  const sendTest = (tagMe = false) => {
     if (!savedId) return;
     setNote(null);
-    test.mutate(savedId, {
-      onSuccess: (r) => setNote(r.ok ? { tone: 'good', text: 'Test message delivered.' } : { tone: 'bad', text: r.error ?? 'The test failed.' }),
+    const okText = tagMe ? 'Test sent. If your name is highlighted in the channel, tagging works.' : 'Test message delivered.';
+    test.mutate(tagMe ? { id: savedId, tag_me: true } : savedId, {
+      onSuccess: (r) => { if (r.ok) { setNote({ tone: 'good', text: okText }); if (tagMe) toast.saved(okText); } else setNote({ tone: 'bad', text: r.error ?? 'The test failed.' }); },
       onError: (e) => setNote({ tone: 'bad', text: e.message }),
     });
   };
@@ -215,6 +233,24 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
           </div>
         )}
 
+        {tags && (
+          <section aria-label="Tagging" className="space-y-2.5 rounded-xl border p-3.5" data-testid="tag-people">
+            <label className="flex items-start gap-2.5 text-sm">
+              <Checkbox className="mt-0.5" checked={mentionPeople} onCheckedChange={(c) => setMentionPeople(c === true)} aria-label="Tag the person in each message" />
+              <span><span className="font-medium">Tag the person in each message</span><span className="block text-xs text-muted-foreground">So they get notified in {preset.name}. People are matched in Settings, People.</span></span>
+            </label>
+            <details className="text-sm" data-testid="tag-advanced">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Advanced</summary>
+              <div className="mt-2">
+                <Field label="Tag format" htmlFor="conn-tag-format" hint="%s is replaced by the person's Cliq user id, or their email if no id is saved. If tags show up as plain text in Cliq, change this and send a test.">
+                  <Input id="conn-tag-format" value={format} maxLength={MENTION_MAX + 20} aria-invalid={!!formatBad} className="font-mono text-xs sm:w-64" onChange={(e) => setFormat(e.target.value)} />
+                </Field>
+                {formatBad && <p className="mt-1 text-xs text-destructive" role="alert" data-testid="tag-format-error">{formatBad}</p>}
+              </div>
+            </details>
+          </section>
+        )}
+
         <section aria-label="What should it send automatically?" className="space-y-2.5 rounded-xl border p-3.5" data-testid="auto-events">
           <h3 className="text-sm font-semibold">What should it send automatically?</h3>
           <ul className="space-y-2">
@@ -244,9 +280,14 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       <DialogFooter className="gap-2 sm:gap-2">
         {onBack && !savedId && <Button variant="ghost" className="sm:mr-auto" onClick={onBack} data-testid="connection-back"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Choose another tool</Button>}
         <Button variant="ghost" onClick={onClose}>{savedId ? 'Done' : 'Cancel'}</Button>
-        <Button variant="outline" onClick={sendTest} disabled={!savedId || test.isPending} title={savedId ? 'Sends a test message using the saved settings' : 'Save first, then send a test'} data-testid="connection-send-test">
+        <Button variant="outline" onClick={() => sendTest(false)} disabled={!savedId || test.isPending} title={savedId ? 'Sends a test message using the saved settings' : 'Save first, then send a test'} data-testid="connection-send-test">
           {test.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />} Send test
         </Button>
+        {tags && (
+          <Button variant="outline" onClick={() => sendTest(true)} disabled={!savedId || test.isPending} title={savedId ? 'Sends a test message that tags you' : 'Save first, then send a test'} data-testid="connection-send-test-tag">
+            <AtSign className="mr-1.5 h-3.5 w-3.5" /> Send test and tag me
+          </Button>
+        )}
         <Button onClick={submit} disabled={!ready || save.isPending} data-testid="connection-save">
           {save.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />} {savedId ? 'Save changes' : 'Save'}
         </Button>

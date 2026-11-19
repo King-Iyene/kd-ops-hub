@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAgentPeople, usePersonProfiles, useSavePersonProfile, useSuggestProfiles, type AgentPerson } from '@/queries/useOpsAgent';
-import { COMMON_TIMEZONES, GROUP_LABEL, WEEKDAYS, hhmm, isValidTimezone, type AgentGroup, type AgentPersonProfile, type AgentSettings } from '../agentDb';
+import { COMMON_TIMEZONES, GROUP_LABEL, WEEKDAYS, hhmm, isValidTimezone, type AgentGroup, type AgentIdentity, type AgentPersonProfile, type AgentSettings } from '../agentDb';
 import { PersonAvatar } from '../PersonAvatar';
 import { useKdTeam } from '@/queries/useOpsAgentLive';
+import { useIdentityMap, useSaveIdentity } from '@/queries/useOpsAgentV4';
 import { Field, Section } from './shared';
 import { useAgentToast } from './useAgentToast';
 
@@ -21,10 +22,23 @@ const EXEMPTIONS: { key: string; label: string }[] = [
 ];
 
 type Draft = Partial<Omit<AgentPersonProfile, 'person_id'>>;
+type IdDraft = { cliq?: string; slack?: string };
+const ID_PATTERN = /^[A-Za-z0-9._@+-]{2,120}$/;
+const idProblem = (t: string | undefined) => (t === undefined || t.trim() === '' || ID_PATTERN.test(t.trim()) ? null : 'Use 2 to 120 letters, digits or . _ @ + -');
+
+/** What will be used to tag this person in a message: a saved Cliq id, otherwise their email. */
+function tagStatus(cliq: string, slack: string, email: string | null | undefined): { text: string; ok: boolean } {
+  if (cliq.trim()) return { text: 'Tagged by Cliq id', ok: true };
+  if (email && email.includes('@')) return { text: `Tagged by email (${email.split('@')[0]}@…)`, ok: true };
+  if (slack.trim()) return { text: 'Tagged in Slack by id only', ok: true };
+  return { text: 'Cannot be tagged (no email)', ok: false };
+}
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPerson, 'id' | 'full_name' | 'job_title' | 'role'>; saved: AgentPersonProfile | undefined; people: Pick<AgentPerson, 'id' | 'full_name'>[]; readOnly: boolean }) {
+function PersonRow({ person, saved, identity, people, readOnly }: { person: Pick<AgentPerson, 'id' | 'full_name' | 'job_title' | 'role' | 'photo_url'> & { email?: string | null }; saved: AgentPersonProfile | undefined; identity: AgentIdentity | undefined; people: Pick<AgentPerson, 'id' | 'full_name'>[]; readOnly: boolean }) {
   const [draft, setDraft] = useState<Draft>({});
+  const [idDraft, setIdDraft] = useState<IdDraft>({});
+  const saveIdentity = useSaveIdentity();
   const [open, setOpen] = useState(false);
   const save = useSavePersonProfile();
   const toast = useAgentToast();
@@ -36,17 +50,40 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
       if (same(value, saved?.[k])) delete next[k]; else next[k] = value;
       return next;
     });
-  const dirty = Object.keys(draft).length > 0;
+  const savedId = (k: keyof IdDraft) => ((k === 'cliq' ? identity?.cliq_user_id : identity?.slack_user_id) ?? '');
+  const idValue = (k: keyof IdDraft) => (k in idDraft ? idDraft[k] ?? '' : savedId(k));
+  const setId = (k: keyof IdDraft, value: string) =>
+    setIdDraft((d) => {
+      const next = { ...d };
+      if (value.trim() === savedId(k)) delete next[k]; else next[k] = value;
+      return next;
+    });
+  const idDirty = Object.keys(idDraft).length > 0;
+  const idBad = idProblem(idValue('cliq')) ?? idProblem(idValue('slack'));
+  const status = tagStatus(idValue('cliq'), idValue('slack'), person.email);
+  const dirty = Object.keys(draft).length > 0 || idDirty;
   const tz = v('timezone') ?? '';
   const tzBad = tz !== '' && !isValidTimezone(tz);
   const exemptions = (v('exemptions') ?? {}) as Record<string, boolean>;
   const days = v('working_days') ?? [];
 
-  const onSave = () => {
-    const patch: Draft = { ...draft };
-    if ('group_name' in patch) patch.group_source = 'manual'; // a group chosen by hand is never overwritten by "Fill from pay groups"
-    save.mutate({ person_id: person.id, ...patch }, { onSuccess: () => { setDraft({}); toast.saved(`${person.full_name ?? 'Person'} saved`); }, onError: toast.failed });
+  // Only the parts that changed are written, and only when this row's Save is pressed.
+  const onSave = async () => {
+    try {
+      if (Object.keys(draft).length > 0) {
+        const patch: Draft = { ...draft };
+        if ('group_name' in patch) patch.group_source = 'manual'; // a group chosen by hand is never overwritten by "Fill from pay groups"
+        await save.mutateAsync({ person_id: person.id, ...patch });
+        setDraft({});
+      }
+      if (idDirty) {
+        await saveIdentity.mutateAsync({ person_id: person.id, cliq_user_id: idValue('cliq').trim() || null, slack_user_id: idValue('slack').trim() || null });
+        setIdDraft({});
+      }
+      toast.saved(`${person.full_name ?? 'Person'} saved`);
+    } catch (e) { toast.failed(e); }
   };
+  const saving = save.isPending || saveIdentity.isPending;
 
   return (
     <li className="py-3" data-testid="agent-person">
@@ -75,10 +112,20 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
         <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? 'Less' : 'More'}</Button>
         {!readOnly && dirty && (
           <>
-            <Button size="sm" onClick={onSave} disabled={save.isPending || tzBad}>{save.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}Save</Button>
-            <Button size="sm" variant="ghost" onClick={() => setDraft({})} disabled={save.isPending}>Discard</Button>
+            <Button size="sm" onClick={onSave} disabled={saving || tzBad || !!idBad}>{saving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setDraft({}); setIdDraft({}); }} disabled={saving}>Discard</Button>
           </>
         )}
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-12">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>Cliq user id</span>
+          <Input value={idValue('cliq')} disabled={readOnly} aria-label={`${person.full_name} Cliq user id`} aria-invalid={!!idProblem(idValue('cliq'))} placeholder="Optional"
+            className="h-8 w-44 text-xs" onChange={(e) => setId('cliq', e.target.value)} />
+        </label>
+        <p className={`text-xs ${status.ok ? 'text-muted-foreground' : 'text-warning'}`} data-testid="tag-status">{status.text}</p>
+        {idProblem(idValue('cliq')) && <p className="text-xs text-destructive" role="alert">{idProblem(idValue('cliq'))}</p>}
       </div>
 
       {open && (
@@ -114,6 +161,9 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
               </label>
             ))}
           </div>
+          <Field label="Slack user id" htmlFor={`slack-${person.id}`} hint={idProblem(idValue('slack')) ?? 'Optional. Used to tag them in Slack messages.'}>
+            <Input id={`slack-${person.id}`} value={idValue('slack')} disabled={readOnly} aria-invalid={!!idProblem(idValue('slack'))} placeholder="Optional" onChange={(e) => setId('slack', e.target.value)} />
+          </Field>
           <Field label="Notes" htmlFor={`notes-${person.id}`}>
             <Textarea id={`notes-${person.id}`} rows={2} value={v('notes') ?? ''} disabled={readOnly} onChange={(e) => set('notes', e.target.value === '' ? null : e.target.value)} />
           </Field>
@@ -127,10 +177,12 @@ export function PeopleCard({ settings: _settings, readOnly }: { settings: AgentS
   const kd = useKdTeam();
   const everyone = useAgentPeople(); // managers can be anyone, so the manager list is not limited to the KD Squares team
   const profiles = usePersonProfiles();
+  const identities = useIdentityMap();
   const suggest = useSuggestProfiles();
   const toast = useAgentToast();
   const [q, setQ] = useState('');
   const byPerson = useMemo(() => new Map((profiles.data ?? []).map((p) => [p.person_id, p])), [profiles.data]);
+  const idByPerson = useMemo(() => new Map((identities.data ?? []).map((i) => [i.person_id, i])), [identities.data]);
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return kd.team.filter((p) => !needle || (p.full_name ?? '').toLowerCase().includes(needle));
@@ -159,6 +211,9 @@ export function PeopleCard({ settings: _settings, readOnly }: { settings: AgentS
           </Button>
         )}
       </div>
+      <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground" data-testid="tag-note">
+        Tags use the Cliq user id when you save one, otherwise the person's email. The email must match the one they use in Zoho Cliq.
+      </p>
       <p className="-mt-2 text-xs text-muted-foreground" data-testid="team-note">
         KD Squares team, Field Agents excluded · <span className="tabular-nums">{kd.team.length}</span> {kd.team.length === 1 ? 'person' : 'people'}
         {ungrouped > 0 && !loading && <> · <span className="tabular-nums">{ungrouped}</span> without a group are not checked by the rules</>}
@@ -167,7 +222,7 @@ export function PeopleCard({ settings: _settings, readOnly }: { settings: AgentS
         <p className="text-sm text-destructive" role="alert">People could not be loaded: {failure.message}. Refresh the page; if it keeps happening, check your connection.</p>
       ) : list.length === 0 ? <p className="text-sm text-muted-foreground">{q ? 'No one on the team matches that search.' : 'No one is on the KD Squares team yet. People need an active profile and a KD Squares pay group.'}</p> : (
         <ul className="-my-3 divide-y">
-          {list.map((p) => <PersonRow key={p.id} person={p} saved={byPerson.get(p.id)} people={everyone.data ?? kd.team} readOnly={readOnly} />)}
+          {list.map((p) => <PersonRow key={p.id} person={p} saved={byPerson.get(p.id)} identity={idByPerson.get(p.id)} people={everyone.data ?? kd.team} readOnly={readOnly} />)}
         </ul>
       )}
     </Section>

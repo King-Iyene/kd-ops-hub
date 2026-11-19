@@ -2,7 +2,7 @@
 // controls are switched off, that saves send only what changed, that secrets are write only, that chat and connections
 // work end to end, and that opening a screen never writes anything.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -44,7 +44,7 @@ const BASE_TABLES: Record<string, unknown> = {
   agent_chat_threads: [], agent_chat_messages: [], agent_ai_usage: [], agent_audit_log: [], agent_domain_list: [],
   companies: [{ id: 'c1', name: 'KD Squares Ltd', short_code: 'KDS', is_active: true }, { id: 'c2', name: 'NDI Ltd', short_code: 'NDI', is_active: true }],
   profiles: [
-    { id: 'p1', full_name: 'Ada Obi', role: 'operations', job_title: 'Ops Lead', pay_group_id: 'g1', reporting_manager_id: null },
+    { id: 'p1', full_name: 'Ada Obi', role: 'operations', job_title: 'Ops Lead', pay_group_id: 'g1', reporting_manager_id: null, email: 'ada.obi@kd.test' },
     { id: 'p2', full_name: 'Bayo Admin', role: 'admin', job_title: null, pay_group_id: 'g1', reporting_manager_id: null },
     { id: 'p3', full_name: 'Femi Field', role: 'field_staff', job_title: 'Field Agent', pay_group_id: 'g1', reporting_manager_id: null },
     { id: 'p4', full_name: 'Nkem NDI', role: 'operations', job_title: 'Analyst', pay_group_id: 'g-ndi', reporting_manager_id: null },
@@ -942,5 +942,180 @@ describe('Chat, redesigned', () => {
     expect(err).toHaveTextContent('Chat needs the Claude key');
     fireEvent.click(within(err).getByRole('button', { name: /Try again/ }));
     await waitFor(() => expect(only('invoke:agent-chat')).toHaveLength(2));
+  });
+});
+
+describe('Connections: tagging people in Cliq and Slack', () => {
+  const openTool = async (tool: string) => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId(`tool-${tool}`));
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops channel' } });
+    fireEvent.change(within(dialog).getByLabelText(tool === 'cliq' ? 'Cliq webhook address' : 'Slack webhook address'), { target: { value: `https://example.com/${tool}/SECRET` } });
+    return dialog;
+  };
+
+  it('Cliq: tagging is on by default, the default format is shown, and an unchanged format is left out of the save', async () => {
+    const dialog = await openTool('cliq');
+    expect(within(dialog).getByRole('checkbox', { name: 'Tag the person in each message' })).toBeChecked();
+    expect((within(dialog).getByLabelText('Tag format') as HTMLInputElement).value).toBe('{@%s}');
+    expect(within(dialog).getByTestId('tag-advanced')).toHaveTextContent('If tags show up as plain text in Cliq, change this and send a test.');
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({ kind: 'cliq', mention_people: true });
+    expect('mention_template' in sent).toBe(false);
+  });
+
+  it('Slack: the default format is <@%s>; unticking sends mention_people false', async () => {
+    const dialog = await openTool('slack');
+    expect((within(dialog).getByLabelText('Tag format') as HTMLInputElement).value).toBe('<@%s>');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Tag the person in each message' }));
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent.mention_people).toBe(false);
+    expect('mention_template' in sent).toBe(false);
+  });
+
+  it('sends a changed format, and refuses one without %s or over 40 characters', async () => {
+    const dialog = await openTool('cliq');
+    const format = within(dialog).getByLabelText('Tag format');
+    fireEvent.change(format, { target: { value: '@{%s}' } });
+    fireEvent.change(format, { target: { value: 'no placeholder' } });
+    expect(within(dialog).getByTestId('tag-format-error')).toHaveTextContent('must contain %s');
+    expect(within(dialog).getByTestId('connection-save')).toBeDisabled();
+    fireEvent.change(format, { target: { value: `${'x'.repeat(41)}%s` } });
+    expect(within(dialog).getByTestId('tag-format-error')).toHaveTextContent('at most 40');
+    expect(within(dialog).getByTestId('connection-save')).toBeDisabled();
+    fireEvent.change(format, { target: { value: '@{%s}' } });
+    expect(within(dialog).queryByTestId('tag-format-error')).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ mention_people: true, mention_template: '@{%s}' });
+  });
+
+  it('other tools have no tagging options', async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-discord'));
+    expect(within(dialog).queryByTestId('tag-people')).not.toBeInTheDocument();
+    expect(within(dialog).queryByTestId('connection-send-test-tag')).not.toBeInTheDocument();
+  });
+
+  it('Send test and tag me sends tag_me: true and shows the message; a refusal is shown', async () => {
+    const dialog = await openTool('cliq');
+    expect(within(dialog).getByTestId('connection-send-test-tag')).toBeDisabled(); // save first
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(within(dialog).getByTestId('connection-send-test-tag')).toBeEnabled());
+    fireEvent.click(within(dialog).getByTestId('connection-send-test-tag'));
+    await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(1));
+    expect(only('invoke:agent-connections:test')[0].args[0]).toEqual({ action: 'test', id: 'conn-new', tag_me: true });
+    expect(await within(dialog).findByTestId('connection-note')).toHaveTextContent('If your name is highlighted in the channel, tagging works.');
+    expect(h.toasts.some((t) => /tagging works/.test(t.title ?? ''))).toBe(true);
+    // the plain test button does not tag
+    fireEvent.click(within(dialog).getByTestId('connection-send-test'));
+    await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(2));
+    expect(only('invoke:agent-connections:test')[1].args[0]).toEqual({ action: 'test', id: 'conn-new' });
+    // a refusal from the server is shown as it is
+    h.test = { ok: false, error: 'There is no Cliq or Slack id or email on your profile to tag. Add yours in Settings, People.' };
+    fireEvent.click(within(dialog).getByTestId('connection-send-test-tag'));
+    expect(await within(dialog).findByText(/no Cliq or Slack id or email on your profile/)).toBeInTheDocument();
+  });
+
+  it('editing shows the saved tagging values, and the card has a Tags people chip and a tag-me button', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [
+      { id: 'c-1', kind: 'cliq', name: 'Cliq ops', status: 'connected', config: { host: 'cliq.zoho.com', preset: 'cliq', mention_people: true, mention_template: '@{%s}' }, vault_secret_names: ['x_url'], last_error: null, last_tested_at: null },
+      { id: 'c-2', kind: 'slack', name: 'Slack quiet', status: 'connected', config: { host: 'hooks.slack.com', preset: 'slack', mention_people: false }, vault_secret_names: ['x_url'], last_error: null, last_tested_at: null },
+      { id: 'c-3', kind: 'webhook', name: 'Hook', status: 'connected', config: { url: 'https://x.example.com/h' }, vault_secret_names: [], last_error: null, last_tested_at: null },
+    ] };
+    renderAt('/agent/connections');
+    const rows = await screen.findAllByTestId('connection-row');
+    expect(within(rows[0]).getByTestId('tags-people-chip')).toHaveTextContent('Tags people');
+    expect(within(rows[1]).queryByTestId('tags-people-chip')).not.toBeInTheDocument(); // switched off
+    expect(within(rows[2]).queryByTestId('tags-people-chip')).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByTestId('connection-test-tag')).not.toBeInTheDocument();
+    fireEvent.click(within(rows[0]).getByTestId('connection-test-tag'));
+    await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(1));
+    expect(only('invoke:agent-connections:test')[0].args[0]).toEqual({ action: 'test', id: 'c-1', tag_me: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Slack quiet' }));
+    const dialog = await screen.findByTestId('connection-dialog');
+    expect(within(dialog).getByRole('checkbox', { name: 'Tag the person in each message' })).not.toBeChecked();
+    cleanup();
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Cliq ops' }));
+    const d2 = await screen.findByTestId('connection-dialog');
+    expect((within(d2).getByLabelText('Tag format') as HTMLInputElement).value).toBe('@{%s}');
+    // going back to the default clears the saved custom one
+    fireEvent.change(within(d2).getByLabelText('Tag format'), { target: { value: '{@%s}' } });
+    fireEvent.click(within(d2).getByTestId('connection-save'));
+    await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
+    expect((only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>).mention_template).toBe('');
+  });
+});
+
+describe('Settings > People: Cliq and Slack ids', () => {
+  const person = async () => (await screen.findAllByTestId('agent-person'))[0];
+
+  it('explains how tags work and shows what will be used for each person', async () => {
+    h.tables = { ...BASE_TABLES, agent_identity_map: [{ person_id: 'p2', cliq_user_id: '9988776', slack_user_id: null, email: null, matched_by: 'manual' }] };
+    renderAt('/agent/settings/team');
+    const rows = await screen.findAllByTestId('agent-person');
+    expect(screen.getByTestId('tag-note')).toHaveTextContent("Tags use the Cliq user id when you save one, otherwise the person's email. The email must match the one they use in Zoho Cliq.");
+    expect(within(rows[0]).getByTestId('tag-status')).toHaveTextContent('Tagged by email (ada.obi@…)');
+    expect(within(rows[1]).getByTestId('tag-status')).toHaveTextContent('Tagged by Cliq id');
+    expect((within(rows[1]).getByLabelText('Bayo Admin Cliq user id') as HTMLInputElement).value).toBe('9988776');
+    h.tables = { ...BASE_TABLES };
+  });
+
+  it('says a person cannot be tagged when there is no id and no email', async () => {
+    renderAt('/agent/settings/team');
+    const rows = await screen.findAllByTestId('agent-person');
+    expect(within(rows[1]).getByTestId('tag-status')).toHaveTextContent('Cannot be tagged (no email)');
+  });
+
+  it('writes nothing until Save, then upserts only that person with the right payload', async () => {
+    renderAt('/agent/settings/team');
+    const row = await person();
+    const input = within(row).getByLabelText('Ada Obi Cliq user id');
+    fireEvent.blur(input);
+    expect(writes()).toEqual([]);
+    fireEvent.change(input, { target: { value: '  5551234  ' } });
+    expect(within(row).getByTestId('tag-status')).toHaveTextContent('Tagged by Cliq id');
+    fireEvent.blur(input);
+    expect(writes()).toEqual([]); // typing and leaving the box saves nothing
+    fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toMatchObject({ table: 'agent_identity_map', op: 'upsert' });
+    expect(writes()[0].args[0]).toEqual({ person_id: 'p1', cliq_user_id: '5551234', slack_user_id: null, matched_by: 'manual' });
+    expect(writes()[0].args[1]).toEqual({ onConflict: 'person_id' });
+  });
+
+  it('keeps the Slack id in More, validates ids, and writes nothing when the change is undone', async () => {
+    renderAt('/agent/settings/team');
+    const row = await person();
+    expect(within(row).queryByLabelText('Slack user id')).not.toBeInTheDocument(); // collapsed
+    fireEvent.click(within(row).getByRole('button', { name: 'More' }));
+    const slack = within(row).getByLabelText('Slack user id');
+    fireEvent.change(slack, { target: { value: 'bad id!' } });
+    expect(within(row).getByText(/Use 2 to 120 letters/)).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Save' })).toBeDisabled();
+    fireEvent.change(slack, { target: { value: 'U0123ABC' } });
+    expect(within(row).getByRole('button', { name: 'Save' })).toBeEnabled();
+    fireEvent.change(slack, { target: { value: '' } }); // back to what is saved
+    expect(within(row).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    fireEvent.change(slack, { target: { value: 'U0123ABC' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0].args[0]).toEqual({ person_id: 'p1', cliq_user_id: null, slack_user_id: 'U0123ABC', matched_by: 'manual' });
+  });
+
+  it('is read only for someone who cannot configure', async () => {
+    h.scope = { role: 'admin', access: true, configure: false, companies: null, modules: null };
+    renderAt('/agent/settings/team');
+    const row = await person();
+    expect(within(row).getByLabelText('Ada Obi Cliq user id')).toBeDisabled();
   });
 });

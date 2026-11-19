@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
-import { adb, type AgentRule } from '@/features/ops-agent/agentDb';
+import { adb, type AgentIdentity, type AgentRule } from '@/features/ops-agent/agentDb';
 import type { FlagDetail, SendFlagInput, SendFlagResult, SiteVerdictResult } from '@/features/ops-agent/detailTypes';
 import { cleanDomain, type SiteCategory } from '@/features/ops-agent/liveTypes';
 import { queryKeys } from './keys';
@@ -116,5 +116,20 @@ export function usePeopleDirectory() {
   return useMemo(
     () => new Map((people.data ?? []).map((p) => [p.id, { id: p.id, name: p.full_name ?? 'Unknown', photo: p.photo_url ?? null, jobTitle: p.job_title ?? null } as DirectoryPerson])),
     [people.data],
+  );
+}
+
+// ── How people are tagged in Cliq and Slack ────────────────────────────────
+/** The saved Cliq and Slack ids, read once with the people list. */
+export function useIdentityMap(enabled = true) {
+  return useSupabaseQuery<AgentIdentity[]>(K.identities(), () => adb.from('agent_identity_map').select('person_id, cliq_user_id, slack_user_id, email, matched_by') as never, { enabled, staleTime: 60_000 });
+}
+
+/** Saves one person's ids. Only runs from that row's Save button. The email column is left as it is. */
+export function useSaveIdentity() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<unknown, { person_id: string; cliq_user_id: string | null; slack_user_id: string | null }>(
+    (v) => adb.from('agent_identity_map').upsert({ ...v, matched_by: 'manual' }, { onConflict: 'person_id' }).select('person_id'),
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.identities() }); qc.invalidateQueries({ queryKey: K.audit() }); } },
   );
 }

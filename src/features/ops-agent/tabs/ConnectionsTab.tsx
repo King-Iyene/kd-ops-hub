@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Loader2, Pencil, TriangleAlert, Plug, Plus, Send, Trash2 } from 'lucide-react';
+import { AtSign, Loader2, Pencil, TriangleAlert, Plug, Plus, Send, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +11,7 @@ import type { AgentConnection, OutboxRow } from '../agentDb';
 import { Section } from '../settings/shared';
 import { useAgentToast } from '../settings/useAgentToast';
 import { formatEst, relativeTime } from '../time';
+import { supportsMentions } from '../connectionTemplate';
 import { ApiKeysCard } from './ApiKeysCard';
 import { ConnectionDialog } from './ConnectionDialog';
 import { ToolIcon, presetForConnection } from './ToolIcon';
@@ -33,10 +34,11 @@ const STATUS = {
   disconnected: { dot: 'bg-muted-foreground/50', label: 'Not tested' },
 } as const;
 
-function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnection; outbox: OutboxRow[]; testing: boolean; onTest: () => void; onEdit: () => void; onDelete: () => void }) {
+function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnection; outbox: OutboxRow[]; testing: boolean; onTest: (tagMe: boolean) => void; onEdit: () => void; onDelete: () => void }) {
   const preset = presetForConnection(c);
   const status = STATUS[c.status] ?? STATUS.disconnected;
   const events = c.config.events ?? [];
+  const tags = supportsMentions(c.kind);
   const pending = outbox.filter((o) => o.status === 'pending').length;
   const failed = outbox.filter((o) => o.status === 'failed').length;
   const lastSent = c.last_sent_at ?? outbox.find((o) => o.status === 'sent')?.sent_at ?? null;
@@ -53,19 +55,25 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" className="h-8" onClick={onTest} disabled={testing} data-testid="connection-test">
+          <Button size="sm" variant="outline" className="h-8" onClick={() => onTest(false)} disabled={testing} data-testid="connection-test">
             {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />} Send test
           </Button>
+          {tags && (
+            <Button size="sm" variant="outline" className="h-8" onClick={() => onTest(true)} disabled={testing} data-testid="connection-test-tag">
+              <AtSign className="mr-1.5 h-3.5 w-3.5" /> Send test and tag me
+            </Button>
+          )}
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={`Edit ${c.name}`} onClick={onEdit}><Pencil className="h-3.5 w-3.5" /></Button>
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={`Delete ${c.name}`} onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" data-testid="connection-events" aria-label="Sent automatically">
-        {events.length === 0 ? <span className="text-xs text-muted-foreground">Sends nothing automatically</span> : (
+        {events.length === 0 ? <><span className="text-xs text-muted-foreground">Sends nothing automatically</span>{tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}</> : (
           <>
             <span className="text-xs text-muted-foreground">Sends:</span>
             {events.map((e) => <span key={e} className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium">{SHORT[e] ?? e}</span>)}
+            {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}
             {c.config.min_severity && <span className="rounded-full border px-2 py-0.5 text-2xs text-muted-foreground">{SEVERITY[c.config.min_severity] ?? c.config.min_severity}</span>}
           </>
         )}
@@ -101,10 +109,10 @@ export function ConnectionsTab() {
     return m;
   }, [outbox.data]);
 
-  const runTest = (id: string) => {
+  const runTest = (id: string, tagMe: boolean) => {
     setTestingId(id);
-    test.mutate(id, {
-      onSuccess: (r) => (r.ok ? toast.saved('Test message delivered') : toast.failed(new Error(r.error ?? 'The test failed'))),
+    test.mutate(tagMe ? { id, tag_me: true } : id, {
+      onSuccess: (r) => (r.ok ? toast.saved(tagMe ? 'Test sent. If your name is highlighted in the channel, tagging works.' : 'Test message delivered') : toast.failed(new Error(r.error ?? 'The test failed'))),
       onError: toast.failed,
       onSettled: () => setTestingId(null),
     });
@@ -143,7 +151,7 @@ export function ConnectionsTab() {
             {rows.map((c) => (
               <Card
                 key={c.id} c={c} outbox={byConnection.get(c.id) ?? []} testing={testingId === c.id}
-                onTest={() => runTest(c.id)} onEdit={() => setDialog({ open: true, editing: c })} onDelete={() => remove(c)}
+                onTest={(tagMe) => runTest(c.id, tagMe)} onEdit={() => setDialog({ open: true, editing: c })} onDelete={() => remove(c)}
               />
             ))}
           </ul>

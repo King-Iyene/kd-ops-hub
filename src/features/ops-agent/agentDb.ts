@@ -61,6 +61,8 @@ export interface AgentPersonProfile {
   exemptions: Record<string, boolean>;
   notes: string | null;
 }
+/** How a person is tagged in Cliq and Slack. `email` is only a fallback the server may use. */
+export interface AgentIdentity { person_id: string; cliq_user_id: string | null; slack_user_id: string | null; email?: string | null; matched_by?: 'auto' | 'manual' }
 export interface AgentAdminScope { admin_id: string; company_ids: string[] | null; module_keys: string[] | null }
 export interface AgentAuditRow { id: number; at: string; actor_id: string | null; action: string; entity_type: string | null; entity_id: string | null; detail: Record<string, unknown> }
 export interface AgentUsageRow { id: string; created_at: string; feature: string; model: string; input_tokens: number; output_tokens: number; cost_usd: number; ok: boolean; error: string | null }
@@ -112,13 +114,15 @@ export interface AgentConnection {
     url?: string; host?: string; to?: string; chat_id?: string; method?: string; header_name?: string; query_param?: string; preset?: string;
     auth_type?: AuthType; content_type?: ContentType; body_template?: string; extra_headers?: Record<string, string>;
     events?: string[]; min_severity?: MinSeverity;
+    /** Cliq and Slack only: tag the person a message is about. */
+    mention_people?: boolean; mention_template?: string;
   };
   vault_secret_names: string[]; last_error: string | null; last_tested_at: string | null; last_sent_at?: string | null;
 }
 export interface SaveConnectionInput {
   id?: string; kind: ConnectionKind; name: string; preset?: string; url?: string; token?: string; clear_token?: boolean; to?: string; chat_id?: string;
   method?: string; auth_type?: AuthType; header_name?: string; query_param?: string; content_type?: ContentType; extra_headers?: Record<string, string>;
-  body_template?: string; events?: string[]; min_severity?: MinSeverity;
+  body_template?: string; events?: string[]; min_severity?: MinSeverity; mention_people?: boolean; mention_template?: string;
 }
 /** One delivery the agent tried (or will try) to a connection. Read from agent_outbox when allowed. */
 export interface OutboxRow { id: string; connection_id: string; kind: 'flag' | 'summary'; ref_id: string | null; status: 'pending' | 'sent' | 'failed'; attempts: number; error: string | null; created_at: string; sent_at: string | null }

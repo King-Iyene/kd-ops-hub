@@ -247,10 +247,11 @@ export function useSaveConnection() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: K.connections() }); qc.invalidateQueries({ queryKey: K.audit() }); },
   });
 }
+/** Sends a test message through a saved connection. `tag_me` also tags the person pressing the button (Cliq and Slack). */
 export function useTestConnection() {
   const qc = useQueryClient();
-  return useMutation<{ ok: boolean; error?: string }, Error, string>({
-    mutationFn: (id) => invokeAgent('agent-connections', { action: 'test', id }),
+  return useMutation<{ ok: boolean; error?: string }, Error, string | { id: string; tag_me?: boolean }>({
+    mutationFn: (v) => invokeAgent('agent-connections', { action: 'test', ...(typeof v === 'string' ? { id: v } : v) }),
     onSettled: () => { qc.invalidateQueries({ queryKey: K.connections() }); },
   });
 }

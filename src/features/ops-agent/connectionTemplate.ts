@@ -49,3 +49,17 @@ export function isValidJson(text: string): boolean {
 /** Header names the server accepts: letters, digits and hyphens. */
 export const validHeaderName = (n: string) => /^[A-Za-z0-9-]+$/.test(n);
 export const MAX_EXTRA_HEADERS = 10;
+
+/** Cliq and Slack can tag the person a message is about. The format has %s where the person's id (or email) goes. */
+export const MENTION_DEFAULTS: Record<string, string> = { cliq: '{@%s}', slack: '<@%s>' };
+export const MENTION_MAX = 40;
+export const supportsMentions = (kind: string) => kind === 'cliq' || kind === 'slack';
+
+/** Why a typed tag format is not allowed, or null when it is fine (empty means "use the default"). */
+export function mentionTemplateProblem(text: string): string | null {
+  const t = text.trim();
+  if (t === '') return null;
+  if (t.length > MENTION_MAX) return `Use at most ${MENTION_MAX} characters.`;
+  if (!t.includes('%s')) return 'The format must contain %s where the person goes, for example {@%s}.';
+  return null;
+}
