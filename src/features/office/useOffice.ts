@@ -110,6 +110,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const lockRef = useRef(false);
   const statusRef = useRef('');
   const ridingRef = useRef(false);
+  const rosterKey = useRef('');
   const danceRef = useRef(false);
   const bikeRef = useRef('');
   const liveRef = useRef(false);
@@ -160,14 +161,20 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       const mineGhost = ghostIds.has(connId);
       supersededRef.current = mineGhost;
       setSuperseded(mineGhost);
-      setRoster(all.filter((w) => !ghostIds.has(w.id)));
+      // when nothing about anybody changed (a flicker of the connection), do not hand React a new list to redraw everything for
+      const shown = all.filter((w) => !ghostIds.has(w.id));
+      const rk = JSON.stringify(shown);
+      if (rk !== rosterKey.current) { rosterKey.current = rk; setRoster(shown); }
       // forget people who have left, and tabs that are no longer the one shown
       const here = new Set(all.map((w) => w.id));
       for (const id of [...peers.current.keys()]) if (!here.has(id) || ghostIds.has(id)) peers.current.delete(id);
     };
     // rings and messages addressed to one person (see social.ts); everyone gets the packet, only the addressee acts
     ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });
-    ch.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
+    // a shaky connection sends a burst of presence events: handle them together, once
+    let syncTimer: ReturnType<typeof setTimeout> | null = null;
+    const syncSoon = () => { if (syncTimer) return; syncTimer = setTimeout(() => { syncTimer = null; sync(); }, 150); };
+    ch.on('presence', { event: 'sync' }, syncSoon).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true);
         const s = selfRef.current;
@@ -175,6 +182,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       }
     });
     return () => {
+      if (syncTimer) clearTimeout(syncTimer);
       setConnected(false);
       void supabase.removeChannel(ch);
       lobby.current = null;

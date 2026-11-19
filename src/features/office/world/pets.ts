@@ -57,6 +57,8 @@ export interface PetState {
   routeGoal: { x: number; y: number } | null;
   /** seconds the straight line to its goal has been blocked by a wall or furniture */
   blockedFor: number;
+  /** a playful dash round its person (while following) */
+  dashing: boolean;
 }
 
 export type PetCmd =
@@ -70,7 +72,7 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0 };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0, dashing: false };
 }
 
 // a pet can outrun its owner (4.5 tiles a second) so it never lags behind
@@ -225,8 +227,25 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
     if (d > 30) { p.x = me.x; p.y = me.y + 1; p.v = 0; return; }
     const heel = heelPoint(p, me);
     const dh = Math.hypot(heel.x - p.x, heel.y - p.y);
+    // a playful dash round the person it is following, then back to heel
+    if (p.dashing) {
+      if (d > 6) p.dashing = false;
+      else if (walkTo(p, solid, p.tx, p.ty, sp.run, dt, 0.4) || p.stuck > 0.8) { p.dashing = false; p.stuck = 0; p.wait = 1.2 + rand() * 2.6; }
+      return;
+    }
     // it sets off when you get more than about two tiles away and settles once it is beside you (no jitter in between)
-    if (!p.moving && dh < 1.9) { p.v = 0; return; }
+    if (!p.moving && dh < 1.9) {
+      p.v = 0;
+      // settled beside you: every so often it races off round you and comes back (it keeps following until you press F again)
+      if (p.wait > 0) { p.wait -= dt; return; }
+      p.wait = 1.2 + rand() * 2.6;
+      const an = rand() * Math.PI * 2;
+      const rr2 = 2.2 + rand() * 1.6;
+      const tx = me.x + Math.cos(an) * rr2;
+      const ty = me.y + Math.sin(an) * rr2 * 0.8;
+      if (free(solid, tx, ty)) { p.tx = tx; p.ty = ty; p.dashing = true; p.stuck = 0; }
+      return;
+    }
     // far away it runs flat out; near you it trots
     walkTo(p, solid, heel.x, heel.y, dh > 5 ? sp.run : Math.max(sp.walk * 1.7, Math.min(sp.run, dh * 2.4)), dt, 0.45);
     return;
