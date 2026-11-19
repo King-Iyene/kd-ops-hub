@@ -4108,6 +4108,8 @@ export interface DrawPerson {
   status?: string;
   /** which status (busy and do not disturb change how the avatar looks) */
   statusId?: string;
+  /** dancing (press X) */
+  dancing?: boolean;
   /** talking right now: a green glow on the picture and the name tag */
   speaking?: boolean;
   /** on a power bike */
@@ -4167,9 +4169,11 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const px = p.x * TILE;
   const py = p.y * TILE;
   const ph = stridePhase(p, t); // one stride about every 1.2 tiles walked, counted along the way actually walked
-  const step = p.moving && !p.seated ? Math.sin(ph) : 0;
-  const bob = p.seated ? (p.moving ? Math.sin(t / 130) * 0.45 : 0) : p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
-  const lean = p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
+  const dancing = !!p.dancing && !p.moving && !p.seated;
+  const beat = t / 135;
+  const step = dancing ? Math.sin(beat) : p.moving && !p.seated ? Math.sin(ph) : 0;
+  const bob = dancing ? -Math.abs(Math.sin(beat)) * 4.2 : p.seated ? (p.moving ? Math.sin(t / 130) * 0.45 : 0) : p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
+  const lean = dancing ? Math.sin(beat / 2) * 3.2 : p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
   const side = p.dir === 1 || p.dir === 2;
   const back = p.dir === 3;
   const fx = p.dir === 1 ? -1 : p.dir === 2 ? 1 : 0; // which way the face looks
@@ -4299,8 +4303,12 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // sitting still at a seat: the hands type
   // a calm sit: hands rest, with a short gentle bit of typing now and then (no shaking)
   const typingNow = p.seated && !p.moving && (t % 5200) < 1900;
-  const armStep = typingNow ? Math.sin(t / 110) * 0.32 : step;
-  if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
+  const armStep = typingNow ? Math.sin(t / 110) * 0.32 : dancing ? Math.sin(beat) * 2.6 : step;
+  if (dancing) {
+    // arms thrown up and pumping in turn
+    arm(-10.5 - 2, -3.6 - Math.sin(beat) * 3.2);
+    arm(10.5 + 2, -3.6 + Math.sin(beat) * 3.2);
+  } else if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
 
   // body
   const tw = a.outfit === 1 ? 20 : 18;

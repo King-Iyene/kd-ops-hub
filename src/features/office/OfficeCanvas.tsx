@@ -77,6 +77,8 @@ interface Props {
   vehicleKinds?: Record<string, 'bike' | 'kart'>;
   rideKind?: 'bike' | 'kart';
   /** pos is where you are when you get off, so the vehicle stays there */
+  /** I started or stopped dancing */
+  onDance?: (on: boolean) => void;
   onRide: (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
@@ -156,6 +158,10 @@ export function OfficeCanvas(props: Props) {
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const nearRef = useRef<Item | null>(null);
+  /** a pet close enough that F calls it (follow me) or tells it to stay */
+  const nearPetRef = useRef<string | null>(null);
+  /** dancing (press X); any walking, sitting or riding stops it */
+  const danceRef = useRef(false);
   /** the seat I am sitting on (its tile centre), and a seat I am walking to */
   const sitRef = useRef<{ x: number; y: number } | null>(null);
   const wantSit = useRef<string | null>(null);
@@ -202,8 +208,13 @@ export function OfficeCanvas(props: Props) {
         if (sitRef.current) { e.preventDefault(); standRef.current(); return; }
         if (propsRef.current.riding) { e.preventDefault(); propsRef.current.onRide(false, undefined, { x: meRef.current.x, y: meRef.current.y, dir: meRef.current.dir }); return; }
         const near = nearRef.current;
+        if (!near && nearPetRef.current) {
+          const pet = petRegistry.get(nearPetRef.current);
+          if (pet) { e.preventDefault(); petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+        }
         if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
       }
+      if (k === 'x' && !propsRef.current.editing && !propsRef.current.riding && !sitRef.current) { e.preventDefault(); danceRef.current = !danceRef.current; propsRef.current.onDance?.(danceRef.current); return; }
       if (k === 'm') { miniOn.current = !miniOn.current; try { localStorage.setItem('kd:office:minimap', miniOn.current ? '1' : '0'); } catch { /* fine */ } return; }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
@@ -745,7 +756,7 @@ export function OfficeCanvas(props: Props) {
             if (Math.random() < 0.35) ambient.pet(pet.kind, pet.kind === 'dog' ? 'bark' : 'meow');
           }
           if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
-          officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now : true });
+          officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now || pet.wait < 1.4 : true });
         }
       }
       const theme = { dark: p.dark };
@@ -777,10 +788,11 @@ export function OfficeCanvas(props: Props) {
         if (info.spaceId && info.spaceId !== p.spaceId) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info.riding, vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji, statusId: typeof info?.status === 'string' ? info.status : undefined,
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info.riding, dancing: !!info.dancing, vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), status: statusOf(info?.status)?.emoji, statusId: typeof info?.status === 'string' ? info.status : undefined,
         });
       }
-      people.push({ x: me.x, y: me.y, dir: me.dir, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji, statusId: who.get(p.me.id)?.status });
+      if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
+      people.push({ x: me.x, y: me.y, dir: me.dir, dancing: danceRef.current, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), status: statusOf(who.get(p.me.id)?.status)?.emoji, statusId: who.get(p.me.id)?.status });
 
       // trails: smoke behind a rider, a little dust at the feet of anyone walking, and the ring where you clicked
       for (const q of people) {
@@ -984,6 +996,29 @@ export function OfficeCanvas(props: Props) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('F', cx0, cy0 + 0.5);
+      }
+
+      // a pet close by (and nothing else to press F on): F makes it follow me, or stay
+      nearPetRef.current = null;
+      if (!nearIt && !p.editing && !p.riding && !sitRef.current) {
+        let bp: PetState | null = null;
+        let bpd = 1.7;
+        for (const pet of petRegistry.values()) { const d = Math.hypot(pet.x - me.x, pet.y - me.y); if (d < bpd) { bpd = d; bp = pet; } }
+        if (bp) {
+          nearPetRef.current = bp.id;
+          ctx.save();
+          ctx.font = '700 10px system-ui, sans-serif';
+          const lab = bp.mode === 'follow' ? 'F  Stay here' : 'F  Follow me';
+          const lw = ctx.measureText(lab).width + 16;
+          const gx = bp.x * TILE;
+          const gy = bp.y * TILE - 30 + Math.sin(now / 280) * 2;
+          ctx.fillStyle = 'rgba(15,23,42,0.88)';
+          ctx.beginPath(); ctx.roundRect(gx - lw / 2, gy - 9, lw, 18, 9); ctx.fill();
+          ctx.fillStyle = '#fbbf24';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(lab, gx, gy + 0.5);
+          ctx.restore();
+        }
       }
 
       // a sticky note (or a gift) by the door of my office when somebody has left me something

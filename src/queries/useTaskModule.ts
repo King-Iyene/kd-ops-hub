@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryKeys } from './keys';
+import { expectedReporters } from '@/features/task-module/table/reporters';
 import { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupabaseQuery';
 import type { Json, TablesUpdate } from '@/integrations/supabase/types';
 
@@ -782,17 +784,31 @@ export function useDeleteForm(tableId: string) {
 // and is readable by every authenticated user — the same source every
 // other people-picker in the app uses (see Tasks.tsx, TaskTeamDashboard.tsx).
 
-/** Everyone currently active — who a daily report is expected from. */
-export function useActivePeople() {
-  return useSupabaseQuery([...queryKeys.taskModule.people(), 'active'] as const, () =>
+/**
+ * Who a daily report is expected from: active people in the KD Squares
+ * company (their company comes from their pay group) who are not Field Agents.
+ */
+export function useReportingPeople() {
+  const profiles = useSupabaseQuery([...queryKeys.taskModule.people(), 'reporting-profiles'] as const, () =>
     supabase
-      .from('profiles_directory')
-      .select('id, full_name, email, photo_url, job_title')
+      .from('profiles')
+      .select('id, full_name, job_title, role, pay_group_id')
       .eq('is_anonymised', false)
       .eq('status', 'active')
       .order('full_name')
-      .limit(500),
+      .limit(1000),
   );
+  const groups = useSupabaseQuery([...queryKeys.taskModule.people(), 'pay-groups'] as const, () =>
+    supabase.from('pay_groups').select('id, company_id').limit(500),
+  );
+  const companies = useSupabaseQuery([...queryKeys.taskModule.people(), 'companies'] as const, () =>
+    supabase.from('companies').select('id, name').limit(50),
+  );
+  const people = useMemo(
+    () => expectedReporters(profiles.data ?? [], groups.data ?? [], companies.data ?? []),
+    [profiles.data, groups.data, companies.data],
+  );
+  return { people, isLoading: profiles.isLoading || groups.isLoading || companies.isLoading };
 }
 
 export function useAssignablePeople() {

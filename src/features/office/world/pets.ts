@@ -257,7 +257,7 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
   if (p.wait > 0) { p.wait -= dt; p.moving = false; return; }
   if (walkTo(p, solid, p.tx, p.ty, sp.walk, dt, 0.15) || p.stuck > 1.2) {
     p.stuck = 0;
-    p.wait = 1.2 + rand() * 4.5;
+    p.wait = p.kind === 'cat' ? 0.6 + rand() * 2.2 : 1.2 + rand() * 4.5; // cats pad about too, they do not nap all day
     for (let tries = 0; tries < 6; tries++) {
       const nx = p.hx + (rand() - 0.5) * 7;
       const ny = p.hy + (rand() - 0.5) * 5;
