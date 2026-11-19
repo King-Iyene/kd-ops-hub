@@ -3686,7 +3686,7 @@ export function drawItems(ctx: Ctx, items: Item[], theme: Theme, t = 0) {
 // ---------- light and atmosphere ----------
 
 /** Lamp glow, light from the windows with drifting dust, and a gentle tint for the time of day. */
-export function drawLighting(ctx: Ctx, map: MapDef, items: Item[], theme: Theme, t: number) {
+export function drawLighting(ctx: Ctx, map: MapDef, items: Item[], theme: Theme, t: number, onStage = false) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   // shafts of daylight under the windows along the top wall
@@ -3730,6 +3730,25 @@ export function drawLighting(ctx: Ctx, map: MapDef, items: Item[], theme: Theme,
     ctx.fillStyle = g;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   };
+  // the stage: two spotlights from above, soft by day, strong at night, and brightest when somebody is on it
+  const stage = map.zones.find((z) => z.id === 'stage');
+  if (stage) {
+    const power = onStage ? 0.5 : 0.12 + nightF * 0.22;
+    const cx0 = (stage.x + stage.w / 2) * TILE, cy0 = (stage.y + stage.h / 2 + 0.3) * TILE;
+    for (const dx of [-3.2, 3.2]) {
+      const sx = cx0 + dx * TILE * 1.3 + Math.sin(t / 2200 + dx) * 6;
+      const g = ctx.createRadialGradient(sx, cy0, 4, sx, cy0, TILE * 3.4);
+      g.addColorStop(0, `rgba(255,244,214,${power})`);
+      g.addColorStop(1, 'rgba(255,244,214,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(sx, cy0, TILE * 3.4, TILE * 1.9, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (onStage) {
+      const g = ctx.createLinearGradient(0, stage.y * TILE, 0, (stage.y + stage.h) * TILE);
+      g.addColorStop(0, 'rgba(255,255,255,0.0)'); g.addColorStop(1, 'rgba(255,240,200,0.16)');
+      ctx.fillStyle = g; ctx.fillRect(stage.x * TILE, stage.y * TILE, stage.w * TILE, stage.h * TILE);
+    }
+  }
   // lamps glow warm; screens glow cool after dark
   for (const it of items) {
     const cx = (it.x + 0.5) * TILE;

@@ -175,6 +175,8 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     { id: 'path', name: 'Path', kind: 'area', x: 30, y: 49, w: 2, h: 15, floor: 'stone' },
     { id: 'building', name: 'Headquarters', kind: 'area', x: 3, y: 3, w: 58, h: 46, floor: 'wood' },
     { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
+    { id: 'reception', name: 'Reception', kind: 'area', x: 21, y: 43, w: 17, h: 6, floor: 'stone' },
+    { id: 'stage', name: 'Stage', kind: 'area', x: 43, y: 32, w: 12, h: 4, floor: 'wood' },
     { id: 'annex', name: 'Campus East', kind: 'area', x: 65, y: 3, w: 36, h: 46, floor: 'wood' },
     { id: 'link', name: 'Walkway', kind: 'area', x: 62, y: 3, w: 3, h: 6, floor: 'stone' },
     { id: 'walkway', name: 'Walkway', kind: 'area', x: 65, y: 3, w: 15, h: 4, floor: 'stone' },
@@ -206,8 +208,8 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   zones.push(
     { id: 'boardroom', name: 'Boardroom', kind: 'meeting', x: 17, y: 35, w: 11, h: 9, floor: 'carpet' },
     { id: 'auditorium', name: 'Auditorium', kind: 'meeting', x: 38, y: 32, w: 23, h: 17, floor: 'stone' },
-    { id: 'lounge', name: 'Lounge', kind: 'lounge', x: 33, y: 24, w: 12, h: 7 },
-    { id: 'music', name: 'Music corner', kind: 'lounge', x: 3, y: 34, w: 11, h: 13 },
+    { id: 'lounge', name: 'Lounge', kind: 'lounge', x: 33, y: 24, w: 12, h: 7, floor: 'carpet' },
+    { id: 'music', name: 'Music corner', kind: 'lounge', x: 3, y: 34, w: 11, h: 13, floor: 'carpet' },
     { id: 'game', name: 'Game room', kind: 'lounge', x: 65, y: 8, w: 15, h: 9, floor: 'carpet' },
     { id: 'library', name: 'Quiet library', kind: 'meeting', x: 65, y: 18, w: 15, h: 14, floor: 'carpet' },
     { id: 'wellness', name: 'Wellness room', kind: 'lounge', x: 65, y: 33, w: 15, h: 15, floor: 'carpet' },
@@ -217,8 +219,10 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (let i = 0; i < 5; i++) zones.push({ id: `focus-${i + 1}`, name: `Focus pod ${i + 1}`, kind: 'meeting', x: 86 + i * 3, y: 3, w: 3, h: 7, floor: 'gray' });
 
   const items: Item[] = [];
+  const screens = ['computer', 'dualmonitor', 'computer', 'ultrawide'] as const;
+  let deskN = 0;
   const desk = (x: number, y: number, extra: 'papers' | 'mug' | 'globe' | 'laptop') => {
-    items.push(it('desk', x, y), it('computer', x, y), it(extra, x + 1, y));
+    items.push(it('desk', x, y), it(screens[deskN++ % screens.length], x, y), it(extra, x + 1, y));
   };
 
   // private offices
@@ -308,6 +312,18 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (const y of [46, 54, 62]) items.push(it('tree', 0, y), it('tree', 62, y));
   for (let x = 2; x < 60; x += 2) if (x !== 30) items.push(it('hedge', x, 64));
   items.push(it('cat', 40, 62), it('dog', 51, 61));
+
+  // ---- the main building, remodelled ----
+  // each private office gets a leafy plant and a filing cabinet
+  for (let i = 0; i < OFFICES; i++) { const x0 = 3 + i * 6; items.push(it('monstera', x0 + 4, 4), it('filecabinet', x0, 4)); }
+  // the desk pods: a cabinet and a bright flower pot at the corners
+  pods.forEach(([px, py], i) => items.push(it('filecabinet', px + 7, py), it(['tulips', 'sunflowers', 'orchid', 'lavender'][i % 4] as 'tulips', px, py + 6)));
+  // the lounge: table football and a game table by the sofas
+  items.push(it('foosball', 38, 23), it('gametable', 41, 22), it('orchid', 33, 24));
+  // the auditorium: a stage with a poll board and the events board beside it, and flowers at the front
+  items.push(it('pollboard', 41, 36), it('eventboard', 52, 36), it('sunflowers', 39, 36), it('sunflowers', 59, 36));
+  // reception: flowers
+  items.push(it('lavender', 21, 45), it('tulips', 36, 46));
 
   // ---- Campus East ----
   // the walkway: the team map and chart, plants

@@ -27,6 +27,28 @@ export function soundLevel(distance: number, range: number): number {
 
 interface Layer { gain: GainNode; pan: StereoPannerNode; level: number }
 
+/** How a step sounds on each kind of floor: how bright, how loud, how long. */
+export const SURFACES: Record<string, { lp: number; peak: number; len: number }> = {
+  wood: { lp: 520, peak: 0.08, len: 0.09 },
+  stone: { lp: 1500, peak: 0.085, len: 0.06 },
+  carpet: { lp: 170, peak: 0.045, len: 0.11 },
+  grass: { lp: 760, peak: 0.05, len: 0.13 },
+  gray: { lp: 430, peak: 0.065, len: 0.08 },
+  sand: { lp: 360, peak: 0.05, len: 0.15 },
+};
+
+/** The hum of each room: a filtered murmur, a soft pad, or the bleeps of the arcade. */
+export const ROOM_TONES: Record<string, { murmur: number; murmurHz: number; pad: number; blips: boolean }> = {
+  library: { murmur: 0.012, murmurHz: 160, pad: 0, blips: false },
+  game: { murmur: 0.02, murmurHz: 900, pad: 0, blips: true },
+  wellness: { murmur: 0.006, murmurHz: 140, pad: 0.03, blips: false },
+  workshop: { murmur: 0.022, murmurHz: 520, pad: 0, blips: false },
+  hall: { murmur: 0.018, murmurHz: 420, pad: 0, blips: false },
+  lounge: { murmur: 0.022, murmurHz: 600, pad: 0, blips: false },
+  reception: { murmur: 0.016, murmurHz: 480, pad: 0, blips: false },
+  auditorium: { murmur: 0.014, murmurHz: 380, pad: 0, blips: false },
+};
+
 class Ambient {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -41,6 +63,11 @@ class Ambient {
   private lastUpdate = 0;
   private lastStep = 0;
   private stepSide = 1;
+  private surface = 'wood';
+  private room: string | null = null;
+  private roomMurmur: { gain: GainNode; filter: BiquadFilterNode } | null = null;
+  private pad: GainNode | null = null;
+  private blipTimer: number | null = null;
 
   /** the overall loudness of every office sound (0 to 1) */
   setVolume(v: number) {
@@ -51,6 +78,93 @@ class Ambient {
   setEnabled(on: boolean) {
     this.enabled = on;
     if (!on) this.stop();
+  }
+
+  /** what is under my feet (wood, stone, carpet, grass, gray, sand): it changes how footsteps sound */
+  setSurface(kind: string) {
+    this.surface = SURFACES[kind] ? kind : 'wood';
+  }
+
+  /** the room I am in: each has its own quiet background (a library is hushed, the game room bleeps) */
+  setRoom(id: string | null) {
+    this.room = id;
+    const c = this.ctx;
+    const tone = id ? ROOM_TONES[id] : undefined;
+    if (c && this.roomMurmur) {
+      this.roomMurmur.gain.gain.setTargetAtTime(tone?.murmur ?? 0, c.currentTime, 0.8);
+      if (tone) this.roomMurmur.filter.frequency.setTargetAtTime(tone.murmurHz, c.currentTime, 0.5);
+    }
+    if (c && this.pad) this.pad.gain.setTargetAtTime(tone?.pad ?? 0, c.currentTime, 1.5);
+    if (this.blipTimer !== null) { window.clearTimeout(this.blipTimer); this.blipTimer = null; }
+    if (tone?.blips) {
+      const loop = () => {
+        this.blip();
+        this.blipTimer = window.setTimeout(loop, 600 + Math.random() * 1700);
+      };
+      this.blipTimer = window.setTimeout(loop, 900);
+    }
+  }
+
+  private blip() {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.master || c.state !== 'running') return;
+    const base = [440, 523, 659, 784, 988][Math.floor(Math.random() * 5)];
+    for (let k = 0; k < 2; k++) {
+      const t = c.currentTime + k * 0.07;
+      const o = c.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(base * (k ? 1.5 : 1), t);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.018, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      o.connect(g);
+      g.connect(this.master);
+      o.start(t);
+      o.stop(t + 0.1);
+    }
+  }
+
+  /** three knocks on a door */
+  knock() {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.noise || !this.master || c.state !== 'running') return;
+    for (let k = 0; k < 3; k++) {
+      const t = c.currentTime + k * 0.16 + (k === 2 ? 0.05 : 0);
+      const n = c.createBufferSource();
+      n.buffer = this.noise;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 320;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.32, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+      n.connect(lp);
+      lp.connect(g);
+      g.connect(this.master);
+      n.start(t, Math.random(), 0.14);
+    }
+  }
+
+  /** a friendly little two-note chime for a wave */
+  wave() {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.master || c.state !== 'running') return;
+    for (const [k, f] of [[0, 659], [1, 880]] as const) {
+      const t = c.currentTime + k * 0.12;
+      const o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g);
+      g.connect(this.master);
+      o.start(t);
+      o.stop(t + 0.55);
+    }
   }
 
   /** call from a click or key press (browsers only allow sound after one) */
@@ -65,6 +179,9 @@ class Ambient {
     this.timers = [];
     this.layers.clear();
     this.motor = null;
+    this.roomMurmur = null;
+    this.pad = null;
+    if (this.blipTimer !== null) { window.clearTimeout(this.blipTimer); this.blipTimer = null; }
     const c = this.ctx;
     this.ctx = null;
     this.master = null;
@@ -319,6 +436,29 @@ class Ambient {
       this.buildFire(c);
       this.buildTank(c);
       this.buildMusic(c);
+      // the room tone: a murmur through a filter, and a soft two-note pad
+      {
+        const n = c.createBufferSource();
+        n.buffer = this.noise;
+        n.loop = true;
+        const filter = c.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+        const gain = c.createGain();
+        gain.gain.value = 0;
+        n.connect(filter);
+        filter.connect(gain);
+        gain.connect(master);
+        n.start();
+        this.roomMurmur = { gain, filter };
+        const pad = c.createGain();
+        pad.gain.value = 0;
+        pad.connect(master);
+        for (const f of [196, 294.5]) { const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(pad); o.start(); }
+        this.pad = pad;
+        // the room I am already in
+        if (this.room && ROOM_TONES[this.room]) { gain.gain.value = ROOM_TONES[this.room].murmur; filter.frequency.value = ROOM_TONES[this.room].murmurHz; pad.gain.value = ROOM_TONES[this.room].pad; }
+      }
       return c;
     } catch {
       return null;
@@ -504,14 +644,15 @@ class Ambient {
     n.buffer = this.noise;
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 240 + Math.random() * 60;
+    const sf = SURFACES[this.surface] ?? SURFACES.wood;
+    lp.frequency.value = sf.lp * (0.92 + Math.random() * 0.16);
     const e = c.createGain();
     const p = c.createStereoPanner();
     p.pan.value = side * 0.12;
     const t = c.currentTime;
     e.gain.setValueAtTime(0.0001, t);
-    e.gain.exponentialRampToValueAtTime(0.07, t + 0.008);
-    e.gain.exponentialRampToValueAtTime(0.0001, t + 0.085);
+    e.gain.exponentialRampToValueAtTime(sf.peak, t + 0.008);
+    e.gain.exponentialRampToValueAtTime(0.0001, t + sf.len);
     n.connect(lp);
     lp.connect(e);
     e.connect(p);

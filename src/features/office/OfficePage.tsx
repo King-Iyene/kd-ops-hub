@@ -227,8 +227,10 @@ function OfficeRoom() {
   });
 
   // ---- editing furniture ----
-  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (template !== 'hq' && allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id)));
+  const canEdit = !!space && (space.kind === 'personal' ? space.owner_id === profile?.id || isAdmin : isAdmin || (template !== 'hq' && template !== 'team' && allowed(space.layout?.settings?.buildersMode, space.layout?.settings?.builders, profile?.id)));
   const [editing, setEditing] = useState(false);
+  // the version of the space I started editing from: if somebody else saves meanwhile, I am told straight away
+  const editBase = useRef<string | null>(null);
   const [draft, setDraft] = useState<Item[]>([]);
   const [tool, setTool] = useState<EditTool>(null);
   /** a piece of furniture picked up with the Move tool, and which of its tiles was grabbed */
@@ -299,12 +301,17 @@ function OfficeRoom() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [nameZone, setNameZone] = useState<{ id: string; name: string; kind: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!editing || !editBase.current || !space?.updated_at || space.updated_at === editBase.current) return;
+    editBase.current = space.updated_at;
+    toast({ title: 'Someone else just saved changes to this space', description: 'You can keep going. When you save you will be asked first, so nothing of theirs is lost by accident.' });
+  }, [editing, space?.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
   const items = editing ? draft : composedItems;
   const [scope, setScope] = useState<Zone | null>(null);
   const inScope = (i: { x: number; y: number }) => !scope || (i.x >= scope.x && i.x < scope.x + scope.w && i.y >= scope.y && i.y < scope.y + scope.h);
   const OFFICE_LIMIT = 40;
 
-  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setHeld(null); setTool('move'); setEditing(true); };
+  const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setHeld(null); setTool('move'); editBase.current = space?.updated_at ?? null; setEditing(true); };
   const stopEdit = () => { setTilesEditing(false); setTileDraft(undefined); setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
 
@@ -546,6 +553,7 @@ function OfficeRoom() {
     if (now - (lastKnock.current.get(z.id) ?? 0) < 6000) return;
     lastKnock.current.set(z.id, now);
     sendDoor({ k: 'knock', f: connId, n: me.name, r: z.id });
+    ambient.knock();
     toast({ title: `${z.name} is locked`, description: 'We knocked for you. Hang tight, someone will let you in.' });
   };
 
@@ -556,6 +564,7 @@ function OfficeRoom() {
     const senderInside = !!sender && sender.spaceId === space?.id && sender.zone === m.r;
     if (m.k === 'knock') {
       if (roomRef.current !== m.r || !lockedRef.current.has(m.r)) return;
+      if (!quietNow()) ambient.knock();
       setKnocks((k) => (k.some((x) => x.id === m.f) ? k : [...k, { id: m.f, name: m.n || sender?.name || 'Someone', room: m.r }]));
       setTimeout(() => setKnocks((k) => k.filter((x) => x.id !== m.f)), 60_000);
     } else if (m.k === 'let') {
@@ -738,6 +747,7 @@ function OfficeRoom() {
     lastSent.current.set(`wave:${r.id}`, Date.now());
     sendPing({ k: 'wave', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     sendEmote('👋');
+    ambient.wave();
     toast({ title: `You waved at ${r.name}`, description: 'If they are free they will come over.' });
   };
 
@@ -767,6 +777,7 @@ function OfficeRoom() {
     if (m.k === 'knock') {
       // only the owner, standing in their own office, hears a knock
       if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
+      if (!quietNow()) ambient.knock();
       notifyPing(`${m.n} is at your door`, 'Let them in?', undefined, 'knock:' + m.f);
       toast({
         title: `${m.n} is at your door`, description: 'Let them in?',
@@ -783,7 +794,7 @@ function OfficeRoom() {
       return;
     }
     if (m.k === 'wave') {
-      if (!quietNow()) { playChime(0.08); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
+      if (!quietNow()) { ambient.wave(); playChime(0.08); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
       toast({
         title: `${m.n} is waving at you 👋`, description: 'Want to go and say hi?',
         action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
@@ -1338,7 +1349,7 @@ function OfficeRoom() {
                 { label: 'Zoom in', icon: <Plus className="h-4 w-4" />, run: () => setZoom((z) => Math.min(2.2, +(z + 0.2).toFixed(1))) },
                 { label: 'Zoom out', icon: <Minus className="h-4 w-4" />, run: () => setZoom((z) => Math.max(0.5, +(z - 0.2).toFixed(1))) },
                 { label: 'Show or hide the map (M)', icon: <MapIcon className="h-4 w-4" />, run: () => window.dispatchEvent(new Event('kd-office-minimap')) },
-                { label: 'Back to my avatar (double-click the map too)', icon: <LocateFixed className="h-4 w-4" />, run: () => setRecenter((n) => n + 1) },
+                { label: 'Find me: zoom in on my avatar (zoom out again with the minus button)', icon: <LocateFixed className="h-4 w-4" />, run: () => { setRecenter((n) => n + 1); setZoom((z) => Math.max(z, 1.7)); } },
               ].map((b) => (
                 <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/90 text-foreground shadow backdrop-blur hover:bg-muted">{b.icon}</button>
               ))}
