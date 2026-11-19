@@ -164,6 +164,7 @@ export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, too
           <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={onReset}>Reset</Button>
         </div>
         <p className="text-[10px] text-muted-foreground">{limited ? 'Decorate your own office: pick an object, then click inside it. Walls, name plates and the rest of the building are for admins.' : 'Pick an object, then click the floor. Green means it fits.'}</p>
+        <p className="rounded-md bg-muted/60 px-2 py-1.5 text-[10px] leading-snug text-muted-foreground"><b>Keys:</b> R turns what you are carrying, Ctrl+Z undoes, Ctrl+Y redoes, Ctrl+D copies it, Esc puts it down.</p>
       </div>
         </>
       )}

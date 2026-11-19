@@ -13,6 +13,11 @@ export interface SpaceRow {
   layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }; tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> } };
 }
 
+/** Somebody else saved this space after you loaded it, so saving now would silently replace their changes. */
+export class SaveConflictError extends Error {
+  constructor() { super('Someone else saved changes to this space while you were working. Their version is loaded now. Press Save again to replace it with yours, or Cancel to keep theirs.'); this.name = 'SaveConflictError'; }
+}
+
 /** Every office the signed-in person can see: the company offices and everyone's personal office. */
 export function useSpaces() {
   return useQuery({
@@ -258,20 +263,26 @@ export function useOfficeMutations() {
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
     },
     async saveSettings(space: SpaceRow, settings: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[] }) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('office_spaces')
         .update({ layout: { ...space.layout, settings } as never, updated_at: new Date().toISOString() })
-        .eq('id', space.id);
+        .eq('id', space.id)
+        .eq('updated_at', space.updated_at)
+        .select('id');
       if (error) throw error;
+      if (!data?.length) { await qc.invalidateQueries({ queryKey: ['office', 'spaces'] }); throw new SaveConflictError(); }
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
       await qc.invalidateQueries({ queryKey: ['office', 'recordings'] });
     },
     async saveLayout(space: SpaceRow, template: TemplateName, items: Item[] | undefined, rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>, tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> }) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('office_spaces')
         .update({ layout: { template, ...(items ? { items } : {}), ...(rooms && Object.keys(rooms).length ? { rooms } : {}), ...(tiles && (tiles.wallsOn.length || tiles.wallsOff.length || Object.keys(tiles.floors).length) ? { tiles } : {}), ...(space.layout.settings ? { settings: space.layout.settings } : {}) } as never, updated_at: new Date().toISOString() })
-        .eq('id', space.id);
+        .eq('id', space.id)
+        .eq('updated_at', space.updated_at)
+        .select('id');
       if (error) throw error;
+      if (!data?.length) { await qc.invalidateQueries({ queryKey: ['office', 'spaces'] }); throw new SaveConflictError(); }
       await qc.invalidateQueries({ queryKey: ['office', 'spaces'] });
     },
   };

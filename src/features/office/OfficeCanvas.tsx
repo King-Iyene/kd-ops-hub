@@ -641,6 +641,12 @@ export function OfficeCanvas(props: Props) {
         me.x = np.x;
         me.y = np.y;
         me.dir = facing(v.vx, v.vy, me.dir);
+        {
+          let under = 'wood';
+          for (const z of p.map.zones) if (z.floor && me.x >= z.x && me.x < z.x + z.w && me.y >= z.y && me.y < z.y + z.h) under = z.floor;
+          if (p.items.some((i) => i.t === 'sand' && me.x >= i.x && me.x < i.x + itemSize(i).w && me.y >= i.y && me.y < i.y + itemSize(i).h)) under = 'sand';
+          ambient.setSurface(under);
+        }
         ambient.update({ x: me.x, y: me.y }, p.items, Math.hypot(me.sx, me.sy) > 0.25, now, p.riding);
         if (now - lastSaved.current > 1500) {
           lastSaved.current = now;
@@ -658,6 +664,7 @@ export function OfficeCanvas(props: Props) {
       const zid = z ? z.id : null;
       if (zid !== zoneId.current) {
         zoneId.current = zid;
+        ambient.setRoom(zid);
         p.onZone(z);
       }
       if (z && z.kind === 'portal' && z.target && now > portalCooldown.current && !p.editing) {
@@ -967,7 +974,9 @@ export function OfficeCanvas(props: Props) {
           if (nd.n > 1) { ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(nx + 20, ny, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '700 8px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(nd.n), nx + 20, ny + 0.5); }
         }
       }
-      drawLighting(ctx, p.map, p.items, theme, now);
+      const stageZone = p.map.zones.find((z) => z.id === 'stage');
+      const onStage = !!stageZone && people.some((q) => q.x >= stageZone.x && q.x < stageZone.x + stageZone.w && q.y >= stageZone.y && q.y < stageZone.y + stageZone.h);
+      drawLighting(ctx, p.map, p.items, theme, now, onStage);
       drawZoneLabels(ctx, p.map.zones, theme);
 
       // edit mode: grid, the build area and a preview of what is about to be placed
