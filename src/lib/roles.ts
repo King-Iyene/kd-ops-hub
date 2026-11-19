@@ -35,6 +35,9 @@ export const MANAGER_ROLES: Role[] = [
 ];
 /** Sensitive HR/admin pages visible only to super_admin and admin. */
 export const ADMIN_ONLY_ROLES: Role[] = ['super_admin', 'admin'];
+
+/** Only a Super Admin. The Ops Agent uses this: nobody else sees it, even Admins. */
+export const SUPER_ADMIN_ONLY_ROLES: Role[] = ['super_admin'];
 export const ALL_AUTH_ROLES: Role[] = [
   'super_admin',
   'admin',

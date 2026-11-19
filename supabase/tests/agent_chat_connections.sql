@@ -265,52 +265,31 @@ BEGIN
   RAISE NOTICE 'PASS 5b: bad arguments never throw; unknown tools are refused';
 END $$;
 
--- an Admin limited to KD Squares: KD only, never their own rows, never NDI
+-- an Admin: the agent is Super Admin only, so every tool is refused
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$
-DECLARE r jsonb;
 BEGIN
-  r := public.agent_chat_tool('tasks', '{}');
-  IF (r -> 'tasks')::text LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: a KD-only Admin saw an NDI task'; END IF;
-  IF (r -> 'tasks')::text LIKE '%Ada own%' THEN RAISE EXCEPTION 'FAIL: an Admin saw a task assigned to themselves'; END IF;
-  IF (r -> 'tasks')::text NOT LIKE '%Kemi overdue%' THEN RAISE EXCEPTION 'FAIL: the Admin should see KD tasks'; END IF;
-  PERFORM public.t_eq('Admin scope label', r ->> 'scope', 'limited to the companies and modules this person may see');
-  r := public.agent_chat_tool('people', '{}');
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(r -> 'people') x WHERE x ->> 'name' IN ('Nuhu Staff', 'Sue Super', 'Abel All', 'Ada KD')) THEN
-    RAISE EXCEPTION 'FAIL: an Admin saw NDI people, themselves or another Admin: %', r -> 'people'; END IF;
-  r := public.agent_chat_tool('leave', '{}');
-  IF (r -> 'on_approved_leave')::text LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: NDI leave shown to a KD Admin'; END IF;
-  r := public.agent_chat_tool('daily_reports', '{}');
-  IF (r::text) LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: NDI person in a KD Admin report view'; END IF;
-  RAISE NOTICE 'PASS 5c: a KD-limited Admin sees KD only, never themselves, other Admins, or NDI';
-END $$;
--- a module switched off disappears from the tools
-RESET ROLE;
-UPDATE public.agent_module_access SET enabled = false WHERE module_key = 'task';
-SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
-DO $$
-BEGIN
-  PERFORM public.t_eq('a disabled module returns nothing to an Admin', public.agent_chat_tool('tasks', '{}') -> 'tasks', '[]'::jsonb);
-  PERFORM public.t_eq('and the summary too', public.agent_chat_tool('task_summary') -> 'by_assignee', '[]'::jsonb);
-  RAISE NOTICE 'PASS 5d: a module switched off in Settings cannot be read through chat';
+  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('tasks', '{}')$q$, 'an Admin using the tasks tool', '42501');
+  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('people', '{}')$q$, 'an Admin using the people tool', '42501');
+  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('request_human_action', '{"title":"x"}')$q$, 'an Admin asking for a human action', '42501');
+  RAISE NOTICE 'PASS 5c: an Admin cannot use any chat tool';
 END $$;
 SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$ BEGIN PERFORM public.t_eq('Super Admin still sees tasks', jsonb_array_length(public.agent_chat_tool('tasks', '{}') -> 'tasks') > 0, true); END $$;
 
 -- ── 6. human action ────────────────────────────────────────────────────────
 RESET ROLE;
-UPDATE public.agent_module_access SET enabled = true WHERE module_key = 'task';
-SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$
 DECLARE r jsonb; v_tasks_before bigint; v_tasks_after bigint;
 BEGIN
-  RESET ROLE; SELECT count(*) INTO v_tasks_before FROM public.tm_tasks; PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  RESET ROLE; SELECT count(*) INTO v_tasks_before FROM public.tm_tasks; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
   r := public.agent_chat_tool('request_human_action', '{"title": "Delete the task Kemi overdue", "details": "Asked in chat"}');
   PERFORM public.t_eq('created', r ->> 'created', 'true');
   RESET ROLE; SELECT count(*) INTO v_tasks_after FROM public.tm_tasks;
   PERFORM public.t_eq('no business record changed', v_tasks_after, v_tasks_before);
   PERFORM public.t_eq('an Inbox item exists, typed human_action', (SELECT item_type FROM public.agent_flags WHERE id = (r ->> 'id')::uuid), 'human_action');
-  PERFORM public.t_eq('assigned to the asker', (SELECT assigned_to FROM public.agent_flags WHERE id = (r ->> 'id')::uuid), 'a0000000-0000-0000-0000-000000000002'::uuid);
+  PERFORM public.t_eq('assigned to the asker', (SELECT assigned_to FROM public.agent_flags WHERE id = (r ->> 'id')::uuid), 'a0000000-0000-0000-0000-000000000001'::uuid);
   RAISE NOTICE 'PASS 6: a request to change something becomes a Human Action item and changes nothing';
 END $$;
 
@@ -319,23 +298,25 @@ RESET ROLE;
 INSERT INTO public.agent_flags (id, company_id, rule_code, severity, subject_type, subject_id, title, item_type) VALUES
   ('b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'X1', 'medium', 'system', 'kd-1', 'KD item', 'flag'),
   ('b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000002', 'X1', 'medium', 'system', 'ndi-1', 'NDI item', 'flag');
-SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$
 BEGIN
   PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'handled', 'Spoke to Kemi');
   RESET ROLE;
   PERFORM public.t_eq('handled', (SELECT status FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'handled');
-  PERFORM public.t_eq('who handled it', (SELECT handled_by FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'a0000000-0000-0000-0000-000000000002'::uuid);
+  PERFORM public.t_eq('who handled it', (SELECT handled_by FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'a0000000-0000-0000-0000-000000000001'::uuid);
   PERFORM public.t_eq('note kept', (SELECT resolution_note FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'Spoke to Kemi');
   PERFORM public.t_eq('event recorded', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = 'b0000000-0000-0000-0000-000000000001' AND kind = 'handled'), 1::bigint);
-  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
   PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'snoozed', NULL, now() + interval '2 days');
   RESET ROLE;
   PERFORM public.t_eq('snoozed clears the handled fields', (SELECT handled_by IS NULL AND snoozed_until > now() + interval '1 day' FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), true);
-  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
   PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'open');
-  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-000000000002', 'dismissed')$q$, 'a KD Admin changing an NDI item', '42501');
-  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-0000000000ff', 'dismissed')$q$, 'a missing item looks the same as an out of scope one', '42501');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-000000000002', 'dismissed')$q$, 'an Admin changing an item', '42501');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-0000000000ff', 'dismissed')$q$, 'a missing item is refused', '42501');
   BEGIN PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'deleted'); RAISE EXCEPTION 'FAIL: bad status accepted';
   EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FAIL:%' THEN RAISE; END IF; END;
   PERFORM public.t_as('a0000000-0000-0000-0000-000000000004');

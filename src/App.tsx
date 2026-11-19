@@ -15,7 +15,7 @@ const AppLayout = lazy(() => import('@/components/AppLayout'));
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
 import { TimetrackFontScope } from '@/features/timetrack/TimetrackFontScope';
-import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES, PAYMENT_ROLES } from '@/lib/roles';
+import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES, PAYMENT_ROLES, SUPER_ADMIN_ONLY_ROLES } from '@/lib/roles';
 import { Loader as Loader2 } from 'lucide-react';
 
 // Eagerly loaded — shown before auth resolves or needed for public routes.
@@ -971,11 +971,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Ops Agent — Super Admin and Admin only. Deliberately no `permission` prop: the agent has its own scope rules in the database. */}
+        {/* Ops Agent — Super Admin only (also enforced in the database). */}
         <Route
           path="/agent/*"
           element={
-            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <OpsAgent />
             </RoleGuard>
           }
