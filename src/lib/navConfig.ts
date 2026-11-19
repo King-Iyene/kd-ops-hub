@@ -275,7 +275,7 @@ export const NAV_GROUPS = [
   { key: 'admin',      label: 'Admin',               titles: ['Audit Log', 'Approval Workflows', 'Settings', 'Principal Disbursements', 'Database', 'Developer'] },
   { key: 'ndi',        label: 'NDI',                 titles: ['NDI Overview', 'NDI Finance', 'NDI Employees', 'NDI Profile'] },
   { key: 'office',     label: 'Office',              titles: ['Virtual Office'] },
-  { key: 'taskModule', label: 'Task Management',     titles: ['Task'] },
+  { key: 'taskModule', label: 'Task',                titles: ['Task'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -372,7 +372,7 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
   },
   {
     key: 'task',
-    label: 'Task Management',
+    label: 'Task',
     description: 'Spaces, lists & tables',
     icon: 'CheckSquare',
     color: 'text-cyan-400',

@@ -5,7 +5,7 @@ import {
   ListChecks, Table2, Trash2, Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
 import {
@@ -21,9 +21,10 @@ import {
 } from '@/queries/useTaskModule';
 
 const NAV_LINKS = [
-  { to: '/task', label: 'Home', icon: Home, end: true },
-  { to: '/task/my-tasks', label: 'My Tasks', icon: ListTodo, end: false },
-  { to: '/task/dashboards', label: 'Dashboards', icon: LayoutDashboard, end: false },
+  { to: '/task', label: 'Home', icon: Home, end: true, adminOnly: false },
+  { to: '/task/my-tasks', label: 'My Tasks', icon: ListTodo, end: false, adminOnly: false },
+  // Company-wide dashboard: admins only (the route is guarded too).
+  { to: '/task/dashboards', label: 'Dashboard', icon: LayoutDashboard, end: false, adminOnly: true },
 ];
 
 // Two skins for the same tree: the dark desktop sidebar (AppSidebar's Task
@@ -64,6 +65,9 @@ export function TaskSidebarNav({
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  // Matches the Dashboard route guard, including "view as" another role.
+  const effectiveRole = useEffectiveRole();
+  const canSeeDashboard = effectiveRole === 'admin' || effectiveRole === 'super_admin';
 
   const { data: folders } = useTaskFolders();
   const { data: lists } = useTaskLists();
@@ -149,7 +153,7 @@ export function TaskSidebarNav({
   return (
     <div className="px-2 space-y-4">
       <nav className="space-y-0.5">
-        {NAV_LINKS.map((l) => (
+        {NAV_LINKS.filter((l) => !l.adminOnly || canSeeDashboard).map((l) => (
           <NavLink
             key={l.to}
             to={l.to}

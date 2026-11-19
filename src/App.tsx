@@ -899,8 +899,8 @@ function AppRoutes() {
 
         {/* Task module: every signed-in employee (space/list/table creation
             is admin-only, enforced by RLS — the pages themselves hide those
-            controls for everyone else). Its Home/My Tasks/Dashboards +
-            Spaces nav lives in the main sidebar's Task Management hub panel
+            controls for everyone else; Dashboards is admin-only). Its Home/My Tasks/Dashboards +
+            Spaces nav lives in the main sidebar's Task hub panel
             (TaskSidebarNav), not on the page. */}
         <Route
           path="/task"
@@ -914,7 +914,11 @@ function AppRoutes() {
         >
           <Route index element={<TaskHub />} />
           <Route path="my-tasks" element={<TaskMyTasksPage />} />
-          <Route path="dashboards" element={<TaskDashboardsPage />} />
+          {/* Company-wide numbers: admins only. Members' overview is Home. */}
+          <Route
+            path="dashboards"
+            element={<RoleGuard roles={['super_admin', 'admin']}><TaskDashboardsPage /></RoleGuard>}
+          />
           <Route path="list/:listId" element={<TaskListPage />} />
           <Route path="table/:tableId" element={<TaskTablePage />} />
         </Route>

@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useAssignablePeople, useCreateTask, useTaskFolders, useTaskLists,
-  type TaskPriority,
+  type TaskPriority, type TaskStatus,
 } from '@/queries/useTaskModule';
-import { AssigneePicker, DuePicker, PriorityPicker } from './pickers';
+import { AssigneePicker, DuePicker, PriorityPicker, StatusPicker } from './pickers';
 import { dueLabel, parseDueFromName } from './taskDates';
 import { useOpenTask } from './useOpenTask';
 
@@ -26,7 +26,7 @@ function writeLastList(id: string) {
   try { localStorage.setItem(LAST_LIST_KEY, id); } catch { /* private mode: just don't remember */ }
 }
 
-// The always-visible "+ Task" in the top bar, on every page.
+// The "+ Task" in the top bar while you're anywhere in the Task module.
 export function NewTaskButton() {
   const [open, setOpen] = useState(false);
   return (
@@ -39,7 +39,15 @@ export function NewTaskButton() {
   );
 }
 
-export function NewTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function NewTaskDialog({
+  open, onOpenChange, initialListId, initialStatus,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  /** Opened from a list's status group: start in that list and status. */
+  initialListId?: string;
+  initialStatus?: TaskStatus;
+}) {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const location = useLocation();
@@ -51,7 +59,8 @@ export function NewTaskDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [listId, setListId] = useState<string>('');
+  const [listId, setListId] = useState<string>(initialListId ?? '');
+  const [status, setStatus] = useState<TaskStatus>(initialStatus ?? 'to_do');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [pickedDue, setPickedDue] = useState<string | null>(null);
   const [priority, setPriority] = useState<TaskPriority | null>(null);
@@ -83,6 +92,7 @@ export function NewTaskDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         listId,
         title: finalTitle,
         createdBy: profile.id,
+        status,
         description: description.trim() || null,
         assigneeId,
         dueDate: finalDue,
@@ -171,7 +181,8 @@ export function NewTaskDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </Select>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-x-3 gap-y-2 flex-wrap text-xs text-muted-foreground">
+              {initialStatus && <span className="inline-flex items-center gap-1">Status <StatusPicker value={status} onChange={setStatus} /></span>}
               <span className="inline-flex items-center gap-1">Assignee <AssigneePicker value={assigneeId} people={people ?? []} onChange={setAssigneeId} compact /></span>
               <span className="inline-flex items-center gap-1">Due <DuePicker value={finalDue} onChange={(d) => { setPickedDue(d); if (!d) setIgnoreParsed(true); }} /></span>
               <span className="inline-flex items-center gap-1">Priority <PriorityPicker value={priority} onChange={setPriority} /></span>

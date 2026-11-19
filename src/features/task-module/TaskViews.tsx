@@ -8,8 +8,8 @@ import {
   startOfDay, startOfMonth, startOfWeek, subMonths,
 } from 'date-fns';
 import {
-  Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Filter as FilterIcon,
-  Flag, List as ListIcon, Loader2, Search, X,
+  ArrowDownUp, Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3,
+  Flag, GripVertical, List as ListIcon, Loader2, Search,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -17,32 +17,36 @@ import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  STATUS_META, TASK_STATUSES, PRIORITY_META, PRIORITY_FLAG, useUpdateTask,
+  STATUS_META, TASK_STATUSES, PRIORITY_META, PRIORITY_FLAG, useMoveTasks, useUpdateTask,
   type PersonOption, type TaskListRow, type TaskPriority, type TaskRow, type TaskStatus,
 } from '@/queries/useTaskModule';
 import { PersonAvatar, StatusPill } from './pickers';
 import { dueDateOf, dueLabel, isOverdue } from './taskDates';
 import { useOpenTask } from './useOpenTask';
+import { FilterButton } from './TaskFilters';
+import { matchesFilters, planMove, sortTasks, type FilterCond, type SortBy, type SortDir } from './taskQuery';
+import { NewTaskDialog } from './NewTaskDialog';
 
 export type ViewKind = 'list' | 'board' | 'calendar';
 const VIEW_KINDS: ViewKind[] = ['list', 'board', 'calendar'];
 export type GroupBy = 'status' | 'due' | 'assignee' | 'priority' | 'none';
-export type SortBy = 'manual' | 'due' | 'priority' | 'title' | 'created';
-type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
 
 const GROUP_LABELS: Record<GroupBy, string> = { status: 'Status', due: 'Due date', assignee: 'Assignee', priority: 'Priority', none: 'None' };
 const SORT_LABELS: Record<SortBy, string> = { manual: 'Manual order', due: 'Due date', priority: 'Priority', title: 'Name', created: 'Date created' };
-const DUE_LABELS: Record<DueFilter, string> = { any: 'Any time', overdue: 'Overdue', today: 'Due today', week: 'Due this week', none: 'No due date' };
+// What "asc" and "desc" mean for each sort, in words people use.
+const DIR_LABELS: Record<Exclude<SortBy, 'manual'>, [string, string]> = {
+  due: ['Earliest first', 'Latest first'],
+  priority: ['Highest first', 'Lowest first'],
+  title: ['A to Z', 'Z to A'],
+  created: ['Newest first', 'Oldest first'],
+};
 const PRIORITY_ORDER: (TaskPriority | null)[] = ['urgent', 'high', 'medium', 'low', null];
-const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
-interface Prefs { view: ViewKind; group: GroupBy; sort: SortBy; showClosed: boolean }
+interface Prefs { view: ViewKind; group: GroupBy; sort: SortBy; dir: SortDir; showClosed: boolean }
 
 // View, grouping, sort and "show closed" are remembered per page in this
 // browser; search and filters reset each visit.
@@ -71,20 +75,19 @@ export interface TaskViewsProps {
   prefsKey: string;
   defaultGroup: GroupBy;
   loading?: boolean;
-  onAddTask?: (status: TaskStatus, title: string) => Promise<unknown>;
+  /** On a list page: the list "+ Add task" creates tasks in. */
+  listId?: string;
 }
 
-export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, loading, onAddTask }: TaskViewsProps) {
+export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, loading, listId }: TaskViewsProps) {
   const { profile } = useAuthStore();
   const { open } = useOpenTask();
-  const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs(prefsKey, { view: 'list', group: defaultGroup, sort: 'manual', showClosed: false }));
+  const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs(prefsKey, { view: 'list', group: defaultGroup, sort: 'manual', dir: 'asc', showClosed: false }));
   const setPrefs = (patch: Partial<Prefs>) => setPrefsState((p) => { const next = { ...p, ...patch }; savePrefs(prefsKey, next); return next; });
   const [search, setSearch] = useState('');
   const [onlyMe, setOnlyMe] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<TaskStatus[]>([]);
-  const [priorityFilter, setPriorityFilter] = useState<(TaskPriority | 'none')[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
-  const [dueFilter, setDueFilter] = useState<DueFilter>('any');
+  const [conds, setConds] = useState<FilterCond[]>([]);
+  const [addingIn, setAddingIn] = useState<{ status?: TaskStatus } | null>(null);
 
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const listNameById = useMemo(() => new Map(lists.map((l) => [l.id, l.name])), [lists]);
@@ -102,33 +105,15 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
   }, [tasks]);
 
   const visible = useMemo(() => {
-    const today = startOfDay(new Date());
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
     const q = search.trim().toLowerCase();
-    let rows = mode === 'list' ? tasks.filter((t) => !t.parent_id) : tasks;
-    rows = rows.filter((t) => {
+    const rows = (mode === 'list' ? tasks.filter((t) => !t.parent_id) : tasks).filter((t) => {
       if (!prefs.showClosed && t.status === 'done') return false;
       if (q && !t.title.toLowerCase().includes(q)) return false;
       if (onlyMe && t.assignee_id !== profile?.id) return false;
-      if (statusFilter.length && !statusFilter.includes(t.status)) return false;
-      if (priorityFilter.length && !priorityFilter.includes(t.priority ?? 'none')) return false;
-      if (assigneeFilter.length && !assigneeFilter.includes(t.assignee_id ?? 'none')) return false;
-      const due = dueDateOf(t);
-      if (dueFilter === 'overdue' && !isOverdue(t, today)) return false;
-      if (dueFilter === 'today' && !(due && isSameDay(due, today))) return false;
-      if (dueFilter === 'week' && !(due && due >= today && due <= weekEnd)) return false;
-      if (dueFilter === 'none' && due) return false;
-      return true;
+      return matchesFilters(t, conds, profile?.id);
     });
-    const by = prefs.sort;
-    return [...rows].sort((a, b) => {
-      if (by === 'due') return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
-      if (by === 'priority') return (PRIORITY_RANK[a.priority ?? ''] ?? 9) - (PRIORITY_RANK[b.priority ?? ''] ?? 9);
-      if (by === 'title') return a.title.localeCompare(b.title);
-      if (by === 'created') return b.created_at.localeCompare(a.created_at);
-      return a.position - b.position || a.created_at.localeCompare(b.created_at);
-    });
-  }, [tasks, mode, search, onlyMe, profile?.id, statusFilter, priorityFilter, assigneeFilter, dueFilter, prefs.showClosed, prefs.sort]);
+    return sortTasks(rows, prefs.sort, prefs.dir);
+  }, [tasks, mode, search, onlyMe, profile?.id, conds, prefs.showClosed, prefs.sort, prefs.dir]);
 
   const groups: Group[] = useMemo(() => {
     const g = prefs.group;
@@ -173,9 +158,12 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
     return buckets.filter((b) => b.items.length > 0);
   }, [visible, prefs.group, prefs.showClosed, mode, peopleById]);
 
-  const filterCount = statusFilter.length + priorityFilter.length + assigneeFilter.length + (dueFilter !== 'any' ? 1 : 0);
   const toolBtn = 'h-8 text-xs gap-1.5';
   const rowProps = { mode, peopleById, listNameById, subtaskCounts, onOpen: open };
+  // Rows can be dragged into place only where "manual order" means
+  // something: inside one list, sorted manually, grouped by status or not at all.
+  const canDrag = mode === 'list' && prefs.sort === 'manual' && (prefs.group === 'status' || prefs.group === 'none');
+  const sortLabel = prefs.sort === 'manual' ? SORT_LABELS.manual : `${SORT_LABELS[prefs.sort]} · ${DIR_LABELS[prefs.sort][prefs.dir === 'asc' ? 0 : 1]}`;
 
   return (
     <div className="space-y-3">
@@ -185,53 +173,36 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks" className="h-8 w-48 sm:w-56 pl-8 text-xs" />
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button size="sm" variant={filterCount ? 'secondary' : 'outline'} className={toolBtn}>
-              <FilterIcon className="h-3.5 w-3.5" /> Filter{filterCount ? ` · ${filterCount}` : ''}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 p-3 space-y-3 max-h-[70vh] overflow-y-auto">
-            <FilterBlock title="Status">
-              {TASK_STATUSES.map((s) => (
-                <CheckRow key={s} checked={statusFilter.includes(s)} onChange={(on) => setStatusFilter((f) => on ? [...f, s] : f.filter((x) => x !== s))}>
-                  <span className={cn('h-2 w-2 rounded-full', STATUS_META[s].dot)} /> {STATUS_META[s].label}
-                </CheckRow>
-              ))}
-            </FilterBlock>
-            <FilterBlock title="Priority">
-              {([...PRIORITY_ORDER.filter(Boolean), 'none'] as (TaskPriority | 'none')[]).map((p) => (
-                <CheckRow key={p} checked={priorityFilter.includes(p)} onChange={(on) => setPriorityFilter((f) => on ? [...f, p] : f.filter((x) => x !== p))}>
-                  <Flag className={cn('h-3 w-3', p !== 'none' ? PRIORITY_FLAG[p] : 'text-muted-foreground')} /> {p === 'none' ? 'No priority' : PRIORITY_META[p].label}
-                </CheckRow>
-              ))}
-            </FilterBlock>
-            {mode === 'list' && (
-              <FilterBlock title="Assignee">
-                {[{ id: 'none', full_name: 'Unassigned' }, ...people.filter((p) => tasks.some((t) => t.assignee_id === p.id))].map((p) => (
-                  <CheckRow key={p.id} checked={assigneeFilter.includes(p.id)} onChange={(on) => setAssigneeFilter((f) => on ? [...f, p.id] : f.filter((x) => x !== p.id))}>
-                    {p.full_name}
-                  </CheckRow>
-                ))}
-              </FilterBlock>
-            )}
-            <FilterBlock title="Due date">
-              {(Object.keys(DUE_LABELS) as DueFilter[]).map((d) => (
-                <CheckRow key={d} checked={dueFilter === d} onChange={() => setDueFilter(d)}>{DUE_LABELS[d]}</CheckRow>
-              ))}
-            </FilterBlock>
-            {filterCount > 0 && (
-              <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={() => { setStatusFilter([]); setPriorityFilter([]); setAssigneeFilter([]); setDueFilter('any'); }}>
-                Clear filters
-              </Button>
-            )}
-          </PopoverContent>
-        </Popover>
+        <FilterButton conds={conds} onChange={setConds} className={toolBtn} ctx={{ mode, meId: profile?.id, people, lists, tasks }} />
 
         {prefs.view === 'list' && (
           <OptionMenu label={`Group: ${GROUP_LABELS[prefs.group]}`} options={GROUP_LABELS} value={prefs.group} onChange={(group) => setPrefs({ group })} className={toolBtn} />
         )}
-        <OptionMenu label={`Sort: ${SORT_LABELS[prefs.sort]}`} options={SORT_LABELS} value={prefs.sort} onChange={(sort) => setPrefs({ sort })} className={toolBtn} />
+        {prefs.view !== 'calendar' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className={toolBtn}><ArrowDownUp className="h-3.5 w-3.5" /> Sort: {sortLabel}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {(Object.keys(SORT_LABELS) as SortBy[]).map((k) => (
+                <DropdownMenuItem key={k} onClick={() => setPrefs({ sort: k })}>
+                  <Check className={cn('h-3.5 w-3.5 mr-2', k === prefs.sort ? 'opacity-100' : 'opacity-0')} /> {SORT_LABELS[k]}
+                </DropdownMenuItem>
+              ))}
+              {prefs.sort !== 'manual' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-3xs uppercase tracking-wide text-muted-foreground">Order</DropdownMenuLabel>
+                  {(['asc', 'desc'] as SortDir[]).map((d, i) => (
+                    <DropdownMenuItem key={d} onClick={() => setPrefs({ dir: d })}>
+                      <Check className={cn('h-3.5 w-3.5 mr-2', d === prefs.dir ? 'opacity-100' : 'opacity-0')} /> {DIR_LABELS[prefs.sort as Exclude<SortBy, 'manual'>][i]}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {mode === 'list' && (
           <Button size="sm" variant={onlyMe ? 'secondary' : 'outline'} className={toolBtn} onClick={() => setOnlyMe((v) => !v)}>Me</Button>
         )}
@@ -251,7 +222,13 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
       {loading ? (
         <div className="py-16 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : prefs.view === 'list' ? (
-        <ListView groups={groups} {...rowProps} canAdd={mode === 'list' && prefs.group === 'status' && !!onAddTask} onAddTask={onAddTask} />
+        <ListView
+          groups={groups}
+          {...rowProps}
+          canDrag={canDrag}
+          moveAcrossStatus={prefs.group === 'status'}
+          onAdd={mode === 'list' && listId ? (status) => setAddingIn({ status }) : undefined}
+        />
       ) : prefs.view === 'board' ? (
         <BoardView tasks={visible} showClosed={prefs.showClosed} {...rowProps} />
       ) : (
@@ -263,25 +240,11 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
           {tasks.length === 0 ? (mode === 'mine' ? 'Nothing is assigned to you yet.' : 'No tasks in this list yet.') : 'No tasks match.'}
         </p>
       )}
-    </div>
-  );
-}
 
-function FilterBlock({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-3xs font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">{title}</p>
-      <div className="space-y-0.5">{children}</div>
+      {addingIn && listId && (
+        <NewTaskDialog open onOpenChange={(o) => !o && setAddingIn(null)} initialListId={listId} initialStatus={addingIn.status ?? 'to_do'} />
+      )}
     </div>
-  );
-}
-
-function CheckRow({ checked, onChange, children }: { checked: boolean; onChange: (on: boolean) => void; children: React.ReactNode }) {
-  return (
-    <label className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted/50 cursor-pointer">
-      <Checkbox checked={checked} onCheckedChange={(c) => onChange(!!c)} />
-      <span className="flex items-center gap-1.5">{children}</span>
-    </label>
   );
 }
 
@@ -325,38 +288,111 @@ function DueCell({ task }: { task: TaskRow }) {
   );
 }
 
-function TaskLine({ task, mode, peopleById, listNameById, subtaskCounts, onOpen }: RowCtx & { task: TaskRow }) {
+function TaskLine({ task, mode, peopleById, listNameById, subtaskCounts, onOpen, handle }: RowCtx & { task: TaskRow; handle?: React.ReactNode }) {
   const done = task.status === 'done';
   const sub = subtaskCounts.get(task.id);
   const assignee = task.assignee_id ? peopleById.get(task.assignee_id) : undefined;
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(task.id)}
-      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left border-b border-border/40 hover:bg-muted/30 kd-transition"
-    >
-      <FlagIcon priority={task.priority} />
-      {mode === 'mine' ? <StatusPill status={task.status} /> : <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_META[task.status].dot)} />}
-      <span className={cn('min-w-0 truncate text-sm', done && 'line-through text-muted-foreground')}>{task.title}</span>
-      {sub && <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">{sub.done}/{sub.total}</span>}
-      {mode === 'mine' && listNameById.get(task.list_id) && (
-        <span className="text-2xs text-primary/80 shrink-0 truncate max-w-[30%]">{listNameById.get(task.list_id)}</span>
-      )}
-      <span className="flex-1" />
-      <DueCell task={task} />
-      <span className="w-6 shrink-0 flex justify-end">{assignee && <PersonAvatar person={assignee} size={20} />}</span>
-    </button>
+    <div className="group/row relative flex items-center border-b border-border/40 hover:bg-muted/30 kd-transition">
+      {handle}
+      <button
+        type="button"
+        onClick={() => onOpen(task.id)}
+        className="flex-1 min-w-0 flex items-center gap-2.5 px-3 py-1.5 text-left"
+      >
+        <FlagIcon priority={task.priority} />
+        {mode === 'mine' ? <StatusPill status={task.status} /> : <span className={cn('h-2 w-2 rounded-full shrink-0', STATUS_META[task.status].dot)} />}
+        <span className={cn('min-w-0 truncate text-sm', done && 'line-through text-muted-foreground')}>{task.title}</span>
+        {sub && <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">{sub.done}/{sub.total}</span>}
+        {mode === 'mine' && listNameById.get(task.list_id) && (
+          <span className="text-2xs text-primary/80 shrink-0 truncate max-w-[30%]">{listNameById.get(task.list_id)}</span>
+        )}
+        <span className="flex-1" />
+        <DueCell task={task} />
+        <span className="w-6 shrink-0 flex justify-end">{assignee && <PersonAvatar person={assignee} size={20} />}</span>
+      </button>
+    </div>
   );
 }
 
-function ListView({ groups, canAdd, onAddTask, ...ctx }: RowCtx & { groups: Group[]; canAdd: boolean; onAddTask?: TaskViewsProps['onAddTask'] }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+// One row that can be picked up by its grip and dropped onto (= placed before).
+function DraggableLine({ task, ...ctx }: RowCtx & { task: TaskRow }) {
+  const drag = useDraggable({ id: task.id });
+  const drop = useDroppable({ id: `row:${task.id}` });
   return (
-    <div className="space-y-1">
+    <div
+      ref={(el) => { drag.setNodeRef(el); drop.setNodeRef(el); }}
+      data-task-row={task.id}
+      className={cn('relative', drag.isDragging && 'opacity-40')}
+    >
+      {drop.isOver && !drag.isDragging && <span className="absolute inset-x-0 -top-px h-0.5 bg-primary z-10" />}
+      <TaskLine
+        task={task}
+        {...ctx}
+        handle={
+          <button
+            type="button"
+            {...drag.listeners}
+            {...drag.attributes}
+            aria-label={`Drag to move ${task.title}`}
+            className="absolute -left-4 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground/60 opacity-0 group-hover/row:opacity-100 focus:opacity-100 cursor-grab touch-none"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+        }
+      />
+    </div>
+  );
+}
+
+function GroupEnd({ groupKey, children, active }: { groupKey: string; children?: React.ReactNode; active: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `end:${groupKey}`, disabled: !active });
+  return (
+    <div ref={setNodeRef} className={cn('min-h-[6px]', isOver && 'border-t-2 border-primary')}>
+      {children}
+    </div>
+  );
+}
+
+function ListView({ groups, canDrag, moveAcrossStatus, onAdd, ...ctx }: RowCtx & {
+  groups: Group[];
+  canDrag: boolean;
+  moveAcrossStatus: boolean;
+  onAdd?: (status?: TaskStatus) => void;
+}) {
+  const { toast } = useToast();
+  const moveTasks = useMoveTasks();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [dragging, setDragging] = useState<TaskRow | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+
+  const findTask = (id: string) => groups.flatMap((g) => g.items).find((t) => t.id === id);
+
+  const onDragEnd = (e: DragEndEvent) => {
+    setDragging(null);
+    const task = findTask(String(e.active.id));
+    const overId = e.over ? String(e.over.id) : '';
+    if (!task || !overId || overId === `row:${task.id}`) return;
+    const target = overId.startsWith('end:')
+      ? groups.find((g) => g.key === overId.slice(4))
+      : groups.find((g) => g.items.some((t) => `row:${t.id}` === overId));
+    if (!target) return;
+    const sameGroup = target.items.some((t) => t.id === task.id);
+    if (!sameGroup && !moveAcrossStatus) return;
+    const items = target.items.filter((t) => t.id !== task.id);
+    const at = overId.startsWith('end:') ? items.length : items.findIndex((t) => `row:${t.id}` === overId);
+    const moves = planMove(items, task, at, moveAcrossStatus && target.status !== task.status ? target.status : undefined);
+    moveTasks.mutate(moves, {
+      onError: (err) => toast({ title: 'Could not move task', description: errorMessage(err), variant: 'destructive' }),
+    });
+  };
+
+  const body = (
+    <div className={cn('space-y-1', canDrag && 'pl-4')}>
       {groups.map((g) => {
         const isCollapsed = collapsed.has(g.key);
         return (
-          <section key={g.key}>
+          <section key={g.key} data-group={g.key}>
             <button
               type="button"
               onClick={() => setCollapsed((prev) => { const n = new Set(prev); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n; })}
@@ -369,8 +405,14 @@ function ListView({ groups, canAdd, onAddTask, ...ctx }: RowCtx & { groups: Grou
             </button>
             {!isCollapsed && (
               <div className="border-t border-border/40">
-                {g.items.map((t) => <TaskLine key={t.id} task={t} {...ctx} />)}
-                {canAdd && g.status && <InlineAdd onAdd={(title) => onAddTask!(g.status!, title)} />}
+                {g.items.map((t) => (canDrag ? <DraggableLine key={t.id} task={t} {...ctx} /> : <TaskLine key={t.id} task={t} {...ctx} />))}
+                <GroupEnd groupKey={g.key} active={canDrag}>
+                  {onAdd && (
+                    <button type="button" onClick={() => onAdd(g.status)} className="w-full text-left px-3 py-1.5 text-2xs text-muted-foreground hover:text-foreground hover:bg-muted/20">
+                      + Add task
+                    </button>
+                  )}
+                </GroupEnd>
               </div>
             )}
           </section>
@@ -378,42 +420,22 @@ function ListView({ groups, canAdd, onAddTask, ...ctx }: RowCtx & { groups: Grou
       })}
     </div>
   );
-}
 
-function InlineAdd({ onAdd }: { onAdd: (title: string) => Promise<unknown> }) {
-  const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState('');
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    if (!title.trim()) return;
-    setBusy(true);
-    try {
-      await onAdd(title.trim());
-      setTitle('');
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (!adding) {
-    return (
-      <button type="button" onClick={() => setAdding(true)} className="w-full text-left px-3 py-1.5 text-2xs text-muted-foreground hover:text-foreground hover:bg-muted/20">
-        + Add task
-      </button>
-    );
-  }
+  if (!canDrag) return body;
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5">
-      <Input
-        autoFocus
-        placeholder="Task name — press Enter to add"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') void submit(); if (e.key === 'Escape') setAdding(false); }}
-        className="h-7 text-sm"
-      />
-      {busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-      <button type="button" aria-label="Cancel" onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
-    </div>
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e: DragStartEvent) => setDragging(findTask(String(e.active.id)) ?? null)}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setDragging(null)}
+    >
+      {body}
+      <DragOverlay dropAnimation={null}>
+        {dragging && (
+          <div className="rounded-md border border-primary/50 bg-card shadow-lg px-3 py-1.5 text-sm truncate max-w-xl">{dragging.title}</div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
