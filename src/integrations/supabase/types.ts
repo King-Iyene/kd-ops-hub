@@ -1296,11 +1296,13 @@ export type Database = {
           approved_by: string | null
           content: string
           created_at: string
+          detail: string | null
           id: string
           proposed_by: string | null
           scope: string
           scope_ref: string | null
           source: string
+          source_thread: string | null
           status: string
           type: string
           updated_at: string
@@ -1309,11 +1311,13 @@ export type Database = {
           approved_by?: string | null
           content: string
           created_at?: string
+          detail?: string | null
           id?: string
           proposed_by?: string | null
           scope?: string
           scope_ref?: string | null
           source?: string
+          source_thread?: string | null
           status?: string
           type: string
           updated_at?: string
@@ -1322,11 +1326,13 @@ export type Database = {
           approved_by?: string | null
           content?: string
           created_at?: string
+          detail?: string | null
           id?: string
           proposed_by?: string | null
           scope?: string
           scope_ref?: string | null
           source?: string
+          source_thread?: string | null
           status?: string
           type?: string
           updated_at?: string
@@ -1400,6 +1406,13 @@ export type Database = {
             columns: ["proposed_by"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memory_source_thread_fkey"
+            columns: ["source_thread"]
+            isOneToOne: false
+            referencedRelation: "agent_chat_threads"
             referencedColumns: ["id"]
           },
         ]
@@ -1638,6 +1651,50 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      agent_outbox: {
+        Row: {
+          attempts: number
+          connection_id: string
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          ref_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          connection_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          ref_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          connection_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          ref_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_outbox_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_person_profile: {
         Row: {
@@ -23709,6 +23766,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      agent_build_summary: {
+        Args: { p_end: string; p_kind: string; p_start: string }
+        Returns: Json
+      }
       agent_can_access: { Args: never; Returns: boolean }
       agent_can_configure: { Args: never; Returns: boolean }
       agent_chat_tool: {
@@ -23716,7 +23777,22 @@ export type Database = {
         Returns: Json
       }
       agent_check_now: { Args: never; Returns: Json }
+      agent_clean_domain: { Args: { p_raw: string }; Returns: string }
       agent_company_of: { Args: { p_person: string }; Returns: string }
+      agent_dispatch_tick: { Args: never; Returns: undefined }
+      agent_domain_remove: { Args: { p_domain: string }; Returns: boolean }
+      agent_domain_set: {
+        Args: {
+          p_category: string
+          p_domain: string
+          p_now?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
+      agent_flag_detail: { Args: { p_flag: string }; Returns: Json }
+      agent_flag_draft: { Args: { p_flag: string }; Returns: Json }
+      agent_flag_recurrence: { Args: { p_flag: string }; Returns: Json }
       agent_flag_set_status: {
         Args: {
           p_id: string
@@ -23727,6 +23803,8 @@ export type Database = {
         Returns: undefined
       }
       agent_fmt_ts: { Args: { p_ts: string; p_tz: string }; Returns: string }
+      agent_generate_summary: { Args: { p_kind: string }; Returns: string }
+      agent_hm: { Args: { p_min: number }; Returns: string }
       agent_in_scope: {
         Args: { p_company: string; p_module: string; p_person: string }
         Returns: boolean
@@ -23735,6 +23813,7 @@ export type Database = {
         Args: { p_key_id: string; p_payload: Json }
         Returns: Json
       }
+      agent_is_working_day: { Args: { p_day: string }; Returns: boolean }
       agent_log_ai_usage: {
         Args: {
           p_cache_write_tokens: number
@@ -23750,7 +23829,33 @@ export type Database = {
         }
         Returns: string
       }
+      agent_make_summary: {
+        Args: {
+          p_auto?: boolean
+          p_by?: string
+          p_end: string
+          p_kind: string
+          p_start: string
+        }
+        Returns: boolean
+      }
+      agent_memory_suggest: {
+        Args: {
+          p_content: string
+          p_detail?: string
+          p_scope?: string
+          p_scope_ref?: string
+          p_thread?: string
+          p_type: string
+        }
+        Returns: Json
+      }
       agent_my_scope: { Args: never; Returns: Json }
+      agent_ordinal: { Args: { n: number }; Returns: string }
+      agent_plural: {
+        Args: { p_many: string; p_n: number; p_one: string }
+        Returns: string
+      }
       agent_raise_flag: {
         Args: {
           p_action?: string
@@ -23779,18 +23884,41 @@ export type Database = {
         Returns: number
       }
       agent_role: { Args: never; Returns: string }
+      agent_rule_bk01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_bk02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ct01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_dc01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_hl01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ln01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ln02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_param: {
+        Args: { p_code: string; p_default: number; p_key: string }
+        Returns: number
+      }
+      agent_rule_pf01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_py01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_py02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_rp01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_rp03: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tk04: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tk05: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk06: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tk07: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tk08: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tk11: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tk13: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr03: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr05: { Args: { p_now?: string }; Returns: Json }
       agent_run_rules: {
         Args: { p_now?: string; p_trigger?: string }
         Returns: Json
       }
+      agent_run_summaries: { Args: { p_now?: string }; Returns: Json }
       agent_safe_date: { Args: { p: string }; Returns: string }
       agent_secret_delete: { Args: { p_name: string }; Returns: undefined }
       agent_secret_exists: { Args: { p_name: string }; Returns: boolean }
@@ -23800,10 +23928,50 @@ export type Database = {
         Returns: undefined
       }
       agent_seed_domains: { Args: never; Returns: number }
+      agent_sensitive_flag: {
+        Args: {
+          p_action: string
+          p_breakdown: Json
+          p_count: number
+          p_module: string
+          p_now?: string
+          p_oldest: number
+          p_quiet: boolean
+          p_rule: string
+          p_severity: string
+          p_subject: string
+          p_threshold: number
+          p_title: string
+          p_unit: string
+          p_why: string
+        }
+        Returns: Json
+      }
+      agent_sensitive_param: {
+        Args: { p_code: string; p_default: number; p_key: string }
+        Returns: number
+      }
+      agent_sensitive_quiet: { Args: { p_now: string }; Returns: boolean }
+      agent_sev_rank: { Args: { p: string }; Returns: number }
       agent_shorten_json: { Args: { j: Json }; Returns: Json }
       agent_shorten_val: { Args: { v: Json }; Returns: Json }
+      agent_site_hint: { Args: { p_domain: string }; Returns: Json }
       agent_suggest_person_profiles: {
         Args: { p_leadership_pay_groups?: string[] }
+        Returns: Json
+      }
+      agent_task_rule: {
+        Args: {
+          p_action: string
+          p_code: string
+          p_low_days: number
+          p_med_days: number
+          p_min_age: string
+          p_now: string
+          p_status: string
+          p_title: string
+          p_why: string
+        }
         Returns: Json
       }
       agent_team_pulse: { Args: never; Returns: Json }
