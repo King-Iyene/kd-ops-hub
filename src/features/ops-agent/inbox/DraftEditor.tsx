@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy, Loader2, Mail, RotateCcw, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,9 +19,10 @@ const firstName = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/
 /**
  * The drafted message, fully editable. Nothing is ever sent by itself: Send email and Send to channel each ask first.
  * The request names the item and the channel only; the server decides the real recipient, so no address is sent from here.
+ * A message that goes out marks the item handled, unless "Mark as handled after sending" is unticked (then the request says `close: false`).
  */
-export function DraftEditor({ flagId, draft, recipientPhoto, canMarkHandled, onMarkHandled }: {
-  flagId: string; draft: DetailDraft; recipientPhoto: string | null; canMarkHandled: boolean; onMarkHandled: () => void;
+export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
+  flagId: string; draft: DetailDraft; recipientPhoto: string | null; onClosed: () => void;
 }) {
   const { toast } = useToast();
   const connections = useAgentConnections();
@@ -29,7 +31,8 @@ export function DraftEditor({ flagId, draft, recipientPhoto, canMarkHandled, onM
   const [subjectEdit, setSubjectEdit] = useState<string | null>(null);
   const [bodyEdit, setBodyEdit] = useState<string | null>(null);
   const [connectionId, setConnectionId] = useState('');
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [closeAfter, setCloseAfter] = useState(true);
+  const [sentNote, setSentNote] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -50,17 +53,23 @@ export function DraftEditor({ flagId, draft, recipientPhoto, canMarkHandled, onM
   const run = async (channel: 'email' | 'connection') => {
     const conn = channel === 'connection' ? usable.find((c) => c.id === connectionId) : undefined;
     if (channel === 'connection' && !conn) return;
+    const handledNote = closeAfter ? ' The item will be marked handled.' : '';
     const ok = await confirm(channel === 'email'
-      ? { title: `Send this to ${firstName(draft.recipient_name)} by email?`, description: 'The message is sent exactly as written here. It will not be sent until you confirm.', confirmLabel: 'Send email' }
-      : { title: `Send this to ${conn!.name}?`, description: `The message is posted to the saved connection "${conn!.name}" exactly as written here. The person is not emailed.`, confirmLabel: 'Send to channel' });
+      ? { title: `Send this to ${firstName(draft.recipient_name)} by email?${handledNote}`, description: `The message is sent exactly as written here. It will not be sent until you confirm.`, confirmLabel: 'Send email' }
+      : { title: `Send this to ${conn!.name}?${handledNote}`, description: `The message is posted to the saved connection "${conn!.name}" exactly as written here. The person is not emailed.`, confirmLabel: 'Send to channel' });
     if (!ok) return;
     setProblem(null);
     send.mutate(
-      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), subject: subject.trim(), text: body.trim() },
+      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), subject: subject.trim(), text: body.trim(), ...(closeAfter ? {} : { close: false }) },
       {
         onSuccess: (r) => {
-          if (r?.ok) { setSentTo(channel === 'email' ? `${firstName(draft.recipient_name)} by email` : conn!.name); toast({ title: 'Message sent', description: channel === 'email' ? `Sent to ${who} by email.` : `Sent to ${conn!.name}.` }); }
-          else { setProblem(r?.error ?? 'The message was not sent.'); toast({ title: 'Message not sent', description: r?.error ?? 'The message was not sent.', variant: 'destructive' }); }
+          if (r?.ok) {
+            const to = channel === 'email' ? firstName(draft.recipient_name) : conn!.name;
+            const note = !closeAfter ? 'Sent. Kept open.' : r.closed ? `Sent to ${to}. Marked handled.` : `Sent to ${to}. It could not be marked handled, so it is still open.`;
+            setSentNote(note);
+            toast({ title: note });
+            if (closeAfter && r.closed) onClosed(); // the item is closed: the Sheet closes with it
+          } else { setProblem(r?.error ?? 'The message was not sent.'); toast({ title: 'Message not sent', description: r?.error ?? 'The message was not sent.', variant: 'destructive' }); }
         },
         onError: (e) => { setProblem(`Sending is not available right now: ${e.message}`); toast({ title: 'Message not sent', description: e.message, variant: 'destructive' }); },
       },
@@ -112,14 +121,13 @@ export function DraftEditor({ flagId, draft, recipientPhoto, canMarkHandled, onM
         {usable.length === 0 && !connections.isLoading && <p className="w-full text-2xs text-muted-foreground">Add a Slack, Cliq, email, webhook or n8n connection in Connections to post there.</p>}
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox checked={closeAfter} onCheckedChange={(c) => setCloseAfter(c === true)} data-testid="close-after" /> Mark as handled after sending
+      </label>
+      <p className="text-xs text-muted-foreground">The message names the exact item and includes a link to it.</p>
+
       {problem && <p className="text-sm text-destructive" role="alert" data-testid="send-problem">{problem}</p>}
-      {sentTo && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-2.5 text-sm" role="status" data-testid="sent-note">
-          <Check className="h-4 w-4 text-success" aria-hidden="true" />
-          <span>Sent to {sentTo}.</span>
-          {canMarkHandled && <Button type="button" size="sm" variant="outline" className="ml-auto h-8" onClick={onMarkHandled} data-testid="sent-mark-handled"><Check className="mr-1.5 h-3.5 w-3.5" /> Mark as handled</Button>}
-        </div>
-      )}
+      {sentNote && <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-2.5 text-sm" role="status" data-testid="sent-note"><Check className="h-4 w-4 text-success" aria-hidden="true" />{sentNote}</p>}
     </section>
   );
 }

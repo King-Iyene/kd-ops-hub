@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { AGENT_TABS } from '@/features/ops-agent/agentTabs';
 import { useAgentFlags, useAgentScope } from '@/queries/useOpsAgent';
@@ -21,6 +21,8 @@ const TONES = {
 /** The Ops Agent sections as sidebar links: Inbox (with its open count), Chat, Summaries, Memory, Connections, Settings. */
 export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { variant?: keyof typeof TONES; onNavigate?: () => void }) {
   const t = TONES[variant];
+  // /agent/inbox?flag=<id> is a link to an item in the Inbox, so the Inbox stays highlighted there.
+  const onInboxPath = useLocation().pathname.startsWith('/agent/inbox');
   const scope = useAgentScope();
   const flags = useAgentFlags();
   const openFlags = (flags.data ?? []).filter((f) => f.status === 'open');
@@ -33,9 +35,9 @@ export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { varian
       {tabs.map(({ key, label, path, icon: Icon }) => (
         <NavLink
           key={key} to={path} end={key === 'inbox'} onClick={onNavigate}
-          className={({ isActive }) => cn('relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm kd-transition no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--sidebar-ring))]', isActive ? t.linkActive : t.link)}
+          className={({ isActive: a }) => { const isActive = a || (key === 'inbox' && onInboxPath); return cn('relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm kd-transition no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--sidebar-ring))]', isActive ? t.linkActive : t.link); }}
         >
-          {({ isActive }) => (
+          {({ isActive: a }) => { const isActive = a || (key === 'inbox' && onInboxPath); return (
             <>
               {isActive && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-[hsl(var(--sidebar-ring))]" aria-hidden="true" />}
               <Icon className={cn('h-4 w-4 shrink-0', isActive ? t.iconActive : t.icon)} />
@@ -47,7 +49,7 @@ export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { varian
                 >{open > 99 ? '99+' : open}</span>
               )}
             </>
-          )}
+          ); }}
         </NavLink>
       ))}
     </nav>

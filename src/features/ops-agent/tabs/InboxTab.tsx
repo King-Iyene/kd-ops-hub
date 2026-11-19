@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Bot, CheckCircle2, ChevronRight, Globe, Inbox, Loader2, RefreshCw, ShieldCheck, UserRoundCheck } from 'lucide-react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Bot, CheckCircle2, ChevronRight, Globe, Inbox, Loader2, RefreshCw, ShieldCheck, Siren, UserRoundCheck } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,16 +10,18 @@ import { useAgentFlags, useFlagAction } from '@/queries/useOpsAgent';
 import { useCheckNow, useTeamPulse } from '@/queries/useOpsAgentLive';
 import { usePeopleDirectory, type DirectoryPerson } from '@/queries/useOpsAgentV4';
 import { PersonAvatar } from '../PersonAvatar';
-import { CATEGORIES, categoryOf, isCalm, isSensitiveRule, type FlagCategory, type LiveFlag } from '../liveTypes';
+import { CATEGORIES, categoryOf, isCalm, isEscalationRule, isSensitiveRule, isSystemLevel, type FlagCategory, type LiveFlag } from '../liveTypes';
 import { Evidence } from '../inbox/Evidence';
 import { FlagActions, type FlagStatus } from '../inbox/FlagActions';
 import { FlagDetailSheet } from '../inbox/FlagDetailSheet';
+import { OriginalItem } from '../inbox/OriginalItem';
 import { ORDER, SeverityPill, STRIPE } from '../inbox/severity';
 import { MonitorStatus, TeamPulseSkeleton, TeamPulseTiles, useNow } from '../inbox/TeamPulse';
 import { useAgentToast } from '../settings/useAgentToast';
 import { formatEst, relativeTime } from '../time';
 
-const URGENT = (f: LiveFlag) => (f.severity === 'critical' || f.severity === 'high') && !isCalm(f);
+// Escalations are raised one severity above the item they chase and always sit with the urgent ones.
+const URGENT = (f: LiveFlag) => isEscalationRule(f.rule_code) || ((f.severity === 'critical' || f.severity === 'high') && !isCalm(f));
 
 type Status = FlagStatus;
 
@@ -27,14 +30,16 @@ const hasUnlistedSite = (f: LiveFlag) => (f.rule_code ?? '').toUpperCase() === '
 
 function Flag({ f, person, assigneeName, now, busy, onAct, onOpen }: {
   f: LiveFlag; person: DirectoryPerson | null; assigneeName: string | null; now: number; busy: boolean;
-  onAct: (f: Pick<LiveFlag, 'id'>, s: Status, done: string) => void; onOpen: (f: LiveFlag) => void;
+  onAct: (f: Pick<LiveFlag, 'id'>, s: Status, done: string) => void; onOpen: (id: string) => void;
 }) {
   const calm = isCalm(f);
   const human = f.item_type === 'human_action';
-  // Items about a sensitive module are system-level counts: no person, and nothing is looked up for one.
+  // System-level items (sensitive-module counts, escalations, the agent's own health checks) have no person, and nothing is looked up for one.
+  const noPerson = isSystemLevel(f.rule_code);
   const countOnly = isSensitiveRule(f.rule_code);
-  const who = countOnly ? null : person?.name ?? assigneeName ?? f.evidence?.assignee_name ?? null;
-  const open = () => onOpen(f);
+  const escalation = isEscalationRule(f.rule_code);
+  const who = noPerson ? null : person?.name ?? assigneeName ?? f.evidence?.assignee_name ?? null;
+  const open = () => onOpen(f.id);
   return (
     <li
       className="group relative flex cursor-pointer gap-3 py-4 pl-4 pr-1 hover:bg-muted/30 sm:gap-4 sm:pl-5 kd-transition" data-testid="inbox-item" data-severity={f.severity} data-rule={f.rule_code} data-calm={calm || undefined}
@@ -45,7 +50,7 @@ function Flag({ f, person, assigneeName, now, busy, onAct, onOpen }: {
         {calm ? (
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-success/12 text-success" aria-hidden="true"><CheckCircle2 className="h-[18px] w-[18px]" /></span>
         ) : who ? <PersonAvatar name={who} photoUrl={person?.photo} /> : (
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">{human ? <UserRoundCheck className="h-4 w-4" /> : countOnly ? <ShieldCheck className="h-4 w-4" /> : <Bot className="h-4 w-4" />}</span>
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">{human ? <UserRoundCheck className="h-4 w-4" /> : escalation ? <Siren className="h-4 w-4 text-destructive" /> : countOnly ? <ShieldCheck className="h-4 w-4" /> : <Bot className="h-4 w-4" />}</span>
         )}
       </div>
       <div className="min-w-0 flex-1 space-y-2">
@@ -71,6 +76,7 @@ function Flag({ f, person, assigneeName, now, busy, onAct, onOpen }: {
           </p>
         </div>
         {f.why && <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{f.why}</p>}
+        <OriginalItem ruleCode={f.rule_code} evidence={f.evidence} onOpen={onOpen} />
         <Evidence flag={f} now={now} />
         {f.suggested_action && <p className="text-sm"><span className="text-muted-foreground">Suggested:</span> {f.suggested_action}</p>}
         <div className="flex flex-wrap items-center gap-1 pt-0.5">
@@ -109,7 +115,11 @@ function Group({ title, count, urgent, children }: { title: string; count: numbe
 export function InboxTab() {
   const flags = useAgentFlags();
   const people = usePeopleDirectory();
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The open item lives in the address (?flag=<id>) so it can be linked to; closing the Sheet removes it without adding a history step.
+  const [params, setParams] = useSearchParams();
+  const openId = params.get('flag');
+  const openItem = useCallback((id: string) => setParams((p) => { const n = new URLSearchParams(p); n.set('flag', id); return n; }), [setParams]);
+  const closeItem = useCallback(() => setParams((p) => { const n = new URLSearchParams(p); n.delete('flag'); return n; }, { replace: true }), [setParams]);
   const pulse = useTeamPulse();
   const act = useFlagAction();
   const check = useCheckNow();
@@ -137,7 +147,7 @@ export function InboxTab() {
   const run = (f: Pick<LiveFlag, 'id'>, status: Status, done: string) =>
     act.mutate({ id: f.id, status }, { onSuccess: () => toast.saved(done), onError: toast.failed });
   const row = (f: LiveFlag) => (
-    <Flag key={f.id} f={f} person={f.person_id ? people.get(f.person_id) ?? null : null} assigneeName={null} now={now} busy={act.isPending} onAct={run} onOpen={(x) => setOpenId(x.id)} />
+    <Flag key={f.id} f={f} person={f.person_id ? people.get(f.person_id) ?? null : null} assigneeName={null} now={now} busy={act.isPending} onAct={run} onOpen={openItem} />
   );
 
   const checkNow = () => check.mutate(undefined, {
@@ -159,62 +169,69 @@ export function InboxTab() {
     </div>
   );
 
-  if (flags.isLoading) return <div className="space-y-4">{pulseBlock}<Skeleton className="h-40 w-full" /></div>;
-  if (flags.isError) return <p className="text-sm text-destructive" role="alert">The Inbox could not be loaded: {flags.error.message}. Refresh the page; if it keeps happening, check your connection.</p>;
+  // The Sheet is shown on every state of the list, so a link to an item opens it even when that item is not in the list.
+  const sheet = <FlagDetailSheet flagId={openId} listFlag={all.find((f) => f.id === openId) ?? null} onClose={closeItem} onOpenOther={openItem} busy={act.isPending} onAct={run} />;
 
-  if (open.length === 0 && snoozed.length === 0) {
+  // One stable Sheet outside the list states, so it is not rebuilt when the list finishes loading.
+  const content = () => {
+    if (flags.isLoading) return <div className="space-y-4">{pulseBlock}<Skeleton className="h-40 w-full" /></div>;
+    if (flags.isError) return <p className="text-sm text-destructive" role="alert">The Inbox could not be loaded: {flags.error.message}. Refresh the page; if it keeps happening, check your connection.</p>;
+
+    if (open.length === 0 && snoozed.length === 0) {
+      return (
+        <div className="space-y-4" data-testid="agent-inbox">
+          {pulseBlock}
+          <EmptyState
+            icon={Inbox}
+            title="Nothing needs attention"
+            description="Items appear here when another system sends one through Connections, when you ask Chat for something it cannot do itself, or when a rule finds a problem."
+          />
+        </div>
+      );
+    }
+
     return (
-      <div className="space-y-4" data-testid="agent-inbox">
+      <div className="space-y-5" data-testid="agent-inbox">
         {pulseBlock}
-        <EmptyState
-          icon={Inbox}
-          title="Nothing needs attention"
-          description="Items appear here when another system sends one through Connections, when you ask Chat for something it cannot do itself, or when a rule finds a problem."
-        />
-      </div>
-    );
-  }
 
-  return (
-    <div className="space-y-5" data-testid="agent-inbox">
-      {pulseBlock}
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by type">
+          {[{ key: 'all' as const, label: 'All' }, ...CATEGORIES].map((c) => {
+            const n = counts[c.key] ?? 0;
+            const on = filter === c.key;
+            return (
+              <button
+                key={c.key} type="button" aria-pressed={on} onClick={() => setFilter(c.key)} data-testid={`filter-${c.key}`}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm kd-transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  on ? 'border-primary/40 bg-primary/10 font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  n === 0 && !on && 'opacity-60',
+                )}
+              >
+                {c.label}<span className="text-xs tabular-nums text-muted-foreground">{n}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by type">
-        {[{ key: 'all' as const, label: 'All' }, ...CATEGORIES].map((c) => {
-          const n = counts[c.key] ?? 0;
-          const on = filter === c.key;
-          return (
-            <button
-              key={c.key} type="button" aria-pressed={on} onClick={() => setFilter(c.key)} data-testid={`filter-${c.key}`}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm kd-transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                on ? 'border-primary/40 bg-primary/10 font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                n === 0 && !on && 'opacity-60',
-              )}
-            >
-              {c.label}<span className="text-xs tabular-nums text-muted-foreground">{n}</span>
-            </button>
-          );
-        })}
-      </div>
+        {open.length === 0 ? <p className="text-sm text-muted-foreground">Nothing open. Everything is handled or snoozed.</p>
+          : visible.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="filter-empty">Nothing open in {CATEGORIES.find((c) => c.key === filter)?.label}. Pick another type, or All.</p>
+          : (
+            <div className="space-y-6">
+              {urgent.length > 0 && <Group title="Needs attention now" count={urgent.length} urgent>{urgent.map(row)}</Group>}
+              {rest.length > 0 && <Group title="Everything else" count={rest.length}>{rest.map(row)}</Group>}
+            </div>
+          )}
 
-      {open.length === 0 ? <p className="text-sm text-muted-foreground">Nothing open. Everything is handled or snoozed.</p>
-        : visible.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="filter-empty">Nothing open in {CATEGORIES.find((c) => c.key === filter)?.label}. Pick another type, or All.</p>
-        : (
-          <div className="space-y-6">
-            {urgent.length > 0 && <Group title="Needs attention now" count={urgent.length} urgent>{urgent.map(row)}</Group>}
-            {rest.length > 0 && <Group title="Everything else" count={rest.length}>{rest.map(row)}</Group>}
+        {snoozed.length > 0 && (
+          <div className="space-y-2">
+            <Button size="sm" variant="ghost" onClick={() => setShowSnoozed((v) => !v)} aria-expanded={showSnoozed}>{showSnoozed ? 'Hide' : 'Show'} {snoozed.length} snoozed</Button>
+            {showSnoozed && <ul className="divide-y">{snoozed.map(row)}</ul>}
           </div>
         )}
 
-      {snoozed.length > 0 && (
-        <div className="space-y-2">
-          <Button size="sm" variant="ghost" onClick={() => setShowSnoozed((v) => !v)} aria-expanded={showSnoozed}>{showSnoozed ? 'Hide' : 'Show'} {snoozed.length} snoozed</Button>
-          {showSnoozed && <ul className="divide-y">{snoozed.map(row)}</ul>}
-        </div>
-      )}
+      </div>
+    );
 
-      <FlagDetailSheet flagId={openId} listFlag={all.find((f) => f.id === openId) ?? null} onClose={() => setOpenId(null)} busy={act.isPending} onAct={run} />
-    </div>
-  );
+  };
+  return <>{content()}{sheet}</>;
 }

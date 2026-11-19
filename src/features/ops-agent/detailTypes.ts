@@ -36,6 +36,9 @@ export interface SentMessage { id: string; channel: string; status: string; body
 export type DetailFlag = Pick<AgentFlag, 'id' | 'rule_code' | 'severity' | 'status' | 'title' | 'why' | 'suggested_action' | 'occurrence_count' | 'escalation_level' | 'first_seen_at' | 'last_seen_at' | 'subject_type' | 'subject_id' | 'item_type'>
   & { evidence?: FlagEvidence | null; resolution_note?: string | null; snoozed_until?: string | null; period_key?: string | null };
 
+/** Where the item lives in KD Ops. `path` is for navigating inside the app, `url` is the full address that goes in messages. */
+export interface DetailLink { label: string; path: string; url?: string | null; person_path?: string | null; person_url?: string | null; inbox_url?: string | null }
+
 export interface FlagDetail {
   flag: DetailFlag;
   person: DetailPerson | null;
@@ -43,11 +46,13 @@ export interface FlagDetail {
   recurrence: DetailRecurrence | null;
   sites: DetailSite[];
   draft: DetailDraft | null;
+  link?: DetailLink | null;
   timeline: TimelineEvent[];
   messages: SentMessage[];
 }
 
-export interface SendFlagInput { flag_id: string; channel: 'email' | 'connection'; connection_id?: string; subject: string; text: string }
-export interface SendFlagResult { ok: boolean; error?: string }
+/** `close: false` keeps the item open; left out, a sent message marks it handled. */
+export interface SendFlagInput { flag_id: string; channel: 'email' | 'connection'; connection_id?: string; subject: string; text: string; close?: boolean }
+export interface SendFlagResult { ok: boolean; closed?: boolean; error?: string }
 
 export interface SiteVerdictResult { domain: string; verdict: SiteVerdict; reason: string }

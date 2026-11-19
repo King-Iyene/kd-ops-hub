@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Loader2, Pencil, Plug, Plus, Send, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, TriangleAlert, Plug, Plus, Send, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { confirm } from '@/hooks/use-confirm';
 import { cn } from '@/lib/utils';
 import { useAgentConnections, useDeleteConnection, useOutbox, useTestConnection } from '@/queries/useOpsAgent';
+import { useTeamPulse } from '@/queries/useOpsAgentLive';
 import type { AgentConnection, OutboxRow } from '../agentDb';
 import { Section } from '../settings/shared';
 import { useAgentToast } from '../settings/useAgentToast';
@@ -88,6 +89,7 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
 export function ConnectionsTab() {
   const list = useAgentConnections();
   const outbox = useOutbox();
+  const pulse = useTeamPulse();
   const test = useTestConnection();
   const del = useDeleteConnection();
   const toast = useAgentToast();
@@ -114,8 +116,16 @@ export function ConnectionsTab() {
   };
 
   const rows = list.data ?? [];
+  // Only warn when a connection asks for automatic sending AND the database says the sender cannot run. A failed pulse call shows nothing.
+  const cannotDispatch = pulse.data?.dispatch_ready === false && rows.some((c) => (c.config.events?.length ?? 0) > 0);
   return (
     <div className="space-y-4" data-testid="agent-connections">
+      {cannotDispatch && (
+        <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-3.5 text-sm" role="alert" data-testid="dispatch-warning">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+          <p>Automatic sending cannot run yet: the database is missing the shared secret that wakes the sender. The Inbox will also show a System item with the exact steps.</p>
+        </div>
+      )}
       <Section
         title="Send to other tools"
         description="Connect a tool once and choose what the agent sends to it by itself. A connection only sends data out."
