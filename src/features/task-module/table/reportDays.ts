@@ -1,0 +1,106 @@
+import { addDays, addMonths, endOfMonth, format, parseISO, startOfMonth, startOfWeek } from 'date-fns';
+import type { TableField, TableRecordRow } from '@/queries/useTaskModule';
+import { asList } from './fieldTypes';
+
+// Reports are table rows, and a report belongs to the day it was submitted —
+// in Lagos time, the company's timezone, so a report sent at 00:30 counts for
+// that day and not the day before. Days are plain "yyyy-MM-dd" strings.
+
+const LAGOS = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** The Lagos calendar day of a timestamp. */
+export function lagosDay(iso: string | Date): string {
+  return LAGOS.format(typeof iso === 'string' ? new Date(iso) : iso);
+}
+
+export const todayLagos = (now: Date = new Date()) => lagosDay(now);
+
+const ymd = (d: Date) => format(d, 'yyyy-MM-dd');
+
+export type ReportRange =
+  | { kind: 'week'; offset: number }   // 0 = this week, -1 = last week …
+  | { kind: 'month'; month: string }   // "yyyy-MM"
+  | { kind: 'all' };
+
+export const DEFAULT_RANGE: ReportRange = { kind: 'week', offset: 0 };
+
+/** Monday to Sunday of the week `offset` weeks from the week containing `today`. */
+export function weekBounds(today: string, offset = 0): { from: string; to: string } {
+  const monday = addDays(startOfWeek(parseISO(today), { weekStartsOn: 1 }), offset * 7);
+  return { from: ymd(monday), to: ymd(addDays(monday, 6)) };
+}
+
+export function monthBounds(month: string): { from: string; to: string } {
+  const first = startOfMonth(parseISO(`${month}-01`));
+  return { from: ymd(first), to: ymd(endOfMonth(first)) };
+}
+
+export const monthOf = (day: string) => day.slice(0, 7);
+export const shiftMonth = (month: string, by: number) => format(addMonths(parseISO(`${month}-01`), by), 'yyyy-MM');
+
+export function rangeBounds(range: ReportRange, today: string): { from: string; to: string } | null {
+  if (range.kind === 'all') return null;
+  return range.kind === 'week' ? weekBounds(today, range.offset) : monthBounds(range.month);
+}
+
+export function inRange(day: string, range: ReportRange, today: string): boolean {
+  const b = rangeBounds(range, today);
+  return !b || (day >= b.from && day <= b.to);
+}
+
+/** "Today", "Yesterday", or "Wed 18 Nov 2026". */
+export function dayLabel(day: string, today: string): string {
+  const long = format(parseISO(day), 'EEE d MMM yyyy');
+  if (day === today) return `Today · ${long}`;
+  if (day === ymd(addDays(parseISO(today), -1))) return `Yesterday · ${long}`;
+  return long;
+}
+
+export function rangeLabel(range: ReportRange, today: string): string {
+  const b = rangeBounds(range, today);
+  if (!b) return 'All reports';
+  if (range.kind === 'month') return format(parseISO(b.from), 'MMMM yyyy');
+  const a = parseISO(b.from);
+  const z = parseISO(b.to);
+  const span = a.getMonth() === z.getMonth() ? `${format(a, 'd')}–${format(z, 'd MMM')}` : `${format(a, 'd MMM')} – ${format(z, 'd MMM')}`;
+  return range.kind === 'week' && range.offset === 0 ? `This week · ${span}` : span;
+}
+
+/** Newest first: the later submission above the earlier one. */
+export function newestFirst(rows: TableRecordRow[]): TableRecordRow[] {
+  return [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Groups already-ordered rows by day, latest day first. Row order inside a day is kept. */
+export function groupByDay(rows: TableRecordRow[]): { day: string; rows: TableRecordRow[] }[] {
+  const byDay = new Map<string, TableRecordRow[]>();
+  for (const r of rows) {
+    const d = lagosDay(r.created_at);
+    const list = byDay.get(d);
+    if (list) list.push(r); else byDay.set(d, [r]);
+  }
+  return [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([day, rs]) => ({ day, rows: rs }));
+}
+
+/** Months that have reports, plus the current one, latest first. */
+export function monthsWithReports(rows: TableRecordRow[], today: string): string[] {
+  const set = new Set<string>([monthOf(today)]);
+  rows.forEach((r) => set.add(monthOf(lagosDay(r.created_at))));
+  return [...set].sort().reverse();
+}
+
+/** Who a report is from: the People question(s) on the row, or whoever added the row when the table has none. */
+export function reporterIds(record: TableRecordRow, personFields: TableField[]): string[] {
+  const ids = personFields.flatMap((f) => asList(record.data[f.id]));
+  if (ids.length) return ids;
+  return personFields.length === 0 && record.created_by ? [record.created_by] : [];
+}
+
+/** People who have not reported for `day`. Anyone with a report that day is left out. */
+export function missingReporters<P extends { id: string }>(
+  people: P[], records: TableRecordRow[], personFields: TableField[], day: string, skipped: ReadonlySet<string> = new Set(),
+): P[] {
+  const done = new Set<string>();
+  for (const r of records) if (lagosDay(r.created_at) === day) reporterIds(r, personFields).forEach((id) => done.add(id));
+  return people.filter((p) => !done.has(p.id) && !skipped.has(p.id));
+}

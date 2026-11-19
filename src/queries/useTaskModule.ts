@@ -747,6 +747,19 @@ export function useDeleteForm(tableId: string) {
 // and is readable by every authenticated user — the same source every
 // other people-picker in the app uses (see Tasks.tsx, TaskTeamDashboard.tsx).
 
+/** Everyone currently active — who a daily report is expected from. */
+export function useActivePeople() {
+  return useSupabaseQuery([...queryKeys.taskModule.people(), 'active'] as const, () =>
+    supabase
+      .from('profiles_directory')
+      .select('id, full_name, email, photo_url, job_title')
+      .eq('is_anonymised', false)
+      .eq('status', 'active')
+      .order('full_name')
+      .limit(500),
+  );
+}
+
 export function useAssignablePeople() {
   return useSupabaseQuery(queryKeys.taskModule.people(), () =>
     supabase
