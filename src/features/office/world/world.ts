@@ -161,9 +161,12 @@ export const RIDE_SPEED = 1.9;
 
 /** The interactive thing closest to a point, if one is within reach. */
 export function nearestInteractive(items: Item[], x: number, y: number, reach = 1.25): Item | null {
-  // boards, games, the gong and vehicles come first; a seat is only offered when nothing else is within reach
+  // games, boards, the podium and the gong come first, then a bike or kart, and a seat only when nothing else is within reach.
+  // (A kart somebody parked beside a game must not stop you opening the game: it wins only when you are practically on top of it.)
   let best: Item | null = null;
   let bd = Infinity;
+  let veh: Item | null = null;
+  let vd = Infinity;
   let seat: Item | null = null;
   let sd = Infinity;
   for (const it of items) {
@@ -173,13 +176,15 @@ export function nearestInteractive(items: Item[], x: number, y: number, reach = 
     const dy = Math.max(it.y - y, 0, y - (it.y + h));
     const d = Math.hypot(dx, dy);
     const isSeat = SEAT_TYPES.includes(it.t);
-    // a bike, a kart or a seat only offers itself when you are right beside it; everything else from a little further
-    const r = it.t === 'bike' || it.t === 'kart' ? Math.min(reach, 1.05) : isSeat ? Math.min(reach, 0.8) : reach;
+    const isVehicle = it.t === 'bike' || it.t === 'kart';
+    const r = isVehicle ? Math.min(reach, 1.05) : isSeat ? Math.min(reach, 0.8) : reach;
     if (d > r) continue;
     if (isSeat) { if (d < sd) { seat = it; sd = d; } }
+    else if (isVehicle) { if (d < vd) { veh = it; vd = d; } }
     else if (d < bd) { best = it; bd = d; }
   }
-  return best ?? seat;
+  if (best && veh) return vd < 0.5 && vd < bd - 0.2 ? veh : best;
+  return best ?? veh ?? seat;
 }
 
 /** Every tile an item covers. */
