@@ -21,3 +21,19 @@ CREATE OR REPLACE FUNCTION public.agent_can_access() RETURNS boolean LANGUAGE sq
 -- agent_in_scope, agent_my_scope, agent_run_rules, agent_raise_flag and agent_module_access_guard: re-apply their definitions from
 -- 20261408000100 / 20261410000100 / 20261408000200 (run those CREATE OR REPLACE statements again).
 UPDATE public.agent_module_access SET enabled = false WHERE module_key IN (SELECT key FROM public.agent_module_catalog WHERE sensitive);
+
+-- 20261411000400 (connections that send on their own, chat memory)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule('agent_dispatch') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'agent_dispatch');
+  END IF;
+END $$;
+DELETE FROM public.cron_job_expectations WHERE job_name = 'agent_dispatch';
+DROP TRIGGER IF EXISTS agent_flags_outbox ON public.agent_flags;
+DROP TRIGGER IF EXISTS agent_summaries_outbox ON public.agent_summaries;
+DROP FUNCTION IF EXISTS public.agent_dispatch_tick(), public.agent_outbox_flag(), public.agent_outbox_summary(), public.agent_sev_rank(text), public.agent_memory_suggest(text, text, text, text, text, uuid);
+DROP TABLE IF EXISTS public.agent_outbox;
+ALTER TABLE public.agent_memory DROP COLUMN IF EXISTS detail, DROP COLUMN IF EXISTS source_thread;
+DELETE FROM public.agent_connections WHERE kind IN ('discord', 'teams', 'gchat', 'telegram');
+ALTER TABLE public.agent_connections DROP CONSTRAINT IF EXISTS agent_connections_kind_check;
+ALTER TABLE public.agent_connections ADD CONSTRAINT agent_connections_kind_check CHECK (kind IN ('cliq', 'slack', 'email', 'webhook', 'n8n', 'whatsapp', 'api'));
