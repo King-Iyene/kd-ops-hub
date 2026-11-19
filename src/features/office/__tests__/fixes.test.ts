@@ -88,3 +88,24 @@ describe('game speed', () => {
     }
   });
 });
+
+describe('which thing the F key picks', () => {
+  const kart = { id: 'k', t: 'kart', x: 10, y: 10, r: 0 } as const;
+  const arcade = { id: 'a', t: 'arcade', x: 11, y: 10, r: 0 } as const;
+  it('opens the game, not the kart somebody parked beside it', async () => {
+    const { nearestInteractive } = await import('../world/world');
+    // standing a little below, so both are within reach and the kart is a touch nearer
+    const got = nearestInteractive([kart, arcade] as never, 10.9, 11.5);
+    expect(got?.id).toBe('a');
+  });
+  it('still gets you into the kart when you are right on it, or when it is the only thing there', async () => {
+    const { nearestInteractive } = await import('../world/world');
+    expect(nearestInteractive([kart, arcade] as never, 10.5, 10.5)?.id).toBe('k');
+    expect(nearestInteractive([kart] as never, 10.5, 11.6)?.id).toBe('k');
+  });
+  it('a seat never beats a game or a kart', async () => {
+    const { nearestInteractive } = await import('../world/world');
+    const chair = { id: 'c', t: 'chair', x: 12, y: 10, r: 0 } as const;
+    expect(nearestInteractive([chair, arcade] as never, 11.5, 11.4)?.id).toBe('a');
+  });
+});
