@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { BrandLogo } from '@/components/BrandLogo';
+import { TaskSidebarNav } from '@/components/TaskSidebarNav';
 import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
 import {
@@ -318,7 +319,8 @@ export function AppSidebar() {
 
         <SidebarContent className="pt-1 pb-2">
           {activeHubConfig.key === 'office' && <div id="office-sidebar-slot" className="min-h-0 flex-1" />}
-          {activeHubConfig.key !== 'office' && hubNavGroups.map((group) => {
+          {activeHubConfig.key === 'task' && <div className="pt-2"><TaskSidebarNav /></div>}
+          {activeHubConfig.key !== 'office' && activeHubConfig.key !== 'task' && hubNavGroups.map((group) => {
             const groupItems = navItems.filter((n) =>
               (group.titles as readonly string[]).includes(n.title),
             );

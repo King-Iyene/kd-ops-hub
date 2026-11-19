@@ -1,7 +1,7 @@
 import { rememberReturnTo } from './lib/returnTo';
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
@@ -99,7 +99,6 @@ const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
 const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 const DatabasePage      = lazy(() => import('./features/database/pages/DatabasePage'));
 const OfficePage = lazy(() => import('./features/office/OfficePage'));
-const TaskModuleLayout = lazy(() => import('./components/TaskModuleLayout'));
 const TaskHub = lazy(() => import('./pages/TaskHub'));
 const TaskInboxPage = lazy(() => import('./pages/TaskInboxPage'));
 const TaskMyTasksPage = lazy(() => import('./pages/TaskMyTasksPage'));
@@ -901,15 +900,15 @@ function AppRoutes() {
 
         {/* Task module: every signed-in employee (space/list/table creation
             is admin-only, enforced by RLS — the pages themselves hide those
-            controls for everyone else). TaskModuleLayout renders the
-            persistent Home/Inbox/My Tasks/Dashboards + Spaces sidebar once
-            for the whole subtree; children render into its <Outlet />. */}
+            controls for everyone else). Its Home/Inbox/My Tasks/Dashboards +
+            Spaces nav lives in the main sidebar's Task Management hub panel
+            (TaskSidebarNav), not on the page. */}
         <Route
           path="/task"
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ErrorBoundary>
-                <TaskModuleLayout />
+                <Outlet />
               </ErrorBoundary>
             </RoleGuard>
           }
