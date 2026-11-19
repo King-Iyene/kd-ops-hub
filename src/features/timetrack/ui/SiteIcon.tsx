@@ -12,6 +12,14 @@ import { useSiteLogo } from './siteIconStore';
  * Privacy: the viewer's browser never contacts a logo service; our server asks for bare domain names only.
  */
 const APP_DOMAINS: [RegExp, string][] = [
+  // well-known sites that show up under their plain name rather than a web address
+  [/\binstagram\b/i, 'instagram.com'], [/\bfacebook\b|\bmessenger\b/i, 'facebook.com'], [/\byoutube\b(?! music)/i, 'youtube.com'], [/\blinkedin\b/i, 'linkedin.com'],
+  [/\bnetflix\b/i, 'netflix.com'], [/\btiktok\b/i, 'tiktok.com'], [/\btwitter\b|^x$/i, 'x.com'], [/\breddit\b/i, 'reddit.com'], [/\bpinterest\b/i, 'pinterest.com'],
+  [/\bsnapchat\b/i, 'snapchat.com'], [/\bthreads\b/i, 'threads.net'], [/\bamazon\b/i, 'amazon.com'], [/\bchatgpt\b|\bopenai\b/i, 'chatgpt.com'], [/\bgemini\b/i, 'gemini.google.com'],
+  [/\bgmail\b/i, 'mail.google.com'], [/google (drive|docs|sheets|slides|meet|calendar)/i, 'google.com'], [/\bjira\b|atlassian|confluence/i, 'atlassian.com'], [/\btrello\b/i, 'trello.com'],
+  [/\basana\b/i, 'asana.com'], [/\bclickup\b/i, 'clickup.com'], [/\bairtable\b/i, 'airtable.com'], [/\bhubspot\b/i, 'hubspot.com'], [/\bstripe\b/i, 'stripe.com'],
+  [/\bpaystack\b/i, 'paystack.com'], [/\bflutterwave\b/i, 'flutterwave.com'], [/\bdropbox\b/i, 'dropbox.com'], [/\btwitch\b/i, 'twitch.tv'], [/\bmedium\b/i, 'medium.com'],
+  [/\bstack ?overflow\b/i, 'stackoverflow.com'], [/\bwikipedia\b/i, 'wikipedia.org'], [/\bvercel\b/i, 'vercel.com'], [/\bsupabase\b/i, 'supabase.com'], [/\bfathom\b/i, 'fathom.video'],
   [/youtube music/i, 'music.youtube.com'], [/whatsapp/i, 'web.whatsapp.com'], [/claude|anthropic/i, 'claude.ai'], [/slack/i, 'slack.com'], [/teams/i, 'teams.microsoft.com'],
   [/zoom/i, 'zoom.us'], [/outlook/i, 'outlook.office.com'], [/excel|word|powerpoint|onenote|office/i, 'office.com'],
   [/chrome/i, 'google.com'], [/edge/i, 'microsoft.com'], [/firefox/i, 'mozilla.org'], [/brave/i, 'brave.com'],
@@ -102,7 +110,7 @@ function hashColor(name: string) {
 }
 
 /** The website behind a capture's name: a domain is used as-is, app names are mapped, anything else has none. */
-function domainFor(name: string): string | null {
+export function domainFor(name: string): string | null {
   const n = name.trim().toLowerCase();
   if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(n)) return n.replace(/^www\./, '');
   return APP_DOMAINS.find(([re]) => re.test(name))?.[1] ?? null;
