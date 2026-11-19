@@ -1,4 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import {
+  DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import {
@@ -18,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   useActivePeople, useAssignablePeople, useCreateTableField, useCreateTableRecord, useDeleteTableField, useDeleteTableRecords,
-  useOpenTasksForPicker, useSetRecordCell, useTableFields, useTableRecords, useTaskLists, useTaskTables, useTaskTitles,
+  useOpenTasksForPicker, useReorderTableFields, useSetRecordCell, useSetReportDateField, useTableFields, useTableRecords, useTaskLists, useTaskTables, useTaskTitles,
   useUpdateTableField,
   type TableField,
 } from '@/queries/useTaskModule';
@@ -31,9 +36,9 @@ import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
-import { RangeBar, ReportInbox } from '@/features/task-module/table/ReportViews';
+import { RangeBar, ReportDatePicker, ReportInbox } from '@/features/task-module/table/ReportViews';
 import {
-  DEFAULT_RANGE, dayLabel, groupByDay, inRange, lagosDay, newestFirst, todayLagos, type ReportRange,
+  DEFAULT_RANGE, dayLabel, dayOfFor, groupByDay, inRange, newestFirst, resolveReportDateField, todayLagos, type ReportRange,
 } from '@/features/task-module/table/reportDays';
 
 interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[] }
@@ -99,6 +104,8 @@ function TableScreen({ tableId }: { tableId: string }) {
   const createRecord = useCreateTableRecord(tableId);
   const deleteRecords = useDeleteTableRecords(tableId);
   const setCell = useSetRecordCell(tableId);
+  const reorderFields = useReorderTableFields(tableId);
+  const setReportDate = useSetReportDateField();
 
   const [prefs, setPrefsState] = useState<TablePrefs>(() => loadPrefs(tableId));
   const setPrefs = (patch: Partial<TablePrefs>) => setPrefsState((p) => {
@@ -130,13 +137,16 @@ function TableScreen({ tableId }: { tableId: string }) {
   }), [peopleById, titleById]);
 
   const shownFields = fields.filter((f) => !prefs.hidden.includes(f.id));
-  const inRangeRecords = useMemo(() => records.filter((r) => inRange(lagosDay(r.created_at), range, today)), [records, range, today]);
+  // Reports are dated by the table's Report Date field (not by when they were added).
+  const dateField = useMemo(() => resolveReportDateField(table?.report_date_field, fields), [table?.report_date_field, fields]);
+  const dayOf = useMemo(() => dayOfFor(dateField), [dateField]);
+  const inRangeRecords = useMemo(() => records.filter((r) => inRange(dayOf(r), range, today)), [records, range, today, dayOf]);
   const rows = useMemo(() => {
     const matched = inRangeRecords.filter((r) => rowSearch(r, fields, search, names) && rowMatches(r, fields, filters, names));
     // Newest report first, unless a column sort says otherwise.
-    return sort ? sortRows(matched, fields, sort, names) : newestFirst(matched);
-  }, [inRangeRecords, fields, search, filters, sort, names]);
-  const dayGroups = useMemo(() => (prefs.groupDays ? groupByDay(rows) : null), [rows, prefs.groupDays]);
+    return sort ? sortRows(matched, fields, sort, names) : newestFirst(matched, dayOf);
+  }, [inRangeRecords, fields, search, filters, sort, names, dayOf]);
+  const dayGroups = useMemo(() => (prefs.groupDays ? groupByDay(rows, dayOf) : null), [rows, prefs.groupDays, dayOf]);
   const personFields = useMemo(() => fields.filter((f) => f.type === 'person'), [fields]);
 
   // The Inbox follows reports as they come in: reload while it is open.
@@ -185,6 +195,16 @@ function TableScreen({ tableId }: { tableId: string }) {
       onSuccess: () => setSelected(new Set()),
       onError: (e) => toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' }),
     });
+  };
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const onFieldDragEnd = (e: DragEndEvent) => {
+    if (!isAdmin || !e.over || e.active.id === e.over.id) return;
+    const ids = fields.map((f) => f.id);
+    const from = ids.indexOf(String(e.active.id));
+    const to = ids.indexOf(String(e.over.id));
+    if (from < 0 || to < 0) return;
+    reorderFields.mutate(arrayMove(ids, from, to), { onError: (err) => toast({ title: 'Could not move the field', description: errorMessage(err), variant: 'destructive' }) });
   };
 
   const loading = fieldsLoading || recordsLoading;
@@ -242,7 +262,15 @@ function TableScreen({ tableId }: { tableId: string }) {
 
       {prefs.view === 'grid' && !loading && (
         <div className="flex items-center gap-3 flex-wrap">
-          <RangeBar range={range} onChange={(r) => { setRange(r); setSelected(new Set()); }} records={records} today={today} />
+          <RangeBar range={range} onChange={(r) => { setRange(r); setSelected(new Set()); }} records={records} today={today} dayOf={dayOf} />
+          <ReportDatePicker
+            fields={fields}
+            setting={table?.report_date_field ?? null}
+            resolvedId={dateField?.id ?? null}
+            canEdit={isAdmin}
+            saving={setReportDate.isPending}
+            onChange={(setting) => setReportDate.mutate({ tableId, setting }, { onError: (e) => toast({ title: 'Could not save the report date', description: errorMessage(e), variant: 'destructive' }) })}
+          />
           <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer ml-auto">
             <Checkbox checked={prefs.groupDays} onCheckedChange={(c) => setPrefs({ groupDays: !!c })} aria-label="Group by day" /> Group by day
           </label>
@@ -266,6 +294,7 @@ function TableScreen({ tableId }: { tableId: string }) {
           personFields={personFields}
           people={activePeople}
           day={inboxDay}
+          dayOf={dayOf}
           onDay={setInboxDay}
           skipped={prefs.skipped}
           onSkip={(id) => setPrefs({ skipped: [...prefs.skipped, id] })}
@@ -273,16 +302,19 @@ function TableScreen({ tableId }: { tableId: string }) {
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border/70">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onFieldDragEnd}>
           <table className="text-sm border-collapse w-max min-w-full">
             <thead>
               <tr className="border-b border-border/70 bg-muted/30">
                 <th className="w-10 px-2 py-2 text-left sticky left-0 bg-muted/60 z-10">
                   <Checkbox checked={allChecked} onCheckedChange={(c) => setSelected(c ? new Set(rows.map((r) => r.id)) : new Set())} aria-label="Select all rows" />
                 </th>
+                <SortableContext items={shownFields.map((f) => f.id)} strategy={horizontalListSortingStrategy}>
                 {shownFields.map((f) => (
-                  <th key={f.id} className={cn(COL_W, 'px-2 py-1.5 text-left text-xs font-semibold border-l border-border/50')} data-col={f.name}>
+                  <SortableTh key={f.id} id={f.id} name={f.name} canDrag={isAdmin && shownFields.length > 1}>
+                    {(handle) => (
                     <div className="flex items-center gap-1">
-                      <GripVertical className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                      {handle}
                       <FieldLabel field={f} className="flex-1" />
                       {sort?.fieldId === f.id && (sort.dir === 'asc' ? <ArrowDownAZ className="h-3 w-3 text-primary" /> : <ArrowUpAZ className="h-3 w-3 text-primary" />)}
                       <DropdownMenu>
@@ -304,8 +336,10 @@ function TableScreen({ tableId }: { tableId: string }) {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </th>
+                    )}
+                  </SortableTh>
                 ))}
+                </SortableContext>
                 <th className="w-10 px-1 py-1.5 border-l border-border/50">
                   {isAdmin && (
                     <button type="button" onClick={() => setFieldDialog('new')} className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Add a field" title="Add a field">
@@ -346,6 +380,7 @@ function TableScreen({ tableId }: { tableId: string }) {
               ))}
             </tbody>
           </table>
+          </DndContext>
           {rows.length === 0 && (
             <p className="text-xs text-muted-foreground px-4 py-6">
               {records.length === 0
@@ -392,6 +427,27 @@ function TableScreen({ tableId }: { tableId: string }) {
         />
       )}
     </div>
+  );
+}
+
+// A column header that can be dragged to a new place (admins).
+function SortableTh({ id, name, canDrag, children }: { id: string; name: string; canDrag: boolean; children: (handle: React.ReactNode) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !canDrag });
+  const handle = canDrag ? (
+    <button type="button" {...attributes} {...listeners} aria-label={`Move ${name}`} title="Drag to move this column"
+      className="cursor-grab touch-none text-muted-foreground/50 hover:text-foreground shrink-0">
+      <GripVertical className="h-3.5 w-3.5" />
+    </button>
+  ) : <GripVertical className="h-3 w-3 text-muted-foreground/30 shrink-0" />;
+  return (
+    <th
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(COL_W, 'px-2 py-1.5 text-left text-xs font-semibold border-l border-border/50 bg-muted/30', isDragging && 'relative z-20 opacity-80 shadow-lg bg-muted')}
+      data-col={name}
+    >
+      {children(handle)}
+    </th>
   );
 }
 

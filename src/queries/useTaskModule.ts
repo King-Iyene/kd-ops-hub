@@ -467,7 +467,7 @@ export interface TableFieldConfig {
   decimals?: number;
   rating_max?: number;
   multiple?: boolean;
-  /** Task link, forms only: which statuses a form offers (default: everything except Complete). */
+  /** Task link, forms only: which statuses a form offers (default: In progress, In review, Blocked, Complete — never To do). */
   task_statuses?: TaskStatus[];
   /** Task link, forms only: hide tasks overdue by more than this many days (default 2). */
   overdue_grace_days?: number;
@@ -482,6 +482,8 @@ export interface TaskTable {
   folder_id: string;
   name: string;
   position: number;
+  /** Which Date field dates a report: null = automatic, 'created_at' = day added, else a field id. */
+  report_date_field: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -582,6 +584,39 @@ export function useUpdateTableField(tableId: string) {
       supabase.from('tm_table_fields').update({ name: vars.name, config: vars.config as Json }).eq('id', vars.id).select().single(),
     { onSuccess: () => invalidate(queryKeys.taskModule.fields(tableId)) },
   );
+}
+
+/** Which Date field the table's reports are dated by (admins). */
+export function useSetReportDateField() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { tableId: string; setting: string | null }) =>
+      supabase.from('tm_tables').update({ report_date_field: vars.setting }).eq('id', vars.tableId).select().single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.tables()) },
+  );
+}
+
+/** Saves a new column order (admins). Shows the new order at once, undoes it if the save fails. */
+export function useReorderTableFields(tableId: string) {
+  const qc = useQueryClient();
+  const key = queryKeys.taskModule.fields(tableId);
+  return useMutation<unknown, Error, string[], { before?: TableField[] }>({
+    mutationFn: async (ids) => {
+      const { error } = await supabase.rpc('tm_reorder_table_fields', { p_table: tableId, p_ids: ids });
+      if (error) throw new Error(error.message);
+    },
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueryData<TableField[]>(key);
+      if (before) {
+        const rank = new Map(ids.map((id, i) => [id, i + 1]));
+        qc.setQueryData<TableField[]>(key, [...before].map((f) => ({ ...f, position: rank.get(f.id) ?? f.position })).sort((a, b) => a.position - b.position));
+      }
+      return { before };
+    },
+    onError: (_e, _ids, ctx) => { if (ctx?.before) qc.setQueryData(key, ctx.before); },
+    onSettled: () => { void qc.invalidateQueries({ queryKey: key }); },
+  });
 }
 
 export function useDeleteTableField(tableId: string) {

@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TableField, TableRecordRow } from '@/queries/useTaskModule';
 import {
-  dayLabel, missingReporters, monthOf, monthsWithReports, rangeLabel, shiftMonth, todayLagos, type ReportRange,
+  dayLabel, missingReporters, monthOf, monthsWithReports, rangeLabel, shiftMonth, todayLagos, type DayOf, type ReportRange,
 } from './reportDays';
 
 // Week / month / all-reports switch for the grid. Defaults to this week.
-export function RangeBar({ range, onChange, records, today }: {
-  range: ReportRange; onChange: (r: ReportRange) => void; records: TableRecordRow[]; today: string;
+export function RangeBar({ range, onChange, records, today, dayOf }: {
+  range: ReportRange; onChange: (r: ReportRange) => void; records: TableRecordRow[]; today: string; dayOf: DayOf;
 }) {
-  const months = useMemo(() => monthsWithReports(records, today), [records, today]);
+  const months = useMemo(() => monthsWithReports(records, today, dayOf), [records, today, dayOf]);
   const seg = (active: boolean) => cn('h-7 px-2.5 rounded text-xs', active ? 'bg-secondary text-secondary-foreground font-medium' : 'text-muted-foreground hover:text-foreground');
   const step = 'h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40';
   return (
@@ -52,11 +52,12 @@ export function RangeBar({ range, onChange, records, today }: {
 
 // The Inbox: for one day, who has not reported yet. A person drops off the
 // list the moment their report for that day exists.
-export function ReportInbox({ records, personFields, people, day, onDay, skipped, onSkip, onRestore }: {
+export function ReportInbox({ records, personFields, people, day, dayOf, onDay, skipped, onSkip, onRestore }: {
   records: TableRecordRow[];
   personFields: TableField[];
   people: { id: string; full_name: string; job_title?: string | null }[];
   day: string;
+  dayOf: DayOf;
   onDay: (d: string) => void;
   skipped: string[];
   onSkip: (id: string) => void;
@@ -64,7 +65,7 @@ export function ReportInbox({ records, personFields, people, day, onDay, skipped
 }) {
   const today = todayLagos();
   const skipSet = useMemo(() => new Set(skipped), [skipped]);
-  const missing = useMemo(() => missingReporters(people, records, personFields, day, skipSet), [people, records, personFields, day, skipSet]);
+  const missing = useMemo(() => missingReporters(people, records, personFields, day, dayOf, skipSet), [people, records, personFields, day, dayOf, skipSet]);
   const expected = people.filter((p) => !skipSet.has(p.id)).length;
   const done = expected - missing.length;
   const weekend = [0, 6].includes(parseISO(day).getDay());
@@ -116,6 +117,42 @@ export function ReportInbox({ records, personFields, people, day, onDay, skipped
         <p className="text-2xs text-muted-foreground">
           {skipped.length} {skipped.length === 1 ? 'person is' : 'people are'} not expected on this device. <button type="button" className="text-primary hover:underline" onClick={onRestore}>Show them again</button>
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Report date": which Date field says what day a report is for. Admins can
+ * change it; once set it stays set for everyone until changed.
+ * `setting`: null = automatic (first Date field), 'created_at', or a field id.
+ */
+export function ReportDatePicker({ fields, setting, resolvedId, canEdit, saving, onChange }: {
+  fields: TableField[];
+  setting: string | null;
+  /** The field actually in use (null = the day the row was added). */
+  resolvedId: string | null;
+  canEdit: boolean;
+  saving: boolean;
+  onChange: (setting: string) => void;
+}) {
+  const dates = fields.filter((f) => f.type === 'date');
+  const value = resolvedId ?? 'created_at';
+  const name = resolvedId ? dates.find((f) => f.id === resolvedId)?.name ?? 'Date' : 'Day added';
+  const auto = setting == null && resolvedId != null;
+  return (
+    <div className="inline-flex items-center gap-1.5 text-xs" data-report-date>
+      <span className="text-muted-foreground">Report date</span>
+      {canEdit ? (
+        <Select value={value} onValueChange={onChange} disabled={saving}>
+          <SelectTrigger className="h-7 w-44 text-xs" aria-label="Report date field"><SelectValue>{name}{auto ? ' (automatic)' : ''}</SelectValue></SelectTrigger>
+          <SelectContent>
+            {dates.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+            <SelectItem value="created_at">Day the row was added</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : (
+        <span className="font-medium">{name}</span>
       )}
     </div>
   );

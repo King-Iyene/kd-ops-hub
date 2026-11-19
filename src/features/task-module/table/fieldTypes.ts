@@ -55,10 +55,10 @@ export const OPTION_TYPES: TableFieldType[] = ['single_select', 'multi_select'];
 
 export const DEFAULT_CURRENCY = '₦';
 
-// What a form's Task question offers unless the field says otherwise: every
-// task that isn't complete, due today or later, earlier this week (Mon-Fri),
-// or at most this many days overdue.
-export const DEFAULT_TASK_STATUSES: TaskStatus[] = ['to_do', 'in_progress', 'in_review', 'blocked'];
+// What a form's Task question offers unless the field says otherwise: tasks
+// that are In progress, In review, Blocked or Complete (never To do), due
+// today or later, earlier this week (Mon-Fri), or at most this many days overdue.
+export const DEFAULT_TASK_STATUSES: TaskStatus[] = ['in_progress', 'in_review', 'blocked', 'done'];
 export const DEFAULT_OVERDUE_GRACE_DAYS = 2;
 
 export function defaultConfig(type: TableFieldType): TableFieldConfig {

@@ -17609,6 +17609,7 @@ export type Database = {
           id: string
           name: string
           position: number
+          report_date_field: string | null
           updated_at: string
         }
         Insert: {
@@ -17618,6 +17619,7 @@ export type Database = {
           id?: string
           name: string
           position?: number
+          report_date_field?: string | null
           updated_at?: string
         }
         Update: {
@@ -17627,6 +17629,7 @@ export type Database = {
           id?: string
           name?: string
           position?: number
+          report_date_field?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -22171,6 +22174,10 @@ export type Database = {
         }
       }
       tm_form_load: { Args: { p_token: string }; Returns: Json }
+      tm_reorder_table_fields: {
+        Args: { p_ids: string[]; p_table: string }
+        Returns: undefined
+      }
       tm_form_person_tasks: {
         Args: { p_person: string; p_token: string }
         Returns: Json
