@@ -52,7 +52,7 @@ function Flag({ f, name, now, busy, onAct }: { f: LiveFlag; name: string | null;
             {human
               ? <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-2xs font-semibold text-violet-600 dark:text-violet-300"><UserRoundCheck className="h-3 w-3" /> Human action required</span>
               : calm
-                ? <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-2xs font-semibold text-success">{f.rule_code === 'TK13' ? 'Ready for review' : 'Done'}</span>
+                ? <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-2xs font-semibold text-success">{f.rule_code === 'TK13' ? 'For review' : 'Done'}</span>
                 : <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold', PILL[f.severity])}>{LABEL[f.severity]}</span>}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -67,12 +67,12 @@ function Flag({ f, name, now, busy, onAct }: { f: LiveFlag; name: string | null;
         {f.why && <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{f.why}</p>}
         <Evidence flag={f} now={now} />
         {f.suggested_action && <p className="text-sm"><span className="text-muted-foreground">Suggested:</span> {f.suggested_action}</p>}
-        <div className="flex flex-wrap gap-1.5 pt-0.5">
+        <div className="flex flex-wrap gap-1 pt-0.5">
           {f.status === 'open' ? (
             <>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => onAct(f, 'handled', 'Marked as handled')} data-testid="flag-handled"><Check className="mr-1.5 h-3.5 w-3.5" /> Handled</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onAct(f, 'snoozed', 'Snoozed for a day')}><AlarmClock className="mr-1.5 h-3.5 w-3.5" /> Snooze a day</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onAct(f, 'dismissed', 'Dismissed')}><X className="mr-1.5 h-3.5 w-3.5" /> Dismiss</Button>
+              <Button size="sm" variant="outline" className="h-8 px-2.5" disabled={busy} onClick={() => onAct(f, 'handled', 'Marked as handled')} data-testid="flag-handled"><Check className="mr-1 h-3.5 w-3.5" /> Handled</Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(f, 'snoozed', 'Snoozed for a day')} aria-label="Snooze a day"><AlarmClock className="mr-1 h-3.5 w-3.5" /> Snooze<span className="hidden sm:inline">&nbsp;a day</span></Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" disabled={busy} onClick={() => onAct(f, 'dismissed', 'Dismissed')}><X className="mr-1 h-3.5 w-3.5" /> Dismiss</Button>
             </>
           ) : (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onAct(f, 'open', 'Back in the Inbox')}><RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reopen</Button>

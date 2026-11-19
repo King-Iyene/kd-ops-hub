@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -56,7 +55,7 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
           <PersonAvatar name={person.full_name} />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{person.full_name ?? 'Unnamed'}</p>
-            <p className="truncate text-xs text-muted-foreground">{person.job_title ?? person.role ?? ''}</p>
+            <p className="truncate text-xs text-muted-foreground">{person.job_title ?? person.role ?? ''}{saved?.group_source === 'manual' && saved.group_name ? ' · group set by hand' : ''}</p>
           </div>
         </div>
         <Select value={v('group_name') ?? NONE} onValueChange={(g) => set('group_name', g === NONE ? null : (g as AgentGroup))} disabled={readOnly}>
@@ -66,7 +65,6 @@ function PersonRow({ person, saved, people, readOnly }: { person: Pick<AgentPers
             {(Object.keys(GROUP_LABEL) as AgentGroup[]).map((g) => <SelectItem key={g} value={g}>{GROUP_LABEL[g]}</SelectItem>)}
           </SelectContent>
         </Select>
-        {saved?.group_source === 'manual' && saved.group_name && <Badge variant="outline" className="text-xs">set by hand</Badge>}
         <Select value={v('manager_id') ?? NONE} onValueChange={(m) => set('manager_id', m === NONE ? null : m)} disabled={readOnly}>
           <SelectTrigger className="h-9 w-44" aria-label={`${person.full_name} manager`}><SelectValue placeholder="Manager" /></SelectTrigger>
           <SelectContent>

@@ -57,15 +57,15 @@ export function SiteChip({ site }: { site: SiteVisit }) {
 }
 
 /** Overlapping favicons, the way an avatar group looks. Shows up to four, then "+N". */
-export function SiteStack({ sites, size = 22 }: { sites: SiteVisit[]; size?: number }) {
+export function SiteStack({ sites, size = 24 }: { sites: SiteVisit[]; size?: number }) {
   const shown = sites.slice(0, 4);
   const more = sites.length - shown.length;
   return (
     <span className="inline-flex items-center" aria-hidden="true">
       {shown.map((s, i) => (
-        <SiteIcon key={s.domain} domain={s.domain} category={s.category} size={size} className={cn(i > 0 && '-ml-1.5', 'ring-offset-2 ring-offset-card')} />
+        <SiteIcon key={s.domain} domain={s.domain} category={s.category} size={size} className={cn(i > 0 && '-ml-1', 'ring-offset-1 ring-offset-card')} />
       ))}
-      {more > 0 && <span className="-ml-1.5 inline-flex items-center justify-center rounded-full bg-muted px-1.5 text-2xs font-medium tabular-nums text-muted-foreground ring-2 ring-card" style={{ height: size, minWidth: size }}>+{more}</span>}
+      {more > 0 && <span className="-ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 text-2xs font-medium tabular-nums text-muted-foreground ring-2 ring-card" style={{ height: size, minWidth: size }}>+{more}</span>}
     </span>
   );
 }

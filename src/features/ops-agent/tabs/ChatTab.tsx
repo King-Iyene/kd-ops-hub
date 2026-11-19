@@ -255,7 +255,7 @@ export function ChatTab() {
             />
             <Button type="submit" size="icon" className="h-9 w-9 shrink-0 rounded-full" disabled={!text.trim() || send.isPending} aria-label="Send" data-testid="chat-send"><ArrowUp className="h-4 w-4" /></Button>
           </div>
-          <p className="mt-2 px-2 text-center text-2xs text-muted-foreground">The agent cannot change or send anything. A request to is added to the Inbox for a person.</p>
+          <p className="mt-2 px-2 text-center text-2xs text-muted-foreground">The agent cannot change or send anything. If you ask it to, it adds a request to the Inbox for a person.</p>
         </form>
       </section>
     </div>

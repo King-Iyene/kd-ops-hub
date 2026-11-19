@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 /** One card in a settings section. Every card has the same padding, title size and spacing. */
 export function Section({ title, description, children, footer, className }: { title: string; description?: string; children: ReactNode; footer?: ReactNode; className?: string }) {
   return (
-    <Card className={cn('overflow-hidden', className)}>
+    <Card className={className}>
       <div className="px-4 pb-1 pt-4 sm:px-5 sm:pt-5">
         <h3 className="text-sm font-semibold leading-tight tracking-tight">{title}</h3>
         {description && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>}
@@ -36,7 +36,7 @@ export function Field({ label, hint, children, htmlFor, className }: { label: st
 export function SaveBar({ dirty, saving, onSave, onCancel, readOnly }: { dirty: boolean; saving: boolean; onSave: () => void; onCancel: () => void; readOnly?: boolean }) {
   if (readOnly || (!dirty && !saving)) return null;
   return (
-    <div className="sticky bottom-0 z-10 flex items-center gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur sm:px-5" data-testid="save-bar">
+    <div className="sticky bottom-0 z-10 flex items-center gap-2 rounded-b-xl border-t bg-card/95 px-4 py-3 backdrop-blur sm:px-5" data-testid="save-bar">
       <span className="mr-auto text-xs text-muted-foreground" role="status">Unsaved changes</span>
       {!saving && <Button size="sm" variant="ghost" onClick={onCancel}>Discard</Button>}
       <Button size="sm" onClick={onSave} disabled={!dirty || saving}>

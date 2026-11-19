@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAgentPeople, useReportTables, useUpdateAgentSettings } from '@/queries/useOpsAgent';
 import { WEEKDAYS, hhmm, type AgentSettings } from '../agentDb';
@@ -53,7 +54,7 @@ export function CalendarCard({ settings, readOnly }: { settings: AgentSettings; 
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5" data-testid="cal-tz">
-          <p className="text-sm font-medium leading-none">Time zone</p>
+          <Label>Time zone</Label>
           <p className="flex h-10 items-center text-sm">Eastern Time (EST/EDT)</p>
           <p className="text-xs text-muted-foreground">Fixed. Report deadlines, work hours and &quot;today&quot; all follow it.</p>
         </div>

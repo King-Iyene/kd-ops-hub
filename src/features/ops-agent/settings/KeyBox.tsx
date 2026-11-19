@@ -47,7 +47,7 @@ export function KeyBox({ readOnly }: { readOnly: boolean }) {
         <>
           <div className="flex flex-wrap items-center gap-2">
             <Input
-              type="password" name="claude-key-entry" autoComplete="off" spellCheck={false} data-lpignore="true" className="max-w-md flex-1 font-mono"
+              type="password" name="claude-key-entry" autoComplete="off" spellCheck={false} data-lpignore="true" className="min-w-0 max-w-md basis-full font-mono sm:flex-1 sm:basis-0"
               placeholder={s?.key_configured ? 'Paste a new key to replace it' : 'Paste a Claude API key (starts with sk-ant-)'}
               value={value} onChange={(e) => setValue(e.target.value)} aria-label="Claude API key"
               onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
