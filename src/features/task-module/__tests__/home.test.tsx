@@ -27,6 +27,8 @@ function task(title: string, status: TaskStatus, due: string | null, extra: Part
     parent_id: null,
     tags: [],
     custom: {},
+    recurrence: null,
+    recurrence_source_id: null,
     ...extra,
   };
 }

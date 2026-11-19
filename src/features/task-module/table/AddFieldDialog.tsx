@@ -6,8 +6,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { TableField, TableFieldConfig, TableFieldType } from '@/queries/useTaskModule';
-import { DEFAULT_CURRENCY, FIELD_TYPES, FIELD_TYPE_ORDER, OPTION_TYPES, TEXTY, defaultConfig } from './fieldTypes';
+import { STATUS_META, TASK_STATUSES, type TableField, type TableFieldConfig, type TableFieldType } from '@/queries/useTaskModule';
+import {
+  DEFAULT_CURRENCY, DEFAULT_OVERDUE_GRACE_DAYS, DEFAULT_TASK_STATUSES, FIELD_TYPES, FIELD_TYPE_ORDER, OPTION_TYPES, TEXTY, defaultConfig,
+} from './fieldTypes';
 
 export interface FieldDraft { name: string; type: TableFieldType; config: TableFieldConfig }
 
@@ -44,11 +46,16 @@ export function AddFieldDialog({
   };
 
   const needsOptions = OPTION_TYPES.includes(type) && (config.options ?? []).length === 0;
-  const canSave = name.trim().length > 0 && !needsOptions && !saving;
+  const taskStatuses = config.task_statuses ?? DEFAULT_TASK_STATUSES;
+  const needsStatuses = type === 'task' && taskStatuses.length === 0;
+  const canSave = name.trim().length > 0 && !needsOptions && !needsStatuses && !saving;
   const submit = () => {
     if (!canSave) return;
     const clean: TableFieldConfig = { ...config };
-    (Object.keys(clean) as (keyof TableFieldConfig)[]).forEach((k) => { if (clean[k] === undefined || clean[k] === false) delete clean[k]; });
+    // "Off" is the same as absent for every setting except task_undated, whose default is on.
+    (Object.keys(clean) as (keyof TableFieldConfig)[]).forEach((k) => {
+      if (clean[k] === undefined || (clean[k] === false && k !== 'task_undated')) delete clean[k];
+    });
     onSave({ name: name.trim(), type, config: clean });
   };
 
@@ -164,6 +171,45 @@ export function AddFieldDialog({
             </div>
             {field && <p className={hint}>Removing an option leaves rows that already use it as they are.</p>}
             {needsOptions && <p className="text-2xs text-amber-600 dark:text-amber-400">Add at least one option.</p>}
+          </div>
+        )}
+
+        {type === 'task' && (
+          <div className="space-y-2 rounded-md border border-border/70 p-2.5" data-task-settings>
+            <div>
+              <span className={label}>Tasks a form offers</span>
+              <p className={hint}>Only these, so a person isn’t shown work that hasn’t started or is long past.</p>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {TASK_STATUSES.map((s) => (
+                <label key={s} className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
+                  <Checkbox
+                    checked={taskStatuses.includes(s)}
+                    onCheckedChange={(c) => set({ task_statuses: c ? [...taskStatuses, s] : taskStatuses.filter((x) => x !== s) })}
+                  />
+                  <span className={cn('h-2 w-2 rounded-full', STATUS_META[s].dot)} /> {STATUS_META[s].label}
+                </label>
+              ))}
+            </div>
+            {needsStatuses && <p className="text-2xs text-amber-600 dark:text-amber-400">Pick at least one status.</p>}
+            <div className="flex items-center gap-2 text-xs">
+              <span>Leave out tasks overdue by more than</span>
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                aria-label="Days overdue"
+                className="h-7 w-16 text-xs"
+                value={config.overdue_grace_days ?? DEFAULT_OVERDUE_GRACE_DAYS}
+                onChange={(e) => set({ overdue_grace_days: Math.max(0, Math.min(365, Math.round(Number(e.target.value) || 0))) })}
+              />
+              <span>days</span>
+            </div>
+            <p className={hint}>Tasks due today or later are always offered.</p>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox checked={config.task_undated !== false} onCheckedChange={(c) => set({ task_undated: !!c })} />
+              Also offer tasks with no due date
+            </label>
           </div>
         )}
 

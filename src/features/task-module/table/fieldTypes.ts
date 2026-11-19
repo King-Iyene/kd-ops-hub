@@ -4,7 +4,7 @@ import {
   Link as LinkIcon, ListChecks, ListOrdered, ListTodo, Paperclip, Phone, Star, Type, UserRound, Users,
   type LucideIcon,
 } from 'lucide-react';
-import type { TableField, TableFieldConfig, TableFieldType, TableRecordRow } from '@/queries/useTaskModule';
+import type { TableField, TableFieldConfig, TableFieldType, TableRecordRow, TaskStatus } from '@/queries/useTaskModule';
 
 // Everything about a table field type in one place: how it's named and
 // explained in "Add a field", how a value reads as text (search, filter,
@@ -37,7 +37,7 @@ export const FIELD_TYPES: Record<TableFieldType, FieldTypeMeta> = {
   task: {
     label: 'Task link',
     icon: ListTodo,
-    help: 'A link to an open task. On a form, it lists only the tasks of the person picked in the People question.',
+    help: 'A link to a task. On a form it offers the tasks you choose by status and due date — only those of the person picked in a People question.',
     formable: true,
   },
   attachment: { label: 'Attachment', icon: Paperclip, help: 'Files, up to 25 MB each. Not available on forms.', formable: false },
@@ -55,11 +55,18 @@ export const OPTION_TYPES: TableFieldType[] = ['single_select', 'multi_select'];
 
 export const DEFAULT_CURRENCY = '₦';
 
+// What a form's Task question offers unless the field says otherwise: work
+// that has started and isn't finished, due soon or later, or at most this
+// many days overdue.
+export const DEFAULT_TASK_STATUSES: TaskStatus[] = ['in_progress', 'in_review', 'blocked'];
+export const DEFAULT_OVERDUE_GRACE_DAYS = 2;
+
 export function defaultConfig(type: TableFieldType): TableFieldConfig {
   switch (type) {
     case 'currency': return { currency: DEFAULT_CURRENCY, decimals: 2 };
     case 'number': return { decimals: 0 };
     case 'rating': return { rating_max: 5 };
+    case 'task': return { task_statuses: [...DEFAULT_TASK_STATUSES], overdue_grace_days: DEFAULT_OVERDUE_GRACE_DAYS, task_undated: true };
     case 'single_select':
     case 'multi_select': return { options: [] };
     default: return {};

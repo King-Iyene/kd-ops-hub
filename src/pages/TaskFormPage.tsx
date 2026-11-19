@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, Lock, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -14,8 +15,9 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { TableFieldConfig, TableFieldType } from '@/queries/useTaskModule';
+import type { FormLogic, TableFieldConfig, TableFieldType } from '@/queries/useTaskModule';
 import { DEFAULT_CURRENCY } from '@/features/task-module/table/fieldTypes';
+import { computeVisible } from '@/features/task-module/table/formLogic';
 
 // A table's form, opened from its shared link (/tf/<token>). Works signed
 // out for "anyone with the link" forms. All checks also run on the server
@@ -27,12 +29,15 @@ interface LoadedForm {
   description: string | null;
   success_message: string | null;
   fields: FormField[];
+  /** Show/hide rules by question id. */
+  logic?: FormLogic;
   people: { id: string; name: string }[];
-  tasks: { id: string; title: string }[] | null;
 }
+interface TaskOpt { id: string; title: string; due_date?: string | null }
 
 type Answers = Record<string, unknown>;
 
+const taskLabel = (t: TaskOpt) => (t.due_date ? `${t.title} · due ${format(parseISO(t.due_date), 'd MMM')}` : t.title);
 const isBlank = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
 function problemText(err: { message?: string; hint?: string } | null): string {
@@ -47,7 +52,8 @@ export default function TaskFormPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'login' | 'closed' | 'missing' | 'error' | 'sent'>('loading');
   const [problem, setProblem] = useState('');
   const [answers, setAnswers] = useState<Answers>({});
-  const [tasks, setTasks] = useState<{ id: string; title: string }[] | null>(null);
+  // Tasks offered by each Task question (they follow the People question).
+  const [taskLists, setTaskLists] = useState<Record<string, TaskOpt[]>>({});
   const [tasksLoading, setTasksLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
@@ -65,47 +71,61 @@ export default function TaskFormPage() {
       }
       const f = data as unknown as LoadedForm;
       setForm(f);
-      setTasks(f.tasks);
       setState('ready');
     });
     return () => { live = false; };
   }, [token]);
 
-  const personField = form?.fields.find((f) => f.type === 'person');
-  const taskFields = form?.fields.filter((f) => f.type === 'task') ?? [];
-  const chosenPerson = personField ? (Array.isArray(answers[personField.id]) ? (answers[personField.id] as string[])[0] : (answers[personField.id] as string | undefined)) : undefined;
+  // Which questions are shown, top to bottom — the same rules the server applies.
+  const orderedIds = useMemo(() => (form?.fields ?? []).map((f) => f.id), [form]);
+  const { shown, effective } = useMemo(
+    () => computeVisible(orderedIds, form?.logic ?? {}, answers),
+    [orderedIds, form?.logic, answers],
+  );
+  const visibleFields = (form?.fields ?? []).filter((f) => shown.has(f.id));
 
-  // The Task question follows the People question: load that person's open tasks.
+  const personField = visibleFields.find((f) => f.type === 'person');
+  const taskFieldIds = visibleFields.filter((f) => f.type === 'task').map((f) => f.id).join(',');
+  const chosenPerson = personField
+    ? (Array.isArray(effective[personField.id]) ? (effective[personField.id] as string[])[0] : (effective[personField.id] as string | undefined))
+    : undefined;
+
+  // The Task questions follow the People question: when the person changes,
+  // earlier task answers are cleared and each question's list is fetched again
+  // (each question has its own status / due-date rule).
   useEffect(() => {
-    if (!personField || !taskFields.length) return;
-    // Clear task answers that belonged to the previous person.
+    const ids = taskFieldIds ? taskFieldIds.split(',') : [];
+    if (!ids.length) return;
     setAnswers((a) => {
       const next = { ...a };
-      taskFields.forEach((f) => { delete next[f.id]; });
+      ids.forEach((id) => { delete next[id]; });
       return next;
     });
-    if (!chosenPerson) { setTasks([]); return; }
+    if (personField && !chosenPerson) { setTaskLists({}); return; }
     let live = true;
     setTasksLoading(true);
-    supabase.rpc('tm_form_person_tasks', { p_token: token, p_person: chosenPerson }).then(({ data, error }) => {
+    Promise.all(ids.map((id) =>
+      supabase.rpc('tm_form_field_tasks', { p_token: token, p_field: id, p_person: chosenPerson ?? undefined })
+        .then(({ data, error }) => [id, error ? [] : ((data as unknown as TaskOpt[]) ?? [])] as const),
+    )).then((pairs) => {
       if (!live) return;
       setTasksLoading(false);
-      setTasks(error ? [] : ((data as unknown as { id: string; title: string }[]) ?? []));
+      setTaskLists(Object.fromEntries(pairs));
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chosenPerson, token, personField?.id]);
+  }, [chosenPerson, token, taskFieldIds, !!personField]);
 
   const set = (id: string, v: unknown) => { setAnswers((a) => ({ ...a, [id]: v })); setMissing((m) => m.filter((x) => x !== id)); setProblem(''); };
 
   const submit = async () => {
     if (!form) return;
-    const need = form.fields.filter((f) => f.config.required && isBlank(answers[f.id])).map((f) => f.id);
+    const need = visibleFields.filter((f) => f.config.required && isBlank(effective[f.id])).map((f) => f.id);
     setMissing(need);
     if (need.length) { setProblem('Please answer the questions marked as required.'); return; }
     const payload: Answers = {};
-    for (const f of form.fields) {
-      const v = answers[f.id];
+    for (const f of visibleFields) {
+      const v = effective[f.id];
       if (isBlank(v)) continue;
       payload[f.id] = (f.type === 'number' || f.type === 'currency') && typeof v === 'string' ? Number(v) : typeof v === 'string' ? v.trim() : v;
     }
@@ -152,7 +172,7 @@ export default function TaskFormPage() {
         <h1 className="text-xl font-bold tracking-tight">{form.title}</h1>
         {form.description && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">{form.description}</p>}
       </div>
-      {form.fields.map((f) => (
+      {visibleFields.map((f) => (
         <div key={f.id} className="space-y-1.5" data-question={f.name}>
           <label htmlFor={`q-${f.id}`} className="text-sm font-medium">
             {f.name}{f.config.required && <span className="text-destructive"> *</span>}
@@ -162,7 +182,7 @@ export default function TaskFormPage() {
             value={answers[f.id]}
             onChange={(v) => set(f.id, v)}
             people={form.people}
-            tasks={f.type === 'task' ? tasks : null}
+            tasks={f.type === 'task' ? taskLists[f.id] ?? [] : null}
             tasksLoading={tasksLoading}
             needsPerson={f.type === 'task' && !!personField && !chosenPerson}
             personLabel={personField?.name}
@@ -183,7 +203,7 @@ function Question({ field, value, onChange, people, tasks, tasksLoading, needsPe
   value: unknown;
   onChange: (v: unknown) => void;
   people: { id: string; name: string }[];
-  tasks: { id: string; title: string }[] | null;
+  tasks: TaskOpt[] | null;
   tasksLoading: boolean;
   needsPerson: boolean;
   personLabel?: string;
@@ -249,15 +269,15 @@ function Question({ field, value, onChange, people, tasks, tasksLoading, needsPe
     case 'person':
       return <SearchPick id={id} placeholder="Choose a person" items={people.map((p) => ({ id: p.id, label: p.name }))} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || null)} />;
     case 'task':
-      if (needsPerson) return <p className="text-sm text-muted-foreground">Choose {personLabel ? `“${personLabel}”` : 'a person'} first — this lists their open tasks.</p>;
+      if (needsPerson) return <p className="text-sm text-muted-foreground">Choose {personLabel ? `“${personLabel}”` : 'a person'} first — this lists their tasks.</p>;
       if (tasksLoading) return <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tasks…</p>;
-      if (!tasks?.length) return <p className="text-sm text-muted-foreground">No open tasks to choose from.</p>;
+      if (!tasks?.length) return <p className="text-sm text-muted-foreground">No tasks to choose from right now.</p>;
       return tasks.length > 8
-        ? <SearchPick id={id} placeholder="Choose a task" items={tasks.map((t) => ({ id: t.id, label: t.title }))} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || null)} />
+        ? <SearchPick id={id} placeholder="Choose a task" items={tasks.map((t) => ({ id: t.id, label: taskLabel(t) }))} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || null)} />
         : (
           <Select value={typeof value === 'string' ? value : undefined} onValueChange={(v) => onChange(v)}>
             <SelectTrigger id={id}><SelectValue placeholder="Choose a task" /></SelectTrigger>
-            <SelectContent>{tasks.map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}</SelectContent>
+            <SelectContent>{tasks.map((t) => <SelectItem key={t.id} value={t.id}>{taskLabel(t)}</SelectItem>)}</SelectContent>
           </Select>
         );
     case 'email':
