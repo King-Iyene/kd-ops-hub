@@ -184,9 +184,7 @@ export function nearestInteractive(items: Item[], x: number, y: number, reach = 
     else if (d < bd) { best = it; bd = d; }
   }
   if (best && veh) return vd < 0.5 && vd < bd - 0.2 ? veh : best;
-  // seats never get the F prompt: you sit by clicking one
-  void seat; void sd;
-  return best ?? veh;
+  return best ?? veh ?? seat;
 }
 
 /** Every tile an item covers. */

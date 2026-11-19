@@ -4092,6 +4092,8 @@ export interface DrawPerson {
   id?: string;
   /** an emoji for their status, shown in the name tag */
   status?: string;
+  /** which status (busy and do not disturb change how the avatar looks) */
+  statusId?: string;
   /** talking right now: a green glow on the picture and the name tag */
   speaking?: boolean;
   /** on a power bike */
@@ -4161,6 +4163,20 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
     ctx.stroke();
+  }
+  if (p.statusId === 'busy') {
+    // busy: a slow amber pulse on the floor and little sparks circling, like someone working hard
+    ctx.strokeStyle = 'rgba(245,158,11,' + (0.5 + 0.25 * Math.sin(t / 300)) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(px, py + 11, 16 + Math.sin(t / 300), 6.8, 0, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 3; k++) { const an = t / 420 + (k * Math.PI * 2) / 3; disc(ctx, px + Math.cos(an) * 16, py + 11 + Math.sin(an) * 6.8, 1.7, '#fbbf24'); }
+  } else if (p.statusId === 'dnd') {
+    // do not disturb: a red dashed barrier ring that turns, and a no-entry badge over the head
+    ctx.save();
+    ctx.setLineDash([5, 4]); ctx.lineDashOffset = -t / 90;
+    ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(px, py + 11, 17, 7.2, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
   ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
 
@@ -4252,7 +4268,9 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       disc(ctx, px + dx + axs + lean, ay + 10.5, 2.3, a.skin);
     }
   };
-  if (!side) { arm(-10.5, -step); arm(10.5, step); } else arm(fx * -1, -step);
+  // sitting still at a seat: the hands type
+  const armStep = p.seated && !p.moving ? Math.sin(t / 75) * 0.85 : step;
+  if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
 
   // body
   const tw = a.outfit === 1 ? 20 : 18;
@@ -4691,6 +4709,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
   ctx.fillStyle = '#fff';
   ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
+  if (p.statusId === 'dnd') { const bx = px + w / 2 + 2; disc(ctx, bx, ty, 6.5, '#ef4444'); ctx.fillStyle = '#fff'; ctx.fillRect(bx - 3.6, ty - 1.2, 7.2, 2.4); }
   }
 
   // live camera bubble above the name tag, like Gather

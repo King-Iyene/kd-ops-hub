@@ -103,10 +103,11 @@ describe('which thing the F key picks', () => {
     expect(nearestInteractive([kart, arcade] as never, 10.5, 10.5)?.id).toBe('k');
     expect(nearestInteractive([kart] as never, 10.5, 11.6)?.id).toBe('k');
   });
-  it('a chair never shows the F prompt (you sit by clicking it)', async () => {
+  it('a chair offers F (sit) only when you are right beside it', async () => {
     const { nearestInteractive } = await import('../world/world');
     const chair = { id: 'c', t: 'chair', x: 12, y: 10, r: 0 } as const;
-    expect(nearestInteractive([chair] as never, 12.5, 10.6)).toBeNull();
+    expect(nearestInteractive([chair] as never, 12.5, 11.2)?.id).toBe('c');
+    expect(nearestInteractive([chair] as never, 12.5, 13)).toBeNull();
   });
   it('a seat never beats a game or a kart', async () => {
     const { nearestInteractive } = await import('../world/world');

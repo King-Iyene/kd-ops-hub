@@ -10,6 +10,7 @@ export interface SpaceRow {
   name: string;
   company_id: string | null;
   owner_id: string | null;
+  updated_at?: string;
   layout: { template?: TemplateName; items?: unknown; rooms?: Record<string, { uid?: string; label?: string; free?: boolean }>; settings?: { buildersMode?: 'all' | 'selected' | 'admins'; recordersMode?: 'all' | 'selected' | 'admins'; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; townHallAll?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }; tiles?: { wallsOn: number[]; wallsOff: number[]; floors: Record<string, string> } };
 }
 
@@ -23,7 +24,7 @@ export function useSpaces() {
   return useQuery({
     queryKey: ['office', 'spaces'],
     queryFn: async (): Promise<SpaceRow[]> => {
-      const { data, error } = await supabase.from('office_spaces').select('id, kind, name, company_id, owner_id, layout').order('name');
+      const { data, error } = await supabase.from('office_spaces').select('id, kind, name, company_id, owner_id, layout, updated_at').order('name');
       if (error) throw error;
       return (data ?? []) as SpaceRow[];
     },
