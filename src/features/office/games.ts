@@ -7,6 +7,7 @@ export const GAMES: OfficeGame[] = [
   { id: 'jklm', name: 'JKLM word games', blurb: 'Bomb Party and Pop Sauce: quick word and picture rounds.', url: 'https://jklm.fun/', emoji: '💣', players: '2 or more' },
   { id: 'cards', name: 'Playing Cards', blurb: 'A table of cards: poker, rummy, whatever you like.', url: 'https://playingcards.io/', emoji: '🃏', players: '2 to 8' },
   { id: 'drawasaurus', name: 'Drawasaurus', blurb: 'A calmer drawing and guessing game.', url: 'https://www.drawasaurus.org/', emoji: '🦖', players: '3 or more' },
+  { id: 'hexgl', name: 'HexGL racing', blurb: 'A fast futuristic hover-racer. Beat your best lap.', url: 'https://hexgl.bkcore.com/play/', emoji: '🏎️', players: 'Just you' },
   { id: '2048', name: '2048', blurb: 'Solo brain-break: slide the tiles and reach 2048.', url: 'https://2048game.com/', emoji: '🔢', players: 'Just you' },
 ];
 
