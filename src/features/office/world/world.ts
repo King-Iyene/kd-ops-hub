@@ -108,7 +108,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
 export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug', 'laptop', 'books', 'plate', 'globe', 'trophy', 'headphones', 'pizza', 'dualmonitor', 'ultrawide'];
 
 export const PLAYER_RADIUS = 0.3;
-export const WALK_SPEED = 4.5; // tiles per second
+export const WALK_SPEED = 5.8; // tiles per second
 
 /** Size of an item in tiles after rotation. */
 export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } {
