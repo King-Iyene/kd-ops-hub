@@ -1,10 +1,8 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import {
-  DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  ArrowDownAZ, ArrowUpAZ, ChevronDown, Download, EyeOff, FileText, GripVertical, LayoutGrid, ListPlus, Loader2,
+  ArrowDownAZ, ArrowUpAZ, ChevronDown, Download, EyeOff, FileText, GripVertical, Inbox, ListPlus, Loader2,
   Pencil, Plus, Search, Table2, Trash2, Upload,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -15,33 +13,46 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  useAssignablePeople, useCreateTableField, useCreateTableRecord, useDeleteTableField, useDeleteTableRecords,
+  useActivePeople, useAssignablePeople, useCreateTableField, useCreateTableRecord, useDeleteTableField, useDeleteTableRecords,
   useOpenTasksForPicker, useSetRecordCell, useTableFields, useTableRecords, useTaskLists, useTaskTables, useTaskTitles,
   useUpdateTableField,
-  type TableField, type TableRecordRow,
+  type TableField,
 } from '@/queries/useTaskModule';
+import { queryKeys } from '@/queries/keys';
 import { useOpenTask } from '@/features/task-module/useOpenTask';
 import { AddFieldDialog, type FieldDraft } from '@/features/task-module/table/AddFieldDialog';
 import { FieldLabel, TableCell, type CellCtx } from '@/features/task-module/table/cells';
-import { FIELD_TYPES, asList, displayText, optionChip, type NameLookups } from '@/features/task-module/table/fieldTypes';
+import { asList, type NameLookups } from '@/features/task-module/table/fieldTypes';
 import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@/features/task-module/table/tableQuery';
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
+import { RangeBar, ReportInbox } from '@/features/task-module/table/ReportViews';
+import {
+  DEFAULT_RANGE, dayLabel, groupByDay, inRange, lagosDay, newestFirst, todayLagos, type ReportRange,
+} from '@/features/task-module/table/reportDays';
 
-interface TablePrefs { view: 'grid' | 'board'; hidden: string[]; boardField: string | null }
+interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[] }
+
+const DEFAULT_PREFS: TablePrefs = { view: 'grid', hidden: [], groupDays: true, skipped: [] };
 
 function loadPrefs(tableId: string): TablePrefs {
   try {
     const raw = localStorage.getItem(`kdops.task.table.${tableId}`);
-    return { view: 'grid', hidden: [], boardField: null, ...(raw ? JSON.parse(raw) : {}) };
+    const saved = raw ? JSON.parse(raw) : {};
+    const view = saved.view === 'inbox' ? 'inbox' : 'grid'; // the old Board view is gone
+    return {
+      view,
+      hidden: Array.isArray(saved.hidden) ? saved.hidden : [],
+      groupDays: saved.groupDays !== false,
+      skipped: Array.isArray(saved.skipped) ? saved.skipped : [],
+    };
   } catch {
-    return { view: 'grid', hidden: [], boardField: null };
+    return DEFAULT_PREFS;
   }
 }
 
@@ -65,11 +76,13 @@ function TableScreen({ tableId }: { tableId: string }) {
   const { data: fieldsData, isLoading: fieldsLoading } = useTableFields(tableId);
   const { data: recordsData, isLoading: recordsLoading } = useTableRecords(tableId);
   const { data: peopleData } = useAssignablePeople();
+  const { data: activeData } = useActivePeople();
   const { data: openTasksData } = useOpenTasksForPicker();
   const { data: lists } = useTaskLists();
   const fields = useMemo(() => fieldsData ?? [], [fieldsData]);
   const records = useMemo(() => recordsData ?? [], [recordsData]);
   const people = useMemo(() => peopleData ?? [], [peopleData]);
+  const activePeople = useMemo(() => activeData ?? [], [activeData]);
   const openTasks = useMemo(() => openTasksData ?? [], [openTasksData]);
 
   // Titles for linked tasks that aren't open any more.
@@ -93,6 +106,10 @@ function TableScreen({ tableId }: { tableId: string }) {
     try { localStorage.setItem(`kdops.task.table.${tableId}`, JSON.stringify(next)); } catch { /* not remembered */ }
     return next;
   });
+  const today = todayLagos();
+  // Always opens on this week; the choice isn't remembered.
+  const [range, setRange] = useState<ReportRange>(DEFAULT_RANGE);
+  const [inboxDay, setInboxDay] = useState(today);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<RowFilter[]>([]);
   const [sort, setSort] = useState<RowSort | null>(null);
@@ -113,10 +130,22 @@ function TableScreen({ tableId }: { tableId: string }) {
   }), [peopleById, titleById]);
 
   const shownFields = fields.filter((f) => !prefs.hidden.includes(f.id));
-  const rows = useMemo(
-    () => sortRows(records.filter((r) => rowSearch(r, fields, search, names) && rowMatches(r, fields, filters, names)), fields, sort, names),
-    [records, fields, search, filters, sort, names],
-  );
+  const inRangeRecords = useMemo(() => records.filter((r) => inRange(lagosDay(r.created_at), range, today)), [records, range, today]);
+  const rows = useMemo(() => {
+    const matched = inRangeRecords.filter((r) => rowSearch(r, fields, search, names) && rowMatches(r, fields, filters, names));
+    // Newest report first, unless a column sort says otherwise.
+    return sort ? sortRows(matched, fields, sort, names) : newestFirst(matched);
+  }, [inRangeRecords, fields, search, filters, sort, names]);
+  const dayGroups = useMemo(() => (prefs.groupDays ? groupByDay(rows) : null), [rows, prefs.groupDays]);
+  const personFields = useMemo(() => fields.filter((f) => f.type === 'person'), [fields]);
+
+  // The Inbox follows reports as they come in: reload while it is open.
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (prefs.view !== 'inbox') return;
+    const t = setInterval(() => { void qc.invalidateQueries({ queryKey: queryKeys.taskModule.records(tableId) }); }, 60_000);
+    return () => clearInterval(t);
+  }, [prefs.view, qc, tableId]);
   const selectedRows = rows.filter((r) => selected.has(r.id));
 
   const ctx: CellCtx = {
@@ -166,24 +195,31 @@ function TableScreen({ tableId }: { tableId: string }) {
     <div className="space-y-3">
       <div className="flex items-baseline gap-2">
         <h1 className="text-lg font-bold tracking-tight">{table?.name ?? 'Table'}</h1>
-        <span className="text-xs text-muted-foreground tabular-nums">{records.length} row{records.length === 1 ? '' : 's'}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {prefs.view === 'grid' && range.kind !== 'all' ? `${inRangeRecords.length} of ${records.length}` : records.length} row{records.length === 1 ? '' : 's'}
+        </span>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
         <div className="inline-flex rounded-md border border-border p-0.5" role="group" aria-label="View">
-          {(['grid', 'board'] as const).map((v) => (
+          {(['grid', 'inbox'] as const).map((v) => (
             <button key={v} type="button" aria-pressed={prefs.view === v} onClick={() => setPrefs({ view: v })}
               className={cn('h-7 px-2 rounded inline-flex items-center gap-1 text-xs', prefs.view === v ? 'bg-secondary text-secondary-foreground font-medium' : 'text-muted-foreground hover:text-foreground')}>
-              {v === 'grid' ? <Table2 className="h-3.5 w-3.5" /> : <LayoutGrid className="h-3.5 w-3.5" />} {v === 'grid' ? 'Grid' : 'Board'}
+              {v === 'grid' ? <Table2 className="h-3.5 w-3.5" /> : <Inbox className="h-3.5 w-3.5" />} {v === 'grid' ? 'Grid' : 'Inbox'}
             </button>
           ))}
         </div>
+        {prefs.view === 'grid' && (
+          <>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search rows" className="h-8 w-40 sm:w-48 pl-8 text-xs" />
         </div>
         <TableFilterButton fields={fields} filters={filters} onChange={setFilters} people={people} openTasks={openTasks} taskTitle={names.taskTitle} />
         <ColumnsButton fields={fields} hidden={prefs.hidden} onChange={(hidden) => setPrefs({ hidden })} />
+
+          </>
+        )}
 
         <div className="ml-auto flex items-center gap-1 flex-wrap">
           <Button size="sm" variant="ghost" className={toolBtn} onClick={() => exportCsv(table?.name ?? 'table', shownFields, rows, names)} disabled={!fields.length}>
@@ -204,6 +240,15 @@ function TableScreen({ tableId }: { tableId: string }) {
         </div>
       </div>
 
+      {prefs.view === 'grid' && !loading && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <RangeBar range={range} onChange={(r) => { setRange(r); setSelected(new Set()); }} records={records} today={today} />
+          <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer ml-auto">
+            <Checkbox checked={prefs.groupDays} onCheckedChange={(c) => setPrefs({ groupDays: !!c })} aria-label="Group by day" /> Group by day
+          </label>
+        </div>
+      )}
+
       {selected.size > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
           <span className="font-medium">{selected.size} selected</span>
@@ -215,15 +260,16 @@ function TableScreen({ tableId }: { tableId: string }) {
 
       {loading ? (
         <div className="py-16 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : prefs.view === 'board' ? (
-        <TableBoard
-          fields={fields}
-          shownFields={shownFields}
-          rows={rows}
-          groupFieldId={prefs.boardField}
-          onGroupField={(boardField) => setPrefs({ boardField })}
-          onMove={(recordId, fieldId, value) => commit(recordId, fieldId, value)}
-          names={names}
+      ) : prefs.view === 'inbox' ? (
+        <ReportInbox
+          records={records}
+          personFields={personFields}
+          people={activePeople}
+          day={inboxDay}
+          onDay={setInboxDay}
+          skipped={prefs.skipped}
+          onSkip={(id) => setPrefs({ skipped: [...prefs.skipped, id] })}
+          onRestore={() => setPrefs({ skipped: [] })}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border/70">
@@ -270,22 +316,33 @@ function TableScreen({ tableId }: { tableId: string }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className={cn('border-b border-border/40 hover:bg-muted/10', selected.has(r.id) && 'bg-primary/5')} data-row={r.id}>
-                  <td className="w-10 px-2 sticky left-0 bg-background z-10">
-                    <Checkbox
-                      checked={selected.has(r.id)}
-                      onCheckedChange={(c) => setSelected((s) => { const n = new Set(s); if (c) n.add(r.id); else n.delete(r.id); return n; })}
-                      aria-label="Select row"
-                    />
-                  </td>
-                  {shownFields.map((f) => (
-                    <td key={f.id} className={cn(COL_W, 'p-0.5 border-l border-border/30 align-middle')}>
-                      <TableCell field={f} record={r} ctx={ctx} onCommit={(v) => commit(r.id, f.id, v)} />
-                    </td>
+              {(dayGroups ?? [{ day: '', rows }]).map((g) => (
+                <Fragment key={g.day || 'all'}>
+                  {dayGroups && (
+                    <tr className="bg-muted/40 border-b border-border/60" data-day={g.day}>
+                      <td colSpan={shownFields.length + 2} className="px-3 py-1.5 text-xs font-semibold sticky left-0">
+                        {dayLabel(g.day, today)} <span className="font-normal text-muted-foreground tabular-nums">· {g.rows.length} report{g.rows.length === 1 ? '' : 's'}</span>
+                      </td>
+                    </tr>
+                  )}
+                  {g.rows.map((r) => (
+                    <tr key={r.id} className={cn('border-b border-border/40 hover:bg-muted/10', selected.has(r.id) && 'bg-primary/5')} data-row={r.id}>
+                      <td className="w-10 px-2 sticky left-0 bg-background z-10">
+                        <Checkbox
+                          checked={selected.has(r.id)}
+                          onCheckedChange={(c) => setSelected((sel) => { const n = new Set(sel); if (c) n.add(r.id); else n.delete(r.id); return n; })}
+                          aria-label="Select row"
+                        />
+                      </td>
+                      {shownFields.map((f) => (
+                        <td key={f.id} className={cn(COL_W, 'p-0.5 border-l border-border/30 align-middle')}>
+                          <TableCell field={f} record={r} ctx={ctx} onCommit={(v) => commit(r.id, f.id, v)} />
+                        </td>
+                      ))}
+                      <td className="border-l border-border/30" />
+                    </tr>
                   ))}
-                  <td className="border-l border-border/30" />
-                </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -295,8 +352,13 @@ function TableScreen({ tableId }: { tableId: string }) {
                 ? fields.length === 0
                   ? isAdmin ? 'No fields yet. Click + at the end of the header to add the first column.' : 'No fields yet. An admin needs to add columns first.'
                   : 'No rows yet. Click “New row”, import a CSV, or share a form.'
-                : 'No rows match the search or filters.'}
+                : inRangeRecords.length === 0
+                  ? `No reports ${range.kind === 'week' ? 'in this week' : 'in this month'}. ${records.length} older row${records.length === 1 ? ' is' : 's are'} hidden.`
+                  : 'No rows match the search or filters.'}
             </p>
+          )}
+          {inRangeRecords.length === 0 && range.kind !== 'all' && records.length > 0 && (
+            <button type="button" className="px-4 pb-4 text-xs text-primary hover:underline" onClick={() => setRange({ kind: 'all' })}>Show all reports</button>
           )}
           <button type="button" onClick={newRow} className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 border-t border-border/50">
             + New row
@@ -329,94 +391,6 @@ function TableScreen({ tableId }: { tableId: string }) {
           names={names}
         />
       )}
-    </div>
-  );
-}
-
-// Board: one column per option of a Single select field; drag a card to
-// another column to change that field.
-function TableBoard({ fields, shownFields, rows, groupFieldId, onGroupField, onMove, names }: {
-  fields: TableField[];
-  shownFields: TableField[];
-  rows: TableRecordRow[];
-  groupFieldId: string | null;
-  onGroupField: (id: string) => void;
-  onMove: (recordId: string, fieldId: string, value: unknown) => void;
-  names: NameLookups;
-}) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const selects = fields.filter((f) => f.type === 'single_select');
-  const group = selects.find((f) => f.id === groupFieldId) ?? selects[0];
-  if (!group) {
-    return <p className="text-sm text-muted-foreground py-10 text-center">The board groups rows by a Single select field. Add one to use it.</p>;
-  }
-  const titleField = shownFields.find((f) => f.id !== group.id && !FIELD_TYPES[f.type].computed) ?? shownFields[0];
-  const detailFields = shownFields.filter((f) => f.id !== group.id && f.id !== titleField?.id).slice(0, 3);
-  const columns = [...(group.config.options ?? []), ''];
-
-  const onDragEnd = (e: DragEndEvent) => {
-    if (!e.over) return;
-    const target = String(e.over.id).slice(4);
-    const row = rows.find((r) => r.id === e.active.id);
-    if (!row || (row.data[group.id] ?? '') === target) return;
-    onMove(row.id, group.id, target || null);
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">Group by</span>
-        <Select value={group.id} onValueChange={onGroupField}>
-          <SelectTrigger className="h-7 w-48 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>{selects.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {columns.map((opt) => (
-            <BoardColumn key={opt || '__none'} id={`col:${opt}`} label={opt || 'No value'} chip={opt ? optionChip(group, opt) : 'bg-muted text-muted-foreground'}
-              count={rows.filter((r) => (r.data[group.id] ?? '') === opt).length}>
-              {rows.filter((r) => ((r.data[group.id] as string | undefined) ?? '') === opt).map((r) => (
-                <BoardCard key={r.id} id={r.id}>
-                  <p className="text-sm font-medium line-clamp-2">{titleField ? displayText(titleField, r, names) || 'Untitled' : 'Row'}</p>
-                  {detailFields.map((f) => {
-                    const t = displayText(f, r, names);
-                    return t ? <p key={f.id} className="text-2xs text-muted-foreground truncate"><span className="font-medium">{f.name}:</span> {t}</p> : null;
-                  })}
-                </BoardCard>
-              ))}
-            </BoardColumn>
-          ))}
-        </div>
-      </DndContext>
-    </div>
-  );
-}
-
-function BoardColumn({ id, label, chip, count, children }: { id: string; label: string; chip: string; count: number; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return (
-    <div ref={setNodeRef} data-board-col={label} className={cn('flex-1 min-w-[220px] rounded-lg bg-muted/30 p-2 space-y-2 min-h-[120px]', isOver && 'ring-2 ring-primary/50')}>
-      <div className="flex items-center gap-2 px-1">
-        <span className={cn('rounded px-1.5 py-0.5 text-2xs font-semibold', chip)}>{label}</span>
-        <span className="text-2xs text-muted-foreground">{count}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function BoardCard({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
-      className={cn('rounded-md border border-border/70 bg-card p-2.5 space-y-1 cursor-grab touch-none', isDragging && 'opacity-70 shadow-lg z-20 relative')}
-    >
-      {children}
     </div>
   );
 }
