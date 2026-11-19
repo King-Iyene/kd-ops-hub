@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -36,15 +37,15 @@ import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
-import { autoWidth, clampWidth, effectiveWidth, MIN_COL } from '@/features/task-module/table/columnWidths';
+import { ROW_HEIGHTS, asRowHeight, autoWidth, clampWidth, effectiveWidth, MIN_COL, type RowHeight } from '@/features/task-module/table/columnWidths';
 import { RangeBar, ReportDatePicker, ReportInbox } from '@/features/task-module/table/ReportViews';
 import {
   DEFAULT_RANGE, dayLabel, dayOfFor, groupByDay, inRange, newestFirst, resolveReportDateField, todayLagos, type ReportRange,
 } from '@/features/task-module/table/reportDays';
 
-interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[]; widths: Record<string, number> }
+interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[]; widths: Record<string, number>; rowHeight: RowHeight }
 
-const DEFAULT_PREFS: TablePrefs = { view: 'grid', hidden: [], groupDays: true, skipped: [], widths: {} };
+const DEFAULT_PREFS: TablePrefs = { view: 'grid', hidden: [], groupDays: true, skipped: [], widths: {}, rowHeight: 'default' };
 
 function loadPrefs(tableId: string): TablePrefs {
   try {
@@ -56,6 +57,7 @@ function loadPrefs(tableId: string): TablePrefs {
       hidden: Array.isArray(saved.hidden) ? saved.hidden : [],
       groupDays: saved.groupDays !== false,
       skipped: Array.isArray(saved.skipped) ? saved.skipped : [],
+      rowHeight: asRowHeight(saved.rowHeight),
       widths: saved.widths && typeof saved.widths === 'object' && !Array.isArray(saved.widths) ? saved.widths : {},
     };
   } catch {
@@ -167,6 +169,7 @@ function TableScreen({ tableId }: { tableId: string }) {
     listName: (id) => listNameById.get(id) ?? '',
     onOpenTask: openTask,
     personFieldId: fields.find((f) => f.type === 'person')?.id,
+    rowLines: ROW_HEIGHTS[prefs.rowHeight].lines,
   };
 
   const commit = (recordId: string, fieldId: string, value: unknown) =>
@@ -223,6 +226,7 @@ function TableScreen({ tableId }: { tableId: string }) {
       return next;
     });
   }, [tableId]);
+  const rowPx = ROW_HEIGHTS[prefs.rowHeight].px;
   const tableWidth = 40 + 40 + shownFields.reduce((sum, f) => sum + widthOf(f.id), 0);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -265,6 +269,15 @@ function TableScreen({ tableId }: { tableId: string }) {
         </div>
         <TableFilterButton fields={fields} filters={filters} onChange={setFilters} people={people} openTasks={openTasks} taskTitle={names.taskTitle} />
         <ColumnsButton fields={fields} hidden={prefs.hidden} onChange={(hidden) => setPrefs({ hidden })} />
+        <div className="inline-flex items-center gap-1.5 text-xs">
+          <span className="text-muted-foreground">Row height</span>
+          <Select value={prefs.rowHeight} onValueChange={(v) => setPrefs({ rowHeight: asRowHeight(v) })}>
+            <SelectTrigger className="h-8 w-28 text-xs" aria-label="Row height"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ROW_HEIGHTS) as RowHeight[]).map((k) => <SelectItem key={k} value={k}>{ROW_HEIGHTS[k].label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
           </>
         )}
@@ -394,16 +407,20 @@ function TableScreen({ tableId }: { tableId: string }) {
                   )}
                   {g.rows.map((r) => (
                     <tr key={r.id} className={cn('border-b border-border/40 hover:bg-muted/10', selected.has(r.id) && 'bg-primary/5')} data-row={r.id}>
-                      <td className="w-10 px-2 sticky left-0 bg-background z-10">
-                        <Checkbox
-                          checked={selected.has(r.id)}
-                          onCheckedChange={(c) => setSelected((sel) => { const n = new Set(sel); if (c) n.add(r.id); else n.delete(r.id); return n; })}
-                          aria-label="Select row"
-                        />
+                      <td className="w-10 px-2 sticky left-0 bg-background z-10 align-top">
+                        <div className="flex items-center" style={{ height: rowPx }}>
+                          <Checkbox
+                            checked={selected.has(r.id)}
+                            onCheckedChange={(c) => setSelected((sel) => { const n = new Set(sel); if (c) n.add(r.id); else n.delete(r.id); return n; })}
+                            aria-label="Select row"
+                          />
+                        </div>
                       </td>
                       {shownFields.map((f) => (
                         <td key={f.id} className="p-0.5 border-l border-border/30 align-top overflow-hidden">
-                          <TableCell field={f} record={r} ctx={ctx} onCommit={(v) => commit(r.id, f.id, v)} />
+                          <div className="overflow-hidden" style={{ height: rowPx }}>
+                            <TableCell field={f} record={r} ctx={ctx} onCommit={(v) => commit(r.id, f.id, v)} />
+                          </div>
                         </td>
                       ))}
                       <td className="border-l border-border/30" />

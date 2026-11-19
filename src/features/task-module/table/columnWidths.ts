@@ -41,3 +41,14 @@ export const clampWidth = (w: number, container: number) => Math.round(Math.min(
 export function effectiveWidth(saved: number | undefined, auto: number, container: number): number {
   return typeof saved === 'number' && Number.isFinite(saved) ? clampWidth(saved, container) : auto;
 }
+
+// Row height: every row is the same height whatever it holds. Long content is
+// cut off with an ellipsis (the full text is one click away in the cell).
+export type RowHeight = 'compact' | 'default' | 'tall';
+export const ROW_HEIGHTS: Record<RowHeight, { label: string; px: number; lines: number }> = {
+  compact: { label: 'Compact', px: 30, lines: 1 },
+  default: { label: 'Default', px: 36, lines: 1 },
+  tall: { label: 'Tall', px: 60, lines: 2 },
+};
+export const DEFAULT_ROW_HEIGHT: RowHeight = 'default';
+export const asRowHeight = (v: unknown): RowHeight => (v === 'compact' || v === 'tall' ? v : 'default');
