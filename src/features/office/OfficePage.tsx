@@ -104,6 +104,11 @@ function quietNow(): boolean {
   try { const s = localStorage.getItem('kd:office:status'); return s === 'focus' || s === 'meeting' || s === 'dnd'; } catch { return false; }
 }
 
+/** On Do not disturb: nobody can ring or wave at me, and nothing of the kind reaches me. */
+function dndNow(): boolean {
+  try { return localStorage.getItem('kd:office:status') === 'dnd'; } catch { return false; }
+}
+
 function OfficeRoom() {
   useOfficeFont();
   useMissedReset();
@@ -739,6 +744,7 @@ function OfficeRoom() {
 
   const ring = (r: { id: string; name: string }) => {
     if (!me) return;
+    if (rosterRef.current.find((q) => q.id === r.id)?.status === 'dnd') { toast({ title: `${r.name} is on Do not disturb`, description: 'Try again later, or send a message.' }); return; }
     if (!canSendTo(lastSent.current, r.id, Date.now(), 'ring')) { toast({ title: `You just rang ${r.name}`, description: 'Give them a moment before ringing again.' }); return; }
     lastSent.current.set(`ring:${r.id}`, Date.now());
     sendPing({ k: 'ring', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
@@ -747,6 +753,7 @@ function OfficeRoom() {
 
   const wave = (r: { id: string; name: string }) => {
     if (!me) return;
+    if (rosterRef.current.find((q) => q.id === r.id)?.status === 'dnd') { toast({ title: `${r.name} is on Do not disturb`, description: 'Try again later, or send a message.' }); return; }
     if (!canSendTo(lastSent.current, r.id, Date.now(), 'wave')) { toast({ title: `You just waved at ${r.name}`, description: 'Give them a moment.' }); return; }
     lastSent.current.set(`wave:${r.id}`, Date.now());
     sendPing({ k: 'wave', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
@@ -779,8 +786,8 @@ function OfficeRoom() {
     const m = me ? parsePing(raw, connId) : null;
     if (!m) return;
     if (m.k === 'knock') {
-      // only the owner, standing in their own office, hears a knock
-      if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id)) return;
+      // only the owner, standing in their own office, hears a knock (and not on Do not disturb)
+      if (!(space?.kind === 'personal' && space.owner_id === me?.id && m.s === space.id) || dndNow()) return;
       if (!quietNow()) ambient.knock();
       notifyPing(`${m.n} is at your door`, 'Let them in?', undefined, 'knock:' + m.f);
       toast({
@@ -798,6 +805,7 @@ function OfficeRoom() {
       return;
     }
     if (m.k === 'wave') {
+      if (dndNow()) return;
       if (!quietNow()) { ambient.wave(); playChime(0.08); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
       toast({
         title: `${m.n} is waving at you 👋`, description: 'Want to go and say hi?',
@@ -806,6 +814,7 @@ function OfficeRoom() {
       return;
     }
     if (m.k === 'ring') {
+      if (dndNow()) return;
       if (!quietNow()) { playChime(); notifyPing(`${m.n} wants a word`, 'Walk over and say hi.', () => goToPerson(m.f, m.s), 'ring:' + m.f); }
       toast({
         title: `${m.n} wants a word`, description: 'Walk over and say hi.',
@@ -882,6 +891,8 @@ function OfficeRoom() {
   };
 
   const [zoom, setZoom] = useState(1);
+  const wheelAcc = useRef(0);
+  const wheelRaf = useRef(0);
   const [meeting, setMeeting] = useState(false);
   // the walking hint shows only the first time, for a few seconds (or until someone moves), then never again
   const [hintSeen, setHintSeen] = useState(() => { try { return localStorage.getItem('kd:office:hint') === '1'; } catch { return false; } });
@@ -1359,7 +1370,18 @@ function OfficeRoom() {
 
         <div
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
-          onWheel={(e) => { if (!editing) setZoom((z) => Math.min(2.2, Math.max(0.5, +(z - Math.sign(e.deltaY) * 0.1).toFixed(1)))); }}
+          onWheel={(e) => {
+            if (editing) return;
+            // gather the wheel ticks of one frame into a single zoom change (each change redraws the whole page)
+            wheelAcc.current += e.deltaY;
+            if (wheelRaf.current) return;
+            wheelRaf.current = requestAnimationFrame(() => {
+              const d = wheelAcc.current;
+              wheelAcc.current = 0;
+              wheelRaf.current = 0;
+              setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * Math.exp(-d * 0.0014)).toFixed(2))));
+            });
+          }}
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas

@@ -130,7 +130,7 @@ export function OfficeCanvas(props: Props) {
   /** where the camera is looking: it glides after me instead of being glued to me, and jumps straight there after a teleport */
   const camFocus = useRef<{ x: number; y: number } | null>(null);
   /** the furniture sorted back to front, remembered until it changes */
-  const sortCache = useRef<{ src: Item[]; rugs: Item[]; rest: Item[] } | null>(null);
+  const sortCache = useRef<{ src: Item[]; rugs: Item[]; rest: Item[]; pets: Item[] } | null>(null);
   /** how far the view has been dragged away from following me, in pixels */
   const pan = useRef({ x: 0, y: 0 });
   const pulseAt = useRef(-1e9);
@@ -162,6 +162,7 @@ export function OfficeCanvas(props: Props) {
   const nearRef = useRef<Item | null>(null);
   /** a pet close enough that F calls it (follow me) or tells it to stay */
   const nearPetRef = useRef<string | null>(null);
+  const lastHoverPush = useRef(0);
   /** dancing (press X); any walking, sitting or riding stops it */
   const danceRef = useRef(false);
   /** the seat I am sitting on (its tile centre), and a seat I am walking to */
@@ -317,7 +318,9 @@ export function OfficeCanvas(props: Props) {
         const hadHover = hoverId.current !== null;
         hoverId.current = h ? h.id : null;
         // while the pointer is on someone, keep telling the page where it is, so their card appears right by it
-        if (h) propsRef.current.onHoverPerson({ personId: h.id, isMe: h.isMe, cx: e.clientX, cy: e.clientY, near: h.near });
+        const nowMs = performance.now();
+        const pushOk = nowMs - lastHoverPush.current > 90;
+        if (h) { if (pushOk || !hadHover) { lastHoverPush.current = nowMs; propsRef.current.onHoverPerson({ personId: h.id, isMe: h.isMe, cx: e.clientX, cy: e.clientY, near: h.near }); } }
         else if (hadHover) propsRef.current.onHoverPerson(null);
         // an office or a seat under the pointer (but never while someone is being hovered)
         let zid: string | null = null;
@@ -328,7 +331,7 @@ export function OfficeCanvas(props: Props) {
           if (z && z.kind === 'office') zid = z.id;
         }
         // while over an office or seat, keep telling the page where the pointer is, so the card appears right by it
-        if (zid) propsRef.current.onHoverZone({ zoneId: zid, cx: e.clientX, cy: e.clientY });
+        if (zid) { if (zid !== hoverZoneId.current || performance.now() - lastHoverPush.current > 90) { lastHoverPush.current = performance.now(); propsRef.current.onHoverZone({ zoneId: zid, cx: e.clientX, cy: e.clientY }); } }
         else if (hoverZoneId.current) propsRef.current.onHoverZone(null);
         hoverZoneId.current = zid;
       }
@@ -769,7 +772,12 @@ export function OfficeCanvas(props: Props) {
       ctx.scale(scale, scale);
       // only what is on screen is drawn: the tiles, and the furniture inside the window (with a little margin)
       const view = { x0: Math.floor(-ox / scale / TILE) - 1, y0: Math.floor(-oy / scale / TILE) - 1, x1: Math.ceil((w - ox) / scale / TILE) + 1, y1: Math.ceil((h - oy) / scale / TILE) + 1 };
-      const onScreen = (it: Item) => { const zs = itemSize(it); return it.x + zs.w + 2 >= view.x0 && it.x - 2 <= view.x1 && it.y + zs.h + 3 >= view.y0 && it.y - 3 <= view.y1; };
+      const onScreen = (it: Item) => {
+        // a pet is where it is now (it may have followed me far from the spot it was placed), not where it started
+        if (it.t === 'dog' || it.t === 'cat') { const lv = officePets.get(it.id); if (lv) return lv.x + 2 >= view.x0 && lv.x - 2 <= view.x1 && lv.y + 3 >= view.y0 && lv.y - 3 <= view.y1; }
+        const zs = itemSize(it);
+        return it.x + zs.w + 2 >= view.x0 && it.x - 2 <= view.x1 && it.y + zs.h + 3 >= view.y0 && it.y - 3 <= view.y1;
+      };
       try {
       drawFloor(ctx, p.map, theme, now, view);
       {
@@ -848,13 +856,16 @@ export function OfficeCanvas(props: Props) {
       // items and people drawn together so someone walking behind a desk is hidden by it
       if (!sortCache.current || sortCache.current.src !== p.items) {
         const sorted = [...p.items].sort((a, b) => depth(a) - depth(b));
-        sortCache.current = { src: p.items, rugs: sorted.filter((i) => i.t === 'rug'), rest: sorted.filter((i) => i.t !== 'rug') };
+        sortCache.current = { src: p.items, rugs: sorted.filter((i) => i.t === 'rug'), rest: sorted.filter((i) => i.t !== 'rug' && i.t !== 'dog' && i.t !== 'cat'), pets: sorted.filter((i) => i.t === 'dog' || i.t === 'cat') };
       }
       const rugs = sortCache.current.rugs.filter(onScreen);
       drawItems(ctx, rugs, theme, now);
       drawWalls(ctx, p.map, theme, now, view);
       const rest = sortCache.current.rest;
       const sortedPeople = [...people].sort((a, b) => a.y - b.y);
+      // pets move, so their depth is worked out each frame
+      const petList = sortCache.current.pets.filter(onScreen).sort((a, b) => depth(a) - depth(b));
+      let qi = 0;
       let pi = 0;
       for (const it of rest) {
         // anyone whose feet are above the middle of this piece is behind it, so they are drawn first
@@ -862,8 +873,10 @@ export function OfficeCanvas(props: Props) {
           drawPerson(ctx, sortedPeople[pi], now, theme);
           pi += 1;
         }
+        while (qi < petList.length && depth(petList[qi]) < depth(it)) { drawItems(ctx, [petList[qi]], theme, now); qi += 1; }
         if (onScreen(it)) drawItems(ctx, [it], theme, now);
       }
+      for (; qi < petList.length; qi++) drawItems(ctx, [petList[qi]], theme, now);
       for (; pi < sortedPeople.length; pi++) drawPerson(ctx, sortedPeople[pi], now, theme);
 
       // emoji reactions float up above the person and fade
