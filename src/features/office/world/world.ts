@@ -99,8 +99,8 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
-  bike: { w: 1, h: 1, solid: false, label: 'Power bike' },
-  kart: { w: 1, h: 1, solid: false, label: 'Go-kart' },
+  bike: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
+  kart: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -108,7 +108,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
 export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug', 'laptop', 'books', 'plate', 'globe', 'trophy', 'headphones', 'pizza', 'dualmonitor', 'ultrawide'];
 
 export const PLAYER_RADIUS = 0.3;
-export const WALK_SPEED = 4.5; // tiles per second
+export const WALK_SPEED = 5.8; // tiles per second
 
 /** Size of an item in tiles after rotation. */
 export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } {
@@ -121,8 +121,8 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',
   valueswall: 'Core values',
   noticeboard: 'Notice board',
-  bike: 'Ride the power bike',
-  kart: 'Drive the go-kart',
+  bike: 'Ride the hoverboard',
+  kart: 'Ride the hoverboard',
   gong: 'Ring the gong',
   arcade: 'Play a game',
   pollboard: 'Open the polls',

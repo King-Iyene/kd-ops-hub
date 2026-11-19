@@ -1195,12 +1195,11 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   switch (item.t) {
     case 'bike': {
       // a parked bike faces the way it was left (rotation 1 means facing left)
-      bikeSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col);
+      hoverSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, t, false, col);
       return true;
     }
     case 'kart': {
-      kartSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col, 'under');
-      kartSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col, 'over');
+      hoverSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, t, false, col);
       return true;
     }
     case 'wallclock': {
@@ -3967,6 +3966,42 @@ function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | '
 }
 
 /**
+ * A hoverboard: a slim glowing board that floats a little above the floor, with a light trail behind it when it moves.
+ * (px, py) is the middle of the ground under it. lift is how far it floats (it bobs), glow pulses.
+ */
+function hoverSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, t: number, moving: boolean, col?: string) {
+  const body = col ?? '#7c3aed';
+  const neon = '#22d3ee';
+  const lift = 7 + Math.sin(t / 260) * 1.6;
+  // the shadow stays on the floor and shrinks as the board rises
+  ellipse(ctx, px, py + 9, view === 'side' ? 15 : 9, 3.4, 'rgba(15,23,42,0.28)');
+  ctx.save();
+  ctx.translate(px, py + 9 - lift);
+  ctx.lineCap = 'round';
+  const pulse = 0.55 + 0.25 * Math.sin(t / 180);
+  // the glow under the board
+  const g = ctx.createRadialGradient(0, 3, 1, 0, 3, 16);
+  g.addColorStop(0, 'rgba(34,211,238,' + pulse + ')');
+  g.addColorStop(1, 'rgba(34,211,238,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 3, view === 'side' ? 17 : 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+  if (view === 'side') {
+    ctx.scale(face, 1);
+    if (moving) { // light trail behind
+      for (let k = 0; k < 4; k++) { ctx.fillStyle = 'rgba(34,211,238,' + (0.35 - k * 0.08) + ')'; ctx.beginPath(); ctx.ellipse(-17 - k * 5, 1, 4 - k * 0.6, 1.8, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-16, -2, 32, 5, 2.5); ctx.fill();
+    ctx.fillStyle = '#1e1b4b'; ctx.beginPath(); ctx.roundRect(-13, -2.8, 26, 2, 1); ctx.fill();
+    ctx.strokeStyle = neon; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-14, 3.2); ctx.lineTo(14, 3.2); ctx.stroke();
+    ctx.fillStyle = shade(body, 0.4); ctx.beginPath(); ctx.ellipse(15, 0.5, 2.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-8, -2, 16, 5, 2.5); ctx.fill();
+    ctx.fillStyle = '#1e1b4b'; ctx.beginPath(); ctx.roundRect(-6, -2.8, 12, 2, 1); ctx.fill();
+    ctx.strokeStyle = neon; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-7, 3.2); ctx.lineTo(7, 3.2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
  * A go-kart: a low racing body with four fat wheels, a seat, a steering wheel, a rear engine and a number plate.
  * Drawn in two layers so the driver can sit inside it: 'under' (wheels, floor, engine, seat back) and 'over' (nose, steering wheel).
  */
@@ -4057,6 +4092,8 @@ export interface DrawPerson {
   id?: string;
   /** an emoji for their status, shown in the name tag */
   status?: string;
+  /** which status (busy and do not disturb change how the avatar looks) */
+  statusId?: string;
   /** talking right now: a green glow on the picture and the name tag */
   speaking?: boolean;
   /** on a power bike */
@@ -4087,21 +4124,11 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     const view = side ? 'side' : p.dir === 3 ? 'back' : 'front';
     const face = p.dir === 1 ? -1 : 1;
     const roll = p.moving ? stridePhase(p, t) * 1.6 : 0;
-    if (p.vehicle === 'kart') {
-      // a go-kart: the body and wheels first, the driver sitting low inside it, then the front of the kart over their lap
-      kartSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'under');
-      ctx.save();
-      ctx.translate(0, -4);
-      drawPerson(ctx, { ...p, riding: false, seated: true }, t, theme);
-      ctx.restore();
-      kartSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'over');
-      return;
-    }
-    // the bike underneath, and the rider sitting on it
-    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll);
+    // standing on a hoverboard that floats just above the floor
+    hoverSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, t, !!p.moving);
     ctx.save();
-    ctx.translate(0, -9);
-    drawPerson(ctx, { ...p, riding: false, seated: true }, t, theme);
+    ctx.translate(0, -9 - 1.2 * Math.sin(t / 260));
+    drawPerson(ctx, { ...p, riding: false, seated: false, moving: false }, t, theme);
     ctx.restore();
     return;
   }
@@ -4136,6 +4163,20 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
     ctx.stroke();
+  }
+  if (p.statusId === 'busy') {
+    // busy: a slow amber pulse on the floor and little sparks circling, like someone working hard
+    ctx.strokeStyle = 'rgba(245,158,11,' + (0.5 + 0.25 * Math.sin(t / 300)) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(px, py + 11, 16 + Math.sin(t / 300), 6.8, 0, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 3; k++) { const an = t / 420 + (k * Math.PI * 2) / 3; disc(ctx, px + Math.cos(an) * 16, py + 11 + Math.sin(an) * 6.8, 1.7, '#fbbf24'); }
+  } else if (p.statusId === 'dnd') {
+    // do not disturb: a red dashed barrier ring that turns, and a no-entry badge over the head
+    ctx.save();
+    ctx.setLineDash([5, 4]); ctx.lineDashOffset = -t / 90;
+    ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(px, py + 11, 17, 7.2, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
   ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
 
@@ -4227,7 +4268,9 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       disc(ctx, px + dx + axs + lean, ay + 10.5, 2.3, a.skin);
     }
   };
-  if (!side) { arm(-10.5, -step); arm(10.5, step); } else arm(fx * -1, -step);
+  // sitting still at a seat: the hands type
+  const armStep = p.seated && !p.moving ? Math.sin(t / 75) * 0.85 : step;
+  if (!side) { arm(-10.5, -armStep); arm(10.5, armStep); } else arm(fx * -1, -armStep);
 
   // body
   const tw = a.outfit === 1 ? 20 : 18;
@@ -4666,6 +4709,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
   ctx.fillStyle = '#fff';
   ctx.fillText(label, px + (p.status ? 0 : 3), ty + 0.5);
+  if (p.statusId === 'dnd') { const bx = px + w / 2 + 2; disc(ctx, bx, ty, 6.5, '#ef4444'); ctx.fillStyle = '#fff'; ctx.fillRect(bx - 3.6, ty - 1.2, 7.2, 2.4); }
   }
 
   // live camera bubble above the name tag, like Gather

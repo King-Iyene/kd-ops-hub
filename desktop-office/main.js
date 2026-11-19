@@ -123,6 +123,11 @@ function createWindow() {
     writeSettings({ width: b.width, height: b.height, maximized: win.isMaximized() });
     if (!quitting && !SMOKE) { e.preventDefault(); win.hide(); }
   });
+  // hidden in the tray means silent: mute the page's sound while the window is hidden
+  win.on('hide', () => { try { win.webContents.setAudioMuted(true); } catch { /* fine */ } });
+  win.on('show', () => { try { win.webContents.setAudioMuted(false); } catch { /* fine */ } });
+  win.on('minimize', () => { try { win.webContents.setAudioMuted(true); } catch { /* fine */ } });
+  win.on('restore', () => { try { win.webContents.setAudioMuted(false); } catch { /* fine */ } });
   win.on('closed', () => { win = null; });
 
   void loadApp();
