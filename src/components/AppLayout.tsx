@@ -13,6 +13,8 @@ import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { ChatWidget } from '@/components/ChatWidget';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { Outlet, useLocation } from 'react-router-dom';
+import { NewTaskButton } from '@/features/task-module/NewTaskDialog';
+import { TaskModalHost } from '@/features/task-module/TaskModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MfaRequiredBanner } from '@/components/MfaRequiredBanner';
@@ -173,6 +175,7 @@ export default function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <NewTaskButton />
               {/* Mobile search button */}
               <button
                 type="button"
@@ -212,6 +215,8 @@ export default function AppLayout() {
               </ErrorBoundary>
             </div>
           </main>
+          {/* Opens whichever task is in ?task=<id>, over any page. */}
+          <TaskModalHost />
         </div>
       </SidebarProvider>
       <CommandPalette />

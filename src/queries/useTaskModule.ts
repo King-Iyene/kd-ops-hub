@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryKeys } from './keys';
 import { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupabaseQuery';
+import type { Json, TablesUpdate } from '@/integrations/supabase/types';
 
 export interface TaskFolder {
   id: string;
@@ -42,6 +43,14 @@ export const PRIORITY_META: Record<TaskPriority, { label: string; className: str
   urgent: { label: 'Urgent', className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400' },
 };
 
+// Flag icon colour per priority (filled), used wherever a priority flag shows.
+export const PRIORITY_FLAG: Record<TaskPriority, string> = {
+  urgent: 'text-red-500 fill-red-500',
+  high: 'text-amber-500 fill-amber-500',
+  medium: 'text-blue-500 fill-blue-500',
+  low: 'text-slate-400 fill-slate-400',
+};
+
 // Board columns group the five statuses into three stages.
 export type StatusStage = 'not_started' | 'active' | 'done';
 export const STAGE_OF: Record<TaskStatus, StatusStage> = {
@@ -62,6 +71,9 @@ export interface TaskRow {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  parent_id: string | null;
+  tags: string[];
+  custom: Record<string, unknown>;
 }
 
 export interface PersonOption {
@@ -141,7 +153,8 @@ export function useTasks(listId: string) {
         .select('*')
         .eq('list_id', listId)
         .order('position')
-        .order('created_at'),
+        .order('created_at')
+        .overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!listId },
   );
 }
@@ -149,23 +162,59 @@ export function useTasks(listId: string) {
 // A task shows up in many places at once (its list, My Tasks, every Home
 // card, the open detail panel), so any task write refreshes all
 // task-module queries rather than trying to enumerate which ones it touched.
-export function useCreateTask(listId: string) {
+export interface NewTask {
+  listId: string;
+  title: string;
+  createdBy: string;
+  status?: TaskStatus;
+  parentId?: string | null;
+  description?: string | null;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  priority?: TaskPriority | null;
+}
+
+export function useCreateTask() {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (vars: { title: string; createdBy: string; status?: TaskStatus }) =>
+    (v: NewTask) =>
       supabase
         .from('tm_tasks')
-        .insert({ list_id: listId, title: vars.title, created_by: vars.createdBy, ...(vars.status ? { status: vars.status } : {}) })
+        .insert({
+          list_id: v.listId,
+          title: v.title,
+          created_by: v.createdBy,
+          ...(v.status ? { status: v.status } : {}),
+          parent_id: v.parentId ?? null,
+          description: v.description || null,
+          assignee_id: v.assigneeId ?? null,
+          due_date: v.dueDate ?? null,
+          priority: v.priority ?? null,
+        })
         .select()
         .single(),
     { onSuccess: () => invalidate(queryKeys.taskModule.all) },
   );
 }
 
-export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date'>>;
+export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date' | 'tags'>>;
+
+// Patch a task in place in every cached task-module query (lists, My Tasks,
+// Home, the open task) so a change — e.g. a card dropped on another board
+// column — shows at once instead of after the refetch.
+function patchCachedTask(qc: ReturnType<typeof useQueryClient>, taskId: string, patch: Partial<TaskRow>) {
+  const apply = (row: unknown) =>
+    row && typeof row === 'object' && (row as TaskRow).id === taskId && 'list_id' in (row as object)
+      ? { ...(row as TaskRow), ...patch }
+      : row;
+  qc.setQueriesData({ queryKey: queryKeys.taskModule.all }, (old: unknown) =>
+    Array.isArray(old) ? old.map(apply) : apply(old),
+  );
+}
 
 export function useUpdateTask() {
   const invalidate = useInvalidate();
+  const qc = useQueryClient();
   return useSupabaseMutation(
     (vars: { task: TaskRow; patch: TaskPatch }) => {
       const patch: Record<string, unknown> = { ...vars.patch };
@@ -174,9 +223,22 @@ export function useUpdateTask() {
       if (vars.patch.status && vars.patch.status !== vars.task.status) {
         patch.completed_at = vars.patch.status === 'done' ? new Date().toISOString() : null;
       }
-      return supabase.from('tm_tasks').update(patch).eq('id', vars.task.id).select().single();
+      return supabase.from('tm_tasks').update(patch as TablesUpdate<'tm_tasks'>).eq('id', vars.task.id).select().single();
     },
-    { onSuccess: () => invalidate(queryKeys.taskModule.all) },
+    {
+      onMutate: async (vars) => {
+        await qc.cancelQueries({ queryKey: queryKeys.taskModule.all });
+        const snapshot = qc.getQueriesData({ queryKey: queryKeys.taskModule.all });
+        patchCachedTask(qc, vars.task.id, vars.patch as Partial<TaskRow>);
+        return { snapshot };
+      },
+      // A failed save puts every cached copy back as it was.
+      onError: (_err, _vars, context) => {
+        const ctx = context as { snapshot?: [QueryKey, unknown][] } | undefined;
+        ctx?.snapshot?.forEach(([key, data]) => qc.setQueryData(key, data));
+      },
+      onSettled: () => invalidate(queryKeys.taskModule.all),
+    },
   );
 }
 
@@ -189,10 +251,22 @@ export function useDeleteTask() {
 }
 
 export function useTask(taskId: string | null) {
+  const qc = useQueryClient();
   return useSupabaseQuery(
     queryKeys.taskModule.task(taskId ?? ''),
-    () => supabase.from('tm_tasks').select('*').eq('id', taskId ?? '').maybeSingle(),
-    { enabled: !!taskId },
+    () => supabase.from('tm_tasks').select('*').eq('id', taskId ?? '').maybeSingle().overrideTypes<TaskRow | null, { merge: false }>(),
+    {
+      enabled: !!taskId,
+      // Show the copy already loaded by the list behind the dialog straight
+      // away; the fresh row replaces it when it arrives.
+      placeholderData: () => {
+        for (const [, data] of qc.getQueriesData<unknown>({ queryKey: queryKeys.taskModule.all })) {
+          const hit = Array.isArray(data) && data.find((r) => r && typeof r === 'object' && r.id === taskId && 'list_id' in r);
+          if (hit) return hit as TaskRow;
+        }
+        return undefined;
+      },
+    },
   );
 }
 
@@ -200,7 +274,7 @@ export function useTask(taskId: string | null) {
 export function useMyTasks(userId: string) {
   return useSupabaseQuery(
     ['task-module', 'my-tasks', userId] as const,
-    () => supabase.from('tm_tasks').select('*').eq('assignee_id', userId).order('due_date'),
+    () => supabase.from('tm_tasks').select('*').eq('assignee_id', userId).order('due_date').overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!userId },
   );
 }
@@ -217,7 +291,8 @@ export function useHomeTasks(userId: string) {
         .select('*')
         .or(`assignee_id.eq.${userId},created_by.eq.${userId}`)
         .order('due_date', { nullsFirst: false })
-        .limit(1000),
+        .limit(1000)
+        .overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!userId },
   );
 }
@@ -236,7 +311,7 @@ export interface TaskComment {
 export function useTaskComments(taskId: string | null) {
   return useSupabaseQuery(
     queryKeys.taskModule.comments(taskId ?? ''),
-    () => supabase.from('tm_task_comments').select('*').eq('task_id', taskId ?? '').order('created_at'),
+    () => supabase.from('tm_task_comments').select('*').eq('task_id', taskId ?? '').order('created_at').overrideTypes<TaskComment[], { merge: false }>(),
     { enabled: !!taskId },
   );
 }
@@ -445,8 +520,8 @@ export function useSetRecordCell(tableId: string) {
       supabase.rpc('tm_set_record_cell', {
         p_record_id: vars.recordId,
         p_field_id: vars.fieldId,
-        p_value: vars.value,
-      }),
+        p_value: vars.value as Json,
+      }).overrideTypes<TableRecordRow, { merge: false }>(),
     { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
   );
 }
@@ -474,5 +549,217 @@ export function useAssignablePeople() {
       .in('status', ['active', 'invited'])
       .order('full_name')
       .limit(500),
+  );
+}
+
+// ── Task detail: subtasks, custom fields, checklists, watchers,
+//    attachments, activity ───────────────────────────────────────────
+
+const tm = queryKeys.taskModule.all;
+
+export function useSubtasks(parentId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'subtasks', parentId ?? ''] as const,
+    () => supabase.from('tm_tasks').select('*').eq('parent_id', parentId ?? '').order('position').order('created_at').overrideTypes<TaskRow[], { merge: false }>(),
+    { enabled: !!parentId },
+  );
+}
+
+export type ListFieldType = 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'single_select' | 'person';
+
+export interface ListField {
+  id: string;
+  list_id: string;
+  name: string;
+  type: ListFieldType;
+  config: { options?: string[] };
+  position: number;
+  created_at: string;
+}
+
+export function useListFields(listId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'list-fields', listId ?? ''] as const,
+    () => supabase.from('tm_list_fields').select('*').eq('list_id', listId ?? '').order('position').order('created_at').overrideTypes<ListField[], { merge: false }>(),
+    { enabled: !!listId },
+  );
+}
+
+export function useCreateListField(listId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (v: { name: string; type: ListFieldType; options?: string[] }) =>
+      supabase
+        .from('tm_list_fields')
+        .insert({ list_id: listId, name: v.name, type: v.type, config: v.options?.length ? { options: v.options } : {} })
+        .select()
+        .single(),
+    { onSuccess: () => invalidate(tm) },
+  );
+}
+
+export function useDeleteListField() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (fieldId: string) => supabase.from('tm_list_fields').delete().eq('id', fieldId).select().single(),
+    { onSuccess: () => invalidate(tm) },
+  );
+}
+
+// Atomic single-key edit (tm_set_task_field), same reason as table cells.
+export function useSetTaskField() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation<TaskRow, { taskId: string; fieldId: string; value: unknown }>(
+    (v) => supabase.rpc('tm_set_task_field', { p_task_id: v.taskId, p_field_id: v.fieldId, p_value: v.value as never }) as never,
+    { onSuccess: () => invalidate(tm) },
+  );
+}
+
+export interface ChecklistItem { id: string; checklist_id: string; body: string; done: boolean; position: number; created_at: string }
+export interface Checklist { id: string; task_id: string; name: string; position: number; created_at: string; items: ChecklistItem[] }
+
+export function useChecklists(taskId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'checklists', taskId ?? ''] as const,
+    () =>
+      supabase
+        .from('tm_task_checklists')
+        .select('*, items:tm_task_checklist_items(*)')
+        .eq('task_id', taskId ?? '')
+        .order('position')
+        .order('created_at'),
+    { enabled: !!taskId },
+  );
+}
+
+export function useChecklistMutations() {
+  const invalidate = useInvalidate();
+  const done = { onSuccess: () => invalidate(tm) };
+  return {
+    addChecklist: useSupabaseMutation(
+      (v: { taskId: string; name: string }) => supabase.from('tm_task_checklists').insert({ task_id: v.taskId, name: v.name }).select().single(),
+      done,
+    ),
+    deleteChecklist: useSupabaseMutation(
+      (id: string) => supabase.from('tm_task_checklists').delete().eq('id', id).select().single(),
+      done,
+    ),
+    addItem: useSupabaseMutation(
+      (v: { checklistId: string; body: string; position: number }) =>
+        supabase.from('tm_task_checklist_items').insert({ checklist_id: v.checklistId, body: v.body, position: v.position }).select().single(),
+      done,
+    ),
+    toggleItem: useSupabaseMutation(
+      (v: { id: string; done: boolean }) => supabase.from('tm_task_checklist_items').update({ done: v.done }).eq('id', v.id).select().single(),
+      done,
+    ),
+    deleteItem: useSupabaseMutation(
+      (id: string) => supabase.from('tm_task_checklist_items').delete().eq('id', id).select().single(),
+      done,
+    ),
+  };
+}
+
+export function useWatchers(taskId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'watchers', taskId ?? ''] as const,
+    () => supabase.from('tm_task_watchers').select('user_id').eq('task_id', taskId ?? ''),
+    { enabled: !!taskId },
+  );
+}
+
+export function useToggleWatch(taskId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (v: { userId: string; watch: boolean }) =>
+      v.watch
+        ? supabase.from('tm_task_watchers').insert({ task_id: taskId, user_id: v.userId }).select()
+        : supabase.from('tm_task_watchers').delete().eq('task_id', taskId).eq('user_id', v.userId).select(),
+    { onSuccess: () => invalidate(tm) },
+  );
+}
+
+export const ATTACHMENT_BUCKET = 'tm-attachments';
+export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  storage_path: string;
+  file_name: string;
+  size_bytes: number;
+  mime_type: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export function useAttachments(taskId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'attachments', taskId ?? ''] as const,
+    () => supabase.from('tm_task_attachments').select('*').eq('task_id', taskId ?? '').order('created_at'),
+    { enabled: !!taskId },
+  );
+}
+
+// Upload the file, then record it. If recording fails, the uploaded file
+// is removed again so storage doesn't collect orphans.
+export function useUploadAttachment(taskId: string) {
+  const invalidate = useInvalidate();
+  return useMutation<void, Error, { file: File; userId: string }>({
+    mutationFn: async ({ file, userId }) => {
+      if (file.size > ATTACHMENT_MAX_BYTES) throw new Error(`${file.name} is over 25 MB`);
+      const safeName = file.name.replace(/[^\w.-]+/g, '_');
+      const path = `${userId}/${taskId}/${crypto.randomUUID()}-${safeName}`;
+      const up = await supabase.storage.from(ATTACHMENT_BUCKET).upload(path, file, { contentType: file.type || undefined });
+      if (up.error) throw new Error(up.error.message);
+      const { error } = await supabase.from('tm_task_attachments').insert({
+        task_id: taskId,
+        storage_path: path,
+        file_name: file.name,
+        size_bytes: file.size,
+        mime_type: file.type || null,
+        uploaded_by: userId,
+      });
+      if (error) {
+        await supabase.storage.from(ATTACHMENT_BUCKET).remove([path]);
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => invalidate(tm),
+  });
+}
+
+export function useDeleteAttachment() {
+  const invalidate = useInvalidate();
+  return useMutation<void, Error, TaskAttachment>({
+    mutationFn: async (a) => {
+      const { error } = await supabase.from('tm_task_attachments').delete().eq('id', a.id);
+      if (error) throw new Error(error.message);
+      await supabase.storage.from(ATTACHMENT_BUCKET).remove([a.storage_path]);
+    },
+    onSuccess: () => invalidate(tm),
+  });
+}
+
+export async function attachmentUrl(path: string, download?: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(ATTACHMENT_BUCKET).createSignedUrl(path, 3600, download ? { download } : undefined);
+  if (error || !data) throw new Error(error?.message ?? 'Could not open the file');
+  return data.signedUrl;
+}
+
+export interface TaskActivity {
+  id: string;
+  task_id: string;
+  actor_id: string | null;
+  kind: string;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+export function useTaskActivity(taskId: string | null) {
+  return useSupabaseQuery(
+    [...tm, 'activity', taskId ?? ''] as const,
+    () => supabase.from('tm_task_activity').select('*').eq('task_id', taskId ?? '').order('created_at').overrideTypes<TaskActivity[], { merge: false }>(),
+    { enabled: !!taskId },
   );
 }

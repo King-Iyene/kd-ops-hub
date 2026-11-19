@@ -24,6 +24,9 @@ function task(title: string, status: TaskStatus, due: string | null, extra: Part
     created_at: '2026-11-01T00:00:00Z',
     updated_at: '2026-11-01T00:00:00Z',
     completed_at: null,
+    parent_id: null,
+    tags: [],
+    custom: {},
     ...extra,
   };
 }

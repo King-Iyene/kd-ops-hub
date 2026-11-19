@@ -17300,6 +17300,44 @@ export type Database = {
           },
         ]
       }
+      tm_list_fields: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          list_id: string
+          name: string
+          position: number
+          type: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          list_id: string
+          name: string
+          position?: number
+          type: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          list_id?: string
+          name?: string
+          position?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_list_fields_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "tm_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_lists: {
         Row: {
           created_at: string
@@ -17536,6 +17574,163 @@ export type Database = {
           },
         ]
       }
+      tm_task_activity: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          id: string
+          kind: string
+          task_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind: string
+          task_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          mime_type: string | null
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: string
+          mime_type?: string | null
+          size_bytes: number
+          storage_path: string
+          task_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number
+          storage_path?: string
+          task_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_checklist_items: {
+        Row: {
+          body: string
+          checklist_id: string
+          created_at: string
+          done: boolean
+          id: string
+          position: number
+        }
+        Insert: {
+          body: string
+          checklist_id: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          position?: number
+        }
+        Update: {
+          body?: string
+          checklist_id?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_checklist_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "tm_task_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tm_task_checklists: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          position: number
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_checklists_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_task_comments: {
         Row: {
           author_id: string | null
@@ -17599,6 +17794,39 @@ export type Database = {
           },
         ]
       }
+      tm_task_watchers: {
+        Row: {
+          created_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_task_watchers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_task_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_tasks: {
         Row: {
           assignee_id: string | null
@@ -17607,11 +17835,14 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          custom: Json
           id: string
           list_id: string
+          parent_id: string | null
           position: number
           priority: string | null
           status: string
+          tags: string[]
           title: string
           updated_at: string
         }
@@ -17622,11 +17853,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          custom?: Json
           id?: string
           list_id: string
+          parent_id?: string | null
           position?: number
           priority?: string | null
           status?: string
+          tags?: string[]
           title: string
           updated_at?: string
         }
@@ -17637,11 +17871,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          custom?: Json
           id?: string
           list_id?: string
+          parent_id?: string | null
           position?: number
           priority?: string | null
           status?: string
+          tags?: string[]
           title?: string
           updated_at?: string
         }
@@ -21763,6 +22000,33 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "tm_table_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      tm_set_task_field: {
+        Args: { p_field_id: string; p_task_id: string; p_value: Json }
+        Returns: {
+          assignee_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          custom: Json
+          description: string | null
+          due_date: string | null
+          id: string
+          list_id: string
+          parent_id: string | null
+          position: number
+          priority: string | null
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tm_tasks"
           isOneToOne: true
           isSetofReturn: false
         }
