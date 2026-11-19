@@ -304,7 +304,7 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
   },
   {
     key: 'timeTracking',
-    label: 'Time Tracking',
+    label: 'Track',
     description: 'Timers, timesheets & activity',
     icon: 'Clock',
     color: 'text-teal-400',
