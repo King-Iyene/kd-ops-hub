@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
-import { useAiBudget, useAiStatus, useAiTest, useAiUsage, useUpdateAgentSettings } from '@/queries/useOpsAgent';
+import { useAiBudget, useAiTest, useAiUsage, useUpdateAgentSettings } from '@/queries/useOpsAgent';
 import { usd, type AgentSettings, type AiTestResult, type ModelPrice } from '../agentDb';
 import { useSettingsDraft } from './settingsDraft';
 import { Field, SaveBar, Section } from './shared';
+import { KeyBox } from './KeyBox';
 import { useAgentToast } from './useAgentToast';
 
 const PRICE_FIELDS: { key: keyof ModelPrice; label: string }[] = [
@@ -16,7 +15,7 @@ const PRICE_FIELDS: { key: keyof ModelPrice; label: string }[] = [
 ];
 
 const TEST_MESSAGE: Record<string, string> = {
-  no_key: 'The Claude key is not set. Add it as the ANTHROPIC_API_KEY secret in Supabase, then test again.',
+  no_key: 'The Claude key is not set. Paste one in the box above.',
   budget_off: 'The AI budget is spent, so the test was not sent.',
   unreachable: 'The agent-ai function could not be reached. It may not be deployed yet.',
   error: 'Claude returned an error.',
@@ -33,10 +32,9 @@ function Meter({ label, spent, budget }: { label: string; spent: number; budget:
 }
 
 export function AiCard({ settings, readOnly }: { settings: AgentSettings; readOnly: boolean }) {
-  const d = useSettingsDraft<'ai_enabled' | 'model_fast' | 'model_smart' | 'model_prices' | 'daily_ai_budget_usd' | 'monthly_ai_budget_usd'>(settings);
+  const d = useSettingsDraft<'model_fast' | 'model_smart' | 'model_prices' | 'daily_ai_budget_usd' | 'monthly_ai_budget_usd'>(settings);
   const update = useUpdateAgentSettings();
   const toast = useAgentToast();
-  const status = useAiStatus();
   const budget = useAiBudget();
   const usage = useAiUsage();
   const test = useAiTest();
@@ -57,26 +55,10 @@ export function AiCard({ settings, readOnly }: { settings: AgentSettings; readOn
   return (
     <Section
       title="AI and budget"
-      description="The agent finds problems with plain database rules. AI only writes things up: summaries, message drafts and chat answers. It is off until you switch it on."
+      description="The agent finds problems with plain database rules. Claude writes things up and answers chat. It runs whenever a working key is saved."
       footer={<SaveBar dirty={d.dirty} saving={update.isPending} onSave={save} onCancel={d.reset} readOnly={readOnly} />}
     >
-      <div className="flex flex-wrap items-center gap-3" data-testid="ai-status">
-        <span className="text-sm font-medium">Claude key</span>
-        {status.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : status.data ? (
-          status.data.key_configured
-            ? <Badge variant="outline" className="gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Set</Badge>
-            : <Badge variant="outline" className="gap-1 text-amber-600"><XCircle className="h-3 w-3" /> Not set</Badge>
-        ) : <Badge variant="outline">Unknown: the agent-ai function did not answer</Badge>}
-        <span className="text-xs text-muted-foreground">The key lives only in the Supabase secret ANTHROPIC_API_KEY. It is never shown or stored here.</span>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-        <div>
-          <p className="text-sm font-medium">AI features</p>
-          <p className="text-xs text-muted-foreground">Summaries, message drafts and chat. Turn on after the rules have run in Observe mode and you trust what they find.</p>
-        </div>
-        <Switch checked={d.value('ai_enabled')} onCheckedChange={(v) => d.set('ai_enabled', v)} disabled={readOnly} aria-label="AI features" />
-      </div>
+      <KeyBox readOnly={readOnly} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Daily budget (USD)" htmlFor="ai-daily" hint="At 80% background AI work pauses. At 100% all AI stops.">

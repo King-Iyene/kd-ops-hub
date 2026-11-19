@@ -13,6 +13,7 @@
 --   5  chat tools: refused for members, every row scope-checked, own and Admin rows hidden from an Admin,
 --      bad arguments never throw, the report tool finds who has and has not reported
 --   6  asking the agent to change something creates a Human Action item and changes nothing
+--   7  Inbox actions (handle, snooze, dismiss, reopen) work inside scope only and leave an event
 -- =============================================================================
 
 BEGIN;
@@ -303,6 +304,37 @@ BEGIN
   PERFORM public.t_eq('an Inbox item exists, typed human_action', (SELECT item_type FROM public.agent_flags WHERE id = (r ->> 'id')::uuid), 'human_action');
   PERFORM public.t_eq('assigned to the asker', (SELECT assigned_to FROM public.agent_flags WHERE id = (r ->> 'id')::uuid), 'a0000000-0000-0000-0000-000000000002'::uuid);
   RAISE NOTICE 'PASS 6: a request to change something becomes a Human Action item and changes nothing';
+END $$;
+
+-- ── 7. Inbox actions ───────────────────────────────────────────────────────
+RESET ROLE;
+INSERT INTO public.agent_flags (id, company_id, rule_code, severity, subject_type, subject_id, title, item_type) VALUES
+  ('b0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'X1', 'medium', 'system', 'kd-1', 'KD item', 'flag'),
+  ('b0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000002', 'X1', 'medium', 'system', 'ndi-1', 'NDI item', 'flag');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+DO $$
+BEGIN
+  PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'handled', 'Spoke to Kemi');
+  RESET ROLE;
+  PERFORM public.t_eq('handled', (SELECT status FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'handled');
+  PERFORM public.t_eq('who handled it', (SELECT handled_by FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'a0000000-0000-0000-0000-000000000002'::uuid);
+  PERFORM public.t_eq('note kept', (SELECT resolution_note FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), 'Spoke to Kemi');
+  PERFORM public.t_eq('event recorded', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = 'b0000000-0000-0000-0000-000000000001' AND kind = 'handled'), 1::bigint);
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'snoozed', NULL, now() + interval '2 days');
+  RESET ROLE;
+  PERFORM public.t_eq('snoozed clears the handled fields', (SELECT handled_by IS NULL AND snoozed_until > now() + interval '1 day' FROM public.agent_flags WHERE id = 'b0000000-0000-0000-0000-000000000001'), true);
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'open');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-000000000002', 'dismissed')$q$, 'a KD Admin changing an NDI item', '42501');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-0000000000ff', 'dismissed')$q$, 'a missing item looks the same as an out of scope one', '42501');
+  BEGIN PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'deleted'); RAISE EXCEPTION 'FAIL: bad status accepted';
+  EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE 'FAIL:%' THEN RAISE; END IF; END;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000004');
+  PERFORM public.t_denied($q$SELECT public.agent_flag_set_status('b0000000-0000-0000-0000-000000000001', 'dismissed')$q$, 'a member changing an item', '42501');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.agent_flag_set_status('b0000000-0000-0000-0000-000000000002', 'dismissed');
+  RAISE NOTICE 'PASS 7: Inbox items can be handled, snoozed, dismissed and reopened inside scope only, with an event each time';
 END $$;
 
 ROLLBACK;

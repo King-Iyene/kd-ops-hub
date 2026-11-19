@@ -7,7 +7,8 @@ import {
   adb,
   type AgentAdminScope, type AgentAuditRow, type AgentBudget, type AgentCompanyScope, type AgentConnection, type AgentFlag,
   type AgentMemory, type AgentModule, type AgentPersonProfile, type AgentScope, type AgentSettings, type AgentSummary,
-  type AgentUsageRow, type AiStatus, type AiTestResult,
+  type AgentUsageRow, type AiStatus, type AiTestResult, type AgentApiKey, type ChatMessage, type ChatReply, type ChatThread,
+  type KeyResult, type SaveConnectionInput,
 } from '@/features/ops-agent/agentDb';
 
 /** Every hook here only reads on mount. Writes happen from a button or a changed field, never from a render. */
@@ -210,5 +211,122 @@ export function useAgentMemory() {
   return useSupabaseQuery<AgentMemory[]>(K.memory(), () => adb.from('agent_memory').select('id, type, content, scope, scope_ref, source, status, created_at').neq('status', 'archived').order('created_at', { ascending: false }).limit(100));
 }
 export function useAgentConnections(enabled = true) {
-  return useSupabaseQuery<AgentConnection[]>(K.connections(), () => adb.from('agent_connections').select('id, kind, name, status, last_error, last_tested_at').order('created_at'), { enabled });
+  return useSupabaseQuery<AgentConnection[]>(K.connections(), () => adb.from('agent_connections').select('id, kind, name, status, config, vault_secret_names, last_error, last_tested_at').order('created_at') as never, { enabled });
+}
+
+/**
+ * Calls an agent edge function. Expected refusals come back as { ok: false, ... } (HTTP 200); anything else is thrown
+ * with the function's own message when it has one.
+ */
+export async function invokeAgent<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(fn, { body });
+  if (error) {
+    let message = error.message;
+    try { const ctx = (error as { context?: Response }).context; if (ctx) { const j = await ctx.json(); message = j?.message ?? j?.error ?? message; } } catch { /* keep the generic message */ }
+    throw new Error(message === 'forbidden' ? 'You do not have access to this.' : message);
+  }
+  return data as T;
+}
+
+export function useSaveConnection() {
+  const qc = useQueryClient();
+  return useMutation<{ ok: boolean; id?: string; error?: string }, Error, SaveConnectionInput>({
+    mutationFn: (input) => invokeAgent('agent-connections', { action: 'save', ...input }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: K.connections() }); qc.invalidateQueries({ queryKey: K.audit() }); },
+  });
+}
+export function useTestConnection() {
+  const qc = useQueryClient();
+  return useMutation<{ ok: boolean; error?: string }, Error, string>({
+    mutationFn: (id) => invokeAgent('agent-connections', { action: 'test', id }),
+    onSettled: () => { qc.invalidateQueries({ queryKey: K.connections() }); },
+  });
+}
+export function useDeleteConnection() {
+  const qc = useQueryClient();
+  return useMutation<{ ok: boolean }, Error, string>({
+    mutationFn: (id) => invokeAgent('agent-connections', { action: 'delete', id }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: K.connections() }); qc.invalidateQueries({ queryKey: K.audit() }); },
+  });
+}
+
+// ── Inbound API keys ───────────────────────────────────────────────────────
+export function useApiKeys(enabled = true) {
+  return useSupabaseQuery<AgentApiKey[]>(
+    K.apiKeys(),
+    () => adb.from('agent_api_keys').select('id, name, key_prefix, scopes, rate_limit_per_min, created_at, last_used_at, revoked_at').order('created_at', { ascending: false }) as never,
+    { enabled },
+  );
+}
+/** The plain key is in the result once. It cannot be read again. */
+export function useCreateApiKey() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<{ id: string; key: string; prefix: string }, { name: string; scopes: string[] }>(
+    (v) => adb.rpc('agent_api_key_create', { p_name: v.name, p_scopes: v.scopes }),
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.apiKeys() }); qc.invalidateQueries({ queryKey: K.audit() }); } },
+  );
+}
+export function useRevokeApiKey() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<unknown, string>(
+    (id) => adb.from('agent_api_keys').update({ revoked_at: new Date().toISOString() }).eq('id', id).select('id'),
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.apiKeys() }); qc.invalidateQueries({ queryKey: K.audit() }); } },
+  );
+}
+
+// ── The Claude key (write only) ────────────────────────────────────────────
+export function useSetClaudeKey() {
+  const qc = useQueryClient();
+  return useMutation<KeyResult, Error, string>({
+    mutationFn: (key) => invokeAgent('agent-ai', { action: 'set_key', key }),
+    onSuccess: (r) => { if (r.ok) { qc.invalidateQueries({ queryKey: K.aiStatus() }); qc.invalidateQueries({ queryKey: K.audit() }); } },
+  });
+}
+export function useClearClaudeKey() {
+  const qc = useQueryClient();
+  return useMutation<KeyResult, Error, void>({
+    mutationFn: () => invokeAgent('agent-ai', { action: 'clear_key' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: K.aiStatus() }); qc.invalidateQueries({ queryKey: K.audit() }); },
+  });
+}
+
+// ── Chat ───────────────────────────────────────────────────────────────────
+export function useChatThreads() {
+  return useSupabaseQuery<ChatThread[]>(K.chatThreads(), () => adb.from('agent_chat_threads').select('id, title, updated_at').eq('archived', false).order('updated_at', { ascending: false }).limit(50));
+}
+export function useChatMessages(threadId: string | null) {
+  return useSupabaseQuery<ChatMessage[]>(
+    K.chatMessages(threadId ?? 'none'),
+    () => adb.from('agent_chat_messages').select('id, thread_id, role, content, tool_calls, created_at').eq('thread_id', threadId).in('role', ['user', 'assistant']).order('created_at') as never,
+    { enabled: !!threadId },
+  );
+}
+export function useSendChat() {
+  const qc = useQueryClient();
+  return useMutation<ChatReply, Error, { message: string; thread_id?: string | null }>({
+    mutationFn: (v) => invokeAgent('agent-chat', { message: v.message, ...(v.thread_id ? { thread_id: v.thread_id } : {}) }),
+    onSettled: (r, _e, v) => {
+      qc.invalidateQueries({ queryKey: K.chatThreads() });
+      const id = r?.thread_id ?? v.thread_id;
+      if (id) qc.invalidateQueries({ queryKey: K.chatMessages(id) });
+      qc.invalidateQueries({ queryKey: K.flags() }); // a "human action" request lands in the Inbox
+      qc.invalidateQueries({ queryKey: K.budget() });
+    },
+  });
+}
+export function useDeleteChatThread() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<unknown, string>(
+    (id) => adb.from('agent_chat_threads').delete().eq('id', id).select('id'),
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.chatThreads() }); } },
+  );
+}
+
+// ── Inbox actions ──────────────────────────────────────────────────────────
+export function useFlagAction() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<unknown, { id: string; status: 'open' | 'snoozed' | 'handled' | 'dismissed'; note?: string; until?: string }>(
+    (v) => adb.rpc('agent_flag_set_status', { p_id: v.id, p_status: v.status, p_note: v.note ?? null, p_snooze_until: v.until ?? null }),
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.flags() }); } },
+  );
 }

@@ -1,10 +1,10 @@
-import { useSearchParams } from 'react-router-dom';
-import { Bot, Brain, Inbox, Link2, MessageSquare, ScrollText, Settings as SettingsIcon } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Bot } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAgentScope } from '@/queries/useOpsAgent';
 import { AgentBanners } from '@/features/ops-agent/AgentBanners';
+import { AGENT_TABS, tabFromSplat } from '@/features/ops-agent/agentTabs';
 import { InboxTab } from '@/features/ops-agent/tabs/InboxTab';
 import { SummariesTab } from '@/features/ops-agent/tabs/SummariesTab';
 import { ChatTab } from '@/features/ops-agent/tabs/ChatTab';
@@ -12,34 +12,32 @@ import { MemoryTab } from '@/features/ops-agent/tabs/MemoryTab';
 import { ConnectionsTab } from '@/features/ops-agent/tabs/ConnectionsTab';
 import { SettingsTab } from '@/features/ops-agent/settings/SettingsTab';
 
-const TABS = [
-  { key: 'inbox', label: 'Inbox', icon: Inbox },
-  { key: 'summaries', label: 'Summaries', icon: ScrollText },
-  { key: 'chat', label: 'Chat', icon: MessageSquare },
-  { key: 'memory', label: 'Memory', icon: Brain },
-  { key: 'connections', label: 'Connections', icon: Link2, superOnly: true },
-  { key: 'settings', label: 'Settings', icon: SettingsIcon },
-] as const;
+const DESCRIPTIONS = {
+  inbox: 'Everything the agent wants a person to look at. It reads data and drafts messages. It never changes a record and never sends anything by itself.',
+  chat: 'Ask about tasks, daily reports, hours and leave. Answers come from live data you are allowed to see.',
+  summaries: 'Daily, weekly and monthly write-ups.',
+  memory: 'What the agent has been taught.',
+  connections: 'Where the agent can send messages, and how other systems can send it items.',
+  settings: 'Scope, people, the business calendar, the Claude key and the Operating Rules.',
+} as const;
 
 /**
  * Ops Agent. Super Admin and Admin only (the route guard and every database policy check the role).
- * The agent reads business data and writes only its own tables; nothing it finds changes a record.
+ * The sections are links in the sidebar; this page shows the one in the address (/agent, /agent/chat, ...).
  */
 export default function OpsAgent() {
   const scope = useAgentScope();
-  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const splat = useParams()['*'];
   const canConfigure = scope.data?.configure === true;
-  const visible = TABS.filter((t) => !('superOnly' in t && t.superOnly) || canConfigure);
-  const requested = params.get('tab');
-  const active = visible.some((t) => t.key === requested) ? (requested as string) : 'inbox';
+  const tab = tabFromSplat(splat);
+  const meta = AGENT_TABS.find((t) => t.key === tab)!;
+  // Connections is for Super Admins only; anyone else who types the address lands on the Inbox.
+  const blocked = tab === 'connections' && scope.data && !canConfigure;
 
   return (
     <div className="space-y-4 sm:space-y-6" data-testid="ops-agent">
-      <PageHeader
-        title="Ops Agent"
-        description="Watches tasks, time and daily reports against the Operating Rules, and tells you who needs a nudge. It reads data and drafts messages. It never changes a record and never sends anything by itself."
-        icon={Bot}
-      />
+      <PageHeader title={tab === 'inbox' ? 'Ops Agent' : `Ops Agent · ${meta.label}`} description={DESCRIPTIONS[tab]} icon={Bot} compact />
 
       {scope.isLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -47,22 +45,13 @@ export default function OpsAgent() {
         <p className="text-sm text-destructive" role="alert">You do not have access to the Ops Agent.</p>
       ) : (
         <>
-          <AgentBanners canConfigure={canConfigure} onOpenSettings={() => setParams({ tab: 'settings' })} />
-          <Tabs value={active} onValueChange={(v) => setParams(v === 'inbox' ? {} : { tab: v })}>
-            <TabsList className="h-auto flex-wrap justify-start">
-              {visible.map(({ key, label, icon: Icon }) => (
-                <TabsTrigger key={key} value={key} className="gap-1.5" data-testid={`agent-tab-${key}`}>
-                  <Icon className="h-3.5 w-3.5" /> {label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <TabsContent value="inbox" className="mt-4"><InboxTab /></TabsContent>
-            <TabsContent value="summaries" className="mt-4"><SummariesTab /></TabsContent>
-            <TabsContent value="chat" className="mt-4"><ChatTab /></TabsContent>
-            <TabsContent value="memory" className="mt-4"><MemoryTab /></TabsContent>
-            {canConfigure && <TabsContent value="connections" className="mt-4"><ConnectionsTab /></TabsContent>}
-            <TabsContent value="settings" className="mt-4"><SettingsTab canConfigure={canConfigure} /></TabsContent>
-          </Tabs>
+          <AgentBanners canConfigure={canConfigure} onOpenSettings={tab === 'settings' ? undefined : () => navigate('/agent/settings')} />
+          {tab === 'inbox' && <InboxTab />}
+          {tab === 'chat' && <ChatTab />}
+          {tab === 'summaries' && <SummariesTab />}
+          {tab === 'memory' && <MemoryTab />}
+          {tab === 'connections' && (blocked ? <p className="text-sm text-muted-foreground" role="note">Connections are managed by a Super Admin.</p> : <ConnectionsTab />)}
+          {tab === 'settings' && <SettingsTab canConfigure={canConfigure} />}
         </>
       )}
     </div>

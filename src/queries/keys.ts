@@ -18,6 +18,9 @@ export const queryKeys = {
     summaries: () => [...queryKeys.opsAgent.all, 'summaries'] as const,
     memory: () => [...queryKeys.opsAgent.all, 'memory'] as const,
     connections: () => [...queryKeys.opsAgent.all, 'connections'] as const,
+    apiKeys: () => [...queryKeys.opsAgent.all, 'api-keys'] as const,
+    chatThreads: () => [...queryKeys.opsAgent.all, 'chat-threads'] as const,
+    chatMessages: (threadId: string) => [...queryKeys.opsAgent.all, 'chat-messages', threadId] as const,
   },
   employees: {
     all: ['employees'] as const,

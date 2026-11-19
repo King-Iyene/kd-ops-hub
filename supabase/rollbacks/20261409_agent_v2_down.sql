@@ -1,5 +1,6 @@
 -- Rolls back 20261409000000_agent_chat_connections_keys.sql. Not run automatically.
 -- Secrets already stored in Vault under agent_* names are left in place; remove them in the Vault page if wanted.
+DROP FUNCTION IF EXISTS public.agent_flag_set_status(uuid, text, text, timestamptz);
 DROP FUNCTION IF EXISTS public.agent_chat_tool(text, jsonb);
 DROP FUNCTION IF EXISTS public.agent_safe_date(text);
 DROP FUNCTION IF EXISTS public.agent_inbound_create(uuid, jsonb);

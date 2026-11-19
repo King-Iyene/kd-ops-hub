@@ -973,7 +973,7 @@ function AppRoutes() {
 
         {/* Ops Agent — Super Admin and Admin only. Deliberately no `permission` prop: the agent has its own scope rules in the database. */}
         <Route
-          path="/agent"
+          path="/agent/*"
           element={
             <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <OpsAgent />
