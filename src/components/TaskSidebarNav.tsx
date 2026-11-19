@@ -65,7 +65,7 @@ export function TaskSidebarNav({
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
-  // Matches the Dashboard route guard, including "view as" another role.
+  // Matches the admin-only route guards (Dashboard, Tables), including "view as" another role.
   const effectiveRole = useEffectiveRole();
   const canSeeDashboard = effectiveRole === 'admin' || effectiveRole === 'super_admin';
 
@@ -293,7 +293,8 @@ export function TaskSidebarNav({
                       )}
                     </div>
                   ))}
-                  {folderTables.map((tbl) => (
+                  {/* Tables are admin-only (RLS returns none to others anyway). */}
+                  {canSeeDashboard && folderTables.map((tbl) => (
                     <div key={tbl.id} className="group flex items-center gap-1">
                       {renaming?.kind === 'table' && renaming.id === tbl.id ? renameBox('Table name') : (
                       <NavLink

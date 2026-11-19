@@ -317,6 +317,15 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     groups: ['timeTrackTrack', 'timeTrackReportsTime', 'timeTrackActivityProductivity', 'timeTrackManage'],
   },
   {
+    key: 'task',
+    label: 'Task',
+    description: 'Spaces, lists & tasks',
+    icon: 'CheckSquare',
+    color: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    groups: ['taskModule'],
+  },
+  {
     key: 'people',
     label: 'People & HR',
     description: 'Staff, leave & compliance',
@@ -369,15 +378,6 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-fuchsia-400',
     iconBg: 'bg-fuchsia-500/15',
     groups: ['office'],
-  },
-  {
-    key: 'task',
-    label: 'Task',
-    description: 'Spaces, lists & tables',
-    icon: 'CheckSquare',
-    color: 'text-cyan-400',
-    iconBg: 'bg-cyan-500/15',
-    groups: ['taskModule'],
   },
   {
     key: 'admin',

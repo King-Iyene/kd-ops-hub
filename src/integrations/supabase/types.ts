@@ -17335,18 +17335,24 @@ export type Database = {
         Row: {
           cards: string[]
           date_range: string
+          range_from: string | null
+          range_to: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           cards: string[]
           date_range?: string
+          range_from?: string | null
+          range_to?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           cards?: string[]
           date_range?: string
+          range_from?: string | null
+          range_to?: string | null
           updated_at?: string
           user_id?: string
         }

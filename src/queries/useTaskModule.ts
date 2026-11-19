@@ -385,12 +385,16 @@ export function useMyRecords() {
 
 export const HOME_CARDS = ['summary', 'my_work', 'my_board', 'this_week', 'delegated', 'mentions', 'my_records'] as const;
 export type HomeCardKey = (typeof HOME_CARDS)[number];
-export type HomeDateRange = 'all' | 'week' | 'month' | 'last30';
+export type HomeDateRange = 'all' | 'week' | 'month' | 'last30' | 'custom';
 
 export interface HomeLayout {
   cards: HomeCardKey[];
   dateRange: HomeDateRange;
+  /** yyyy-MM-dd, only for a custom range. */
+  rangeFrom?: string | null;
+  rangeTo?: string | null;
 }
+export interface HomeLayoutRow { cards: string[]; date_range: string; range_from: string | null; range_to: string | null }
 
 export const DEFAULT_HOME_LAYOUT: HomeLayout = { cards: [...HOME_CARDS], dateRange: 'all' };
 
@@ -399,10 +403,14 @@ export const DEFAULT_HOME_LAYOUT: HomeLayout = { cards: [...HOME_CARDS], dateRan
 export function useHomeLayout(userId: string) {
   return useSupabaseQuery(
     queryKeys.taskModule.homeLayout(userId),
-    () => supabase.from('tm_home_layouts').select('cards, date_range').eq('user_id', userId).maybeSingle(),
+    () => supabase.from('tm_home_layouts').select('cards, date_range, range_from, range_to').eq('user_id', userId).maybeSingle(),
     { enabled: !!userId, staleTime: Infinity },
   );
 }
+
+const customRange = (l: HomeLayout) => (l.dateRange === 'custom'
+  ? { range_from: l.rangeFrom ?? null, range_to: l.rangeTo ?? null }
+  : { range_from: null, range_to: null });
 
 // Optimistic: the new layout shows immediately (a dragged card stays where
 // it was dropped) and is rolled back only if the save fails.
@@ -413,13 +421,13 @@ export function useSaveHomeLayout(userId: string) {
     mutationFn: async (layout) => {
       const { error } = await supabase
         .from('tm_home_layouts')
-        .upsert({ user_id: userId, cards: layout.cards, date_range: layout.dateRange });
+        .upsert({ user_id: userId, cards: layout.cards, date_range: layout.dateRange, ...customRange(layout) });
       if (error) throw new Error(error.message);
     },
     onMutate: async (layout) => {
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData(key);
-      qc.setQueryData(key, { cards: layout.cards, date_range: layout.dateRange });
+      qc.setQueryData<HomeLayoutRow>(key, { cards: layout.cards, date_range: layout.dateRange, ...customRange(layout) });
       return { previous };
     },
     onError: (_err, _layout, ctx) => qc.setQueryData(key, ctx?.previous),
