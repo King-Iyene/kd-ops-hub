@@ -2,8 +2,9 @@
 //
 // Deploy: supabase functions deploy agent-chat --no-verify-jwt   (it checks the JWT and the role itself)
 //
-// POST { message, thread_id? }  Super Admin or Admin
-//   -> { ok: true, thread_id, reply, tools_used, title }   or   { ok: false, reason, message }
+// POST { message, thread_id? }  Super Admin only
+//   -> { ok: true, thread_id, reply, tools_used, title, memory_suggestions: [{ id, type, content, detail, scope, scope_ref }] }
+//      or { ok: false, reason, message }.  A suggestion is already saved as a proposed memory; the person answers Yes or No.
 //
 // The thread, the person's message and the title are written as the caller (row level security makes the thread
 // private). The assistant's reply is written by the service role. Data comes only through agent_chat_tool.
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
 
     await user.from('agent_chat_messages').insert({ thread_id: threadId, role: 'user', content: message });
 
-    const result = await runChat({ db, asUser: user, userId: caller.userId, history: clean, message });
+    const result = await runChat({ db, asUser: user, userId: caller.userId, threadId, history: clean, message });
     if (!result.ok) {
       return jsonResponse(cors(req), { ok: false, reason: result.reason, thread_id: threadId, message: chatFailureMessage(result.reason) });
     }
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
     if (title === 'New chat') { title = message.replace(/\s+/g, ' ').slice(0, 60); patch.title = title; }
     await user.from('agent_chat_threads').update(patch).eq('id', threadId);
 
-    return jsonResponse(cors(req), { ok: true, thread_id: threadId, reply: result.reply, tools_used: result.toolsUsed, title });
+    return jsonResponse(cors(req), { ok: true, thread_id: threadId, reply: result.reply, tools_used: result.toolsUsed, title, memory_suggestions: result.memorySuggestions });
   } catch (e) {
     console.error('agent-chat error', e instanceof Error ? e.message : e);
     return jsonResponse(cors(req), { error: 'server_error' }, 500);

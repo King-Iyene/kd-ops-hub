@@ -79,3 +79,35 @@ Deno.test('chat: tools are read only and the full loop works', async () => {
   assert(String(c6.seen[0].task).includes('request_human_action'), 'instructions name the tool');
   console.log('PASS: chat loop, tool scope, untrusted data, error handling, step limit, human action (6 scenarios)');
 });
+
+Deno.test('chat: memory is offered, saved as a suggestion once, and known memory is shown to the model', async () => {
+  assert(CHAT_TOOLS.some((t) => t.name === 'suggest_memory'), 'a memory tool exists');
+  const asked: unknown[] = [];
+  let duplicate = false;
+  const asUser = { rpc: (fn: string, a: Record<string, unknown>) => {
+    assert(fn === 'agent_memory_suggest', 'memory goes through the suggest function only');
+    asked.push(a);
+    return Promise.resolve({ data: duplicate ? { ok: true, duplicate: true, id: 'm1' } : { ok: true, duplicate: false, id: 'm2' }, error: null });
+  } } as never;
+  const db = { from: () => ({ select: () => ({ eq: () => ({ order: () => ({ limit: () => Promise.resolve({ data: [{ type: 'rule', content: 'Reports are due at 6 PM Eastern', scope: 'global', scope_ref: null }], error: null }) }) }) }) }) } as never;
+  const c = fakeClaude([
+    () => toolUse('t1', 'suggest_memory', { type: 'exemption', content: 'Kemi is on placement until March, so skip Track checks for her', detail: 'Said in chat', scope: 'person', scope_ref: 'Kemi' }),
+    () => text('Noted. I can remember that if you confirm below.'),
+  ]);
+  const r = await runChat({ db, asUser, userId: 'u1', threadId: 'th1', history: [], message: 'Kemi is on placement until March', call: c.call });
+  assert(r.ok && r.memorySuggestions.length === 1, 'one suggestion returned');
+  assert(r.ok && r.memorySuggestions[0].id === 'm2' && r.memorySuggestions[0].scope_ref === 'Kemi', 'its details come back');
+  assert((asked[0] as { p_thread: string }).p_thread === 'th1', 'it points back to the thread');
+  assert(String(c.seen[0].task).includes('Reports are due at 6 PM Eastern'), 'what it already knows is in its instructions');
+
+  duplicate = true;
+  const c2 = fakeClaude([() => toolUse('t1', 'suggest_memory', { type: 'fact', content: 'Reports are due at 6 PM Eastern' }), () => text('Already known.')]);
+  const r2 = await runChat({ db, asUser, userId: 'u1', history: [], message: 'reports are due at 6', call: c2.call });
+  assert(r2.ok && r2.memorySuggestions.length === 0, 'a duplicate is not offered again');
+
+  // a broken memory read never stops a chat
+  const brokenDb = { from: () => { throw new Error('db down'); } } as never;
+  const c3 = fakeClaude([() => text('Hello.')]);
+  const r3 = await runChat({ db: brokenDb, asUser, userId: 'u1', history: [], message: 'hi', call: c3.call });
+  assert(r3.ok, 'chat still answers without memory');
+});
