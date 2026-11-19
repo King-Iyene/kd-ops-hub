@@ -7,12 +7,15 @@
 // POST { action: 'test', alias?: 'fast'|'smart' }   Super Admin only: one tiny real Claude call, logged with its cost
 // POST { action: 'set_key', key }                   Super Admin only: the key is tried first; only a key Claude accepts is saved (Vault)
 // POST { action: 'clear_key' }                      Super Admin only: removes the key saved from Settings
+// POST { action: 'classify_sites', domains: [] }    Super Admin only: Claude's view of up to 6 domains (work / personal / unknown), cached
+//   -> { ok: true, results: [{ domain, verdict, reason }] }   Only domain names are sent to Claude, never a page, a path or a person.
 //
 // The key is never returned, logged or audited. Settings shows only "set / not set".
 
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authenticateAgentCaller, jsonResponse } from '../_shared/agent-auth.ts';
 import { VAULT_KEY_NAME, budgetState, callClaude, keyConfigured, probeKey, serviceClient } from '../_shared/agent-claude.ts';
+import { SITE_TASK, cleanDomain, parseSiteVerdicts, type SiteResult } from '../_shared/agent-sites-core.ts';
 
 const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
 
@@ -35,7 +38,7 @@ Deno.serve(async (req) => {
   if (!auth.ok) return jsonResponse(cors(req), { error: auth.error }, auth.status);
   const { caller } = auth;
 
-  let body: { action?: string; alias?: string; key?: string } = {};
+  let body: { action?: string; alias?: string; key?: string; domains?: unknown } = {};
   try { body = await req.json(); } catch { /* empty body */ }
 
   const db = serviceClient();
@@ -65,6 +68,32 @@ Deno.serve(async (req) => {
       const k = await keyConfigured(db);
       if (!r.ok) return jsonResponse(cors(req), { ok: false, reason: r.reason, error: r.error ? explainKeyError(r.error) : null, key_configured: k.configured });
       return jsonResponse(cors(req), { ok: true, model: r.model, text: r.text, usage: r.usage, cost_usd: r.cost_usd });
+    }
+
+    if (body.action === 'classify_sites') {
+      const domains = [...new Set((Array.isArray(body.domains) ? body.domains : []).map(cleanDomain).filter((d): d is string => !!d))].slice(0, 6);
+      if (domains.length === 0) return jsonResponse(cors(req), { ok: true, results: [] });
+      const hash = async (d: string) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(d)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      const hashes = await Promise.all(domains.map(hash));
+      const { data: cached } = await db.from('agent_text_checks').select('text_hash, verdict, created_at').eq('check_kind', 'site_verdict').in('text_hash', hashes)
+        .gt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString());
+      const known = new Map<string, SiteResult>();
+      for (const row of (cached ?? []) as { text_hash: string; verdict: SiteResult }[]) known.set(row.text_hash, row.verdict);
+      const missing = domains.filter((_, i) => !known.has(hashes[i]));
+      if (missing.length > 0) {
+        const r = await callClaude({
+          alias: 'fast', feature: 'classify_sites', maxTokens: 700, temperature: 0, nonCritical: true, userId: caller.userId,
+          task: SITE_TASK, messages: [{ role: 'user', content: JSON.stringify(missing) }],
+        }, db);
+        if (!r.ok) return jsonResponse(cors(req), { ok: false, reason: r.reason, error: r.error ? explainKeyError(r.error) : null });
+        const fresh = parseSiteVerdicts(r.text, missing);
+        for (const v of fresh) {
+          const h = await hash(v.domain);
+          known.set(h, v);
+          if (v.verdict !== 'unknown') await db.from('agent_text_checks').upsert({ text_hash: h, check_kind: 'site_verdict', verdict: v, model: r.model, created_at: new Date().toISOString() });
+        }
+      }
+      return jsonResponse(cors(req), { ok: true, results: domains.map((d, i) => known.get(hashes[i]) ?? { domain: d, verdict: 'unknown', reason: 'Claude could not tell.' }) });
     }
 
     if (body.action === 'set_key') {

@@ -5,6 +5,9 @@
 // POST { action: 'save',   id?, kind, name, url?, token?, to?, method?, header_name? }
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
+// POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
+//   sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
+//   for review items) from the item itself, so an address is never taken from the browser. The result is kept on the item.
 // POST { action: 'delete', id }
 //
 // Secrets (a Slack or Cliq webhook address, a token) are written to Vault and never come back. A browser only ever
@@ -21,7 +24,7 @@ const KINDS: ConnectionKind[] = ['slack', 'cliq', 'email', 'webhook', 'n8n', 'ap
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
-interface Body { action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -116,6 +119,39 @@ Deno.serve(async (req) => {
       const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text, event: isTest ? 'test' : 'message' });
       await record(conn.id, r);
       await audit(isTest ? 'connection.tested' : 'connection.sent', conn.id, { ok: r.ok, characters: text.length });
+      return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
+    }
+
+    if (body.action === 'send_flag') {
+      const text = (body.text ?? '').trim().slice(0, 3000);
+      if (!text) return jsonResponse(cors(req), { ok: false, error: 'There is nothing to send.' }, 400);
+      if (typeof body.flag_id !== 'string' || !UUID.test(body.flag_id)) return jsonResponse(cors(req), { ok: false, error: 'That item no longer exists.' }, 404);
+      // The draft carries the recipient; reading it as the caller proves they may see this item.
+      const { data: draft, error: draftError } = await auth.caller.asUser.rpc('agent_flag_draft', { p_flag: body.flag_id });
+      if (draftError || !draft) return jsonResponse(cors(req), { ok: false, error: 'That item no longer exists.' }, 404);
+      const d = draft as { recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null };
+      const subject = (body.subject ?? d.subject ?? 'Ops Agent').trim().slice(0, 200);
+      const label = d.recipient_name ?? 'the person';
+      let r: { ok: boolean; error?: string };
+      let channel: 'email' | 'slack' | 'cliq' | 'webhook';
+      if (body.channel === 'email') {
+        if (!d.recipient_email) return jsonResponse(cors(req), { ok: false, error: `${label} has no email address on their profile.` }, 400);
+        channel = 'email';
+        r = await deliver({ kind: 'email', name: 'Email', config: { to: d.recipient_email } }, { url: null, token: null }, { title: subject, text, event: 'flag_message' });
+      } else if (body.channel === 'connection') {
+        const conn = await load(body.connection_id);
+        if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
+        channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: `For ${label}: ${subject}`, text, event: 'flag_message' });
+        await record(conn.id, r);
+      } else {
+        return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);
+      }
+      const now = new Date().toISOString();
+      await db.from('agent_messages').insert({ flag_id: body.flag_id, recipient_id: d.recipient_id, recipient_label: label, channel, body: text,
+        status: r.ok ? 'sent' : 'failed', error: r.ok ? null : (r.error ?? 'Failed').slice(0, 300), sent_by: actor, sent_at: r.ok ? now : null });
+      await db.from('agent_flag_events').insert({ flag_id: body.flag_id, kind: r.ok ? 'message_sent' : 'message_failed', actor_id: actor, detail: { channel, recipient: label } });
+      await audit(r.ok ? 'flag.message_sent' : 'flag.message_failed', body.flag_id, { channel, characters: text.length });
       return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
     }
 
