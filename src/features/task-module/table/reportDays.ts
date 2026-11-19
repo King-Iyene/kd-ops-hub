@@ -2,9 +2,11 @@ import { addDays, addMonths, endOfMonth, format, parseISO, startOfMonth, startOf
 import type { TableField, TableRecordRow } from '@/queries/useTaskModule';
 import { asList } from './fieldTypes';
 
-// Reports are table rows, and a report belongs to the day it was submitted —
-// in Lagos time, the company's timezone, so a report sent at 00:30 counts for
-// that day and not the day before. Days are plain "yyyy-MM-dd" strings.
+// Reports are table rows. A report belongs to the day in the table's Report
+// Date field; a row with no date there (or a table with no such field) falls
+// back to the day it was added, in Lagos time — the company's timezone — so a
+// report added at 00:30 counts for that day and not the day before.
+// Days are plain "yyyy-MM-dd" strings.
 
 const LAGOS = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' });
 
@@ -16,6 +18,38 @@ export function lagosDay(iso: string | Date): string {
 export const todayLagos = (now: Date = new Date()) => lagosDay(now);
 
 const ymd = (d: Date) => format(d, 'yyyy-MM-dd');
+
+/** Which Date field a table's reports are dated by. `null` = the day the row was added. */
+export type ReportDateField = Pick<TableField, 'id' | 'type'> | null;
+export type DayOf = (r: TableRecordRow) => string;
+
+/**
+ * The table's Report Date field, from its saved setting:
+ * unset → the first Date field (if any); 'created_at' → the day the row was
+ * added; a field id → that field (back to automatic if it is gone or not a Date).
+ */
+export function resolveReportDateField(setting: string | null | undefined, fields: TableField[]): ReportDateField {
+  const dates = fields.filter((f) => f.type === 'date');
+  if (setting === 'created_at') return null;
+  if (setting) {
+    const chosen = dates.find((f) => f.id === setting);
+    if (chosen) return chosen;
+  }
+  return dates[0] ?? null;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
+
+/** The day a report is for. */
+export function reportDay(record: TableRecordRow, field: ReportDateField): string {
+  if (field) {
+    const v = record.data[field.id];
+    if (typeof v === 'string' && ISO_DAY.test(v)) return v.slice(0, 10);
+  }
+  return lagosDay(record.created_at);
+}
+
+export const dayOfFor = (field: ReportDateField): DayOf => (r) => reportDay(r, field);
 
 export type ReportRange =
   | { kind: 'week'; offset: number }   // 0 = this week, -1 = last week …
@@ -66,16 +100,16 @@ export function rangeLabel(range: ReportRange, today: string): string {
   return range.kind === 'week' && range.offset === 0 ? `This week · ${span}` : span;
 }
 
-/** Newest first: the later submission above the earlier one. */
-export function newestFirst(rows: TableRecordRow[]): TableRecordRow[] {
-  return [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
+/** Latest report day first; within a day, the report added last first. */
+export function newestFirst(rows: TableRecordRow[], dayOf: DayOf): TableRecordRow[] {
+  return [...rows].sort((a, b) => dayOf(b).localeCompare(dayOf(a)) || b.created_at.localeCompare(a.created_at));
 }
 
 /** Groups already-ordered rows by day, latest day first. Row order inside a day is kept. */
-export function groupByDay(rows: TableRecordRow[]): { day: string; rows: TableRecordRow[] }[] {
+export function groupByDay(rows: TableRecordRow[], dayOf: DayOf): { day: string; rows: TableRecordRow[] }[] {
   const byDay = new Map<string, TableRecordRow[]>();
   for (const r of rows) {
-    const d = lagosDay(r.created_at);
+    const d = dayOf(r);
     const list = byDay.get(d);
     if (list) list.push(r); else byDay.set(d, [r]);
   }
@@ -83,9 +117,9 @@ export function groupByDay(rows: TableRecordRow[]): { day: string; rows: TableRe
 }
 
 /** Months that have reports, plus the current one, latest first. */
-export function monthsWithReports(rows: TableRecordRow[], today: string): string[] {
+export function monthsWithReports(rows: TableRecordRow[], today: string, dayOf: DayOf): string[] {
   const set = new Set<string>([monthOf(today)]);
-  rows.forEach((r) => set.add(monthOf(lagosDay(r.created_at))));
+  rows.forEach((r) => set.add(monthOf(dayOf(r))));
   return [...set].sort().reverse();
 }
 
@@ -98,9 +132,9 @@ export function reporterIds(record: TableRecordRow, personFields: TableField[]):
 
 /** People who have not reported for `day`. Anyone with a report that day is left out. */
 export function missingReporters<P extends { id: string }>(
-  people: P[], records: TableRecordRow[], personFields: TableField[], day: string, skipped: ReadonlySet<string> = new Set(),
+  people: P[], records: TableRecordRow[], personFields: TableField[], day: string, dayOf: DayOf, skipped: ReadonlySet<string> = new Set(),
 ): P[] {
   const done = new Set<string>();
-  for (const r of records) if (lagosDay(r.created_at) === day) reporterIds(r, personFields).forEach((id) => done.add(id));
+  for (const r of records) if (dayOf(r) === day) reporterIds(r, personFields).forEach((id) => done.add(id));
   return people.filter((p) => !done.has(p.id) && !skipped.has(p.id));
 }
