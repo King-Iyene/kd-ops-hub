@@ -117,7 +117,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <PageHeader
-        title="Time Tracking"
+        title="Track"
         description="Your hours, your team's activity, and anything that needs attention"
         icon={Clock}
         actions={
