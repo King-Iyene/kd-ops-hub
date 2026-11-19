@@ -15,7 +15,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  useTask, useUpdateTask, useDeleteTask, useAssignablePeople, useTaskLists, useTaskFolders,
+  useTask, useUpdateTask, useDeleteTask, useAssignablePeople, useTaskLists,
   useWatchers, useToggleWatch,
   type PersonOption, type TaskPatch, type TaskRow,
 } from '@/queries/useTaskModule';
@@ -53,7 +53,6 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
   const { profile } = useAuthStore();
   const { open } = useOpenTask();
   const { data: lists } = useTaskLists();
-  const { data: folders } = useTaskFolders();
   const { data: parent } = useTask(task.parent_id);
   const { data: watchers } = useWatchers(task.id);
   const toggleWatch = useToggleWatch(task.id);
@@ -64,7 +63,6 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const list = (lists ?? []).find((l) => l.id === task.list_id);
-  const space = list ? (folders ?? []).find((f) => f.id === list.folder_id) : undefined;
   const watching = (watchers ?? []).some((w) => w.user_id === profile?.id);
 
   const save = (patch: TaskPatch) =>
@@ -87,8 +85,6 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
     <>
       <header className="flex items-center gap-2 px-4 h-11 border-b border-border/70 shrink-0">
         <nav className="flex items-center gap-1 text-2xs text-muted-foreground min-w-0 flex-1">
-          {space && <span className="truncate">{space.name}</span>}
-          {space && list && <ChevronRight className="h-3 w-3 shrink-0" />}
           {list && <span className="truncate">{list.name}</span>}
           {parent && (
             <>
@@ -132,7 +128,7 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => { if (title.trim() && title.trim() !== task.title) save({ title: title.trim() }); else setTitle(task.title); }}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            className="border-0 shadow-none px-0 h-auto text-xl font-bold focus-visible:ring-0 bg-transparent"
+            className="border-0 shadow-none px-0 h-auto text-base font-bold focus-visible:ring-0 bg-transparent"
           />
 
           <div className="grid grid-cols-[110px_1fr] items-center gap-y-2 text-xs">
@@ -151,9 +147,9 @@ function TaskView({ task, people, onClose }: { task: TaskRow; people: PersonOpti
           <div className="border-t border-border/70" />
 
           <section>
-            <h3 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Description</h3>
+            <h3 className="text-xs font-medium text-muted-foreground mb-1.5">Description</h3>
             <Textarea
-              placeholder="Add a description…"
+              aria-label="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={() => { if (description !== (task.description ?? '')) save({ description: description || null }); }}

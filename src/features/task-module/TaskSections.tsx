@@ -21,10 +21,12 @@ import { AssigneePicker, PersonAvatar } from './pickers';
 import { dueLabel, isOverdue } from './taskDates';
 import { useOpenTask } from './useOpenTask';
 
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+// `inline` puts the action right beside the label (Fields) instead of at the
+// far right (Checklists).
+function SectionHeader({ title, action, inline }: { title: string; action?: React.ReactNode; inline?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-2 mb-1.5">
-      <h3 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+    <div className={cn('flex items-center gap-3 mb-1.5', !inline && 'justify-between')}>
+      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
       {action}
     </div>
   );
@@ -73,8 +75,9 @@ export function FieldsSection({ task, people }: { task: TaskRow; people: PersonO
     <section>
       <SectionHeader
         title="Fields"
+        inline
         action={isAdmin && !adding ? (
-          <button type="button" onClick={() => setAdding(true)} className="text-2xs font-medium inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={() => setAdding(true)} className="text-2xs font-semibold inline-flex items-center gap-1 text-foreground/90 hover:text-foreground">
             <ListPlus className="h-3.5 w-3.5" /> Add field
           </button>
         ) : undefined}

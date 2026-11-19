@@ -176,7 +176,7 @@ function CommentComposer({ taskId, people }: { taskId: string; people: PersonOpt
       )}
       <Textarea
         ref={boxRef}
-        placeholder="Write a comment… type @ to mention someone"
+        aria-label="Write a comment (type @ to mention someone)"
         value={body}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
