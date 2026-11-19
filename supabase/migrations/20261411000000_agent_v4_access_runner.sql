@@ -131,7 +131,7 @@ RETURNS text LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
   SELECT nullif(regexp_replace(regexp_replace(regexp_replace(lower(btrim(coalesce(p_raw, ''))), '^[a-z]+://', ''), '^www\.', ''), '[/?#:].*$', ''), '')
 $$;
 
-CREATE OR REPLACE FUNCTION public.agent_domain_set(p_domain text, p_category text, p_source text DEFAULT 'manual')
+CREATE OR REPLACE FUNCTION public.agent_domain_set(p_domain text, p_category text, p_source text DEFAULT 'manual', p_now timestamptz DEFAULT now())
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_d text := public.agent_clean_domain(p_domain); v_id uuid;
 BEGIN
@@ -145,7 +145,7 @@ BEGIN
   DO UPDATE SET category = EXCLUDED.category, source = EXCLUDED.source, created_by = EXCLUDED.created_by
   RETURNING id INTO v_id;
   -- Approved or marked unproductive: the open site flags for it are settled by the next check; run it now so the Inbox is current.
-  PERFORM public.agent_run_rules();
+  PERFORM public.agent_run_rules(p_now);
   RETURN jsonb_build_object('id', v_id, 'domain', v_d, 'category', p_category);
 END $$;
 
@@ -159,6 +159,6 @@ BEGIN
   RETURN v_n > 0;
 END $$;
 
-REVOKE ALL ON FUNCTION public.agent_domain_set(text, text, text), public.agent_domain_remove(text), public.agent_clean_domain(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.agent_domain_set(text, text, text), public.agent_domain_remove(text) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.agent_domain_set(text, text, text, timestamptz), public.agent_domain_remove(text), public.agent_clean_domain(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.agent_domain_set(text, text, text, timestamptz), public.agent_domain_remove(text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.agent_clean_domain(text) TO authenticated, service_role;

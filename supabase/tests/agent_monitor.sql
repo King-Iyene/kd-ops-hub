@@ -385,4 +385,125 @@ BEGIN
   RAISE NOTICE 'PASS 7: the pulse is correct; only Super Admin and Admin can read it or check now; nobody signed in can run or write the monitor directly';
 END $$;
 
+-- ── 8. the v4 rules, the switches, and the site list ───────────────────────
+-- Tuesday 2026-11-24, 10:00 EST. Fixed times, so the result never depends on today's date.
+SELECT public.t_as(NULL);
+DELETE FROM public.agent_flags;
+UPDATE public.tm_tasks SET status = 'done' WHERE id::text LIKE 'b1%';  -- the earlier groups' tasks are out of the way
+INSERT INTO public.tm_tasks (id, title, description, status, assignee_id, due_date, created_at, updated_at) VALUES
+  ('b2000000-0000-0000-0000-000000000001', 'Blocked 4 days',    'Waiting on a vendor to reply with the pricing the team needs.', 'blocked',     'a0000000-0000-0000-0000-000000000002', '2026-12-20', '2026-11-10T15:00:00Z', '2026-11-20T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000002', 'Blocked 1 day',     'Waiting on a vendor to reply with the pricing the team needs.', 'blocked',     'a0000000-0000-0000-0000-000000000002', '2026-12-20', '2026-11-10T15:00:00Z', '2026-11-23T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000003', 'Stalled 8 days',    'Draft the quarterly staffing report and send it to the manager.', 'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-12-20', '2026-11-10T15:00:00Z', '2026-11-16T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000004', 'Moving today',      'Draft the quarterly staffing report and send it to the manager.', 'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-12-20', '2026-11-10T15:00:00Z', '2026-11-24T14:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000005', 'Review 2 days',     'Check the onboarding checklist against the new policy and sign off.', 'in_review', 'a0000000-0000-0000-0000-000000000004', '2026-12-20', '2026-11-10T15:00:00Z', '2026-11-22T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000006', 'No words',          NULL,                                                            'to_do',       'a0000000-0000-0000-0000-000000000004', '2026-12-20', '2026-11-20T15:00:00Z', '2026-11-20T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000007', 'Due tomorrow',      'Prepare the vendor comparison table with three quotes and a pick.', 'to_do',       'a0000000-0000-0000-0000-000000000004', '2026-11-25', '2026-11-20T15:00:00Z', '2026-11-20T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000008', 'Due today',         'Prepare the vendor comparison table with three quotes and a pick.', 'to_do',       'a0000000-0000-0000-0000-000000000004', '2026-11-24', '2026-11-20T15:00:00Z', '2026-11-20T15:00:00Z'),
+  ('b2000000-0000-0000-0000-000000000009', 'Ancient stall',     'Draft the quarterly staffing report and send it to the manager.', 'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-12-20', '2026-08-10T15:00:00Z', '2026-08-16T15:00:00Z');
+SELECT public.agent_run_rules('2026-11-24T15:00:00Z');
+DO $$
+DECLARE v_sev text;
+BEGIN
+  PERFORM public.t_eq('TK04: only the task blocked 2+ days', (SELECT string_agg(f.evidence ->> 'task_title', ',') FROM public.agent_flags f WHERE f.rule_code = 'TK04' AND f.status = 'open'), 'Blocked 4 days');
+  PERFORM public.t_eq('TK05: only the stalled task (not the one that moved today, not the abandoned one)', (SELECT string_agg(f.evidence ->> 'task_title', ',') FROM public.agent_flags f WHERE f.rule_code = 'TK05' AND f.status = 'open'), 'Stalled 8 days');
+  SELECT severity INTO v_sev FROM public.agent_flags WHERE rule_code = 'TK05' AND status = 'open';
+  PERFORM public.t_eq('TK05: 8 days is medium', v_sev, 'medium');
+  PERFORM public.t_eq('TK08: waiting for review', (SELECT string_agg(f.evidence ->> 'task_title', ',') FROM public.agent_flags f WHERE f.rule_code = 'TK08' AND f.status = 'open'), 'Review 2 days');
+  PERFORM public.t_eq('TK07: the task without a description', (SELECT string_agg(f.evidence ->> 'task_title', ',') FROM public.agent_flags f WHERE f.rule_code = 'TK07' AND f.status = 'open' AND f.evidence ->> 'task_title' IN ('No words', 'Due today', 'Blocked 4 days')), 'No words');
+  PERFORM public.t_eq('TK11: due today (medium) and tomorrow (low)', (SELECT string_agg(f.evidence ->> 'task_title' || ':' || f.severity, ',' ORDER BY f.evidence ->> 'task_title') FROM public.agent_flags f WHERE f.rule_code = 'TK11' AND f.status = 'open'), 'Due today:medium,Due tomorrow:low');
+  -- the condition clears: the item closes by itself
+  UPDATE public.tm_tasks SET status = 'in_progress', updated_at = '2026-11-24T15:30:00Z' WHERE id = 'b2000000-0000-0000-0000-000000000001';
+  PERFORM public.agent_run_rules('2026-11-24T15:31:00Z');
+  PERFORM public.t_eq('TK04 closes when the task moves', public.t_count('TK04'), 0::bigint);
+  RAISE NOTICE 'PASS 8a: blocked, stalled, waiting for review, no description, due soon: each flags the right task and closes itself';
+END $$;
+
+-- Low hours: Wednesday 2026-11-25 07:00 EST looks back at Tuesday 2026-11-24. Cara tracks 20 minutes, Zed 7 hours, Yan 2 hours.
+INSERT INTO public.leave_requests (employee_id, start_date, end_date, is_half_day, status) VALUES ('a0000000-0000-0000-0000-000000000008', '2026-11-24', '2026-11-24', false, 'approved');
+INSERT INTO public.time_entries (employee_id, start_time, end_time, duration_minutes) VALUES
+  ('a0000000-0000-0000-0000-000000000004', '2026-11-24T14:00:00Z', '2026-11-24T14:20:00Z', 20),
+  ('a0000000-0000-0000-0000-0000000000f1', '2026-11-24T13:00:00Z', '2026-11-24T20:00:00Z', 420),
+  ('a0000000-0000-0000-0000-0000000000f2', '2026-11-24T17:00:00Z', '2026-11-24T19:00:00Z', 120);
+DELETE FROM public.agent_flags WHERE rule_code = 'TR03';  -- the run on the 24th looked back at the 23rd
+SELECT public.agent_run_rules('2026-11-25T10:00:00Z');  -- 05:00 EST: too early, the night's data is still settling
+DO $$ BEGIN PERFORM public.t_eq('TR03 waits until 6 AM', public.t_count('TR03'), 0::bigint); END $$;
+SELECT public.agent_run_rules('2026-11-25T12:00:00Z');  -- 07:00 EST
+DO $$
+BEGIN
+  PERFORM public.t_eq('TR03: Cara and Yan (not Zed; not on leave, exempt, placed or leadership)',
+    (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'TR03' AND f.status = 'open' AND p.full_name IN ('Cara', 'Yan', 'Zed', 'Gus', 'Hana', 'Finn', 'Sue Super')), 'Cara,Yan');
+  PERFORM public.t_eq('TR03 severity: 20 minutes of 8 hours is high', (public.t_flag('TR03', 'Cara')).severity, 'high');
+  PERFORM public.t_eq('TR03 severity: 2 hours of 8 is medium', (public.t_flag('TR03', 'Yan')).severity, 'medium');
+  IF (public.t_flag('TR03', 'Cara')).why NOT LIKE '%tracked 20m of the expected 8h%' THEN RAISE EXCEPTION 'FAIL: TR03 wording %', (public.t_flag('TR03', 'Cara')).why; END IF;
+  RAISE NOTICE 'PASS 8b: low hours yesterday flags only working people with under half the hours, and only after 6 AM';
+END $$;
+
+-- Two missed reports in a row: Wednesday 2026-11-25 at 6:10 PM EST; reports exist for nobody on the 24th or 25th
+SELECT public.agent_run_rules('2026-11-25T23:10:00Z');
+DO $$
+BEGIN
+  PERFORM public.t_eq('RP03 matches RP01 when yesterday was missed too', (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP03' AND f.status = 'open'),
+                                                                         (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND f.status = 'open'));
+  INSERT INTO public.tm_table_records (table_id, data) VALUES
+    ('d0000000-0000-0000-0000-0000000000a1', jsonb_build_object('f0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000004', 'f0000000-0000-0000-0000-000000000002', '2026-11-24'));
+  PERFORM public.agent_run_rules('2026-11-25T23:12:00Z');
+  PERFORM public.t_eq('Cara sent the report for the day before: not RP03, still RP01 for today', (SELECT count(*) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP03' AND f.status = 'open' AND p.full_name = 'Cara'), 0::bigint);
+  PERFORM public.t_eq('Cara is still missing the one for today', (public.t_flag('RP01', 'Cara', 'open')).status, 'open');
+  RAISE NOTICE 'PASS 8c: two missed reports in a row is its own, higher item, and clears when either day is covered';
+END $$;
+
+-- The switches. A rule that is off raises nothing and its open items close; a module that is off stops its rules.
+DO $$
+DECLARE v_n bigint;
+BEGIN
+  UPDATE public.agent_rules SET enabled = false WHERE code = 'TK08';
+  PERFORM public.agent_run_rules('2026-11-25T23:13:00Z');
+  PERFORM public.t_eq('rule off: its open items close', public.t_count('TK08'), 0::bigint);
+  PERFORM public.t_eq('rule off: nothing is raised', public.agent_raise_flag('TK08', 'task', NULL, 'system', 'x', '', 'low', 't', 'w', '{}'), false);
+  UPDATE public.agent_rules SET enabled = true WHERE code = 'TK08';
+  PERFORM public.agent_run_rules('2026-11-25T23:14:00Z');
+  PERFORM public.t_eq('rule back on: it raises again', public.t_count('TK08'), 1::bigint);
+
+  UPDATE public.agent_module_access SET enabled = false WHERE module_key = 'reports';
+  DELETE FROM public.agent_flags WHERE rule_code IN ('RP01', 'RP03');
+  PERFORM public.agent_run_rules('2026-11-25T23:15:00Z');
+  PERFORM public.t_eq('module off: its rules do not run', (SELECT count(*) FROM public.agent_flags WHERE rule_code IN ('RP01', 'RP03')), 0::bigint);
+  UPDATE public.agent_module_access SET enabled = true WHERE module_key = 'reports';
+  PERFORM public.agent_run_rules('2026-11-25T23:16:00Z');
+  PERFORM public.t_eq('module on: they run again', public.t_count('RP01') > 0, true);
+
+  -- a rule with a function but no row, or a row with no function, is skipped quietly
+  INSERT INTO public.agent_rules (code, title, enabled, status) VALUES ('ZZ99', 'No function', true, 'ready');
+  PERFORM public.agent_run_rules('2026-11-25T23:17:00Z');
+  PERFORM public.t_eq('a rule with no function raises no error item', public.t_count('SY03'), 0::bigint);
+  RAISE NOTICE 'PASS 8d: a rule or module that is switched off stops raising; switching it back on resumes';
+END $$;
+
+-- The site list, written the way the Inbox does it
+INSERT INTO public.time_activity_logs (employee_id, captured_at, app_name, url, productivity_category) VALUES
+  ('a0000000-0000-0000-0000-000000000002', '2026-11-26T14:00:00Z', 'Chrome', 'https://newtool.dev/a', NULL),
+  ('a0000000-0000-0000-0000-000000000002', '2026-11-26T14:01:00Z', 'Chrome', 'https://newtool.dev/b', NULL);
+SELECT public.agent_run_rules('2026-11-26T14:05:00Z');
+DO $$ BEGIN
+  PERFORM public.t_eq('a new site is flagged on the first sighting', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'TR05' AND status = 'open' AND evidence::text LIKE '%newtool.dev%'), 1::bigint);
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+DO $$ BEGIN
+  PERFORM public.t_eq('domain is cleaned', public.agent_domain_set('https://www.NewTool.dev/some/path?x=1', 'approved', 'manual', '2026-11-26T14:06:00Z') ->> 'domain', 'newtool.dev');
+END $$;
+DO $$ BEGIN
+  BEGIN PERFORM public.agent_domain_set('not a domain', 'approved'); RAISE EXCEPTION 'FAIL: a bad domain was accepted';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+  PERFORM public.t_eq('approving the site closes its open item right away', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'TR05' AND status = 'open' AND evidence::text LIKE '%newtool.dev%'), 0::bigint);
+  PERFORM public.t_eq('and it is on the approved list', (SELECT category FROM public.agent_domain_list WHERE domain = 'newtool.dev'), 'approved');
+  RAISE NOTICE 'PASS 8e: approving a site from the Inbox closes its item at once; the list is written by a Super Admin only';
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+DO $$ BEGIN PERFORM public.t_denied($q$SELECT public.agent_domain_set('example.org', 'approved')$q$, 'an Admin editing the site list'); END $$;
+RESET ROLE;
+
+
 ROLLBACK;
