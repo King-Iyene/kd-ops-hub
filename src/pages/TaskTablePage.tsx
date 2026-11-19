@@ -22,7 +22,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  useActivePeople, useAssignablePeople, useCreateTableField, useCreateTableRecord, useDeleteTableField, useDeleteTableRecords,
+  useAssignablePeople, useReportingPeople, useCreateTableField, useCreateTableRecord, useDeleteTableField, useDeleteTableRecords,
   useOpenTasksForPicker, useReorderTableFields, useSetRecordCell, useSetReportDateField, useTableFields, useTableRecords, useTaskLists, useTaskTables, useTaskTitles,
   useUpdateTableField,
   type TableField,
@@ -82,13 +82,12 @@ function TableScreen({ tableId }: { tableId: string }) {
   const { data: fieldsData, isLoading: fieldsLoading } = useTableFields(tableId);
   const { data: recordsData, isLoading: recordsLoading } = useTableRecords(tableId);
   const { data: peopleData } = useAssignablePeople();
-  const { data: activeData } = useActivePeople();
+  const { people: reportingPeople } = useReportingPeople();
   const { data: openTasksData } = useOpenTasksForPicker();
   const { data: lists } = useTaskLists();
   const fields = useMemo(() => fieldsData ?? [], [fieldsData]);
   const records = useMemo(() => recordsData ?? [], [recordsData]);
   const people = useMemo(() => peopleData ?? [], [peopleData]);
-  const activePeople = useMemo(() => activeData ?? [], [activeData]);
   const openTasks = useMemo(() => openTasksData ?? [], [openTasksData]);
 
   // Titles for linked tasks that aren't open any more.
@@ -321,7 +320,7 @@ function TableScreen({ tableId }: { tableId: string }) {
         <ReportInbox
           records={records}
           personFields={personFields}
-          people={activePeople}
+          people={reportingPeople}
           day={inboxDay}
           dayOf={dayOf}
           onDay={setInboxDay}
