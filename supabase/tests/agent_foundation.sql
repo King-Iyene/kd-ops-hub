@@ -99,7 +99,7 @@ INSERT INTO public.agent_flags (id, company_id, module, rule_code, subject_type,
   ('f0000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000001', 'task', 'TK01', 'person', 'p4', 'a0000000-0000-0000-0000-000000000007', 'about leadership'),
   ('f0000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000001', 'payroll', 'XX01', 'person', 'p5', 'a0000000-0000-0000-0000-000000000005', 'payroll module (off)'),
   ('f0000000-0000-0000-0000-000000000006', NULL, 'task', 'SY03', 'system', 'sys', NULL, 'system flag, no company');
-INSERT INTO public.agent_rules (code, title) VALUES ('TK01', 'Overdue');
+INSERT INTO public.agent_rules (code, title) VALUES ('TK09', 'Blocked too long');
 INSERT INTO public.agent_feature_proposals (kind, subject) VALUES ('new_table', 'x_table');
 INSERT INTO public.agent_connections (kind, name) VALUES ('slack', 'Slack');
 INSERT INTO public.agent_domain_list (domain, category) VALUES ('example.org', 'approved');

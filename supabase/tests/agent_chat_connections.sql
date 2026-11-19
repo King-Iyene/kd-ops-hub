@@ -95,7 +95,8 @@ INSERT INTO public.time_entries (employee_id, start_time, end_time, duration_min
   ('a0000000-0000-0000-0000-000000000005', now() - interval '3 hours', now() - interval '1 hour', 120);
 -- approved leave for Nuhu today
 INSERT INTO public.leave_requests (employee_id, start_date, end_date, is_half_day, status) VALUES
-  ('a0000000-0000-0000-0000-000000000006', current_date - 1, current_date + 1, false, 'approved');
+  ('a0000000-0000-0000-0000-000000000006', current_date - 1, current_date + 1, false, 'approved'),
+  ('a0000000-0000-0000-0000-000000000004', current_date - 1, current_date + 1, false, 'approved');
 
 -- ── 1. defaults and connection kinds ───────────────────────────────────────
 DO $$
@@ -204,20 +205,27 @@ DO $$
 DECLARE r jsonb;
 BEGIN
   r := public.agent_chat_tool('tasks', '{}');
-  PERFORM public.t_eq('Super sees every open task, no subtasks, no done tasks', jsonb_array_length(r -> 'tasks'), 4);
+  PERFORM public.t_eq('Super sees open KD Squares team tasks only: no NDI, no unassigned, no subtasks, no done tasks', jsonb_array_length(r -> 'tasks'), 2);
+  IF (r -> 'tasks')::text LIKE '%Nuhu%' OR (r -> 'tasks')::text LIKE '%Nobody%' THEN RAISE EXCEPTION 'FAIL: a non-team task leaked: %', r -> 'tasks'; END IF;
   r := public.agent_chat_tool('tasks', '{"overdue": true, "name": "kem"}');
   PERFORM public.t_eq('overdue + name filter', (r -> 'tasks' -> 0 ->> 'title'), 'Kemi overdue');
   PERFORM public.t_eq('overdue + name filter count', jsonb_array_length(r -> 'tasks'), 1);
   r := public.agent_chat_tool('tasks', '{"status": "done"}');
   PERFORM public.t_eq('done tasks on request', r -> 'tasks' -> 0 ->> 'title', 'Kemi finished');
   r := public.agent_chat_tool('task_summary');
-  PERFORM public.t_eq('summary: Nuhu has 1 blocked', (SELECT (x ->> 'blocked')::int FROM jsonb_array_elements(r -> 'by_assignee') x WHERE x ->> 'assignee' = 'Nuhu Staff'), 1);
+  PERFORM public.t_eq('summary: Kemi has 1 open, 1 overdue', (SELECT (x ->> 'overdue')::int FROM jsonb_array_elements(r -> 'by_assignee') x WHERE x ->> 'assignee' = 'Kemi Staff'), 1);
+  IF (r -> 'by_assignee')::text LIKE '%Nuhu%' OR (r -> 'by_assignee')::text LIKE '%Unassigned%' THEN RAISE EXCEPTION 'FAIL: summary leaked a non-team assignee'; END IF;
   r := public.agent_chat_tool('people', '{"name": "field"}');
-  PERFORM public.t_eq('people name filter', r -> 'people' -> 0 ->> 'name', 'Fola Field');
+  PERFORM public.t_eq('a Field Agent is never listed', r -> 'people', '[]'::jsonb);
+  r := public.agent_chat_tool('people', '{"name": "kem"}');
+  PERFORM public.t_eq('people name filter', r -> 'people' -> 0 ->> 'name', 'Kemi Staff');
+  r := public.agent_chat_tool('people', '{}');
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(r -> 'people') x WHERE x ->> 'name' IN ('Nuhu Staff', 'Fola Field')) THEN RAISE EXCEPTION 'FAIL: the team list holds an NDI person or a Field Agent: %', r -> 'people'; END IF;
   r := public.agent_chat_tool('hours', '{}');
   PERFORM public.t_eq('Kemi tracked 2 hours', ((r -> 'tracked_hours' -> 0) ->> 'hours')::numeric, 2.00);
   r := public.agent_chat_tool('leave', '{}');
-  PERFORM public.t_eq('Nuhu on leave today', r -> 'on_approved_leave' -> 0 ->> 'person', 'Nuhu Staff');
+  PERFORM public.t_eq('Mia (KD Squares) is on leave today; Nuhu (NDI) is not the agent''s business', r -> 'on_approved_leave' -> 0 ->> 'person', 'Mia Member');
+  PERFORM public.t_eq('only one person on leave is shown', jsonb_array_length(r -> 'on_approved_leave'), 1);
   r := public.agent_chat_tool('flags', '{}');
   PERFORM public.t_eq('the inbound item is in the flags tool', r -> 'open_flags' -> 0 ->> 'rule_code', 'INBOUND');
   PERFORM public.t_eq('Super scope label', r ->> 'scope', 'all companies and modules');
@@ -271,7 +279,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(r -> 'people') x WHERE x ->> 'name' IN ('Nuhu Staff', 'Sue Super', 'Abel All', 'Ada KD')) THEN
     RAISE EXCEPTION 'FAIL: an Admin saw NDI people, themselves or another Admin: %', r -> 'people'; END IF;
   r := public.agent_chat_tool('leave', '{}');
-  PERFORM public.t_eq('NDI leave hidden from a KD Admin', r -> 'on_approved_leave', '[]'::jsonb);
+  IF (r -> 'on_approved_leave')::text LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: NDI leave shown to a KD Admin'; END IF;
   r := public.agent_chat_tool('daily_reports', '{}');
   IF (r::text) LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: NDI person in a KD Admin report view'; END IF;
   RAISE NOTICE 'PASS 5c: a KD-limited Admin sees KD only, never themselves, other Admins, or NDI';
