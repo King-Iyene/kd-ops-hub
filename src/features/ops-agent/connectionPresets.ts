@@ -60,9 +60,15 @@ export const CONNECTION_PRESETS: ConnectionPreset[] = [
     sample: 'A message with a bold title and the details.',
   },
   {
-    id: 'cliq', name: 'Zoho Cliq', tagline: 'Post to a channel or bot', kind: 'cliq', icon: 'MessageSquare',
-    steps: ['In Zoho Cliq open Bots & Tools, then Incoming Webhooks (or create a channel webhook from the channel settings).', 'Copy the webhook address including its key.', 'Paste it below.'],
-    fields: [{ field: 'url', label: 'Cliq webhook address', placeholder: 'https://cliq.zoho.com/api/v2/…', secret: true, required: true }],
+    id: 'cliq', name: 'Zoho Cliq', tagline: 'Post to your ops channel and tag the person', kind: 'cliq', icon: 'MessageSquare',
+    steps: [
+      'In Zoho Cliq, set up an incoming webhook for the channel that should receive the messages (the ops channel), or for a bot that posts to it. Cliq gives you a web address that includes a secret key (zapikey).',
+      'Copy that whole address, key included, and paste it below. It works like a password, so it is kept encrypted and never shown again.',
+      'Leave "Tag the person in each message" on. When an item is about someone, the message tags them by their Cliq user id if you saved one in Settings, People, otherwise by their KD Ops email address (it must be the same email they use in Cliq).',
+      'Press "Send test and tag me". If your name is highlighted in the channel, tagging works. If it shows as plain text like {@you@example.com}, change the tag format below (the default is {@%s}, where %s becomes the id or email) and test again.',
+    ],
+    fields: [{ field: 'url', label: 'Cliq webhook address', placeholder: 'https://cliq.zoho.com/api/v2/channelsbyname/…/message?zapikey=…', secret: true, required: true }],
+    sample: 'A message with a bold title, a "For Cara: @Cara" tag line, the details and a link to the exact item.',
   },
   {
     id: 'teams', name: 'Microsoft Teams', tagline: 'Post to a channel', kind: 'teams', icon: 'MessageSquare',

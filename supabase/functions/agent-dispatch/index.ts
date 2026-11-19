@@ -9,6 +9,7 @@
 import { serviceClient } from '../_shared/agent-claude.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
+import { mentionFor } from '../_shared/agent-mention.ts';
 import { MAX_ATTEMPTS, formatFlag, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
 
 const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
@@ -43,6 +44,12 @@ Deno.serve(async (req) => {
         let person: string | null = null;
         if (f.person_id) person = (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null;
         msg = formatFlag(f as FlagRow, person, appUrl);
+        // Tag the person it is about (their manager for items waiting for review), so the right person is notified in the channel.
+        let who: string | null = f.person_id ?? null;
+        if (who && (f.rule_code === 'TK08' || f.rule_code === 'TK13')) {
+          who = (await db.from('profiles').select('reporting_manager_id').eq('id', who).maybeSingle()).data?.reporting_manager_id ?? who;
+        }
+        msg = { ...msg, mention: await mentionFor(db, conn.kind, who) };
       } else {
         const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }

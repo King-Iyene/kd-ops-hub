@@ -19,6 +19,8 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authenticateAgentCaller, jsonResponse } from '../_shared/agent-auth.ts';
 import { serviceClient } from '../_shared/agent-claude.ts';
+import { mentionFor } from '../_shared/agent-mention.ts';
+import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { API_METHODS, AUTH_TYPES, CONTENT_TYPES, buildApiRequest, checkOutboundUrl, parseRecipients, validHeaderName, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 
@@ -32,7 +34,7 @@ const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
-interface Body { close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -131,6 +133,15 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Tagging: Cliq and Slack can tag the person a message is about. On by default; the Cliq tag format is editable.
+      if (kind === 'cliq' || kind === 'slack') {
+        config.mention_people = body.mention_people === undefined ? (existing?.config.mention_people ?? true) : body.mention_people === true;
+        if (body.mention_template !== undefined && body.mention_template !== '') {
+          if (!validMentionTemplate(body.mention_template)) return jsonResponse(cors(req), { ok: false, error: 'The tag format must contain %s where the person goes, for example {@%s}.' }, 400);
+          config.mention_template = body.mention_template;
+        } else if (existing?.config.mention_template && body.mention_template === undefined) config.mention_template = existing.config.mention_template;
+      }
+
       // What the agent sends on its own, and the preset the person chose (so the card shows the right tool)
       const events = Array.isArray(body.events) ? [...new Set(body.events.filter((e): e is string => typeof e === 'string' && EVENTS.includes(e)))] : (existing?.config.events ?? []);
       config.events = events;
@@ -165,7 +176,10 @@ Deno.serve(async (req) => {
       const isTest = body.action === 'test';
       const text = isTest ? 'This is a test message from the KD Ops Agent. Nothing needs doing.' : (body.text ?? '').trim();
       if (!text) return jsonResponse(cors(req), { ok: false, error: 'There is nothing to send.' }, 400);
-      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text, event: isTest ? 'test' : 'message' });
+      // "Send test and tag me": proves the tag format works before any real person is tagged.
+      const mention = isTest && body.tag_me ? await mentionFor(db, conn.kind, actor) : undefined;
+      if (isTest && body.tag_me && !mention && (conn.kind === 'cliq' || conn.kind === 'slack')) return jsonResponse(cors(req), { ok: false, error: 'There is no Cliq or Slack id or email on your profile to tag. Add yours in Settings, People.' }, 400);
+      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text: mention ? 'This is a test message. If your name is highlighted above, tagging works.' : text, event: isTest ? 'test' : 'message', mention });
       await record(conn.id, r);
       await audit(isTest ? 'connection.tested' : 'connection.sent', conn.id, { ok: r.ok, characters: text.length });
       return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
@@ -193,7 +207,7 @@ Deno.serve(async (req) => {
         const conn = await load(body.connection_id);
         if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
         channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
-        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: `For ${label}: ${subject}`, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined });
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention: await mentionFor(db, conn.kind, d.recipient_id) });
         await record(conn.id, r);
       } else {
         return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);

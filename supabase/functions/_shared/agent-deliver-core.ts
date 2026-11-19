@@ -6,8 +6,12 @@ export type ConnectionKind = 'slack' | 'cliq' | 'discord' | 'teams' | 'gchat' | 
 export interface ConnectionLite { kind: ConnectionKind; name: string; config: Record<string, unknown> }
 export interface Secrets { url?: string | null; token?: string | null }
 export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
+import { renderMention } from './agent-mention-core.ts';
+
 export interface OutgoingLink { url: string; label: string }
-export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink }
+export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink;
+  /** Who the message is about, to be tagged in Cliq or Slack when the connection allows it. */
+  mention?: { name: string; id: string } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -176,7 +180,10 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
 
   if (conn.kind === 'slack' || conn.kind === 'cliq') {
     if (!secrets.url) return { type: 'error', error: 'The webhook address is missing.' };
-    const body = JSON.stringify({ text: title ? `*${title}*\n${text}` : text });
+    // Tag the person this is about: a line of its own right under the title, so it notifies them and still reads well.
+    const tag = msg.mention && cfg.mention_people !== false
+      ? `For ${msg.mention.name}: ${renderMention(conn.kind, cfg.mention_template, msg.mention.id)}\n` : '';
+    const body = JSON.stringify({ text: title ? `*${title}*\n${tag}${text}` : `${tag}${text}` });
     return { type: 'http', url: secrets.url, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };
   }
 
