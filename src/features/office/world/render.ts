@@ -133,6 +133,8 @@ type Ctx = CanvasRenderingContext2D;
 /** Where each pet is right now, filled in by the canvas (a pet with no entry stays at its spot). */
 export interface PetDraw { x: number; y: number; face: 1 | -1; view?: 'side' | 'front' | 'back'; moving: boolean; carrying: boolean; awake: boolean }
 export const officePets = new Map<string, PetDraw>();
+/** big sand patches, drawn once into a picture */
+const sandPics = new Map<string, HTMLCanvasElement>();
 
 export const officeInfo: { zones: string[]; titles: Record<string, string> } = { zones: DEFAULT_ZONES, titles: {} };
 
@@ -214,7 +216,7 @@ function pal(dark: boolean) {
 export interface TileView { x0: number; y0: number; x1: number; y1: number }
 
 /** For every tile of a map: its floor and its room, worked out once per map instead of once per tile per frame. */
-const gridCache = new WeakMap<MapDef, { floor: (string | undefined)[]; zone: (Zone | undefined)[] }>();
+const gridCache = new WeakMap<MapDef, { floor: (string | undefined)[]; zone: (Zone | undefined)[]; kind: Uint8Array; combos: { ff: string | undefined; zk: string | undefined }[] }>();
 function tileGrid(map: MapDef) {
   const hit = gridCache.get(map);
   if (hit) return hit;
@@ -233,99 +235,137 @@ function tileGrid(map: MapDef) {
       zone[y * map.w + x] = r;
     }
   }
-  const g = { floor, zone };
+  // which look each tile has (its ground and its room's kind), as a small number, so a tile can be drawn from a ready-made picture
+  const kind = new Uint8Array(map.w * map.h);
+  const combos: { ff: string | undefined; zk: string | undefined }[] = [];
+  const seen = new Map<string, number>();
+  for (let i = 0; i < kind.length; i++) {
+    const key = (floor[i] ?? '') + '|' + (zone[i]?.kind ?? '');
+    let n = seen.get(key);
+    if (n === undefined) { n = combos.length; combos.push({ ff: floor[i], zk: zone[i]?.kind }); seen.set(key, n); }
+    kind[i] = n;
+  }
+  const g = { floor, zone, kind, combos };
   gridCache.set(map, g);
   return g;
 }
 
-export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+/** Paint one floor tile at (x, y). The grass does not sway here (the picture is made once and reused). */
+function paintTile(ctx: Ctx, x: number, y: number, ff: string | undefined, zk: string | undefined, theme: Theme, t: number) {
   const c = pal(theme.dark);
+  const px = x * TILE;
+  const py = y * TILE;
+    if (ff === 'grass') {
+      ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#2b6b3b' : '#63c174') : (theme.dark ? '#276235' : '#58b86a');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.strokeStyle = theme.dark ? '#1f4f2b' : '#3f9d55';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 7; i++) {
+        const gx = px + h2(x * 11 + i, y) * (TILE - 3) + 1;
+        const gy = py + h2(x, y * 11 + i) * (TILE - 6) + 5;
+        ctx.beginPath();
+        ctx.moveTo(gx, gy);
+        ctx.lineTo(gx + (h2(i, x + y) - 0.5) * 2 + Math.sin(t / 1100 + gx) * 0.6, gy - 3.5);
+        ctx.stroke();
+      }
+      if (h2(x * 3 + 1, y * 7 + 2) > 0.93) {
+        const fx = px + 6 + h2(x, y) * 22;
+        const fy = py + 6 + h2(y, x) * 22;
+        disc(ctx, fx, fy, 2, ['#f9a8d4', '#fde047', '#ffffff', '#c4b5fd'][Math.floor(h2(x + 5, y + 9) * 4)]);
+        disc(ctx, fx, fy, 0.8, '#f59e0b');
+      }
+    } else if (ff === 'stone') {
+      ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#4a5160' : '#cfd3d9') : (theme.dark ? '#444b59' : '#c4c9d0');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(px, py + TILE - 1, TILE, 1);
+      ctx.fillRect(px + TILE - 1, py, 1, TILE);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(px, py, TILE, 1);
+    } else if (ff === 'gray') {
+      ctx.fillStyle = theme.dark ? '#3a4252' : '#aeb6c1';
+      ctx.fillRect(px, py, TILE, TILE);
+      for (let i = 0; i < 14; i++) {
+        ctx.fillStyle = h2(x * 5 + i, y * 3) > 0.5 ? (theme.dark ? '#2f3644' : '#9aa3b0') : (theme.dark ? '#485064' : '#c3cad4');
+        ctx.fillRect(px + h2(x * 9 + i, y) * (TILE - 2), py + h2(x, y * 9 + i) * (TILE - 2), 2, 2);
+      }
+    } else if (ff === 'carpet' || (zk === 'meeting' && ff !== 'tile')) {
+      ctx.fillStyle = c.carpet;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = c.carpetDot;
+      for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y) * (TILE - 2), py + h2(x, y * 7 + i) * (TILE - 2), 2, 2);
+    } else if (zk === 'lounge' && ff !== 'tile') {
+      // wooden planks, each a slightly different shade, seams staggered row by row
+      for (let r = 0; r < 3; r++) {
+        const off = ((x + y + r) % 2) * 0.5;
+        ctx.fillStyle = h2(x * 3 + r, y) > 0.5 ? c.woodA : c.woodB;
+        ctx.fillRect(px, py + r * 12, TILE, 12);
+        ctx.fillStyle = c.plank;
+        ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
+        ctx.fillRect(px + TILE * off + 6, py + r * 12, 1, 11);
+      }
+    } else if (zk === 'portal') {
+      ctx.fillStyle = theme.dark ? '#16503d' : '#bbf7d0';
+      ctx.fillRect(px, py, TILE, TILE);
+    } else if (ff === 'wood') {
+      // the headquarters floor: warm wide planks, seams staggered row by row
+      for (let r = 0; r < 3; r++) {
+        const off = ((x * 2 + y + r) % 3) / 3;
+        ctx.fillStyle = h2(x * 3 + r, y + 40) > 0.5 ? (theme.dark ? '#6b4528' : '#cf8f50') : (theme.dark ? '#5f3d22' : '#c28145');
+        ctx.fillRect(px, py + r * 12, TILE, 12);
+        ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.3)' : 'rgba(90,50,20,0.35)';
+        ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
+        ctx.fillRect(px + TILE * off + 4, py + r * 12, 1, 11);
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(px, py + r * 12, TILE, 1);
+      }
+    } else {
+      // polished tile with a soft highlight and fine grout
+      ctx.fillStyle = (x + y) % 2 === 0 ? c.floorA : c.floorB;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = theme.dark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.55)';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py, 1, TILE);
+      ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.18)' : 'rgba(100,116,139,0.10)';
+      ctx.fillRect(px, py + TILE - 1, TILE, 1);
+      ctx.fillRect(px + TILE - 1, py, 1, TILE);
+    }
+}
+
+const TILE_PIC = 2; // the ready-made pictures are drawn twice as sharp as they are shown, so zooming in stays crisp
+const tilePics: [Map<number, HTMLCanvasElement>, Map<number, HTMLCanvasElement>] = [new Map(), new Map()];
+/** A ready-made picture of a tile. Tiles that look alike share a few variants (so the floor still looks varied). */
+function tilePic(dark: boolean, kind: number, combo: { ff: string | undefined; zk: string | undefined }, x: number, y: number): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  // the same 6 by 6 pattern of seams and checks, with a few different random offsets
+  const vx = (x % 6) + 6 * ((x * 7 + y * 11) % 3);
+  const vy = (y % 6) + 6 * ((x * 13 + y * 5) % 3);
+  const key = kind * 400 + vx * 20 + vy;
+  const m = tilePics[dark ? 1 : 0];
+  let pic = m.get(key);
+  if (!pic) {
+    pic = document.createElement('canvas');
+    pic.width = TILE * TILE_PIC;
+    pic.height = TILE * TILE_PIC;
+    const pc = pic.getContext('2d');
+    if (!pc) return null;
+    pc.scale(TILE_PIC, TILE_PIC);
+    pc.translate(-vx * TILE, -vy * TILE);
+    paintTile(pc as unknown as Ctx, vx, vy, combo.ff, combo.zk, { dark }, 0);
+    m.set(key, pic);
+  }
+  return pic;
+}
+
+export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
   const G = tileGrid(map);
-  const zoneAt = (x: number, y: number) => G.zone[y * map.w + x];
-  /** the ground here: the last zone with a floor that contains the tile */
-  const floorOf = (x: number, y: number) => G.floor[y * map.w + x];
   for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
     for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (map.walls[y][x]) continue;
-      const px = x * TILE;
-      const py = y * TILE;
-      const z = zoneAt(x, y);
-      const ff = floorOf(x, y);
-      if (ff === 'grass') {
-        ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#2b6b3b' : '#63c174') : (theme.dark ? '#276235' : '#58b86a');
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.strokeStyle = theme.dark ? '#1f4f2b' : '#3f9d55';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 7; i++) {
-          const gx = px + h2(x * 11 + i, y) * (TILE - 3) + 1;
-          const gy = py + h2(x, y * 11 + i) * (TILE - 6) + 5;
-          ctx.beginPath();
-          ctx.moveTo(gx, gy);
-          ctx.lineTo(gx + (h2(i, x + y) - 0.5) * 2 + Math.sin(t / 1100 + gx) * 0.6, gy - 3.5);
-          ctx.stroke();
-        }
-        if (h2(x * 3 + 1, y * 7 + 2) > 0.93) {
-          const fx = px + 6 + h2(x, y) * 22;
-          const fy = py + 6 + h2(y, x) * 22;
-          disc(ctx, fx, fy, 2, ['#f9a8d4', '#fde047', '#ffffff', '#c4b5fd'][Math.floor(h2(x + 5, y + 9) * 4)]);
-          disc(ctx, fx, fy, 0.8, '#f59e0b');
-        }
-      } else if (ff === 'stone') {
-        ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#4a5160' : '#cfd3d9') : (theme.dark ? '#444b59' : '#c4c9d0');
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.fillRect(px, py + TILE - 1, TILE, 1);
-        ctx.fillRect(px + TILE - 1, py, 1, TILE);
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        ctx.fillRect(px, py, TILE, 1);
-      } else if (ff === 'gray') {
-        ctx.fillStyle = theme.dark ? '#3a4252' : '#aeb6c1';
-        ctx.fillRect(px, py, TILE, TILE);
-        for (let i = 0; i < 14; i++) {
-          ctx.fillStyle = h2(x * 5 + i, y * 3) > 0.5 ? (theme.dark ? '#2f3644' : '#9aa3b0') : (theme.dark ? '#485064' : '#c3cad4');
-          ctx.fillRect(px + h2(x * 9 + i, y) * (TILE - 2), py + h2(x, y * 9 + i) * (TILE - 2), 2, 2);
-        }
-      } else if (ff === 'carpet' || (z?.kind === 'meeting' && ff !== 'tile')) {
-        ctx.fillStyle = c.carpet;
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = c.carpetDot;
-        for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y) * (TILE - 2), py + h2(x, y * 7 + i) * (TILE - 2), 2, 2);
-      } else if (z?.kind === 'lounge' && ff !== 'tile') {
-        // wooden planks, each a slightly different shade, seams staggered row by row
-        for (let r = 0; r < 3; r++) {
-          const off = ((x + y + r) % 2) * 0.5;
-          ctx.fillStyle = h2(x * 3 + r, y) > 0.5 ? c.woodA : c.woodB;
-          ctx.fillRect(px, py + r * 12, TILE, 12);
-          ctx.fillStyle = c.plank;
-          ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
-          ctx.fillRect(px + TILE * off + 6, py + r * 12, 1, 11);
-        }
-      } else if (z?.kind === 'portal') {
-        ctx.fillStyle = theme.dark ? '#16503d' : '#bbf7d0';
-        ctx.fillRect(px, py, TILE, TILE);
-      } else if (ff === 'wood') {
-        // the headquarters floor: warm wide planks, seams staggered row by row
-        for (let r = 0; r < 3; r++) {
-          const off = ((x * 2 + y + r) % 3) / 3;
-          ctx.fillStyle = h2(x * 3 + r, y + 40) > 0.5 ? (theme.dark ? '#6b4528' : '#cf8f50') : (theme.dark ? '#5f3d22' : '#c28145');
-          ctx.fillRect(px, py + r * 12, TILE, 12);
-          ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.3)' : 'rgba(90,50,20,0.35)';
-          ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
-          ctx.fillRect(px + TILE * off + 4, py + r * 12, 1, 11);
-          ctx.fillStyle = 'rgba(255,255,255,0.07)';
-          ctx.fillRect(px, py + r * 12, TILE, 1);
-        }
-      } else {
-        // polished tile with a soft highlight and fine grout
-        ctx.fillStyle = (x + y) % 2 === 0 ? c.floorA : c.floorB;
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = theme.dark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.55)';
-        ctx.fillRect(px, py, TILE, 1);
-        ctx.fillRect(px, py, 1, TILE);
-        ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.18)' : 'rgba(100,116,139,0.10)';
-        ctx.fillRect(px, py + TILE - 1, TILE, 1);
-        ctx.fillRect(px + TILE - 1, py, 1, TILE);
-      }
+      const gi = y * map.w + x;
+      const pic = tilePic(theme.dark, G.kind[gi], G.combos[G.kind[gi]], x, y);
+      if (pic) ctx.drawImage(pic, x * TILE, y * TILE, TILE, TILE);
+      else paintTile(ctx, x, y, G.floor[gi], G.zone[gi]?.kind, theme, t);
     }
   }
   // doorways glow and breathe
@@ -1668,7 +1708,16 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       break;
     }
     case 'sand': {
-      drawSandItem(ctx, x, y, W, H, seed);
+      // thousands of grains: drawn once into a picture, then just stamped
+      const sk = item.id + ':' + W + 'x' + H;
+      let pic = sandPics.get(sk);
+      if (!pic && typeof document !== 'undefined') {
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const pc = cv.getContext('2d');
+        if (pc) { drawSandItem(pc as unknown as Ctx, 0, 0, W, H, seed); pic = cv; sandPics.set(sk, cv); }
+      }
+      if (pic) ctx.drawImage(pic, x, y); else drawSandItem(ctx, x, y, W, H, seed);
       break;
     }
     case 'dogball': {
@@ -3852,11 +3901,11 @@ export function drawVignette(ctx: Ctx, w: number, h: number, dark: boolean) {
  * A power bike: side view when going left or right, front or back view when going up or down.
  * (px, py) is the middle of the ground under it; spin turns the wheels.
  */
-function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, spin: number, col?: string) {
+function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | 'back', face: 1 | -1, spin: number, col?: string, layer: 'all' | 'under' | 'over' = 'all') {
   const body = col ?? '#dc2626';
   const dark = '#0f172a';
   const light = shade(body, 0.35);
-  ellipse(ctx, px, py + 9, view === 'side' ? 18 : 8, 4, 'rgba(15,23,42,0.32)');
+  if (layer !== 'over') ellipse(ctx, px, py + 9, view === 'side' ? 18 : 9, 4, 'rgba(15,23,42,0.32)');
   ctx.save();
   ctx.translate(px, py);
   ctx.lineCap = 'round';
@@ -3931,35 +3980,36 @@ function bikeSprite(ctx: Ctx, px: number, py: number, view: 'side' | 'front' | '
     disc(ctx, 14.2, -1, 2, '#fef08a');
     disc(ctx, -14.2, -1.6, 1.5, '#f43f5e');
   } else {
-    // front or back: the tyre, the body from ahead or behind, the bars and the lamps
-    ctx.fillStyle = dark;
-    rr(ctx, -3.2, -2, 6.4, 18, 2.8);
-    ctx.fill();
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillRect(-1.2, 1 + ((spin * 3) % 5), 2.4, 1.6);
-    const g = ctx.createLinearGradient(-6, 0, 6, 0);
-    g.addColorStop(0, shade(body, -0.3)); g.addColorStop(0.5, light); g.addColorStop(1, shade(body, -0.3));
-    ctx.fillStyle = g;
-    rr(ctx, -6, -6, 12, 13, 4);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.fillRect(-0.7, -5, 1.4, 11);
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 2.2;
-    ctx.beginPath(); ctx.moveTo(-12, -8); ctx.lineTo(12, -8); ctx.stroke();
-    disc(ctx, -12, -8, 1.6, '#94a3b8');
-    disc(ctx, 12, -8, 1.6, '#94a3b8');
-    if (view === 'front') {
-      ctx.fillStyle = 'rgba(186,230,253,0.85)';
-      ctx.beginPath(); ctx.moveTo(-4, -6); ctx.lineTo(0, -12); ctx.lineTo(4, -6); ctx.closePath(); ctx.fill();
-      disc(ctx, 0, -1, 3.2, 'rgba(254,240,138,0.35)');
-      disc(ctx, 0, -1, 2, '#fef08a');
-    } else {
-      disc(ctx, -3.4, 5, 1.6, '#f43f5e');
-      disc(ctx, 3.4, 5, 1.6, '#f43f5e');
-      ctx.fillStyle = '#cbd5e1';
-      rr(ctx, -2.5, 8, 5, 2, 1);
+    // front or back: a narrow bicycle seen end-on: one slim tyre with tread that rolls, the fork, the bars and a lamp
+    const roll = (spin * 4) % 4;
+    if (layer !== 'over') {
+      // the slim tyre with tread bars that roll, a mudguard and the fork
+      ctx.fillStyle = dark;
+      rr(ctx, -3.2, -2, 6.4, 15, 3);
       ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      for (let k = -1; k < 4; k++) { const ty = -1 + k * 4 + roll; if (ty > -2 && ty < 11.5) ctx.fillRect(-3.2, ty, 6.4, 1.5); }
+      ctx.fillStyle = body;
+      rr(ctx, -4, -5, 8, 4.5, 2.2);
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-2.6, -4); ctx.lineTo(-4.6, -10); ctx.moveTo(2.6, -4); ctx.lineTo(4.6, -10); ctx.stroke();
+    }
+    if (layer !== 'under') {
+      // the handlebar with grips and the lamp, over the rider's lap so the bike reads as a bike
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(-10, -13); ctx.quadraticCurveTo(0, -10, 10, -13); ctx.stroke();
+      ctx.fillStyle = '#1e293b';
+      rr(ctx, -12, -15, 4, 4, 1.6); ctx.fill();
+      rr(ctx, 8, -15, 4, 4, 1.6); ctx.fill();
+      if (view === 'front') {
+        disc(ctx, 0, -12, 3.6, 'rgba(254,240,138,0.35)');
+        disc(ctx, 0, -12, 2.1, '#fef08a');
+      } else {
+        disc(ctx, 0, -12, 1.8, '#f43f5e');
+      }
     }
   }
   ctx.restore();
@@ -4084,18 +4134,32 @@ function stridePhase(p: DrawPerson, t: number): number {
   return (w.d * TILE) / 7.5;
 }
 
+/** People are drawn a little larger than life so they are easy to find when zoomed out (the avatar preview has no name and stays as it is). */
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
+  if (!p.name) { drawPersonBase(ctx, p, t, theme); return; }
+  const fx = p.x * TILE;
+  const fy = p.y * TILE + 11;
+  ctx.save();
+  ctx.translate(fx, fy);
+  ctx.scale(1.14, 1.14);
+  ctx.translate(-fx, -fy);
+  drawPersonBase(ctx, p, t, theme);
+  ctx.restore();
+}
+
+function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   if (p.riding) {
     const side = p.dir === 1 || p.dir === 2;
     const view = side ? 'side' : p.dir === 3 ? 'back' : 'front';
     const face = p.dir === 1 ? -1 : 1;
     const roll = p.moving ? stridePhase(p, t) * 1.6 : 0;
-    // the bike underneath, and the rider sitting on it
-    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll);
+    // the bike underneath, and the rider sitting on it (seen from ahead or behind, the handlebar goes over the rider)
+    bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, view === 'side' ? 'all' : 'under');
     ctx.save();
     ctx.translate(0, -9);
-    drawPerson(ctx, { ...p, riding: false, seated: true }, t, theme);
+    drawPersonBase(ctx, { ...p, riding: false, seated: true }, t, theme);
     ctx.restore();
+    if (view !== 'side') bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'over');
     return;
   }
   const costume = COSTUME_KINDS[p.avatar.costume] ?? 'none';
@@ -4119,7 +4183,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
 
   // a soft ring under me, and the ground shadow
   if (p.isMe) {
-    ctx.strokeStyle = `rgba(59,130,246,${0.45 + 0.2 * Math.sin(t / 400)})`;
+    ctx.strokeStyle = `rgba(20,184,166,${0.5 + 0.2 * Math.sin(t / 400)})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 14, 6, 0, 0, Math.PI * 2);
@@ -4674,11 +4738,11 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 8, w, 18, 9);
   ctx.fill();
-  ctx.fillStyle = p.isMe ? 'rgba(37,99,235,0.96)' : theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
+  ctx.fillStyle = p.isMe ? 'rgba(13,148,136,0.96)' : theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
   rr(ctx, px - w / 2, ty - 9, w, 18, 9);
   ctx.fill();
   if (!p.status) {
-    ctx.fillStyle = p.isMe ? '#bfdbfe' : '#34d399';
+    ctx.fillStyle = p.isMe ? '#99f6e4' : '#34d399';
     disc(ctx, px - w / 2 + 7, ty, 2.2, ctx.fillStyle);
   }
   ctx.fillStyle = '#fff';
