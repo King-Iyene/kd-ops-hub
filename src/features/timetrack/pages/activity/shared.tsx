@@ -202,13 +202,16 @@ function useLatestDesktopRelease() {
   return useQuery({
     queryKey: ['desktop-agent-latest-release'],
     queryFn: async (): Promise<GhRelease | null> => {
+      // This repo also publishes other apps (the KD Office desktop app), so never trust GitHub's
+      // single "latest" release: take the newest release that is a Time Tracker one.
       const res = await fetch(
-        'https://api.github.com/repos/King-Iyene/kd-ops-hub/releases/latest',
+        'https://api.github.com/repos/King-Iyene/kd-ops-hub/releases?per_page=30',
         { headers: { Accept: 'application/vnd.github+json' } },
       );
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`GitHub releases: ${res.status}`);
-      return res.json();
+      const all = (await res.json()) as (GhRelease & { draft?: boolean; prerelease?: boolean })[];
+      return all.find((r) => r.tag_name.startsWith('desktop-agent-v') && !r.draft && !r.prerelease) ?? null;
     },
     staleTime: 5 * 60 * 1000,
     retry: 1,
