@@ -201,6 +201,29 @@ BEGIN
   RAISE NOTICE 'PASS 2b: no "not tracking" flags on a weekend or outside the work window';
 END $$;
 
+-- A person who already tracked most of a full day and stopped is done, not slacking (15:00 EST, 7 hours tracked, idle 60 min);
+-- someone with the same idle time but 2 hours tracked is flagged.
+INSERT INTO public.profiles (id, email, full_name, role, status, pay_group_id) VALUES
+  ('a0000000-0000-0000-0000-0000000000f1', 'zed@t.local', 'Zed', 'operations', 'active', 'e0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-0000000000f2', 'yan@t.local', 'Yan', 'operations', 'active', 'e0000000-0000-0000-0000-000000000001');
+INSERT INTO public.agent_person_profile (person_id, group_name, group_source, exemptions) VALUES
+  ('a0000000-0000-0000-0000-0000000000f1', 'core', 'manual', '{}'), ('a0000000-0000-0000-0000-0000000000f2', 'core', 'manual', '{}');
+INSERT INTO public.time_entries (employee_id, start_time, end_time, duration_minutes) VALUES
+  ('a0000000-0000-0000-0000-0000000000f1', '2026-11-18T12:00:00Z', '2026-11-18T19:00:00Z', 420),
+  ('a0000000-0000-0000-0000-0000000000f2', '2026-11-18T17:00:00Z', '2026-11-18T19:00:00Z', 120);
+INSERT INTO public.tm_tasks (title, status, assignee_id, due_date) VALUES
+  ('Zed work', 'to_do', 'a0000000-0000-0000-0000-0000000000f1', '2026-12-30'),
+  ('Yan work', 'to_do', 'a0000000-0000-0000-0000-0000000000f2', '2026-12-30');
+DO $$
+BEGIN
+  DELETE FROM public.agent_flags WHERE rule_code = 'TR01';
+  PERFORM public.agent_run_rules('2026-11-18T20:00:00Z');
+  IF EXISTS (SELECT 1 FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'TR01' AND p.full_name = 'Zed') THEN
+    RAISE EXCEPTION 'FAIL: Zed tracked 7 hours and was flagged for not tracking'; END IF;
+  PERFORM public.t_eq('Yan tracked 2 hours and stopped an hour ago: flagged', (public.t_flag('TR01', 'Yan')).status, 'open');
+  RAISE NOTICE 'PASS 2c: someone who already tracked most of a work day is not flagged for stopping';
+END $$;
+
 -- ── 3. TR05 sites ──────────────────────────────────────────────────────────
 DO $$
 DECLARE fl public.agent_flags; v_sites jsonb;
@@ -287,15 +310,15 @@ BEGIN
   PERFORM public.agent_run_rules('2026-11-18T23:03:00Z'); -- 18:03 EST: inside the 5 minute grace
   PERFORM public.t_eq('nothing within 5 minutes of the deadline', public.t_count('RP01'), 0::bigint);
   PERFORM public.agent_run_rules('2026-11-18T23:10:00Z'); -- 18:10 EST
-  PERFORM public.t_eq('Bob, Cara and Hana have not reported; Alice has; Gus is on leave; Finn is placed; Sue is leadership; Dan and Eve are not the team',
-    (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND f.status = 'open'), 'Bob,Cara,Hana');
+  PERFORM public.t_eq('Bob, Cara, Hana, Yan and Zed have not reported; Alice has; Gus is on leave; Finn is placed; Sue is leadership; Dan and Eve are not the team',
+    (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND f.status = 'open'), 'Bob,Cara,Hana,Yan,Zed');
   PERFORM public.t_eq('high', (public.t_flag('RP01', 'Bob')).severity, 'high');
   IF (public.t_flag('RP01', 'Bob')).why NOT LIKE '%The deadline was 6:00 PM EST.' THEN RAISE EXCEPTION 'FAIL: why %', (public.t_flag('RP01', 'Bob')).why; END IF;
   INSERT INTO public.tm_table_records (table_id, data) VALUES
     ('d0000000-0000-0000-0000-0000000000a1', jsonb_build_object('f0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000002', '2026-11-18'));
   PERFORM public.agent_run_rules('2026-11-18T23:20:00Z');
   PERFORM public.t_eq('a late report closes the flag', (public.t_flag('RP01', 'Bob')).status, 'auto_resolved');
-  PERFORM public.t_eq('the others stay open', public.t_count('RP01'), 2::bigint);
+  PERFORM public.t_eq('the others stay open', public.t_count('RP01'), 4::bigint);
   RAISE NOTICE 'PASS 5: RP01 waits for the deadline plus 5 minutes, skips leave, placement, leadership and non-team, and closes when the report arrives';
 END $$;
 
@@ -336,7 +359,7 @@ DO $$
 DECLARE v jsonb;
 BEGIN
   v := public.agent_team_pulse();
-  PERFORM public.t_eq('team size', (v ->> 'team_size')::int, 7);
+  PERFORM public.t_eq('team size', (v ->> 'team_size')::int, 9);
   PERFORM public.t_eq('only Alice has a running timer', (v ->> 'tracking_now')::int, 1);
   PERFORM public.t_eq('time zone', v ->> 'tz', 'America/New_York');
   PERFORM public.t_eq('deadline label', v ->> 'reports_due_at', '18:00');
