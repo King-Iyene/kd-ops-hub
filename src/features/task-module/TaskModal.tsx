@@ -29,7 +29,7 @@ import { taskLink, useOpenTask } from './useOpenTask';
 // that task opens over the current page.
 export function TaskModalHost() {
   const { openTaskId, close } = useOpenTask();
-  const { data: task, isLoading } = useTask(openTaskId);
+  const { data: task, isLoading, isError } = useTask(openTaskId);
   const { data: people } = useAssignablePeople();
 
   return (
@@ -40,7 +40,7 @@ export function TaskModalHost() {
           <TaskView key={task.id} task={task} people={people ?? []} onClose={close} />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'This task no longer exists.'}
+            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isError ? 'Could not load this task. Check your connection and try again.' : 'This task no longer exists.'}
           </div>
         )}
       </DialogContent>

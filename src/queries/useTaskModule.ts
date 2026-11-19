@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { queryKeys } from './keys';
 import { useSupabaseQuery, useSupabaseMutation, useInvalidate } from './useSupabaseQuery';
+import type { Json, TablesUpdate } from '@/integrations/supabase/types';
 
 export interface TaskFolder {
   id: string;
@@ -152,7 +153,8 @@ export function useTasks(listId: string) {
         .select('*')
         .eq('list_id', listId)
         .order('position')
-        .order('created_at'),
+        .order('created_at')
+        .overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!listId },
   );
 }
@@ -197,8 +199,22 @@ export function useCreateTask() {
 
 export type TaskPatch = Partial<Pick<TaskRow, 'title' | 'description' | 'status' | 'priority' | 'assignee_id' | 'due_date' | 'tags'>>;
 
+// Patch a task in place in every cached task-module query (lists, My Tasks,
+// Home, the open task) so a change — e.g. a card dropped on another board
+// column — shows at once instead of after the refetch.
+function patchCachedTask(qc: ReturnType<typeof useQueryClient>, taskId: string, patch: Partial<TaskRow>) {
+  const apply = (row: unknown) =>
+    row && typeof row === 'object' && (row as TaskRow).id === taskId && 'list_id' in (row as object)
+      ? { ...(row as TaskRow), ...patch }
+      : row;
+  qc.setQueriesData({ queryKey: queryKeys.taskModule.all }, (old: unknown) =>
+    Array.isArray(old) ? old.map(apply) : apply(old),
+  );
+}
+
 export function useUpdateTask() {
   const invalidate = useInvalidate();
+  const qc = useQueryClient();
   return useSupabaseMutation(
     (vars: { task: TaskRow; patch: TaskPatch }) => {
       const patch: Record<string, unknown> = { ...vars.patch };
@@ -207,9 +223,22 @@ export function useUpdateTask() {
       if (vars.patch.status && vars.patch.status !== vars.task.status) {
         patch.completed_at = vars.patch.status === 'done' ? new Date().toISOString() : null;
       }
-      return supabase.from('tm_tasks').update(patch).eq('id', vars.task.id).select().single();
+      return supabase.from('tm_tasks').update(patch as TablesUpdate<'tm_tasks'>).eq('id', vars.task.id).select().single();
     },
-    { onSuccess: () => invalidate(queryKeys.taskModule.all) },
+    {
+      onMutate: async (vars) => {
+        await qc.cancelQueries({ queryKey: queryKeys.taskModule.all });
+        const snapshot = qc.getQueriesData({ queryKey: queryKeys.taskModule.all });
+        patchCachedTask(qc, vars.task.id, vars.patch as Partial<TaskRow>);
+        return { snapshot };
+      },
+      // A failed save puts every cached copy back as it was.
+      onError: (_err, _vars, context) => {
+        const ctx = context as { snapshot?: [QueryKey, unknown][] } | undefined;
+        ctx?.snapshot?.forEach(([key, data]) => qc.setQueryData(key, data));
+      },
+      onSettled: () => invalidate(queryKeys.taskModule.all),
+    },
   );
 }
 
@@ -222,10 +251,22 @@ export function useDeleteTask() {
 }
 
 export function useTask(taskId: string | null) {
+  const qc = useQueryClient();
   return useSupabaseQuery(
     queryKeys.taskModule.task(taskId ?? ''),
-    () => supabase.from('tm_tasks').select('*').eq('id', taskId ?? '').maybeSingle(),
-    { enabled: !!taskId },
+    () => supabase.from('tm_tasks').select('*').eq('id', taskId ?? '').maybeSingle().overrideTypes<TaskRow | null, { merge: false }>(),
+    {
+      enabled: !!taskId,
+      // Show the copy already loaded by the list behind the dialog straight
+      // away; the fresh row replaces it when it arrives.
+      placeholderData: () => {
+        for (const [, data] of qc.getQueriesData<unknown>({ queryKey: queryKeys.taskModule.all })) {
+          const hit = Array.isArray(data) && data.find((r) => r && typeof r === 'object' && r.id === taskId && 'list_id' in r);
+          if (hit) return hit as TaskRow;
+        }
+        return undefined;
+      },
+    },
   );
 }
 
@@ -233,7 +274,7 @@ export function useTask(taskId: string | null) {
 export function useMyTasks(userId: string) {
   return useSupabaseQuery(
     ['task-module', 'my-tasks', userId] as const,
-    () => supabase.from('tm_tasks').select('*').eq('assignee_id', userId).order('due_date'),
+    () => supabase.from('tm_tasks').select('*').eq('assignee_id', userId).order('due_date').overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!userId },
   );
 }
@@ -250,7 +291,8 @@ export function useHomeTasks(userId: string) {
         .select('*')
         .or(`assignee_id.eq.${userId},created_by.eq.${userId}`)
         .order('due_date', { nullsFirst: false })
-        .limit(1000),
+        .limit(1000)
+        .overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!userId },
   );
 }
@@ -269,7 +311,7 @@ export interface TaskComment {
 export function useTaskComments(taskId: string | null) {
   return useSupabaseQuery(
     queryKeys.taskModule.comments(taskId ?? ''),
-    () => supabase.from('tm_task_comments').select('*').eq('task_id', taskId ?? '').order('created_at'),
+    () => supabase.from('tm_task_comments').select('*').eq('task_id', taskId ?? '').order('created_at').overrideTypes<TaskComment[], { merge: false }>(),
     { enabled: !!taskId },
   );
 }
@@ -478,8 +520,8 @@ export function useSetRecordCell(tableId: string) {
       supabase.rpc('tm_set_record_cell', {
         p_record_id: vars.recordId,
         p_field_id: vars.fieldId,
-        p_value: vars.value,
-      }),
+        p_value: vars.value as Json,
+      }).overrideTypes<TableRecordRow, { merge: false }>(),
     { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
   );
 }
@@ -518,7 +560,7 @@ const tm = queryKeys.taskModule.all;
 export function useSubtasks(parentId: string | null) {
   return useSupabaseQuery(
     [...tm, 'subtasks', parentId ?? ''] as const,
-    () => supabase.from('tm_tasks').select('*').eq('parent_id', parentId ?? '').order('position').order('created_at'),
+    () => supabase.from('tm_tasks').select('*').eq('parent_id', parentId ?? '').order('position').order('created_at').overrideTypes<TaskRow[], { merge: false }>(),
     { enabled: !!parentId },
   );
 }
@@ -538,7 +580,7 @@ export interface ListField {
 export function useListFields(listId: string | null) {
   return useSupabaseQuery(
     [...tm, 'list-fields', listId ?? ''] as const,
-    () => supabase.from('tm_list_fields').select('*').eq('list_id', listId ?? '').order('position').order('created_at'),
+    () => supabase.from('tm_list_fields').select('*').eq('list_id', listId ?? '').order('position').order('created_at').overrideTypes<ListField[], { merge: false }>(),
     { enabled: !!listId },
   );
 }
@@ -717,7 +759,7 @@ export interface TaskActivity {
 export function useTaskActivity(taskId: string | null) {
   return useSupabaseQuery(
     [...tm, 'activity', taskId ?? ''] as const,
-    () => supabase.from('tm_task_activity').select('*').eq('task_id', taskId ?? '').order('created_at'),
+    () => supabase.from('tm_task_activity').select('*').eq('task_id', taskId ?? '').order('created_at').overrideTypes<TaskActivity[], { merge: false }>(),
     { enabled: !!taskId },
   );
 }

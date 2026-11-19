@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react';
 import {
+  DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core';
+import {
   addDays, addMonths, endOfDay, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, parseISO,
   startOfDay, startOfMonth, startOfWeek, subMonths,
 } from 'date-fns';
 import {
   Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Filter as FilterIcon,
-  Flag, List as ListIcon, Loader2, Search, Table as TableIcon, X,
+  Flag, List as ListIcon, Loader2, Search, X,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,14 +23,15 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  STATUS_META, TASK_STATUSES, PRIORITY_META, PRIORITY_FLAG,
+  STATUS_META, TASK_STATUSES, PRIORITY_META, PRIORITY_FLAG, useUpdateTask,
   type PersonOption, type TaskListRow, type TaskPriority, type TaskRow, type TaskStatus,
 } from '@/queries/useTaskModule';
 import { PersonAvatar, StatusPill } from './pickers';
 import { dueDateOf, dueLabel, isOverdue } from './taskDates';
 import { useOpenTask } from './useOpenTask';
 
-export type ViewKind = 'list' | 'board' | 'calendar' | 'table';
+export type ViewKind = 'list' | 'board' | 'calendar';
+const VIEW_KINDS: ViewKind[] = ['list', 'board', 'calendar'];
 export type GroupBy = 'status' | 'due' | 'assignee' | 'priority' | 'none';
 export type SortBy = 'manual' | 'due' | 'priority' | 'title' | 'created';
 type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
@@ -42,7 +49,9 @@ interface Prefs { view: ViewKind; group: GroupBy; sort: SortBy; showClosed: bool
 function loadPrefs(key: string, fallback: Prefs): Prefs {
   try {
     const raw = localStorage.getItem(`kdops.task.view.${key}`);
-    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+    const prefs: Prefs = raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+    // A view that no longer exists (the old Table view) falls back to List.
+    return VIEW_KINDS.includes(prefs.view) ? prefs : { ...prefs, view: 'list' };
   } catch {
     return fallback;
   }
@@ -219,7 +228,9 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
           </PopoverContent>
         </Popover>
 
-        <OptionMenu label={`Group: ${GROUP_LABELS[prefs.group]}`} options={GROUP_LABELS} value={prefs.group} onChange={(group) => setPrefs({ group })} className={toolBtn} />
+        {prefs.view === 'list' && (
+          <OptionMenu label={`Group: ${GROUP_LABELS[prefs.group]}`} options={GROUP_LABELS} value={prefs.group} onChange={(group) => setPrefs({ group })} className={toolBtn} />
+        )}
         <OptionMenu label={`Sort: ${SORT_LABELS[prefs.sort]}`} options={SORT_LABELS} value={prefs.sort} onChange={(sort) => setPrefs({ sort })} className={toolBtn} />
         {mode === 'list' && (
           <Button size="sm" variant={onlyMe ? 'secondary' : 'outline'} className={toolBtn} onClick={() => setOnlyMe((v) => !v)}>Me</Button>
@@ -229,7 +240,7 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
         </Button>
 
         <div className="ml-auto flex items-center gap-0.5">
-          {([['list', 'List', ListIcon], ['board', 'Board', Columns3], ['calendar', 'Calendar', CalendarIcon], ['table', 'Table', TableIcon]] as const).map(([v, label, Icon]) => (
+          {([['list', 'List', ListIcon], ['board', 'Board', Columns3], ['calendar', 'Calendar', CalendarIcon]] as const).map(([v, label, Icon]) => (
             <Button key={v} size="sm" variant={prefs.view === v ? 'secondary' : 'ghost'} className="h-7 px-2 text-2xs gap-1" onClick={() => setPrefs({ view: v })}>
               <Icon className="h-3.5 w-3.5" /> {label}
             </Button>
@@ -242,14 +253,12 @@ export function TaskViews({ tasks, mode, people, lists, prefsKey, defaultGroup, 
       ) : prefs.view === 'list' ? (
         <ListView groups={groups} {...rowProps} canAdd={mode === 'list' && prefs.group === 'status' && !!onAddTask} onAddTask={onAddTask} />
       ) : prefs.view === 'board' ? (
-        <BoardView groups={groups} showStatus={prefs.group !== 'status'} {...rowProps} />
-      ) : prefs.view === 'calendar' ? (
-        <CalendarView tasks={visible} onOpen={open} />
+        <BoardView tasks={visible} showClosed={prefs.showClosed} {...rowProps} />
       ) : (
-        <TableView tasks={visible} {...rowProps} />
+        <CalendarView tasks={visible} onOpen={open} />
       )}
 
-      {!loading && visible.length === 0 && prefs.view !== 'calendar' && !(mode === 'list' && prefs.group === 'status' && prefs.view === 'list') && (
+      {!loading && visible.length === 0 && prefs.view === 'list' && !(mode === 'list' && prefs.group === 'status') && (
         <p className="text-sm text-muted-foreground text-center py-10">
           {tasks.length === 0 ? (mode === 'mine' ? 'Nothing is assigned to you yet.' : 'No tasks in this list yet.') : 'No tasks match.'}
         </p>
@@ -408,43 +417,99 @@ function InlineAdd({ onAdd }: { onAdd: (title: string) => Promise<unknown> }) {
   );
 }
 
-function BoardView({ groups, showStatus, peopleById, subtaskCounts, onOpen }: RowCtx & { groups: Group[]; showStatus: boolean }) {
+// The board is always one column per status; dragging a card to another
+// column changes the task's status.
+function BoardView({ tasks, showClosed, mode, peopleById, listNameById, subtaskCounts, onOpen }: RowCtx & { tasks: TaskRow[]; showClosed: boolean }) {
+  const { toast } = useToast();
+  const updateTask = useUpdateTask();
+  const [dragging, setDragging] = useState<TaskRow | null>(null);
+  const sensors = useSensors(
+    // A small move threshold keeps a plain click opening the task.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+  const ctx = { mode, peopleById, listNameById, subtaskCounts, onOpen };
+
+  const onDragStart = (e: DragStartEvent) => setDragging(tasks.find((t) => t.id === e.active.id) ?? null);
+  const onDragEnd = (e: DragEndEvent) => {
+    setDragging(null);
+    const task = tasks.find((t) => t.id === e.active.id);
+    const status = e.over?.id as TaskStatus | undefined;
+    if (!task || !status || status === task.status) return;
+    updateTask.mutate({ task, patch: { status } }, {
+      onError: (err) => toast({ title: 'Could not move task', description: errorMessage(err), variant: 'destructive' }),
+    });
+  };
+
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {groups.map((g) => (
-        <div key={g.key} className="w-64 shrink-0 rounded-lg bg-muted/30 p-2">
-          <div className="flex items-center gap-2 px-1 pb-2">
-            {g.dot && <span className={cn('h-2 w-2 rounded-full', g.dot)} />}
-            <span className="text-xs font-bold uppercase tracking-wide">{g.label}</span>
-            <span className="text-2xs text-muted-foreground">{g.items.length}</span>
-          </div>
-          <div className="space-y-2">
-            {g.items.map((t) => {
-              const sub = subtaskCounts.get(t.id);
-              const assignee = t.assignee_id ? peopleById.get(t.assignee_id) : undefined;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onOpen(t.id)}
-                  className="w-full text-left rounded-md border border-border/70 bg-card p-2.5 hover:border-primary/50 kd-transition space-y-2"
-                >
-                  {showStatus && <StatusPill status={t.status} />}
-                  <p className={cn('text-sm font-medium line-clamp-2', t.status === 'done' && 'line-through text-muted-foreground')}>{t.title}</p>
-                  <div className="flex items-center gap-2">
-                    <FlagIcon priority={t.priority} />
-                    {t.due_date && <span className={cn('text-2xs', isOverdue(t) ? 'text-destructive' : 'text-muted-foreground')}>{dueLabel(t.due_date)}</span>}
-                    {sub && <span className="text-2xs text-muted-foreground">{sub.done}/{sub.total}</span>}
-                    <span className="flex-1" />
-                    {assignee && <PersonAvatar person={assignee} size={18} />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {TASK_STATUSES.map((s) => (
+          <BoardColumn key={s} status={s} hiddenNote={s === 'done' && !showClosed}>
+            {tasks.filter((t) => t.status === s).map((t) => <BoardCard key={t.id} task={t} {...ctx} />)}
+          </BoardColumn>
+        ))}
+      </div>
+      <DragOverlay dropAnimation={null}>
+        {dragging && <CardBody task={dragging} {...ctx} className="shadow-lg rotate-1 cursor-grabbing" />}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function BoardColumn({ status, hiddenNote, children }: { status: TaskStatus; hiddenNote: boolean; children: React.ReactNode[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  return (
+    <div
+      ref={setNodeRef}
+      data-status={status}
+      className={cn('flex-1 min-w-[220px] rounded-lg bg-muted/30 p-2 flex flex-col min-h-[140px] kd-transition', isOver && 'ring-2 ring-primary/50 bg-primary/5')}
+    >
+      <div className="flex items-center gap-2 px-1 pb-2">
+        <span className={cn('h-2 w-2 rounded-full', STATUS_META[status].dot)} />
+        <span className="text-xs font-bold uppercase tracking-wide">{STATUS_META[status].label}</span>
+        {!hiddenNote && <span className="text-2xs text-muted-foreground">{children.length}</span>}
+      </div>
+      <div className="space-y-2 flex-1">
+        {children}
+        {hiddenNote && (
+          <p className="text-2xs text-muted-foreground px-1 py-2">Drop here to complete. Turn on "Show closed" to see completed tasks.</p>
+        )}
+      </div>
     </div>
+  );
+}
+
+function BoardCard({ task, ...ctx }: RowCtx & { task: TaskRow }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} className={cn('touch-none', isDragging && 'opacity-40')}>
+      <CardBody task={task} {...ctx} />
+    </div>
+  );
+}
+
+function CardBody({ task, mode, peopleById, listNameById, subtaskCounts, onOpen, className }: RowCtx & { task: TaskRow; className?: string }) {
+  const sub = subtaskCounts.get(task.id);
+  const assignee = task.assignee_id ? peopleById.get(task.assignee_id) : undefined;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(task.id)}
+      className={cn('w-full text-left rounded-md border border-border/70 bg-card p-2.5 hover:border-primary/50 kd-transition space-y-2 cursor-grab', className)}
+    >
+      <p className={cn('text-sm font-medium line-clamp-2', task.status === 'done' && 'line-through text-muted-foreground')}>{task.title}</p>
+      {mode === 'mine' && listNameById.get(task.list_id) && (
+        <p className="text-2xs text-primary/80 truncate">{listNameById.get(task.list_id)}</p>
+      )}
+      <div className="flex items-center gap-2">
+        <FlagIcon priority={task.priority} />
+        {task.due_date && <span className={cn('text-2xs', isOverdue(task) ? 'text-destructive' : 'text-muted-foreground')}>{dueLabel(task.due_date)}</span>}
+        {sub && <span className="text-2xs text-muted-foreground">{sub.done}/{sub.total}</span>}
+        <span className="flex-1" />
+        {assignee && <PersonAvatar person={assignee} size={18} />}
+      </div>
+    </button>
   );
 }
 
@@ -495,49 +560,6 @@ function CalendarView({ tasks, onOpen }: { tasks: TaskRow[]; onOpen: (id: string
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function TableView({ tasks, mode, peopleById, listNameById, subtaskCounts, onOpen }: RowCtx & { tasks: TaskRow[] }) {
-  const th = 'px-3 py-2 text-left text-3xs font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap';
-  const td = 'px-3 py-1.5 whitespace-nowrap';
-  return (
-    <div className="rounded-lg border border-border/70 overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/30 border-b border-border/70">
-          <tr>
-            <th className={th}>Name</th>
-            <th className={th}>Status</th>
-            <th className={th}>Assignee</th>
-            <th className={th}>Due date</th>
-            <th className={th}>Priority</th>
-            <th className={th}>Tags</th>
-            {mode === 'mine' && <th className={th}>List</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((t) => {
-            const assignee = t.assignee_id ? peopleById.get(t.assignee_id) : undefined;
-            const sub = subtaskCounts.get(t.id);
-            return (
-              <tr key={t.id} onClick={() => onOpen(t.id)} className="border-b border-border/40 hover:bg-muted/30 cursor-pointer">
-                <td className={cn(td, 'max-w-[320px] truncate', t.status === 'done' && 'line-through text-muted-foreground')}>
-                  {t.title}{sub && <span className="ml-2 text-2xs text-muted-foreground">{sub.done}/{sub.total}</span>}
-                </td>
-                <td className={td}><StatusPill status={t.status} /></td>
-                <td className={td}>
-                  {assignee ? <span className="inline-flex items-center gap-1.5"><PersonAvatar person={assignee} size={18} /> <span className="text-xs">{assignee.full_name}</span></span> : <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className={cn(td, 'text-xs', isOverdue(t) ? 'text-destructive' : 'text-muted-foreground')}>{t.due_date ? dueLabel(t.due_date) : '—'}</td>
-                <td className={cn(td, 'text-xs')}>{t.priority ? <span className="inline-flex items-center gap-1"><FlagIcon priority={t.priority} /> {PRIORITY_META[t.priority].label}</span> : <span className="text-muted-foreground">—</span>}</td>
-                <td className={cn(td, 'text-2xs')}>{(t.tags ?? []).join(', ') || <span className="text-muted-foreground">—</span>}</td>
-                {mode === 'mine' && <td className={cn(td, 'text-xs text-muted-foreground')}>{listNameById.get(t.list_id) ?? '—'}</td>}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }
