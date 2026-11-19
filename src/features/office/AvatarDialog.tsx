@@ -1,11 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dices, Footprints, RotateCcw } from 'lucide-react';
+import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, SKIN_CHOICES, TIES } from './world/avatarParts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { AvatarStyle } from './world/types';
 import { HAIR_COLORS, PANTS_COLORS, SHIRT_COLORS, SKIN_TONES, TILE, defaultAvatar, drawPerson } from './world/render';
 
-type NumKey = 'hairStyle' | 'outfit' | 'beard' | 'jacket' | 'shoes' | 'hat' | 'glasses' | 'tie' | 'extra';
+type NumKey = 'hairStyle' | 'outfit' | 'beard' | 'jacket' | 'shoes' | 'hat' | 'glasses' | 'tie' | 'extra' | 'bottom' | 'costume';
 type ColorKey = 'skin' | 'hair' | 'shirt' | 'pants' | 'jacketColor' | 'inner' | 'shoeColor' | 'hatColor' | 'tieColor';
 type Focus = 'head' | 'torso' | 'feet' | 'full';
 
@@ -17,17 +18,7 @@ const FOCUS: Record<Focus, { x: number; y: number; s: number }> = {
 };
 
 /** A friendly range of colours for clothes (you can also pick any colour you like). */
-const COLORS = ['#ef4444', '#fb923c', '#facc15', '#6b7a2e', '#16a34a', '#0f766e', '#38bdf8', '#2563eb', '#818cf8', '#a855f7', '#ec4899', '#f9a8d4', '#b8734a', '#e8cfa6', '#ffffff', '#9ca3af', '#374151', '#111827'];
-
-const HAIR_STYLES = ['Short', 'Long', 'Bun', 'None', 'Curly', 'Quiff', 'Braids', 'Afro', 'Bob', 'Mohawk', 'Locs'];
-const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top'];
-const BEARDS = ['None', 'Stubble', 'Moustache', 'Beard'];
-const JACKETS = ['None', 'Blazer', 'Denim', 'Bomber', 'Waistcoat'];
-const SHOES = ['Sneakers', 'Formal', 'Boots', 'Sandals'];
-const HATS = ['None', 'Cap', 'Beanie', 'Head wrap', 'Beret'];
-const GLASSES = ['None', 'Glasses', 'Sunglasses'];
-const TIES = ['None', 'Tie', 'Bow tie', 'Scarf'];
-const EXTRAS = ['None', 'Headset', 'Earrings'];
+export const COLORS = ['#ef4444', '#fb923c', '#facc15', '#6b7a2e', '#16a34a', '#0f766e', '#38bdf8', '#2563eb', '#818cf8', '#a855f7', '#ec4899', '#f9a8d4', '#b8734a', '#e8cfa6', '#ffffff', '#9ca3af', '#374151', '#111827'];
 
 interface Section {
   id: string;
@@ -46,8 +37,8 @@ interface Section {
 const TABS: { id: string; label: string; sections: Section[] }[] = [
   {
     id: 'base', label: 'Base', sections: [
-      { id: 'skin', label: 'Skin', focus: 'head', color: 'skin', palette: SKIN_TONES },
-      { id: 'hair', label: 'Hair', focus: 'head', color: 'hair', palette: HAIR_COLORS, option: 'hairStyle', labels: HAIR_STYLES },
+      { id: 'skin', label: 'Skin', focus: 'head', color: 'skin', palette: SKIN_CHOICES },
+      { id: 'hair', label: 'Hair', focus: 'head', color: 'hair', palette: HAIR_CHOICES, option: 'hairStyle', labels: HAIR_STYLES },
       { id: 'beard', label: 'Facial hair', focus: 'head', option: 'beard', labels: BEARDS },
     ],
   },
@@ -55,8 +46,13 @@ const TABS: { id: string; label: string; sections: Section[] }[] = [
     id: 'clothing', label: 'Clothing', sections: [
       { id: 'top', label: 'Top', focus: 'torso', color: 'shirt', palette: [...SHIRT_COLORS, ...COLORS], option: 'outfit', labels: OUTFITS },
       { id: 'jacket', label: 'Jacket', focus: 'torso', color: 'jacketColor', palette: COLORS, option: 'jacket', labels: JACKETS, extraColor: { key: 'inner', label: 'Shirt underneath' } },
-      { id: 'bottom', label: 'Bottom', focus: 'feet', color: 'pants', palette: [...PANTS_COLORS, ...COLORS] },
+      { id: 'bottom', label: 'Bottom', focus: 'feet', color: 'pants', palette: [...PANTS_COLORS, ...COLORS], option: 'bottom', labels: BOTTOMS },
       { id: 'shoes', label: 'Shoes', focus: 'feet', color: 'shoeColor', palette: COLORS, option: 'shoes', labels: SHOES },
+    ],
+  },
+  {
+    id: 'characters', label: 'Characters', sections: [
+      { id: 'costume', label: 'Costume', focus: 'full', option: 'costume', labels: COSTUMES },
     ],
   },
   {
@@ -69,32 +65,68 @@ const TABS: { id: string; label: string; sections: Section[] }[] = [
   },
 ];
 
-/** Ready-made looks: one tap puts a whole outfit together. */
-const LOOKS: { id: string; label: string; apply: (a: AvatarStyle) => Partial<AvatarStyle> }[] = [
-  { id: 'boardroom', label: 'Boardroom', apply: () => ({ outfit: 0, shirt: '#ffffff', jacket: 1, jacketColor: '#1f2a44', inner: '#ffffff', tie: 1, tieColor: '#b91c1c', pants: '#1f2a44', shoes: 1, shoeColor: '#111827', hat: 0, glasses: 0, extra: 0 }) },
-  { id: 'casual', label: 'Casual', apply: () => ({ outfit: 0, shirt: '#ef4444', jacket: 2, jacketColor: '#4f79a8', inner: '#ef4444', tie: 0, pants: '#374151', shoes: 0, shoeColor: '#ffffff', hat: 0, glasses: 0, extra: 0 }) },
-  { id: 'weekend', label: 'Weekend', apply: () => ({ outfit: 1, shirt: '#16a34a', jacket: 0, tie: 0, pants: '#111827', shoes: 0, shoeColor: '#fb923c', hat: 1, hatColor: '#111827', glasses: 2, extra: 0 }) },
-  { id: 'ankara', label: 'Ankara', apply: () => ({ outfit: 6, shirt: '#0f766e', jacket: 0, tie: 0, pants: '#111827', shoes: 3, shoeColor: '#d6ac50', hat: 3, hatColor: '#d6ac50', glasses: 0, extra: 2 }) },
-  { id: 'kaftan', label: 'Kaftan', apply: () => ({ outfit: 5, shirt: '#e8cfa6', jacket: 0, tie: 0, pants: '#e8cfa6', shoes: 1, shoeColor: '#6b4423', hat: 1, hatColor: '#e8cfa6', glasses: 0, extra: 0 }) },
-  { id: 'smart', label: 'Smart', apply: () => ({ outfit: 0, shirt: '#38bdf8', jacket: 4, jacketColor: '#374151', inner: '#38bdf8', tie: 2, tieColor: '#a855f7', pants: '#374151', shoes: 1, shoeColor: '#111827', hat: 0, glasses: 1, extra: 0 }) },
-  { id: 'cool', label: 'Cool', apply: () => ({ outfit: 0, shirt: '#111827', jacket: 3, jacketColor: '#16a34a', inner: '#111827', tie: 0, pants: '#2563eb', shoes: 2, shoeColor: '#374151', hat: 2, hatColor: '#facc15', glasses: 2, extra: 0 }) },
-  { id: 'creative', label: 'Creative', apply: () => ({ outfit: 1, shirt: '#ec4899', jacket: 0, tie: 3, tieColor: '#facc15', pants: '#0b3a6b', shoes: 0, shoeColor: '#ffffff', hat: 4, hatColor: '#a855f7', glasses: 1, extra: 1 }) },
+const CLEAR: Partial<AvatarStyle> = { costume: 0, bottom: 0, jacket: 0, tie: 0, hat: 0, glasses: 0, extra: 0, beard: 0 };
+
+/** Ready-made looks: one tap puts a whole outfit together. Every piece in them can also be picked by hand in the other tabs. */
+export const LOOKS: { id: string; label: string; apply: (a: AvatarStyle) => Partial<AvatarStyle> }[] = [
+  { id: 'boardroom', label: 'Boardroom', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#ffffff', jacket: 1, jacketColor: '#1f2a44', inner: '#ffffff', tie: 1, tieColor: '#b91c1c', pants: '#1f2a44', shoes: 1, shoeColor: '#111827' }) },
+  { id: 'casual', label: 'Casual', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#ef4444', jacket: 2, jacketColor: '#4f79a8', inner: '#ef4444', pants: '#374151', shoes: 0, shoeColor: '#ffffff' }) },
+  { id: 'weekend', label: 'Weekend', apply: () => ({ ...CLEAR, outfit: 1, shirt: '#16a34a', pants: '#111827', shoes: 0, shoeColor: '#fb923c', hat: 1, hatColor: '#111827', glasses: 2 }) },
+  { id: 'smart', label: 'Smart', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#38bdf8', jacket: 4, jacketColor: '#374151', inner: '#38bdf8', tie: 2, tieColor: '#a855f7', pants: '#374151', shoes: 1, shoeColor: '#111827', glasses: 1 }) },
+  { id: 'cool', label: 'Cool', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#111827', jacket: 3, jacketColor: '#16a34a', inner: '#111827', pants: '#2563eb', shoes: 2, shoeColor: '#374151', hat: 2, hatColor: '#facc15', glasses: 2 }) },
+  { id: 'creative', label: 'Creative', apply: () => ({ ...CLEAR, outfit: 1, shirt: '#ec4899', tie: 3, tieColor: '#facc15', pants: '#0b3a6b', shoes: 0, shoeColor: '#ffffff', hat: 4, hatColor: '#a855f7', glasses: 1, extra: 1 }) },
+  { id: 'ankara', label: 'Ankara', apply: () => ({ ...CLEAR, outfit: 6, shirt: '#0f766e', pants: '#111827', shoes: 3, shoeColor: '#d6ac50', hat: 3, hatColor: '#d6ac50', extra: 2 }) },
+  { id: 'kaftan', label: 'Kaftan', apply: () => ({ ...CLEAR, outfit: 5, shirt: '#e8cfa6', pants: '#e8cfa6', shoes: 1, shoeColor: '#6b4423', hat: 1, hatColor: '#e8cfa6' }) },
+  { id: 'agbada', label: 'Agbada', apply: () => ({ ...CLEAR, outfit: 7, shirt: '#1e3a8a', inner: '#f8fafc', pants: '#f8fafc', shoes: 1, shoeColor: '#6b4423', hat: 6, hatColor: '#1e3a8a' }) },
+  { id: 'gele', label: 'Gele and iro', apply: () => ({ ...CLEAR, outfit: 9, shirt: '#f59e0b', pants: '#7c3aed', shoes: 4, shoeColor: '#d6ac50', hat: 7, hatColor: '#ec4899', extra: 6, hairStyle: 3 }) },
+  { id: 'chief', label: 'Igbo chief', apply: () => ({ ...CLEAR, outfit: 8, shirt: '#7f1d1d', pants: '#111827', shoes: 1, shoeColor: '#111827', hat: 15, beard: 3, hair: '#d1d5db' }) },
+  { id: 'hausa', label: 'Hausa babariga', apply: () => ({ ...CLEAR, outfit: 7, shirt: '#f8fafc', inner: '#e8cfa6', pants: '#f8fafc', shoes: 3, shoeColor: '#6b4423', hat: 16, hatColor: '#f8fafc', beard: 3 }) },
+  { id: 'hijab', label: 'Hijab', apply: () => ({ ...CLEAR, outfit: 13, shirt: '#0f766e', shoes: 3, shoeColor: '#d6ac50', hat: 8, hatColor: '#f9a8d4' }) },
+  { id: 'dashiki', label: 'Dashiki', apply: () => ({ ...CLEAR, outfit: 14, shirt: '#16a34a', pants: '#111827', shoes: 3, shoeColor: '#6b4423', hat: 16, hatColor: '#facc15' }) },
+  { id: 'kente', label: 'Kente', apply: () => ({ ...CLEAR, outfit: 15, shirt: '#facc15', pants: '#16a34a', shoes: 3, shoeColor: '#6b4423', extra: 6 }) },
+  { id: 'cowboy', label: 'Cowboy', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#dc2626', jacket: 2, jacketColor: '#4f79a8', inner: '#dc2626', pants: '#2563eb', shoes: 2, shoeColor: '#6b4423', hat: 5, hatColor: '#8b5a2b', beard: 2 }) },
+  { id: 'graduate', label: 'Graduate', apply: () => ({ ...CLEAR, outfit: 12, shirt: '#111827', tieColor: '#facc15', shoes: 1, shoeColor: '#111827', hat: 14, hatColor: '#111827' }) },
+  { id: 'ballgown', label: 'Ball gown', apply: () => ({ ...CLEAR, outfit: 10, shirt: '#7c3aed', shoes: 4, shoeColor: '#facc15', hairStyle: 2, extra: 6 }) },
+  { id: 'bride', label: 'Wedding', apply: () => ({ ...CLEAR, outfit: 11, shirt: '#ffffff', shoes: 4, shoeColor: '#f8fafc', hairStyle: 2 }) },
+  { id: 'lab', label: 'Lab coat', apply: () => ({ ...CLEAR, outfit: 17, shirt: '#38bdf8', pants: '#374151', shoes: 0, shoeColor: '#ffffff', glasses: 3 }) },
+  { id: 'chef', label: 'Chef', apply: () => ({ ...CLEAR, outfit: 0, shirt: '#ffffff', pants: '#374151', shoes: 1, shoeColor: '#111827', hat: 11, hatColor: '#ffffff', beard: 5 }) },
+  { id: 'sporty', label: 'Sporty', apply: () => ({ ...CLEAR, outfit: 18, shirt: '#ef4444', bottom: 1, pants: '#111827', shoes: 0, shoeColor: '#ffffff', hat: 1, hatColor: '#ef4444', glasses: 2 }) },
+  { id: 'beach', label: 'Beach day', apply: () => ({ ...CLEAR, outfit: 18, shirt: '#fb923c', bottom: 1, pants: '#38bdf8', shoes: 6, glasses: 2, hat: 9, hatColor: '#facc15' }) },
+  { id: 'robot', label: 'Robot', apply: () => ({ ...CLEAR, costume: 1 }) },
+  { id: 'zombie', label: 'Zombie', apply: () => ({ ...CLEAR, costume: 2 }) },
+  { id: 'ghost', label: 'Ghost', apply: () => ({ ...CLEAR, costume: 3 }) },
+  { id: 'pirate', label: 'Pirate', apply: () => ({ ...CLEAR, costume: 4 }) },
+  { id: 'rat', label: 'Rat', apply: () => ({ ...CLEAR, costume: 5 }) },
+  { id: 'alien', label: 'Alien', apply: () => ({ ...CLEAR, costume: 6 }) },
+  { id: 'clown', label: 'Clown', apply: () => ({ ...CLEAR, costume: 7 }) },
+  { id: 'skeleton', label: 'Skeleton', apply: () => ({ ...CLEAR, costume: 8 }) },
 ];
 
 const pickOf = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
+const upTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 
-/** Everything chosen at random, but never a clash that looks silly (a dress under a blazer, for instance). */
-function surprise(a: AvatarStyle): AvatarStyle {
-  const outfit = pickOf([0, 0, 1, 2, 3, 4, 5, 6] as const);
-  const dressy = outfit === 3 || outfit === 4;
+/** Everything chosen at random from what you can pick by hand, and never a clash that looks silly (a gown under a blazer, say). */
+export function surprise(a: AvatarStyle, characters = false): AvatarStyle {
+  const outfit = pickOf(upTo(OUTFITS.length));
+  const dressy = outfit === 3 || outfit === 4 || (outfit >= 7 && ![8, 14, 16, 18, 21, 24, 26, 29].includes(outfit));
+  const costume = characters && Math.random() < 0.35 ? pickOf(upTo(COSTUMES.length).slice(1)) : 0;
   return {
     ...a,
-    skin: pickOf(SKIN_TONES), hair: pickOf(HAIR_COLORS), hairStyle: pickOf([0, 1, 2, 4, 5, 6, 7, 8, 9, 10] as const), beard: pickOf([0, 0, 0, 1, 2, 3] as const),
-    outfit, shirt: pickOf(COLORS), pants: pickOf(COLORS), inner: pickOf(['#ffffff', '#f9a8d4', '#38bdf8', '#e8cfa6']),
-    jacket: dressy ? 0 : pickOf([0, 0, 1, 2, 3, 4] as const), jacketColor: pickOf(COLORS),
-    tie: pickOf([0, 0, 1, 2, 3] as const), tieColor: pickOf(COLORS), shoes: pickOf([0, 1, 2, 3] as const), shoeColor: pickOf(COLORS),
-    hat: pickOf([0, 0, 1, 2, 3, 4] as const), hatColor: pickOf(COLORS), glasses: pickOf([0, 0, 1, 2] as const), extra: pickOf([0, 0, 1, 2] as const),
+    skin: pickOf(SKIN_CHOICES), hair: pickOf(HAIR_CHOICES), hairStyle: pickOf(upTo(HAIR_STYLES.length)), beard: pickOf([0, 0, 0, ...upTo(BEARDS.length)]),
+    outfit, shirt: pickOf([...SHIRT_COLORS, ...COLORS]), pants: pickOf([...PANTS_COLORS, ...COLORS]), bottom: pickOf(upTo(BOTTOMS.length)), inner: pickOf(COLORS),
+    jacket: dressy ? 0 : pickOf([0, 0, ...upTo(JACKETS.length)]), jacketColor: pickOf(COLORS),
+    tie: dressy ? 0 : pickOf([0, 0, ...upTo(TIES.length)]), tieColor: pickOf(COLORS), shoes: pickOf(upTo(SHOES.length)), shoeColor: pickOf(COLORS),
+    hat: pickOf([0, 0, ...upTo(HATS.length)]), hatColor: pickOf(COLORS), glasses: pickOf([0, 0, ...upTo(GLASSES.length)]), extra: pickOf([0, 0, ...upTo(EXTRAS.length)]),
+    costume,
   };
+}
+
+/** Random for just one part (its choice and its colour), from exactly what that part offers. */
+function surprisePart(a: AvatarStyle, section: Section): AvatarStyle {
+  const next = { ...a } as AvatarStyle & Record<string, unknown>;
+  if (section.option && section.labels) next[section.option] = pickOf(upTo(section.labels.length));
+  if (section.color && section.palette) next[section.color] = pickOf(section.palette);
+  return next;
 }
 
 /** A small picture of an avatar, zoomed to the part that matters (drawn once, with the same code as the world). */
@@ -175,7 +207,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
         ctx.save();
         const walked = walk ? (t / 1000) * 1.7 : 0;
         ctx.scale(5, 5);
-        ctx.translate(100 / 5 - 0.5 * TILE * 0, 0);
+        ctx.translate(100 / 5 - 0.5 * TILE, 0);
         // the avatar stays in the middle while the legs and arms swing as if it were walking
         const sx = 0.5 + (walk ? walked % 4 : 0);
         ctx.translate(-(sx - 0.5) * TILE, 0);
@@ -210,6 +242,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
             </div>
             <div className="flex gap-1.5">
               <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setDraft((d) => surprise(d))}><Dices className="h-3.5 w-3.5" />Surprise me</Button>
+              <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => setDraft((d) => surprise(d, true))} title="Might even make you a robot, a ghost or a pirate">Wild</Button>
               <Button type="button" size="sm" variant="ghost" className="h-8 gap-1.5 text-xs" onClick={() => setDraft(defaultAvatar(name || 'x'))} title="Back to the starting look"><RotateCcw className="h-3.5 w-3.5" />Reset</Button>
             </div>
           </div>
@@ -223,7 +256,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
             {tab === 'looks' && (
               <div>
-                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from, then change anything you like in the other tabs.</p>
+                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from (traditional, formal, fun or a full character), then change anything you like in the other tabs. Every piece can be picked by hand too.</p>
                 <div className="grid max-h-[22rem] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
                   {LOOKS.map((l) => (
                     <button key={l.id} type="button" onClick={() => set(l.apply(draft))} className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 p-1.5 ring-1 ring-transparent transition hover:bg-muted hover:ring-primary/40">
@@ -242,6 +275,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
                     <button key={s.id} type="button" onClick={() => setSectionId(s.id)} className={`h-7 rounded-full px-3 text-xs font-semibold ring-1 transition ${section.id === s.id ? 'bg-primary text-primary-foreground ring-primary' : 'bg-muted/50 ring-transparent hover:bg-muted'}`}>{s.label}</button>
                   ))}
                 </div>
+                <div className="flex justify-end"><Button type="button" size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => setDraft((d) => surprisePart(d, section))}><Dices className="h-3.5 w-3.5" />Random {section.label.toLowerCase()}</Button></div>
                 {section.color && section.palette && (
                   <ColorRow label={`${section.label} colour`} palette={section.palette} value={draft[section.color]} onPick={(c) => set({ [section.color!]: c } as Partial<AvatarStyle>)} />
                 )}
