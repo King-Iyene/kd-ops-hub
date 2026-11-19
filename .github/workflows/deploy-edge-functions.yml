@@ -197,3 +197,15 @@ jobs:
       # Needs the ANTHROPIC_API_KEY secret (supabase secrets set), which is never kept in this repo.
       - name: Deploy agent-ai
         run: supabase functions deploy agent-ai --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Ops Agent chat: Super Admin and Admin only (role checked in code); data only through agent_chat_tool as the caller.
+      - name: Deploy agent-chat
+        run: supabase functions deploy agent-chat --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Ops Agent connections (Slack, Cliq, email, webhook, n8n, API): Super Admin only (role checked in code).
+      - name: Deploy agent-connections
+        run: supabase functions deploy agent-connections --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Ops Agent inbound API: authenticates with an agent API key (hashed, rate limited, revocable), not a user JWT.
+      - name: Deploy agent-inbound
+        run: supabase functions deploy agent-inbound --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes

@@ -7,7 +7,8 @@
 //     4. logs tokens and an estimated cost to agent_ai_usage (success or failure)
 //     5. never throws: on any problem it returns { ok: false, reason } and the caller uses its template
 //
-// The key is the Supabase secret ANTHROPIC_API_KEY. It is read here only, never returned and never logged.
+// The key is the Supabase secret ANTHROPIC_API_KEY, or (when a Super Admin pasted it into Settings) the Vault secret
+// agent_anthropic_key. It is read here only, never returned and never logged.
 
 import Anthropic from 'npm:@anthropic-ai/sdk@1.10.0';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
@@ -20,7 +21,7 @@ export interface CallOptions {
   alias: ModelAlias;
   /** What this call is for, written to the usage log (e.g. "flag_enrichment", "chat"). */
   feature: string;
-  messages: { role: 'user' | 'assistant'; content: string }[];
+  messages: Anthropic.MessageParam[];
   /** Instruction that changes per call; the identity and Operating Rules are added and cached for you. */
   task?: string;
   extraContext?: string[];
@@ -44,7 +45,34 @@ export function serviceClient(): SupabaseClient {
   });
 }
 
-export const keyConfigured = (): boolean => !!Deno.env.get('ANTHROPIC_API_KEY');
+export const VAULT_KEY_NAME = 'agent_anthropic_key';
+
+/** The Claude key: the Supabase secret first, then the one a Super Admin saved from Settings (kept in Vault). */
+export async function loadApiKey(db: SupabaseClient): Promise<{ key: string; source: 'env' | 'vault' } | null> {
+  const env = Deno.env.get('ANTHROPIC_API_KEY');
+  if (env) return { key: env, source: 'env' };
+  try {
+    const { data, error } = await db.rpc('agent_secret_get', { p_name: VAULT_KEY_NAME });
+    if (!error && typeof data === 'string' && data) return { key: data, source: 'vault' };
+  } catch { /* no key */ }
+  return null;
+}
+
+export async function keyConfigured(db: SupabaseClient = serviceClient()): Promise<{ configured: boolean; source: 'env' | 'vault' | null }> {
+  const k = await loadApiKey(db);
+  return { configured: !!k, source: k?.source ?? null };
+}
+
+/** One tiny request with a key someone just supplied, before it is saved. Never logs or returns the key. */
+export async function probeKey(key: string, model: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const client = new Anthropic({ apiKey: key, maxRetries: 0 });
+    await client.messages.create({ model, max_tokens: 8, messages: [{ role: 'user', content: 'Reply OK' }] });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e instanceof Error ? e.message : String(e)).replaceAll(key, '[key]').slice(0, 300) };
+  }
+}
 
 async function loadSettings(db: SupabaseClient): Promise<AgentSettingsLite> {
   const { data, error } = await db.from('agent_settings')
@@ -84,8 +112,9 @@ export async function callClaude(opts: CallOptions, db: SupabaseClient = service
   const g = gate(state, { nonCritical: opts.nonCritical, force: opts.force });
   if (!g.allowed) return { ok: false, reason: g.reason };
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return { ok: false, reason: 'no_key' };
+  const found = await loadApiKey(db);
+  if (!found) return { ok: false, reason: 'no_key' };
+  const apiKey = found.key;
 
   const model = modelFor(settings, opts.alias);
   const system: SystemBlock[] = buildSystem({ operatingRules: settings.operating_rules, extra: opts.extraContext, task: opts.task });

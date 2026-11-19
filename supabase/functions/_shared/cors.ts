@@ -17,6 +17,8 @@ const LOCAL_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:8080",
   "http://localhost:3000",
+  // `vite preview`: the Ops Diagnose workflow and local production-build checks call functions from here.
+  "http://localhost:4173",
 ];
 
 function denyLocalhost(): boolean {

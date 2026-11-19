@@ -10,6 +10,7 @@ const SECRET = 'sk-ant-test-SECRET-KEY-12345';
 function assert(cond: unknown, msg: string) { if (!cond) throw new Error(`FAIL: ${msg}`); }
 
 interface Fake {
+  vaultKey: string | null;
   db: any;
   usageRows: Record<string, unknown>[];
   state: BudgetState;
@@ -18,6 +19,7 @@ interface Fake {
 
 function fakeDb(over: { state?: Partial<BudgetState>; settings?: Record<string, unknown> } = {}): Fake {
   const f: Fake = {
+    vaultKey: null,
     usageRows: [],
     state: { level: 'ok', ai_enabled: true, spent_today_usd: 0, spent_month_usd: 0, daily_budget_usd: 5, monthly_budget_usd: 50, ...over.state },
     settings: {
@@ -31,6 +33,7 @@ function fakeDb(over: { state?: Partial<BudgetState>; settings?: Record<string, 
     from: () => ({ select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: f.settings, error: null }) }) }) }),
     rpc: (name: string, args: Record<string, unknown>) => {
       if (name === 'agent_ai_budget_state') return Promise.resolve({ data: f.state, error: null });
+      if (name === 'agent_secret_get') return Promise.resolve({ data: f.vaultKey, error: null });
       if (name === 'agent_log_ai_usage') { f.usageRows.push(args); return Promise.resolve({ data: 'id', error: null }); }
       return Promise.resolve({ data: null, error: { message: `unexpected rpc ${name}` } });
     },
@@ -137,13 +140,26 @@ Deno.test('callClaude: gate, logging, errors and key handling', async () => {
     f = fakeDb();
     r = await callClaude({ alias: 'fast', feature: 'unit', messages: msgs }, f.db);
     assert(!r.ok && r.reason === 'no_key' && srv.seen.length === m, 'no key, no request');
+    // 9b. no environment key, but a Super Admin saved one from Settings (Vault): it is used, and only it
+    const VAULT = 'sk-ant-test-FROM-VAULT-999';
+    f = fakeDb(); f.vaultKey = VAULT;
+    const k = srv.seen.length;
+    r = await callClaude({ alias: 'fast', feature: 'unit', messages: msgs }, f.db);
+    assert(r.ok, 'vault key works when there is no environment key');
+    const h2 = srv.seen[k].headers;
+    assert(h2.get('x-api-key') === VAULT || h2.get('authorization') === `Bearer ${VAULT}`, 'the vault key was the one sent');
+    // 9c. the environment key wins over the vault key
     Deno.env.set('ANTHROPIC_API_KEY', SECRET);
+    const k2 = srv.seen.length;
+    r = await callClaude({ alias: 'fast', feature: 'unit', messages: msgs }, f.db);
+    const h3 = srv.seen[k2].headers;
+    assert(r.ok && (h3.get('x-api-key') === SECRET || h3.get('authorization') === `Bearer ${SECRET}`), 'the environment key takes priority');
 
     // 10. the key travels only in the x-api-key header of the request to the provider
     const h = srv.seen[0].headers;
     assert(h.get('x-api-key') === SECRET || h.get('authorization') === `Bearer ${SECRET}`, 'key sent to the provider in a header');
     assert(!JSON.stringify(srv.seen[0].body).includes(SECRET), 'key is not in the request body');
-    console.log('PASS: callClaude gate / logging / fallback / key handling (10 scenarios)');
+    console.log('PASS: callClaude gate / logging / fallback / key handling (12 scenarios)');
   } finally {
     await srv.stop();
   }
