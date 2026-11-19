@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -28,7 +28,7 @@ import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
 import { MeetingView } from './calls/MeetingView';
 import { ProfileMenu } from './ProfileMenu';
-import { statusOf } from './status';
+import { statusOf, dotColor } from './status';
 import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
 import { useCalls } from './calls/useCalls';
 import { useRecorder } from './calls/useRecorder';
@@ -1264,8 +1264,8 @@ function OfficeRoom() {
                 return (
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
-                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.emoji} ${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
+                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
                     </button>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
@@ -1337,6 +1337,7 @@ function OfficeRoom() {
               {[
                 { label: 'Zoom in', icon: <Plus className="h-4 w-4" />, run: () => setZoom((z) => Math.min(2.2, +(z + 0.2).toFixed(1))) },
                 { label: 'Zoom out', icon: <Minus className="h-4 w-4" />, run: () => setZoom((z) => Math.max(0.5, +(z - 0.2).toFixed(1))) },
+                { label: 'Show or hide the map (M)', icon: <MapIcon className="h-4 w-4" />, run: () => window.dispatchEvent(new Event('kd-office-minimap')) },
                 { label: 'Back to my avatar (double-click the map too)', icon: <LocateFixed className="h-4 w-4" />, run: () => setRecenter((n) => n + 1) },
               ].map((b) => (
                 <button key={b.label} type="button" onClick={b.run} aria-label={b.label} title={b.label} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/90 text-foreground shadow backdrop-blur hover:bg-muted">{b.icon}</button>

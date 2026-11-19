@@ -141,8 +141,13 @@ export function OfficeCanvas(props: Props) {
   const wantSit = useRef<string | null>(null);
   /** the minimap: where it is on screen (null when hidden), whether it is shown, and its cached picture of the building */
   const miniRect = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-  const miniOn = useRef(true);
+  const miniOn = useRef((() => { try { return localStorage.getItem('kd:office:minimap') === '1'; } catch { return false; } })());
   const miniPic = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  useEffect(() => {
+    const toggle = () => { miniOn.current = !miniOn.current; try { localStorage.setItem('kd:office:minimap', miniOn.current ? '1' : '0'); } catch { /* fine */ } };
+    window.addEventListener('kd-office-minimap', toggle);
+    return () => window.removeEventListener('kd-office-minimap', toggle);
+  }, []);
   const standRef = useRef<() => void>(() => undefined);
   const sitRef2 = useRef<(item: Item, tile?: { x: number; y: number }) => void>(() => undefined);
   const petFx = useRef<{ x: number; y: number; born: number; e: string }[]>([]);
@@ -179,7 +184,7 @@ export function OfficeCanvas(props: Props) {
         const near = nearRef.current;
         if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
       }
-      if (k === 'm') { miniOn.current = !miniOn.current; return; }
+      if (k === 'm') { miniOn.current = !miniOn.current; try { localStorage.setItem('kd:office:minimap', miniOn.current ? '1' : '0'); } catch { /* fine */ } return; }
       if (k === 'shift') { keys.current.add('shift'); return; }
       if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
@@ -873,9 +878,40 @@ export function OfficeCanvas(props: Props) {
       }
       const nearIt = p.editing || p.riding || sitRef.current ? null : nearestInteractive(p.items, me.x, me.y);
       if ((nearIt?.id ?? null) !== (nearRef.current?.id ?? null)) { nearRef.current = nearIt; p.onNear(nearIt); }
+      // everything you can use around you gets a faint dashed outline, so you can see what is accessible; the one the F is for glows
+      if (!p.editing && !p.riding && !sitRef.current) {
+        for (const it of p.items) {
+          if (!INTERACTIVE[it.t] || SEAT_TYPES.includes(it.t) || it.id === nearIt?.id) continue;
+          const zs = itemSize(it);
+          const dx = Math.max(it.x - me.x, 0, me.x - (it.x + zs.w));
+          const dy = Math.max(it.y - me.y, 0, me.y - (it.y + zs.h));
+          const dd = Math.hypot(dx, dy);
+          if (dd > 4.5) continue;
+          ctx.save();
+          ctx.setLineDash([4, 4]);
+          ctx.lineDashOffset = -now / 120;
+          ctx.strokeStyle = `rgba(251,191,36,${0.55 * (1 - dd / 4.5)})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(it.x * TILE - 2, it.y * TILE - 2, zs.w * TILE + 4, zs.h * TILE + 4, 7);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
       if (nearIt) {
         const sz = itemSize(nearIt);
-        
+        // the one the F is for: a bright glow round it
+        ctx.save();
+        ctx.fillStyle = `rgba(251,191,36,${0.1 + Math.sin(now / 240) * 0.04})`;
+        ctx.beginPath();
+        ctx.roundRect(nearIt.x * TILE - 3, nearIt.y * TILE - 3, sz.w * TILE + 6, sz.h * TILE + 6, 8);
+        ctx.fill();
+        ctx.setLineDash([5, 4]);
+        ctx.lineDashOffset = -now / 80;
+        ctx.strokeStyle = `rgba(251,191,36,${0.8 + Math.sin(now / 240) * 0.2})`;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        ctx.restore();
         ctx.font = '700 11px system-ui, sans-serif';
         const tw = 28;
         const cx0 = (nearIt.x + sz.w / 2) * TILE;
