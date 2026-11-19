@@ -1,6 +1,6 @@
 {
   "name": "kd-ops-timetrack-agent",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "private": true,
   "description": "KD Ops Time Tracker",
   "author": {
