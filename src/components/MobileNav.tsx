@@ -28,6 +28,7 @@ import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { TaskSidebarNav } from '@/components/TaskSidebarNav';
 import type { Role } from '@/lib/roles';
 import {
   ALL_NAV,
@@ -351,7 +352,9 @@ export function MobileNav() {
                   </button>
                   {isExpanded && (
                     <div className="pb-1.5 px-1.5">
-                      {hub.subGroups.length > 1 ? (
+                      {hub.key === 'task' ? (
+                        <TaskSidebarNav variant="mobile" onNavigate={() => { setMoreOpen(false); setExpandedHub(null); }} />
+                      ) : hub.subGroups.length > 1 ? (
                         hub.subGroups.map((group) => (
                           <div key={group.key} className="space-y-0.5 mt-1.5 first:mt-0">
                             <p className="px-3 pb-1 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground/50">
