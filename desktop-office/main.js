@@ -121,13 +121,9 @@ function createWindow() {
   win.on('close', (e) => {
     const b = win.getBounds();
     writeSettings({ width: b.width, height: b.height, maximized: win.isMaximized() });
-    if (!quitting && !SMOKE) { e.preventDefault(); win.hide(); }
+    // closing goes to the tray unless the person chose to quit instead (tray menu: "Closing the window keeps me in the tray")
+    if (!quitting && !SMOKE && readSettings().closeToTray !== false) { e.preventDefault(); win.hide(); }
   });
-  // hidden in the tray means silent: mute the page's sound while the window is hidden
-  win.on('hide', () => { try { win.webContents.setAudioMuted(true); } catch { /* fine */ } });
-  win.on('show', () => { try { win.webContents.setAudioMuted(false); } catch { /* fine */ } });
-  win.on('minimize', () => { try { win.webContents.setAudioMuted(true); } catch { /* fine */ } });
-  win.on('restore', () => { try { win.webContents.setAudioMuted(false); } catch { /* fine */ } });
   win.on('closed', () => { win = null; });
 
   void loadApp();
@@ -152,6 +148,12 @@ function createTray() {
   const menu = () => Menu.buildFromTemplate([
     { label: 'Open the office', click: () => showWindow() },
     { type: 'separator' },
+    {
+      label: 'Closing the window keeps me in the tray',
+      type: 'checkbox',
+      checked: readSettings().closeToTray !== false,
+      click: (item) => writeSettings({ closeToTray: item.checked }),
+    },
     {
       label: 'Start with my computer',
       type: 'checkbox',
@@ -215,6 +217,7 @@ ipcMain.on('kd:notify', (_e, p) => {
   });
   n.on('close', () => shown.delete(n));
   n.show();
+  if (win && !win.isVisible()) { try { shell.beep(); } catch { /* fine */ } }
 });
 
 ipcMain.on('kd:focus', () => showWindow());

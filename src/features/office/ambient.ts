@@ -72,7 +72,14 @@ class Ambient {
   /** the overall loudness of every office sound (0 to 1) */
   setVolume(v: number) {
     this.volume = Math.max(0, Math.min(1, v));
-    if (this.ctx && this.master) this.master.gain.setTargetAtTime(1.1 * this.volume, this.ctx.currentTime, 0.1);
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.quiet ? 0 : 1.1 * this.volume, this.ctx.currentTime, 0.1);
+  }
+
+  /** Hush the office's own sounds (footsteps, rooms, weather) while the desktop app is hidden. Calls and notifications are not affected. */
+  private quiet = false;
+  setQuiet(on: boolean) {
+    this.quiet = on;
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(on ? 0 : 1.1 * this.volume, this.ctx.currentTime, 0.15);
   }
 
   setEnabled(on: boolean) {
@@ -406,7 +413,7 @@ class Ambient {
       const c = new AudioContext();
       this.ctx = c;
       const master = c.createGain();
-      master.gain.value = 1.1 * this.volume;
+      master.gain.value = this.quiet ? 0 : 1.1 * this.volume;
       master.connect(c.destination);
       this.master = master;
 
