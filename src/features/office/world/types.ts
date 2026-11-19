@@ -74,13 +74,13 @@ export interface AvatarStyle {
   hair: string;
   shirt: string;
   /** 0 short, 1 long, 2 bun, 3 none, 4 curly, 5 quiff, 6 braids, 7 afro, 8 bob, 9 mohawk, 10 locs */
-  hairStyle: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  hairStyle: number;
   /** 0 t-shirt, 1 hoodie, 2 blazer, 3 dress, 4 blouse and skirt, 5 kaftan, 6 ankara print top */
-  outfit: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  outfit: number;
   /** 0 none, 1 glasses, 2 headset, 3 cap, 4 sunglasses, 5 beanie, 6 head wrap, 7 earrings, 8 bow tie */
   accessory: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   /** 0 none, 1 stubble, 2 moustache, 3 full beard */
-  beard: 0 | 1 | 2 | 3;
+  beard: number;
   pants: string;
   // layers of clothing and accessories, each with its own colour (older saved avatars get these filled in)
   /** 0 none, 1 blazer, 2 denim jacket, 3 bomber, 4 waistcoat */
@@ -92,15 +92,19 @@ export interface AvatarStyle {
   tie: 0 | 1 | 2 | 3;
   tieColor: string;
   /** 0 sneakers, 1 formal shoes, 2 boots, 3 sandals */
-  shoes: 0 | 1 | 2 | 3;
+  shoes: number;
   shoeColor: string;
   /** 0 none, 1 cap, 2 beanie, 3 head wrap, 4 beret */
-  hat: 0 | 1 | 2 | 3 | 4;
+  hat: number;
   hatColor: string;
   /** 0 none, 1 glasses, 2 sunglasses */
-  glasses: 0 | 1 | 2;
+  glasses: number;
   /** 0 none, 1 headset, 2 earrings */
-  extra: 0 | 1 | 2;
+  extra: number;
+  /** 0 trousers, 1 shorts, 2 capri, 3 leggings */
+  bottom: number;
+  /** a full character costume: 0 none, then robot, zombie, ghost, pirate, rat, alien, clown, skeleton, cat, dog, bear, astronaut, ninja, wizard, knight, superhero, devil, angel, pumpkin, banana, duck */
+  costume: number;
 }
 
 export interface PlayerState {

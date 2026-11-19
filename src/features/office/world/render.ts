@@ -14,10 +14,14 @@ export const ITEM_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6
 
 export const PANTS_COLORS = ['#334155', '#1e293b', '#475569', '#78350f', '#1e3a8a', '#14532d'];
 
+import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_HIDING_HATS, HAIR_STYLES, HATS, LONG_SLEEVE_OUTFITS, OUTFITS, SHOES, drawBeardX, drawExtraX, drawGlassesX, drawHairX, drawHatX, drawOutfitX, drawShoeX, type Pose } from './avatarParts';
+import { COSTUME_KINDS, costumeStyle, drawCostumeBack, drawCostumeFront } from './avatarCostumes';
+
 type Hair = AvatarStyle['hairStyle'];
+const upTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 
 /** A stable default look from someone's id, until they pick their own. */
-type LegacyAvatar = Omit<AvatarStyle, 'jacket' | 'jacketColor' | 'inner' | 'tie' | 'tieColor' | 'shoes' | 'shoeColor' | 'hat' | 'hatColor' | 'glasses' | 'extra'>;
+type LegacyAvatar = Omit<AvatarStyle, 'jacket' | 'jacketColor' | 'inner' | 'tie' | 'tieColor' | 'shoes' | 'shoeColor' | 'hat' | 'hatColor' | 'glasses' | 'extra' | 'bottom' | 'costume'>;
 
 /** The old single "accessory" slot, spread over the new hat, glasses, extra and tie slots. */
 function fromAccessory(acc: number): { hat: AvatarStyle['hat']; glasses: AvatarStyle['glasses']; extra: AvatarStyle['extra']; tie: AvatarStyle['tie'] } {
@@ -32,7 +36,7 @@ function fromAccessory(acc: number): { hat: AvatarStyle['hat']; glasses: AvatarS
 /** An avatar in the old shape, given the new layers (nothing changes how it looks). */
 export function upgradeAvatar(a: LegacyAvatar): AvatarStyle {
   const m = fromAccessory(a.accessory);
-  return { ...a, accessory: 0, jacket: 0, jacketColor: '#1f2937', inner: '#f8fafc', tie: m.tie, tieColor: '#b91c1c', shoes: 0, shoeColor: '#0f172a', hat: m.hat, hatColor: a.shirt, glasses: m.glasses, extra: m.extra };
+  return { ...a, bottom: 0, costume: 0, accessory: 0, jacket: 0, jacketColor: '#1f2937', inner: '#f8fafc', tie: m.tie, tieColor: '#b91c1c', shoes: 0, shoeColor: '#0f172a', hat: m.hat, hatColor: a.shirt, glasses: m.glasses, extra: m.extra };
 }
 
 export function defaultAvatar(id: string, gender?: string | null): AvatarStyle {
@@ -99,22 +103,24 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
     inner: col(o.inner, d.inner),
     tie: pick<AvatarStyle['tie']>(o.tie, [0, 1, 2, 3], mig.tie),
     tieColor: col(o.tieColor, d.tieColor),
-    shoes: pick<AvatarStyle['shoes']>(o.shoes, [0, 1, 2, 3], d.shoes),
+    shoes: pick<AvatarStyle['shoes']>(o.shoes, upTo(SHOES.length), d.shoes),
     shoeColor: col(o.shoeColor, d.shoeColor),
-    hat: pick<AvatarStyle['hat']>(o.hat, [0, 1, 2, 3, 4], mig.hat),
+    hat: pick<AvatarStyle['hat']>(o.hat, upTo(HATS.length), mig.hat),
     hatColor: col(o.hatColor, hasLayers ? d.hatColor : shirtNow),
-    glasses: pick<AvatarStyle['glasses']>(o.glasses, [0, 1, 2], mig.glasses),
-    extra: pick<AvatarStyle['extra']>(o.extra, [0, 1, 2], mig.extra),
+    glasses: pick<AvatarStyle['glasses']>(o.glasses, upTo(GLASSES.length), mig.glasses),
+    extra: pick<AvatarStyle['extra']>(o.extra, upTo(EXTRAS.length), mig.extra),
+    bottom: pick<number>(o.bottom, upTo(BOTTOMS.length), 0),
+    costume: pick<number>(o.costume, upTo(COSTUMES.length), 0),
   };
   return {
     skin: col(o.skin, d.skin),
     hair: col(o.hair, d.hair),
     shirt: col(o.shirt, d.shirt),
-    hairStyle: pick<Hair>(o.hairStyle, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], d.hairStyle),
-    outfit: pick<0 | 1 | 2 | 3 | 4 | 5 | 6>(o.outfit, [0, 1, 2, 3, 4, 5, 6], d.outfit),
+    hairStyle: pick<Hair>(o.hairStyle, upTo(HAIR_STYLES.length), d.hairStyle),
+    outfit: pick<number>(o.outfit, upTo(OUTFITS.length), d.outfit),
     accessory: 0,
     pants: col(o.pants, d.pants),
-    beard: pick<0 | 1 | 2 | 3>(o.beard, [0, 1, 2, 3], d.beard),
+    beard: pick<number>(o.beard, upTo(BEARDS.length), d.beard),
     ...layers,
   };
 }
@@ -4037,7 +4043,10 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.restore();
     return;
   }
-  const a = p.avatar;
+  const costume = COSTUME_KINDS[p.avatar.costume] ?? 'none';
+  const dressedAs = costumeStyle(p.avatar);
+  // a hat that covers all the hair hides the hairstyle underneath
+  const a: AvatarStyle = HAIR_HIDING_HATS.includes(dressedAs.hat) && dressedAs.hairStyle !== 3 ? { ...dressedAs, hairStyle: 3 } : dressedAs;
   const px = p.x * TILE;
   const py = p.y * TILE;
   const ph = stridePhase(p, t); // one stride about every 1.2 tiles walked, counted along the way actually walked
@@ -4049,6 +4058,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const fx = p.dir === 1 ? -1 : p.dir === 2 ? 1 : 0; // which way the face looks
   const hy = py - 17 + bob;
   const dressy = a.outfit === 3 || a.outfit === 4;
+  const P: Pose = { px, py, hy, bob, back, side, fx, t, moving: p.moving, step, ex: fx * 2.6 };
 
   // a soft ring under me, and the ground shadow
   if (p.isMe) {
@@ -4067,6 +4077,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
   ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
 
+  if (costume !== 'none') drawCostumeBack(ctx, costume, P);
   // hair that hangs behind the body (long hair, hood) goes first
   const hairBack = () => {
     ctx.fillStyle = a.hair;
@@ -4089,13 +4100,27 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // legs and shoes
   const lift = (v: number) => -Math.max(0, v) * 2.6;
   const stride = side ? step * 4.5 : 0;
-  ctx.fillStyle = dressy ? a.skin : a.pants;
-  rr(ctx, px - 6.5 + stride, py + 2 + lift(step), 5.5, p.seated ? 4 : 8, 2);
-  ctx.fill();
-  rr(ctx, px + 1 - stride, py + 2 + lift(-step), 5.5, p.seated ? 4 : 8, 2);
-  ctx.fill();
+  {
+    const legLen = p.seated ? 4 : 8;
+    const pantsLen = [legLen, 3.8, 5.8, legLen, legLen, 6, 2.4][a.bottom] ?? legLen;
+    const flare = [1, 2, 5, 6].includes(a.bottom);
+    const lw = a.bottom === 3 ? 4.6 : a.bottom === 4 ? 6.2 : 5.5;
+    const off = (5.5 - lw) / 2;
+    for (const [lx, ly] of [[px - 6.5 + stride + off, py + 2 + lift(step)], [px + 1 - stride + off, py + 2 + lift(-step)]] as const) {
+      ctx.fillStyle = a.skin;
+      rr(ctx, lx, ly, lw, legLen, 2);
+      ctx.fill();
+      if (!dressy) {
+        ctx.fillStyle = a.pants;
+        rr(ctx, lx - (flare ? 0.5 : 0), ly, lw + (flare ? 1 : 0), Math.min(pantsLen, legLen), 2);
+        ctx.fill();
+        if (a.bottom === 4) { ctx.fillStyle = shade(a.pants, 0.28); ctx.fillRect(lx, ly + Math.min(pantsLen, legLen) - 2, lw, 2); }
+      }
+    }
+  }
   const shoe = (sx: number, sy: number) => {
     const sc = a.shoeColor;
+    if (a.shoes >= 4) { drawShoeX(ctx, a.shoes, sx, sy, sc, a.skin); return; }
     if (a.shoes === 3) {
       // sandals: bare foot, two straps and a thin sole
       ctx.fillStyle = a.skin; rr(ctx, sx, sy + 9.4, 7, 2.6, 1.3); ctx.fill();
@@ -4124,11 +4149,12 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
 
   // arms swing opposite to the legs
   const jacketSleeves = a.jacket >= 1 && a.jacket <= 3;
-  const sleeveLong = a.outfit === 1 || a.outfit === 2 || jacketSleeves;
+  const sleeveLong = LONG_SLEEVE_OUTFITS.includes(a.outfit) || jacketSleeves;
+  const bareArms = a.outfit === 18;
   const arm = (dx: number, swing: number) => {
     const ay = py - 9 + bob + swing * 1.6;
     const axs = side ? swing * 3.2 : 0;
-    ctx.fillStyle = jacketSleeves ? a.jacketColor : a.shirt;
+    ctx.fillStyle = bareArms ? a.skin : jacketSleeves ? a.jacketColor : a.shirt;
     rr(ctx, px + dx - 2.4 + axs + lean, ay, 4.8, sleeveLong ? 10 : 5, 2.4);
     ctx.fill();
     if (!sleeveLong) {
@@ -4324,6 +4350,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (a.outfit === 3) { ctx.fillStyle = shade(a.shirt, -0.28); ctx.fillRect(px - 8.8, py - 4.2 + bob, 17.6, 2.2); }
   }
 
+  if (a.outfit >= 7 && a.outfit <= 17) drawOutfitX(ctx, a, P);
+
   // head
   const hg = ctx.createRadialGradient(px - 2, hy - 3, 1, px, hy, 10);
   hg.addColorStop(0, shade(a.skin, 0.12));
@@ -4388,6 +4416,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     } else if (a.hairStyle === 7) {
       disc(ctx, px, hy - 7, 8, a.hair);
     }
+    if (a.hairStyle >= 11) drawHairX(ctx, a, P);
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.beginPath();
     ctx.ellipse(px - 3, hy - 7, 3.5, 1.4, -0.3, 0, Math.PI * 2);
@@ -4444,6 +4473,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.fill();
       disc(ctx, px + ex * 0.8, hy + 3.8, 3.3, a.skin);
     }
+    if (a.beard >= 4) drawBeardX(ctx, a, P);
     ctx.fillStyle = 'rgba(244,114,182,0.22)';
     if (!side) { disc(ctx, px - 5.5, hy + 4, 1.8, ctx.fillStyle); disc(ctx, px + 5.5, hy + 4, 1.8, ctx.fillStyle); }
     ctx.strokeStyle = shade(a.skin, -0.45);
@@ -4455,6 +4485,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (side) { ctx.fillStyle = shade(a.skin, -0.12); disc(ctx, px + fx * 8.2, hy + 2, 1.2, ctx.fillStyle); }
 
     // accessories
+    if (a.glasses >= 3) drawGlassesX(ctx, a, eyes, eyeY, side);
     if (a.glasses === 2) {
       ctx.fillStyle = '#0b1220';
       for (const e of eyes) { rr(ctx, e - 3.6, eyeY - 2.6, 7.2, 5, 2); ctx.fill(); }
@@ -4469,6 +4500,7 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       if (!side) { ctx.beginPath(); ctx.moveTo(eyes[0] + 3.2, eyeY); ctx.lineTo(eyes[1] - 3.2, eyeY); ctx.stroke(); }
     }
   }
+  if (a.extra >= 3) drawExtraX(ctx, a, P);
   if (a.extra === 1) {
     ctx.strokeStyle = '#1f2937';
     ctx.lineWidth = 2;
@@ -4544,6 +4576,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.stroke();
   }
 
+  if (a.hat >= 5) drawHatX(ctx, a, P);
+  if (costume !== 'none') drawCostumeFront(ctx, costume, a, P);
   if (a.extra === 2 && !back) {
     for (const ex of side ? [px - fx * 6.5] : [px - 8.6, px + 8.6]) {
       disc(ctx, ex, hy + 4.4, 1.9, '#d6ac50');
