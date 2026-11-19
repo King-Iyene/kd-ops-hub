@@ -5,7 +5,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { statusOf } from './status';
-import { drawGroundWeather, drawSky } from './world/skyfx';
+import { drawBirds, drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 import { applyPetCmd, initPet, petBus, petRegistry, playTick, stepPet, type PetState } from './world/pets';
@@ -838,6 +838,7 @@ export function OfficeCanvas(props: Props) {
         }
         ambient.setWeather(rain, season === 'harmattan' ? 1 : 0);
         drawSky(ctx, w, h, sky, season, rain, bolt.strength, now);
+        drawBirds(ctx, w, h, sky.light, rain, wall);
       }
       drawVignette(ctx, w, h, p.dark);
     };

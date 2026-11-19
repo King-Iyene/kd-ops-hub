@@ -184,3 +184,44 @@ export function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, sky
     ctx.fillRect(0, 0, w, h);
   }
 }
+
+/**
+ * Birds flying across the office now and then in daylight: a small V of birds that flaps its way from one side to the
+ * other, with a second flock out of step with the first. They stay away when it rains or is dark.
+ */
+export function drawBirds(ctx: CanvasRenderingContext2D, w: number, h: number, light: number, rain: number, t: number) {
+  if (light < 0.45 || rain > 0.3) return;
+  const flocks = [{ period: 47000, off: 0, y: 0.2, n: 5, dir: 1 }, { period: 61000, off: 23000, y: 0.55, n: 4, dir: -1 }];
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const f of flocks) {
+    const ph = ((t + f.off) % f.period) / f.period;
+    // on screen for the first half of each cycle
+    if (ph > 0.5) continue;
+    const prog = ph / 0.5;
+    const fade = Math.min(1, prog * 8, (1 - prog) * 8);
+    const baseX = f.dir > 0 ? -60 + prog * (w + 120) : w + 60 - prog * (w + 120);
+    const baseY = f.y * h + Math.sin(prog * 7) * 14;
+    for (let i = 0; i < f.n; i++) {
+      const row = Math.ceil(i / 2);
+      const side = i % 2 ? 1 : -1;
+      const bx = baseX - f.dir * row * 22;
+      const by = baseY + side * row * 11 + (i === 0 ? 0 : 0);
+      const flap = Math.sin(t / 130 + i * 0.9) * 5;
+      ctx.strokeStyle = `rgba(30,41,59,${(0.55 * fade).toFixed(3)})`;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(bx - 8, by - flap * 0.3);
+      ctx.quadraticCurveTo(bx - 3, by - 3 - flap, bx, by);
+      ctx.quadraticCurveTo(bx + 3, by - 3 - flap, bx + 8, by - flap * 0.3);
+      ctx.stroke();
+      // a soft shadow on the ground far below
+      ctx.fillStyle = `rgba(15,23,42,${(0.06 * fade).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(bx, by + 60, 7, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}

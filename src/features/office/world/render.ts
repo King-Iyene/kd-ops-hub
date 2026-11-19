@@ -1540,6 +1540,140 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       }
       break;
     }
+    case 'pond': {
+      drawPondItem(ctx, x, y, W, H, t, seed);
+      break;
+    }
+    case 'waterfall': {
+      softShadow(ctx, x, y, W, H, 6);
+      // the rock face
+      ctx.fillStyle = '#6b6560';
+      rr(ctx, x + 2, y + 2, W - 4, H * 0.66, 9);
+      ctx.fill();
+      for (const [rx2, ry2, rw, rh, rc] of [[0.1, 0.05, 0.34, 0.3, '#857d77'], [0.58, 0.04, 0.3, 0.34, '#7a726c'], [0.04, 0.34, 0.28, 0.26, '#74706a'], [0.7, 0.36, 0.26, 0.24, '#8a827b']] as const) {
+        ctx.fillStyle = rc;
+        rr(ctx, x + W * rx2, y + H * ry2, W * rw, H * rh, 6);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#4d7c0f';
+      for (let i = 0; i < 6; i++) disc(ctx, x + 8 + i * (W - 16) / 5, y + 5 + (i % 2) * 2, 4 + (i % 3), '#4d7c0f');
+      // the falling water
+      const wx0 = x + W * 0.3, ww = W * 0.4;
+      ctx.fillStyle = vgrad(ctx, y + 8, y + H * 0.8, '#e0f2fe', '#7dd3fc');
+      rr(ctx, wx0, y + 8, ww, H * 0.74, 5);
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const sx = wx0 + 4 + (i / 8) * (ww - 8);
+        const ph = ((t / 520 + i * 0.37) % 1);
+        const y1 = y + 10 + ph * (H * 0.6);
+        ctx.strokeStyle = `rgba(255,255,255,${0.9 - ph * 0.3})`;
+        ctx.beginPath(); ctx.moveTo(sx, y1); ctx.lineTo(sx, y1 + 11); ctx.stroke();
+      }
+      // the pool at the bottom, with foam and rising mist
+      const py = y + H * 0.86;
+      ctx.fillStyle = '#0e7490';
+      ctx.beginPath(); ctx.ellipse(cx, py, W * 0.44, H * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath(); ctx.ellipse(cx, py - 1, W * 0.4, H * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 6; k++) {
+        const ph = ((t / 700 + k / 6) % 1);
+        ctx.fillStyle = `rgba(255,255,255,${0.75 * (1 - ph)})`;
+        ctx.beginPath(); ctx.ellipse(cx + (k - 2.5) * 7, py - 2, 5 + ph * 5, 2 + ph * 2, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      for (let k = 0; k < 7; k++) {
+        const ph = ((t / 1600 + k * 0.17) % 1);
+        ctx.fillStyle = `rgba(255,255,255,${0.28 * (1 - ph)})`;
+        ctx.beginPath(); ctx.arc(cx + (k - 3) * 6 + Math.sin(t / 700 + k) * 3, py - 6 - ph * 22, 4 + ph * 6, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case 'sea': {
+      drawSeaItem(ctx, x, y, W, H, t, seed);
+      break;
+    }
+    case 'sand': {
+      drawSandItem(ctx, x, y, W, H, seed);
+      break;
+    }
+    case 'beachchair': {
+      drawBeachChair(ctx, x, y, W, H, col, seed);
+      break;
+    }
+    case 'umbrella': {
+      drawUmbrella(ctx, x, y, W, H, col, t, seed);
+      break;
+    }
+    case 'towel': {
+      drawTowel(ctx, x, y, W, H, col, seed);
+      break;
+    }
+    case 'sandcastle': {
+      drawSandcastle(ctx, x, y, W, H, t, seed);
+      break;
+    }
+    case 'dock': {
+      drawDock(ctx, x, y, W, H, t);
+      break;
+    }
+    case 'boat': {
+      drawBoat(ctx, x, y, W, H, t, seed);
+      break;
+    }
+    case 'flowerbed': {
+      ctx.fillStyle = '#6b4423';
+      rr(ctx, x + 1, y + H * 0.45, W - 2, H * 0.5, 6);
+      ctx.fill();
+      ctx.fillStyle = '#7c5a36';
+      rr(ctx, x + 3, y + H * 0.5, W - 6, 4, 2);
+      ctx.fill();
+      const heads = ['#f43f5e', '#fbbf24', '#a855f7', '#fb923c', '#f9a8d4', '#38bdf8', '#fde047', '#ef4444', '#c084fc'];
+      for (let i = 0; i < 9; i++) {
+        const fx2 = x + 7 + i * ((W - 14) / 8);
+        const sway = Math.sin(t / 750 + i * 1.3 + seed * 5) * 1.6;
+        const top = y + 6 + (i % 3) * 3;
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(fx2, y + H * 0.7); ctx.quadraticCurveTo(fx2 + sway * 0.5, (y + H * 0.7 + top) / 2, fx2 + sway, top + 3); ctx.stroke();
+        ctx.fillStyle = heads[i % heads.length];
+        for (let p = 0; p < 5; p++) { const an = (p / 5) * Math.PI * 2; disc(ctx, fx2 + sway + Math.cos(an) * 2.6, top + Math.sin(an) * 2.6, 2.1, heads[i % heads.length]); }
+        disc(ctx, fx2 + sway, top, 1.6, '#fde68a');
+      }
+      break;
+    }
+    case 'rocks': {
+      ellipse(ctx, cx, y + H - 6, 14, 5, 'rgba(15,23,42,0.22)');
+      ellipse(ctx, cx - 5, cy + 5, 9, 7, '#78716c');
+      ellipse(ctx, cx + 6, cy + 7, 7, 5.5, '#8a847d');
+      ellipse(ctx, cx + 1, cy, 7, 6, '#a29c95');
+      ellipse(ctx, cx - 1, cy - 2, 3.4, 2, 'rgba(255,255,255,0.3)');
+      ctx.fillStyle = '#4d7c0f';
+      disc(ctx, cx - 9, cy + 9, 2, '#4d7c0f');
+      break;
+    }
+    case 'birdbath': {
+      ellipse(ctx, cx, y + H - 5, 11, 4, 'rgba(15,23,42,0.2)');
+      ctx.fillStyle = '#a8a29e';
+      rr(ctx, cx - 4, cy, 8, 15, 3);
+      ctx.fill();
+      ellipse(ctx, cx, cy - 1, 13, 6, '#d6d3d1');
+      ellipse(ctx, cx, cy - 2, 11, 4.6, '#7dd3fc');
+      const ph = ((t / 1500 + seed) % 1);
+      ctx.strokeStyle = `rgba(255,255,255,${0.6 * (1 - ph)})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(cx + 2, cy - 2, 2 + ph * 8, 1 + ph * 3, 0, 0, Math.PI * 2); ctx.stroke();
+      // a small bird that hops on and off the rim
+      const hop = Math.max(0, Math.sin(t / 900 + seed * 7));
+      if (hop > 0.05) {
+        const bx = cx - 9, by = cy - 8 - hop * 3;
+        ellipse(ctx, bx, by, 4, 3, '#78716c');
+        disc(ctx, bx + 3.2, by - 1.6, 2, '#78716c');
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath(); ctx.moveTo(bx + 5, by - 1.6); ctx.lineTo(bx + 7.4, by - 1); ctx.lineTo(bx + 5, by - 0.4); ctx.fill();
+      }
+      break;
+    }
     // --- furniture and decor ---
     case 'stool': {
       ellipse(ctx, cx, y + 31, 10, 4, 'rgba(15,23,42,0.2)');
@@ -1910,11 +2044,675 @@ function drawPetEnd(ctx: Ctx, px: number, py: number, kind: 'dog' | 'cat', view:
   ctx.restore();
 }
 
+
+/** An irregular, natural outline (a closed loop of points around the origin, scaled by k). Each pond gets its own shape from its seed. */
+function pondOutline(seed: number, k: number): [number, number][] {
+  const pts: [number, number][] = [];
+  const s1 = seed * 11, s2 = seed * 7 + 1.3, s3 = seed * 5 + 2.1;
+  for (let i = 0; i < 36; i++) {
+    const th = (i / 36) * Math.PI * 2;
+    const r = (1 + 0.13 * Math.sin(3 * th + s1) + 0.08 * Math.sin(5 * th + s2) + 0.05 * Math.sin(2 * th + s3)) * k;
+    pts.push([Math.cos(th) * r, Math.sin(th) * r]);
+  }
+  return pts;
+}
+function pondPath(ctx: Ctx, pts: [number, number][], cx: number, cy: number, rx: number, ry: number) {
+  const n = pts.length;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i], p1 = pts[(i + 1) % n], pm = pts[(i + n - 1) % n];
+    if (i === 0) ctx.moveTo(cx + ((pm[0] + p0[0]) / 2) * rx, cy + ((pm[1] + p0[1]) / 2) * ry);
+    ctx.quadraticCurveTo(cx + p0[0] * rx, cy + p0[1] * ry, cx + ((p0[0] + p1[0]) / 2) * rx, cy + ((p0[1] + p1[1]) / 2) * ry);
+  }
+  ctx.closePath();
+}
+
+/**
+ * A natural pond: an irregular shoreline of mud and pebbles, shallow and deep water, a little stream running in and out,
+ * currents drifting across it, a slow eddy, lily pads, reeds, and koi that swim along (one leaps now and then).
+ */
+function drawPondItem(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2, cy = y + H / 2 + 1;
+  const rx = W / 2 - 6, ry = H / 2 - 6;
+  const outline = pondOutline(seed, 0.86);
+  const sec = t / 1000;
+
+  // the stream: it runs in from the left and out at the lower right, with banks of earth
+  const inlet: [number, number][] = [[x + 1, cy - ry * 0.3], [x + W * 0.12, cy - ry * 0.34], [cx - rx * 0.78, cy - ry * 0.12]];
+  const outlet: [number, number][] = [[cx + rx * 0.7, cy + ry * 0.25], [x + W * 0.9, cy + ry * 0.45], [x + W - 1, cy + ry * 0.42]];
+  const stroke = (path: [number, number][], width: number, style: string, dash?: number[], offset = 0) => {
+    ctx.strokeStyle = style;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(dash ?? []);
+    ctx.lineDashOffset = offset;
+    ctx.beginPath();
+    ctx.moveTo(path[0][0], path[0][1]);
+    ctx.quadraticCurveTo(path[1][0], path[1][1], path[2][0], path[2][1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+
+  // damp earth around the water, then the muddy bank
+  ctx.fillStyle = 'rgba(70,52,30,0.18)';
+  pondPath(ctx, outline, cx, cy + 3, rx + 9, ry + 9);
+  ctx.fill();
+  ctx.fillStyle = '#8a6f4d';
+  pondPath(ctx, outline, cx, cy, rx + 5, ry + 5);
+  ctx.fill();
+  ctx.fillStyle = '#a58a62';
+  pondPath(ctx, outline, cx, cy - 0.5, rx + 3, ry + 3);
+  ctx.fill();
+  stroke(inlet, 21, '#8a6f4d');
+  stroke(outlet, 19, '#8a6f4d');
+
+  // pebbles along the shore
+  for (let i = 0; i < 36; i += 1) {
+    const [px, py] = outline[i];
+    const r = 1.2 + ((i * 7 + seed * 13) % 5) * 0.55;
+    ctx.fillStyle = ['#9ca3af', '#78716c', '#d6d3d1', '#a8a29e', '#6b7280'][(i + Math.floor(seed * 9)) % 5];
+    ctx.beginPath();
+    ctx.ellipse(cx + px * (rx + 4.4), cy + py * (ry + 4.4), r * 1.3, r, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // shallow water at the edge, deeper towards the middle
+  ctx.fillStyle = '#7fd6c8';
+  pondPath(ctx, outline, cx, cy, rx + 1, ry + 1);
+  ctx.fill();
+  stroke(inlet, 14, '#7fd6c8');
+  stroke(outlet, 12, '#7fd6c8');
+  ctx.save();
+  pondPath(ctx, outline, cx, cy, rx, ry);
+  ctx.clip();
+  const deep = ctx.createRadialGradient(cx - rx * 0.15, cy - ry * 0.1, 3, cx, cy, Math.max(rx, ry) * 0.95);
+  deep.addColorStop(0, '#0b5c7a');
+  deep.addColorStop(0.55, '#1b86a0');
+  deep.addColorStop(1, '#6fcfd0');
+  ctx.fillStyle = deep;
+  ctx.fillRect(x, y, W, H);
+
+  // light patterns on the bottom, drifting slowly
+  for (let i = 0; i < 7; i++) {
+    const lx = cx + Math.sin(sec * 0.4 + i * 1.9) * rx * 0.55;
+    const ly = cy + Math.cos(sec * 0.33 + i * 2.4) * ry * 0.5;
+    const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, 14);
+    g.addColorStop(0, 'rgba(180,255,245,0.16)');
+    g.addColorStop(1, 'rgba(180,255,245,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(lx - 14, ly - 14, 28, 28);
+  }
+
+  // the current: wavy streaks of light drifting across, left to right, faster in the middle
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 1.3;
+  for (let k = 0; k < 18; k++) {
+    const by = cy - ry * 0.95 + (k / 17) * ry * 1.9;
+    const mid = 1 - Math.abs(by - cy) / ry;
+    const speed = 16 + mid * 26 + (k % 4) * 5;
+    const x0 = ((sec * speed + k * 53 + seed * 70) % (W + 50)) + x - 25;
+    ctx.strokeStyle = `rgba(255,255,255,${(0.12 + 0.2 * mid + (k % 3) * 0.04).toFixed(3)})`;
+    ctx.beginPath();
+    for (let j = 0; j <= 6; j++) {
+      const px = x0 + j * 4.2;
+      const py = by + Math.sin(px / 9 + sec * 1.7 + k) * 1.7;
+      if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+  // a slow eddy turning near the middle
+  for (let k = 0; k < 3; k++) {
+    ctx.strokeStyle = `rgba(255,255,255,${0.14 - k * 0.03})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(cx + rx * 0.18, cy + ry * 0.08, 8 + k * 6, 4 + k * 3, sec * 0.6 + k, 0.3, Math.PI * 1.5 + 0.3);
+    ctx.stroke();
+  }
+  // glints of sun
+  for (let k = 0; k < 14; k++) {
+    const tw = (Math.sin(sec * 2.2 + k * 2.3) + 1) / 2;
+    ctx.fillStyle = `rgba(255,255,255,${(0.75 * tw * tw).toFixed(3)})`;
+    ctx.fillRect(cx + Math.sin(k * 5.1 + seed * 9) * rx * 0.85, cy + Math.cos(k * 3.7 + seed * 5) * ry * 0.8, 2, 1.4);
+  }
+  // sky reflected on the surface
+  const sheen = ctx.createLinearGradient(x, y, x + W * 0.7, y + H * 0.9);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.2)');
+  sheen.addColorStop(0.5, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(x, y, W, H);
+
+  // lily pads with a lotus
+  for (const [lx, ly, lr, a0] of [[-0.42, 0.22, 7.5, 0.5], [-0.12, -0.3, 6, 2.1], [0.4, 0.3, 8, 3.6], [0.22, -0.18, 5, 5]] as const) {
+    const px = cx + lx * rx + Math.sin(sec * 0.5 + a0) * 0.8, py = cy + ly * ry + Math.cos(sec * 0.45 + a0) * 0.6;
+    ctx.fillStyle = 'rgba(8,60,40,0.3)';
+    ctx.beginPath(); ctx.ellipse(px + 1, py + 1.5, lr, lr * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2fae5f';
+    ctx.beginPath(); ctx.ellipse(px, py, lr, lr * 0.6, 0, a0 % 1 + 0.25, Math.PI * 2 - 0.1); ctx.lineTo(px, py); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + lr * 0.7, py - lr * 0.2); ctx.stroke();
+  }
+  const lotX = cx - 0.12 * rx, lotY = cy - 0.3 * ry;
+  for (let p = 0; p < 6; p++) { const an = (p / 6) * Math.PI * 2; ctx.fillStyle = '#f9a8d4'; ctx.beginPath(); ctx.ellipse(lotX + Math.cos(an) * 2.6, lotY - 2 + Math.sin(an) * 1.5, 2.3, 1.4, an, 0, Math.PI * 2); ctx.fill(); }
+  disc(ctx, lotX, lotY - 2, 1.5, '#fde047');
+
+  // koi following the current in gentle loops, each turned the way it swims
+  const kois = ['#fb923c', '#f8fafc', '#f59e0b', '#fb7185'];
+  for (let i = 0; i < 4; i++) {
+    const a = sec / (2.9 + i * 0.7) + i * 1.9 + seed * 6;
+    const fx = cx + Math.cos(a) * rx * (0.5 + i * 0.07);
+    const fy = cy + Math.sin(a) * ry * (0.46 + i * 0.07);
+    const head = Math.atan2(Math.cos(a) * ry * (0.46 + i * 0.07), -Math.sin(a) * rx * (0.5 + i * 0.07));
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.rotate(head);
+    ctx.fillStyle = 'rgba(0,40,60,0.18)';
+    ctx.beginPath(); ctx.ellipse(1, 3, 6.5, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = kois[i];
+    const wag = Math.sin(sec * 7 + i) * 1.8;
+    ctx.beginPath(); ctx.ellipse(0, 0, 6.2, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-4.4, wag * 0.35, 3.6, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-6.2, wag * 0.5); ctx.lineTo(-11, -2.8 + wag); ctx.lineTo(-11, 2.8 + wag); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = i % 2 ? '#fb923c' : '#f8fafc';
+    ctx.beginPath(); ctx.ellipse(1, -0.6, 2.4, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+    disc(ctx, 4, -0.8, 0.6, '#111827');
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // now and then a fish leaps out, with a ring of splash where it lands
+  const jp = ((sec + seed * 9) % 7.5) / 1.2;
+  if (jp < 1) {
+    const jx = cx - rx * 0.25 + jp * rx * 0.35, jy = cy + ry * 0.2;
+    const hgt = Math.sin(Math.PI * jp) * 16;
+    ctx.save();
+    ctx.translate(jx, jy - hgt);
+    ctx.rotate((jp - 0.5) * 2.4);
+    ctx.fillStyle = '#fb923c';
+    ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-10, -3); ctx.lineTo(-10, 3); ctx.closePath(); ctx.fill();
+    disc(ctx, 3, -0.6, 0.7, '#111827');
+    ctx.restore();
+    for (const edge of [0.04, 0.96]) {
+      const ph = Math.abs(jp - edge) / 0.2;
+      if (ph < 1) {
+        ctx.strokeStyle = `rgba(255,255,255,${0.85 * (1 - ph)})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.ellipse(jx, jy, 3 + ph * 13, 1.5 + ph * 5.5, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+
+  // the stream flowing: moving dashes of light along both channels
+  const flow = -sec * 26;
+  stroke(inlet, 2, 'rgba(255,255,255,0.55)', [5, 9], flow);
+  stroke(outlet, 2, 'rgba(255,255,255,0.5)', [5, 9], flow);
+
+  // reeds and cattails round the edge, swaying, with tufts of grass between
+  ctx.lineCap = 'round';
+  for (const idx of [5, 6, 17, 18, 26, 31]) {
+    const [px, py] = outline[idx];
+    const bx = cx + px * (rx + 5), by = cy + py * (ry + 5);
+    for (let r = 0; r < 4; r++) {
+      const sway = Math.sin(sec * 1.1 + idx + r) * 2.2;
+      const hgt = 16 + ((idx + r) % 3) * 4;
+      ctx.strokeStyle = r % 2 ? '#4d7c0f' : '#65a30d';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(bx + r * 2 - 3, by); ctx.quadraticCurveTo(bx + r * 2 - 3 + sway * 0.4, by - hgt * 0.5, bx + r * 2 - 3 + sway, by - hgt); ctx.stroke();
+      if (r % 2 === 0) { ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.ellipse(bx + r * 2 - 3 + sway, by - hgt, 1.5, 3.2, sway * 0.05, 0, Math.PI * 2); ctx.fill(); }
+    }
+  }
+  ctx.strokeStyle = '#3f7d14';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 36; i += 3) {
+    const [px, py] = outline[i];
+    const bx = cx + px * (rx + 7), by = cy + py * (ry + 7);
+    const sway = Math.sin(sec * 1.4 + i) * 1.2;
+    for (let g = -1; g <= 1; g++) { ctx.beginPath(); ctx.moveTo(bx + g * 2, by); ctx.lineTo(bx + g * 2.6 + sway, by - 4 - (g === 0 ? 2 : 0)); ctx.stroke(); }
+  }
+}
+
+
+/** A tiny deterministic random number for drawing textures: the same place always gets the same grain. */
+function grain(seed: number, i: number): number {
+  const v = Math.sin(i * 127.1 + seed * 311.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/** The sea: deep blue turning to bright shallows, swells rolling in, lines of surf that break into foam on the shore, glitter. */
+function drawSeaItem(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const sec = t / 1000;
+  ctx.save();
+  rr(ctx, x, y, W, H, 12);
+  ctx.clip();
+  const g = ctx.createLinearGradient(0, y, 0, y + H);
+  g.addColorStop(0, '#093f7a');
+  g.addColorStop(0.35, '#0f6fb3');
+  g.addColorStop(0.65, '#1fa6cf');
+  g.addColorStop(0.88, '#5fd0d8');
+  g.addColorStop(1, '#b9efe2');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, W, H);
+  // broad swells drifting towards the shore
+  for (let i = 0; i < 6; i++) {
+    const yy = y + (((sec * 7 + i * (H / 6)) % H) + H) % H;
+    const sw = ctx.createLinearGradient(0, yy - 14, 0, yy + 14);
+    sw.addColorStop(0, 'rgba(255,255,255,0)');
+    sw.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+    sw.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sw;
+    ctx.fillRect(x, yy - 14, W, 28);
+  }
+  // fine ripples
+  ctx.lineWidth = 1;
+  for (let r = 0; r < 16; r++) {
+    const base = y + 8 + (r / 15) * (H - 16);
+    ctx.strokeStyle = `rgba(255,255,255,${(0.07 + 0.12 * (r / 15)).toFixed(3)})`;
+    ctx.beginPath();
+    for (let px = x; px <= x + W; px += 5) {
+      const wy = base + Math.sin(px / 17 + sec * 0.9 + r * 1.7) * 2.2 + Math.sin(px / 41 - sec * 0.5 + r) * 1.6;
+      if (px === x) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+    }
+    ctx.stroke();
+  }
+  // sunlit shallows: wobbling bright cells on the sand below
+  for (let k = 0; k < 90; k++) {
+    const sx = x + grain(seed, k) * W;
+    const sy = y + H * 0.55 + grain(seed, k + 300) * H * 0.4;
+    const tw = (Math.sin(sec * 1.6 + k * 1.3) + 1) / 2;
+    ctx.fillStyle = `rgba(255,255,255,${(0.12 + 0.22 * tw).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.ellipse(sx + Math.sin(sec * 0.7 + k) * 3, sy, 4 + tw * 3, 1.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // lines of surf rolling in and breaking into foam
+  for (let f = 0; f < 4; f++) {
+    const ph = ((sec / 7 + f / 4) % 1);
+    const fy = y + H * 0.18 + ph * H * 0.8;
+    const strength = Math.sin(Math.PI * Math.min(1, ph * 1.15));
+    ctx.strokeStyle = `rgba(255,255,255,${(0.7 * strength).toFixed(3)})`;
+    ctx.lineWidth = 2.2 + ph * 3;
+    ctx.beginPath();
+    for (let px = x; px <= x + W; px += 4) {
+      const wy = fy + Math.sin(px / 19 + f * 2.3 + sec * 0.6) * (3 + ph * 4);
+      if (px === x) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${(0.28 * strength).toFixed(3)})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let px = x; px <= x + W; px += 4) {
+      const wy = fy - 6 - ph * 3 + Math.sin(px / 23 + f * 1.9 + sec * 0.6) * (3 + ph * 4);
+      if (px === x) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+    }
+    ctx.stroke();
+    for (let k = 0; k < 40; k++) {
+      const px = x + grain(seed, k + f * 50) * W;
+      ctx.fillStyle = `rgba(255,255,255,${(0.55 * strength).toFixed(3)})`;
+      ctx.fillRect(px, fy + Math.sin(px / 19 + f * 2.3 + sec * 0.6) * (3 + ph * 4) + 2, 1.6, 1.6);
+    }
+  }
+  // the last wash of foam running up the beach and back
+  const run = (Math.sin(sec * 0.85 + seed * 3) + 1) / 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.beginPath();
+  ctx.moveTo(x, y + H);
+  for (let px = x; px <= x + W; px += 4) ctx.lineTo(px, y + H - 3 - run * 7 + Math.sin(px / 9 + sec * 1.3) * 2.2);
+  ctx.lineTo(x + W, y + H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(x, y + H);
+  for (let px = x; px <= x + W; px += 4) ctx.lineTo(px, y + H - 9 - run * 9 + Math.sin(px / 11 - sec * 1.1) * 3);
+  ctx.lineTo(x + W, y + H);
+  ctx.closePath();
+  ctx.fill();
+  // sun glitter
+  for (let k = 0; k < 40; k++) {
+    const tw = Math.max(0, Math.sin(sec * 3 + k * 2.1));
+    if (tw < 0.2) continue;
+    const gx = x + grain(seed, k + 700) * W, gy = y + grain(seed, k + 900) * H * 0.8;
+    ctx.fillStyle = `rgba(255,255,255,${(0.9 * tw).toFixed(3)})`;
+    ctx.fillRect(gx - 2, gy, 5, 1);
+    ctx.fillRect(gx, gy - 2, 1, 5);
+  }
+  ctx.restore();
+}
+
+/** Beach sand: dark and damp near the water, dry and pale further up, with grain, wind ripples, shells, driftwood, seaweed and footprints. */
+function drawSandItem(ctx: Ctx, x: number, y: number, W: number, H: number, seed: number) {
+  ctx.save();
+  rr(ctx, x, y, W, H, 14);
+  ctx.clip();
+  const g = ctx.createLinearGradient(0, y, 0, y + H);
+  g.addColorStop(0, '#bfa874');
+  g.addColorStop(0.16, '#d8c18c');
+  g.addColorStop(0.4, '#ecd8a6');
+  g.addColorStop(1, '#f5e8c4');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, W, H);
+  // a wavy damp line where the last wave reached
+  ctx.strokeStyle = 'rgba(110,90,55,0.22)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let px = x; px <= x + W; px += 5) {
+    const wy = y + H * 0.2 + Math.sin(px / 23 + seed * 5) * 3 + Math.sin(px / 9) * 1;
+    if (px === x) ctx.moveTo(px, wy); else ctx.lineTo(px, wy);
+  }
+  ctx.stroke();
+  // the grain of the sand
+  const n = Math.floor((W * H) / 14);
+  for (let i = 0; i < n; i++) {
+    const gx = x + grain(seed, i) * W, gy = y + grain(seed, i + 5000) * H;
+    const k = grain(seed, i + 9000);
+    ctx.fillStyle = k < 0.45 ? 'rgba(160,125,70,0.30)' : k < 0.8 ? 'rgba(255,255,255,0.40)' : 'rgba(120,95,55,0.25)';
+    ctx.fillRect(gx, gy, 1.3, 1.3);
+  }
+  // wind ripples
+  ctx.lineWidth = 1.3;
+  for (let r = 0; r < Math.floor(W / 24); r++) {
+    const rx2 = x + 14 + grain(seed, r + 11000) * (W - 40);
+    const ry2 = y + H * 0.3 + grain(seed, r + 12000) * H * 0.62;
+    ctx.strokeStyle = 'rgba(165,130,80,0.30)';
+    ctx.beginPath();
+    ctx.arc(rx2, ry2, 7 + grain(seed, r + 13000) * 8, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.arc(rx2, ry2 + 2, 7 + grain(seed, r + 13000) * 8, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+  }
+  // seaweed washed up along the damp line
+  for (let k = 0; k < Math.floor(W / 40); k++) {
+    const sx = x + 10 + grain(seed, k + 14000) * (W - 20);
+    const sy = y + H * 0.2 + Math.sin(sx / 23 + seed * 5) * 3 + 3;
+    ctx.strokeStyle = k % 2 ? '#4a5d23' : '#2f4a2a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.bezierCurveTo(sx + 5, sy - 3, sx + 9, sy + 3, sx + 14, sy - 1);
+    ctx.stroke();
+  }
+  // a piece of driftwood
+  const dx = x + W * (0.2 + grain(seed, 77) * 0.2), dy = y + H * 0.45;
+  ctx.save();
+  ctx.translate(dx, dy);
+  ctx.rotate(-0.25);
+  ctx.fillStyle = 'rgba(90,70,40,0.2)';
+  rr(ctx, -13, 3, 28, 6, 3);
+  ctx.fill();
+  ctx.fillStyle = '#a07a52';
+  rr(ctx, -14, 0, 28, 6, 3);
+  ctx.fill();
+  ctx.fillStyle = '#c29c70';
+  rr(ctx, -12, 0.8, 22, 1.6, 0.8);
+  ctx.fill();
+  disc(ctx, 6, 3, 1.1, '#6b4f30');
+  ctx.restore();
+  // shells, pebbles, a starfish
+  for (let k = 0; k < Math.floor(W / 30); k++) {
+    const sx = x + 12 + grain(seed, k + 15000) * (W - 24), sy = y + H * 0.3 + grain(seed, k + 16000) * H * 0.62;
+    if (k % 3 === 0) {
+      ctx.fillStyle = '#fbcfe8';
+      ctx.beginPath(); ctx.arc(sx, sy, 3.6, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 0.7;
+      for (let q = -2; q <= 2; q++) { ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + q * 1.5, sy - 3.6); ctx.stroke(); }
+    } else if (k % 3 === 1) {
+      ctx.fillStyle = 'rgba(80,65,40,0.25)';
+      ctx.beginPath(); ctx.ellipse(sx + 1, sy + 1.5, 3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#9ca3af';
+      ctx.beginPath(); ctx.ellipse(sx, sy, 3, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      for (let q = 0; q < 10; q++) { const rad = q % 2 ? 2.2 : 5; const an = -Math.PI / 2 + (q * Math.PI) / 5; ctx.lineTo(sx + Math.cos(an) * rad, sy + Math.sin(an) * rad); }
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // footprints wandering across
+  for (let k = 0; k < 9; k++) {
+    const fx = x + W * 0.55 + k * 11, fy2 = y + H * 0.55 + Math.sin(k * 0.9) * 7 + (k % 2 ? 3 : -3);
+    ctx.fillStyle = 'rgba(120,95,55,0.28)';
+    ctx.beginPath(); ctx.ellipse(fx, fy2, 3.4, 1.7, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath(); ctx.ellipse(fx - 0.6, fy2 - 0.6, 2.8, 1.2, 0.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** A beach lounger seen from above: wooden frame, striped cushion, a pillow at the head. */
+function drawBeachChair(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined, seed: number) {
+  const cloth = col ?? ['#2563eb', '#ef4444', '#f59e0b', '#14b8a6'][Math.floor(seed * 4)];
+  ctx.fillStyle = 'rgba(70,50,25,0.22)';
+  rr(ctx, x + 6, y + 8, W - 8, H - 6, 8);
+  ctx.fill();
+  ctx.fillStyle = '#8b5e34';
+  rr(ctx, x + 3, y + 4, W - 8, H - 10, 7);
+  ctx.fill();
+  ctx.fillStyle = '#b07a46';
+  rr(ctx, x + 4, y + 5, W - 10, 3, 2);
+  ctx.fill();
+  ctx.save();
+  rr(ctx, x + 6, y + 8, W - 14, H - 17, 5);
+  ctx.clip();
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(x, y, W, H);
+  ctx.fillStyle = cloth;
+  for (let k = 0; k < 7; k++) ctx.fillRect(x + 6 + k * ((W - 14) / 7), y, (W - 14) / 14, H);
+  const sh = ctx.createLinearGradient(x, y, x, y + H);
+  sh.addColorStop(0, 'rgba(255,255,255,0.18)');
+  sh.addColorStop(1, 'rgba(0,0,0,0.12)');
+  ctx.fillStyle = sh;
+  ctx.fillRect(x, y, W, H);
+  ctx.restore();
+  ctx.fillStyle = '#fef3c7';
+  rr(ctx, x + 7, y + 10, 12, H - 21, 5);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  rr(ctx, x + 7, y + H - 20, 12, 5, 3);
+  ctx.fill();
+  disc(ctx, x + W - 7, y + H - 7, 2.2, '#6b4423');
+}
+
+/** A beach umbrella from above: a round striped canopy with a long shadow across the sand. */
+function drawUmbrella(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined, t: number, seed: number) {
+  const cx = x + W / 2, cy = y + H / 2 - 2;
+  const R2 = Math.min(W, H) / 2 - 3;
+  const a = col ?? ['#ef4444', '#facc15', '#2563eb', '#ec4899'][Math.floor(seed * 4)];
+  ctx.fillStyle = 'rgba(70,50,25,0.24)';
+  ctx.beginPath(); ctx.ellipse(cx + 12, cy + 12, R2, R2 * 0.8, 0.35, 0, Math.PI * 2); ctx.fill();
+  const sway = Math.sin(t / 1700 + seed * 6) * 0.6;
+  const segs = 8;
+  for (let i = 0; i < segs; i++) {
+    const a0 = (i / segs) * Math.PI * 2 + sway * 0.02, a1 = ((i + 1) / segs) * Math.PI * 2 + sway * 0.02;
+    ctx.fillStyle = i % 2 ? '#fffdf5' : a;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R2, a0, a1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+  // scalloped rim
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  for (let i = 0; i < segs; i++) {
+    const am = ((i + 0.5) / segs) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(am) * (R2 - 1), cy + Math.sin(am) * (R2 - 1), 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const hi = ctx.createRadialGradient(cx - R2 * 0.35, cy - R2 * 0.4, 2, cx, cy, R2);
+  hi.addColorStop(0, 'rgba(255,255,255,0.35)');
+  hi.addColorStop(0.7, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hi;
+  ctx.beginPath(); ctx.arc(cx, cy, R2, 0, Math.PI * 2); ctx.fill();
+  disc(ctx, cx, cy, 3.2, '#e5e7eb');
+  disc(ctx, cx - 0.6, cy - 0.6, 1.4, '#ffffff');
+}
+
+/** A striped beach towel with fringed ends. */
+function drawTowel(ctx: Ctx, x: number, y: number, W: number, H: number, col: string | undefined, seed: number) {
+  const a = col ?? ['#f97316', '#0ea5e9', '#ec4899', '#22c55e'][Math.floor(seed * 4)];
+  ctx.fillStyle = 'rgba(70,50,25,0.2)';
+  rr(ctx, x + 5, y + 7, W - 8, H - 12, 3);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(x + W / 2, y + H / 2);
+  ctx.rotate(-0.06 + (seed - 0.5) * 0.1);
+  const w = W - 12, h = H - 12;
+  ctx.fillStyle = '#fffbeb';
+  rr(ctx, -w / 2, -h / 2, w, h, 3);
+  ctx.fill();
+  ctx.save();
+  rr(ctx, -w / 2, -h / 2, w, h, 3);
+  ctx.clip();
+  ctx.fillStyle = a;
+  for (let k = 0; k < 5; k++) ctx.fillRect(-w / 2 + 4 + k * (w / 5), -h / 2, w / 12, h);
+  ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  ctx.fillRect(-w / 2, h * 0.1, w, 2);
+  ctx.restore();
+  ctx.strokeStyle = '#fef3c7';
+  ctx.lineWidth = 1;
+  for (let k = 0; k < 10; k++) {
+    const fy = -h / 2 + 2 + k * (h / 9.5);
+    ctx.beginPath(); ctx.moveTo(-w / 2, fy); ctx.lineTo(-w / 2 - 3, fy + 0.5); ctx.moveTo(w / 2, fy); ctx.lineTo(w / 2 + 3, fy + 0.5); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A little sandcastle with towers, battlements and a flag. */
+function drawSandcastle(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const cx = x + W / 2, by = y + H - 6;
+  ctx.fillStyle = 'rgba(70,50,25,0.22)';
+  ctx.beginPath(); ctx.ellipse(cx + 3, by + 3, 15, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e2c78e';
+  ctx.beginPath(); ctx.ellipse(cx, by, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
+  const tower = (tx: number, w: number, h: number, shade2: number) => {
+    ctx.fillStyle = shade2 ? '#d6b775' : '#ecd7a2';
+    rr(ctx, tx - w / 2, by - h, w, h, 1.5);
+    ctx.fill();
+    ctx.fillStyle = '#c9a862';
+    for (let k = 0; k < 3; k++) ctx.fillRect(tx - w / 2 + k * (w / 2.4), by - h - 3, w / 4, 3);
+    ctx.fillStyle = 'rgba(80,60,30,0.35)';
+    rr(ctx, tx - 1.4, by - h * 0.55, 2.8, 4.4, 1.2);
+    ctx.fill();
+  };
+  tower(cx - 9, 8, 12, 1);
+  tower(cx + 9, 8, 12, 1);
+  tower(cx, 11, 19, 0);
+  const wave = Math.sin(t / 260 + seed * 4) * 1.6;
+  ctx.strokeStyle = '#7c4a21';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(cx, by - 22); ctx.lineTo(cx, by - 32); ctx.stroke();
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.moveTo(cx, by - 32); ctx.lineTo(cx + 8 + wave, by - 29.5); ctx.lineTo(cx, by - 27); ctx.closePath(); ctx.fill();
+  // a few shells set round the base
+  disc(ctx, cx - 16, by + 1, 1.7, '#fbcfe8');
+  disc(ctx, cx + 15, by + 2, 1.5, '#fde68a');
+}
+
+/** A wooden jetty running out into the water: planks, posts and a rope. */
+function drawDock(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  ctx.fillStyle = 'rgba(0,40,60,0.28)';
+  rr(ctx, x + 7, y + 6, W - 8, H - 4, 3);
+  ctx.fill();
+  const planks = Math.floor(H / 7);
+  for (let k = 0; k < planks; k++) {
+    const py = y + 2 + k * ((H - 4) / planks);
+    ctx.fillStyle = k % 2 ? '#a9794a' : '#b98a58';
+    ctx.fillRect(x + 5, py, W - 10, (H - 4) / planks - 1.4);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(x + 5, py, W - 10, 1.2);
+    ctx.fillStyle = 'rgba(60,35,15,0.45)';
+    ctx.fillRect(x + 8, py + 2.4, 1.4, 1.4);
+    ctx.fillRect(x + W - 10, py + 2.4, 1.4, 1.4);
+  }
+  ctx.fillStyle = '#6b4423';
+  ctx.fillRect(x + 3, y + 1, 3, H - 2);
+  ctx.fillRect(x + W - 6, y + 1, 3, H - 2);
+  for (let k = 0; k <= 3; k++) {
+    const py = y + 5 + k * ((H - 14) / 3);
+    disc(ctx, x + 4.5, py, 3.2, '#5a381c');
+    disc(ctx, x + W - 4.5, py, 3.2, '#5a381c');
+    disc(ctx, x + 4, py - 0.8, 1.1, '#8a6038');
+    disc(ctx, x + W - 5, py - 0.8, 1.1, '#8a6038');
+  }
+  // a rope along one side that sways a little
+  ctx.strokeStyle = '#e8d9b0';
+  ctx.lineWidth = 1.4;
+  for (let k = 0; k < 3; k++) {
+    const p0 = y + 5 + k * ((H - 14) / 3), p1 = y + 5 + (k + 1) * ((H - 14) / 3);
+    ctx.beginPath();
+    ctx.moveTo(x + 4.5, p0);
+    ctx.quadraticCurveTo(x + 7, (p0 + p1) / 2 + 3 + Math.sin(t / 900 + k) * 0.8, x + 4.5, p1);
+    ctx.stroke();
+  }
+  // ripples where the posts meet the water
+  const ph = ((t / 1800) % 1);
+  ctx.strokeStyle = `rgba(255,255,255,${0.35 * (1 - ph)})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(x + 4.5, y + H - 4, 4 + ph * 7, 2 + ph * 3, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x + W - 4.5, y + H - 4, 4 + ph * 7, 2 + ph * 3, 0, 0, Math.PI * 2); ctx.stroke();
+}
+
+/** A wooden rowing boat seen from above, bobbing and swaying on the water, with oars and a coil of rope. */
+function drawBoat(ctx: Ctx, x: number, y: number, W: number, H: number, t: number, seed: number) {
+  const sec = t / 1000;
+  const cx = x + W / 2 + Math.sin(sec * 0.8 + seed * 5) * 1.4, cy = y + H / 2 + Math.cos(sec * 0.7 + seed * 3) * 1.6;
+  const rot = Math.sin(sec * 0.6 + seed * 7) * 0.05;
+  // water around it
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1.2;
+  const ph = ((sec / 2.2) % 1);
+  ctx.beginPath(); ctx.ellipse(cx, cy, W / 2 - 2 + ph * 8, H / 2 - 2 + ph * 5, rot, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,40,60,0.28)';
+  ctx.beginPath(); ctx.ellipse(cx + 4, cy + 6, W / 2 - 4, H / 2 - 5, rot, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  const hw = W / 2 - 5, hh = H / 2 - 6;
+  const hull = () => { ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.quadraticCurveTo(-hw * 0.55, -hh * 1.15, hw * 0.35, -hh); ctx.quadraticCurveTo(hw * 0.85, -hh * 0.55, hw, 0); ctx.quadraticCurveTo(hw * 0.85, hh * 0.55, hw * 0.35, hh); ctx.quadraticCurveTo(-hw * 0.55, hh * 1.15, -hw, 0); ctx.closePath(); };
+  hull();
+  ctx.fillStyle = '#7a4e2a';
+  ctx.fill();
+  ctx.save();
+  hull();
+  ctx.clip();
+  ctx.scale(0.86, 0.78);
+  hull();
+  ctx.fillStyle = '#c99a62';
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(80,50,20,0.35)';
+  ctx.lineWidth = 0.8;
+  for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(-hw * 0.7, k * (hh / 3.6)); ctx.lineTo(hw * 0.7, k * (hh / 3.6)); ctx.stroke(); }
+  ctx.fillStyle = '#8b5a2b';
+  for (const bx of [-hw * 0.35, hw * 0.12]) { rr(ctx, bx - 2.5, -hh * 0.82, 5, hh * 1.64, 1.5); ctx.fill(); }
+  ctx.strokeStyle = '#5a381c';
+  ctx.lineWidth = 1.2;
+  hull();
+  ctx.stroke();
+  // oars resting across the seats
+  ctx.strokeStyle = '#d6b57a';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-hw * 0.45, hh * 0.9); ctx.lineTo(hw * 0.2, -hh * 1.25); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hw * 0.25, hh * 1.2); ctx.lineTo(-hw * 0.3, -hh * 0.95); ctx.stroke();
+  ctx.fillStyle = '#e8d9b0';
+  for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(hw * 0.55, hh * 0.1, 4 - k, 2.2 - k * 0.5, 0, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+}
+
 /** Sort key so things lower on the screen draw over things behind them. */
 export function depth(item: Item): number {
   if (item.t === 'dog' || item.t === 'cat') { const live = officePets.get(item.id); if (live) return live.y + 0.4; }
   const { h } = itemSize(item);
-  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat') return -100 + item.y;
+  if (item.t === 'rug' || item.t === 'grass' || item.t === 'mat' || item.t === 'sand' || item.t === 'sea' || item.t === 'pond' || item.t === 'towel' || item.t === 'dock') return -100 + item.y;
   if (TOP.includes(item.t)) return item.y + 1.2; // always on top of the desk it sits on
   return item.y + h;
 }
