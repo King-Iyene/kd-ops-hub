@@ -99,8 +99,8 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
-  bike: { w: 1, h: 1, solid: false, label: 'Power bike' },
-  kart: { w: 1, h: 1, solid: false, label: 'Go-kart' },
+  bike: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
+  kart: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -121,8 +121,8 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',
   valueswall: 'Core values',
   noticeboard: 'Notice board',
-  bike: 'Ride the power bike',
-  kart: 'Drive the go-kart',
+  bike: 'Ride the hoverboard',
+  kart: 'Ride the hoverboard',
   gong: 'Ring the gong',
   arcade: 'Play a game',
   pollboard: 'Open the polls',
@@ -184,7 +184,9 @@ export function nearestInteractive(items: Item[], x: number, y: number, reach = 
     else if (d < bd) { best = it; bd = d; }
   }
   if (best && veh) return vd < 0.5 && vd < bd - 0.2 ? veh : best;
-  return best ?? veh ?? seat;
+  // seats never get the F prompt: you sit by clicking one
+  void seat; void sd;
+  return best ?? veh;
 }
 
 /** Every tile an item covers. */

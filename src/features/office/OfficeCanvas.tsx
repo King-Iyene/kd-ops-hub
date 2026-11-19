@@ -375,13 +375,18 @@ export function OfficeCanvas(props: Props) {
         const pet = petAt(e);
         if (pet) { petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
       }
-      if (propsRef.current.editing) propsRef.current.onTile(toTile(e));
-      else propsRef.current.onMapClick(toTile(e));
+      if (propsRef.current.editing) { propsRef.current.onTile(toTile(e)); return; }
+      const ct = toTile(e);
+      const seat = propsRef.current.items.find((i) => SEAT_TYPES.includes(i.t) && ct.x >= i.x && ct.y >= i.y && ct.x < i.x + itemSize(i).w && ct.y < i.y + itemSize(i).h);
+      if (seat && !propsRef.current.riding) { sitRef2.current(seat, ct); return; }
+      propsRef.current.onMapClick(ct);
     };
     const dbl = (e: MouseEvent) => {
       pan.current = { x: 0, y: 0 };
       if (propsRef.current.editing) return;
       const t = toTile(e);
+      const seat = propsRef.current.items.find((i) => SEAT_TYPES.includes(i.t) && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+      if (seat && !propsRef.current.riding) { sitRef2.current(seat, t); return; }
       ripples.push({ x: t.x + 0.5, y: t.y + 0.5, t: performance.now() });
       propsRef.current.onWalkTo(t.x + 0.5, t.y + 0.5);
     };
