@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -36,14 +36,15 @@ import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
+import { autoWidth, clampWidth, effectiveWidth, MIN_COL } from '@/features/task-module/table/columnWidths';
 import { RangeBar, ReportDatePicker, ReportInbox } from '@/features/task-module/table/ReportViews';
 import {
   DEFAULT_RANGE, dayLabel, dayOfFor, groupByDay, inRange, newestFirst, resolveReportDateField, todayLagos, type ReportRange,
 } from '@/features/task-module/table/reportDays';
 
-interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[] }
+interface TablePrefs { view: 'grid' | 'inbox'; hidden: string[]; groupDays: boolean; skipped: string[]; widths: Record<string, number> }
 
-const DEFAULT_PREFS: TablePrefs = { view: 'grid', hidden: [], groupDays: true, skipped: [] };
+const DEFAULT_PREFS: TablePrefs = { view: 'grid', hidden: [], groupDays: true, skipped: [], widths: {} };
 
 function loadPrefs(tableId: string): TablePrefs {
   try {
@@ -55,13 +56,13 @@ function loadPrefs(tableId: string): TablePrefs {
       hidden: Array.isArray(saved.hidden) ? saved.hidden : [],
       groupDays: saved.groupDays !== false,
       skipped: Array.isArray(saved.skipped) ? saved.skipped : [],
+      widths: saved.widths && typeof saved.widths === 'object' && !Array.isArray(saved.widths) ? saved.widths : {},
     };
   } catch {
     return DEFAULT_PREFS;
   }
 }
 
-const COL_W = 'min-w-[180px] w-[180px]';
 
 const TaskTablePage = () => {
   const { tableId = '' } = useParams<{ tableId: string }>();
@@ -197,6 +198,34 @@ function TableScreen({ tableId }: { tableId: string }) {
     });
   };
 
+  // Column widths: what the content needs (at most half the table), unless dragged.
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [container, setContainer] = useState(960);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setContainer(Math.round(el.clientWidth) || 960));
+    ro.observe(el);
+    setContainer(Math.round(el.clientWidth) || 960);
+    return () => ro.disconnect();
+  }, [fieldsLoading, recordsLoading, prefs.view]);
+  const [live, setLive] = useState<{ id: string; width: number } | null>(null);
+  const autoWidths = useMemo(
+    () => Object.fromEntries(shownFields.map((f) => [f.id, autoWidth(f, rows, names, container)])),
+    [shownFields, rows, names, container],
+  );
+  const widthOf = (id: string) => (live?.id === id ? live.width : effectiveWidth(prefs.widths[id], autoWidths[id] ?? 180, container));
+  const setWidth = useCallback((id: string, width: number | null) => {
+    setPrefsState((p) => {
+      const widths = { ...p.widths };
+      if (width == null) delete widths[id]; else widths[id] = width;
+      const next = { ...p, widths };
+      try { localStorage.setItem(`kdops.task.table.${tableId}`, JSON.stringify(next)); } catch { /* not remembered */ }
+      return next;
+    });
+  }, [tableId]);
+  const tableWidth = 40 + 40 + shownFields.reduce((sum, f) => sum + widthOf(f.id), 0);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const onFieldDragEnd = (e: DragEndEvent) => {
     if (!isAdmin || !e.over || e.active.id === e.over.id) return;
@@ -301,9 +330,14 @@ function TableScreen({ tableId }: { tableId: string }) {
           onRestore={() => setPrefs({ skipped: [] })}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border/70">
+        <div ref={wrapRef} className="overflow-x-auto rounded-lg border border-border/70">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onFieldDragEnd}>
-          <table className="text-sm border-collapse w-max min-w-full">
+          <table className="text-sm border-collapse" style={{ tableLayout: 'fixed', width: tableWidth }}>
+            <colgroup>
+              <col style={{ width: 40 }} />
+              {shownFields.map((f) => <col key={f.id} style={{ width: widthOf(f.id) }} />)}
+              <col style={{ width: 40 }} />
+            </colgroup>
             <thead>
               <tr className="border-b border-border/70 bg-muted/30">
                 <th className="w-10 px-2 py-2 text-left sticky left-0 bg-muted/60 z-10">
@@ -311,7 +345,7 @@ function TableScreen({ tableId }: { tableId: string }) {
                 </th>
                 <SortableContext items={shownFields.map((f) => f.id)} strategy={horizontalListSortingStrategy}>
                 {shownFields.map((f) => (
-                  <SortableTh key={f.id} id={f.id} name={f.name} canDrag={isAdmin && shownFields.length > 1}>
+                  <SortableTh key={f.id} id={f.id} name={f.name} canDrag={isAdmin && shownFields.length > 1} width={widthOf(f.id)} onResizing={(w) => setLive(w == null ? null : { id: f.id, width: clampWidth(w, container) })} onResized={(w) => { setLive(null); setWidth(f.id, w == null ? null : clampWidth(w, container)); }}>
                     {(handle) => (
                     <div className="flex items-center gap-1">
                       {handle}
@@ -369,7 +403,7 @@ function TableScreen({ tableId }: { tableId: string }) {
                         />
                       </td>
                       {shownFields.map((f) => (
-                        <td key={f.id} className={cn(COL_W, 'p-0.5 border-l border-border/30 align-middle')}>
+                        <td key={f.id} className="p-0.5 border-l border-border/30 align-top overflow-hidden">
                           <TableCell field={f} record={r} ctx={ctx} onCommit={(v) => commit(r.id, f.id, v)} />
                         </td>
                       ))}
@@ -430,8 +464,15 @@ function TableScreen({ tableId }: { tableId: string }) {
   );
 }
 
-// A column header that can be dragged to a new place (admins).
-function SortableTh({ id, name, canDrag, children }: { id: string; name: string; canDrag: boolean; children: (handle: React.ReactNode) => React.ReactNode }) {
+// A column header: drag the grip to move the column (admins); drag the line
+// on its right edge to make it wider or narrower (anyone), double-click the
+// line to go back to the automatic width.
+function SortableTh({ id, name, canDrag, width, onResizing, onResized, children }: {
+  id: string; name: string; canDrag: boolean; width: number;
+  onResizing: (width: number | null) => void;
+  onResized: (width: number | null) => void;
+  children: (handle: React.ReactNode) => React.ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !canDrag });
   const handle = canDrag ? (
     <button type="button" {...attributes} {...listeners} aria-label={`Move ${name}`} title="Drag to move this column"
@@ -439,14 +480,45 @@ function SortableTh({ id, name, canDrag, children }: { id: string; name: string;
       <GripVertical className="h-3.5 w-3.5" />
     </button>
   ) : <GripVertical className="h-3 w-3 text-muted-foreground/30 shrink-0" />;
+
+  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = width;
+    let last = startW;
+    const move = (ev: PointerEvent) => { last = Math.max(MIN_COL, startW + ev.clientX - startX); onResizing(last); };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      target.removeEventListener('pointercancel', up);
+      if (last !== startW) onResized(last); else onResizing(null);
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+  };
+
   return (
     <th
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn(COL_W, 'px-2 py-1.5 text-left text-xs font-semibold border-l border-border/50 bg-muted/30', isDragging && 'relative z-20 opacity-80 shadow-lg bg-muted')}
+      className={cn('relative px-2 py-1.5 text-left text-xs font-semibold border-l border-border/50 bg-muted/30 overflow-hidden', isDragging && 'z-20 opacity-80 shadow-lg bg-muted')}
       data-col={name}
     >
       {children(handle)}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Resize ${name}`}
+        title="Drag to resize · double-click to reset"
+        onPointerDown={startResize}
+        onDoubleClick={() => onResized(null)}
+        className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none z-10 hover:bg-primary/40 active:bg-primary/60"
+        data-resize={name}
+      />
     </th>
   );
 }
