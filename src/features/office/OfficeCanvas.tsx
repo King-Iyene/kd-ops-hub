@@ -145,6 +145,14 @@ export function OfficeCanvas(props: Props) {
     ambient.setEnabled(props.sound);
   }, [props.sound]);
   useEffect(() => () => ambient.stop(), []);
+  // in the desktop app, the office's own sounds stop while the window is hidden in the tray (calls and alerts keep working)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !(window as unknown as { kdDesktop?: unknown }).kdDesktop) return;
+    const on = () => ambient.setQuiet(document.visibilityState === 'hidden');
+    document.addEventListener('visibilitychange', on);
+    on();
+    return () => { document.removeEventListener('visibilitychange', on); ambient.setQuiet(false); };
+  }, []);
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
   const nearRef = useRef<Item | null>(null);

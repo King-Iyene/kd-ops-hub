@@ -99,8 +99,8 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
-  bike: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
-  kart: { w: 1, h: 1, solid: false, label: 'Hoverboard' },
+  bike: { w: 1, h: 1, solid: false, label: 'Bike' },
+  kart: { w: 1, h: 1, solid: false, label: 'Bike' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
 };
 
@@ -121,8 +121,8 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',
   valueswall: 'Core values',
   noticeboard: 'Notice board',
-  bike: 'Ride the hoverboard',
-  kart: 'Ride the hoverboard',
+  bike: 'Ride the bike',
+  kart: 'Ride the bike',
   gong: 'Ring the gong',
   arcade: 'Play a game',
   pollboard: 'Open the polls',
