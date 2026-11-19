@@ -1,3 +1,4 @@
+import { rememberReturnTo } from '@/lib/returnTo';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -30,6 +31,7 @@ export function RoleGuard({ roles, children, inline = false, permission }: Props
   }
 
   if (!user) {
+    rememberReturnTo(window.location.pathname + window.location.search);
     return <Navigate to="/login" replace />;
   }
 
