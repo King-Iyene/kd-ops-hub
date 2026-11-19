@@ -428,7 +428,22 @@ export function useSaveHomeLayout(userId: string) {
 
 // ── Tables ─────────────────────────────────────────────────────────────
 
-export type TableFieldType = 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'single_select' | 'person' | 'task';
+// "person" is shown as People and "task" as Task link (stored names kept).
+// The last four are computed from the record and never edited.
+export type TableFieldType =
+  | 'text' | 'long_text' | 'number' | 'currency' | 'date' | 'checkbox' | 'single_select' | 'multi_select'
+  | 'link' | 'email' | 'phone' | 'person' | 'task' | 'attachment' | 'rating'
+  | 'created_by' | 'created_at' | 'last_modified' | 'auto_number';
+
+export interface TableFieldConfig {
+  required?: boolean;
+  max_length?: number;
+  options?: string[];
+  currency?: string;
+  decimals?: number;
+  rating_max?: number;
+  multiple?: boolean;
+}
 
 export interface TaskTable {
   id: string;
@@ -445,7 +460,7 @@ export interface TableField {
   table_id: string;
   name: string;
   type: TableFieldType;
-  config: { options?: string[] };
+  config: TableFieldConfig;
   position: number;
   created_at: string;
 }
@@ -455,6 +470,7 @@ export interface TableRecordRow {
   table_id: string;
   data: Record<string, unknown>;
   position: number;
+  row_number: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -487,10 +503,28 @@ export function useDeleteTaskTable() {
   );
 }
 
+// Rename a space, list or table (admins; enforced by RLS).
+export function useRenameTaskItem() {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { kind: 'folder' | 'list' | 'table'; id: string; name: string }) => {
+      const table = vars.kind === 'folder' ? 'tm_folders' : vars.kind === 'list' ? 'tm_lists' : 'tm_tables';
+      return supabase.from(table).update({ name: vars.name }).eq('id', vars.id).select('id').single();
+    },
+    {
+      onSuccess: () => invalidate(
+        queryKeys.taskModule.folders(), queryKeys.taskModule.lists(undefined), queryKeys.taskModule.tables(undefined),
+      ),
+    },
+  );
+}
+
 export function useTableFields(tableId: string) {
   return useSupabaseQuery(
     queryKeys.taskModule.fields(tableId),
-    () => supabase.from('tm_table_fields').select('*').eq('table_id', tableId).order('position').order('created_at'),
+    () =>
+      supabase.from('tm_table_fields').select('*').eq('table_id', tableId).order('position').order('created_at')
+        .overrideTypes<TableField[], { merge: false }>(),
     { enabled: !!tableId },
   );
 }
@@ -498,17 +532,22 @@ export function useTableFields(tableId: string) {
 export function useCreateTableField(tableId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (vars: { name: string; type: TableFieldType; options?: string[] }) =>
+    (vars: { name: string; type: TableFieldType; config: TableFieldConfig; position: number }) =>
       supabase
         .from('tm_table_fields')
-        .insert({
-          table_id: tableId,
-          name: vars.name,
-          type: vars.type,
-          config: vars.options?.length ? { options: vars.options } : {},
-        })
+        .insert({ table_id: tableId, name: vars.name, type: vars.type, config: vars.config as Json, position: vars.position })
         .select()
         .single(),
+    { onSuccess: () => invalidate(queryKeys.taskModule.fields(tableId)) },
+  );
+}
+
+// Name and settings only — a field's type is fixed once it holds data.
+export function useUpdateTableField(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { id: string; name: string; config: TableFieldConfig }) =>
+      supabase.from('tm_table_fields').update({ name: vars.name, config: vars.config as Json }).eq('id', vars.id).select().single(),
     { onSuccess: () => invalidate(queryKeys.taskModule.fields(tableId)) },
   );
 }
@@ -524,7 +563,9 @@ export function useDeleteTableField(tableId: string) {
 export function useTableRecords(tableId: string) {
   return useSupabaseQuery(
     queryKeys.taskModule.records(tableId),
-    () => supabase.from('tm_table_records').select('*').eq('table_id', tableId).order('position').order('created_at'),
+    () =>
+      supabase.from('tm_table_records').select('*').eq('table_id', tableId).order('position').order('created_at')
+        .overrideTypes<TableRecordRow[], { merge: false }>(),
     { enabled: !!tableId },
   );
 }
@@ -532,15 +573,30 @@ export function useTableRecords(tableId: string) {
 export function useCreateTableRecord(tableId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (createdBy: string) => supabase.from('tm_table_records').insert({ table_id: tableId, created_by: createdBy }).select().single(),
+    (vars: { createdBy: string; data?: Record<string, unknown> }) =>
+      supabase.from('tm_table_records')
+        .insert({ table_id: tableId, created_by: vars.createdBy, data: (vars.data ?? {}) as Json })
+        .select().single(),
     { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
   );
 }
 
-export function useDeleteTableRecord(tableId: string) {
+// Import: many rows in one insert.
+export function useInsertTableRecords(tableId: string) {
   const invalidate = useInvalidate();
   return useSupabaseMutation(
-    (recordId: string) => supabase.from('tm_table_records').delete().eq('id', recordId).select().single(),
+    (vars: { createdBy: string; rows: Record<string, unknown>[] }) =>
+      supabase.from('tm_table_records')
+        .insert(vars.rows.map((data) => ({ table_id: tableId, created_by: vars.createdBy, data: data as Json })))
+        .select('id'),
+    { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
+  );
+}
+
+export function useDeleteTableRecords(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (recordIds: string[]) => supabase.from('tm_table_records').delete().in('id', recordIds).select('id'),
     { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
   );
 }
@@ -551,23 +607,93 @@ export function useDeleteTableRecord(tableId: string) {
 // row at once would otherwise silently clobber one another.
 export function useSetRecordCell(tableId: string) {
   const invalidate = useInvalidate();
+  const qc = useQueryClient();
   return useSupabaseMutation<TableRecordRow, { recordId: string; fieldId: string; value: unknown }>(
     (vars) =>
       supabase.rpc('tm_set_record_cell', {
         p_record_id: vars.recordId,
         p_field_id: vars.fieldId,
-        p_value: vars.value as Json,
+        p_value: (vars.value ?? null) as Json,
       }).overrideTypes<TableRecordRow, { merge: false }>(),
-    { onSuccess: () => invalidate(queryKeys.taskModule.records(tableId)) },
+    {
+      // Show the new value at once (e.g. a card dragged to another column).
+      onMutate: (vars) => {
+        qc.setQueryData<TableRecordRow[]>(queryKeys.taskModule.records(tableId), (old) =>
+          old?.map((r) => (r.id === vars.recordId ? { ...r, data: { ...r.data, [vars.fieldId]: vars.value } } : r)));
+      },
+      onSettled: () => invalidate(queryKeys.taskModule.records(tableId)),
+    },
   );
 }
 
-// Every task across every list, for the Table "task" field type's link
-// picker. Title + list name only — enough to disambiguate options in a
-// dropdown without pulling full task detail.
-export function useAllTasksForPicker() {
-  return useSupabaseQuery(['task-module', 'all-tasks-picker'] as const, () =>
-    supabase.from('tm_tasks').select('id, title, list_id').order('created_at', { ascending: false }).limit(1000),
+// Open tasks across every list, for Task link fields. Completed tasks are
+// left out on purpose: a link is for work that's still going.
+export interface TaskOption { id: string; title: string; list_id: string; assignee_id: string | null; status: TaskStatus }
+export function useOpenTasksForPicker() {
+  return useSupabaseQuery(
+    [...queryKeys.taskModule.all, 'open-tasks-picker'] as const,
+    () =>
+      supabase.from('tm_tasks').select('id, title, list_id, assignee_id, status').neq('status', 'done')
+        .order('created_at', { ascending: false }).limit(2000)
+        .overrideTypes<TaskOption[], { merge: false }>(),
+  );
+}
+
+// Titles for tasks already linked in a table, including ones finished since.
+export function useTaskTitles(ids: string[]) {
+  const key = [...ids].sort().join(',');
+  return useSupabaseQuery(
+    [...queryKeys.taskModule.all, 'task-titles', key] as const,
+    () => supabase.from('tm_tasks').select('id, title, status').in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
+      .overrideTypes<{ id: string; title: string; status: TaskStatus }[], { merge: false }>(),
+    { enabled: ids.length > 0 },
+  );
+}
+
+// ── Forms ──────────────────────────────────────────────────────────────
+
+export interface TaskForm {
+  id: string;
+  table_id: string;
+  token: string;
+  title: string;
+  description: string | null;
+  field_ids: string[];
+  access: 'members' | 'public';
+  is_open: boolean;
+  success_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useTableForms(tableId: string) {
+  return useSupabaseQuery(
+    [...queryKeys.taskModule.all, 'forms', tableId] as const,
+    () => supabase.from('tm_forms').select('*').eq('table_id', tableId).order('created_at')
+      .overrideTypes<TaskForm[], { merge: false }>(),
+    { enabled: !!tableId },
+  );
+}
+
+export type FormDraft = Pick<TaskForm, 'title' | 'description' | 'field_ids' | 'access' | 'is_open' | 'success_message'>;
+
+export function useSaveForm(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (vars: { id?: string; draft: FormDraft; createdBy: string }) =>
+      vars.id
+        ? supabase.from('tm_forms').update(vars.draft).eq('id', vars.id).select().single()
+        : supabase.from('tm_forms').insert({ ...vars.draft, table_id: tableId, created_by: vars.createdBy }).select().single(),
+    { onSuccess: () => invalidate([...queryKeys.taskModule.all, 'forms', tableId]) },
+  );
+}
+
+export function useDeleteForm(tableId: string) {
+  const invalidate = useInvalidate();
+  return useSupabaseMutation(
+    (formId: string) => supabase.from('tm_forms').delete().eq('id', formId).select('id').single(),
+    { onSuccess: () => invalidate([...queryKeys.taskModule.all, 'forms', tableId]) },
   );
 }
 

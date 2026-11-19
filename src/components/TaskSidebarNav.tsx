@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Home, ListTodo, LayoutDashboard, Plus, ChevronDown, ChevronRight,
-  ListChecks, Table2, Trash2, Loader2,
+  ListChecks, Table2, Trash2, Loader2, Pencil,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -16,7 +16,7 @@ import {
   useTaskFolders, useTaskLists, useTaskTables,
   useCreateTaskFolder, useDeleteTaskFolder,
   useCreateTaskList, useDeleteTaskList,
-  useCreateTaskTable, useDeleteTaskTable,
+  useCreateTaskTable, useDeleteTaskTable, useRenameTaskItem,
   type TaskFolder, type TaskListRow, type TaskTable,
 } from '@/queries/useTaskModule';
 
@@ -78,6 +78,42 @@ export function TaskSidebarNav({
   const deleteList = useDeleteTaskList();
   const createTable = useCreateTaskTable();
   const deleteTable = useDeleteTaskTable();
+  const inputCls = cn('w-full h-7 rounded-md px-2 text-xs focus:outline-none focus:ring-1', t.input);
+  const rename = useRenameTaskItem();
+  const [renaming, setRenaming] = useState<{ kind: 'folder' | 'list' | 'table'; id: string; name: string } | null>(null);
+  const saveRename = () => {
+    if (!renaming) return;
+    const name = renaming.name.trim();
+    const { kind, id } = renaming;
+    setRenaming(null);
+    if (!name) return;
+    rename.mutate({ kind, id, name }, {
+      onError: (err) => toast({ title: 'Could not rename', description: errorMessage(err), variant: 'destructive' }),
+    });
+  };
+  const renameBox = (label: string) => (
+    <input
+      autoFocus
+      aria-label={label}
+      value={renaming?.name ?? ''}
+      maxLength={120}
+      onChange={(e) => setRenaming((r) => (r ? { ...r, name: e.target.value } : r))}
+      onBlur={saveRename}
+      onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setRenaming(null); }}
+      onFocus={(e) => e.currentTarget.select()}
+      className={cn(inputCls, 'flex-1')}
+    />
+  );
+  const renameBtn = (kind: 'folder' | 'list' | 'table', id: string, name: string, what: string) => (
+    <button
+      type="button"
+      aria-label={`Rename ${what} ${name}`}
+      className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 kd-transition"
+      onClick={() => setRenaming({ kind, id, name })}
+    >
+      <Pencil className="h-3 w-3" />
+    </button>
+  );
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -147,7 +183,6 @@ export function TaskSidebarNav({
     );
   };
 
-  const inputCls = cn('w-full h-7 rounded-md px-2 text-xs focus:outline-none focus:ring-1', t.input);
   const addBtnCls = cn('h-7 w-7 shrink-0 rounded-md flex items-center justify-center disabled:opacity-40', t.button);
 
   return (
@@ -216,9 +251,12 @@ export function TaskSidebarNav({
                 <button type="button" onClick={() => toggle(folder.id)} className={cn('shrink-0', t.icon)} aria-label={isOpen ? 'Collapse' : 'Expand'}>
                   {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                 </button>
-                <button type="button" onClick={() => toggle(folder.id)} className="flex-1 min-w-0 text-left text-xs-plus font-semibold truncate">
-                  {folder.name}
-                </button>
+                {renaming?.kind === 'folder' && renaming.id === folder.id ? renameBox('Space name') : (
+                  <button type="button" onClick={() => toggle(folder.id)} className="flex-1 min-w-0 text-left text-xs-plus font-semibold truncate">
+                    {folder.name}
+                  </button>
+                )}
+                {isAdmin && !renaming && renameBtn('folder', folder.id, folder.name, 'space')}
                 {isAdmin && (
                   <button
                     type="button"
@@ -235,6 +273,7 @@ export function TaskSidebarNav({
                 <div className="pl-5 space-y-0.5">
                   {folderLists.map((list) => (
                     <div key={list.id} className="group flex items-center gap-1">
+                      {renaming?.kind === 'list' && renaming.id === list.id ? renameBox('List name') : (
                       <NavLink
                         to={`/task/list/${list.id}`}
                         onClick={onNavigate}
@@ -245,6 +284,8 @@ export function TaskSidebarNav({
                       >
                         <ListChecks className="h-3 w-3 shrink-0 opacity-70" /> <span className="truncate">{list.name}</span>
                       </NavLink>
+                      )}
+                      {isAdmin && !renaming && renameBtn('list', list.id, list.name, 'list')}
                       {isAdmin && (
                         <button type="button" aria-label={`Delete list ${list.name}`} className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive kd-transition" onClick={() => setConfirmDeleteList(list)}>
                           <Trash2 className="h-3 w-3" />
@@ -254,6 +295,7 @@ export function TaskSidebarNav({
                   ))}
                   {folderTables.map((tbl) => (
                     <div key={tbl.id} className="group flex items-center gap-1">
+                      {renaming?.kind === 'table' && renaming.id === tbl.id ? renameBox('Table name') : (
                       <NavLink
                         to={`/task/table/${tbl.id}`}
                         onClick={onNavigate}
@@ -264,6 +306,8 @@ export function TaskSidebarNav({
                       >
                         <Table2 className="h-3 w-3 shrink-0 opacity-70" /> <span className="truncate">{tbl.name}</span>
                       </NavLink>
+                      )}
+                      {isAdmin && !renaming && renameBtn('table', tbl.id, tbl.name, 'table')}
                       {isAdmin && (
                         <button type="button" aria-label={`Delete table ${tbl.name}`} className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive kd-transition" onClick={() => setConfirmDeleteTable(tbl)}>
                           <Trash2 className="h-3 w-3" />

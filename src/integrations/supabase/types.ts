@@ -17250,6 +17250,59 @@ export type Database = {
           },
         ]
       }
+      tm_forms: {
+        Row: {
+          access: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          field_ids: string[]
+          id: string
+          is_open: boolean
+          success_message: string | null
+          table_id: string
+          title: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          access?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          field_ids?: string[]
+          id?: string
+          is_open?: boolean
+          success_message?: string | null
+          table_id: string
+          title: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          access?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          field_ids?: string[]
+          id?: string
+          is_open?: boolean
+          success_message?: string | null
+          table_id?: string
+          title?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_forms_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_home_layouts: {
         Row: {
           cards: string[]
@@ -17449,6 +17502,7 @@ export type Database = {
           data: Json
           id: string
           position: number
+          row_number: number | null
           table_id: string
           updated_at: string
         }
@@ -17458,6 +17512,7 @@ export type Database = {
           data?: Json
           id?: string
           position?: number
+          row_number?: number | null
           table_id: string
           updated_at?: string
         }
@@ -17467,6 +17522,7 @@ export type Database = {
           data?: Json
           id?: string
           position?: number
+          row_number?: number | null
           table_id?: string
           updated_at?: string
         }
@@ -22032,6 +22088,12 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      tm_form_load: { Args: { p_token: string }; Returns: Json }
+      tm_form_person_tasks: {
+        Args: { p_person: string; p_token: string }
+        Returns: Json
+      }
+      tm_form_submit: { Args: { p_data: Json; p_token: string }; Returns: string }
       tm_my_comment_feed: {
         Args: { p_days?: number }
         Returns: {
@@ -22064,6 +22126,7 @@ export type Database = {
           data: Json
           id: string
           position: number
+          row_number: number | null
           table_id: string
           updated_at: string
         }
