@@ -6,7 +6,8 @@ export type ConnectionKind = 'slack' | 'cliq' | 'discord' | 'teams' | 'gchat' | 
 export interface ConnectionLite { kind: ConnectionKind; name: string; config: Record<string, unknown> }
 export interface Secrets { url?: string | null; token?: string | null }
 export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
-export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta }
+export interface OutgoingLink { url: string; label: string }
+export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -61,6 +62,25 @@ export async function signBody(body: string, token: string): Promise<string> {
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
+/** A web address that is safe to put in an href or a message: https only, no credentials. */
+export function safeLink(l: OutgoingLink | undefined): OutgoingLink | null {
+  if (!l) return null;
+  try {
+    const u = new URL(l.url);
+    if (u.protocol !== 'https:' || u.username || u.password) return null;
+    return { url: u.toString(), label: (l.label || 'Open it').slice(0, 80) };
+  } catch { return null; }
+}
+
+/** Plain text to email HTML: escaped, line breaks kept, and every https address a real link. */
+export function emailHtml(text: string, link: OutgoingLink | null): string {
+  const body = escapeHtml(text).replace(/\n/g, '<br>').replace(/https:\/\/[^\s<]+/g, (m) => `<a href="${m}">${m}</a>`);
+  const button = link
+    ? `<p style="margin:20px 0 0"><a href="${escapeHtml(link.url)}" style="display:inline-block;background:#1a2733;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">${escapeHtml(link.label)}</a></p>`
+    : '';
+  return `<p>${body}</p>${button}`;
+}
 
 export function parseRecipients(raw: unknown): string[] {
   return String(raw ?? '').split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -136,9 +156,14 @@ export function buildApiRequest(cfg: Record<string, unknown>, secrets: Secrets, 
   return { type: 'http', url, init: { method, headers, body } };
 }
 
+const kindShowsLinkInline = (k: ConnectionKind) => k !== 'email';
+
 export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: Outgoing, now: Date = new Date()): Promise<BuiltRequest> {
   const cfg = conn.config ?? {};
-  const text = msg.text.slice(0, 3000);
+  const link = safeLink(msg.link);
+  // Where the message cannot show a button, the link goes on its own line at the end (unless the text already has it).
+  const plain = msg.text.slice(0, 3000);
+  const text = link && kindShowsLinkInline(conn.kind) && !plain.includes(link.url) ? `${plain}\n${link.label}: ${link.url}` : plain;
   const title = (msg.title ?? '').slice(0, 200);
 
   if (conn.kind === 'email') {
@@ -146,7 +171,7 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     if (to.length === 0) return { type: 'error', error: 'Add at least one email address to send to.' };
     if (to.length > 5) return { type: 'error', error: 'Five addresses at most.' };
     if (!to.every((a) => EMAIL.test(a))) return { type: 'error', error: 'One of the email addresses is not valid.' };
-    return { type: 'email', payload: { channel: 'email', to: to.join(','), subject: title || 'Ops Agent', html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>` } };
+    return { type: 'email', payload: { channel: 'email', to: to.join(','), subject: title || 'Ops Agent', html: emailHtml(plain, link) } };
   }
 
   if (conn.kind === 'slack' || conn.kind === 'cliq') {

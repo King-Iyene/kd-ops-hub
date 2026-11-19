@@ -45,6 +45,10 @@ CREATE FUNCTION public.t_count(p_rule text, p_status text DEFAULT 'open') RETURN
   SELECT count(*) FROM public.agent_flags WHERE rule_code = p_rule AND status = p_status
 $$;
 
+-- A stand-in for the Task module's forms table (the minimal replay database does not have it)
+CREATE TABLE IF NOT EXISTS public.tm_forms (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), table_id uuid NOT NULL, token text NOT NULL UNIQUE DEFAULT replace(gen_random_uuid()::text, '-', ''), title text NOT NULL, is_open boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.tm_forms TO authenticated;
+
 -- ── Fixture ────────────────────────────────────────────────────────────────
 INSERT INTO public.companies (id, name, short_code) VALUES
   ('c0000000-0000-0000-0000-000000000001', 'KD Squares Ltd', 'KDS'), ('c0000000-0000-0000-0000-000000000002', 'NDI', 'NDI');
@@ -627,6 +631,157 @@ DO $$ BEGIN
   RAISE NOTICE 'PASS 10b: Generate now works for a Super Admin only; Admins read nothing';
 END $$;
 RESET ROLE;
+
+
+-- ── 11. v5: links in messages, chasing what nobody attends to, and watching the systems the agent depends on ──
+SELECT public.t_as(NULL);
+DELETE FROM public.agent_flags;
+DELETE FROM public.agent_summaries;
+DO $$
+DECLARE
+  v_task uuid := 'b3000000-0000-0000-0000-000000000001'; v_h uuid; v_m uuid; v_c uuid; v_l uuid; v_hh uuid; r jsonb; d jsonb; v_tok text; v_table uuid;
+BEGIN
+  -- a task item with its evidence, as TK01 writes it
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000004', 'task', v_task::text, '', 'high', 'Overdue: Prepare the vendor table',
+    'Due Dec 4, 3 days late. Assigned to Cara.', jsonb_build_object('task_id', v_task, 'task_title', 'Prepare the vendor table', 'due_date', '2026-12-04'), NULL, '2026-12-07T15:00:00Z');
+  SELECT id INTO v_h FROM public.agent_flags WHERE rule_code = 'TK01';
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  r := public.agent_flag_link(v_h);
+  PERFORM public.t_eq('task link path', r ->> 'path', '/task?task=' || v_task);
+  PERFORM public.t_eq('task link is a full address', r ->> 'url', 'https://ops.kdsquares.com/task?task=' || v_task);
+  PERFORM public.t_eq('the person gets the same link', r ->> 'person_url', 'https://ops.kdsquares.com/task?task=' || v_task);
+  d := public.agent_flag_draft(v_h);
+  IF d ->> 'body' NOT LIKE '%Task: "Prepare the vendor table" (due Dec 4)%' THEN RAISE EXCEPTION 'FAIL: the message does not name the task: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%Open it here: https://ops.kdsquares.com/task?task=' || v_task || '%' THEN RAISE EXCEPTION 'FAIL: the message has no link: %', d ->> 'body'; END IF;
+  PERFORM public.t_eq('detail carries the link', public.agent_flag_detail(v_h) -> 'link' ->> 'label', 'Open the task');
+
+  -- the report: Super Admin gets the table; the person gets the open form when there is one
+  RESET ROLE; SELECT report_table_id INTO v_table FROM public.agent_settings WHERE id;
+  PERFORM public.agent_raise_flag('RP01', 'reports', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-07', 'high', 'Daily report missing', 'No daily report from Cara for Dec 7.', '{}', NULL, '2026-12-07T23:10:00Z');
+  SELECT id INTO v_hh FROM public.agent_flags WHERE rule_code = 'RP01'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_eq('report path is the table', public.agent_flag_link(v_hh) ->> 'path', '/task/table/' || v_table);
+  PERFORM public.t_eq('no form yet: nothing for the person to open', public.agent_flag_link(v_hh) ->> 'person_url', NULL);
+  RESET ROLE; INSERT INTO public.tm_forms (table_id, title, is_open) VALUES (v_table, 'Daily report', true); SELECT token INTO v_tok FROM public.tm_forms WHERE table_id = v_table; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_eq('the open form for the person', public.agent_flag_link(v_hh) ->> 'person_url', 'https://ops.kdsquares.com/tf/' || v_tok);
+  IF public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%Daily report for Mon Dec 7%' OR public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%/tf/' || v_tok || '%' THEN RAISE EXCEPTION 'FAIL: report draft %', public.agent_flag_draft(v_hh) ->> 'body'; END IF;
+  RESET ROLE;
+  PERFORM public.agent_raise_flag('ZZ01', NULL, NULL, 'system', 'x', '', 'low', 'Something', 'why', '{}', NULL, '2026-12-07T15:00:00Z');
+  SELECT id INTO v_l FROM public.agent_flags WHERE rule_code = 'ZZ01'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_eq('anything else links to the Inbox card', public.agent_flag_link(v_l) ->> 'path', '/agent/inbox?flag=' || v_l);
+  RESET ROLE; PERFORM public.agent_raise_flag('TR01', 'track', 'a0000000-0000-0000-0000-000000000004', 'person', 'a0000000-0000-0000-0000-000000000004', '2026-12-07', 'medium', 'Not tracking time', 'w', '{}', NULL, '2026-12-07T15:00:00Z');
+  SELECT id INTO v_l FROM public.agent_flags WHERE rule_code = 'TR01'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_eq('a Track item links to Track', public.agent_flag_link(v_l) ->> 'path', '/timesheets');
+  RAISE NOTICE 'PASS 11a: a message names the exact task or report and carries a link to it; the person gets a link they can open';
+END $$;
+
+-- ES01: not attended to
+SELECT public.t_as(NULL);
+DELETE FROM public.agent_flags WHERE rule_code IN ('ZZ01', 'RP01', 'TR01');
+DO $$
+DECLARE v_h uuid; v_m uuid; v_c uuid; v_lo uuid; r jsonb;
+BEGIN
+  SELECT id INTO v_h FROM public.agent_flags WHERE rule_code = 'TK01';  -- high, first seen Mon 10:00 EST
+  PERFORM public.agent_raise_flag('TK05', 'task', 'a0000000-0000-0000-0000-000000000003', 'task', 'm1', '', 'medium', 'No movement: Medium one', 'Bob''s task has been In Progress for 4 days.', '{}', NULL, '2026-12-07T15:00:00Z');
+  PERFORM public.agent_raise_flag('TK04', 'task', 'a0000000-0000-0000-0000-000000000003', 'task', 'l1', '', 'low', 'Blocked too long: Low one', 'w', '{}', NULL, '2026-12-07T15:00:00Z');
+  PERFORM public.agent_raise_flag('RP03', 'reports', 'a0000000-0000-0000-0000-000000000004', 'person', 'c1', '', 'critical', 'Critical one', 'w', '{}', NULL, '2026-12-08T10:00:00Z');
+  PERFORM public.agent_raise_flag('TK14', 'task', 'a0000000-0000-0000-0000-000000000003', 'task', 'd1', '', 'info', 'Done: nice', 'w', '{}', NULL, '2026-12-01T10:00:00Z');
+  SELECT id INTO v_m FROM public.agent_flags WHERE rule_code = 'TK05'; SELECT id INTO v_c FROM public.agent_flags WHERE rule_code = 'RP03'; SELECT id INTO v_lo FROM public.agent_flags WHERE rule_code = 'TK04';
+
+  r := public.agent_rule_es01('2026-12-08T14:00:00Z');          -- Tue 09:00 EST: the high one is 23 h old
+  PERFORM public.t_eq('nothing is late yet at 23 hours', (r ->> 'created')::int, 0);
+  r := public.agent_rule_es01('2026-12-08T16:30:00Z');          -- Tue 11:30 EST: high is 25.5 h, critical 6.5 h, medium 25.5 h (needs 48)
+  PERFORM public.t_eq('the high item and the critical item are chased', (r ->> 'created')::int, 2);
+  PERFORM public.t_eq('the high one is raised as critical', (SELECT severity FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = v_h::text), 'critical');
+  PERFORM public.t_eq('and so is the critical one', (SELECT severity FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = v_c::text), 'critical');
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = v_h::text) NOT LIKE '%open for 26 hours%' THEN RAISE EXCEPTION 'FAIL: ES01 wording %', (SELECT why FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = v_h::text); END IF;
+  PERFORM public.t_eq('the original is escalated one level', (SELECT escalation_level FROM public.agent_flags WHERE id = v_h)::int, 2);
+  PERFORM public.t_eq('and the escalation is on its history', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = v_h AND kind = 'escalated'), 1::bigint);
+  PERFORM public.t_eq('medium and low are not late yet; info and TK14 never', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'ES01'), 2::bigint);
+  r := public.agent_rule_es01('2026-12-09T15:30:00Z');          -- Wed: medium is 48.5 h old
+  PERFORM public.t_eq('the medium one joins at 48 hours', (SELECT severity FROM public.agent_flags WHERE rule_code = 'ES01' AND subject_id = v_m::text), 'high');
+  r := public.agent_rule_es01('2026-12-09T15:31:00Z');
+  PERFORM public.t_eq('never raised twice, never escalated twice', (SELECT escalation_level FROM public.agent_flags WHERE id = v_h)::int, 2);
+  PERFORM public.t_eq('three chases open', public.t_count('ES01'), 3::bigint);
+
+  -- attended to: handled, snoozed, dismissed
+  UPDATE public.agent_flags SET status = 'handled', handled_at = '2026-12-09T15:40:00Z' WHERE id = v_h;
+  UPDATE public.agent_flags SET status = 'snoozed', snoozed_until = '2026-12-12T15:40:00Z' WHERE id = v_m;
+  UPDATE public.agent_flags SET status = 'dismissed' WHERE id = v_c;
+  r := public.agent_rule_es01('2026-12-09T15:45:00Z');
+  PERFORM public.t_eq('once attended to, the chase closes by itself', public.t_count('ES01'), 0::bigint);
+  -- a day off raises nothing new
+  UPDATE public.agent_flags SET status = 'open', snoozed_until = NULL WHERE id = v_m;
+  DELETE FROM public.agent_flags WHERE rule_code = 'ES01';
+  r := public.agent_rule_es01('2026-12-12T16:00:00Z');          -- Saturday
+  PERFORM public.t_eq('nothing on a day off', (r ->> 'created')::int, 0);
+  RAISE NOTICE 'PASS 11b: an item nobody touches is chased (critical 4 h, high 24 h, medium 48 h), escalated once, closed when attended to, quiet on days off';
+END $$;
+
+-- ES02: handled, but still happening
+DELETE FROM public.agent_flags;
+DO $$
+DECLARE v_id uuid; r jsonb;
+BEGIN
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000004', 'task', 'h1', '', 'high', 'Overdue: Handled but not fixed', 'Due Dec 1.', '{}', NULL, '2026-12-01T15:00:00Z');
+  SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TK01';
+  UPDATE public.agent_flags SET status = 'handled', handled_at = '2026-12-01T16:00:00Z' WHERE id = v_id;
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000004', 'task', 'h1', '', 'high', 'Overdue: Handled but not fixed', 'Due Dec 1.', '{}', NULL, '2026-12-02T15:00:00Z');
+  r := public.agent_rule_es02('2026-12-02T15:05:00Z');            -- 23 h after it was handled
+  PERFORM public.t_eq('not yet at 23 hours', (r ->> 'created')::int, 0);
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000004', 'task', 'h1', '', 'high', 'Overdue: Handled but not fixed', 'Due Dec 1.', '{}', NULL, '2026-12-03T15:00:00Z');
+  PERFORM public.t_eq('the handled item stays handled', (SELECT status FROM public.agent_flags WHERE id = v_id), 'handled');
+  r := public.agent_rule_es02('2026-12-03T15:05:00Z');            -- 47 h, and the rule saw it 5 minutes ago
+  PERFORM public.t_eq('still true a day later: raised again', (r ->> 'created')::int, 1);
+  PERFORM public.t_eq('one level higher', (SELECT severity FROM public.agent_flags WHERE rule_code = 'ES02'), 'critical');
+  IF (SELECT title FROM public.agent_flags WHERE rule_code = 'ES02') NOT LIKE 'Still happening: Overdue: Handled but not fixed' THEN RAISE EXCEPTION 'FAIL: ES02 title'; END IF;
+  PERFORM public.t_eq('the original is escalated', (SELECT escalation_level FROM public.agent_flags WHERE id = v_id)::int, 2);
+  r := public.agent_rule_es02('2026-12-03T16:00:00Z');            -- the rule has not seen it for an hour: it was fixed
+  PERFORM public.t_eq('fixed: the chase closes', public.t_count('ES02'), 0::bigint);
+  -- a handled item that really was fixed never raises
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000004', 'task', 'h2', '', 'high', 'Overdue: Fixed', 'x', '{}', NULL, '2026-12-01T15:00:00Z');
+  UPDATE public.agent_flags SET status = 'handled', handled_at = '2026-12-01T16:00:00Z' WHERE subject_id = 'h2';
+  r := public.agent_rule_es02('2026-12-05T15:00:00Z');
+  PERFORM public.t_eq('a fixed item is left alone', (r ->> 'created')::int, 0);
+  RAISE NOTICE 'PASS 11c: handled but still happening a day later is raised again, one level higher; closes when it is fixed';
+END $$;
+
+-- SY01, SY02, SY04: the systems the agent depends on
+DELETE FROM public.agent_flags;
+CREATE TABLE public.cron_job_alerts (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), job_name text NOT NULL, issue text NOT NULL, detail text, detected_at timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz);
+INSERT INTO public.cron_job_alerts (job_name, issue, detail) VALUES ('payroll-tick', 'stale', 'Last run at 2026-12-01, expected within 10 minutes.');
+DO $$
+DECLARE r jsonb; v_conn uuid;
+BEGIN
+  r := public.agent_rule_sy01('2026-12-02T15:00:00Z');
+  PERFORM public.t_eq('a stale job is flagged', (r ->> 'created')::int, 1);
+  PERFORM public.t_eq('high', (SELECT severity FROM public.agent_flags WHERE rule_code = 'SY01'), 'high');
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'SY01') NOT LIKE '%payroll-tick%is stale%' THEN RAISE EXCEPTION 'FAIL: SY01 wording'; END IF;
+  UPDATE public.cron_job_alerts SET resolved_at = now();
+  r := public.agent_rule_sy01('2026-12-02T15:05:00Z');
+  PERFORM public.t_eq('fixed: it closes', public.t_count('SY01'), 0::bigint);
+
+  INSERT INTO public.agent_connections (id, kind, name, status, last_error, config) VALUES ('c2000000-0000-0000-0000-000000000001', 'slack', 'Ops channel', 'error', 'The receiver refused the credentials (HTTP 401).', '{"events": ["flag_high"]}') RETURNING id INTO v_conn;
+  INSERT INTO public.agent_messages (channel, body, status, error, created_at) VALUES ('email', 'x', 'failed', 'HTTP 500', '2026-12-02T14:00:00Z'), ('slack', 'y', 'sent', NULL, '2026-12-02T14:00:00Z');
+  r := public.agent_rule_sy02('2026-12-02T15:00:00Z');
+  PERFORM public.t_eq('a failing message and a connection in error: two items', (r ->> 'created')::int, 2);
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'SY02' AND subject_id = 'delivery-failed') NOT LIKE '1 message could not be delivered%' THEN RAISE EXCEPTION 'FAIL: SY02 wording'; END IF;
+  UPDATE public.agent_connections SET status = 'connected', last_error = NULL WHERE id = v_conn;
+  DELETE FROM public.agent_messages WHERE status = 'failed';
+  r := public.agent_rule_sy02('2026-12-02T15:05:00Z');
+  PERFORM public.t_eq('both close when fixed', public.t_count('SY02'), 0::bigint);
+
+  PERFORM public.t_eq('the sender cannot run on a database with no vault secrets', public.agent_dispatch_ready(), false);
+  r := public.agent_rule_sy04('2026-12-02T15:00:00Z');
+  PERFORM public.t_eq('automatic sending that cannot run is flagged', (r ->> 'created')::int, 1);
+  UPDATE public.agent_connections SET config = '{"events": []}'::jsonb;
+  r := public.agent_rule_sy04('2026-12-02T15:05:00Z');
+  PERFORM public.t_eq('no connection wants it: closes', public.t_count('SY04'), 0::bigint);
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.t_eq('the pulse says whether the sender can run', public.agent_team_pulse() ? 'dispatch_ready', true);
+  RESET ROLE;
+  PERFORM public.t_eq('the new rules are all switched on', (SELECT count(*) FROM public.agent_rules WHERE code IN ('ES01', 'ES02', 'SY01', 'SY02', 'SY04') AND enabled), 5::bigint);
+  RAISE NOTICE 'PASS 11d: failing jobs, failing deliveries, broken connections and automatic sending that cannot run are flagged, and clear when fixed';
+END $$;
 
 
 ROLLBACK;

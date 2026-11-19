@@ -7,7 +7,9 @@
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
-//   sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
+//   sends the message a person edited in the Inbox about one item, with the link to the exact thing. When it has gone out the item is marked
+//   handled (close: false keeps it open). Answers { ok: true, closed }.
+//   It sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
 //   for review items) from the item itself, so an address is never taken from the browser. The result is kept on the item.
 // POST { action: 'delete', id }
 //
@@ -30,7 +32,7 @@ const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
-interface Body { chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -176,7 +178,7 @@ Deno.serve(async (req) => {
       // The draft carries the recipient; reading it as the caller proves they may see this item.
       const { data: draft, error: draftError } = await auth.caller.asUser.rpc('agent_flag_draft', { p_flag: body.flag_id });
       if (draftError || !draft) return jsonResponse(cors(req), { ok: false, error: 'That item no longer exists.' }, 404);
-      const d = draft as { recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null };
+      const d = draft as { recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null; link?: { label?: string; url?: string; person_url?: string | null } | null };
       const subject = (body.subject ?? d.subject ?? 'Ops Agent').trim().slice(0, 200);
       const label = d.recipient_name ?? 'the person';
       let r: { ok: boolean; error?: string };
@@ -184,12 +186,14 @@ Deno.serve(async (req) => {
       if (body.channel === 'email') {
         if (!d.recipient_email) return jsonResponse(cors(req), { ok: false, error: `${label} has no email address on their profile.` }, 400);
         channel = 'email';
-        r = await deliver({ kind: 'email', name: 'Email', config: { to: d.recipient_email } }, { url: null, token: null }, { title: subject, text, event: 'flag_message' });
+        // the person gets the link they can open (never an admin-only page)
+        const personLink = d.link?.person_url ? { url: d.link.person_url, label: d.link.label ?? 'Open it' } : undefined;
+        r = await deliver({ kind: 'email', name: 'Email', config: { to: d.recipient_email } }, { url: null, token: null }, { title: subject, text, event: 'flag_message', link: personLink });
       } else if (body.channel === 'connection') {
         const conn = await load(body.connection_id);
         if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
         channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
-        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: `For ${label}: ${subject}`, text, event: 'flag_message' });
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: `For ${label}: ${subject}`, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined });
         await record(conn.id, r);
       } else {
         return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);
@@ -199,7 +203,14 @@ Deno.serve(async (req) => {
         status: r.ok ? 'sent' : 'failed', error: r.ok ? null : (r.error ?? 'Failed').slice(0, 300), sent_by: actor, sent_at: r.ok ? now : null });
       await db.from('agent_flag_events').insert({ flag_id: body.flag_id, kind: r.ok ? 'message_sent' : 'message_failed', actor_id: actor, detail: { channel, recipient: label } });
       await audit(r.ok ? 'flag.message_sent' : 'flag.message_failed', body.flag_id, { channel, characters: text.length });
-      return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
+      // A message that went out closes the item: it is handled, with a note of who it was sent to and how. (If the problem is still
+      // there a day or two later, the agent raises it again as "Still happening".) Pass close: false to leave it open.
+      let closed = false;
+      if (r.ok && body.close !== false) {
+        const { error: closeError } = await auth.caller.asUser.rpc('agent_flag_set_status', { p_id: body.flag_id, p_status: 'handled', p_note: `Message sent to ${label} by ${channel}.` });
+        closed = !closeError;
+      }
+      return jsonResponse(cors(req), r.ok ? { ok: true, closed } : { ok: false, error: r.error });
     }
 
     if (body.action === 'delete') {

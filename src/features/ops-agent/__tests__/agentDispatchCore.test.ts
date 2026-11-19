@@ -30,3 +30,12 @@ describe('formatSummary', () => {
 });
 
 describe('retries', () => { it('stops after a few tries', () => { expect(MAX_ATTEMPTS).toBe(4); }); });
+
+describe('links', () => {
+  it('a flag and a summary carry a link back to the agent', () => {
+    const f = { id: 'abc', rule_code: 'TR01', severity: 'high', title: 'T', why: 'w', suggested_action: null, item_type: 'flag' };
+    expect(formatFlag(f, null, 'https://ops.kdsquares.com').link).toEqual({ url: 'https://ops.kdsquares.com/agent/inbox?flag=abc', label: 'Open this item' });
+    expect(formatFlag(f, null).link).toBeUndefined();
+    expect(formatSummary({ period_kind: 'day', period_start: 'a', period_end: 'a', narrative: 'x' }, 'https://ops.kdsquares.com').link?.url).toBe('https://ops.kdsquares.com/agent/summaries');
+  });
+});

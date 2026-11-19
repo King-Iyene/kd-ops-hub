@@ -161,3 +161,34 @@ describe('the generic API connection', () => {
     expect(g.init.body).toBeUndefined();
   });
 });
+
+describe('emails that name the thing and link to it', () => {
+  const now = new Date('2026-11-19T12:00:00Z');
+  it('puts the exact link in the email as a button and a clickable address', async () => {
+    const link = { url: 'https://ops.kdsquares.com/task?task=abc', label: 'Open the task' };
+    const r = await buildRequest({ kind: 'email', name: 'e', config: { to: 'cara@example.com' } }, {}, { title: 'Overdue: Prepare the vendor table', text: 'Hi Cara,\nTask: "Prepare the vendor table"\nOpen it here: https://ops.kdsquares.com/task?task=abc', link }, now);
+    if (r.type !== 'email') throw new Error('expected email');
+    expect(r.payload.subject).toBe('Overdue: Prepare the vendor table');
+    expect(r.payload.html).toContain('<a href="https://ops.kdsquares.com/task?task=abc">https://ops.kdsquares.com/task?task=abc</a>');
+    expect(r.payload.html).toContain('>Open the task</a>');
+    expect(r.payload.html).toContain('Task: &quot;Prepare the vendor table&quot;');
+  });
+  it('escapes everything and refuses unsafe links', async () => {
+    const r = await buildRequest({ kind: 'email', name: 'e', config: { to: 'cara@example.com' } }, {}, { text: '<script>alert(1)</script>', link: { url: 'javascript:alert(1)', label: 'x' } }, now);
+    if (r.type !== 'email') throw new Error('expected email');
+    expect(r.payload.html).not.toContain('<script>');
+    expect(r.payload.html).not.toContain('javascript:');
+    const http = await buildRequest({ kind: 'email', name: 'e', config: { to: 'a@b.co' } }, {}, { text: 'x', link: { url: 'http://insecure.example.com', label: 'x' } }, now);
+    if (http.type !== 'email') throw new Error('expected email');
+    expect(http.payload.html).not.toContain('<a href="http://');
+  });
+  it('other tools get the link on its own line, once', async () => {
+    const link = { url: 'https://ops.kdsquares.com/task?task=abc', label: 'Open the task' };
+    const s = await buildRequest({ kind: 'slack', name: 's', config: {} }, { url: 'https://hooks.slack.com/services/T/B/X' }, { title: 'T', text: 'body', link }, now);
+    if (s.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(String(s.init.body)).text).toContain('Open the task: https://ops.kdsquares.com/task?task=abc');
+    const dup = await buildRequest({ kind: 'slack', name: 's', config: {} }, { url: 'https://hooks.slack.com/services/T/B/X' }, { title: 'T', text: 'see https://ops.kdsquares.com/task?task=abc', link }, now);
+    if (dup.type !== 'http') throw new Error('expected http');
+    expect(String(dup.init.body).match(/task\?task=abc/g)).toHaveLength(1);
+  });
+});

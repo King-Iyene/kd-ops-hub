@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
   }
   const db = serviceClient();
   const out = { sent: 0, failed: 0, retried: 0 };
+  const appUrl = ((await db.from('agent_settings').select('app_url').eq('id', true).maybeSingle()).data?.app_url as string | undefined) ?? 'https://ops.kdsquares.com';
   try {
     const { data: rows } = await db.from('agent_outbox').select('id, connection_id, kind, ref_id, attempts').eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true }).limit(20);
@@ -41,11 +42,11 @@ Deno.serve(async (req) => {
         if (!f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
         let person: string | null = null;
         if (f.person_id) person = (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null;
-        msg = formatFlag(f as FlagRow, person);
+        msg = formatFlag(f as FlagRow, person, appUrl);
       } else {
         const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }
-        msg = formatSummary(s as SummaryRow);
+        msg = formatSummary(s as SummaryRow, appUrl);
       }
 
       const secret = async (part: 'url' | 'token') => {
