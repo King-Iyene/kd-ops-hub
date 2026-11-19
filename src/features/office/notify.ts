@@ -111,7 +111,7 @@ export function useNotifySetting() {
     if (nativeOk()) {
       setOn(true);
       try { localStorage.setItem(KEY, '1'); } catch { /* fine */ }
-      desk()?.notify?.({ id: 'test', title: 'Notifications are on', body: 'You will see rings, waves and messages here, even when KD Office is hidden.' });
+      desk()?.notify?.({ id: 'test', title: 'Notifications are on', body: 'You will see rings, waves and messages here, even when KD Ops is hidden.' });
       return;
     }
     if (!notifySupported()) return;
