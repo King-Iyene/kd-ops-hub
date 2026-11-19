@@ -3,6 +3,22 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { logWarn } from '@/lib/logger';
+import { inDesktopApp } from '@/features/office/desktopApp';
+
+/** Update for sure: ask the waiting worker to take over, and if the page has not reloaded within a moment, drop the worker and the caches and reload by force. */
+export async function reloadToUpdate(updateServiceWorker: (reload?: boolean) => Promise<void>): Promise<void> {
+  const hard = async () => {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch { /* reload anyway */ }
+    window.location.reload();
+  };
+  window.setTimeout(() => { void hard(); }, 1500);
+  try { await updateServiceWorker(true); } catch { void hard(); }
+}
 
 // Registers the service worker and surfaces it when a new version is
 // waiting — registerType "prompt" (vite.config.ts) means the SW does NOT
@@ -39,6 +55,22 @@ export function PwaUpdatePrompt() {
     navigator.serviceWorker.getRegistration().then((r) => r?.update().catch(() => {}));
   }, []);
 
+  // The desktop app lives in the tray, so a new version is picked up quietly the moment the window is put away (at most once every few minutes).
+  useEffect(() => {
+    if (!needRefresh || !inDesktopApp()) return;
+    const onHide = () => {
+      if (document.visibilityState !== 'hidden') return;
+      try {
+        const last = Number(sessionStorage.getItem('kd:auto-update') ?? 0);
+        if (Date.now() - last < 5 * 60 * 1000) return;
+        sessionStorage.setItem('kd:auto-update', String(Date.now()));
+      } catch { /* go ahead */ }
+      void reloadToUpdate(updateServiceWorker);
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [needRefresh, updateServiceWorker]);
+
   // A new version never reloads the page by itself (that caused reload loops while deploys were landing back to back):
   // it only shows the prompt below, and the person chooses when to reload.
 
@@ -52,7 +84,7 @@ export function PwaUpdatePrompt() {
           <p className="font-medium leading-tight">A new version of KD Ops is available.</p>
           <p className="text-xs text-muted-foreground mt-0.5">Reload to pick up the latest changes.</p>
         </div>
-        <Button size="sm" className="shrink-0" onClick={() => updateServiceWorker(true)}>
+        <Button size="sm" className="shrink-0" onClick={() => { void reloadToUpdate(updateServiceWorker); }}>
           Reload
         </Button>
         <button
