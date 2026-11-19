@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addTaskToday, formatIdle, taskDisplayName, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
+import { idleWarning, shouldAutoResume, addTaskToday, formatIdle, taskDisplayName, idleDecision, mergeTaskToday, taskTodayMs, withinTrackingHours, type TaskToday } from '../src/logic';
 import { matchProductivityRule } from '../src/productivityRules';
 
 describe('idleDecision', () => {
@@ -146,5 +146,27 @@ describe('taskDisplayName (tracking a project itself)', () => {
   });
   it('with no project name it falls back to the task name', () => {
     expect(taskDisplayName({ taskName: 'General', projectName: '' })).toBe('General');
+  });
+});
+
+describe('coming back after an idle pause', () => {
+  const now = 10_000_000;
+  it('restarts as soon as there is real input', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 12 * 60_000, nowMs: now, idleSec: 1 })).toBe(true);
+  });
+  it('waits while the computer is still untouched', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 12 * 60_000, nowMs: now, idleSec: 40 })).toBe(false);
+  });
+  it('never restarts a pause the person asked for', () => {
+    expect(shouldAutoResume({ pausedByIdle: false, pausedAtMs: now - 60_000, nowMs: now, idleSec: 0 })).toBe(false);
+  });
+  it('does not restart on its own when the pause is hours old', () => {
+    expect(shouldAutoResume({ pausedByIdle: true, pausedAtMs: now - 4 * 3600_000, nowMs: now, idleSec: 0 })).toBe(false);
+  });
+  it('warns once in the last minute before the pause, only in pause mode', () => {
+    expect(idleWarning('pause', 4 * 60 + 5, 5)).toBe(true);
+    expect(idleWarning('pause', 3 * 60, 5)).toBe(false);
+    expect(idleWarning('pause', 5 * 60, 5)).toBe(false);
+    expect(idleWarning('track', 4 * 60 + 5, 5)).toBe(false);
   });
 });

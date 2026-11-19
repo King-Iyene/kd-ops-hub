@@ -36,10 +36,12 @@ interface Props {
   layout: 'stacked' | 'wide';
   /** 1 = fit the width of the box; larger values make it bigger (optional extra). */
   zoom?: number;
+  /** show just this screen (0 is the first), as big as fits, instead of all of them */
+  only?: number | null;
   onClickImage?: () => void;
 }
 
-export function ScreenPanels({ url, layout, zoom = 1, onClickImage }: Props) {
+export function ScreenPanels({ url, layout, zoom = 1, only = null, onClickImage }: Props) {
   const dims = useImageDims(url);
   const n = estimateScreens(dims);
   const width = `${zoom * 100}%`;
@@ -58,6 +60,29 @@ export function ScreenPanels({ url, layout, zoom = 1, onClickImage }: Props) {
   }
 
   const panelAspect = `${dims.w / n} / ${dims.h}`;
+  const aspect = dims.w / n / dims.h;
+  if (only != null && only >= 0 && only < n) {
+    // one screen at a time: as big as fits the window at 100%, and the zoom makes it larger or smaller from there
+    const i = only;
+    return (
+      <div className="mx-auto" style={{ width: `calc(min(100%, calc(74vh * ${aspect.toFixed(4)})) * ${zoom})` }}>
+        <p className="px-1 pb-0.5 text-[11px] text-muted-foreground">Screen {i + 1} of {n}</p>
+        <div
+          role="img"
+          aria-label={`Screen ${i + 1} of ${n}`}
+          onClick={onClickImage}
+          className="w-full cursor-zoom-in bg-black"
+          style={{
+            aspectRatio: panelAspect,
+            backgroundImage: `url("${url}")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: `${n * 100}% 100%`,
+            backgroundPosition: `${(i / (n - 1)) * 100}% 0`,
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="space-y-2" style={{ width }}>
       {Array.from({ length: n }, (_, i) => (

@@ -27,7 +27,7 @@ if (!app.isPackaged) {
 }
 
 import { supabase, configError, supabaseUrl } from './supabaseClient';
-import { idleDecision, formatIdle, taskDisplayName, taskTodayMs as taskTodayFrom, addTaskToday as addTaskTodayTo, mergeTaskToday } from './logic';
+import { idleDecision, idleWarning, shouldAutoResume, formatIdle, taskDisplayName, taskTodayMs as taskTodayFrom, addTaskToday as addTaskTodayTo, mergeTaskToday } from './logic';
 import { startTracking, stopTracking, setTimerRunningProvider, captureNow, getStopWhenUnusedMinutes, getIdleMode, getAwayAfterMinutes } from './tracker';
 import { startAutoFlush, flushQueue, queueLength, setAuthReady } from './offlineQueue';
 import {
@@ -612,6 +612,7 @@ async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 's
   addSegment(t, end);
   activeTimer = null;
   pausedTask = null;
+  pausedByIdle = false;
   store.delete('timerBeat');
   rebuildTrayMenu();
   sendWidgetStatus(trackingStartedAt != null);
@@ -629,6 +630,9 @@ async function stopTimerAt(endMs: number, reason: 'quit' | 'idle' | 'sleep' | 's
   }
 }
 
+let pausedByIdle = false; // the timer paused because nobody was at the computer (so it restarts by itself when they are back)
+let idleWarned = false;
+let autoResuming = false;
 let idleNow = false; // 'keep tracking' mode: the computer is idle right now (shown on the widget, nothing pauses)
 
 /** "Do not track idle time": pause the timer back-dated to when the idle began, and tell the person. */
@@ -639,6 +643,7 @@ async function pauseForIdle(endMs: number, idleSec: number): Promise<void> {
   addSegment(t, end);
   pausedTask = t;
   pausedAtMs = end;
+  pausedByIdle = true;
   activeTimer = null;
   store.delete('timerBeat');
   void stopActiveTimer(supabase, t.entryId, new Date(end).toISOString()).catch((err) => console.error('[idle pause] write failed:', err));
@@ -648,7 +653,7 @@ async function pauseForIdle(endMs: number, idleSec: number): Promise<void> {
   const hhmm = new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   new Notification({
     title: 'KD Ops Time Tracker',
-    body: `You have been idle for ${formatIdle(idleSec)}. Your timer for "${taskDisplayName(t)}" is paused (since ${hhmm}). Open the tracker and press Resume when you are back.`,
+    body: `You have been idle for ${formatIdle(idleSec)}. Your timer for "${taskDisplayName(t)}" is paused (since ${hhmm}). It starts again by itself as soon as you move the mouse or type.`,
   }).show();
 }
 
@@ -660,10 +665,29 @@ function startTimerWatchdog() {
     const idleSec = powerMonitor.getSystemIdleTime();
     const d = idleDecision(getIdleMode(), idleSec, getStopWhenUnusedMinutes(), getAwayAfterMinutes());
     if (d.pauseTimer) void pauseForIdle(Date.now() - idleSec * 1000, idleSec);
+    // one friendly warning in the last minute before the pause
+    if (idleSec < 10) idleWarned = false;
+    else if (!idleWarned && idleWarning(getIdleMode(), idleSec, getStopWhenUnusedMinutes())) {
+      idleWarned = true;
+      new Notification({ title: 'KD Ops Time Tracker', body: 'No activity for a while. Your timer pauses in about a minute. Move the mouse to keep tracking.' }).show();
+    }
     // 'keep tracking' mode: nothing pauses, the widget just shows the task as idle
     if (d.showIdleOnWidget !== idleNow) { idleNow = d.showIdleOnWidget; sendWidgetStatus(trackingStartedAt != null); }
   }, 30_000);
   powerMonitor.on('suspend', () => void stopTimerAt(Date.now(), 'sleep'));
+  // back at the keyboard after an idle pause: start the same task again at once (the idle time stays out of the total)
+  setInterval(() => {
+    if (autoResuming || activeTimer || !pausedTask) return;
+    if (!shouldAutoResume({ pausedByIdle, pausedAtMs, nowMs: Date.now(), idleSec: powerMonitor.getSystemIdleTime() })) return;
+    autoResuming = true;
+    const name = taskDisplayName(pausedTask);
+    void resumePausedTask().then(() => {
+      if (activeTimer) {
+        pausedByIdle = false;
+        new Notification({ title: 'KD Ops Time Tracker', body: `Welcome back. Your timer for "${name}" is running again.` }).show();
+      }
+    }).finally(() => { autoResuming = false; });
+  }, 2000);
 }
 
 async function pauseActiveTask() {
@@ -673,6 +697,7 @@ async function pauseActiveTask() {
   // when offline) in the background, so a slow or dead connection never makes
   // the Pause button feel stuck.
   addSegment(toPause);
+  pausedByIdle = false; // a pause the person asked for is only ended by them
   pausedTask = toPause;
   pausedAtMs = Date.now();
   activeTimer = null;
@@ -687,6 +712,7 @@ async function stopActiveTask() {
   activeTimer = null;
   void stopActiveTimer(supabase, toStop.entryId).catch((err) => console.error('[stop] write failed:', err));
   pausedTask = null; // an explicit Stop clears any pending pause too, not just the running entry
+  pausedByIdle = false;
   await setAutoPaused(false); // Stop ends the session; automatic tracking carries on
 }
 

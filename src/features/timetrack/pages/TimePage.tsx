@@ -515,7 +515,12 @@ export default function TimePage() {
         onSaved={() => { qc.invalidateQueries({ queryKey: ['timetrack', 'entries'] }); qc.invalidateQueries({ queryKey: ['timetrack', 'active-timer'] }); }}
       />
 
-      {viewingSelf && <IdlePopup activeEntry={activeEntry ?? null} onStopAtIdleTime={stopTimer} />}
+      {viewingSelf && <IdlePopup activeEntry={activeEntry ?? null} onRemoveIdleTime={async (endTime) => {
+        // take the idle minutes out, then carry straight on with the same task, so nothing worked afterwards goes untracked
+        const task = activeEntry?.task_id, project = activeEntry?.project_id, notes = activeEntry?.notes ?? undefined;
+        await stopTimer(endTime);
+        if (task && project) await startTimer(task, project, notes);
+      }} />}
     </div>
   );
 }
@@ -640,7 +645,7 @@ function DayTimeline({ entries }: { entries: (TimeEntry & { time_tasks?: { proje
  * threshold it offers to stop the timer AT the last-activity time (not
  * now), so idle minutes don't silently get billed.
  */
-function IdlePopup({ activeEntry, onStopAtIdleTime }: { activeEntry: TimeEntry | null; onStopAtIdleTime: (endTime?: string) => void }) {
+function IdlePopup({ activeEntry, onRemoveIdleTime }: { activeEntry: TimeEntry | null; onRemoveIdleTime: (endTime: string) => void | Promise<void> }) {
   const { data: idleSettings } = useQuery({
     queryKey: ['timetrack', 'idle-settings-public'],
     queryFn: async () => {
@@ -656,20 +661,18 @@ function IdlePopup({ activeEntry, onStopAtIdleTime }: { activeEntry: TimeEntry |
   const [idleSince, setIdleSince] = useState<number | null>(null);
 
   useEffect(() => {
+    // any sign of life counts, and coming back to this window starts the clock afresh (what happened in other windows is not known here)
     const reset = () => setLastActivity(Date.now());
-    window.addEventListener('mousemove', reset);
-    window.addEventListener('keydown', reset);
-    window.addEventListener('scroll', reset);
-    return () => {
-      window.removeEventListener('mousemove', reset);
-      window.removeEventListener('keydown', reset);
-      window.removeEventListener('scroll', reset);
-    };
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart', 'focus'];
+    for (const e of events) window.addEventListener(e, reset, { passive: true });
+    return () => { for (const e of events) window.removeEventListener(e, reset); };
   }, []);
 
   useEffect(() => {
     if (!activeEntry || !idleSettings?.is_enabled || showIdleDialog) return;
     const id = setInterval(() => {
+      // when this window is not the one in use, the person is working somewhere else: do not call that idle
+      if (!document.hasFocus()) return;
       const idleMs = Date.now() - lastActivity;
       if (idleMs >= idleSettings.idle_threshold_minutes * 60_000) {
         setIdleSince(lastActivity);
@@ -685,10 +688,12 @@ function IdlePopup({ activeEntry, onStopAtIdleTime }: { activeEntry: TimeEntry |
   };
 
   const discardIdleTime = () => {
-    if (idleSince) onStopAtIdleTime(new Date(idleSince).toISOString());
+    if (idleSince) void onRemoveIdleTime(new Date(idleSince).toISOString());
     setShowIdleDialog(false);
     setLastActivity(Date.now());
   };
+  const awayMin = idleSince ? Math.max(1, Math.round((Date.now() - idleSince) / 60_000)) : 0;
+  const awayAt = idleSince ? new Date(idleSince).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
   if (!activeEntry) return null;
 
@@ -698,13 +703,13 @@ function IdlePopup({ activeEntry, onStopAtIdleTime }: { activeEntry: TimeEntry |
         <AlertDialogHeader>
           <AlertDialogTitle>Still working?</AlertDialogTitle>
           <AlertDialogDescription>
-            Your timer has been running with no activity for a while. Keep tracking this time, or stop the
-            timer at the point you went idle?
+            There was no activity here for about {awayMin} minute{awayMin === 1 ? '' : 's'} (since {awayAt}). Keep that time, or take it
+            out? Either way your timer keeps running.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={keepWorking}>Keep all time — I was working</AlertDialogCancel>
-          <AlertDialogAction onClick={discardIdleTime}>Stop timer at idle point</AlertDialogAction>
+          <AlertDialogCancel onClick={keepWorking}>Keep it, I was working</AlertDialogCancel>
+          <AlertDialogAction onClick={discardIdleTime}>Take the idle time out</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
