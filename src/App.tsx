@@ -923,7 +923,11 @@ function AppRoutes() {
             element={<RoleGuard roles={['super_admin', 'admin']}><TaskDashboardsPage /></RoleGuard>}
           />
           <Route path="list/:listId" element={<TaskListPage />} />
-          <Route path="table/:tableId" element={<TaskTablePage />} />
+          {/* Tables (and their forms) are admin-only; shared form links live at /tf/:token. */}
+          <Route
+            path="table/:tableId"
+            element={<RoleGuard roles={['super_admin', 'admin']}><TaskTablePage /></RoleGuard>}
+          />
         </Route>
 
         {/* Employee Self-Service Dashboard — all authenticated users. */}
