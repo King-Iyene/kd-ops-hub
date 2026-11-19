@@ -9,7 +9,7 @@ export type ItemType =
   | 'pond' | 'waterfall' | 'sea' | 'sand' | 'flowerbed' | 'rocks' | 'birdbath'
   | 'beachchair' | 'umbrella' | 'towel' | 'sandcastle' | 'dock' | 'boat' | 'dogball'
   | 'pinetree' | 'campfire' | 'log' | 'stump' | 'tent' | 'mushrooms' | 'firewood' | 'lantern' | 'coffeebar'
-  | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard';
+  | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard' | 'podium';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */
 export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3; /** paint colour: an index into ITEM_COLORS (none = the original look) */ c?: number }

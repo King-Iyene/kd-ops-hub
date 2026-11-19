@@ -12,7 +12,7 @@ export const CATEGORIES: { id: string; label: string; types: ItemType[] }[] = [
   { id: 'floor', label: 'Rugs and mats', types: ['rug', 'mat'] },
   { id: 'decor', label: 'Decor', types: ['lamp', 'balloons', 'frame', 'barchart', 'orgchart', 'worldmap', 'kanban', 'whiteboard', 'shelf', 'fishtank', 'fireplace', 'piano'] },
   { id: 'info', label: 'Info boards', types: ['valueswall', 'noticeboard', 'pollboard', 'eventboard', 'kanban', 'wallclock'] },
-  { id: 'fun', label: 'Fun', types: ['bike', 'kart', 'foosball', 'tabletennis', 'arcade', 'phonebooth', 'gong', 'gametable'] },
+  { id: 'fun', label: 'Fun', types: ['bike', 'kart', 'foosball', 'tabletennis', 'arcade', 'phonebooth', 'gong', 'podium', 'gametable'] },
   { id: 'pets', label: 'Pets', types: ['dog', 'cat'] },
   { id: 'kitchen', label: 'Kitchen and more', types: ['coffeebar', 'coffee', 'cooler', 'vending', 'bin'] },
 ];

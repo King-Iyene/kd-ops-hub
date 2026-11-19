@@ -1676,6 +1676,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       drawDogBall(ctx, x, y, W, H, t, seed);
       break;
     }
+    case 'podium': { drawPodium(ctx, x, y, W, H, t); break; }
     case 'eventboard': { drawEventBoard(ctx, x, y, W, H, t); break; }
     case 'pollboard': { drawPollBoard(ctx, x, y, W, H, t, seed); break; }
     case 'gametable': { drawGameTable(ctx, x, y, W, H, t, seed); break; }
@@ -2887,6 +2888,19 @@ function drawCatBody(ctx: Ctx, b: CatBreed, k: number, moving: boolean) {
 export function drawBreedPortrait(ctx: Ctx, kind: 'dog' | 'cat', index: number, t: number, moving = false) {
   if (kind === 'dog') drawDogBody(ctx, DOG_BREEDS[index % DOG_BREEDS.length], t / 1000, moving, false);
   else drawCatBody(ctx, CAT_BREEDS[index % CAT_BREEDS.length], t / 1000, moving);
+}
+
+/** A lectern with a microphone on a stand and a red light that glows when it is live. */
+function drawPodium(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  const cx = x + W / 2;
+  softShadow(ctx, x, y, W, H, 5);
+  ctx.fillStyle = '#6b4423'; rr(ctx, cx - 10, y + 14, 20, H - 17, 3); ctx.fill();
+  ctx.fillStyle = '#8a5a33'; rr(ctx, cx - 12, y + 10, 24, 8, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(cx - 10, y + 11, 20, 1.6);
+  ctx.fillStyle = '#d6ac50'; ctx.fillRect(cx - 4, y + H - 12, 8, 2);
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx + 3, y + 11); ctx.quadraticCurveTo(cx + 3, y + 1, cx - 3, y + 2); ctx.stroke();
+  ctx.fillStyle = '#1f2937'; ctx.beginPath(); ctx.ellipse(cx - 4, y + 3, 3.4, 2.4, -0.4, 0, Math.PI * 2); ctx.fill();
+  disc(ctx, cx + 8, y + 13, 1.6, Math.floor(t / 600) % 2 ? '#ef4444' : '#7f1d1d');
 }
 
 /** An events board: a little calendar page with a pin and a clock hand that moves. */

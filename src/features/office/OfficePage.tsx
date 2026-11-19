@@ -43,6 +43,7 @@ import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
 import { ambient } from './ambient';
 import { GamesDialog } from './GamesDialog';
+import { TownHallBanner, TownHallDialog } from './TownHall';
 import { ReactionWheel } from './ReactionWheel';
 import { MiniGamesDialog, type MiniGame } from './MiniGamesDialog';
 import { PollsDialog, TaskBoardDialog } from './BoardDialogs';
@@ -197,7 +198,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -206,6 +207,8 @@ function OfficeRoom() {
   const myLockRoom = useRef<string | null>(null);
   const rosterRef = useRef(roster);
   rosterRef.current = roster;
+  const myLiveRef = useRef(false);
+  const townMutedRef2 = useRef(false);
   const calls = useCalls({
     meId: connId,
     spaceId: space?.id ?? null,
@@ -219,9 +222,10 @@ function OfficeRoom() {
       const y = pm.y + pm.vy * dt;
       // which meeting room they are in comes from where they stand, so privacy never depends on the online list
       const z = zoneAt(map, x, y);
-      return { x, y, room: z && isRoom(z) ? z.id : null };
+      const r = rosterRef.current.find((q) => q.id === id);
+      return { x, y, room: z && isRoom(z) ? z.id : null, live: !!r?.live, townMuted: !!r?.townMuted };
     },
-    self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current }),
+    self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current, live: myLiveRef.current, townMuted: townMutedRef2.current }),
     send: sendRtc,
     setHandler: setRtcHandler,
   });
@@ -1065,6 +1069,43 @@ function OfficeRoom() {
     const id = window.setInterval(tick, 30000);
     return () => window.clearInterval(id);
   }, [life.events]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ---- town hall: speak to the whole office ----
+  const [townOpen, setTownOpen] = useState(false);
+  const [myLive, setMyLive] = useState(false);
+  const [townMuted, setTownMutedState] = useState(false);
+  const townSpeaker = roster.find((r) => r.live && r.spaceId === space?.id) ?? null;
+  const someoneLive = !!townSpeaker || myLive;
+  const canSpeakToAll = isAdmin || space?.layout?.settings?.townHallAll === true;
+  const goLive = async (title: string) => {
+    if (townSpeaker && !myLive) { toast({ title: 'Someone is already speaking to the office', variant: 'destructive' }); return; }
+    if (!calls.joined) await calls.join();
+    if (!calls.micOn) await calls.toggleMic();
+    myLiveRef.current = true;
+    setMyLive(true);
+    setTownHall(true, title);
+    ambient.gong();
+    sendEmote('📣');
+    toast({ title: 'You are live', description: 'Everyone with voice on can hear you now.' });
+  };
+  const endTownHall = () => {
+    myLiveRef.current = false;
+    setMyLive(false);
+    setTownHall(false);
+    toast({ title: 'Town hall ended' });
+  };
+  const muteTown = () => { const next = !townMuted; townMutedRef2.current = next; setTownMutedState(next); setTownMuted(next); };
+  // when somebody else goes live, everyone is told once (and the gong rings)
+  const toldAbout = useRef<string | null>(null);
+  useEffect(() => {
+    const id = townSpeaker?.id ?? null;
+    if (id === toldAbout.current) return;
+    toldAbout.current = id;
+    if (!townSpeaker || townSpeaker.id === connId) return;
+    ambient.gong();
+    toast({ title: `${townSpeaker.name} is speaking to the whole office`, description: townSpeaker.townTitle || 'Town hall is live. Turn on voice to listen; you can mute it from the red strip.' });
+  }, [townSpeaker, connId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // if I stop being live for any reason (a different office, leaving), say so
+  useEffect(() => { if (superseded && myLiveRef.current) { myLiveRef.current = false; setMyLive(false); setTownHall(false); } }, [superseded]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pollsOpen, setPollsOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   useEffect(() => {
@@ -1331,12 +1372,13 @@ function OfficeRoom() {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => { if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'podium') { setTownOpen(true); return; } if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
-              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'podium' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
               if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini({ game: hit.t === 'foosball' ? 'football' : 'tennis', key: hit.id }); return; }
               if (hit && hit.t === 'eventboard') { setEventsOpen(true); return; }
+              if (hit && hit.t === 'podium') { setTownOpen(true); return; }
               if (hit && hit.t === 'pollboard') { setPollsOpen(true); return; }
               if (hit && hit.t === 'kanban') { setTaskBoardId(hit.id); return; }
               if (hit) { setPanel(hit); return; }
@@ -1457,6 +1499,8 @@ function OfficeRoom() {
           </div>
         </DialogContent>
       </Dialog>
+      {someoneLive && <TownHallBanner speaker={townSpeaker?.name ?? ''} title={myLive ? '' : townSpeaker?.townTitle ?? ''} mine={myLive} listening={!townMuted} joined={calls.joined} onMute={muteTown} onEnd={endTownHall} onJoinVoice={() => { void calls.join(); }} />}
+      <TownHallDialog open={townOpen} onClose={() => setTownOpen(false)} canSpeak={canSpeakToAll} live={someoneLive} mine={myLive} speaker={townSpeaker?.name ?? ''} title={townSpeaker?.townTitle ?? ''} audience={Math.max(0, roster.filter((r) => r.spaceId === space?.id).length - 1)} micOn={calls.micOn} onGoLive={goLive} onEnd={endTownHall} onToggleMic={() => { void calls.toggleMic(); }} />
       <EventsDialog open={eventsOpen} onClose={() => setEventsOpen(false)} events={life.events} rooms={map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => ({ id: z.id, name: z.name }))} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={life.createEvent} onDelete={(id) => void life.deleteEvent(id)} onWalk={(zid) => { const z = map.zones.find((q) => q.id === zid); if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 }); }} />
       <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
       <TaskBoardDialog open={!!taskBoardId} onClose={() => setTaskBoardId(null)} cards={taskBoardId ? boards.boardCards(taskBoardId) : []} me={profile?.id ?? ''} isAdmin={isAdmin} onAdd={(c, b) => boards.addCard(taskBoardId ?? '', c, b)} onMove={(c, col) => void boards.moveCard(c, col)} onDelete={(c) => void boards.deleteCard(c)} />

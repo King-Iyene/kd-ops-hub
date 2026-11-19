@@ -61,3 +61,37 @@ describe('parseSignal', () => {
     expect(parseSignal({ ...good, f: 'x'.repeat(80) }, 'me')).toBeNull();
   });
 });
+
+describe('town hall: one person speaks to the whole office', () => {
+  const speaker: Spot = { x: 50, y: 33, room: 'auditorium', live: true };
+  it('connects the speaker with someone anywhere in the open, at any distance', () => {
+    const far: Spot = { x: 5, y: 60, room: null };
+    expect(wantsConnection(speaker, far, false)).toBe(true);
+    expect(wantsConnection(far, speaker, false)).toBe(true);
+  });
+  it('does not reach somebody who switched the town hall off', () => {
+    const muted: Spot = { x: 5, y: 60, room: null, townMuted: true };
+    expect(wantsConnection(speaker, muted, false)).toBe(false);
+    expect(wantsConnection(muted, speaker, false)).toBe(false);
+  });
+  it('does not break into a private meeting room, but does reach the speaker\'s own room', () => {
+    expect(wantsConnection(speaker, { x: 55, y: 15, room: 'meeting-1' }, false)).toBe(false);
+    expect(wantsConnection(speaker, { x: 40, y: 40, room: 'auditorium' }, false)).toBe(true);
+  });
+  it('the audience hears the speaker at full volume wherever they stand, and the speaker hears nobody (no echo)', () => {
+    const far: Spot = { x: 5, y: 60, room: null };
+    expect(volumeFor(far, speaker)).toBe(1);
+    expect(volumeFor(speaker, far)).toBe(0);
+    expect(volumeFor(speaker, { x: 51, y: 33, room: 'auditorium' })).toBe(0);
+    expect(volumeFor({ x: 5, y: 60, room: null, townMuted: true }, speaker)).toBe(0);
+  });
+  it('two people speaking at once change nothing: the normal rules apply', () => {
+    const a: Spot = { x: 0, y: 0, room: null, live: true };
+    const b: Spot = { x: 30, y: 30, room: null, live: true };
+    expect(wantsConnection(a, b, false)).toBe(false);
+  });
+  it('normal talking is unchanged when nobody is speaking', () => {
+    expect(wantsConnection(at(0, 0), at(NEAR - 0.1, 0), false)).toBe(true);
+    expect(wantsConnection(at(0, 0), at(NEAR + 3, 0), false)).toBe(false);
+  });
+});
