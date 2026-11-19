@@ -42,14 +42,14 @@ function AdminRow({ admin, saved, companies, modules }: {
               <Checkbox checked={(draft[k] ?? []).includes(i.id)} onCheckedChange={() => toggleOne(k, i.id)} /> {i.label}
             </label>
           ))}
-          {(draft[k] ?? []).length === 0 && <p className="text-xs text-amber-600">None selected: this Admin will see nothing in {title}.</p>}
+          {(draft[k] ?? []).length === 0 && <p className="text-xs text-warning">None selected: this Admin will see nothing in {title}.</p>}
         </div>
       )}
     </div>
   );
 
   return (
-    <li className="space-y-3 rounded-lg border p-3" data-testid="agent-admin-scope">
+    <li className="space-y-3 py-4 first:pt-0 last:pb-0" data-testid="agent-admin-scope">
       <p className="text-sm font-medium">{admin.full_name ?? 'Unnamed'}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {block('companies', 'companies', companies.map((c) => ({ id: c.id, label: c.name })))}
@@ -88,7 +88,7 @@ export function AdminScopeCard() {
       {people.isLoading || scopes.isLoading || companies.isLoading || modules.isLoading ? <Skeleton className="h-24 w-full" /> : admins.length === 0 ? (
         <p className="text-sm text-muted-foreground">There are no Admins to limit.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {admins.map((a) => <AdminRow key={`${a.id}:${JSON.stringify(byAdmin.get(a.id) ?? null)}`} admin={a} saved={byAdmin.get(a.id)} companies={companies.data ?? []} modules={safeModules} />)}
         </ul>
       )}

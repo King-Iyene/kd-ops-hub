@@ -1,12 +1,32 @@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAgentPeople, useReportTables, useUpdateAgentSettings } from '@/queries/useOpsAgent';
-import { COMMON_TIMEZONES, WEEKDAYS, hhmm, isValidTimezone, type AgentSettings } from '../agentDb';
+import { WEEKDAYS, hhmm, type AgentSettings } from '../agentDb';
 import { useSettingsDraft } from './settingsDraft';
-import { Field, SaveBar, Section } from './shared';
+import { Field, SaveBar, Section, Stat, SummaryStrip } from './shared';
 import { useAgentToast } from './useAgentToast';
 
 const NONE = '__none';
+
+const clock12 = (t: string) => {
+  const [h, m] = hhmm(t).split(':').map(Number);
+  if (Number.isNaN(h)) return '';
+  return `${h % 12 || 12}:${String(m ?? 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+/** The saved calendar in one line of figures. */
+export function CalendarSummary({ settings }: { settings: AgentSettings }) {
+  const days = [...settings.default_working_days].sort();
+  const names = days.map((n) => WEEKDAYS.find((w) => w.n === n)?.short).filter(Boolean);
+  const range = days.length > 1 && days.every((n, i) => i === 0 || n === days[i - 1] + 1) ? `${names[0]} to ${names[names.length - 1]}` : names.join(', ');
+  return (
+    <SummaryStrip aria-label="Calendar summary">
+      <Stat label="Reports due" value={clock12(settings.report_deadline)} hint="Eastern Time" />
+      <Stat label="Work week" value={range || 'None'} hint={`${days.length} days`} />
+      <Stat label="Work day" value={`${clock12(settings.default_work_start)} to ${clock12(settings.default_work_end)}`} />
+    </SummaryStrip>
+  );
+}
 
 export function CalendarCard({ settings, readOnly }: { settings: AgentSettings; readOnly: boolean }) {
   const d = useSettingsDraft<'timezone' | 'report_deadline' | 'default_working_days' | 'default_work_start' | 'default_work_end' | 'default_country_code' | 'report_table_id' | 'hr_contact_id'>(settings);
@@ -15,32 +35,28 @@ export function CalendarCard({ settings, readOnly }: { settings: AgentSettings; 
   const tables = useReportTables();
   const people = useAgentPeople();
 
-  const tz = d.value('timezone');
-  const tzBad = !isValidTimezone(tz);
-  const zones = COMMON_TIMEZONES.includes(tz) ? COMMON_TIMEZONES : [tz, ...COMMON_TIMEZONES];
   const days = d.value('default_working_days');
   const toggleDay = (n: number) => d.set('default_working_days', days.includes(n) ? days.filter((x) => x !== n) : [...days, n].sort());
   const country = d.value('default_country_code');
   const countryBad = !/^[A-Za-z]{2}$/.test(country);
   const timeFor = (k: 'report_deadline' | 'default_work_start' | 'default_work_end') => hhmm(d.value(k));
   const setTime = (k: 'report_deadline' | 'default_work_start' | 'default_work_end', v: string) => { if (/^\d{2}:\d{2}$/.test(v)) d.set(k, v); };
-  const invalid = tzBad || countryBad || days.length === 0;
+  const invalid = countryBad || days.length === 0;
 
   const save = () => update.mutate(d.patch, { onSuccess: () => { d.reset(); toast.saved('Business calendar saved'); }, onError: toast.failed });
 
   return (
     <Section
-      title="Business calendar and report"
-      description="When a daily report is due, who works when, and where the reports live. A person can override the working days, hours and time zone in People below."
+      title="Business calendar and daily report"
+      description="When a daily report is due, who works when, and where the reports live. A person can override the working days and hours in Team."
       footer={<SaveBar dirty={d.dirty && !invalid} saving={update.isPending} onSave={save} onCancel={d.reset} readOnly={readOnly} />}
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Deadline time zone" htmlFor="cal-tz" hint={tzBad ? undefined : 'Report deadlines and "today" follow this zone.'}>
-          <Select value={tz} onValueChange={(v) => d.set('timezone', v)} disabled={readOnly}>
-            <SelectTrigger id="cal-tz"><SelectValue /></SelectTrigger>
-            <SelectContent>{zones.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}</SelectContent>
-          </Select>
-        </Field>
+        <div className="space-y-1.5" data-testid="cal-tz">
+          <p className="text-sm font-medium leading-none">Time zone</p>
+          <p className="flex h-10 items-center text-sm">Eastern Time (EST/EDT)</p>
+          <p className="text-xs text-muted-foreground">Fixed. Report deadlines, work hours and &quot;today&quot; all follow it.</p>
+        </div>
         <Field label="Report deadline" htmlFor="cal-deadline">
           <Input id="cal-deadline" type="time" value={timeFor('report_deadline')} disabled={readOnly} onChange={(e) => setTime('report_deadline', e.target.value)} />
         </Field>

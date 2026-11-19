@@ -31,14 +31,14 @@ export function KeyBox({ readOnly }: { readOnly: boolean }) {
 
   const s = status.data;
   return (
-    <div className="space-y-3 rounded-lg border p-3" data-testid="key-box">
+    <div className="space-y-3" data-testid="key-box">
       <div className="flex flex-wrap items-center gap-3" data-testid="ai-status">
         <KeyRound className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Claude key</span>
+        <span className="text-sm font-medium">Claude API key</span>
         {status.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : s ? (
           s.key_configured
-            ? <Badge variant="outline" className="gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Set</Badge>
-            : <Badge variant="outline" className="gap-1 text-amber-600"><XCircle className="h-3 w-3" /> Not set</Badge>
+            ? <Badge variant="success" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Set</Badge>
+            : <Badge variant="warning" className="gap-1"><XCircle className="h-3 w-3" /> Not set</Badge>
         ) : <Badge variant="outline">Unknown: the agent-ai function did not answer</Badge>}
         {s?.key_configured && <span className="text-xs text-muted-foreground">{s.key_source === 'env' ? 'Kept as a Supabase secret.' : 'Saved from this page and kept encrypted.'}</span>}
       </div>

@@ -13,7 +13,7 @@ export function AgentBanners({ canConfigure, onOpenSettings }: { canConfigure: b
     notices.push({
       id: 'key', tone: 'warn', icon: KeyRound, action: canConfigure,
       text: canConfigure
-        ? 'Claude is not connected yet: chat and message drafts need a key. Paste one in Settings, under AI and budget.'
+        ? 'Claude is not connected yet: chat and message drafts need a key. Paste one in Settings, under Claude & budget.'
         : 'Claude is not connected yet, so chat is unavailable. A Super Admin adds the key in Settings.',
     });
   }

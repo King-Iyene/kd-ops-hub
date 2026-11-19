@@ -2,7 +2,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import { useAgentScope } from '@/queries/useOpsAgent';
+import { useAgentFlagsRealtime } from '@/queries/useOpsAgentLive';
 import { AgentBanners } from '@/features/ops-agent/AgentBanners';
 import { AGENT_TABS, tabFromSplat } from '@/features/ops-agent/agentTabs';
 import { InboxTab } from '@/features/ops-agent/tabs/InboxTab';
@@ -13,12 +15,12 @@ import { ConnectionsTab } from '@/features/ops-agent/tabs/ConnectionsTab';
 import { SettingsTab } from '@/features/ops-agent/settings/SettingsTab';
 
 const DESCRIPTIONS = {
-  inbox: 'Everything the agent wants a person to look at. It reads data and drafts messages. It never changes a record and never sends anything by itself.',
+  inbox: 'Live monitoring of the KD Squares team, and everything the agent wants a person to look at. It never changes a record and never sends anything by itself.',
   chat: 'Ask about tasks, daily reports, hours and leave. Answers come from live data you are allowed to see.',
   summaries: 'Daily, weekly and monthly write-ups.',
   memory: 'What the agent has been taught.',
   connections: 'Where the agent can send messages, and how other systems can send it items.',
-  settings: 'Scope, people, the business calendar, the Claude key and the Operating Rules.',
+  settings: 'The Claude key and budget, the team, the business calendar, coverage and the Operating Rules.',
 } as const;
 
 /**
@@ -29,6 +31,9 @@ export default function OpsAgent() {
   const scope = useAgentScope();
   const navigate = useNavigate();
   const splat = useParams()['*'];
+  const { toast } = useToast();
+  // Any change to the agent's flags refreshes the Inbox; a new high or critical one also shows a toast.
+  useAgentFlagsRealtime((f) => toast({ title: f.severity === 'critical' ? 'New critical flag' : 'New high-priority flag', description: f.title }));
   const canConfigure = scope.data?.configure === true;
   const tab = tabFromSplat(splat);
   const meta = AGENT_TABS.find((t) => t.key === tab)!;
@@ -45,7 +50,7 @@ export default function OpsAgent() {
         <p className="text-sm text-destructive" role="alert">You do not have access to the Ops Agent.</p>
       ) : (
         <>
-          <AgentBanners canConfigure={canConfigure} onOpenSettings={tab === 'settings' ? undefined : () => navigate('/agent/settings')} />
+          <AgentBanners canConfigure={canConfigure} onOpenSettings={tab === 'settings' ? undefined : () => navigate('/agent/settings/claude')} />
           {tab === 'inbox' && <InboxTab />}
           {tab === 'chat' && <ChatTab />}
           {tab === 'summaries' && <SummariesTab />}

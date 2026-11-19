@@ -28,7 +28,7 @@ export function RulesCard({ settings, readOnly }: { settings: AgentSettings; rea
 
   return (
     <Section
-      title="Operating Rules and privacy"
+      title="Standing brief and privacy"
       description="This text is the agent's standing brief. It is added to every AI request, so keep it short and say it plainly."
       footer={<SaveBar dirty={d.dirty && !winBad && !tooLong} saving={update.isPending} onSave={save} onCancel={d.reset} readOnly={readOnly} />}
     >
@@ -40,9 +40,9 @@ export function RulesCard({ settings, readOnly }: { settings: AgentSettings; rea
         <Input id="rules-window" type="number" min={1} max={90} className="w-32" value={win} disabled={readOnly} aria-invalid={winBad}
           onChange={(e) => d.set('escalation_window_days', Number(e.target.value))} />
       </Field>
-      <div className="space-y-2">
+      <div className="divide-y rounded-lg border">
         {toggles.map((t) => (
-          <div key={t.key} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+          <div key={t.key} className="flex items-center justify-between gap-4 p-3">
             <div><p className="text-sm font-medium">{t.label}</p><p className="text-xs text-muted-foreground">{t.help}</p></div>
             <Switch checked={d.value(t.key)} onCheckedChange={(v) => d.set(t.key, v)} disabled={readOnly} aria-label={t.label} />
           </div>

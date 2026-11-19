@@ -23,7 +23,9 @@ export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { varian
   const t = TONES[variant];
   const scope = useAgentScope();
   const flags = useAgentFlags();
-  const open = (flags.data ?? []).filter((f) => f.status === 'open').length;
+  const openFlags = (flags.data ?? []).filter((f) => f.status === 'open');
+  const open = openFlags.length;
+  const urgent = openFlags.filter((f) => f.severity === 'high' || f.severity === 'critical').length;
   const tabs = AGENT_TABS.filter((tab) => !tab.superOnly || scope.data?.configure === true);
 
   return (
@@ -31,14 +33,18 @@ export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { varian
       {tabs.map(({ key, label, path, icon: Icon }) => (
         <NavLink
           key={key} to={path} end={key === 'inbox'} onClick={onNavigate}
-          className={({ isActive }) => cn('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm kd-transition no-underline', isActive ? t.linkActive : t.link)}
+          className={({ isActive }) => cn('relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm kd-transition no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--sidebar-ring))]', isActive ? t.linkActive : t.link)}
         >
           {({ isActive }) => (
             <>
+              {isActive && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-[hsl(var(--sidebar-ring))]" aria-hidden="true" />}
               <Icon className={cn('h-4 w-4 shrink-0', isActive ? t.iconActive : t.icon)} />
               <span className="flex-1 truncate">{label}</span>
               {key === 'inbox' && open > 0 && (
-                <span className="min-w-5 rounded-full bg-warning px-1.5 text-center text-3xs font-bold text-warning-foreground" aria-label={`${open} open`}>{open > 99 ? '99+' : open}</span>
+                <span
+                  className={cn('min-w-5 rounded-full px-1.5 text-center text-3xs font-bold tabular-nums', urgent > 0 ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground')}
+                  aria-label={urgent > 0 ? `${open} open, ${urgent} urgent` : `${open} open`} title={urgent > 0 ? `${urgent} high or critical` : undefined}
+                >{open > 99 ? '99+' : open}</span>
               )}
             </>
           )}
