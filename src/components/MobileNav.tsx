@@ -23,6 +23,7 @@ import {
   Clock,
   Building2,
   CheckSquare,
+  Bot,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -39,7 +40,7 @@ import {
 import { supabase } from '@/lib/supabase';
 
 const MOBILE_HUB_ICONS: Record<string, typeof Users> = {
-  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, CheckSquare,
+  Users, Settings, Landmark, Truck, Layers, Contact2, Globe, Clock, Building2, CheckSquare, Bot,
 };
 
 type TabDef = {
