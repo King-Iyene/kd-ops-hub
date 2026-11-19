@@ -1,5 +1,5 @@
 // Helpers for the Summaries tab: labels for a period, grouping by month, and the remembered show/hide choice.
-import type { AgentSummary } from '../agentDb';
+import type { AgentSummary, SummaryMetrics } from '../agentDb';
 import type { SummaryKind } from '@/queries/useOpsAgentV4';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -65,4 +65,11 @@ export function loadKinds(): KindsShown {
 
 export function saveKinds(k: KindsShown): void {
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(k)); } catch { /* not remembered, still works */ }
+}
+
+/** The look-ahead in a daily summary: `tomorrow` since the 6:30 PM schedule, `today` on older rows. */
+export function outlookOf(m: SummaryMetrics | null | undefined): { label: string; due: number; leave: number } | null {
+  if (m?.tomorrow) return { label: 'Tomorrow', due: m.tomorrow.due_tomorrow ?? 0, leave: m.tomorrow.on_leave ?? 0 };
+  if (m?.today) return { label: 'Today', due: m.today.due_today ?? 0, leave: m.today.on_leave ?? 0 };
+  return null;
 }

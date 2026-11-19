@@ -2,6 +2,9 @@
 // untyped client. Every row shape the screens use is declared in this file instead.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import type { AuthType, ConnectionKind, ContentType } from './connectionPresets';
+
+export type { ConnectionKind };
 
 export const adb = supabase as unknown as SupabaseClient;
 
@@ -83,7 +86,9 @@ export interface SummaryMetrics {
   flags?: { opened?: number; high?: number; resolved?: number; open_now?: number; by_rule?: Record<string, number> };
   repeat?: { person_id: string; name: string; rule: string; count: number }[];
   sites?: { domain: string; minutes: number; people: number }[];
+  /** Daily summaries made before the 6:30 PM change carry `today`; newer ones carry `tomorrow`. Both are read. */
   today?: { due_today?: number; on_leave?: number };
+  tomorrow?: { due_tomorrow?: number; on_leave?: number };
 }
 
 export interface AgentRule {
@@ -91,22 +96,44 @@ export interface AgentRule {
   severity: 'info' | 'low' | 'medium' | 'high' | 'critical'; params: Record<string, unknown>;
   status: 'ready' | 'waiting_for_data' | 'reserved' | 'later_phase'; status_note?: string | null;
 }
-export interface AgentMemory { id: string; type: string; content: string; scope: string; scope_ref: string | null; source: string; status: 'proposed' | 'active' | 'rejected' | 'archived'; created_at: string }
-export type ConnectionKind = 'slack' | 'cliq' | 'email' | 'webhook' | 'n8n' | 'api';
+export type MemoryType = 'fact' | 'correction' | 'preference' | 'exemption' | 'rule';
+export type MemoryScope = 'global' | 'company' | 'person' | 'module';
+export type MemoryStatus = 'proposed' | 'active' | 'rejected' | 'archived';
+export interface AgentMemory {
+  id: string; type: MemoryType | string; content: string; detail?: string | null; scope: MemoryScope | string; scope_ref: string | null;
+  source: string; source_thread?: string | null; status: MemoryStatus; created_at: string; updated_at?: string | null;
+}
+/** A "Remember this?" suggestion the chat attaches to an answer. The row is already saved as 'proposed'. */
+export interface MemorySuggestion { id: string; type: MemoryType | string; content: string; detail?: string | null; scope: MemoryScope | string; scope_ref?: string | null }
+export type MinSeverity = 'low' | 'medium' | 'high' | 'critical';
 export interface AgentConnection {
   id: string; kind: ConnectionKind | 'whatsapp'; name: string; status: 'disconnected' | 'connected' | 'error';
-  config: { url?: string; host?: string; to?: string; method?: string; header_name?: string };
-  vault_secret_names: string[]; last_error: string | null; last_tested_at: string | null;
+  config: {
+    url?: string; host?: string; to?: string; chat_id?: string; method?: string; header_name?: string; query_param?: string; preset?: string;
+    auth_type?: AuthType; content_type?: ContentType; body_template?: string; extra_headers?: Record<string, string>;
+    events?: string[]; min_severity?: MinSeverity;
+  };
+  vault_secret_names: string[]; last_error: string | null; last_tested_at: string | null; last_sent_at?: string | null;
 }
-export interface SaveConnectionInput { id?: string; kind: ConnectionKind; name: string; url?: string; token?: string; clear_token?: boolean; to?: string; method?: string; header_name?: string }
+export interface SaveConnectionInput {
+  id?: string; kind: ConnectionKind; name: string; preset?: string; url?: string; token?: string; clear_token?: boolean; to?: string; chat_id?: string;
+  method?: string; auth_type?: AuthType; header_name?: string; query_param?: string; content_type?: ContentType; extra_headers?: Record<string, string>;
+  body_template?: string; events?: string[]; min_severity?: MinSeverity;
+}
+/** One delivery the agent tried (or will try) to a connection. Read from agent_outbox when allowed. */
+export interface OutboxRow { id: string; connection_id: string; kind: 'flag' | 'summary'; ref_id: string | null; status: 'pending' | 'sent' | 'failed'; attempts: number; error: string | null; created_at: string; sent_at: string | null }
 export interface AgentApiKey { id: string; name: string; key_prefix: string; scopes: string[]; rate_limit_per_min: number; created_at: string; last_used_at: string | null; revoked_at: string | null }
 export interface ChatThread { id: string; title: string; updated_at: string }
 export interface ChatMessage { id: string; thread_id: string; role: 'user' | 'assistant' | 'tool'; content: string; tool_calls: string[] | null; created_at: string }
-export interface ChatReply { ok: boolean; thread_id?: string; reply?: string; tools_used?: string[]; title?: string; reason?: string; message?: string }
+export interface ChatReply { ok: boolean; thread_id?: string; reply?: string; tools_used?: string[]; title?: string; reason?: string; message?: string; memory_suggestions?: MemorySuggestion[] }
 
 export const CONNECTION_KINDS: { kind: ConnectionKind; label: string; help: string }[] = [
   { kind: 'slack', label: 'Slack', help: 'Posts to a channel through an incoming webhook.' },
   { kind: 'cliq', label: 'Zoho Cliq', help: 'Posts to a Cliq channel or bot through its webhook.' },
+  { kind: 'discord', label: 'Discord', help: 'Posts to a channel through a webhook.' },
+  { kind: 'teams', label: 'Microsoft Teams', help: 'Posts to a channel through a workflow webhook.' },
+  { kind: 'gchat', label: 'Google Chat', help: 'Posts to a space through a webhook.' },
+  { kind: 'telegram', label: 'Telegram', help: 'Messages a chat or group through a bot.' },
   { kind: 'email', label: 'Email', help: 'Sends a message to one to five addresses.' },
   { kind: 'webhook', label: 'Webhook', help: 'Sends a signed JSON message to any address.' },
   { kind: 'n8n', label: 'n8n', help: 'Starts an n8n workflow through its webhook trigger.' },

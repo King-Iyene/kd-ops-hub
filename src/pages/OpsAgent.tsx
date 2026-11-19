@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,7 +10,6 @@ import { AGENT_TABS, tabFromSplat } from '@/features/ops-agent/agentTabs';
 import { InboxTab } from '@/features/ops-agent/tabs/InboxTab';
 import { SummariesTab } from '@/features/ops-agent/tabs/SummariesTab';
 import { ChatTab } from '@/features/ops-agent/tabs/ChatTab';
-import { MemoryTab } from '@/features/ops-agent/tabs/MemoryTab';
 import { ConnectionsTab } from '@/features/ops-agent/tabs/ConnectionsTab';
 import { SettingsTab } from '@/features/ops-agent/settings/SettingsTab';
 
@@ -18,7 +17,6 @@ const DESCRIPTIONS = {
   inbox: 'Live monitoring of the KD Squares team, and everything the agent wants a person to look at. It never changes a record and never sends anything by itself.',
   chat: 'Ask about tasks, daily reports, hours and leave. Answers come from live data you are allowed to see.',
   summaries: 'Daily, weekly and monthly write-ups, made on a schedule.',
-  memory: 'What the agent has been taught.',
   connections: 'Where the agent can send messages, and how other systems can send it items.',
   settings: 'The Claude key and budget, the team, the business calendar, coverage, the monitoring rules and the standing brief.',
 } as const;
@@ -34,6 +32,8 @@ export default function OpsAgent() {
   const { toast } = useToast();
   // Any change to the agent's flags refreshes the Inbox; a new high or critical one also shows a toast.
   useAgentFlagsRealtime((f) => toast({ title: f.severity === 'critical' ? 'New critical flag' : 'New high-priority flag', description: f.title }));
+  // Memory moved into Settings.
+  if ((splat ?? '').split('/')[0] === 'memory') return <Navigate to="/agent/settings/memory" replace />;
   const canConfigure = scope.data?.configure === true;
   const tab = tabFromSplat(splat);
   const meta = AGENT_TABS.find((t) => t.key === tab)!;
@@ -54,7 +54,6 @@ export default function OpsAgent() {
           {tab === 'inbox' && <InboxTab />}
           {tab === 'chat' && <ChatTab />}
           {tab === 'summaries' && <SummariesTab />}
-          {tab === 'memory' && <MemoryTab />}
           {tab === 'connections' && (blocked ? <p className="text-sm text-muted-foreground" role="note">Connections are managed by a Super Admin.</p> : <ConnectionsTab />)}
           {tab === 'settings' && <SettingsTab canConfigure={canConfigure} />}
         </>

@@ -8,10 +8,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useChatMessages, useChatThreads, useDeleteChatThread, useSendChat } from '@/queries/useOpsAgent';
+import { useThreadMemorySuggestions } from '@/queries/useOpsAgentMemory';
 import { useAuthStore } from '@/store/authStore';
-import type { ChatMessage, ChatThread } from '../agentDb';
+import type { ChatMessage, ChatThread, MemorySuggestion } from '../agentDb';
 import { Markdown } from '../Markdown';
 import { dayGroup, greeting } from '../time';
+import { MemorySuggestions, type Choice } from './MemorySuggestions';
 
 const SUGGESTIONS: { q: string; icon: LucideIcon }[] = [
   { q: 'Who has not sent the daily report today?', icon: FileText },
@@ -131,6 +133,10 @@ export function ChatTab() {
   const [tail, setTail] = useState<{ q: string; reply: string; tools: string[] } | null>(null);
   const [error, setError] = useState<{ message: string; q: string } | null>(null);
   const [sheet, setSheet] = useState(false);
+  // "Remember this?" cards: those that came with an answer, plus any still pending when a thread is reopened.
+  const [seen, setSeen] = useState<(MemorySuggestion & { thread: string })[]>([]);
+  const [choices, setChoices] = useState<Record<string, Choice>>({});
+  const pending = useThreadMemorySuggestions(threadId);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -143,6 +149,14 @@ export function ChatTab() {
     if (asking) rows.push({ key: 'asking', role: 'user', content: asking, tool_calls: null });
     return rows;
   }, [messages.data, tail, asking]);
+
+  useEffect(() => {
+    if (!threadId || !pending.data?.length) return;
+    setSeen((prev) => {
+      const add = pending.data.filter((p) => !prev.some((x) => x.id === p.id)).map((p) => ({ id: p.id, type: p.type, content: p.content, detail: p.detail, scope: p.scope, scope_ref: p.scope_ref, thread: threadId }));
+      return add.length ? [...prev, ...add] : prev;
+    });
+  }, [pending.data, threadId]);
 
   useEffect(() => { endRef.current?.scrollIntoView?.({ block: 'end' }); }, [shown.length, send.isPending, error]);
 
@@ -159,9 +173,12 @@ export function ChatTab() {
     const message = (q ?? text).trim();
     if (!message || send.isPending) return;
     setError(null); setTail(null); setAsking(message); setText('');
+    setSeen((prev) => prev.filter((x) => !choices[x.id])); // cards already answered go away with the next question
     send.mutate({ message, thread_id: threadId }, {
       onSuccess: (r) => {
         if (r.thread_id) setThreadId(r.thread_id);
+        const tid = r.thread_id ?? threadId;
+        if (tid && r.memory_suggestions?.length) setSeen((prev) => [...prev, ...r.memory_suggestions!.filter((m) => !prev.some((x) => x.id === m.id)).map((m) => ({ ...m, thread: tid }))]);
         if (r.ok && r.reply) setTail({ q: message, reply: r.reply, tools: r.tools_used ?? [] });
         else setError({ message: r.message ?? 'Chat could not answer. Try again in a moment.', q: message });
       },
@@ -176,6 +193,8 @@ export function ChatTab() {
   const current = list.find((t) => t.id === threadId);
   const first = (fullName ?? '').trim().split(/\s+/)[0];
   const empty = shown.length === 0 && !messages.isLoading;
+  const lastAssistant = shown.reduce((acc, m, i) => (m.role === 'assistant' ? i : acc), -1);
+  const suggestions = seen.filter((x) => x.thread === threadId);
 
   const rail = (
     <ThreadList threads={list} loading={threads.isLoading} activeId={threadId} onOpen={(id) => open(id)} onNew={() => open(null)} onDelete={remove} />
@@ -221,7 +240,7 @@ export function ChatTab() {
               </div>
             )}
             {messages.isLoading && threadId && <Skeleton className="h-16 w-2/3" />}
-            {shown.map((m) => m.role === 'user' ? (
+            {shown.map((m, i) => m.role === 'user' ? (
               <div key={m.key} className="flex justify-end" data-role="user">
                 <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-muted px-4 py-2.5 text-sm leading-relaxed">{m.content}</p>
               </div>
@@ -232,6 +251,7 @@ export function ChatTab() {
                   {(m.tool_calls?.length ?? 0) > 0 && <LookedAt tools={m.tool_calls ?? []} />}
                   <span className="ml-auto"><CopyButton text={m.content} /></span>
                 </div>
+                {i === lastAssistant && <MemorySuggestions items={suggestions} choices={choices} onChoice={(id, c) => setChoices((p) => ({ ...p, [id]: c }))} />}
               </div>
             ))}
             {send.isPending && <Typing />}

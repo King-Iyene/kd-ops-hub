@@ -7,7 +7,7 @@ import { PersonAvatar } from '../PersonAvatar';
 import { SiteIcon } from '../inbox/SiteFavicon';
 import { formatEst } from '../time';
 import type { DirectoryPerson } from '@/queries/useOpsAgentV4';
-import { KIND_LABEL, periodLabel } from './summaryFormat';
+import { KIND_LABEL, outlookOf, periodLabel } from './summaryFormat';
 
 function Tile({ label, main, hint, testId }: { label: string; main: ReactNode; hint?: ReactNode; testId: string }) {
   return (
@@ -52,6 +52,7 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
   const sites = m?.sites ?? [];
   // The write-up opens with the period as a heading; the card header already says it.
   const narrative = summary.narrative?.replace(/^\s*#{1,3} [^\n]*\n+/, '') ?? null;
+  const outlook = outlookOf(m);
   const bodyId = `summary-${summary.id}`;
 
   return (
@@ -80,6 +81,14 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
               <Tile testId="tile-tasks" label="Tasks" main={<>{m.tasks?.completed ?? 0} <span className="text-sm font-normal text-muted-foreground">done</span></>} hint={`${m.tasks?.overdue ?? 0} overdue`} />
               <Tile testId="tile-items" label="Items" main={<>{m.flags?.opened ?? 0} <span className="text-sm font-normal text-muted-foreground">opened</span></>} hint={`${m.flags?.high ?? 0} high or critical`} />
             </div>
+          )}
+
+          {outlook && (
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/40 px-3 py-2 text-sm" data-testid="summary-outlook">
+              <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{outlook.label}</span>
+              <span><span className="font-medium tabular-nums">{outlook.due}</span> {outlook.due === 1 ? 'task is' : 'tasks are'} due</span>
+              <span><span className="font-medium tabular-nums">{outlook.leave}</span> {outlook.leave === 1 ? 'person is' : 'people are'} on leave</span>
+            </p>
           )}
 
           {narrative && <Markdown text={narrative} className="text-sm" />}

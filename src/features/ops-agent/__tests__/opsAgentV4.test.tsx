@@ -347,7 +347,7 @@ describe('Summaries', () => {
   it('explains the schedule when there are none, and Generate now calls the database function', async () => {
     h.tables = { ...h.tables, agent_summaries: [] };
     renderUi(<SummariesTab />);
-    expect(await screen.findByText(/Daily at 6 AM Eastern on working days; weekly on the first working day of the week; monthly on the last working day of the month\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Daily at 6:30 PM Eastern on working days; weekly on the last working day of the week; monthly on the last working day of the month\./)).toBeInTheDocument();
     const trigger = screen.getByTestId('generate-now');
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByTestId('generate-week'));
