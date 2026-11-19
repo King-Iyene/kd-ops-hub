@@ -10,7 +10,26 @@ export const NEAR = 5;
 export const FAR = 6.5;
 
 /** Where someone is standing. room is the id of the meeting room they are inside, or null in the open. */
-export interface Spot { x: number; y: number; room: string | null }
+export interface Spot {
+  x: number;
+  y: number;
+  room: string | null;
+  /** speaking to the whole office (a town hall) */
+  live?: boolean;
+  /** has switched the town hall off for themselves */
+  townMuted?: boolean;
+}
+
+/** When exactly one of the two is speaking to the whole office: who speaks and who may listen. */
+function townHall(a: Spot, b: Spot): { speaker: Spot; listener: Spot } | null {
+  if (a.live === b.live) return null;
+  return a.live ? { speaker: a, listener: b } : { speaker: b, listener: a };
+}
+
+/** Can this listener hear the town hall? Not if they switched it off, and not from inside a private room (unless it is the speaker's own room). */
+function hearsTownHall(listener: Spot, speaker: Spot): boolean {
+  return !listener.townMuted && (!listener.room || listener.room === speaker.room);
+}
 
 export function distance(a: Spot, b: Spot): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -18,12 +37,18 @@ export function distance(a: Spot, b: Spot): number {
 
 /** Should these two people be connected? `connected` is true when they already are (uses the wider limit). */
 export function wantsConnection(me: Spot, other: Spot, connected: boolean): boolean {
+  // a town hall reaches everyone who is listening, wherever they are in the office
+  const th = townHall(me, other);
+  if (th && hearsTownHall(th.listener, th.speaker)) return true;
   if (me.room || other.room) return me.room === other.room;
   return distance(me, other) <= (connected ? FAR : NEAR);
 }
 
 /** How loud the other person is for me, 0 to 1. Full volume inside a meeting room or when close, fading with distance. */
 export function volumeFor(me: Spot, other: Spot): number {
+  // the speaker hears nobody (no echo from the audience), and the audience hears the speaker at full volume
+  if (me.live && !other.live) return 0;
+  if (other.live && !me.live) return hearsTownHall(me, other) ? 1 : 0;
   if (me.room && me.room === other.room) return 1;
   if (me.room || other.room) return 0;
   const d = distance(me, other);

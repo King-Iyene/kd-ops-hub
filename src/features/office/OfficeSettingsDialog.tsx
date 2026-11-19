@@ -13,7 +13,7 @@ export function allowed(mode: Mode | undefined, list: string[] | undefined, id: 
   return m === 'selected' && !!id && (list ?? []).includes(id);
 }
 
-export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
+export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; townHallAll?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
 
 function PeopleList({ title, hint, ids, directory, mode, onMode, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; mode: Mode; onMode: (m: Mode) => void; onChange: (ids: string[]) => void }) {
   const [q, setQ] = useState('');
@@ -82,6 +82,15 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
           </div>
           <button type="button" role="switch" aria-checked={draft.games !== false} aria-label="Games" onClick={() => setDraft({ ...draft, games: draft.games === false })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${draft.games !== false ? 'bg-primary' : 'bg-muted'}`}>
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draft.games !== false ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </section>
+        <section className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
+          <div>
+            <p className="text-sm font-medium">Anyone can speak to the whole office</p>
+            <p className="text-xs text-muted-foreground">At the podium, a person can speak live to everyone in the office. Off means only admins can.</p>
+          </div>
+          <button type="button" role="switch" aria-checked={draft.townHallAll === true} aria-label="Anyone can speak to the whole office" onClick={() => setDraft({ ...draft, townHallAll: draft.townHallAll !== true })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${draft.townHallAll === true ? 'bg-primary' : 'bg-muted'}`}>
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draft.townHallAll === true ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         </section>
         <DialogFooter>
