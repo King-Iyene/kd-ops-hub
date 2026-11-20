@@ -5,7 +5,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { dotColor } from './status';
-import { drawBirds, drawGroundWeather, drawSky } from './world/skyfx';
+import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 import { applyPetCmd, initPet, petBus, petRegistry, playTick, stepPet, type PetState } from './world/pets';
@@ -153,11 +153,12 @@ export function OfficeCanvas(props: Props) {
   useEffect(() => () => ambient.stop(), []);
   // in the desktop app, the office's own sounds stop while the window is hidden in the tray (calls and alerts keep working)
   useEffect(() => {
-    const desk = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { onVisible?: (cb: (v: boolean) => void) => () => void } }).kdDesktop;
+    const desk = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { onVisible?: (cb: (v: boolean) => void) => () => void; onActive?: (cb: (v: boolean) => void) => () => void } }).kdDesktop;
     if (!desk) return;
     // the KD Ops app keeps this page running in a hidden tab: then nothing is drawn (only a slow beat) and the sounds stop
     const on = () => ambient.setQuiet(document.visibilityState === 'hidden' || tabHidden.current);
-    const off = desk.onVisible?.((v) => { tabHidden.current = !v; on(); });
+    const watch = desk.onActive ?? desk.onVisible; // the newer app also tells us when it is not in front
+    const off = watch?.((v) => { tabHidden.current = !v; on(); });
     document.addEventListener('visibilitychange', on);
     on();
     return () => { off?.(); document.removeEventListener('visibilitychange', on); ambient.setQuiet(false); };
@@ -1124,7 +1125,6 @@ export function OfficeCanvas(props: Props) {
         }
         ambient.setWeather(rain, season === 'harmattan' ? 1 : 0);
         drawSky(ctx, w, h, sky, season, rain, bolt.strength, now);
-        drawBirds(ctx, w, h, sky.light, rain, wall);
       }
       drawVignette(ctx, w, h, p.dark);
       // the minimap: the whole campus in a corner, with the rooms, everyone, and what you can see; click it to walk there

@@ -2,7 +2,7 @@ import type { ItemType } from './world/types';
 
 /** The object picker: what can be placed, grouped the way people look for it. */
 export const CATEGORIES: { id: string; label: string; types: ItemType[] }[] = [
-  { id: 'seating', label: 'Seating', types: ['chair', 'stool', 'sofa', 'loveseat', 'armchair', 'ottoman', 'beanbag', 'bench'] },
+  { id: 'seating', label: 'Seating', types: ['chair', 'executivechair', 'gamingchair', 'diningchair', 'barstool', 'rockingchair', 'stool', 'sofa', 'loveseat', 'armchair', 'ottoman', 'beanbag', 'bench'] },
   { id: 'desks', label: 'Desks and tables', types: ['desk', 'standingdesk', 'execdesk', 'cornerdesk', 'worktable', 'table', 'longtable', 'conference', 'roundtable', 'coffeetable', 'sidetable', 'filecabinet'] },
   { id: 'bedroom', label: 'Bedroom and clothes', types: ['bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack'] },
   { id: 'tech', label: 'Tech', types: ['computer', 'dualmonitor', 'ultrawide', 'laptop', 'tv', 'printer', 'speaker', 'headphones'] },

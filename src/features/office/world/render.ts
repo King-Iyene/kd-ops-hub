@@ -419,8 +419,44 @@ function tilePic(dark: boolean, kind: number, combo: { ff: string | undefined; z
   return pic;
 }
 
-export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
-  const G = tileGrid(map);
+/**
+ * The floor and the walls do not change from frame to frame, so each is drawn once into a picture of the part of the map you are looking at
+ * (and a few tiles around it) and that picture is reused: walking only redraws it when you get near its edge, standing still never does.
+ * Before this, about 900 tiles were drawn again every frame.
+ */
+interface LayerCache { owner: unknown; dark: boolean; s: number; x0: number; y0: number; x1: number; y1: number; cv: HTMLCanvasElement }
+const LAYER_MARGIN = 4;
+const MAX_LAYER_PIXELS = 18_000_000;
+function drawCachedLayer(slot: { c: LayerCache | null }, ctx: Ctx, owner: unknown, dark: boolean, mapW: number, mapH: number, view: TileView, paint: (pc: Ctx, v: TileView) => void): boolean {
+  if (typeof document === 'undefined') return false;
+  const tf = ctx.getTransform();
+  const s = Math.hypot(tf.a, tf.b) > 1.25 ? 2 : 1;
+  const need = { x0: Math.max(0, view.x0), y0: Math.max(0, view.y0), x1: Math.min(mapW, view.x1), y1: Math.min(mapH, view.y1) };
+  if (need.x1 <= need.x0 || need.y1 <= need.y0) return true;
+  let c = slot.c;
+  if (!c || c.owner !== owner || c.dark !== dark || c.s !== s || need.x0 < c.x0 || need.y0 < c.y0 || need.x1 > c.x1 || need.y1 > c.y1) {
+    const x0 = Math.max(0, need.x0 - LAYER_MARGIN), y0 = Math.max(0, need.y0 - LAYER_MARGIN);
+    const x1 = Math.min(mapW, need.x1 + LAYER_MARGIN), y1 = Math.min(mapH, need.y1 + LAYER_MARGIN);
+    const pw = (x1 - x0) * TILE * s, ph = (y1 - y0) * TILE * s;
+    if (pw * ph > MAX_LAYER_PIXELS) return false;
+    const cv = c && c.cv.width === pw && c.cv.height === ph ? c.cv : document.createElement('canvas');
+    cv.width = pw;
+    cv.height = ph;
+    const pc = cv.getContext('2d');
+    if (!pc) return false;
+    pc.scale(s, s);
+    pc.translate(-x0 * TILE, -y0 * TILE);
+    paint(pc as unknown as Ctx, { x0, y0, x1, y1 });
+    c = { owner, dark, s, x0, y0, x1, y1, cv };
+    slot.c = c;
+  }
+  ctx.drawImage(c.cv, c.x0 * TILE, c.y0 * TILE, (c.x1 - c.x0) * TILE, (c.y1 - c.y0) * TILE);
+  return true;
+}
+const floorSlot: { c: LayerCache | null } = { c: null };
+const wallSlot: { c: LayerCache | null } = { c: null };
+
+function paintFloorTiles(ctx: Ctx, map: MapDef, theme: Theme, t: number, view: TileView | undefined, G: ReturnType<typeof tileGrid>) {
   for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
     for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (map.walls[y][x]) continue;
@@ -430,6 +466,11 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
       else paintTile(ctx, x, y, G.floor[gi], G.zone[gi]?.kind, theme, t);
     }
   }
+}
+
+export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+  const G = tileGrid(map);
+  if (!view || !drawCachedLayer(floorSlot, ctx, G, theme.dark, map.w, map.h, view, (pc, v) => paintFloorTiles(pc, map, theme, 0, v, G))) paintFloorTiles(ctx, map, theme, t, view, G);
   // doorways glow and breathe
   for (const z of map.zones) {
     if (z.kind !== 'portal') continue;
@@ -459,6 +500,12 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
 }
 
 export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+  // the walls are drawn once into a picture and reused (only a faint window reflection drifted before, and that is not worth redrawing them every frame)
+  if (view && drawCachedLayer(wallSlot, ctx, map, theme.dark, map.w, map.h, view, (pc, v) => drawWallsNow(pc, map, theme, 0, v))) return;
+  drawWallsNow(ctx, map, theme, t, view);
+}
+
+function drawWallsNow(ctx: Ctx, map: MapDef, theme: Theme, t: number, view?: TileView) {
   const hq = map.style === 'hq';
   const c = hq
     ? { ...pal(theme.dark), ...(theme.dark ? { wallCap: '#6b4a33', wallFront: '#4a2e1a', wallBase: '#2f1c0f' } : { wallCap: '#a4714b', wallFront: '#7a4a2a', wallBase: '#4f2f19' }) }
@@ -712,7 +759,44 @@ const FLOWER_COLORS = ['#f472b6', '#fbbf24', '#a78bfa', '#fb7185', '#fb923c', '#
 const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
-function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
+/** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
+const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman']);
+/** Plants, flowers and trees only sway (nothing else moves), so they are drawn in 8 sway poses and each frame picks the nearest one. */
+const SWAY_PIECES = new Set<string>(['plant', 'flowers', 'tree', 'balloons', 'bamboo', 'palm', 'grass']);
+const SWAY_POSES = 8;
+const SPRITE_SCALE = 3;
+const SPRITE_PAD = 10;
+const spriteCache = new Map<string, HTMLCanvasElement>();
+function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, seed: number, swayAt?: number): boolean {
+  if (typeof document === 'undefined') return false;
+  // which sway pose (the sway is sin(t / 900 + seed * 6.28)); a piece that does not sway has just one
+  let pose = -1;
+  let tPose = 0;
+  if (swayAt !== undefined) {
+    const TAU = Math.PI * 2;
+    const theta = (((swayAt / 900 + seed * 6.28) % TAU) + TAU) % TAU;
+    pose = Math.floor((theta / TAU) * SWAY_POSES) % SWAY_POSES;
+    tPose = (((pose + 0.5) / SWAY_POSES) * TAU - seed * 6.28) * 900;
+  }
+  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}`;
+  let pic = spriteCache.get(key);
+  if (!pic) {
+    pic = document.createElement('canvas');
+    pic.width = (W + SPRITE_PAD * 2) * SPRITE_SCALE;
+    pic.height = (H + SPRITE_PAD * 2) * SPRITE_SCALE;
+    const pc = pic.getContext('2d');
+    if (!pc) return false;
+    pc.scale(SPRITE_SCALE, SPRITE_SCALE);
+    pc.translate(SPRITE_PAD, SPRITE_PAD);
+    drawItem(pc as unknown as Ctx, { ...item, x: 0, y: 0 }, dark, tPose, false); // the same drawing code, once, at the origin
+    if (spriteCache.size > 900) spriteCache.clear();
+    spriteCache.set(key, pic);
+  }
+  ctx.drawImage(pic, x - SPRITE_PAD, y - SPRITE_PAD, W + SPRITE_PAD * 2, H + SPRITE_PAD * 2);
+  return true;
+}
+
+function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number, useCache = true) {
   const { w, h } = itemSize(item);
   const x = item.x * TILE;
   const y = item.y * TILE;
@@ -721,6 +805,8 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
   const seed = hs(item.id);
   const sway = Math.sin(t / 900 + seed * 6.28);
   const col = item.c !== undefined ? ITEM_COLORS[item.c] : undefined;
+  if (useCache && STATIC_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed)) return;
+  if (useCache && SWAY_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed, t)) return;
   if (drawExtra(ctx, item, dark, t, col, x, y, W, H, seed)) return;
   switch (item.t) {
     case 'rug': {
@@ -1279,6 +1365,121 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cx = x + W / 2;
   const cy = y + H / 2;
   switch (item.t) {
+    case 'gamingchair': {
+      ellipse(ctx, cx, cy + 8, 12, 6, 'rgba(15,23,42,0.22)');
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx, cy + 6); ctx.lineTo(cx + Math.cos(a) * 10, cy + 6 + Math.sin(a) * 4.4); ctx.stroke(); }
+      const main = col ?? '#16181d';
+      const accent = col ? shade(col, 0.35) : '#dc2626';
+      rr(ctx, cx - 11, cy - 15, 22, 17, 7);
+      ctx.fillStyle = shade(main, -0.1);
+      ctx.fill();
+      ctx.fillStyle = accent;
+      rr(ctx, cx - 9, cy - 17, 18, 6, 3);
+      ctx.fill();
+      rr(ctx, cx - 11, cy - 10, 4, 12, 2);
+      ctx.fill();
+      rr(ctx, cx + 7, cy - 10, 4, 12, 2);
+      ctx.fill();
+      rr(ctx, cx - 9, cy - 1, 18, 13, 6);
+      ctx.fillStyle = main;
+      ctx.fill();
+      ctx.fillStyle = accent;
+      rr(ctx, cx - 9, cy + 9, 18, 3, 1.5);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      rr(ctx, cx - 5, cy + 1, 10, 3, 1.5);
+      ctx.fill();
+      return true;
+    }
+    case 'diningchair': {
+      ellipse(ctx, cx, cy + 9, 10, 4.5, 'rgba(15,23,42,0.2)');
+      const wood = col ?? '#b98a5a';
+      ctx.fillStyle = shade(wood, -0.3);
+      for (const [dx, dy] of [[-8, 8], [8, 8], [-8, 1], [8, 1]]) ctx.fillRect(cx + dx - 1.2, cy + dy, 2.4, 6);
+      rr(ctx, cx - 9, cy - 16, 18, 14, 3);
+      ctx.fillStyle = shade(wood, -0.15);
+      ctx.fill();
+      ctx.fillStyle = shade(wood, 0.25);
+      for (let i = 0; i < 3; i++) ctx.fillRect(cx - 7 + i * 5.2, cy - 14, 3.4, 10);
+      rr(ctx, cx - 10, cy - 3, 20, 14, 4);
+      ctx.fillStyle = vgrad(ctx, cy - 3, cy + 11, shade(wood, 0.3), wood);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(cx - 7, cy - 1, 14, 1.5);
+      return true;
+    }
+    case 'barstool': {
+      ellipse(ctx, cx, cy + 12, 9, 4, 'rgba(15,23,42,0.22)');
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6, cy + 10); ctx.lineTo(cx - 3, cy);
+      ctx.moveTo(cx + 6, cy + 10); ctx.lineTo(cx + 3, cy);
+      ctx.moveTo(cx, cy + 11); ctx.lineTo(cx, cy);
+      ctx.stroke();
+      ctx.strokeStyle = '#6b7280';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 7, 7, 2.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      const c = col ?? '#c0392b';
+      disc(ctx, cx, cy - 2, 10, shade(c, -0.3));
+      const g = ctx.createRadialGradient(cx - 3, cy - 6, 1, cx, cy - 3, 10);
+      g.addColorStop(0, shade(c, 0.4));
+      g.addColorStop(1, c);
+      disc(ctx, cx, cy - 4, 9, g);
+      return true;
+    }
+    case 'executivechair': {
+      ellipse(ctx, cx, cy + 9, 13, 6, 'rgba(15,23,42,0.24)');
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx, cy + 7); ctx.lineTo(cx + Math.cos(a) * 10, cy + 7 + Math.sin(a) * 4.4); ctx.stroke(); }
+      const leather = col ?? '#6b3f26';
+      rr(ctx, cx - 12, cy - 17, 24, 20, 9);
+      ctx.fillStyle = shade(leather, -0.2);
+      ctx.fill();
+      rr(ctx, cx - 9, cy - 15, 18, 15, 6);
+      ctx.fillStyle = leather;
+      ctx.fill();
+      ctx.strokeStyle = shade(leather, 0.25);
+      ctx.lineWidth = 1;
+      for (const k of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(cx + k, cy - 13); ctx.lineTo(cx + k, cy - 3); ctx.stroke(); }
+      ctx.fillStyle = shade(leather, -0.3);
+      rr(ctx, cx - 13, cy - 6, 4, 13, 2);
+      ctx.fill();
+      rr(ctx, cx + 9, cy - 6, 4, 13, 2);
+      ctx.fill();
+      rr(ctx, cx - 10, cy - 1, 20, 14, 6);
+      ctx.fillStyle = vgrad(ctx, cy - 1, cy + 13, shade(leather, 0.3), leather);
+      ctx.fill();
+      return true;
+    }
+    case 'rockingchair': {
+      ellipse(ctx, cx, cy + 10, 12, 4.5, 'rgba(15,23,42,0.2)');
+      const wood = col ?? '#a9743f';
+      ctx.strokeStyle = shade(wood, -0.35);
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 12, cy + 4); ctx.quadraticCurveTo(cx - 11, cy + 12, cx - 3, cy + 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + 12, cy + 4); ctx.quadraticCurveTo(cx + 11, cy + 12, cx + 3, cy + 12); ctx.stroke();
+      rr(ctx, cx - 9, cy - 17, 18, 15, 3);
+      ctx.fillStyle = shade(wood, -0.15);
+      ctx.fill();
+      ctx.fillStyle = shade(wood, 0.28);
+      for (let i = 0; i < 4; i++) ctx.fillRect(cx - 7.5 + i * 4.2, cy - 15, 2.6, 11);
+      rr(ctx, cx - 10, cy - 3, 20, 13, 4);
+      ctx.fillStyle = vgrad(ctx, cy - 3, cy + 10, shade(wood, 0.3), wood);
+      ctx.fill();
+      ctx.fillStyle = '#e8d8c0';
+      rr(ctx, cx - 7, cy - 1, 14, 9, 3);
+      ctx.fill();
+      return true;
+    }
     case 'longtable':
     case 'worktable':
     case 'sidetable':

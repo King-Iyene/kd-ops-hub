@@ -107,6 +107,12 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   worktable: { w: 2, h: 1, solid: true, label: 'White work table' },
   sidetable: { w: 1, h: 1, solid: true, label: 'Side table' },
   conference: { w: 4, h: 2, solid: true, label: 'Meeting table' },
+  // more kinds of chair (all can be sat on)
+  gamingchair: { w: 1, h: 1, solid: true, label: 'Gaming chair' },
+  diningchair: { w: 1, h: 1, solid: true, label: 'Dining chair' },
+  barstool: { w: 1, h: 1, solid: true, label: 'Bar stool' },
+  executivechair: { w: 1, h: 1, solid: true, label: 'Executive chair' },
+  rockingchair: { w: 1, h: 1, solid: true, label: 'Rocking chair' },
   // bedroom and clothes
   bed: { w: 2, h: 2, solid: true, label: 'Double bed' },
   singlebed: { w: 1, h: 2, solid: true, label: 'Single bed' },
@@ -162,10 +168,18 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   beachchair: 'Lie back',
   log: 'Sit on the log',
   stump: 'Sit down',
+  gamingchair: 'Sit down',
+  diningchair: 'Sit down',
+  barstool: 'Sit down',
+  executivechair: 'Sit down',
+  rockingchair: 'Sit down',
+  armchair: 'Sit down',
+  loveseat: 'Sit down',
+  ottoman: 'Sit down',
 };
 
 /** Furniture you can sit on (one person to a seat). */
-export const SEAT_TYPES: ItemType[] = ['chair', 'stool', 'beanbag', 'sofa', 'bench', 'beachchair', 'log', 'stump'];
+export const SEAT_TYPES: ItemType[] = ['chair', 'stool', 'beanbag', 'sofa', 'bench', 'beachchair', 'log', 'stump', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'armchair', 'loveseat', 'ottoman'];
 
 /** The seat under a point (the tile of a chair, sofa, bench... that covers it), if any. */
 export function seatAt(items: Item[], x: number, y: number): { item: Item; x: number; y: number } | null {

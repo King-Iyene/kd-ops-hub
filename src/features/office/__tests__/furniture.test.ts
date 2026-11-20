@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES } from '../catalog';
-import { ITEM_DEFS, SURFACE_ITEMS, canPlace, itemCells } from '../world/world';
+import { ITEM_DEFS, SEAT_TYPES, SURFACE_ITEMS, canPlace, itemCells, seatAt } from '../world/world';
 import { buildBlank } from '../world/templates';
 import type { Item, ItemType } from '../world/types';
 
 const NEW_FURNITURE: ItemType[] = ['longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman'];
 const FLAT_TABLES: ItemType[] = ['longtable', 'worktable', 'sidetable', 'conference', 'nightstand', 'dresser', 'table', 'coffeetable', 'roundtable'];
+
+const CHAIRS: ItemType[] = ['executivechair', 'gamingchair', 'diningchair', 'barstool', 'rockingchair', 'armchair', 'loveseat', 'ottoman'];
+
+describe('different kinds of chair', () => {
+  it('every kind of chair is in the catalogue and can be sat on', () => {
+    const seating = CATEGORIES.find((cat) => cat.id === 'seating');
+    for (const t of CHAIRS) {
+      expect(seating?.types, t + ' is not in Seating').toContain(t);
+      expect(SEAT_TYPES, t + ' cannot be sat on').toContain(t);
+      const chair: Item = { id: 'c-' + t, t, x: 5, y: 5 };
+      expect(seatAt([chair], 5.5, 5.5)?.item.t, t).toBe(t);
+    }
+  });
+});
 
 describe('more furniture', () => {
   it('every new piece has a size and a name, and can be picked from the catalogue', () => {

@@ -11,7 +11,7 @@
 //  - microphone, camera and screen sharing work without browser prompts
 //  - a friendly offline screen that reconnects by itself (power and network cuts happen)
 //  - only one copy runs, it can start with your computer, and it updates itself
-const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences, screen, powerMonitor } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences, screen, powerMonitor, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -120,6 +120,26 @@ function clearCounts() {
 }
 
 // ---- layout: both pages keep the same size under the tab bar; only the chosen one is shown
+const lastTold = {};
+/** Tell every page whether its tab is showing and whether the app is in front; the KD Ops page also gets slowed right down when you are not looking at it. */
+function syncPageState() {
+  if (!win || win.isDestroyed()) return;
+  const shown = win.isVisible() && !win.isMinimized();
+  const focused = win.isFocused();
+  for (const id of TAB_IDS) {
+    const v = views[id];
+    if (!v || v.webContents.isDestroyed()) continue;
+    const tabShown = id === active && shown;
+    const key = `${tabShown}|${focused}`;
+    if (lastTold[id] === key) continue;
+    lastTold[id] = key;
+    v.webContents.send('kd:tab-visible', tabShown);
+    v.webContents.send('kd:window-focus', focused);
+    // the Office must keep running (voice, rings); the KD Ops page only needs full speed while you are using it
+    if (id === 'ops') { try { v.webContents.setBackgroundThrottling(!(tabShown && focused)); } catch { /* older Electron: no change */ } }
+  }
+}
+
 function layout() {
   if (!win || win.isDestroyed()) return;
   const [w, h] = win.getContentSize();
@@ -128,8 +148,8 @@ function layout() {
     if (!v) continue;
     v.setBounds({ x: 0, y: BAR_HEIGHT, width: Math.max(0, w), height: Math.max(0, h - BAR_HEIGHT) });
     v.setVisible(id === active);
-    if (!v.webContents.isDestroyed()) v.webContents.send('kd:tab-visible', id === active);
   }
+  syncPageState();
 }
 
 function selectTab(id, { focus = true } = {}) {
@@ -147,6 +167,34 @@ function selectTab(id, { focus = true } = {}) {
   pushBar();
   const v = views[id];
   if (focus && v && !v.webContents.isDestroyed()) v.webContents.focus();
+}
+
+/** What pressing the X does: 'ask' (the first time), 'tray' (keep running in the tray) or 'quit'. Older installs that chose "do not keep me in the tray" mean 'quit'. */
+function closeAction() {
+  const st = readSettings();
+  if (st.closeAction === 'ask' || st.closeAction === 'tray' || st.closeAction === 'quit') return st.closeAction;
+  if (st.closeToTray === false) return 'quit';
+  return process.env.KD_OPS_TEST ? 'tray' : 'ask';
+}
+let closeAsking = false;
+function askWhatToDoOnClose() {
+  if (closeAsking || !win) return;
+  closeAsking = true;
+  void dialog.showMessageBox(win, {
+    type: 'question',
+    title: NAME,
+    message: 'Close KD Ops?',
+    detail: 'Keep it in the tray and rings, calls and messages still reach you, or quit it completely.',
+    buttons: ['Keep in the tray', `Quit ${NAME}`, 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+    checkboxLabel: 'Remember my choice (you can change it from the tray menu)',
+  }).then((r) => {
+    if (r.response === 2) return;
+    if (r.checkboxChecked) writeSettings({ closeAction: r.response === 1 ? 'quit' : 'tray' });
+    if (r.response === 1) { quitting = true; app.quit(); } else if (win) win.hide();
+  }).catch(() => undefined).finally(() => { closeAsking = false; });
 }
 
 function showWindow(tab) {
@@ -237,7 +285,7 @@ function createView(id) {
   });
 
   wc.on('did-navigate', (_e, url) => { if (routeOf(url) === id) lastGood[id] = url; });
-  wc.on('did-finish-load', () => { if (!wc.isDestroyed()) wc.send('kd:tab-visible', active === id); });
+  wc.on('did-finish-load', () => { delete lastTold[id]; syncPageState(); });
 
   // an unread count from the page title, "(3) Virtual Office"
   wc.on('page-title-updated', (_e, title) => {
@@ -271,7 +319,7 @@ let miniWin = null;
 let miniState = null; // the last list the Office sent
 let miniDismissed = false;
 let miniTimer = null;
-const MINI_W = 252;
+const MINI_W = 204;
 
 const COLOR = /^#[0-9a-fA-F]{3,8}$/;
 function cleanAvatar(a) {
@@ -302,9 +350,9 @@ function miniPosition(w, h) {
 
 function createMini() {
   if (miniWin && !miniWin.isDestroyed()) return miniWin;
-  const p = miniPosition(MINI_W, 220);
+  const p = miniPosition(MINI_W, 150);
   miniWin = new BrowserWindow({
-    width: MINI_W, height: 220, x: p.x, y: p.y,
+    width: MINI_W, height: 150, x: p.x, y: p.y,
     frame: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
     skipTaskbar: true, alwaysOnTop: true, show: false, backgroundColor: '#0b0f17', title: 'KD Ops mini', icon: ICON,
     webPreferences: { preload: path.join(__dirname, 'preload-mini.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false, spellcheck: false },
@@ -338,10 +386,11 @@ function showMini() {
 function hideMini() { if (miniWin && !miniWin.isDestroyed() && miniWin.isVisible()) miniWin.hide(); }
 function maybeShowMini() {
   if (readSettings().autoMini === false || miniDismissed || !miniState || quitting) return;
-  if (win && win.isVisible() && win.isFocused()) return;
+  // only while the app is minimised: switching to another app, or hiding the window to the tray, never opens it
+  if (!win || !win.isMinimized()) return;
   showMini();
 }
-function scheduleMini() { clearTimeout(miniTimer); miniTimer = setTimeout(maybeShowMini, 700); }
+function scheduleMini() { clearTimeout(miniTimer); miniTimer = setTimeout(maybeShowMini, 350); }
 
 function createWindow() {
   const s = readSettings();
@@ -376,19 +425,32 @@ function createWindow() {
     win.contentView.addChildView(v);
   }
   layout();
-  for (const id of TAB_IDS) void loadTab(id);
+  const first = active;
+  const second = TAB_IDS.find((i) => i !== first);
+  void loadTab(first);
+  let secondStarted = false;
+  const startSecond = () => { if (secondStarted || !second) return; secondStarted = true; setTimeout(() => { if (win) void loadTab(second); }, 1500); };
+  const fv = views[first];
+  fv.webContents.once('did-finish-load', startSecond);
+  fv.webContents.once('did-fail-load', startSecond);
+  setTimeout(startSecond, 12000);
 
   for (const ev of ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore', 'show']) win.on(ev, layout);
-  win.on('focus', () => { clearCounts(); miniDismissed = false; clearTimeout(miniTimer); hideMini(); });
-  win.on('blur', scheduleMini);
-  win.on('hide', scheduleMini);
+  win.on('focus', () => { clearCounts(); miniDismissed = false; clearTimeout(miniTimer); hideMini(); syncPageState(); });
+  win.on('restore', () => { miniDismissed = false; clearTimeout(miniTimer); hideMini(); syncPageState(); });
+  win.on('minimize', () => { scheduleMini(); syncPageState(); });
+  for (const ev of ['blur', 'hide', 'show']) win.on(ev, syncPageState);
 
   // closing the window keeps you in the office (in the tray); Quit from the tray really leaves
   win.on('close', (e) => {
     const b = win.getBounds();
     writeSettings({ width: b.width, height: b.height, maximized: win.isMaximized() });
-    // closing goes to the tray unless the person chose to quit instead (tray menu: "Closing the window keeps me in the tray")
-    if (!quitting && !SMOKE && readSettings().closeToTray !== false) { e.preventDefault(); win.hide(); }
+    if (quitting || SMOKE) return;
+    const how = closeAction();
+    if (how === 'quit') { quitting = true; app.quit(); return; } // the window closes and the whole app ends with it
+    e.preventDefault();
+    if (how === 'tray') win.hide();
+    else askWhatToDoOnClose();
   });
   win.on('closed', () => {
     for (const id of TAB_IDS) {
@@ -424,10 +486,12 @@ function trayMenu() {
     { label: 'Open the Office', click: () => showWindow('office') },
     { type: 'separator' },
     {
-      label: 'Closing the window keeps me in the tray',
-      type: 'checkbox',
-      checked: readSettings().closeToTray !== false,
-      click: (item) => writeSettings({ closeToTray: item.checked }),
+      label: 'When I close the window',
+      submenu: [
+        { label: 'Ask me', type: 'radio', checked: closeAction() === 'ask', click: () => writeSettings({ closeAction: 'ask' }) },
+        { label: 'Keep KD Ops in the tray', type: 'radio', checked: closeAction() === 'tray', click: () => writeSettings({ closeAction: 'tray' }) },
+        { label: `Quit ${NAME}`, type: 'radio', checked: closeAction() === 'quit', click: () => writeSettings({ closeAction: 'quit' }) },
+      ],
     },
     {
       label: 'Start with my computer',
@@ -436,7 +500,7 @@ function trayMenu() {
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, args: item.checked ? ['--hidden'] : [] }),
     },
     {
-      label: 'Show a small window when I switch to another app',
+      label: 'Show a small window when I minimise',
       type: 'checkbox',
       checked: readSettings().autoMini !== false,
       click: (item) => { writeSettings({ autoMini: item.checked }); if (!item.checked) hideMini(); },
@@ -580,6 +644,8 @@ ipcMain.on('kd:mini-state', (e, p) => {
   const clean = cleanMiniState(p);
   if (!clean) return;
   miniState = clean;
+  // get the small window ready (hidden) so it appears at once when you minimise, instead of loading then
+  if (!miniWin || miniWin.isDestroyed()) createMini();
   sendMini();
 });
 const fromMini = (e) => !!miniWin && !miniWin.isDestroyed() && e.sender.id === miniWin.webContents.id;
@@ -589,7 +655,7 @@ ipcMain.on('mini:close', (e) => { if (!fromMini(e)) return; miniDismissed = true
 ipcMain.on('mini:size', (e, h) => {
   if (!fromMini(e) || !Number.isFinite(h)) return;
   const b = miniWin.getBounds();
-  const height = Math.max(120, Math.min(420, Math.round(h)));
+  const height = Math.max(96, Math.min(300, Math.round(h)));
   if (height !== b.height) miniWin.setBounds({ x: b.x, y: Math.max(screen.getDisplayMatching(b).workArea.y, Math.min(b.y, screen.getDisplayMatching(b).workArea.y + screen.getDisplayMatching(b).workArea.height - height)), width: b.width, height });
 });
 ipcMain.on('mini:status', (e, id) => {
@@ -647,6 +713,6 @@ app.whenReady().then(() => {
 });
 
 app.on('activate', () => showWindow());
-app.on('before-quit', () => { quitting = true; try { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); } catch { /* going away anyway */ } if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
+app.on('before-quit', () => { quitting = true; setTimeout(() => app.exit(0), 6000).unref(); try { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); } catch { /* going away anyway */ } if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
 // closing the last window must not quit (the tray keeps you in the office)
 app.on('window-all-closed', () => { if (SMOKE || process.platform !== 'darwin') { if (quitting || SMOKE) app.quit(); } });
