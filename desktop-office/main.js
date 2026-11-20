@@ -302,6 +302,8 @@ function createWindow() {
 
   for (const ev of ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore', 'show']) win.on(ev, layout);
   win.on('focus', () => { clearCounts(); });
+  // minimising sends the app to the tray too (it keeps running; the tray icon or the Start menu shortcut brings it back)
+  win.on('minimize', () => { if (!quitting && !SMOKE && readSettings().closeToTray !== false) win.hide(); });
 
   // closing the window keeps you in the office (in the tray); Quit from the tray really leaves
   win.on('close', (e) => {
@@ -343,7 +345,7 @@ function trayMenu() {
     { label: 'Open the Office', click: () => showWindow('office') },
     { type: 'separator' },
     {
-      label: 'Closing the window keeps me in the tray',
+      label: 'Closing or minimising keeps me in the tray',
       type: 'checkbox',
       checked: readSettings().closeToTray !== false,
       click: (item) => writeSettings({ closeToTray: item.checked }),

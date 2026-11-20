@@ -149,6 +149,16 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const back = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible());
   check('focus request (clicking a notification) brings the window back on the right tab', back === true && (await active()) === 'office');
 
+  // ---- minimising sends the app to the tray too, and the tray brings it back restored
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize());
+  await bar.waitForTimeout(600);
+  const mini = await app.evaluate(({ BrowserWindow }) => ({ visible: BrowserWindow.getAllWindows()[0].isVisible(), alive: BrowserWindow.getAllWindows().length === 1 }));
+  check('minimising hides the app to the tray (it keeps running)', mini.visible === false && mini.alive, JSON.stringify(mini));
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(700);
+  const restored = await app.evaluate(({ BrowserWindow }) => ({ visible: BrowserWindow.getAllWindows()[0].isVisible(), minimized: BrowserWindow.getAllWindows()[0].isMinimized() }));
+  check('...and opening it from the tray brings it back normal size, not minimised', restored.visible === true && restored.minimized === false, JSON.stringify(restored));
+
   // ---- other sites never replace the app, they open in the normal browser (recorded here, never really opened)
   await app.evaluate(({ shell }) => { global.__opened = []; shell.openExternal = (u) => { global.__opened.push(u); return Promise.resolve(); }; });
   await inTab('ops', "window.open('https://example.com'); 1");
