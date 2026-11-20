@@ -1,8 +1,8 @@
 {
-  "name": "kd-office-desktop",
-  "version": "0.1.2",
+  "name": "kd-ops-desktop",
+  "version": "0.2.0",
   "private": true,
-  "description": "KD Office: the KD Squares virtual office as a desktop app",
+  "description": "KD Ops: the KD Squares ops site and the virtual Office as one desktop app",
   "author": {
     "name": "KD Squares",
     "email": "code@kdsquares.com"
@@ -22,10 +22,12 @@
   },
   "build": {
     "appId": "com.kdsquares.office",
-    "productName": "KD Office",
+    "productName": "KD Ops",
     "files": [
       "main.js",
       "preload.js",
+      "preload-tabs.js",
+      "tabs.html",
       "offline.html",
       "build/icon.png"
     ],
@@ -40,7 +42,8 @@
         "deb"
       ],
       "category": "Office",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "KD-Ops-${version}.${ext}"
     },
     "win": {
       "target": [
@@ -49,12 +52,12 @@
       "icon": "build/icon.png"
     },
     "nsis": {
-      "artifactName": "KD-Office-Setup-${version}.${ext}",
+      "artifactName": "KD-Ops-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "KD Office",
+      "shortcutName": "KD Ops",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
     },
@@ -66,13 +69,23 @@
       "category": "public.app-category.business",
       "icon": "build/icon.png",
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "KD Office uses your microphone so you can talk to people in the office.",
-        "NSCameraUsageDescription": "KD Office uses your camera so people in the office can see you.",
-        "NSScreenCaptureUsageDescription": "KD Office shares your screen when you choose to."
-      }
+        "NSMicrophoneUsageDescription": "KD Ops uses your microphone so you can talk to people in the office.",
+        "NSCameraUsageDescription": "KD Ops uses your camera so people in the office can see you.",
+        "NSScreenCaptureUsageDescription": "KD Ops shares your screen when you choose to."
+      },
+      "artifactName": "KD-Ops-${version}-${arch}-mac.${ext}"
     },
     "dmg": {
-      "artifactName": "KD-Office-${version}.${ext}"
-    }
+      "artifactName": "KD-Ops-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/King-Iyene/kd-ops-hub/releases/download/kd-ops-desktop-channel"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }

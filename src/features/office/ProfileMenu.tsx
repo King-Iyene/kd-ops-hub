@@ -217,7 +217,7 @@ export function ProfileMenu(p: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('guests', <UserPlus className="h-4 w-4" />, p.guestsWaiting ? `Guests (${p.guestsWaiting})` : 'Guests', p.guestsWaiting ? `${p.guestsWaiting} waiting at the door` : 'Invite visitors by email', p.onGuests)}
-                {!inDesktopApp() && tile('download', <Download className="h-4 w-4" />, 'Get the desktop app', `For ${desktopDownload().label}: notifications and always on`, () => { window.open(desktopDownload().url, '_blank', 'noopener'); })}
+                {!inDesktopApp() && tile('download', <Download className="h-4 w-4" />, 'Get the KD Ops desktop app', `For ${desktopDownload().label}: KD Ops and the Office in one app`, () => { window.open(desktopDownload().url, '_blank', 'noopener'); })}
                 {p.canManage && tile('manage', <Settings className="h-4 w-4" />, 'Manage space', 'Offices, seats, people', p.onManage)}
                 {p.canEdit && !p.editing && tile('edit', <Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors', p.onEdit)}
                 {p.canSettings && tile('settings', <Settings className="h-4 w-4" />, 'Permissions', 'Builders and recorders', p.onSettings)}

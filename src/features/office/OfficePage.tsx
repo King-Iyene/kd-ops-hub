@@ -622,7 +622,7 @@ function OfficeRoom() {
     const target = dm ? m.sender_id : ALL;
     const title = m.kind === 'announcement' ? `Announcement from ${sender}` : dm ? sender : `${sender} mentioned you`;
     const body = (m.body === '(picture)' ? 'Sent a picture' : m.body).slice(0, 160);
-    playChime(0.07);
+    playChime(0.1);
     notifyPing(title, body, () => openChat(target), `chat:${target}`);
     toast({ title, description: body, action: <ToastAction altText="Open the chat" onClick={() => openChat(target)}>Open</ToastAction> });
   };
@@ -828,6 +828,8 @@ function OfficeRoom() {
       imgUrl = s.data?.signedUrl;
     }
     setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: m.f, mine: false, text: m.text, imgUrl, at: Date.now() }]);
+    // a message makes the same soft chime as a ring (a little quieter), unless you are on focus, meeting or do not disturb
+    if (!quietNow()) playChime(0.1);
     notifyPing(m.n, m.text || 'Sent a picture', () => openChat(m.f), 'dm:' + m.f);
     if (chatWithRef.current?.id !== m.f) {
       toast({
@@ -1259,7 +1261,7 @@ function OfficeRoom() {
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                {!inDesktopApp() && <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the desktop app</DropdownMenuItem>}
+                {!inDesktopApp() && <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={() => setVisitorsOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Guests{guests.waitingCount ? ` (${guests.waitingCount} waiting)` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
                 {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}

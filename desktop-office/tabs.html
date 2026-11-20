@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>KD Ops</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; background: #0b0f17; overflow: hidden; user-select: none; }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  nav { height: 40px; display: flex; align-items: flex-end; gap: 4px; padding: 0 10px; border-bottom: 1px solid #1c2433; box-sizing: border-box; }
+  button { position: relative; height: 32px; padding: 0 16px; border: 0; border-radius: 8px 8px 0 0; background: transparent; color: #8d99b0; font-size: 13px; font-weight: 600; cursor: pointer; }
+  button:hover { color: #e6eaf2; background: #121a28; }
+  button[aria-selected="true"] { background: #1a2335; color: #e6eaf2; box-shadow: inset 0 -2px 0 #7c9cff; }
+  .dot { display: none; margin-left: 8px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: #ef4444; color: #fff; font-size: 10px; line-height: 16px; text-align: center; vertical-align: middle; }
+  .dot.on { display: inline-block; }
+  kbd { margin-left: 8px; color: #55617a; font: 11px "Segoe UI", system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<nav role="tablist" aria-label="KD Ops tabs">
+  <button role="tab" id="tab-ops" data-tab="ops" aria-selected="true">KD Ops<span class="dot" id="dot-ops"></span><kbd>Ctrl 1</kbd></button>
+  <button role="tab" id="tab-office" data-tab="office" aria-selected="false">Office<span class="dot" id="dot-office"></span><kbd>Ctrl 2</kbd></button>
+</nav>
+<script>
+  for (const b of document.querySelectorAll('button[data-tab]')) b.addEventListener('click', () => window.kdTabs.select(b.dataset.tab));
+  window.kdTabs.onState((s) => {
+    for (const id of ['ops', 'office']) {
+      document.getElementById('tab-' + id).setAttribute('aria-selected', String(s.active === id));
+      const dot = document.getElementById('dot-' + id);
+      const n = (s.counts && s.counts[id]) || 0;
+      dot.textContent = n > 99 ? '99+' : String(n);
+      dot.classList.toggle('on', n > 0 && s.active !== id);
+    }
+  });
+  window.kdTabs.ready();
+</script>
+</body>
+</html>
