@@ -294,15 +294,13 @@ BEGIN
   fl := public.t_flag('TK13', 'Bob');
   PERFORM public.t_eq('ready for review is flagged at once', fl.title, 'Ready for review: Bob review me');
   PERFORM public.t_eq('low', fl.severity, 'low');
-  PERFORM public.t_eq('completed is flagged at once', (public.t_flag('TK14', 'Bob')).title, 'Completed: Bob finished');
-  PERFORM public.t_eq('completed is info', (public.t_flag('TK14', 'Bob')).severity, 'info');
-  PERFORM public.t_eq('no completed flag for a Field Agent or NDI task', public.t_count('TK14'), 1::bigint);
+  PERFORM public.t_eq('a completed task puts nothing in the Inbox (the TK14 rule is off)', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'TK14'), 0::bigint);
+  PERFORM public.t_eq('the rule is switched off, not missing', (SELECT enabled FROM public.agent_rules WHERE code = 'TK14'), false);
   UPDATE public.tm_tasks SET status = 'done' WHERE id = 'b1000000-0000-0000-0000-000000000003';
   PERFORM public.agent_run_rules('2026-11-18T15:03:00Z');
   PERFORM public.t_eq('review flag closes when the task leaves In Review', (public.t_flag('TK13', 'Bob')).status, 'auto_resolved');
   PERFORM public.agent_run_rules('2026-11-19T15:30:00Z');
-  PERFORM public.t_eq('completed items clear after a day', (public.t_flag('TK14', 'Bob')).status, 'auto_resolved');
-  RAISE NOTICE 'PASS 4: overdue (with severity), due date moved, no open tasks, ready for review and completed, each with its own clearing rule';
+  RAISE NOTICE 'PASS 4: overdue (with severity), due date moved, no open tasks, ready for review (a completed task puts nothing in the Inbox), each with its own clearing rule';
 END $$;
 
 -- ── 5. RP01 missing report ─────────────────────────────────────────────────
