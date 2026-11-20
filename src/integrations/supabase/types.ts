@@ -1661,6 +1661,7 @@ export type Database = {
           id: string
           kind: string
           ref_id: string
+          rule_id: string | null
           sent_at: string | null
           status: string
         }
@@ -1672,6 +1673,7 @@ export type Database = {
           id?: string
           kind: string
           ref_id: string
+          rule_id?: string | null
           sent_at?: string | null
           status?: string
         }
@@ -1683,6 +1685,7 @@ export type Database = {
           id?: string
           kind?: string
           ref_id?: string
+          rule_id?: string | null
           sent_at?: string | null
           status?: string
         }
@@ -1692,6 +1695,13 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_outbox_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "tm_table_connections"
             referencedColumns: ["id"]
           },
         ]
@@ -21128,6 +21138,104 @@ export type Database = {
           },
         ]
       }
+      tm_table_connections: {
+        Row: {
+          cc_manager: boolean
+          channel: string | null
+          connection_id: string
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          last_sent_at: string | null
+          name: string
+          table_id: string
+          tag_person: boolean
+          template: string | null
+          updated_at: string
+        }
+        Insert: {
+          cc_manager?: boolean
+          channel?: string | null
+          connection_id: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          last_sent_at?: string | null
+          name: string
+          table_id: string
+          tag_person?: boolean
+          template?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cc_manager?: boolean
+          channel?: string | null
+          connection_id?: string
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          last_sent_at?: string | null
+          name?: string
+          table_id?: string
+          tag_person?: boolean
+          template?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tm_table_connections_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tm_table_connections_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tm_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tm_table_fields: {
         Row: {
           config: Json
@@ -23787,6 +23895,7 @@ export type Database = {
       agent_check_now: { Args: never; Returns: Json }
       agent_clean_domain: { Args: { p_raw: string }; Returns: string }
       agent_company_of: { Args: { p_person: string }; Returns: string }
+      agent_dispatch_kick: { Args: never; Returns: undefined }
       agent_dispatch_ready: { Args: never; Returns: boolean }
       agent_dispatch_tick: { Args: never; Returns: undefined }
       agent_domain_remove: { Args: { p_domain: string }; Returns: boolean }
