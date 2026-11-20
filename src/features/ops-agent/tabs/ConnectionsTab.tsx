@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AtSign, Loader2, Pencil, TriangleAlert, Plug, Plus, Send, Trash2 } from 'lucide-react';
+import { AtSign, ExternalLink, Loader2, Pencil, TriangleAlert, Plug, Plus, Send, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,7 @@ import { Section } from '../settings/shared';
 import { useAgentToast } from '../settings/useAgentToast';
 import { formatEst, relativeTime } from '../time';
 import { supportsMentions } from '../connectionTemplate';
+import { isZohoAuthorized, needsZohoSignIn } from '../zohoOAuth';
 import { ApiKeysCard } from './ApiKeysCard';
 import { ConnectionDialog } from './ConnectionDialog';
 import { ToolIcon, presetForConnection } from './ToolIcon';
@@ -43,23 +44,32 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
   const pending = outbox.filter((o) => o.status === 'pending').length;
   const failed = outbox.filter((o) => o.status === 'failed').length;
   const lastSent = c.last_sent_at ?? outbox.find((o) => o.status === 'sent')?.sent_at ?? null;
+  const zohoPending = needsZohoSignIn(c);
+  const zohoDone = c.kind === 'cliq' && c.config.mode === 'api' && isZohoAuthorized(c);
   const lastFailure = outbox.find((o) => o.status === 'failed')?.error ?? null;
   return (
     <li className="space-y-2.5 rounded-xl border bg-card p-3.5" data-testid="connection-row" data-preset={preset.id}>
       <div className="flex flex-wrap items-center gap-3">
         <ToolIcon preset={preset} />
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold"><span className="truncate">{c.name}</span><span className="text-xs font-normal text-muted-foreground">{c.kind === 'cliq' ? 'Zoho Cliq' : preset.name}</span>{c.kind === 'cliq' && <span className="rounded-full border px-2 py-0.5 text-2xs font-medium text-muted-foreground" data-testid="connection-mode">{c.config.mode === 'api' ? 'API' : 'Webhook'}</span>}</p>
+          <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold"><span className="truncate">{c.name}</span><span className="text-xs font-normal text-muted-foreground">{c.kind === 'cliq' ? 'Zoho Cliq' : preset.name}</span>{c.kind === 'cliq' && <span className="rounded-full border px-2 py-0.5 text-2xs font-medium text-muted-foreground" data-testid="connection-mode">{c.config.mode === 'api' ? 'API' : 'Webhook'}</span>}{zohoPending && <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-2xs font-medium text-warning" data-testid="zoho-chip">Needs Zoho sign-in</span>}{zohoDone && <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-2xs font-medium text-success" data-testid="zoho-chip">Connected to Zoho</span>}</p>
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5" data-testid="connection-status"><span className={cn('h-2 w-2 rounded-full', status.dot)} aria-hidden="true" />{status.label}</span>
             {detail(c) && <span className="truncate">· {detail(c)}</span>}
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" className="h-8" onClick={() => onTest(false)} disabled={testing} data-testid="connection-test">
-            {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />} Send test
-          </Button>
-          {tags && (
+          {zohoPending && (
+            <Button size="sm" className="h-8" onClick={onEdit} data-testid="connection-zoho-connect">
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Connect to Zoho
+            </Button>
+          )}
+          {!zohoPending && (
+            <Button size="sm" variant="outline" className="h-8" onClick={() => onTest(false)} disabled={testing} data-testid="connection-test">
+              {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />} Send test
+            </Button>
+          )}
+          {tags && !zohoPending && (
             <Button size="sm" variant="outline" className="h-8" onClick={() => onTest(true)} disabled={testing} data-testid="connection-test-tag">
               <AtSign className="mr-1.5 h-3.5 w-3.5" /> Send test and tag me
             </Button>

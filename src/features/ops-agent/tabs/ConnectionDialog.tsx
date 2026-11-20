@@ -6,15 +6,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSaveConnection, useTestConnection } from '@/queries/useOpsAgent';
+import { useAgentConnections, useSaveConnection, useTestConnection, useZohoOAuthStart, useZohoOAuthUrls } from '@/queries/useOpsAgent';
 import type { AgentConnection, MinSeverity, SaveConnectionInput } from '../agentDb';
-import { AUTO_EVENTS, CLIQ_CHANNEL_PATTERN, DEFAULT_CLIQ_DC, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
+import { AUTO_EVENTS, CLIQ_ADVANCED_FIELDS, CLIQ_CHANNEL_PATTERN, DEFAULT_CLIQ_DC, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
 import { MENTION_DEFAULTS, MENTION_MAX, mentionTemplateProblem, supportsMentions } from '../connectionTemplate';
+import { goToZoho, isZohoAuthorized } from '../zohoOAuth';
 import { Field } from '../settings/shared';
 import { useAgentToast } from '../settings/useAgentToast';
 import { ApiOptions, headerProblem, type ApiForm } from './ApiOptions';
 import { ToolIcon, presetForConnection } from './ToolIcon';
 import { ToolPicker } from './ToolPicker';
+import { ConnectToZoho, PasteIntoZoho, ZohoChecklist } from './ZohoSetupPanels';
 
 const SEVERITIES: { value: MinSeverity; label: string }[] = [
   { value: 'low', label: 'Low and above' }, { value: 'medium', label: 'Medium and above' }, { value: 'high', label: 'High and above' }, { value: 'critical', label: 'Critical only' },
@@ -94,6 +96,9 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
 }) {
   const save = useSaveConnection();
   const test = useTestConnection();
+  const oauthStart = useZohoOAuthStart();
+  const zoho = useZohoOAuthUrls();
+  const connections = useAgentConnections(!!editing || preset.mode === 'api');
   const toast = useAgentToast();
   const tags = supportsMentions(preset.kind);
   const defaultFormat = MENTION_DEFAULTS[preset.kind] ?? '';
@@ -107,7 +112,8 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const isApi = preset.kind === 'api';
   const fields = preset.fields.filter((f) => !['method', 'header_name', 'query_param', 'body_template'].includes(f.field));
   const bodyField = preset.fields.find((f) => f.field === 'body_template');
-  const [name, setName] = useState(editing?.name ?? '');
+  // A new Zoho Cliq API connection starts with a sensible name so the four Zoho fields are all that is needed.
+  const [name, setName] = useState(editing?.name ?? (isCliqApi ? 'Zoho Cliq' : ''));
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(preset.fields.map((f) => [f.field, initialValue(f, editing)])));
   const [api, setApi] = useState<ApiForm>(() => apiFormFor(preset, editing));
   const [events, setEvents] = useState<string[]>(editing?.config.events ?? [...DEFAULT_EVENTS]);
@@ -117,8 +123,11 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const [justSaved, setJustSaved] = useState<Set<Part>>(new Set());
   const [note, setNote] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testedOk, setTestedOk] = useState(false);
 
-  const hasSaved = (part: Part) => justSaved.has(part) || savedSecret(editing, part);
+  // The connection as the server last reported it, so the status lines follow a save or a return from Zoho.
+  const current = (savedId ? connections.data?.find((c) => c.id === savedId) : null) ?? editing;
+  const hasSaved = (part: Part) => justSaved.has(part) || savedSecret(current, part);
   const tokenUsed = !isApi || api.auth !== 'none';
   const flagEvents = events.includes('flag_high') || events.includes('flag_all');
   const missing = preset.fields.some((f) => {
@@ -132,10 +141,18 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   // refresh token pasted now, or one already saved).
   const channelText = (values.channel ?? '').trim();
   const channelBad = isCliqApi && channelText !== '' && !CLIQ_CHANNEL_PATTERN.test(channelText);
-  const noCredential = isCliqApi && !((values.grant_code ?? '').trim() || (values.refresh_token ?? '').trim() || hasSaved('refresh_token'));
   const formatBad = tags ? mentionTemplateProblem(format) : null;
-  const apiBad = !!formatBad || channelBad || noCredential || (isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim())));
+  const apiBad = !!formatBad || channelBad || (isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim())));
   const ready = name.trim().length > 0 && !missing && !apiBad;
+
+  // Unsaved edits: the form compared with what was last saved. Typed secrets count as an edit too (`typed`), and are cleared on save.
+  const signature = (typed: boolean, clear = clearToken) => JSON.stringify({
+    name, typed, clearToken: clear, events, minSeverity, mentionPeople, ccManager, format, api,
+    plain: preset.fields.filter((f) => !f.secret).map((f) => values[f.field] ?? ''),
+  });
+  const typedSecret = preset.fields.some((f) => f.secret && (values[f.field] ?? '').trim() !== '');
+  const [savedSignature, setSavedSignature] = useState(() => signature(false));
+  const dirty = signature(typedSecret) !== savedSignature;
 
   const body = (): SaveConnectionInput => {
     const v = (k: string) => (values[k] ?? '').trim() || undefined;
@@ -178,6 +195,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const submit = () => {
     setError(null); setNote(null);
     const sent = body();
+    const savedAs = signature(false, false); // what the form will hold once the typed secrets are cleared
     save.mutate(sent, {
       onSuccess: (r) => {
         if (r.ok && (r.id ?? savedId)) {
@@ -195,7 +213,9 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
           });
           setValues((p) => ({ ...p, token: '', ...Object.fromEntries(preset.fields.filter((f) => f.secret).map((f) => [f.field, ''])) }));
           setClearToken(false);
-          setNote({ tone: 'good', text: 'Saved. Press Send test to check it works.' });
+          setSavedSignature(savedAs);
+          const signedIn = isZohoAuthorized(current) || !!sent.refresh_token || !!sent.grant_code;
+          setNote({ tone: 'good', text: isCliqApi && !signedIn ? 'Saved. Now press Connect to Zoho.' : 'Saved. Press Send test to check it works.' });
           onSaved(id, wasNew);
         } else setError(r.error ?? 'Could not save the connection.');
       },
@@ -208,12 +228,61 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
     setNote(null);
     const okText = tagMe ? 'Test sent. If your name is highlighted in the channel, tagging works.' : 'Test message delivered.';
     test.mutate(tagMe ? { id: savedId, tag_me: true } : savedId, {
-      onSuccess: (r) => { if (r.ok) { setNote({ tone: 'good', text: okText }); if (tagMe) toast.saved(okText); } else setNote({ tone: 'bad', text: r.error ?? 'The test failed.' }); },
+      onSuccess: (r) => { if (r.ok) { setTestedOk(true); setNote({ tone: 'good', text: okText }); if (tagMe) toast.saved(okText); } else setNote({ tone: 'bad', text: r.error ?? 'The test failed.' }); },
       onError: (e) => setNote({ tone: 'bad', text: e.message }),
     });
   };
 
+  const connectToZoho = () => {
+    if (!savedId) return;
+    setError(null); setNote(null);
+    oauthStart.mutate({ id: savedId, redirect_uri: zoho.redirectUri }, {
+      onSuccess: (r) => { if (r.ok && r.url) goToZoho(r.url); else setError(r.error ?? 'Could not start the Zoho sign-in. Check the Client ID and try again.'); },
+      onError: (e) => setError(e.message),
+    });
+  };
+  const authorized = isCliqApi && (isZohoAuthorized(current) || justSaved.has('refresh_token'));
+  const zohoStatus = {
+    clientSaved: hasSaved('client_secret') && ((values.client_id ?? '').trim() !== '' || !!current?.config.client_id),
+    authorized,
+    channelSet: channelText !== '' && !channelBad,
+    tested: current ? (testedOk || (current.status === 'connected' && !!current.last_tested_at)) : testedOk,
+  };
+
   const toggleEvent = (key: string, on: boolean) => setEvents((e) => (on ? [...new Set([...e, key])] : e.filter((x) => x !== key)));
+
+  const renderField = (f: PresetField) => {
+    const part = isPart(f.field) ? f.field : null;
+    const saved = !!f.secret && part !== null && hasSaved(part);
+    const id = `conn-${f.field}`;
+    let hint = saved ? 'Saved. Leave blank to keep it, or paste a new one.' : f.hint ?? (f.secret ? 'It works like a password, so it is kept encrypted.' : undefined);
+    if (f.field === 'grant_code' && hasSaved('refresh_token')) hint = 'Not needed now. Only paste a new code here to connect again, for example if the connection stops working.';
+    if (f.field === 'token' && !tokenUsed) return null;
+    if (f.options) {
+      return (
+        <Field key={f.field} label={f.label} htmlFor={id} hint={hint}>
+          <Select value={values[f.field] || f.options[0].value} onValueChange={(v) => setValues((p) => ({ ...p, [f.field]: v }))}>
+            <SelectTrigger id={id} className="sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>{f.options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+      );
+    }
+    return (
+      <Field key={f.field} label={isApi && f.field === 'token' ? tokenLabel(api, f.label) : f.label} htmlFor={id} hint={hint}>
+        <Input
+          id={id} type={f.secret ? 'password' : 'text'} autoComplete="off" value={values[f.field] ?? ''} required={f.required}
+          aria-invalid={f.field === 'channel' && channelBad ? true : undefined}
+          onChange={(e) => setValues((p) => ({ ...p, [f.field]: e.target.value }))}
+          placeholder={saved ? '•••••••• saved' : f.placeholder}
+        />
+        {f.field === 'channel' && channelBad && <p className="mt-1 text-xs text-destructive" role="alert" data-testid="channel-error">Use the channel's unique name: lowercase letters, numbers and underscores only, no spaces.</p>}
+        {f.field === 'token' && hasSaved('token') && (
+          <label className="mt-1.5 flex items-center gap-2 text-sm"><Checkbox checked={clearToken} onCheckedChange={(c) => setClearToken(c === true)} /> Remove the saved {isApi ? 'token' : 'secret'}</label>
+        )}
+      </Field>
+    );
+  };
 
   return (
     <>
@@ -240,43 +309,27 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
           </ol>
         </section>
 
+        {isCliqApi && <PasteIntoZoho homepageUrl={zoho.homepageUrl} redirectUri={zoho.redirectUri} loading={!zoho.ready} />}
+
         <Field label="Name" htmlFor="conn-name" hint="How you will recognise it, for example Ops channel.">
           <Input id="conn-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
         </Field>
 
-        {fields.map((f) => {
-          const part = isPart(f.field) ? f.field : null;
-          const saved = !!f.secret && part !== null && hasSaved(part);
-          const id = `conn-${f.field}`;
-          let hint = saved ? 'Saved. Leave blank to keep it, or paste a new one.' : f.hint ?? (f.secret ? 'It works like a password, so it is kept encrypted.' : undefined);
-          if (f.field === 'grant_code' && hasSaved('refresh_token')) hint = 'Not needed now. Only paste a new code here to connect again, for example if the connection stops working.';
-          if (f.field === 'token' && !tokenUsed) return null;
-          if (f.options) {
-            return (
-              <Field key={f.field} label={f.label} htmlFor={id} hint={hint}>
-                <Select value={values[f.field] || f.options[0].value} onValueChange={(v) => setValues((p) => ({ ...p, [f.field]: v }))}>
-                  <SelectTrigger id={id} className="sm:w-64"><SelectValue /></SelectTrigger>
-                  <SelectContent>{f.options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-            );
-          }
-          return (
-            <Field key={f.field} label={isApi && f.field === 'token' ? tokenLabel(api, f.label) : f.label} htmlFor={id} hint={hint}>
-              <Input
-                id={id} type={f.secret ? 'password' : 'text'} autoComplete="off" value={values[f.field] ?? ''} required={f.required}
-                aria-invalid={f.field === 'channel' && channelBad ? true : undefined}
-                onChange={(e) => setValues((p) => ({ ...p, [f.field]: e.target.value }))}
-                placeholder={saved ? '•••••••• saved' : f.placeholder}
-              />
-              {f.field === 'channel' && channelBad && <p className="mt-1 text-xs text-destructive" role="alert" data-testid="channel-error">Use the channel's unique name: lowercase letters, numbers and underscores only, no spaces.</p>}
-              {f.field === 'refresh_token' && noCredential && <p className="mt-1 text-xs text-muted-foreground" data-testid="credential-needed">Paste a grant code above (or a refresh token here) to connect.</p>}
-              {f.field === 'token' && hasSaved('token') && (
-                <label className="mt-1.5 flex items-center gap-2 text-sm"><Checkbox checked={clearToken} onCheckedChange={(c) => setClearToken(c === true)} /> Remove the saved {isApi ? 'token' : 'secret'}</label>
-              )}
-            </Field>
-          );
-        })}
+        {fields.filter((f) => !(isCliqApi && CLIQ_ADVANCED_FIELDS.includes(f.field))).map(renderField)}
+
+        {isCliqApi && (
+          <>
+            {savedId && <ZohoChecklist status={zohoStatus} />}
+            <ConnectToZoho saved={!!savedId} dirty={dirty} authorized={authorized} busy={oauthStart.isPending || !zoho.ready} onConnect={connectToZoho} />
+            <details className="rounded-xl border p-3.5 text-sm" data-testid="cliq-advanced">
+              <summary className="cursor-pointer text-sm font-medium">Other ways to connect (advanced)</summary>
+              <div className="mt-3 space-y-4">
+                <p className="text-xs text-muted-foreground">Not needed if you use Connect to Zoho. Use these only if you set up a Self Client in Zoho, or already have a refresh token.</p>
+                {fields.filter((f) => CLIQ_ADVANCED_FIELDS.includes(f.field)).map(renderField)}
+              </div>
+            </details>
+          </>
+        )}
 
         {isApi && <ApiOptions value={api} onChange={(patch) => setApi((a) => ({ ...a, ...patch }))} bodyHint={bodyField?.hint} />}
 

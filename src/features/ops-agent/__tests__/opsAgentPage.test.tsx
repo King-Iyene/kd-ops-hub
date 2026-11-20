@@ -1,7 +1,7 @@
 // The Ops Agent screens, rendered against a fake database and fake edge functions. Checks what each role sees, that Admin
 // controls are switched off, that saves send only what changed, that secrets are write only, that chat and connections
 // work end to end, and that opening a screen never writes anything.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   setKey: { ok: true } as Record<string, unknown>,
   chat: { ok: true, thread_id: 't-new', reply: 'Tola Staff has not reported today.', tools_used: ['daily_reports'], title: 'Who has not reported' } as Record<string, unknown>,
   save: { ok: true, id: 'conn-new' } as Record<string, unknown>,
+  oauthStart: { ok: true, url: 'https://accounts.zoho.com/oauth/v2/auth?client_id=1000.ABCDEF&state=xyz' } as Record<string, unknown>,
   test: { ok: true } as Record<string, unknown>,
   tables: {} as Record<string, unknown>,
   pulse: null as Record<string, unknown> | null,
@@ -29,7 +30,7 @@ const SETTINGS = {
   monthly_ai_budget_usd: 50, daily_ai_budget_usd: 5, timezone: 'America/New_York', report_deadline: '18:00:00', default_working_days: [1, 2, 3, 4, 5],
   default_work_start: '09:00:00', default_work_end: '17:00:00', default_country_code: 'NG', report_table_id: 't1', hr_contact_id: null,
   hide_own_flags: true, leadership_flags_super_admin_only: true, readonly_query_enabled: true, escalation_window_days: 14,
-  operating_rules: '# Rules', updated_at: '2026-11-19T00:00:00Z',
+  operating_rules: '# Rules', app_url: 'https://ops.example.com', updated_at: '2026-11-19T00:00:00Z',
 };
 
 const BASE_TABLES: Record<string, unknown> = {
@@ -108,6 +109,7 @@ vi.mock('@/lib/supabase', () => {
         else if (fn === 'agent-chat') data = h.chat;
         else if (fn === 'agent-connections' && action === 'save') data = h.save;
         else if (fn === 'agent-connections' && action === 'test') data = h.test;
+        else if (fn === 'agent-connections' && action === 'oauth_start') data = h.oauthStart;
         return Promise.resolve({ data, error: null });
       },
     },
@@ -141,6 +143,7 @@ beforeEach(() => {
   h.setKey = { ok: true };
   h.chat = { ok: true, thread_id: 't-new', reply: 'Tola Staff has not reported today.', tools_used: ['daily_reports'], title: 'Who has not reported' };
   h.save = { ok: true, id: 'conn-new' };
+  h.oauthStart = { ok: true, url: 'https://accounts.zoho.com/oauth/v2/auth?client_id=1000.ABCDEF&state=xyz' };
   h.test = { ok: true };
   h.tables = { ...BASE_TABLES };
   h.pulse = null;
@@ -1130,15 +1133,20 @@ describe('Connections: Zoho Cliq through the API', () => {
     return dialog;
   };
   const type = (dialog: HTMLElement, label: string, value: string) => fireEvent.change(within(dialog).getByLabelText(label), { target: { value } });
-  const fillAll = (dialog: HTMLElement) => {
-    type(dialog, 'Name', 'Ops via API');
+  /** The four things the guide asks for. The name is already filled in. */
+  const fillFour = (dialog: HTMLElement) => {
     type(dialog, 'Client ID', '1000.ABCDEF');
     type(dialog, 'Client secret', SECRETS[0]);
-    type(dialog, 'Grant code', SECRETS[1]);
     type(dialog, 'Channel unique name', 'ops_alerts');
   };
+  // Zoho's consent screen is a full page navigation; jsdom cannot do one, so the address is replaced by a recorder.
+  const assign = vi.fn();
+  const realLocation = window.location;
+  beforeAll(() => { Object.defineProperty(window, 'location', { configurable: true, value: { ...realLocation, assign } }); });
+  afterAll(() => { Object.defineProperty(window, 'location', { configurable: true, value: realLocation }); });
   const saves = () => only('invoke:agent-connections:save').map((c) => c.args[0] as Record<string, unknown>);
   beforeEach(() => {
+    assign.mockClear();
     // jsdom has no pointer capture or scrolling, which the drop-down list asks for
     Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture ?? (() => false);
     Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture ?? (() => undefined);
@@ -1164,12 +1172,13 @@ describe('Connections: Zoho Cliq through the API', () => {
     const dialog = await openApi();
     const steps = within(dialog).getByTestId('setup-steps');
     expect(steps).toHaveTextContent('https://api-console.zoho.com');
-    expect(steps).toHaveTextContent('Self Client');
+    expect(steps).toHaveTextContent('Server-based Applications');
+    expect(steps).toHaveTextContent('Authorized Redirect URI');
     expect(steps).toHaveTextContent('ZohoCliq.Webhooks.CREATE');
-    expect(steps).toHaveTextContent('10 minutes');
-    expect(steps).toHaveTextContent('refresh token');
-    expect(steps).toHaveTextContent('accounts.zoho.com/oauth/serverinfo');
-    for (const l of ['Data center', 'Client ID', 'Client secret', 'Grant code', 'Refresh token (optional)', 'Channel unique name']) expect(within(dialog).getByLabelText(l)).toBeInTheDocument();
+    expect(steps).toHaveTextContent('Connect to Zoho');
+    expect(steps).not.toHaveTextContent('Self Client');
+    expect(steps.querySelectorAll('li')).toHaveLength(5);
+    for (const l of ['Data center', 'Client ID', 'Client secret', 'Channel unique name']) expect(within(dialog).getByLabelText(l)).toBeInTheDocument();
     expect(within(dialog).queryByLabelText('Cliq webhook address')).not.toBeInTheDocument();
     for (const l of ['Client secret', 'Grant code', 'Refresh token (optional)']) expect((within(dialog).getByLabelText(l) as HTMLInputElement).type).toBe('password');
     expect((within(dialog).getByLabelText('Client ID') as HTMLInputElement).type).toBe('text');
@@ -1177,10 +1186,41 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(dialog).getByRole('checkbox', { name: 'Tag the person in each message' })).toBeChecked();
   });
 
-  it('needs a client id, client secret, a valid channel name and a grant code or refresh token', async () => {
+  it('shows the Homepage URL and Redirect URI built from the site address, each with a Copy button', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    const dialog = await openApi();
+    const block = within(dialog).getByTestId('zoho-paste-block');
+    expect(block).toHaveTextContent('Paste these into Zoho');
+    await waitFor(() => expect((within(block).getByLabelText('Homepage URL') as HTMLInputElement).value).toBe('https://ops.example.com'));
+    const redirect = within(block).getByLabelText('Authorized Redirect URI') as HTMLInputElement;
+    expect(redirect.value).toBe('https://ops.example.com/agent/oauth/zoho');
+    expect(redirect.readOnly).toBe(true);
+    fireEvent.click(within(block).getByRole('button', { name: 'Copy Authorized Redirect URI' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://ops.example.com/agent/oauth/zoho'));
+    expect(await within(block).findByText('Copied')).toBeInTheDocument();
+    // the grant code and refresh token live under a collapsed "advanced" section
+    const advanced = within(dialog).getByTestId('cliq-advanced');
+    expect(advanced).toHaveTextContent('Other ways to connect (advanced)');
+    expect(advanced).not.toHaveAttribute('open');
+    expect(within(advanced).getByLabelText('Grant code')).toBeInTheDocument();
+  });
+
+  it('falls back to the browser address when no site address is saved, and tells the person to select the text if copying is blocked', async () => {
+    h.tables = { ...BASE_TABLES, agent_settings: { ...SETTINGS, app_url: undefined } };
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    document.execCommand = vi.fn().mockReturnValue(false);
+    const dialog = await openApi();
+    const redirect = (await within(dialog).findByLabelText('Authorized Redirect URI')) as HTMLInputElement;
+    await waitFor(() => expect(redirect.value).toBe(`${realLocation.origin}/agent/oauth/zoho`));
+    expect((within(dialog).getByLabelText('Homepage URL') as HTMLInputElement).value).toBe(realLocation.origin);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy Homepage URL' }));
+    expect(await within(dialog).findByText(/did not allow copying/)).toBeInTheDocument();
+  });
+
+  it('needs only a client id, client secret and a valid channel name (no grant code or refresh token)', async () => {
     const dialog = await openApi();
     const save = within(dialog).getByTestId('connection-save');
-    type(dialog, 'Name', 'Ops via API');
     expect(save).toBeDisabled();
     type(dialog, 'Client ID', '1000.ABCDEF');
     type(dialog, 'Channel unique name', 'Ops Alerts');
@@ -1189,35 +1229,31 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(dialog).queryByTestId('channel-error')).not.toBeInTheDocument();
     expect(save).toBeDisabled(); // no client secret yet
     type(dialog, 'Client secret', SECRETS[0]);
-    expect(save).toBeDisabled(); // no grant code or refresh token yet
-    expect(within(dialog).getByTestId('credential-needed')).toBeInTheDocument();
-    type(dialog, 'Refresh token (optional)', SECRETS[2]);
-    expect(save).toBeEnabled(); // a refresh token is enough on its own
+    expect(save).toBeEnabled(); // the four fields are enough
     expect(within(dialog).queryByTestId('credential-needed')).not.toBeInTheDocument();
   });
 
-  it('saves with mode api and the secrets on that one call only, then clears them and keeps Send test and tag me working', async () => {
+  it('saves with only the four fields: mode api, no grant code, no refresh token, secret sent on that one call only', async () => {
     const dialog = await openApi();
-    fillAll(dialog);
+    fillFour(dialog);
     // pick another data center from the list
     const dc = within(dialog).getByLabelText('Data center');
     fireEvent.keyDown(dc, { key: 'Enter' });
     fireEvent.click(await screen.findByRole('option', { name: 'Europe (.eu)' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })); // off
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })); // and on again
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0]).toEqual({
-      action: 'save', kind: 'cliq', preset: 'cliq-api', name: 'Ops via API', mode: 'api', dc: 'eu', client_id: '1000.ABCDEF', channel: 'ops_alerts',
-      client_secret: SECRETS[0], grant_code: SECRETS[1], cc_manager: true, mention_people: true, events: ['flag_high', 'summary_day'],
+      action: 'save', kind: 'cliq', preset: 'cliq-api', name: 'Zoho Cliq', mode: 'api', dc: 'eu', client_id: '1000.ABCDEF', channel: 'ops_alerts',
+      client_secret: SECRETS[0], cc_manager: true, mention_people: true, events: ['flag_high', 'summary_day'],
     });
+    expect('grant_code' in saves()[0]).toBe(false);
+    expect('refresh_token' in saves()[0]).toBe(false);
     expect(saves()[0].url).toBeUndefined();
-    // nothing typed stays on the screen, and the boxes say "saved"
+    // nothing typed stays on the screen, and the secret box says "saved"
     await waitFor(() => expect((within(dialog).getByLabelText('Client secret') as HTMLInputElement).value).toBe(''));
-    expect((within(dialog).getByLabelText('Grant code') as HTMLInputElement).value).toBe('');
     for (const s of SECRETS) expect(document.body.innerHTML).not.toContain(s);
     expect(within(dialog).getByLabelText('Client secret')).toHaveProperty('placeholder', expect.stringContaining('saved'));
-    expect(within(dialog).getByLabelText('Refresh token (optional)')).toHaveProperty('placeholder', expect.stringContaining('saved'));
+    expect(await within(dialog).findByTestId('connection-note')).toHaveTextContent('Now press Connect to Zoho');
     // the test buttons work on the saved connection
     fireEvent.click(within(dialog).getByTestId('connection-send-test-tag'));
     await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(1));
@@ -1232,27 +1268,68 @@ describe('Connections: Zoho Cliq through the API', () => {
     for (const k of ['client_secret', 'grant_code', 'refresh_token']) expect(saves()[1][k], k).toBeUndefined();
   });
 
-  it('sends a pasted refresh token instead of a grant code', async () => {
+  it('Connect to Zoho is disabled until the connection is saved, then calls oauth_start with the redirect address and goes to Zoho', async () => {
     const dialog = await openApi();
-    type(dialog, 'Name', 'Ops via API');
-    type(dialog, 'Client ID', '1000.ABCDEF');
-    type(dialog, 'Client secret', SECRETS[0]);
+    const connect = within(dialog).getByTestId('zoho-connect');
+    expect(connect).toBeDisabled();
+    expect(connect).toHaveTextContent('Save first');
+    fillFour(dialog);
+    expect(connect).toBeDisabled();
+    expect(within(dialog).queryByTestId('zoho-status')).not.toBeInTheDocument(); // nothing exists yet
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(within(dialog).getByTestId('zoho-connect')).toBeEnabled());
+    expect(within(dialog).getByTestId('zoho-connect')).toHaveTextContent('Connect to Zoho');
+    // the checklist appears: secret and channel done, not yet authorized, no test yet
+    const status = within(dialog).getByTestId('zoho-status');
+    expect(within(status).getByTestId('zoho-status-client')).toHaveAttribute('data-done', 'true');
+    expect(within(status).getByTestId('zoho-status-authorized')).toHaveAttribute('data-done', 'false');
+    expect(within(status).getByTestId('zoho-status-channel')).toHaveAttribute('data-done', 'true');
+    expect(within(status).getByTestId('zoho-status-tested')).toHaveAttribute('data-done', 'false');
+    // an unsaved edit turns it back into "Save first"
+    type(dialog, 'Channel unique name', 'ops_two');
+    expect(within(dialog).getByTestId('zoho-connect')).toBeDisabled();
+    expect(within(dialog).getByTestId('zoho-connect')).toHaveTextContent('Save first');
+    type(dialog, 'Channel unique name', 'ops_alerts'); // changed back: nothing unsaved
+    await waitFor(() => expect(within(dialog).getByTestId('zoho-connect')).toBeEnabled());
+    fireEvent.click(within(dialog).getByTestId('zoho-connect'));
+    await waitFor(() => expect(only('invoke:agent-connections:oauth_start')).toHaveLength(1));
+    expect(only('invoke:agent-connections:oauth_start')[0].args[0]).toEqual({ action: 'oauth_start', id: 'conn-new', redirect_uri: 'https://ops.example.com/agent/oauth/zoho' });
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.zoho.com/oauth/v2/auth?client_id=1000.ABCDEF&state=xyz'));
+  });
+
+  it('shows the server message when the Zoho sign-in cannot start, and stays on the page', async () => {
+    h.oauthStart = { ok: false, error: 'The Client ID is not valid for this data center.' };
+    const dialog = await openApi();
+    fillFour(dialog);
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(within(dialog).getByTestId('zoho-connect')).toBeEnabled());
+    fireEvent.click(within(dialog).getByTestId('zoho-connect'));
+    expect(await within(dialog).findByTestId('connection-error')).toHaveTextContent('not valid for this data center');
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('shows the server refusal on save and keeps what was typed', async () => {
+    h.save = { ok: false, error: 'That Client ID looks wrong.' };
+    const dialog = await openApi();
+    fillFour(dialog);
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    expect(await within(dialog).findByTestId('connection-error')).toHaveTextContent('looks wrong');
+    expect((within(dialog).getByLabelText('Client secret') as HTMLInputElement).value).toBe(SECRETS[0]);
+    expect(within(dialog).getByTestId('connection-send-test-tag')).toBeDisabled(); // nothing saved, so nothing to test
+    expect(within(dialog).getByTestId('zoho-connect')).toBeDisabled();
+  });
+
+  it('the advanced section still sends a pasted refresh token or grant code', async () => {
+    const dialog = await openApi();
+    fillFour(dialog);
     type(dialog, 'Refresh token (optional)', SECRETS[2]);
-    type(dialog, 'Channel unique name', 'ops_alerts');
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0]).toMatchObject({ mode: 'api', dc: 'com', refresh_token: SECRETS[2], client_secret: SECRETS[0] });
     expect(saves()[0].grant_code).toBeUndefined();
-  });
-
-  it('shows the server refusal (for example an expired grant code) and keeps what was typed', async () => {
-    h.save = { ok: false, error: 'Zoho did not accept the grant code. It may have expired. Generate a new one.' };
-    const dialog = await openApi();
-    fillAll(dialog);
-    fireEvent.click(within(dialog).getByTestId('connection-save'));
-    expect(await within(dialog).findByTestId('connection-error')).toHaveTextContent('may have expired');
-    expect((within(dialog).getByLabelText('Grant code') as HTMLInputElement).value).toBe(SECRETS[1]);
-    expect(within(dialog).getByTestId('connection-send-test-tag')).toBeDisabled(); // nothing saved, so nothing to test
+    // a refresh token was saved, so the dialog counts as authorized
+    expect(within(dialog).getByTestId('zoho-status-authorized')).toHaveAttribute('data-done', 'true');
+    expect(within(dialog).getByTestId('zoho-connect')).toHaveTextContent('Reconnect');
   });
 
   const API_ROW = { id: 'c-api', kind: 'cliq', name: 'Ops via API', status: 'connected', config: { mode: 'api', preset: 'cliq-api', dc: 'in', client_id: '1000.ABCDEF', channel: 'ops_alerts', cc_manager: true, mention_people: true, events: ['flag_high'] }, vault_secret_names: ['agent_conn_x_secret', 'agent_conn_x_refresh'], last_error: null, last_tested_at: null };
@@ -1271,18 +1348,25 @@ describe('Connections: Zoho Cliq through the API', () => {
       expect(box.value).toBe('');
       expect(box.placeholder).toContain('saved');
     }
-    expect(within(dialog).getByLabelText('Grant code')).toBeInTheDocument(); // optional once a refresh token is saved
+    expect(within(dialog).getByLabelText('Grant code')).toBeInTheDocument(); // optional, under "advanced"
+    // already authorized: the main button reconnects and the checklist shows the ticks
+    expect(within(dialog).getByTestId('zoho-connect')).toHaveTextContent('Reconnect to Zoho');
+    expect(within(dialog).getByTestId('zoho-connect')).toBeEnabled();
+    expect(within(dialog).getByTestId('zoho-status-client')).toHaveAttribute('data-done', 'true');
+    expect(within(dialog).getByTestId('zoho-status-authorized')).toHaveAttribute('data-done', 'true');
+    expect(within(dialog).getByTestId('zoho-status-channel')).toHaveAttribute('data-done', 'true');
     expect(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })).toBeChecked();
     const save = within(dialog).getByTestId('connection-save');
     expect(save).toBeEnabled();
     type(dialog, 'Channel unique name', 'ops_two');
+    expect(within(dialog).getByTestId('zoho-connect')).toBeDisabled(); // unsaved change
     fireEvent.click(save);
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0]).toMatchObject({ id: 'c-api', mode: 'api', dc: 'in', client_id: '1000.ABCDEF', channel: 'ops_two', cc_manager: true });
     for (const k of ['client_secret', 'grant_code', 'refresh_token', 'url']) expect(saves()[0][k], k).toBeUndefined();
   });
 
-  it('a new grant code can be pasted on edit to connect again', async () => {
+  it('a new grant code can still be pasted on edit under advanced to connect again', async () => {
     h.tables = { ...BASE_TABLES, agent_connections: [API_ROW] };
     renderAt('/agent/connections');
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via API' }));
@@ -1306,6 +1390,34 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(rows[1]).getByTestId('connection-mode')).toHaveTextContent('Webhook');
     expect(within(rows[1]).queryByTestId('cc-manager-chip')).not.toBeInTheDocument();
     expect(rows[1]).toHaveTextContent('cliq.zoho.com');
+  });
+
+  it('a Cliq API card without a refresh token says "Needs Zoho sign-in" and its button opens the dialog; an authorized one says "Connected to Zoho"', async () => {
+    const WAITING = { ...API_ROW, id: 'c-wait', name: 'Waiting for Zoho', status: 'disconnected', vault_secret_names: ['agent_conn_z_secret'] };
+    h.tables = { ...BASE_TABLES, agent_connections: [WAITING, API_ROW, HOOK_ROW] };
+    renderAt('/agent/connections');
+    const rows = await screen.findAllByTestId('connection-row');
+    expect(within(rows[0]).getByTestId('zoho-chip')).toHaveTextContent('Needs Zoho sign-in');
+    expect(within(rows[0]).queryByTestId('connection-test')).not.toBeInTheDocument(); // a test cannot work before the sign-in
+    expect(within(rows[1]).getByTestId('zoho-chip')).toHaveTextContent('Connected to Zoho');
+    expect(within(rows[1]).queryByTestId('connection-zoho-connect')).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByTestId('zoho-chip')).not.toBeInTheDocument(); // the webhook way has no Zoho sign-in
+    fireEvent.click(within(rows[0]).getByTestId('connection-zoho-connect'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    expect(dialog).toHaveTextContent('Edit Waiting for Zoho');
+    expect(within(dialog).getByTestId('zoho-connect')).toHaveTextContent('Connect to Zoho');
+    expect(within(dialog).getByTestId('zoho-connect')).toBeEnabled();
+    expect(within(dialog).getByTestId('zoho-status-authorized')).toHaveAttribute('data-done', 'false');
+    fireEvent.click(within(dialog).getByTestId('zoho-connect'));
+    await waitFor(() => expect(only('invoke:agent-connections:oauth_start')[0]?.args[0]).toEqual({ action: 'oauth_start', id: 'c-wait', redirect_uri: 'https://ops.example.com/agent/oauth/zoho' }));
+  });
+
+  it('ticks "Test message sent" for a connection that was tested and works', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [{ ...API_ROW, last_tested_at: '2026-11-19T10:00:00Z' }] };
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via API' }));
+    const dialog = await screen.findByTestId('connection-dialog');
+    expect(within(dialog).getByTestId('zoho-status-tested')).toHaveAttribute('data-done', 'true');
   });
 
   it('a webhook Cliq connection can also CC the manager, but only sends it when changed', async () => {

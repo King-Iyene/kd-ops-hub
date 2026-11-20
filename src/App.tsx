@@ -82,6 +82,7 @@ const Placements       = lazy(() => import('./pages/Placements'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const OpsAgent         = lazy(() => import('./pages/OpsAgent'));
+const ZohoOAuthCallback = lazy(() => import('./pages/ZohoOAuthCallback'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const GuidePage        = lazy(() => import('./pages/Guide'));
 const DirectorDisbursements = lazy(() => import('./pages/DirectorDisbursements'));
@@ -967,6 +968,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin', 'admin']}>
               <AuditLog />
+            </RoleGuard>
+          }
+        />
+
+        {/* Zoho sends the person back here after they allow access. Listed first; React Router would pick it over /agent/* anyway. */}
+        <Route
+          path="/agent/oauth/zoho"
+          element={
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
+              <ZohoOAuthCallback />
             </RoleGuard>
           }
         />
