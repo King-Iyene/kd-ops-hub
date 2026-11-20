@@ -791,7 +791,7 @@ describe('Inbox, live monitoring', () => {
     expect(sites).toHaveTextContent('37m in total');
     const imgs = Array.from(sites.querySelectorAll('[data-testid="site-chip"] img')) as HTMLImageElement[];
     expect(imgs).toHaveLength(3);
-    expect(imgs.map((i) => i.getAttribute('src'))).toContain('https://www.google.com/s2/favicons?domain=youtube.com&sz=64');
+    expect(imgs.map((i) => i.getAttribute('src'))).toContain('https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://youtube.com&size=64');
     for (const img of imgs) {
       expect(img.getAttribute('loading')).toBe('lazy');
       expect(img.getAttribute('referrerpolicy')).toBe('no-referrer');
@@ -804,6 +804,21 @@ describe('Inbox, live monitoring', () => {
     expect(ring('weirdsite.io')).toBe('unknown');
   });
 
+  it('tries another favicon source when one cannot load, and shows the icon from it', async () => {
+    withFlags();
+    renderAt('/agent');
+    const items = await screen.findAllByTestId('inbox-item');
+    const sites = items.find((i) => i.getAttribute('data-rule') === 'TR05')!;
+    const chip = within(sites).getAllByTestId('site-chip').find((c) => c.textContent?.startsWith('youtube.com'))!;
+    fireEvent.error(chip.querySelector('img')!);
+    await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe('https://www.google.com/s2/favicons?domain=youtube.com&sz=64'));
+    expect(within(chip).queryByTestId('site-icon-fallback')).not.toBeInTheDocument();
+    fireEvent.error(chip.querySelector('img')!);
+    await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe('https://icons.duckduckgo.com/ip3/youtube.com.ico'));
+    fireEvent.error(chip.querySelector('img')!);
+    await waitFor(() => expect(chip.querySelector('img')?.getAttribute('src')).toBe('https://youtube.com/favicon.ico'));
+  });
+
   it('falls back to a coloured letter tile when a favicon cannot load', async () => {
     withFlags();
     renderAt('/agent');
@@ -811,7 +826,11 @@ describe('Inbox, live monitoring', () => {
     const sites = items.find((i) => i.getAttribute('data-rule') === 'TR05')!;
     const chip = within(sites).getAllByTestId('site-chip').find((c) => c.textContent?.startsWith('weirdsite.io'))!;
     expect(within(chip).queryByTestId('site-icon-fallback')).not.toBeInTheDocument();
-    fireEvent.error(chip.querySelector('img')!);
+    // every source is tried in turn before the letter appears
+    for (let i = 0; i < 4; i++) {
+      expect(within(chip).queryByTestId('site-icon-fallback')).not.toBeInTheDocument();
+      fireEvent.error(chip.querySelector('img')!);
+    }
     const tile = await within(chip).findByTestId('site-icon-fallback');
     expect(tile).toHaveTextContent('w');
     expect(chip.querySelector('img')).toBeNull();

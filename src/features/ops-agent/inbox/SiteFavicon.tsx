@@ -3,8 +3,20 @@ import { cn } from '@/lib/utils';
 import { hueOf } from '../PersonAvatar';
 import { cleanDomain, spent, type SiteCategory, type SiteVisit } from '../liveTypes';
 
-/** The favicon for a site. Only a domain is ever sent, never a page address. */
-export const faviconUrl = (domain: string) => `https://www.google.com/s2/favicons?domain=${encodeURIComponent(cleanDomain(domain))}&sz=64`;
+/**
+ * Where a site's favicon can come from, best first. Only a domain is ever sent, never a page address. If one source cannot load
+ * (blocked on a network, down, unknown site) the next is tried, and a coloured letter tile stands in only when every one fails.
+ */
+export function faviconSources(domain: string): string[] {
+  const d = encodeURIComponent(cleanDomain(domain));
+  return [
+    `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${d}&size=64`,
+    `https://www.google.com/s2/favicons?domain=${d}&sz=64`,
+    `https://icons.duckduckgo.com/ip3/${d}.ico`,
+    `https://${d}/favicon.ico`,
+  ];
+}
+export const faviconUrl = (domain: string) => faviconSources(domain)[0];
 
 const RING: Record<SiteCategory, string> = {
   unproductive: 'ring-2 ring-destructive',
@@ -15,11 +27,15 @@ export const CATEGORY_LABEL: Record<SiteCategory, string> = { unproductive: 'Unp
 
 /**
  * A site's favicon in a round tile. A red ring means unproductive, an amber ring means not on the list, no ring
- * means approved. If the icon cannot load (offline, blocked, unknown site) a coloured letter tile stands in.
+ * means approved. The icon is looked for in several places in turn; if none loads (offline, blocked, unknown site) a coloured letter tile stands in.
  */
 export function SiteIcon({ domain, category = 'approved', size = 22, className }: { domain: string; category?: SiteCategory; size?: number; className?: string }) {
-  const [failed, setFailed] = useState(false);
   const d = cleanDomain(domain);
+  // Which source we are on, remembered with the domain it was for (a different site starts again from the first).
+  const [tried, setTried] = useState<{ domain: string; n: number }>({ domain: d, n: 0 });
+  const sources = faviconSources(d);
+  const n = tried.domain === d ? tried.n : 0;
+  const failed = n >= sources.length;
   return (
     <span
       className={cn('relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white', RING[category], className)}
@@ -33,7 +49,7 @@ export function SiteIcon({ domain, category = 'approved', size = 22, className }
         >{d.charAt(0) || '?'}</span>
       ) : (
         <img
-          src={faviconUrl(d)} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)}
+          key={sources[n]} src={sources[n]} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setTried({ domain: d, n: n + 1 })}
           className="h-full w-full object-contain" style={{ padding: Math.max(2, Math.round(size * 0.16)) }}
         />
       )}
