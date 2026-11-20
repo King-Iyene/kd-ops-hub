@@ -15,6 +15,14 @@ export const FLOOR_KINDS: { id: string; label: string; swatch: string }[] = [
   { id: 'gray', label: 'Grey carpet', swatch: '#aeb6c1' },
   { id: 'carpet', label: 'Lavender carpet', swatch: '#dcdaf3' },
   { id: 'tile', label: 'Tiles', swatch: '#f4ead6' },
+  { id: 'darkwood', label: 'Dark wood', swatch: '#6b4527' },
+  { id: 'marble', label: 'Marble', swatch: '#f3f5f8' },
+  { id: 'checker', label: 'Black and white', swatch: '#1f2937' },
+  { id: 'navy', label: 'Navy carpet', swatch: '#33477a' },
+  { id: 'sage', label: 'Sage carpet', swatch: '#cfe3cf' },
+  { id: 'sand', label: 'Sand', swatch: '#e9d7a8' },
+  { id: 'brick', label: 'Brick paving', swatch: '#b5543a' },
+  { id: 'bluetile', label: 'Blue tiles', swatch: '#cfe6f2' },
 ];
 
 /** A little picture of an object, drawn with the same code as the office. */
