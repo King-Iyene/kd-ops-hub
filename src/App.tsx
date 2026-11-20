@@ -983,11 +983,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Ops Agent — Super Admin only (also enforced in the database). */}
+        {/* Ops Agent — Super Admin and Admin (also enforced in the database; only a Super Admin configures). */}
         <Route
           path="/agent/*"
           element={
-            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <OpsAgent />
             </RoleGuard>
           }

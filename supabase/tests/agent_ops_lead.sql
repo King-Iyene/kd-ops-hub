@@ -273,5 +273,24 @@ BEGIN
   RAISE NOTICE 'PASS 4: weekly scorecard';
 END $$;
 
+-- ── 5. an Admin can use the Agent (not configure it) ───────────────────────
+DO $$
+DECLARE v_su bigint;
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, job_title, role, status, pay_group_id) VALUES
+    ('a0000000-0000-0000-0000-0000000000ad', 'ada@t.local', 'Ada Admin', NULL, 'admin', 'active', 'e0000000-0000-0000-0000-000000000001');
+  PERFORM public.agent_run_rules('2026-11-23T14:40:00Z');   -- makes sure setup-gap items exist
+  SELECT count(*) INTO v_su FROM public.agent_flags WHERE rule_code = 'SU01' AND status = 'open';
+  PERFORM public.t_as('a0000000-0000-0000-0000-0000000000ad');
+  PERFORM public.t_eq('an Admin may use the Agent', public.agent_can_access(), true);
+  PERFORM public.t_eq('but not configure it', public.agent_can_configure(), false);
+  PERFORM public.t_eq('the screens are told: access, no configure', (public.agent_my_scope() ->> 'access') || '/' || (public.agent_my_scope() ->> 'configure'), 'true/false');
+  PERFORM public.t_eq('setup-gap items (no module) are visible to an Admin', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'SU01' AND status = 'open'), v_su);
+  PERFORM public.t_eq('summaries are visible to an Admin', (SELECT count(*) > 0 FROM public.agent_summaries), true);
+  PERFORM public.t_denied($q$SELECT public.agent_generate_summary('day')$q$, 'an Admin generating a summary on request');
+  RESET ROLE;
+  RAISE NOTICE 'PASS 5: Admin access';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

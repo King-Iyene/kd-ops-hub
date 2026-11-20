@@ -265,14 +265,16 @@ BEGIN
   RAISE NOTICE 'PASS 5b: bad arguments never throw; unknown tools are refused';
 END $$;
 
--- an Admin: the agent is Super Admin only, so every tool is refused
+-- an Admin: the tools work, through the Admin's own scope (row level security still decides what comes back)
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$
+DECLARE r jsonb;
 BEGIN
-  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('tasks', '{}')$q$, 'an Admin using the tasks tool', '42501');
-  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('people', '{}')$q$, 'an Admin using the people tool', '42501');
-  PERFORM public.t_denied($q$SELECT public.agent_chat_tool('request_human_action', '{"title":"x"}')$q$, 'an Admin asking for a human action', '42501');
-  RAISE NOTICE 'PASS 5c: an Admin cannot use any chat tool';
+  r := public.agent_chat_tool('tasks', '{}');
+  IF r IS NULL THEN RAISE EXCEPTION 'FAIL: an Admin got nothing from the tasks tool'; END IF;
+  r := public.agent_chat_tool('people', '{}');
+  IF r IS NULL THEN RAISE EXCEPTION 'FAIL: an Admin got nothing from the people tool'; END IF;
+  RAISE NOTICE 'PASS 5c: an Admin can use the chat tools';
 END $$;
 SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$ BEGIN PERFORM public.t_eq('Super Admin still sees tasks', jsonb_array_length(public.agent_chat_tool('tasks', '{}') -> 'tasks') > 0, true); END $$;

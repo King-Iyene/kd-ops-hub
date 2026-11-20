@@ -13,7 +13,7 @@
 --   2  every configure action is refused for an Admin (settings, scope, modules, people, rules, connections, keys)
 --   3  an Admin limited to one company cannot see another company's flags, events, summaries or people profiles
 --   4  an Admin cannot see flags about themselves, about other Admins, or about leadership (and the settings switch that)
---   5  a module that is switched off hides its flags; a sensitive module cannot be switched on
+--   5  a module that is switched off hides its flags; a Super Admin may switch a sensitive module on
 --   6  the reader role can read agent_read views and nothing else, and cannot write anywhere
 --   7  activity captures reach the reader as a domain only
 --   8  the AI budget guard goes ok -> warn (80%) -> off (100%)
@@ -119,7 +119,7 @@ DECLARE
 BEGIN
   FOR r IN SELECT * FROM (VALUES
       ('a0000000-0000-0000-0000-000000000001'::uuid, true,  true,  'super admin'),
-      ('a0000000-0000-0000-0000-000000000002'::uuid, false, false, 'admin (the agent is Super Admin only)'),
+      ('a0000000-0000-0000-0000-000000000002'::uuid, true,  false, 'admin'),
       ('a0000000-0000-0000-0000-000000000004'::uuid, false, false, 'operations'),
       ('a0000000-0000-0000-0000-000000000008'::uuid, false, false, 'inactive admin'),
       (NULL::uuid,                                   false, false, 'nobody signed in')
@@ -129,7 +129,7 @@ BEGIN
     IF public.agent_can_access() IS DISTINCT FROM r.can_access THEN RAISE EXCEPTION 'FAIL: agent_can_access for %', r.who; END IF;
     IF public.agent_can_configure() IS DISTINCT FROM r.can_configure THEN RAISE EXCEPTION 'FAIL: agent_can_configure for %', r.who; END IF;
   END LOOP;
-  RAISE NOTICE 'PASS 1: only Super Admin passes access and configure; Admins, members and inactive accounts pass nothing';
+  RAISE NOTICE 'PASS 1: only Super Admin and Admin pass access; only Super Admin passes configure; inactive accounts pass nothing';
 END $$;
 
 -- ═════ 2. Operations member: nothing at all ═══════════════════════════════
@@ -158,33 +158,43 @@ DO $$ BEGIN
   IF (SELECT mode FROM public.agent_settings) <> 'observe' THEN RAISE EXCEPTION 'FAIL: a member changed settings'; END IF;
 END $$;
 
--- ═════ 3. Admins: the agent is Super Admin only, so an Admin reads nothing and writes nothing ══════
+-- ═════ 3. Admin limited to KD Squares ═════════════════════════════════════
 SET ROLE authenticated;
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$
 BEGIN
-  IF public.t_count('SELECT 1 FROM public.agent_flags') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees flags'; END IF;
-  IF public.t_count('SELECT 1 FROM public.agent_flag_events') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees flag events'; END IF;
-  IF public.t_count('SELECT 1 FROM public.agent_summaries') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees summaries'; END IF;
-  IF public.t_count('SELECT 1 FROM public.agent_settings') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin reads settings'; END IF;
-  IF public.t_count('SELECT 1 FROM public.agent_rules') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin reads rules'; END IF;
-  IF (public.agent_my_scope() ->> 'access')::boolean THEN RAISE EXCEPTION 'FAIL: agent_my_scope gives an Admin access'; END IF;
+  IF public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags') <> '1' THEN
+    RAISE EXCEPTION 'FAIL: limited admin sees flags %', public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags');
+  END IF;
+  IF public.t_count('SELECT 1 FROM public.agent_flag_events') <> 1 THEN RAISE EXCEPTION 'FAIL: limited admin sees events of an NDI flag'; END IF;
+  IF public.t_ids('SELECT narrative FROM public.agent_summaries') <> 'KD' THEN RAISE EXCEPTION 'FAIL: limited admin sees another company''s summary'; END IF;
+  IF public.t_count('SELECT 1 FROM public.agent_settings') <> 1 THEN RAISE EXCEPTION 'FAIL: admin cannot read settings'; END IF;
+  RAISE NOTICE 'PASS 3: an Admin limited to KD Squares sees only KD flags, events and summaries (not NDI, not company-less system flags)';
+END $$;
+
+-- 2 (continued): every configure action is refused for an Admin
+DO $$
+BEGIN
   PERFORM public.t_denied($q$UPDATE public.agent_settings SET mode = 'enforce'$q$, 'admin changing mode');
+  PERFORM public.t_denied($q$UPDATE public.agent_settings SET ai_enabled = true$q$, 'admin enabling AI');
   PERFORM public.t_denied($q$INSERT INTO public.agent_company_scope (company_id, enabled) VALUES (gen_random_uuid(), true)$q$, 'admin adding company scope', '42501');
   PERFORM public.t_denied($q$UPDATE public.agent_module_access SET enabled = false$q$, 'admin switching a module');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_admin_scope (admin_id) VALUES ('a0000000-0000-0000-0000-000000000003')$q$, 'admin editing scopes', '42501');
   PERFORM public.t_denied($q$UPDATE public.agent_person_profile SET group_name = 'core'$q$, 'admin editing people');
   PERFORM public.t_denied($q$UPDATE public.agent_rules SET enabled = true$q$, 'admin editing rules');
   PERFORM public.t_denied($q$INSERT INTO public.agent_connections (kind, name) VALUES ('slack', 'x')$q$, 'admin adding a connection', '42501');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_identity_map (person_id) VALUES ('a0000000-0000-0000-0000-000000000005')$q$, 'admin mapping identities', '42501');
   PERFORM public.t_denied($q$INSERT INTO public.agent_domain_list (domain, category) VALUES ('x.com', 'approved')$q$, 'admin editing domains', '42501');
-  PERFORM public.t_denied($q$SELECT public.agent_domain_set('x.com', 'approved')$q$, 'admin setting a domain', '42501');
+  PERFORM public.t_denied($q$UPDATE public.agent_feature_proposals SET status = 'ignored'$q$, 'admin deciding proposals');
   PERFORM public.t_denied('SELECT public.agent_suggest_person_profiles()', 'admin calling suggest', '42501');
   PERFORM public.t_denied('SELECT public.agent_seed_domains()', 'admin calling seed domains', '42501');
   PERFORM public.t_denied($q$INSERT INTO public.agent_flags (rule_code, subject_type, subject_id, title) VALUES ('X', 'system', 'x', 'x')$q$, 'admin creating a flag', '42501');
   PERFORM public.t_denied($q$UPDATE public.agent_flags SET status = 'handled'$q$, 'admin editing a flag directly');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_ai_usage (feature, model) VALUES ('x', 'x')$q$, 'admin writing usage', '42501');
+  PERFORM public.t_denied($q$SELECT public.agent_log_ai_usage('x', 'm', 1, 0, 0, 1, 0.1)$q$, 'admin logging usage', '42501');
+  PERFORM public.t_denied($q$SELECT public.agent_audit_write('a0000000-0000-0000-0000-000000000001', 'forged')$q$, 'admin writing an audit row as someone else', '42501');
   PERFORM public.t_denied($q$SELECT key_hash FROM public.agent_api_keys$q$, 'admin reading key hashes', '42501');
-  PERFORM public.t_denied('SELECT public.agent_check_now()', 'admin checking now', '42501');
-  PERFORM public.t_denied('SELECT public.agent_team_pulse()', 'admin reading the pulse', '42501');
-  RAISE NOTICE 'PASS 3: an Admin sees nothing of the agent and cannot call any of it';
+  RAISE NOTICE 'PASS 2b: every configure action and every agent-only write is refused for an Admin';
 END $$;
 RESET ROLE;
 DO $$
@@ -192,25 +202,64 @@ BEGIN
   IF (SELECT mode FROM public.agent_settings) <> 'observe' OR NOT (SELECT ai_enabled FROM public.agent_settings) THEN RAISE EXCEPTION 'FAIL: an admin changed settings'; END IF;
 END $$;
 
--- ═════ 4. Super Admin sees everything and configures ══════════════════════
+-- ═════ 4. Admin who sees every company ═══════════════════════════════════
 SET ROLE authenticated;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
+DO $$
+BEGIN
+  IF public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags') <> '1,2,6' THEN
+    RAISE EXCEPTION 'FAIL: unrestricted admin sees flags % (expected 1,2,6: not about self, not about leadership, not a switched-off module)', public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags');
+  END IF;
+  RAISE NOTICE 'PASS 4: an Admin cannot see flags about themselves or about leadership; a switched-off module hides its flags';
+END $$;
+RESET ROLE;
+
+-- The other Admin's flag about Abel (an Admin) stays Super Admin only
+SET ROLE authenticated;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+DO $$ BEGIN
+  IF public.t_count('SELECT 1 FROM public.agent_flags WHERE id = ''f0000000-0000-0000-0000-000000000003''') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees a flag about another Admin'; END IF;
+  RAISE NOTICE 'PASS 4b: flags about any Admin are Super Admin only';
+END $$;
+
+-- ═════ Super Admin sees all, and configures ═══════════════════════════════
 SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$
 BEGIN
   IF public.t_count('SELECT 1 FROM public.agent_flags') <> 6 THEN RAISE EXCEPTION 'FAIL: super admin does not see all flags'; END IF;
-  UPDATE public.agent_settings SET mode = 'remind';
-  UPDATE public.agent_settings SET mode = 'observe';
-  RAISE NOTICE 'PASS 4: Super Admin sees every flag and can change settings';
+  UPDATE public.agent_settings SET mode = 'remind', hide_own_flags = false;
+  UPDATE public.agent_settings SET leadership_flags_super_admin_only = false;
+  RAISE NOTICE 'PASS: Super Admin sees every flag and can change settings';
 END $$;
 
--- ═════ 5. modules: a Super Admin may switch any of them on, including the sensitive ones ═════
+-- 4 (continued): the two switches open those flags up to Admins
+SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
 DO $$
 BEGIN
+  IF public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags') <> '1,2,3,4,6' THEN
+    RAISE EXCEPTION 'FAIL: with both switches off an admin sees % (expected 1,2,3,4,6)', public.t_ids('SELECT right(id::text, 1) FROM public.agent_flags');
+  END IF;
+  RAISE NOTICE 'PASS 4c: hide_own_flags and leadership_flags_super_admin_only control exactly those flags';
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+UPDATE public.agent_settings SET hide_own_flags = true, leadership_flags_super_admin_only = true, mode = 'observe';
+
+-- ═════ 5. modules ═════════════════════════════════════════════════════════
+DO $$
+BEGIN
+  -- a Super Admin may switch a sensitive module on (and off again); the agent still only counts things in them
   UPDATE public.agent_module_access SET enabled = true WHERE module_key = 'payroll';
   IF NOT (SELECT enabled FROM public.agent_module_access WHERE module_key = 'payroll') THEN RAISE EXCEPTION 'FAIL: sensitive module did not switch on'; END IF;
   UPDATE public.agent_module_access SET enabled = false WHERE module_key = 'payroll';
-  RAISE NOTICE 'PASS 5: a Super Admin can switch a sensitive module on and off';
+  UPDATE public.agent_module_access SET enabled = false WHERE module_key = 'task';
 END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
+DO $$ BEGIN
+  IF public.t_count('SELECT 1 FROM public.agent_flags WHERE module = ''task''') <> 0 THEN RAISE EXCEPTION 'FAIL: admin still sees flags of a module that was switched off'; END IF;
+  RAISE NOTICE 'PASS 5: a Super Admin can switch a sensitive module on and off; switching a module off hides its flags from Admins';
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+UPDATE public.agent_module_access SET enabled = true WHERE module_key = 'task';
 RESET ROLE;
 
 -- ═════ 6 and 7. the reader role ═══════════════════════════════════════════
@@ -283,7 +332,7 @@ RESET ROLE;
 
 -- ═════ 8. AI budget guard ═════════════════════════════════════════════════
 SET ROLE authenticated;
-SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$ BEGIN
   IF public.agent_ai_budget_state() ->> 'level' <> 'ok' THEN RAISE EXCEPTION 'FAIL: budget should start ok'; END IF;
 END $$;
@@ -328,32 +377,43 @@ BEGIN
   IF public.t_count('SELECT 1 FROM public.agent_audit_log WHERE action = ''update:agent_api_keys''') <> 1 THEN RAISE EXCEPTION 'FAIL: key revocation not audited'; END IF;
   RAISE NOTICE 'PASS 9a: settings, scope and key changes are audited with who, old and new value; long text shortened; key hash never logged';
 END $$;
+SELECT public.agent_audit('admin.own', 'x', 'y');
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
+SELECT public.agent_audit('admin.own', 'x', 'y');
 DO $$ BEGIN
-  IF public.t_count('SELECT 1 FROM public.agent_audit_log') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin reads the audit log'; END IF;
-  PERFORM public.t_denied($q$SELECT public.agent_audit('admin.own', 'x', 'y')$q$, 'an Admin writing the audit log', '42501');
-  RAISE NOTICE 'PASS 9b: an Admin reads and writes nothing in the audit log';
+  IF public.t_count('SELECT 1 FROM public.agent_audit_log') <> 1 THEN RAISE EXCEPTION 'FAIL: an Admin should see only their own audit rows, saw %', public.t_count('SELECT 1 FROM public.agent_audit_log'); END IF;
+  RAISE NOTICE 'PASS 9b: Super Admin reads the whole audit log, an Admin only their own actions';
 END $$;
 RESET ROLE;
 UPDATE public.agent_settings SET mode = 'observe', operating_rules = (SELECT operating_rules FROM public.agent_settings);
 
 -- ═════ 10. memory and chat ════════════════════════════════════════════════
 SET ROLE authenticated;
-SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$
 BEGIN
-  INSERT INTO public.agent_memory (type, content, status, proposed_by) VALUES ('exemption', 'Kemi is exempt from Track', 'proposed', 'a0000000-0000-0000-0000-000000000001');
-  INSERT INTO public.agent_chat_threads (user_id, title) VALUES ('a0000000-0000-0000-0000-000000000001', 'mine');
-  PERFORM public.t_denied($q$INSERT INTO public.agent_chat_threads (user_id) VALUES ('a0000000-0000-0000-0000-000000000003')$q$, 'opening a chat as someone else', '42501');
+  INSERT INTO public.agent_memory (type, content, status, proposed_by) VALUES ('exemption', 'Kemi is exempt from Track', 'proposed', 'a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_memory (type, content, status) VALUES ('fact', 'sneaky', 'active')$q$, 'admin activating memory directly', '42501');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_memory (type, content, status, proposed_by) VALUES ('fact', 'as someone else', 'proposed', 'a0000000-0000-0000-0000-000000000001')$q$, 'admin proposing as someone else', '42501');
+  UPDATE public.agent_memory SET status = 'active';
+  IF (SELECT status FROM public.agent_memory LIMIT 1) <> 'proposed' THEN RAISE EXCEPTION 'FAIL: an Admin approved a memory'; END IF;
+  INSERT INTO public.agent_chat_threads (user_id, title) VALUES ('a0000000-0000-0000-0000-000000000002', 'mine');
+  PERFORM public.t_denied($q$INSERT INTO public.agent_chat_threads (user_id) VALUES ('a0000000-0000-0000-0000-000000000003')$q$, 'admin opening a chat as someone else', '42501');
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
+DO $$ BEGIN
+  IF public.t_count('SELECT 1 FROM public.agent_memory') <> 0 THEN RAISE EXCEPTION 'FAIL: another Admin sees a proposal that is not active'; END IF;
+  IF public.t_count('SELECT 1 FROM public.agent_chat_threads') <> 0 THEN RAISE EXCEPTION 'FAIL: another Admin sees my chat'; END IF;
+END $$;
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+DO $$ BEGIN
+  IF public.t_count('SELECT 1 FROM public.agent_memory') <> 1 THEN RAISE EXCEPTION 'FAIL: Super Admin cannot see the proposal'; END IF;
   UPDATE public.agent_memory SET status = 'active', approved_by = 'a0000000-0000-0000-0000-000000000001';
 END $$;
 SELECT public.t_as('a0000000-0000-0000-0000-000000000003');
 DO $$ BEGIN
-  IF public.t_count('SELECT 1 FROM public.agent_memory') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees agent memory'; END IF;
-  IF public.t_count('SELECT 1 FROM public.agent_chat_threads') <> 0 THEN RAISE EXCEPTION 'FAIL: an Admin sees a chat'; END IF;
-  PERFORM public.t_denied($q$INSERT INTO public.agent_memory (type, content, status, proposed_by) VALUES ('fact', 'x', 'proposed', 'a0000000-0000-0000-0000-000000000003')$q$, 'an Admin proposing memory', '42501');
-  PERFORM public.t_denied($q$INSERT INTO public.agent_chat_threads (user_id) VALUES ('a0000000-0000-0000-0000-000000000003')$q$, 'an Admin opening a chat', '42501');
-  RAISE NOTICE 'PASS 10: a Super Admin keeps memory and a private chat; an Admin has neither';
+  IF public.t_count('SELECT 1 FROM public.agent_memory') <> 1 THEN RAISE EXCEPTION 'FAIL: an active memory should be visible to Admins'; END IF;
+  RAISE NOTICE 'PASS 10: Admin proposals wait for a Super Admin; approved memory is shared; chat threads are private';
 END $$;
 RESET ROLE;
 

@@ -42,7 +42,7 @@ const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-
 const KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat', 'telegram', 'email', 'webhook', 'n8n', 'api'];
 const SECRET_URL_KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat'];
 const LABELS: Record<string, string> = { slack: 'Slack incoming webhook', cliq: 'Zoho Cliq webhook', discord: 'Discord webhook', teams: 'Microsoft Teams webhook', gchat: 'Google Chat webhook' };
-const EVENTS = ['flag_high', 'flag_tracking', 'flag_all', 'summary_day', 'summary_week', 'summary_month'];
+const EVENTS = ['flag_high', 'flag_tracking', 'flag_all', 'flag_followup', 'summary_day', 'summary_week', 'summary_month', 'summary_briefing', 'summary_scorecard'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,7 +55,10 @@ Deno.serve(async (req) => {
 
   const auth = await authenticateAgentCaller(req);
   if (!auth.ok) return jsonResponse(cors(req), { error: auth.error }, auth.status);
-  if (!auth.caller.canConfigure) return jsonResponse(cors(req), { error: 'forbidden' }, 403);
+  // Setting up and changing connections is for Super Admins. Sending a message about an item is not: an Admin who may see the item may send it
+  // (reading the draft as the caller, below, proves that).
+  const action = (await req.clone().json().catch(() => ({})) as { action?: string }).action;
+  if (!auth.caller.canConfigure && action !== 'send_flag') return jsonResponse(cors(req), { error: 'forbidden' }, 403);
   const actor = auth.caller.userId;
 
   let body: Body = {};
