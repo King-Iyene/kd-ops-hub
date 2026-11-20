@@ -11,7 +11,7 @@
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
-//   sends the message a person edited in the Inbox about one item, with the link to the exact thing. cc_manager tags their manager too (Cliq, Slack). When it has gone out the item is marked
+//   sends the message a person edited in the Inbox about one item, with the link to the exact thing. cc_manager: tags their manager too (Cliq, Slack) or copies them on the email (default on). When it has gone out the item is marked
 //   handled (close: false keeps it open). Answers { ok: true, closed }.
 //   It sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
 //   for review items) from the item itself, so an address is never taken from the browser. The result is kept on the item.
@@ -24,7 +24,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authenticateAgentCaller, jsonResponse } from '../_shared/agent-auth.ts';
 import { serviceClient } from '../_shared/agent-claude.ts';
-import { ccFor, mentionFor } from '../_shared/agent-mention.ts';
+import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
       // The draft carries the recipient; reading it as the caller proves they may see this item.
       const { data: draft, error: draftError } = await auth.caller.asUser.rpc('agent_flag_draft', { p_flag: body.flag_id });
       if (draftError || !draft) return jsonResponse(cors(req), { ok: false, error: 'That item no longer exists.' }, 404);
-      const d = draft as { recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null; link?: { label?: string; url?: string; person_url?: string | null } | null };
+      const d = draft as { to?: string; recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null; link?: { label?: string; url?: string; person_url?: string | null } | null };
       const subject = (body.subject ?? d.subject ?? 'Ops Agent').trim().slice(0, 200);
       const label = d.recipient_name ?? 'the person';
       let r: { ok: boolean; error?: string };
@@ -251,7 +251,14 @@ Deno.serve(async (req) => {
         channel = 'email';
         // the person gets the link they can open (never an admin-only page)
         const personLink = d.link?.person_url ? { url: d.link.person_url, label: d.link.label ?? 'Open it' } : undefined;
-        r = await deliver({ kind: 'email', name: 'Email', config: { to: d.recipient_email } }, { url: null, token: null }, { title: subject, text, event: 'flag_message', link: personLink });
+        // Their manager is copied (unless the caller says not to). The address comes from the manager's own profile, never from the browser.
+        let ccEmail = '';
+        if (d.to !== 'manager' && body.cc_manager !== false) {
+          const { data: fl } = await db.from('agent_flags').select('person_id').eq('id', body.flag_id).maybeSingle();
+          const managerId = await managerOf(db, (fl?.person_id as string | null) ?? d.recipient_id);
+          if (managerId && managerId !== d.recipient_id) ccEmail = ((await db.from('profiles').select('email').eq('id', managerId).maybeSingle()).data?.email as string | undefined) ?? '';
+        }
+        r = await deliver({ kind: 'email', name: 'Email', config: { to: d.recipient_email, ...(ccEmail ? { cc: ccEmail } : {}) } }, { url: null, token: null }, { title: subject, text, event: 'flag_message', link: personLink });
       } else if (body.channel === 'connection') {
         const conn = await load(body.connection_id);
         if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);

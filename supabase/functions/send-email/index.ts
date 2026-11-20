@@ -12,7 +12,7 @@
 //            supabase secrets set TERMII_SENDER_ID=KDOps
 //
 // Payload:
-//   Email:     { channel?: 'email', to: string, subject: string, html: string }
+//   Email:     { channel?: 'email', to: string, subject: string, html: string, cc?: string | string[] }
 //   SMS:       { channel: 'sms',       to: string, message: string }
 //   WhatsApp:  { channel: 'whatsapp',  to: string, message: string }
 //
@@ -338,7 +338,10 @@ Deno.serve(async (req) => {
     }
 
     // ─── Email via Resend (default, existing behaviour unchanged) ───────────
-    const { to, subject, html } = body;
+    const { to, subject, html, cc } = body;
+    // Optional copies (for example a person's manager): at most three valid addresses.
+    const ccList: string[] = (Array.isArray(cc) ? cc : typeof cc === "string" ? cc.split(/[,;\s]+/) : [])
+      .map((a: unknown) => String(a).trim()).filter((a: string) => /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(a)).slice(0, 3);
     if (!to || !subject || !html) {
       return new Response(
         JSON.stringify({ ok: false, error: "to, subject, and html are required" }),
@@ -362,7 +365,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from, to: [to], subject, html }),
+      body: JSON.stringify({ from, to: [to], ...(ccList.length ? { cc: ccList } : {}), subject, html }),
       signal: AbortSignal.timeout(30_000),
     });
 

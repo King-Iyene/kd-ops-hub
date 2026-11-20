@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { Check, Copy, Loader2, Mail, RotateCcw, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,12 +15,16 @@ import { PersonAvatar } from '../PersonAvatar';
 import { supportsMentions } from '../connectionTemplate';
 import type { DetailDraft, DetailPerson } from '../detailTypes';
 
+type DraftTab = 'email' | 'channel';
+const TABS: { id: DraftTab; label: string }[] = [{ id: 'email', label: 'Email' }, { id: 'channel', label: 'Channel message' }];
+
 const firstName = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/)[0] || 'them';
 
 /**
  * The drafted message, fully editable. Nothing is ever sent by itself: Send email and Send to channel each ask first.
  * The request names the item and the channel only; the server decides the real recipient, so no address is sent from here.
  * A message that goes out marks the item handled, unless "Mark as handled after sending" is unticked (then the request says `close: false`).
+ * There are two texts: the Email (the person's manager is copied) and the Channel message (the manager is tagged at the bottom). Each keeps its own edits.
  */
 export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, manager = null, onClosed }: {
   flagId: string; draft: DetailDraft; recipientPhoto: string | null;
@@ -33,6 +37,11 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
   // What the person typed. null means "the suggestion", so a refreshed suggestion shows through until they edit it.
   const [subjectEdit, setSubjectEdit] = useState<string | null>(null);
   const [bodyEdit, setBodyEdit] = useState<string | null>(null);
+  const [channelEdit, setChannelEdit] = useState<string | null>(null);
+  const [tab, setTab] = useState<DraftTab>('email');
+  const tabRefs = useRef<Partial<Record<DraftTab, HTMLButtonElement | null>>>({});
+  // What the person chose for "CC the manager" on the email. Defaults to ticked.
+  const [emailCc, setEmailCc] = useState(true);
   const [connectionId, setConnectionId] = useState('');
   const [closeAfter, setCloseAfter] = useState(true);
   // What the person chose for "CC the manager", remembered with the connection it was chosen for. Until they choose, the connection's own setting decides.
@@ -42,20 +51,40 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
   const [copied, setCopied] = useState(false);
 
   const subject = subjectEdit ?? draft.subject;
-  const body = bodyEdit ?? draft.body;
-  const edited = subjectEdit !== null || bodyEdit !== null;
+  const emailBody = bodyEdit ?? draft.body;
+  const channelSuggested = draft.channel_body?.trim() ? draft.channel_body : draft.body;
+  const channelBody = channelEdit ?? channelSuggested;
+  const onEmail = tab === 'email';
+  const body = onEmail ? emailBody : channelBody;
+  const edited = onEmail ? subjectEdit !== null || bodyEdit !== null : channelEdit !== null;
   const who = draft.recipient_name ?? 'the recipient';
   const toLabel = draft.to === 'manager' ? 'to their manager' : 'to the person';
-  const canSend = subject.trim().length > 0 && body.trim().length > 0 && !send.isPending;
+  const canSendEmail = subject.trim().length > 0 && emailBody.trim().length > 0 && !send.isPending;
+  const canSendChannel = subject.trim().length > 0 && channelBody.trim().length > 0 && !send.isPending;
   const usable = (connections.data ?? []).filter((c) => c.status !== 'error');
   // The checkbox only makes sense for a Cliq or Slack connection, when the person has a manager and the message is not already for them.
   const picked = usable.find((c) => c.id === connectionId);
   const managerName = manager?.full_name?.trim() || null;
+  // The manager as the draft names them wins; the person's manager is the fallback for the channel wording.
+  const draftManager = draft.to !== 'manager' ? draft.manager ?? null : null;
+  const draftManagerName = draftManager?.name?.trim() || managerName;
+  // The email CC box needs a manager with an email address; the address itself is never sent, only the choice.
+  const canEmailCc = !!draftManager?.email;
+  const hasManager = draft.to !== 'manager' && (!!draftManager || !!manager);
   const canCc = !!picked && supportsMentions(picked.kind) && !!manager && draft.to !== 'manager' && draft.recipient_id !== manager.id;
   const cc = ccChoice?.id === connectionId ? ccChoice.value : picked?.config.cc_manager !== false;
   const tagsPerson = picked?.config.mention_people !== false;
 
-  const reset = () => { setSubjectEdit(null); setBodyEdit(null); setProblem(null); };
+  const reset = () => { if (onEmail) { setSubjectEdit(null); setBodyEdit(null); } else setChannelEdit(null); setProblem(null); };
+  const changeText = (v: string) => (onEmail ? setBodyEdit(v) : setChannelEdit(v));
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const next = e.key === 'ArrowRight' ? (i + 1) % TABS.length : e.key === 'ArrowLeft' ? (i + TABS.length - 1) % TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    setTab(TABS[next].id);
+    tabRefs.current[TABS[next].id]?.focus();
+  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(`${subject}\n\n${body}`); setCopied(true); setTimeout(() => setCopied(false), 1800); }
     catch { toast({ title: 'Could not copy', description: 'Select the text and copy it by hand.', variant: 'destructive' }); }
@@ -65,13 +94,14 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
     const conn = channel === 'connection' ? usable.find((c) => c.id === connectionId) : undefined;
     if (channel === 'connection' && !conn) return;
     const handledNote = closeAfter ? ' The item will be marked handled.' : '';
+    const copying = channel === 'email' && canEmailCc && emailCc;
     const ok = await confirm(channel === 'email'
-      ? { title: `Send this to ${firstName(draft.recipient_name)} by email?${handledNote}`, description: `The message is sent exactly as written here. It will not be sent until you confirm.`, confirmLabel: 'Send email' }
+      ? { title: `Send this to ${firstName(draft.recipient_name)} by email${copying ? `, copying ${draftManagerName ?? 'their manager'}` : ''}?${handledNote}`, description: `The message is sent exactly as written here. It will not be sent until you confirm.`, confirmLabel: 'Send email' }
       : { title: `Send this to ${conn!.name}?${handledNote}`, description: `The message is posted to the saved connection "${conn!.name}" exactly as written here. The person is not emailed.`, confirmLabel: 'Send to channel' });
     if (!ok) return;
     setProblem(null);
     send.mutate(
-      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), ...(conn && canCc ? { cc_manager: cc } : {}), subject: subject.trim(), text: body.trim(), ...(closeAfter ? {} : { close: false }) },
+      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), ...(conn && canCc ? { cc_manager: cc } : {}), ...(channel === 'email' && canEmailCc ? { cc_manager: emailCc } : {}), subject: subject.trim(), text: (channel === 'email' ? emailBody : channelBody).trim(), ...(closeAfter ? {} : { close: false }) },
       {
         onSuccess: (r) => {
           if (r?.ok) {
@@ -98,13 +128,34 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
         <p className="text-2xs text-muted-foreground">Edit anything. Nothing is sent until you press Send.</p>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="draft-subject">Subject</Label>
-        <Input id="draft-subject" value={subject} maxLength={200} onChange={(e) => setSubjectEdit(e.target.value)} />
+      <div role="tablist" aria-label="Which message to edit" className="inline-flex w-full rounded-lg bg-muted p-1 sm:w-auto" data-testid="draft-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.id} type="button" role="tab" id={`draft-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="draft-panel" tabIndex={tab === t.id ? 0 : -1}
+            ref={(el) => { tabRefs.current[t.id] = el; }} onClick={() => setTab(t.id)} onKeyDown={onTabKey} data-testid={`draft-tab-${t.id}`}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none ${tab === t.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >{t.label}</button>
+        ))}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="draft-body">Message</Label>
-        <Textarea id="draft-body" rows={11} value={body} onChange={(e) => setBodyEdit(e.target.value)} className="text-sm leading-relaxed" />
+
+      <div role="tabpanel" id="draft-panel" aria-labelledby={`draft-tab-${tab}`} className="space-y-3" data-testid={`draft-panel-${tab}`}>
+        <div className="space-y-1.5">
+          <Label htmlFor="draft-subject">{onEmail ? 'Subject' : 'Title (same as the email subject)'}</Label>
+          <Input id="draft-subject" value={subject} maxLength={200} onChange={(e) => setSubjectEdit(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="draft-body">Message</Label>
+          <Textarea id="draft-body" rows={11} value={body} onChange={(e) => changeText(e.target.value)} className="text-sm leading-relaxed" />
+        </div>
+        {onEmail && draft.to !== 'manager' && canEmailCc && (
+          <div className="space-y-1" data-testid="email-cc-manager">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={emailCc} onCheckedChange={(c) => setEmailCc(c === true)} data-testid="email-cc-manager-box" /> CC {draftManagerName ?? 'their manager'} (their manager)
+            </label>
+            <p className="text-xs text-muted-foreground" data-testid="email-cc-note">{emailCc ? 'Their manager is copied on the email.' : 'Not copied.'}</p>
+          </div>
+        )}
+        {!onEmail && hasManager && <p className="text-xs text-muted-foreground" data-testid="channel-tag-note">Their manager is tagged at the bottom to follow up.</p>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -112,13 +163,13 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
         <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={copy} aria-label={copied ? 'Copied' : 'Copy the message'}>
           {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-success" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />} {copied ? 'Copied' : 'Copy'}
         </Button>
-        <Button type="button" size="sm" className="ml-auto h-8" onClick={() => run('email')} disabled={!canSend} data-testid="send-email">
+        <Button type="button" size="sm" className="ml-auto h-8" onClick={() => run('email')} disabled={!canSendEmail} data-testid="send-email">
           {send.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1.5 h-3.5 w-3.5" />} Send email
         </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2.5">
-        <Select value={connectionId} onValueChange={setConnectionId} disabled={usable.length === 0}>
+        <Select value={connectionId} onValueChange={(v) => { setConnectionId(v); if (v) setTab('channel'); }} disabled={usable.length === 0}>
           <SelectTrigger className="h-8 min-w-0 flex-1 text-xs sm:max-w-[16rem]" aria-label="Channel to send to" data-testid="channel-select">
             <SelectValue placeholder={usable.length === 0 ? 'No saved connections' : 'Pick a channel'} />
           </SelectTrigger>
@@ -126,7 +177,7 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
             {usable.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} · {CONNECTION_KINDS.find((k) => k.kind === c.kind)?.label ?? c.kind}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => run('connection')} disabled={!canSend || !connectionId} data-testid="send-channel">
+        <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => run('connection')} disabled={!canSendChannel || !connectionId} data-testid="send-channel">
           <Send className="mr-1.5 h-3.5 w-3.5" /> Send to channel
         </Button>
         {usable.length === 0 && !connections.isLoading && <p className="w-full text-2xs text-muted-foreground">Add a Slack, Cliq, email, webhook or n8n connection in Connections to post there.</p>}

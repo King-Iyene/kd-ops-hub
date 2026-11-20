@@ -567,7 +567,7 @@ BEGIN
   IF d ->> 'body' NOT LIKE '%Your timer, started at 9:16 AM EST%' OR d ->> 'body' NOT LIKE '%captured nothing since it started%' OR d ->> 'body' NOT LIKE '%Open it here: https://%/timesheets%' THEN RAISE EXCEPTION 'FAIL: TR06 draft: %', d ->> 'body'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR08' AND status = 'open' LIMIT 1;
   d := public.agent_flag_draft(v_id);
-  IF d ->> 'body' NOT LIKE '%I noticed time in Steam (about 10 min) today.%' OR d ->> 'body' NOT LIKE '%blocked on work time%' THEN RAISE EXCEPTION 'FAIL: TR08 draft: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%Time in Steam (about 10 min) today.%' OR d ->> 'body' NOT LIKE '%blocked on work time%' THEN RAISE EXCEPTION 'FAIL: TR08 draft: %', d ->> 'body'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR07' AND status = 'open' LIMIT 1;
   IF public.agent_flag_draft(v_id) ->> 'body' NOT LIKE '%Manual time on Mon Nov 23%' THEN RAISE EXCEPTION 'FAIL: TR07 draft names the day'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR10' AND status = 'open' LIMIT 1;

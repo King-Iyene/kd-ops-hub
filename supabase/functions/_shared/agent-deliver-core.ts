@@ -101,7 +101,7 @@ export function parseRecipients(raw: unknown): string[] {
 
 export type BuiltRequest =
   | { type: 'http'; url: string; init: { method: string; headers: Record<string, string>; body?: string }; /** Zoho takes two spellings of the sign-in header; if the first is refused the sender tries this one once. */ retryAuthorization?: string }
-  | { type: 'email'; payload: { channel: 'email'; to: string; subject: string; html: string } }
+  | { type: 'email'; payload: { channel: 'email'; to: string; subject: string; html: string; cc?: string } }
   | { type: 'error'; error: string };
 
 // ── The generic API connection ──────────────────────────────────────────────
@@ -184,7 +184,9 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     if (to.length === 0) return { type: 'error', error: 'Add at least one email address to send to.' };
     if (to.length > 5) return { type: 'error', error: 'Five addresses at most.' };
     if (!to.every((a) => EMAIL.test(a))) return { type: 'error', error: 'One of the email addresses is not valid.' };
-    return { type: 'email', payload: { channel: 'email', to: to.join(','), subject: title || 'Ops Agent', html: emailHtml(plain, link) } };
+    // Copies (for example the person's manager), set by the sender, never typed by a browser.
+    const cc = parseRecipients(cfg.cc).filter((a) => EMAIL.test(a)).slice(0, 3);
+    return { type: 'email', payload: { channel: 'email', to: to.join(','), subject: title || 'Ops Agent', html: emailHtml(plain, link), ...(cc.length ? { cc: cc.join(',') } : {}) } };
   }
 
   if (conn.kind === 'slack' || conn.kind === 'cliq') {
@@ -194,12 +196,22 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     // Their manager is tagged on the next line as a CC.
     const tagging = cfg.mention_people !== false;
     const ref = (n: { name: string; id: string }) => (n.id ? renderMention(conn.kind as 'cliq' | 'slack', cfg.mention_template, n.id) : '');
-    const tag = tagging
-      ? (msg.mention ? `For ${msg.mention.name}${ref(msg.mention) ? `: ${ref(msg.mention)}` : ''}\n` : '')
-        + (msg.cc ? `CC ${msg.cc.name} (manager)${ref(msg.cc) ? `: ${ref(msg.cc)}` : ''}\n` : '')
+    // A drafted message can name the person or their manager as "@Full Name": that becomes a real tag (or the plain name when there is
+    // no id). A person or manager named that way is not tagged again at the top.
+    let inline = text;
+    const named = { mention: false, cc: false };
+    if (tagging) {
+      for (const k of ['mention', 'cc'] as const) {
+        const n = k === 'mention' ? msg.mention : msg.cc;
+        if (n?.name && inline.includes(`@${n.name}`)) { inline = inline.replace(`@${n.name}`, ref(n) || n.name); named[k] = true; }
+      }
+    }
+    const tag = tagging && !msg.ask
+      ? (msg.mention && !named.mention ? `For ${msg.mention.name}${ref(msg.mention) ? `: ${ref(msg.mention)}` : ''}\n` : '')
+        + (msg.cc && !named.cc ? `CC ${msg.cc.name} (manager)${ref(msg.cc) ? `: ${ref(msg.cc)}` : ''}\n` : '')
       : '';
     // Written to the person: they are addressed and asked what is going on, and their manager is tagged at the bottom to follow up.
-    let content = `${tag}${text}`;
+    let content = `${tag}${inline}`;
     if (msg.ask && tagging && msg.mention) {
       const who = ref(msg.mention) || msg.mention.name;
       const lines = [`${who}, here is what we noticed: ${msg.ask.observation}`, msg.ask.question];

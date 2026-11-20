@@ -26,8 +26,16 @@ export interface DetailToday {
 
 export interface DetailRecurrence { window_days: number; count_in_window: number; label: string; dates: string[]; total: number }
 
+/** The person's manager as the draft names them (`null` when they have none). */
+export interface DraftManager { id: string; name: string; email: string | null }
+
+/**
+ * `body` is the EMAIL text. `channel_body` is the Cliq/Slack text, which ends with an `@<manager name>` line the server turns into a tag
+ * (older servers leave it out, so the screen falls back to `body`). For a draft addressed to the manager, `channel_body` equals `body` and `manager` is null.
+ */
 export interface DetailDraft {
   to: 'person' | 'manager'; recipient_name: string | null; recipient_email?: string | null; recipient_id: string | null; subject: string; body: string;
+  channel_body?: string | null; manager?: DraftManager | null;
 }
 
 export interface TimelineEvent { kind: string; at: string; actor: string | null; detail: Record<string, unknown> | null }
@@ -51,7 +59,7 @@ export interface FlagDetail {
   messages: SentMessage[];
 }
 
-/** `close: false` keeps the item open; left out, a sent message marks it handled. `cc_manager` (Cliq and Slack connections only) also tags the person's manager. */
+/** `close: false` keeps the item open; left out, a sent message marks it handled. `cc_manager` means "copy their manager on the email" for `channel: 'email'` (the server defaults it to ON, so it is sent explicitly) and "tag the manager" for a Cliq or Slack connection. */
 export interface SendFlagInput { flag_id: string; channel: 'email' | 'connection'; connection_id?: string; subject: string; text: string; close?: boolean; cc_manager?: boolean }
 export interface SendFlagResult { ok: boolean; closed?: boolean; error?: string }
 

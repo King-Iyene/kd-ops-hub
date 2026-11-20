@@ -1,0 +1,1 @@
+-- Rollback for 20261419000000_agent_draft_questions.sql: re-apply agent_flag_draft from 20261418000000_agent_manager_resolution.sql.

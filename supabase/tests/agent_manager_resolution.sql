@@ -49,6 +49,31 @@ SELECT public.t_eq('the detail card names the manager', (public.agent_flag_detai
 SELECT public.t_eq('no manager anywhere still shows none', (public.agent_flag_detail('f1000000-0000-0000-0000-000000000002') -> 'person' -> 'manager'), 'null'::jsonb);
 RESET ROLE;
 
+
+-- ── the drafted message is a question to the person; the manager is copied on the email and tagged in the channel message ────────────
+INSERT INTO public.agent_flags (id, rule_code, severity, subject_type, subject_id, person_id, manager_id, title, why, item_type, period_key)
+VALUES ('f1000000-0000-0000-0000-000000000003', 'TR01', 'medium', 'person', 'a0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', NULL, 'Not tracking time',
+        'Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.', 'flag', '2026-11-20'),
+       ('f1000000-0000-0000-0000-000000000004', 'TK14', 'low', 'person', 'a0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', NULL, 'Done well', 'Finished early.', 'flag', '2026-11-20');
+SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
+DO $$
+DECLARE d jsonb;
+BEGIN
+  d := public.agent_flag_draft('f1000000-0000-0000-0000-000000000003');
+  IF d ->> 'body' NOT LIKE 'Hi Sam,%Here is what we noticed: Their work day started at 9:00 AM ET%Can you tell us what is going on with this, and what happened?%' THEN RAISE EXCEPTION 'FAIL: the draft asks the person: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%I have copied Pat Profile (your manager) so they can follow up with you.%Thank you,%' THEN RAISE EXCEPTION 'FAIL: the email names the copied manager: %', d ->> 'body'; END IF;
+  IF d ->> 'channel_body' NOT LIKE '%Can you tell us what is going on with this, and what happened?%@Pat Profile please follow up with Sam and get clarity on what is happening.' THEN RAISE EXCEPTION 'FAIL: the channel message tags the manager last: %', d ->> 'channel_body'; END IF;
+  IF d ->> 'channel_body' LIKE '%Thank you%' OR d ->> 'channel_body' LIKE '%I have copied%' THEN RAISE EXCEPTION 'FAIL: the channel message has no email wording'; END IF;
+  IF d -> 'manager' ->> 'email' <> 'u2@t.local' OR d -> 'manager' ->> 'name' <> 'Pat Profile' THEN RAISE EXCEPTION 'FAIL: the draft carries the manager: %', d -> 'manager'; END IF;
+  -- nobody to copy: no manager line, and both texts are the same
+  d := public.agent_flag_draft('f1000000-0000-0000-0000-000000000002');
+  IF d -> 'manager' <> 'null'::jsonb OR d ->> 'body' LIKE '%copied%' OR d ->> 'channel_body' <> d ->> 'body' THEN RAISE EXCEPTION 'FAIL: no manager means no manager line: %', d; END IF;
+  -- a thank-you is not a question and copies nobody
+  d := public.agent_flag_draft('f1000000-0000-0000-0000-000000000004');
+  IF d ->> 'body' LIKE '%Can you tell us%' OR d -> 'manager' <> 'null'::jsonb THEN RAISE EXCEPTION 'FAIL: a thank-you stays a thank-you: %', d; END IF;
+END $$;
+RESET ROLE;
+
 -- ROLLBACK so nothing stays
 ROLLBACK;
 SELECT 'ok' AS agent_manager_resolution;

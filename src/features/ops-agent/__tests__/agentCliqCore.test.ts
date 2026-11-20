@@ -71,6 +71,43 @@ describe('Cliq API message to the person, with the manager at the bottom', () =>
   });
 });
 
+describe('a drafted channel message', () => {
+  const conn = { kind: 'cliq' as const, name: 'Cliq', config: { mode: 'api', dc: 'com', channel: 'ops_alerts' } };
+  const text = 'Hi Sam,\n\nHere is what we noticed: Not tracking.\n\nCan you tell us what is going on?\n\n@Pat Profile please follow up with Sam and get clarity on what is happening.';
+  it('turns "@Manager Name" into a real tag at the bottom and does not tag the manager twice', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'Not tracking', text, mention: { name: 'Sam Setting', id: '111' }, cc: { name: 'Pat Profile', id: '222' } });
+    if (b.type !== 'http') throw new Error('expected http');
+    const t = JSON.parse(b.init.body!).text as string;
+    expect(t).toContain('For Sam Setting: {@111}');
+    expect(t).toContain('{@222} please follow up with Sam');
+    expect(t).not.toContain('@Pat Profile');
+    expect(t).not.toContain('CC Pat Profile (manager)');
+  });
+  it('keeps the plain name when the manager has no Cliq id', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'T', text, mention: { name: 'Sam Setting', id: '111' }, cc: { name: 'Pat Profile', id: '' } });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toContain('Pat Profile please follow up with Sam');
+  });
+  it('still adds the CC line at the top when the text does not name the manager', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'T', text: 'A short note', mention: { name: 'Sam Setting', id: '111' }, cc: { name: 'Pat Profile', id: '222' } });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toContain('CC Pat Profile (manager): {@222}');
+  });
+});
+
+describe('an email that copies the manager', () => {
+  it('carries the copy address, valid ones only and at most three', async () => {
+    const b = await buildRequest({ kind: 'email', name: 'Email', config: { to: 'sam@x.co', cc: 'pat@x.co, not-an-email, a@x.co, b@x.co, c@x.co' } }, {}, { title: 'Not tracking', text: 'Hi' });
+    if (b.type !== 'email') throw new Error('expected email');
+    expect(b.payload.cc).toBe('pat@x.co,a@x.co,b@x.co');
+  });
+  it('has no cc when there is none', async () => {
+    const b = await buildRequest({ kind: 'email', name: 'Email', config: { to: 'sam@x.co' } }, {}, { title: 'T', text: 'Hi' });
+    if (b.type !== 'email') throw new Error('expected email');
+    expect(b.payload.cc).toBeUndefined();
+  });
+});
+
 describe('Cliq API message', () => {
   const secrets = { access: '1000.accesstoken123' };
   it('posts to the channel with the person tagged and their manager as a CC', async () => {

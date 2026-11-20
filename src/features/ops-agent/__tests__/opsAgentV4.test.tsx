@@ -666,7 +666,7 @@ describe('sending to a Cliq or Slack channel: CC the manager', () => {
     expect(req).toMatchObject({ connection_id: 'sl', cc_manager: false });
   });
 
-  it('is not offered for other connections, and email never carries cc_manager', async () => {
+  it('is not offered for other connections, and an email carries no cc_manager when the draft names no manager', async () => {
     renderUi(<InboxTab />);
     const sheet = await open();
     await pick(sheet, /Billing hook/);
@@ -693,5 +693,139 @@ describe('sending to a Cliq or Slack channel: CC the manager', () => {
     const sheet = await open();
     await pick(sheet, /Ops Cliq/);
     expect(within(sheet).queryByTestId('cc-manager')).not.toBeInTheDocument();
+  });
+});
+
+describe('two drafts: the Email and the Channel message', () => {
+  const MANAGER = { id: 'm1', name: 'Dayo Boss', email: 'dayo@kd.test' };
+  const EMAIL = 'Hi Cara,\n\nCould you tell me what is happening?\n\nDayo Boss is copied.';
+  const CHANNEL = 'Hi Cara, could you tell me what is happening?\n\n@Dayo Boss please follow up with Cara and get clarity on what is happening.';
+  const draftOf = (over: Record<string, unknown> = {}) => ({ to: 'person', recipient_name: 'Cara Obi', recipient_email: 'cara@kd.test', recipient_id: 'p1', subject: 'Time not tracked today', body: EMAIL, channel_body: CHANNEL, manager: MANAGER, ...over });
+  const CONNECTIONS = [{ id: 'cq', kind: 'cliq', name: 'Ops Cliq', status: 'connected', config: { mode: 'api', cc_manager: true, mention_people: true }, vault_secret_names: ['a_secret', 'a_refresh'], last_error: null, last_tested_at: null }];
+  const body = (sheet: HTMLElement) => within(sheet).getByLabelText('Message') as HTMLTextAreaElement;
+  const open = async () => {
+    const cards = await screen.findAllByTestId('inbox-item');
+    fireEvent.click(within(cards.find((c) => c.getAttribute('data-rule') === 'TR01')!).getByTestId('flag-open'));
+    const sheet = await screen.findByTestId('flag-detail');
+    await within(sheet).findByLabelText('Message');
+    return sheet;
+  };
+  const sent = () => only('invoke:agent-connections:send_flag')[0].args[0] as Record<string, unknown>;
+  const sendEmail = async (sheet: HTMLElement) => {
+    fireEvent.click(within(sheet).getByTestId('send-email'));
+    const dialog = await screen.findByRole('alertdialog');
+    return dialog;
+  };
+  const confirmWith = async (dialog: HTMLElement, name: string) => {
+    fireEvent.click(within(dialog).getByRole('button', { name }));
+    await waitFor(() => expect(only('invoke:agent-connections:send_flag')).toHaveLength(1));
+    return sent();
+  };
+
+  beforeEach(() => {
+    h.tables = { ...h.tables, agent_connections: CONNECTIONS };
+    h.detail = { ...h.detail, f1: detailFor(trackingFlag, { draft: draftOf() }) };
+    Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture ?? (() => false);
+    Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture ?? (() => undefined);
+    Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => undefined);
+  });
+
+  it('starts on the Email tab with draft.body, accessible tabs, and the CC box ticked', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    expect(within(sheet).getByRole('tablist', { name: 'Which message to edit' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('tab', { name: 'Email' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(sheet).getByRole('tab', { name: 'Channel message' })).toHaveAttribute('aria-selected', 'false');
+    expect(body(sheet).value).toBe(EMAIL);
+    expect(within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss (their manager)' })).toBeChecked();
+    expect(within(sheet).getByTestId('email-cc-note')).toHaveTextContent('Their manager is copied on the email.');
+  });
+
+  it('the CC box sends cc_manager: true on the email, and the confirmation mentions the CC', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    const dialog = await sendEmail(sheet);
+    expect(dialog).toHaveTextContent('Send this to Cara by email, copying Dayo Boss? The item will be marked handled.');
+    const req = await confirmWith(dialog, 'Send email');
+    expect(req).toMatchObject({ action: 'send_flag', flag_id: 'f1', channel: 'email', cc_manager: true, text: EMAIL });
+    expect('connection_id' in req).toBe(false);
+    expect(JSON.stringify(req)).not.toMatch(/kd\.test/); // no address from the browser
+  });
+
+  it('unticking sends cc_manager: false, says Not copied, and drops the CC from the confirmation', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss (their manager)' }));
+    expect(within(sheet).getByTestId('email-cc-note')).toHaveTextContent('Not copied.');
+    const dialog = await sendEmail(sheet);
+    expect(dialog).toHaveTextContent('Send this to Cara by email? The item will be marked handled.');
+    expect(await confirmWith(dialog, 'Send email')).toMatchObject({ channel: 'email', cc_manager: false });
+  });
+
+  it('the Channel tab shows channel_body, keeps its own edits, and Send to channel sends the channel text', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    fireEvent.change(body(sheet), { target: { value: 'edited email' } });
+    fireEvent.click(within(sheet).getByRole('tab', { name: 'Channel message' }));
+    expect(body(sheet).value).toBe(CHANNEL);
+    expect(within(sheet).getByTestId('channel-tag-note')).toHaveTextContent('Their manager is tagged at the bottom to follow up.');
+    expect(within(sheet).queryByTestId('email-cc-manager')).not.toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /Reset to suggested/ })).toBeDisabled(); // nothing edited on this tab
+    fireEvent.change(body(sheet), { target: { value: 'edited channel' } });
+    fireEvent.click(within(sheet).getByRole('tab', { name: 'Email' }));
+    expect(body(sheet).value).toBe('edited email');
+    fireEvent.click(within(sheet).getByRole('tab', { name: 'Channel message' }));
+    expect(body(sheet).value).toBe('edited channel');
+    // Reset acts on the active tab only
+    fireEvent.click(within(sheet).getByRole('button', { name: /Reset to suggested/ }));
+    expect(body(sheet).value).toBe(CHANNEL);
+    fireEvent.click(within(sheet).getByRole('tab', { name: 'Email' }));
+    expect(body(sheet).value).toBe('edited email');
+    // Send email from the Email tab sends the email text; sending to the channel from here sends the channel text
+    const trigger = within(sheet).getByTestId('channel-select');
+    await waitFor(() => expect(trigger).toBeEnabled());
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('option', { name: /Ops Cliq/ }));
+    expect(within(sheet).getByRole('tab', { name: 'Channel message' })).toHaveAttribute('aria-selected', 'true'); // picking a channel switches tab
+    fireEvent.click(within(sheet).getByTestId('send-channel'));
+    const req = await confirmWith(await screen.findByRole('alertdialog'), 'Send to channel');
+    expect(req).toMatchObject({ channel: 'connection', connection_id: 'cq', text: CHANNEL, subject: 'Time not tracked today' });
+  });
+
+  it('arrow keys move between the tabs', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    const email = within(sheet).getByRole('tab', { name: 'Email' });
+    email.focus();
+    fireEvent.keyDown(email, { key: 'ArrowRight' });
+    expect(within(sheet).getByRole('tab', { name: 'Channel message' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(sheet).getByRole('tab', { name: 'Channel message' })).toHaveFocus();
+  });
+
+  it('falls back to body on the Channel tab when channel_body is missing', async () => {
+    h.detail = { ...h.detail, f1: detailFor(trackingFlag, { draft: draftOf({ channel_body: undefined }) }) };
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    fireEvent.click(within(sheet).getByRole('tab', { name: 'Channel message' }));
+    expect(body(sheet).value).toBe(EMAIL);
+  });
+
+  it('hides the CC box and the tag note for a draft addressed to the manager, and sends no cc_manager', async () => {
+    h.detail = { ...h.detail, f1: detailFor(trackingFlag, { draft: draftOf({ to: 'manager', recipient_name: 'Dayo Boss', recipient_id: 'm1', body: EMAIL, channel_body: EMAIL, manager: null }) }) };
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    expect(within(sheet).queryByTestId('email-cc-manager')).not.toBeInTheDocument();
+    const req = await confirmWith(await sendEmail(sheet), 'Send email');
+    expect('cc_manager' in req).toBe(false);
+  });
+
+  it('hides the CC box when there is no manager, or the manager has no email address', async () => {
+    for (const manager of [null, { id: 'm1', name: 'Dayo Boss', email: null }]) {
+      h.detail = { ...h.detail, f1: detailFor(trackingFlag, { draft: draftOf({ manager }) }) };
+      const { unmount } = renderUi(<InboxTab />);
+      const sheet = await open();
+      expect(within(sheet).queryByTestId('email-cc-manager')).not.toBeInTheDocument();
+      unmount();
+    }
   });
 });
