@@ -326,11 +326,15 @@ class Ambient {
   }
 
   /** a bark, a meow, or a happy purr or yip */
-  pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy') {
+  pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy', volume = 1) {
     if (!this.enabled) return;
     const c = this.ensure();
     if (!c || !this.master || !this.noise || c.state !== 'running') return;
-    const out = this.master;
+    // a quieter voice for a pet that is further away
+    const bus = c.createGain();
+    bus.gain.value = Math.max(0, Math.min(1, volume));
+    bus.connect(this.master);
+    const out = bus;
     const now = c.currentTime;
     const env = (g: GainNode, at: number, peak: number, len: number) => {
       g.gain.setValueAtTime(0.0001, at);

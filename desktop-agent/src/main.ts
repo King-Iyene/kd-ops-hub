@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, screen, Notification, shell, powerMonitor } from 'electron';
 import Store from 'electron-store';
 import * as path from 'path';
+import * as fs from 'fs';
 import { autoUpdater } from 'electron-updater';
 
 // dotenv is a dev-only convenience for `npm start` — it loads a local .env
@@ -93,14 +94,48 @@ app.on('second-instance', () => {
 /** The version that has been downloaded and is waiting to be installed (null when there is none). */
 let updateReadyVersion: string | null = null;
 
-/** Quit, install the downloaded version and start the tracker again. A running timer is ended first (see before-quit). */
+/** A small log of what the updater does (userData/updater.log), so "it did not update" can be answered by reading it. */
+function logUpdate(...parts: unknown[]) {
+  try {
+    const file = path.join(app.getPath('userData'), 'updater.log');
+    try { if (fs.statSync(file).size > 200000) fs.writeFileSync(file, ''); } catch { /* no log yet */ }
+    fs.appendFileSync(file, `${new Date().toISOString()} ${parts.map((p) => (p && (p as Error).stack) || String(p)).join(' ')}\n`);
+  } catch { /* logging must never break the app */ }
+}
+
+/**
+ * Quit, install the downloaded version and start the tracker again. A running timer is ended first (see before-quit).
+ * It must be silent (the first argument): without it the installer wizard opens and people had to click through it, or gave up and reinstalled.
+ */
 function installUpdateNow() {
-  try { autoUpdater.quitAndInstall(false, true); } catch { app.quit(); }
+  logUpdate('restart to update requested');
+  try { autoUpdater.quitAndInstall(true, true); } catch (e) { logUpdate('quitAndInstall failed:', e); app.quit(); }
+}
+
+// A downloaded update used to wait until the tracker was quit, and it lives in the tray for days, so people stayed on old versions.
+// It now installs by itself when no timer is running AND the person is away (idle for 10 minutes, or the screen is locked),
+// or when it was downloaded earlier and the tracker has just been started. Never while a timer is running.
+const startedAt = Date.now();
+function allowAutoInstall(version: string): boolean {
+  const file = path.join(app.getPath('userData'), 'auto-install.json');
+  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); if (j.version === version && Date.now() - j.at < 30 * 60 * 1000) return false; } catch { /* never tried */ }
+  try { fs.writeFileSync(file, JSON.stringify({ version, at: Date.now() })); } catch { /* fine */ }
+  return true;
+}
+function installByItself(why: string) {
+  if (!updateReadyVersion || isQuitting || activeTimer) return;
+  if (!allowAutoInstall(updateReadyVersion)) { logUpdate('not installing by itself (tried a moment ago):', why); return; }
+  logUpdate('installing', updateReadyVersion, 'by itself:', why);
+  installUpdateNow();
 }
 
 function initAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: (...a: unknown[]) => logUpdate('info', ...a), warn: (...a: unknown[]) => logUpdate('warn', ...a), error: (...a: unknown[]) => logUpdate('error', ...a), debug: () => undefined } as never;
+  logUpdate('updater ready, app version', app.getVersion());
+  let foundAt = 0;
+  autoUpdater.on('update-available', (info) => { foundAt = Date.now(); logUpdate('update available', info.version); });
   autoUpdater.on('error', (err) => {
     // Non-fatal by design — an offline machine or a GitHub hiccup must never
     // crash or block the agent; it just tries again next launch.
@@ -108,6 +143,8 @@ function initAutoUpdater() {
   });
   autoUpdater.on('update-downloaded', (info) => {
     updateReadyVersion = info.version;
+    logUpdate('update downloaded', info.version);
+    if (Date.now() - foundAt < 15000 && Date.now() - startedAt < 5 * 60 * 1000) setTimeout(() => installByItself('it was downloaded earlier and the tracker has just started'), 3000);
     rebuildTrayMenu();
     const n = new Notification({
       title: 'KD Ops Time Tracker',
@@ -123,7 +160,9 @@ function initAutoUpdater() {
   // Look again every 2 hours.
   setInterval(() => {
     autoUpdater.checkForUpdates().catch(() => { /* offline or GitHub hiccup: try again next time */ });
-  }, 2 * 60 * 60 * 1000);
+  }, 60 * 60 * 1000);
+  setInterval(() => { if (updateReadyVersion && powerMonitor.getSystemIdleTime() >= 600) installByItself('away for 10 minutes'); }, 60 * 1000);
+  powerMonitor.on('lock-screen', () => { if (updateReadyVersion) installByItself('screen locked'); });
 }
 
 // Reports this install into time_agent_settings (app_version, last_login_at,
