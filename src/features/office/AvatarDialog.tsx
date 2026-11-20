@@ -122,6 +122,10 @@ const OUTFIT_LOOKS: [number, string, Partial<AvatarStyle>][] = [
   [33, 'Scrubs', { shirt: '#0ea5e9', pants: '#0ea5e9', shoes: 0, shoeColor: '#ffffff', glasses: 1 }],
   [34, 'Puffer', { shirt: '#f97316', pants: '#111827', shoes: 2, shoeColor: '#374151', hat: 2, hatColor: '#111827' }],
   [35, 'Football', { shirt: '#dc2626', bottom: 1, pants: '#ffffff', shoes: 0, shoeColor: '#111827' }],
+  [36, 'Etibo', { shirt: '#f8fafc', pants: '#b91c1c', shoes: 1, shoeColor: '#111827', hat: 28, hatColor: '#1f2937', beard: 2 }],
+  [37, 'Wrapper and blouse', { shirt: '#f8fafc', pants: '#2563eb', shoes: 3, shoeColor: '#d6ac50', hat: 7, hatColor: '#dc2626', hairStyle: 2 }],
+  [38, 'George wrapper', { shirt: '#dc2626', pants: '#7c3aed', shoes: 4, shoeColor: '#d6ac50', hat: 7, hatColor: '#7c3aed', extra: 2 }],
+  [39, 'Chest wrapper', { shirt: '#16a34a', shoes: 6, shoeColor: '#6b4423', hairStyle: 2 }],
 ];
 LOOKS.push(
   ...OUTFIT_LOOKS.map(([outfit, label, rest]): (typeof LOOKS)[number] => ({ id: 'outfit-' + outfit, label, apply: () => ({ ...CLEAR, outfit, ...rest }) })),

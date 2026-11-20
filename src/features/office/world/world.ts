@@ -383,6 +383,37 @@ export function reachable(solid: boolean[][], sx: number, sy: number): Set<strin
   return out;
 }
 
+/** Is there open floor all the way along the straight line from one point to another? (the tiles at both ends are not checked) */
+export function lineClear(solid: boolean[][], ax: number, ay: number, bx: number, by: number): boolean {
+  const d = Math.hypot(bx - ax, by - ay);
+  const steps = Math.max(1, Math.ceil(d / 0.2));
+  const ta = { x: Math.floor(ax), y: Math.floor(ay) };
+  const tb = { x: Math.floor(bx), y: Math.floor(by) };
+  for (let i = 1; i < steps; i++) {
+    const x = Math.floor(ax + ((bx - ax) * i) / steps);
+    const y = Math.floor(ay + ((by - ay) * i) / steps);
+    if ((x === ta.x && y === ta.y) || (x === tb.x && y === tb.y)) continue;
+    if (solid[y]?.[x] !== false) return false;
+  }
+  return true;
+}
+
+/** The open tile (as a tile centre) nearest to a point, not nearer than the given obstacles, looking up to a few tiles around; null when there is none. */
+export function nearestOpenTile(solid: boolean[][], x: number, y: number, avoid: { x: number; y: number }[] = [], maxR = 5): { x: number; y: number } | null {
+  let best: { x: number; y: number } | null = null;
+  let bd = Infinity;
+  const cx = Math.floor(x), cy = Math.floor(y);
+  for (let dy = -maxR; dy <= maxR; dy++) for (let dx = -maxR; dx <= maxR; dx++) {
+    const tx = cx + dx, ty = cy + dy;
+    if (solid[ty]?.[tx] !== false) continue;
+    const px = tx + 0.5, py = ty + 0.5;
+    if (avoid.some((q) => Math.hypot(q.x - px, q.y - py) < 0.8)) continue;
+    const d = Math.hypot(px - x, py - y);
+    if (d < bd && lineClear(solid, x, y, px, py)) { bd = d; best = { x: px, y: py }; }
+  }
+  return best;
+}
+
 /**
  * A walking route from (sx, sy) to (tx, ty) as waypoints at tile centres (the start tile is left out), going around
  * walls and furniture. If the target tile is blocked the route ends next to it. Null when there is no way there.

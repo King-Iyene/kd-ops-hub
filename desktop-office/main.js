@@ -41,6 +41,7 @@ let tray = null;
 let quitting = false;
 let active = 'ops';
 let updateReadyVersion = null;
+const startedAt = Date.now();
 let autoUpdater = null;
 const views = {};
 const counts = { ops: 0, office: 0 };
@@ -582,6 +583,24 @@ function logUpdate(...parts) {
   } catch { /* logging must never break the app */ }
 }
 
+// An update that was downloaded but never installed is the real reason people stayed on old versions: the app lives in the tray for days
+// and the install only happens when it is quit. So the app installs it by itself, the moment it is safe:
+//  - the person has been away from the computer for 10 minutes, or locked the screen, or
+//  - the update was already downloaded earlier and the app has just been started (nothing is open yet).
+// The install is silent and the app opens again by itself. A guard stops it from trying the same version more than once every 30 minutes.
+function allowAutoInstall(version) {
+  const file = path.join(app.getPath('userData'), 'auto-install.json');
+  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); if (j.version === version && Date.now() - j.at < 30 * 60 * 1000) return false; } catch { /* never tried */ }
+  try { fs.writeFileSync(file, JSON.stringify({ version, at: Date.now() })); } catch { /* fine */ }
+  return true;
+}
+function installByItself(why) {
+  if (!updateReadyVersion || quitting) return;
+  if (!allowAutoInstall(updateReadyVersion)) { logUpdate('not installing by itself (tried a moment ago):', why); return; }
+  logUpdate('installing', updateReadyVersion, 'by itself:', why);
+  installUpdateNow();
+}
+
 function initAutoUpdater() {
   if (!app.isPackaged || SMOKE) return;
   try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
@@ -590,10 +609,12 @@ function initAutoUpdater() {
   autoUpdater.logger = { info: (...a) => logUpdate('info', ...a), warn: (...a) => logUpdate('warn', ...a), error: (...a) => logUpdate('error', ...a), debug: () => undefined };
   logUpdate('updater ready, app version', app.getVersion());
   autoUpdater.on('error', (e) => { logUpdate('updater error:', e); /* offline or no new version file: try again at the next check */ });
-  autoUpdater.on('update-available', (info) => logUpdate('update available', info.version));
+  let foundAt = 0;
+  autoUpdater.on('update-available', (info) => { foundAt = Date.now(); logUpdate('update available', info.version); });
   autoUpdater.on('update-downloaded', (info) => {
     updateReadyVersion = info.version;
     logUpdate('update downloaded', info.version);
+    if (Date.now() - foundAt < 15000 && Date.now() - startedAt < 5 * 60 * 1000) setTimeout(() => installByItself('it was downloaded earlier and the app has just started'), 3000);
     rebuildTray();
     const n = new Notification({
       title: NAME,
@@ -605,9 +626,12 @@ function initAutoUpdater() {
     n.on('close', () => shown.delete(n));
     n.show();
   });
-  const check = () => { autoUpdater.checkForUpdates().catch(() => undefined); };
+  const check = () => { autoUpdater.checkForUpdates().catch((e) => logUpdate('check failed:', e)); };
   setTimeout(check, 20000);
-  setInterval(check, 2 * 60 * 60 * 1000);
+  setInterval(check, 60 * 60 * 1000);
+  // away from the computer: install now
+  setInterval(() => { if (updateReadyVersion && powerMonitor.getSystemIdleTime() >= 600) installByItself('away for 10 minutes'); }, 60 * 1000);
+  powerMonitor.on('lock-screen', () => { if (updateReadyVersion) installByItself('screen locked'); });
 }
 
 // real system notifications (Windows toast, macOS notification centre, Linux desktop notification), made here so they work
