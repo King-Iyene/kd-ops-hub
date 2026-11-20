@@ -105,14 +105,15 @@ class Ambient {
     if (this.blipTimer !== null) { window.clearTimeout(this.blipTimer); this.blipTimer = null; }
     if (tone?.blips) {
       const loop = () => {
-        this.blip();
+        this.roomBlip();
         this.blipTimer = window.setTimeout(loop, 600 + Math.random() * 1700);
       };
       this.blipTimer = window.setTimeout(loop, 900);
     }
   }
 
-  private blip() {
+  /** one arcade bleep for the game room (the other blip below is a tone with its own settings; they shared a name, so this one never ran) */
+  private roomBlip() {
     const c = this.ctx;
     if (!this.enabled || !c || !this.master || c.state !== 'running') return;
     const base = [440, 523, 659, 784, 988][Math.floor(Math.random() * 5)];
