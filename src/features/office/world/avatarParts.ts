@@ -28,19 +28,19 @@ export function shade(hex: string, amount: number): string {
 
 // ---------- the lists the editor shows (the position in each list is the number saved on the avatar) ----------
 export const HAIR_STYLES = ['Short', 'Long', 'Bun', 'None', 'Curly', 'Quiff', 'Braids', 'Afro', 'Bob', 'Mohawk', 'Locs', 'Pigtails', 'Ponytail', 'Cornrows', 'Locs bun', 'Space buns', 'Side part', 'Fade', 'Topknot', 'Long and straight', 'Bob with fringe', 'Afro puffs', 'Bantu knots', 'Twists', 'Mullet', 'Crown braid', 'Long braid'];
-export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top', 'Kimono', 'Sari', 'Kurta', 'Cheongsam', 'Hanbok', 'Ao dai', 'Poncho', 'Charro suit', 'Flamenco dress', 'Thobe', 'Kilt', 'Maasai shuka', 'Sherwani'];
+export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top', 'Kimono', 'Sari', 'Kurta', 'Cheongsam', 'Hanbok', 'Ao dai', 'Poncho', 'Charro suit', 'Flamenco dress', 'Thobe', 'Kilt', 'Maasai shuka', 'Sherwani', 'Tracksuit', 'Scrubs', 'Puffer jacket', 'Football shirt'];
 export const BEARDS = ['None', 'Stubble', 'Moustache', 'Beard', 'Goatee', 'Handlebar', 'Long beard'];
 export const SHOES = ['Sneakers', 'Formal', 'Boots', 'Sandals', 'Heels', 'Slippers', 'Barefoot'];
 export const BOTTOMS = ['Trousers', 'Shorts', 'Capri', 'Leggings', 'Joggers', 'Bermuda', 'Bare legs'];
 export const HATS = ['None', 'Cap', 'Beanie', 'Head wrap', 'Beret', 'Cowboy hat', 'Fila cap', 'Gele', 'Hijab', 'Turban', 'Top hat', 'Chef hat', 'Crown', 'Hard hat', 'Graduation cap', 'Igbo red cap', 'Kufi', 'Bucket hat', 'Fedora', 'Flat cap', 'Backwards cap', 'Trucker cap', 'Visor', 'Bandana', 'Sun hat', 'Sombrero', 'Pom beanie', 'Newsboy', 'Bowler', 'Santa hat', 'Dastar', 'Ghutra and agal', 'Conical hat'];
 export const GLASSES = ['None', 'Glasses', 'Sunglasses', 'Round glasses', 'Monocle', '3D glasses', 'Star glasses'];
 export const EXTRAS = ['None', 'Headset', 'Earrings', 'Face mask', 'Flower', 'Face paint', 'Big hoops', 'Eye patch', 'Bindi', 'Nose ring'];
-export const COSTUMES = ['None', 'Robot', 'Zombie', 'Ghost', 'Pirate', 'Rat', 'Alien', 'Clown', 'Skeleton', 'Cat', 'Dog', 'Bear', 'Astronaut', 'Ninja', 'Wizard', 'Knight', 'Superhero', 'Devil', 'Angel', 'Pumpkin', 'Banana', 'Duck', 'Cyborg', 'Vampire', 'Mummy', 'Dinosaur', 'Penguin', 'Frog'];
+export const COSTUMES = ['None', 'Robot', 'Zombie', 'Ghost', 'Pirate', 'Rat', 'Alien', 'Clown', 'Skeleton', 'Cat', 'Dog', 'Bear', 'Astronaut', 'Ninja', 'Wizard', 'Knight', 'Superhero', 'Devil', 'Angel', 'Pumpkin', 'Banana', 'Duck', 'Cyborg', 'Vampire', 'Mummy', 'Dinosaur', 'Penguin', 'Frog', 'Bunny', 'Fox', 'Unicorn', 'Bee'];
 export const JACKETS = ['None', 'Blazer', 'Denim', 'Bomber', 'Waistcoat'];
 export const TIES = ['None', 'Tie', 'Bow tie', 'Scarf'];
 
 /** Outfits whose sleeves reach the wrist or beyond. */
-export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17, 19, 21, 22, 24, 26, 28, 31];
+export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17, 19, 21, 22, 24, 26, 28, 31, 32, 34];
 /** Outfits that hide the legs (a gown or robe to the floor). */
 export const FLOOR_OUTFITS = [7, 10, 11, 12, 13, 19, 20, 23, 27, 28];
 
@@ -575,6 +575,27 @@ export function drawOutfitX(ctx: Ctx, a: AvatarStyle, P: Pose) {
     ctx.fillStyle = grad(top, py + 8 + bob, col);
     ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 11 + sway, py + 8 + bob); ctx.lineTo(px - 11 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
     if (!back) { ctx.fillStyle = shade(col, 0.2); rr(ctx, px - 3.4, top - 0.6, 6.8, 2.6, 1); ctx.fill(); for (let k = 0; k < 5; k++) disc(ctx, px, top + 3 + k * 2.6, 0.8, gold); ctx.strokeStyle = gold; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px - 3.4, top); ctx.lineTo(px - 2, py + 7.4 + bob); ctx.moveTo(px + 3.4, top); ctx.lineTo(px + 2, py + 7.4 + bob); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px - 11 + sway, py + 7 + bob); ctx.lineTo(px + 11 + sway, py + 7 + bob); ctx.stroke(); }
+  } else if (o === 32 || o === 34) { // a tracksuit jacket (zip, white side stripes) or a padded puffer jacket (quilted bands, high collar)
+    const puff = o === 34;
+    ctx.fillStyle = grad(top, py + 7 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.6, top); ctx.lineTo(px + 9.6, top); ctx.lineTo(px + (puff ? 11.6 : 10.4) + sway * 0.5, py + 7 + bob); ctx.lineTo(px - (puff ? 11.6 : 10.4) + sway * 0.5, py + 7 + bob); ctx.closePath(); ctx.fill();
+    for (const sd of [-1, 1]) { ctx.fillStyle = shade(col, -0.06); ctx.fillRect(px + sd * 10.5 - (puff ? 2.8 : 2.4), py - 9 + bob, puff ? 5.6 : 4.8, 9.5); if (!puff) { ctx.fillStyle = '#ffffff'; ctx.fillRect(px + sd * 10.5 - 0.6, py - 9 + bob, 1.2, 9.5); } }
+    if (puff) { ctx.strokeStyle = shade(col, -0.34); ctx.lineWidth = 0.9; for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(px - 10.4, top + k * 4.4); ctx.lineTo(px + 10.4, top + k * 4.4); ctx.stroke(); } for (const sd of [-1, 1]) for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(px + sd * 10.5 - 2.8, py - 9 + bob + k * 3.1); ctx.lineTo(px + sd * 10.5 + 2.8, py - 9 + bob + k * 3.1); ctx.stroke(); } }
+    else { ctx.fillStyle = '#ffffff'; ctx.fillRect(px - 9.6, top, 1.3, 15.5); ctx.fillRect(px + 8.3, top, 1.3, 15.5); }
+    ctx.fillStyle = shade(col, 0.18); rr(ctx, px - (puff ? 4.6 : 3.6), top - 1.2, puff ? 9.2 : 7.2, puff ? 3.4 : 2.6, 1.2); ctx.fill();
+    if (!back) { ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(px, top + 1.4); ctx.lineTo(px, py + 7 + bob); ctx.stroke(); disc(ctx, px, top + 3.6, 0.9, '#e5e7eb'); }
+  } else if (o === 33) { // scrubs: a V-neck top with a pocket
+    ctx.fillStyle = grad(top, py + 6 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.2, top); ctx.lineTo(px + 9.2, top); ctx.lineTo(px + 10 + sway * 0.5, py + 6 + bob); ctx.lineTo(px - 10 + sway * 0.5, py + 6 + bob); ctx.closePath(); ctx.fill();
+    for (const sd of [-1, 1]) disc(ctx, px + sd * 9.8, top + 2.6, 3.4, col);
+    if (!back) { ctx.fillStyle = a.skin; ctx.beginPath(); ctx.moveTo(px - 3.4, top - 0.4); ctx.lineTo(px + 3.4, top - 0.4); ctx.lineTo(px, top + 4.8); ctx.closePath(); ctx.fill(); ctx.strokeStyle = shade(col, -0.3); ctx.lineWidth = 0.8; rr(ctx, px + 3.4, py - 4 + bob, 4.2, 3.6, 0.8); ctx.stroke(); disc(ctx, px - 6, py - 3 + bob, 0.6, '#f8fafc'); }
+  } else if (o === 35) { // a football shirt: stripes, a white V collar and a number
+    ctx.fillStyle = grad(top, py + 6 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.2, top); ctx.lineTo(px + 9.2, top); ctx.lineTo(px + 10 + sway * 0.5, py + 6 + bob); ctx.lineTo(px - 10 + sway * 0.5, py + 6 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; for (let k = 0; k < 4; k++) ctx.fillRect(px - 9.6 + k * 5, top, 2.4, 17);
+    for (const sd of [-1, 1]) { disc(ctx, px + sd * 9.8, top + 2.6, 3.4, col); ctx.fillStyle = '#ffffff'; ctx.fillRect(px + sd * 9.8 - 2.4, top + 4.4, 4.8, 1); }
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('10', px, py - 1 + bob); ctx.textAlign = 'start';
+    if (!back) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(px - 3.4, top - 0.4); ctx.lineTo(px + 3.4, top - 0.4); ctx.lineTo(px, top + 4.2); ctx.closePath(); ctx.fill(); ctx.fillStyle = a.skin; ctx.beginPath(); ctx.moveTo(px - 2.2, top - 0.4); ctx.lineTo(px + 2.2, top - 0.4); ctx.lineTo(px, top + 2.8); ctx.closePath(); ctx.fill(); }
   } else if (o === 17) { // a lab coat
     ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(px - 9.6, top); ctx.lineTo(px + 9.6, top); ctx.lineTo(px + 11 + sway, py + 8 + bob); ctx.lineTo(px - 11 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
     if (!back) {

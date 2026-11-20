@@ -11,8 +11,8 @@ function box(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fi
 }
 
 /** The names, in the order saved on the avatar (0 means none). */
-export type CostumeKind = 'none' | 'robot' | 'zombie' | 'ghost' | 'pirate' | 'rat' | 'alien' | 'clown' | 'skeleton' | 'cat' | 'dog' | 'bear' | 'astronaut' | 'ninja' | 'wizard' | 'knight' | 'superhero' | 'devil' | 'angel' | 'pumpkin' | 'banana' | 'duck' | 'cyborg' | 'vampire' | 'mummy' | 'dinosaur' | 'penguin' | 'frog';
-export const COSTUME_KINDS: CostumeKind[] = ['none', 'robot', 'zombie', 'ghost', 'pirate', 'rat', 'alien', 'clown', 'skeleton', 'cat', 'dog', 'bear', 'astronaut', 'ninja', 'wizard', 'knight', 'superhero', 'devil', 'angel', 'pumpkin', 'banana', 'duck', 'cyborg', 'vampire', 'mummy', 'dinosaur', 'penguin', 'frog'];
+export type CostumeKind = 'none' | 'robot' | 'zombie' | 'ghost' | 'pirate' | 'rat' | 'alien' | 'clown' | 'skeleton' | 'cat' | 'dog' | 'bear' | 'astronaut' | 'ninja' | 'wizard' | 'knight' | 'superhero' | 'devil' | 'angel' | 'pumpkin' | 'banana' | 'duck' | 'cyborg' | 'vampire' | 'mummy' | 'dinosaur' | 'penguin' | 'frog' | 'bunny' | 'fox' | 'unicorn' | 'bee';
+export const COSTUME_KINDS: CostumeKind[] = ['none', 'robot', 'zombie', 'ghost', 'pirate', 'rat', 'alien', 'clown', 'skeleton', 'cat', 'dog', 'bear', 'astronaut', 'ninja', 'wizard', 'knight', 'superhero', 'devil', 'angel', 'pumpkin', 'banana', 'duck', 'cyborg', 'vampire', 'mummy', 'dinosaur', 'penguin', 'frog', 'bunny', 'fox', 'unicorn', 'bee'];
 
 const BASE: Partial<AvatarStyle> = { jacket: 0, tie: 0, hat: 0, glasses: 0, extra: 0, beard: 0, accessory: 0 };
 
@@ -48,6 +48,10 @@ export function costumeStyle(a: AvatarStyle): AvatarStyle {
     case 'dinosaur': Object.assign(s, { skin: '#65a30d', shirt: '#65a30d', pants: '#4d7c0f', outfit: 0, shoes: 3, shoeColor: '#4d7c0f', bottom: 1 }); break;
     case 'penguin': Object.assign(s, { skin: '#1f2937', shirt: '#1f2937', pants: '#1f2937', outfit: 0, shoes: 3, shoeColor: '#fb923c', bottom: 1 }); break;
     case 'frog': Object.assign(s, { skin: '#4ade80', shirt: '#22c55e', pants: '#16a34a', outfit: 0, shoes: 3, shoeColor: '#fb923c', bottom: 1 }); break;
+    case 'bunny': Object.assign(s, { skin: '#f8fafc', shirt: '#f1f5f9', pants: '#e2e8f0', outfit: 0, shoes: 3, shoeColor: '#fbcfe8', bottom: 1 }); break;
+    case 'fox': Object.assign(s, { skin: '#f97316', shirt: '#ea580c', pants: '#9a3412', outfit: 0, shoes: 2, shoeColor: '#7c2d12', bottom: 1 }); break;
+    case 'unicorn': Object.assign(s, { skin: '#fdf2f8', shirt: '#f5d0fe', pants: '#e9d5ff', outfit: 0, shoes: 3, shoeColor: '#fde68a', bottom: 0 }); break;
+    case 'bee': Object.assign(s, { skin: '#fde047', shirt: '#facc15', pants: '#111827', outfit: 0, shoes: 2, shoeColor: '#111827', bottom: 0 }); break;
     case 'duck': Object.assign(s, { skin: '#fde047', shirt: '#fde047', pants: '#fde047', outfit: 0, shoes: 3, shoeColor: '#fb923c', bottom: 1 }); break;
   }
   return { ...a, ...s } as AvatarStyle;
@@ -71,6 +75,10 @@ export function drawCostumeBack(ctx: Ctx, kind: CostumeKind, P: Pose) {
     case 'astronaut': box(ctx, px - 8, py - 12 + bob, 16, 15, 3, '#cbd5e1'); box(ctx, px - 6, py - 10 + bob, 12, 3, 1, '#94a3b8'); break;
     case 'ninja': ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(px - fx * 8, hy - 3); ctx.lineTo(px - fx * 17 - sway, hy + 2); ctx.lineTo(px - fx * 15 - sway, hy + 5); ctx.lineTo(px - fx * 8, hy - 0.4); ctx.closePath(); ctx.fill(); if (fx === 0) { ctx.beginPath(); ctx.moveTo(px + 7, hy - 3); ctx.lineTo(px + 16 + sway, hy + 3); ctx.lineTo(px + 14 + sway, hy + 6); ctx.lineTo(px + 7, hy - 0.4); ctx.closePath(); ctx.fill(); } break;
     case 'knight': ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.moveTo(px - 3, hy - 9); ctx.quadraticCurveTo(px - fx * 12 - 4 - sway, hy - 14, px - fx * 11 - 6 - sway, hy - 3); ctx.lineTo(px - fx * 6, hy - 6); ctx.closePath(); ctx.fill(); break;
+    case 'bunny': disc(ctx, px - fx * 7, py + 4 + bob, 3.4, '#ffffff'); disc(ctx, px - fx * 7.4, py + 3.6 + bob, 1.6, '#e2e8f0'); break;
+    case 'fox': { ctx.lineCap = 'round'; ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(px + (fx === 0 ? 6 : -fx * 5), py + 4 + bob); ctx.quadraticCurveTo(px + (fx === 0 ? 16 : -fx * 16), py + 6 + sway, px + (fx === 0 ? 16 : -fx * 19), py - 6 + sway * 0.7 + bob); ctx.stroke(); disc(ctx, px + (fx === 0 ? 16 : -fx * 19), py - 6 + sway * 0.7 + bob, 3.2, '#fff7ed'); ctx.lineCap = 'butt'; break; }
+    case 'unicorn': { const rb = ['#ef4444', '#f59e0b', '#facc15', '#22c55e', '#38bdf8', '#a855f7']; ctx.lineCap = 'round'; ctx.lineWidth = 1.6; rb.forEach((c, k) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(px + (fx === 0 ? 6 : -fx * 5), py + 3 + bob + k * 0.9 - 2); ctx.quadraticCurveTo(px + (fx === 0 ? 14 : -fx * 14), py + 8 + sway + k, px + (fx === 0 ? 15 : -fx * 17), py + 1 + sway * 1.2 + bob + k * 0.9); ctx.stroke(); }); ctx.lineCap = 'butt'; break; }
+    case 'bee': { const flap = Math.sin(t / 55) * 0.35; for (const sd of [-1, 1]) { ctx.fillStyle = 'rgba(224,242,254,0.8)'; ctx.beginPath(); ctx.ellipse(px + sd * 7, py - 13 + bob, 3.8, 8.6, sd * (0.5 + flap), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(148,163,184,0.7)'; ctx.lineWidth = 0.7; ctx.stroke(); } break; }
     default: break;
   }
 }
@@ -274,6 +282,31 @@ export function drawCostumeFront(ctx: Ctx, kind: CostumeKind, a: AvatarStyle, P:
     }
     case 'penguin': {
       if (!back) { oval(ctx, px, py - 4 + bob, 6.8, 8.4, '#f8fafc'); for (const e of eyes) oval(ctx, e, eyeY, 3.2, 3.4, '#f8fafc'); for (const e of eyes) { disc(ctx, e + fx * 0.5, eyeY + 0.2, 1.3, '#0f172a'); } ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.moveTo(px + ex - 3, hy + 3.4); ctx.lineTo(px + ex + 3, hy + 3.4); ctx.lineTo(px + ex, hy + 7); ctx.closePath(); ctx.fill(); }
+      break;
+    }
+    case 'bunny': {
+      for (const sd of [-1, 1]) { oval(ctx, px + sd * 4.2, hy - 13, 2.7, 7.6, '#f8fafc', sd * 0.14); oval(ctx, px + sd * 4.2, hy - 12.6, 1.3, 5.2, '#fbcfe8', sd * 0.14); }
+      if (!back) { disc(ctx, px + ex, hy + 3.4, 1.2, '#f472b6'); ctx.fillStyle = '#ffffff'; ctx.fillRect(px + ex - 1.5, hy + 5.2, 1.4, 2.4); ctx.fillRect(px + ex + 0.1, hy + 5.2, 1.4, 2.4); ctx.strokeStyle = 'rgba(100,116,139,0.6)'; ctx.lineWidth = 0.5; ctx.strokeRect(px + ex - 1.5, hy + 5.2, 1.4, 2.4); ctx.strokeRect(px + ex + 0.1, hy + 5.2, 1.4, 2.4); }
+      break;
+    }
+    case 'fox': {
+      for (const sd of [-1, 1]) { ctx.fillStyle = '#ea580c'; ctx.beginPath(); ctx.moveTo(px + sd * 9, hy - 3); ctx.lineTo(px + sd * 8, hy - 14); ctx.lineTo(px + sd * 2.6, hy - 8); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#111827'; ctx.beginPath(); ctx.moveTo(px + sd * 8.1, hy - 10.4); ctx.lineTo(px + sd * 8, hy - 14); ctx.lineTo(px + sd * 5.6, hy - 11.4); ctx.closePath(); ctx.fill(); }
+      if (!back) { oval(ctx, px + ex, hy + 4.8, 4.6, 3, '#fff7ed'); disc(ctx, px + ex, hy + 3.2, 1.3, '#111827'); for (const sd of [-1, 1]) { ctx.fillStyle = '#fff7ed'; ctx.beginPath(); ctx.moveTo(px + sd * 9, hy + 1); ctx.lineTo(px + sd * 5.4, hy + 3); ctx.lineTo(px + sd * 7.6, hy + 6.4); ctx.closePath(); ctx.fill(); } }
+      break;
+    }
+    case 'unicorn': {
+      const rb = ['#ef4444', '#f59e0b', '#facc15', '#22c55e', '#38bdf8', '#a855f7'];
+      for (const sd of [-1, 1]) { ctx.fillStyle = '#fdf2f8'; ctx.beginPath(); ctx.moveTo(px + sd * 8.6, hy - 4); ctx.lineTo(px + sd * 8, hy - 11); ctx.lineTo(px + sd * 3.6, hy - 7); ctx.closePath(); ctx.fill(); }
+      if (back) { rb.forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(px - 5 + k * 1.7, hy - 8, 1.7, 15); }); }
+      else { rb.forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px - 5.4 + k * 2.1, hy - 6, 2.2, Math.PI, Math.PI * 2); ctx.fill(); }); disc(ctx, px + ex, hy + 4.4, 1.6, '#f9a8d4'); }
+      ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.moveTo(px - 2.4, hy - 9); ctx.lineTo(px + 2.4, hy - 9); ctx.lineTo(px, hy - 20); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 0.8; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(px - 2 + k * 0.5, hy - 11 - k * 2.9); ctx.lineTo(px + 2 - k * 0.5, hy - 12.4 - k * 2.9); ctx.stroke(); }
+      break;
+    }
+    case 'bee': {
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 1.1; for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(px + sd * 3, hy - 8); ctx.quadraticCurveTo(px + sd * 5, hy - 14, px + sd * 8 + Math.sin(t / 220) * 0.8, hy - 15); ctx.stroke(); disc(ctx, px + sd * 8 + Math.sin(t / 220) * 0.8, hy - 15, 1.8, '#111827'); }
+      ctx.save(); ctx.beginPath(); ctx.roundRect(px - 9, py - 11 + bob, 18, 15, 6); ctx.clip(); ctx.fillStyle = 'rgba(17,24,39,0.9)'; for (let k = 0; k < 3; k++) ctx.fillRect(px - 10, py - 8 + bob + k * 4.6, 20, 2.2); ctx.restore();
+      if (!back) { ctx.strokeStyle = '#111827'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(px + ex, hy + 4.6, 2.2, 0.2, Math.PI - 0.2); ctx.stroke(); }
       break;
     }
     case 'frog': {
