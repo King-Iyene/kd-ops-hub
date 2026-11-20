@@ -975,6 +975,9 @@ async function workBatch(
 const MAX_ORPHANS_PER_TICK = 5;
 
 async function workOrphans(svc: SupabaseClient) {
+  // The orphan watchdog moves money, and until payment_batches.updated_at existed (20261431000100) it never matched anything.
+  // It stays OFF until a person sets the edge secret KDOPS_ORPHAN_WATCHDOG=on, after checking which batches it would pick up.
+  if (Deno.env.get("KDOPS_ORPHAN_WATCHDOG") !== "on") return { ok: true, orphans_processed: 0, watchdog: "off" };
   const cutoff = new Date(Date.now() - ORPHAN_THRESHOLD_S * 1000).toISOString();
   // Only recent batches. updated_at did not exist until 20261431000100, so the watchdog never matched
   // anything before; batches left in 'processing' / 'partially_processed' for days are for a person to
