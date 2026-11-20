@@ -6,6 +6,8 @@
 // to keep their session alive.
 //
 // Mounted once per authed session inside AppLayout. Never runs on /login.
+// While the Office is open (a tab or the desktop app) nobody is signed out for being idle: the Office stays signed in, and the
+// KD Ops pages cannot sign it out (the sign-in is shared). With the Office closed, this works as before.
 //
 // Activity events: mousemove, keydown, scroll, touchstart, click. Throttled
 // to once per second so we don't spam state updates.
@@ -15,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { idleAction, officeIsOpen } from '@/lib/officeAlive';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
 const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const;
@@ -71,7 +74,13 @@ export function useIdleTimeout() {
     const tick = () => {
       const idle = Date.now() - lastActivityRef.current;
       const limit = timeoutMsRef.current;
-      if (idle >= limit) {
+      const action = idleAction(idle, limit, WARNING_BEFORE_MS, warnedRef.current, officeIsOpen());
+      if (action === 'restart') {
+        lastActivityRef.current = Date.now();
+        warnedRef.current = false;
+        return;
+      }
+      if (action === 'signout') {
         // Time's up — sign out.
         toast({
           title: 'Signed out for inactivity',
@@ -80,7 +89,7 @@ export function useIdleTimeout() {
         void signOut().then(() => navigate('/login', { replace: true }));
         return;
       }
-      if (!warnedRef.current && idle >= limit - WARNING_BEFORE_MS) {
+      if (action === 'warn') {
         warnedRef.current = true;
         toast({
           title: 'Still there?',
