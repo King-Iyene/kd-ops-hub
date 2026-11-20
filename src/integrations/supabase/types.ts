@@ -23964,6 +23964,7 @@ export type Database = {
         Args: { p_key_id: string; p_payload: Json }
         Returns: Json
       }
+      agent_is_team_rule: { Args: { p_code: string }; Returns: boolean }
       agent_is_working_day: { Args: { p_day: string }; Returns: boolean }
       agent_log_ai_usage: {
         Args: {
