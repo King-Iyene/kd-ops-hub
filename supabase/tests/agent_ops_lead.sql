@@ -10,8 +10,7 @@
 --      asked for a manager, and one item says how many people have no Cliq ID (only while a Cliq connection exists)
 --   2  FT01: 24 hours after a message, a still-open item is followed up once, then 24 hours later the manager is asked, each stage once;
 --      nothing outside working hours, for handled items, low items, or items nobody was told about
---   3  BR01: one briefing per working day from 7:00 AM Eastern, the most important item first (money before everything), idempotent,
---      queued for connections that ticked it
+--   3  (the morning briefing was removed; see 20261426)
 --   4  SC01: on the first working day of the week the last week is written up per manager, with the three-weeks-down mark
 -- =============================================================================
 BEGIN;
@@ -217,37 +216,6 @@ BEGIN
   RAISE NOTICE 'PASS 2: follow-through';
 END $$;
 
--- ── 3. the morning briefing ────────────────────────────────────────────────
-DO $$
-DECLARE n bigint; v_top jsonb;
-BEGIN
-  DELETE FROM public.agent_flags WHERE rule_code NOT IN ('SU01');
-  -- the earlier sections ran the monitor mid-morning, which already made today's briefing: start clean
-  DELETE FROM public.agent_summaries WHERE period_kind = 'briefing';
-  INSERT INTO public.agent_connections (id, kind, name, config) VALUES ('c1000000-0000-0000-0000-0000000000c4', 'cliq', 'Briefing', '{"events": ["summary_briefing"]}');
-  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, title, why, item_type, status, first_seen_at) VALUES
-    ('TK01', 'high', 'task', 'b1', 'Overdue: Client proposal', 'Four days late.', 'flag', 'open', '2026-11-17T12:00:00Z'),
-    ('PY01', 'medium', 'system', 'pay', 'Payroll run waiting for approval', 'One run is waiting.', 'flag', 'open', '2026-11-18T08:00:00Z'),
-    ('TR03', 'low', 'person', 'lowhours', 'Low hours', 'x', 'flag', 'open', '2026-11-18T08:00:00Z');
-
-  PERFORM public.agent_run_rules('2026-11-18T11:30:00Z');   -- 6:30 AM EST: too early
-  PERFORM public.t_eq('before 7 AM: no briefing', (SELECT count(*) FROM public.agent_summaries WHERE period_kind = 'briefing'), 0::bigint);
-  PERFORM public.agent_run_rules('2026-11-18T12:05:00Z');   -- 7:05 AM EST
-  PERFORM public.t_eq('one briefing', (SELECT count(*) FROM public.agent_summaries WHERE period_kind = 'briefing'), 1::bigint);
-  SELECT metrics -> 'top' INTO v_top FROM public.agent_summaries WHERE period_kind = 'briefing';
-  PERFORM public.t_eq('money comes first, even at medium priority', v_top -> 0 ->> 'rule', 'PY01');
-  PERFORM public.t_eq('then the late task', v_top -> 1 ->> 'rule', 'TK01');
-  PERFORM public.t_eq('every item has an owner', v_top -> 0 ->> 'owner', 'Super Admin');
-  PERFORM public.t_like('and a time', v_top -> 1 ->> 'by', 'by 12:00 PM EST');
-  PERFORM public.t_like('the writing', (SELECT narrative FROM public.agent_summaries WHERE period_kind = 'briefing'), '## Good morning, Wednesday, Nov 18%1. **Payroll run waiting for approval**%');
-  PERFORM public.agent_run_rules('2026-11-18T12:20:00Z');
-  PERFORM public.t_eq('made once', (SELECT count(*) FROM public.agent_summaries WHERE period_kind = 'briefing'), 1::bigint);
-  PERFORM public.t_eq('queued for the connection that ticked it', (SELECT count(*) FROM public.agent_outbox o JOIN public.agent_summaries s ON s.id = o.ref_id WHERE o.kind = 'summary' AND s.period_kind = 'briefing'), 1::bigint);
-  PERFORM public.agent_run_rules('2026-11-21T13:00:00Z');   -- Saturday
-  PERFORM public.t_eq('not on a day off', (SELECT count(*) FROM public.agent_summaries WHERE period_kind = 'briefing'), 1::bigint);
-  RAISE NOTICE 'PASS 3: morning briefing';
-END $$;
-
 -- ── 4. the weekly scorecard ────────────────────────────────────────────────
 DO $$
 BEGIN
@@ -317,6 +285,16 @@ BEGIN
   PERFORM public.agent_run_followups('2026-11-24T15:30:00Z');
   PERFORM public.t_eq('no follow-up for a discipline item', (SELECT count(*) FROM public.agent_followups WHERE flag_id = 'f3000000-0000-0000-0000-000000000001'), 0::bigint);
   RAISE NOTICE 'PASS 6: team focus';
+END $$;
+
+-- ── 7. the briefing is gone ────────────────────────────────────────────────
+DO $$
+BEGIN
+  PERFORM public.t_eq('no BR01 rule', (SELECT count(*) FROM public.agent_rules WHERE code = 'BR01'), 0::bigint);
+  PERFORM public.t_eq('no briefing function', to_regprocedure('public.agent_rule_br01(timestamp with time zone)') IS NULL, true);
+  PERFORM public.agent_run_rules('2026-11-25T14:00:00Z');
+  PERFORM public.t_eq('nothing writes a briefing', (SELECT count(*) FROM public.agent_summaries WHERE period_kind = 'briefing'), 0::bigint);
+  RAISE NOTICE 'PASS 7: briefing removed';
 END $$;
 
 ROLLBACK;

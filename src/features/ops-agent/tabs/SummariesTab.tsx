@@ -12,8 +12,8 @@ import { useAgentToast } from '../settings/useAgentToast';
 import { SummaryCard } from './SummaryCard';
 import { byNewest, groupByMonth, KIND_LABEL, loadKinds, saveKinds, type KindsShown } from './summaryFormat';
 
-const SCHEDULE = 'Briefing at 7:00 AM Eastern on working days; daily summary at 6:30 PM; weekly on the last working day of the week; monthly on the last working day of the month; scorecard on the first working day of the week at 8:00 AM.';
-const KINDS: SummaryKind[] = ['briefing', 'day', 'scorecard', 'week', 'month'];
+const SCHEDULE = 'Daily summary at 6:30 PM Eastern on working days; weekly on the last working day of the week; monthly on the last working day of the month; scorecard on the first working day of the week at 8:00 AM.';
+const KINDS: SummaryKind[] = ['day', 'scorecard', 'week', 'month'];
 const GENERATE_KINDS: GenerateKind[] = ['day', 'week', 'month'];
 
 /**

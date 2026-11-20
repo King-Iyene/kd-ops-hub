@@ -333,7 +333,7 @@ describe('Summaries', () => {
     fireEvent.click(screen.getByTestId('kind-month'));
     expect(screen.getAllByTestId('summary-card').map((c) => c.getAttribute('data-kind'))).toContain('month');
     expect(screen.getAllByTestId('summary-group').map((g) => g.getAttribute('aria-label'))).toEqual(['November 2026', 'October 2026']);
-    expect(JSON.parse(window.localStorage.getItem('kd-agent-summary-kinds') ?? '{}')).toEqual({ day: true, week: true, month: true, briefing: true, scorecard: true });
+    expect(JSON.parse(window.localStorage.getItem('kd-agent-summary-kinds') ?? '{}')).toEqual({ day: true, week: true, month: true, scorecard: true });
     expect(writes()).toEqual([]);
   });
 
@@ -351,7 +351,7 @@ describe('Summaries', () => {
   it('explains the schedule when there are none, and Generate now calls the database function', async () => {
     h.tables = { ...h.tables, agent_summaries: [] };
     renderUi(<SummariesTab />);
-    expect(await screen.findByText(/Briefing at 7:00 AM Eastern on working days; daily summary at 6:30 PM; weekly on the last working day of the week; monthly on the last working day of the month; scorecard on the first working day of the week at 8:00 AM\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Daily summary at 6:30 PM Eastern on working days; weekly on the last working day of the week; monthly on the last working day of the month; scorecard on the first working day of the week at 8:00 AM\./)).toBeInTheDocument();
     const trigger = screen.getByTestId('generate-now');
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByTestId('generate-week'));

@@ -1,0 +1,2 @@
+-- Rollback for 20261426000000_agent_remove_briefing.sql: re-apply the BR01 parts of 20261423000000_agent_briefing_scorecard.sql
+-- (agent_build_briefing, agent_rule_br01 and the agent_rules row). Deleted briefings and connection ticks are not restored.

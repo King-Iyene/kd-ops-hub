@@ -66,7 +66,7 @@ export function plainText(md: string): string {
 }
 
 export function formatSummary(s: SummaryRow): Outgoing {
-  const name = s.period_kind === 'briefing' ? 'Morning briefing' : s.period_kind === 'scorecard' ? 'Weekly scorecard'
+  const name = s.period_kind === 'scorecard' ? 'Weekly scorecard'
     : `${s.period_kind === 'day' ? 'Daily' : s.period_kind === 'week' ? 'Weekly' : 'Monthly'} summary`;
   const when = s.period_start === s.period_end ? s.period_start : `${s.period_start} to ${s.period_end}`;
   return { title: `${name}, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }};

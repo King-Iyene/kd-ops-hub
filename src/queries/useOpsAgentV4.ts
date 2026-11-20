@@ -96,9 +96,9 @@ export function useUpdateRule() {
 }
 
 // ── Summaries ──────────────────────────────────────────────────────────────
-/** Daily, weekly and monthly are made on request too; the morning briefing and the Monday scorecard are written by the schedule only. */
+/** Daily, weekly and monthly are made on request too; the Monday scorecard is written by the schedule only. */
 export type GenerateKind = 'day' | 'week' | 'month';
-export type SummaryKind = GenerateKind | 'briefing' | 'scorecard';
+export type SummaryKind = GenerateKind | 'scorecard';
 
 /** "Generate now": makes the latest finished period of that kind. */
 export function useGenerateSummary() {

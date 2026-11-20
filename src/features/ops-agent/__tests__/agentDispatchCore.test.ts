@@ -65,9 +65,8 @@ describe('formatFollowup', () => {
   });
 });
 
-describe('formatSummary: briefing and scorecard', () => {
-  it('are named for what they are', () => {
-    expect(formatSummary({ period_kind: 'briefing', period_start: '2026-11-18', period_end: '2026-11-18', narrative: '## Good morning' }).title).toBe('Morning briefing, 2026-11-18');
+describe('formatSummary: scorecard', () => {
+  it('is named for what it is', () => {
     expect(formatSummary({ period_kind: 'scorecard', period_start: '2026-11-16', period_end: '2026-11-22', narrative: null }).title).toBe('Weekly scorecard, 2026-11-16 to 2026-11-22');
   });
 });

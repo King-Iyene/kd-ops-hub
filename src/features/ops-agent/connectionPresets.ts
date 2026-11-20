@@ -20,7 +20,6 @@ export const AUTO_EVENTS = [
   { key: 'summary_day', label: 'Daily summary', help: 'At 6:30 PM Eastern on working days.' },
   { key: 'summary_week', label: 'Weekly summary', help: 'On the last working day of the week.' },
   { key: 'summary_month', label: 'Monthly summary', help: 'On the last working day of the month.' },
-  { key: 'summary_briefing', label: 'Morning briefing', help: 'At 7:00 AM Eastern on working days: the five things that matter most today. It includes payroll and system items, so it is meant for Super Admins, not a team channel.' },
   { key: 'summary_scorecard', label: 'Weekly scorecard', help: 'On the first working day of the week at 8:00 AM: last week per person, each manager tagged on their own team.' },
   { key: 'flag_followup', label: 'Follow-ups and escalations', help: 'When a message was sent and 24 hours later nothing has changed: a follow-up, then the manager is asked to step in.' },
 ] as const;

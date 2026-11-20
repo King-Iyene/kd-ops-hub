@@ -42,7 +42,7 @@ const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-
 const KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat', 'telegram', 'email', 'webhook', 'n8n', 'api'];
 const SECRET_URL_KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat'];
 const LABELS: Record<string, string> = { slack: 'Slack incoming webhook', cliq: 'Zoho Cliq webhook', discord: 'Discord webhook', teams: 'Microsoft Teams webhook', gchat: 'Google Chat webhook' };
-const EVENTS = ['flag_high', 'flag_tracking', 'flag_all', 'flag_followup', 'summary_day', 'summary_week', 'summary_month', 'summary_briefing', 'summary_scorecard'];
+const EVENTS = ['flag_high', 'flag_tracking', 'flag_all', 'flag_followup', 'summary_day', 'summary_week', 'summary_month', 'summary_scorecard'];
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
