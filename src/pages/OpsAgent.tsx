@@ -42,12 +42,12 @@ export default function OpsAgent() {
 
   return (
     <div className="space-y-4 sm:space-y-6" data-testid="ops-agent">
-      <PageHeader title={tab === 'inbox' ? 'Ops Agent' : `Ops Agent · ${meta.label}`} description={DESCRIPTIONS[tab]} icon={Bot} compact />
+      <PageHeader title={tab === 'inbox' ? 'Agent' : `Agent · ${meta.label}`} description={DESCRIPTIONS[tab]} icon={Bot} compact />
 
       {scope.isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : scope.isError || !scope.data?.access ? (
-        <p className="text-sm text-destructive" role="alert">You do not have access to the Ops Agent.</p>
+        <p className="text-sm text-destructive" role="alert">You do not have access to the Agent.</p>
       ) : (
         <>
           <AgentBanners canConfigure={canConfigure} onOpenSettings={tab === 'settings' ? undefined : () => navigate('/agent/settings/claude')} />

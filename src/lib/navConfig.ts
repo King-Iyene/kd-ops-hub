@@ -224,7 +224,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'NDI Profile',      url: '/ndi/profile',       icon: Building2,       roles: ['super_admin', 'admin'] },
   { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: [] }, // hidden for now (page still reachable at /office); set roles when ready to launch
   { title: 'Task',             url: '/task',              icon: CheckSquare,     roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Ops Agent',        url: '/agent',             icon: Bot,             roles: ['super_admin'] },
+  { title: 'Agent',            url: '/agent',             icon: Bot,             roles: ['super_admin'] },
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
@@ -277,7 +277,7 @@ export const NAV_GROUPS = [
   { key: 'ndi',        label: 'NDI',                 titles: ['NDI Overview', 'NDI Finance', 'NDI Employees', 'NDI Profile'] },
   { key: 'office',     label: 'Office',              titles: ['Virtual Office'] },
   { key: 'taskModule', label: 'Task',                titles: ['Task'] },
-  { key: 'opsAgent',   label: 'Ops Agent',           titles: ['Ops Agent'] },
+  { key: 'opsAgent',   label: 'Agent',               titles: ['Agent'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -326,15 +326,6 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-cyan-400',
     iconBg: 'bg-cyan-500/15',
     groups: ['taskModule'],
-  },
-  {
-    key: 'opsAgent',
-    label: 'Ops Agent',
-    description: 'Flags, summaries & chat',
-    icon: 'Bot',
-    color: 'text-violet-400',
-    iconBg: 'bg-violet-500/15',
-    groups: ['opsAgent'],
   },
   {
     key: 'people',
@@ -398,6 +389,16 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-slate-400',
     iconBg: 'bg-slate-500/15',
     groups: ['admin'],
+  },
+  // Last in the list: the Agent sits at the bottom of the side panel.
+  {
+    key: 'opsAgent',
+    label: 'Agent',
+    description: 'Flags, summaries & chat',
+    icon: 'Bot',
+    color: 'text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    groups: ['opsAgent'],
   },
 ];
 
