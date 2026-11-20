@@ -9,6 +9,8 @@ export interface TeamPulse {
   working_day: boolean;
   in_work_window: boolean;
   team_size: number;
+  /** Who is expected to track today: the team minus placement, leave, non-work days and anyone exempt from time tracking. Missing on an older database. */
+  tracking_expected?: number;
   tracking_now: number;
   tracked_today: number;
   reports_in: number;

@@ -338,5 +338,30 @@ BEGIN
   RAISE NOTICE 'PASS 9: leadership and exemptions';
 END $$;
 
+-- ── 10. the tracking tile counts against who is expected to track; exemptions are picked up at once ─
+DO $$
+DECLARE v jsonb; v_before int; v_team int; v_now int;
+BEGIN
+  RESET ROLE;
+  -- make today a work day for everyone so the numbers do not depend on the day the test runs
+  UPDATE public.agent_settings SET default_working_days = '{1,2,3,4,5,6,7}';
+  DELETE FROM public.public_holidays;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  v := public.agent_team_pulse();
+  v_before := (v ->> 'tracking_expected')::int; v_team := (v ->> 'team_size')::int; v_now := (v ->> 'tracking_now')::int;
+  PERFORM public.t_eq('Alice is tracking now and is expected to', v_now, 1);
+  PERFORM public.t_eq('expected to track is the team minus placed staff (and anyone on leave)', v_before > 0 AND v_before < v_team, true);
+  RESET ROLE;
+  -- exempt Alice (who has a running timer) from time tracking
+  INSERT INTO public.agent_person_profile (person_id, exemptions) VALUES ('a0000000-0000-0000-0000-000000000002', '{"time": true}'::jsonb)
+    ON CONFLICT (person_id) DO UPDATE SET exemptions = coalesce(public.agent_person_profile.exemptions, '{}'::jsonb) || '{"time": true}'::jsonb;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  v := public.agent_team_pulse();
+  PERFORM public.t_eq('an exempt person leaves the expected number', (v ->> 'tracking_expected')::int, v_before - 1);
+  PERFORM public.t_eq('and does not count as tracking either', (v ->> 'tracking_now')::int, 0);
+  PERFORM public.t_eq('the whole team size is unchanged', (v ->> 'team_size')::int, v_team);
+  RAISE NOTICE 'PASS 10: tracking expected honours exemptions';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

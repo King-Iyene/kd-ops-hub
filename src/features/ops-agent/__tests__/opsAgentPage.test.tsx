@@ -691,6 +691,14 @@ describe('Inbox, live monitoring', () => {
     h.pulse = { ...PULSE, last_run_at: lastRun };
   };
 
+  it('counts Tracking now against who is expected to track (exemptions out), not the whole team', async () => {
+    h.tables = { ...BASE_TABLES, agent_flags: LIVE_FLAGS };
+    h.pulse = { ...PULSE, tracking_expected: 11, tracking_now: 9, last_run_at: new Date(Date.now() - 40_000).toISOString() };
+    renderAt('/agent');
+    const tiles = await screen.findByTestId('team-pulse');
+    expect(within(tiles).getByTestId('pulse-tracking')).toHaveTextContent('9of 11');
+  });
+
   it('shows the team pulse tiles from agent_team_pulse', async () => {
     withFlags();
     renderAt('/agent');

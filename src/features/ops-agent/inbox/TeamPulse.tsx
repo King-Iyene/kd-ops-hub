@@ -74,13 +74,14 @@ const of = (n: number) => <span className="text-sm font-normal text-muted-foregr
 
 /** Four figures about the team right now. A summary strip with hairline dividers, not four separate cards. */
 export function TeamPulseTiles({ pulse }: { pulse: TeamPulse }) {
-  const trackingPct = pulse.team_size > 0 ? (pulse.tracking_now / pulse.team_size) * 100 : 0;
+  const trackingExpected = pulse.tracking_expected ?? pulse.team_size;
+  const trackingPct = trackingExpected > 0 ? (pulse.tracking_now / trackingExpected) * 100 : 0;
   const reportsPct = pulse.reports_expected > 0 ? (pulse.reports_in / pulse.reports_expected) * 100 : 0;
   const trackingHint = !pulse.working_day ? 'Not a work day' : !pulse.in_work_window ? 'Outside work hours' : `${pulse.tracked_today} tracked today`;
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4" data-testid="team-pulse">
       <Tile testId="pulse-tracking" label="Tracking now" bar={trackingPct} tone={pulse.working_day && pulse.in_work_window && trackingPct < 50 ? 'warn' : 'good'} hint={trackingHint}>
-        {pulse.tracking_now}{of(pulse.team_size)}
+        {pulse.tracking_now}{of(trackingExpected)}
       </Tile>
       <Tile testId="pulse-reports" label="Reports in" bar={reportsPct} tone={reportsPct >= 100 ? 'good' : 'warn'} hint={`Due ${deadlineLabel(pulse.reports_due_at, pulse.day)}`}>
         {pulse.reports_in}{of(pulse.reports_expected)}
