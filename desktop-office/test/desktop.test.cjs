@@ -22,7 +22,7 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
   const userData = path.join(require('os').tmpdir(), 'kd-ops-test-' + Date.now());
-  const app = await _electron.launch({ executablePath: exe, args: [...args, `--user-data-dir=${userData}`], cwd, env: { ...cleanEnv(), KD_OPS_URL: `${base}/` } });
+  const app = await _electron.launch({ executablePath: exe, args: [...args, `--user-data-dir=${userData}`], cwd, env: { ...cleanEnv(), KD_OPS_TEST: '1', KD_OPS_URL: `${base}/` } });
   await app.firstWindow();
   await new Promise((r) => setTimeout(r, 3000));
   const bar = app.windows().find((p) => p.url().endsWith('tabs.html'));
@@ -41,6 +41,10 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const inTab = (id, code) => app.evaluate(({ webContents }, a) => { const wc = webContents.fromId(a.wid); return wc && !wc.isDestroyed() ? wc.executeJavaScript(a.code) : '__missing__'; }, { wid: ids[id], code });
   const urlOf = (id) => inTab(id, 'location.href');
   const active = () => bar.evaluate(() => document.querySelector('button[aria-selected="true"]').dataset.tab);
+
+  // ---- the app's own icons: a big app icon and a small tray icon in three sharpness levels
+  const sizeOf = (f) => { const b = require('fs').readFileSync(path.join(cwd, 'build', f)); return b.readUInt32BE(16) + 'x' + b.readUInt32BE(20); };
+  check('app icon is 1024x1024 and the tray icons are 16, 32 and 48', sizeOf('icon.png') === '1024x1024' && sizeOf('tray.png') === '16x16' && sizeOf('tray@2x.png') === '32x32' && sizeOf('tray@3x.png') === '48x48', [sizeOf('icon.png'), sizeOf('tray.png'), sizeOf('tray@2x.png'), sizeOf('tray@3x.png')].join(' '));
 
   // ---- the two tabs
   check('has a KD Ops tab and an Office tab', (await bar.locator('button[data-tab]').count()) === 2);
@@ -161,7 +165,7 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
 
   // ---- offline screen: point at a port nothing listens on
   const dead = await new Promise((r) => { const s = http.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
-  const app2 = await _electron.launch({ executablePath: exe, args: [...args, `--user-data-dir=${userData}-2`], cwd, env: { ...cleanEnv(), KD_OPS_URL: `http://127.0.0.1:${dead}/` } });
+  const app2 = await _electron.launch({ executablePath: exe, args: [...args, `--user-data-dir=${userData}-2`], cwd, env: { ...cleanEnv(), KD_OPS_TEST: '1', KD_OPS_URL: `http://127.0.0.1:${dead}/` } });
   const bar2 = await app2.firstWindow();
   await bar2.waitForTimeout(5500);
   const urls = await app2.evaluate(({ webContents }) => webContents.getAllWebContents().map((w) => w.getURL()));
