@@ -20,6 +20,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { constantTimeEquals } from "../_shared/timing.ts";
+import { precheckCampaignStatus } from "../_shared/campaign-send-core.ts";
 
 // Termii's own rate guidance is generous, but we throttle gently to stay
 // well clear of any account-level burst limit — matches bulk-email-sender's
@@ -82,8 +83,11 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (["sent", "failed", "cancelled", "sending"].includes((campaign as any).status)) {
-      return new Response(JSON.stringify({ ok: false, error: `Campaign already ${(campaign as any).status}` }), {
+    // Only a draft, or a scheduled campaign that is now due, may be sent. 'sending' is refused: it means
+    // someone already claimed it (the claim below is the authoritative, atomic gate).
+    const pre = precheckCampaignStatus((campaign as any).status, (campaign as any).scheduled_for);
+    if (!pre.ok) {
+      return new Response(JSON.stringify({ ok: false, error: pre.error }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -93,10 +97,21 @@ Deno.serve(async (req) => {
     const senderId = channel === "whatsapp" ? waSenderId : smsSenderId;
     const termiiChannel = channel === "whatsapp" ? "whatsapp" : "generic";
 
-    await service.from("message_campaigns").update({
-      status: "sending",
-      started_at: new Date().toISOString(),
-    }).eq("id", campaign_id);
+    // Atomically claim the campaign (draft, or scheduled and due -> sending). Exactly one caller wins, so
+    // overlapping scheduler ticks or a double click can never send twice.
+    const { data: claimed, error: claimErr } = await service.rpc("claim_message_campaign_for_sending", {
+      p_campaign_id: campaign_id,
+    });
+    if (claimErr) {
+      return new Response(JSON.stringify({ ok: false, error: "Failed to claim campaign: " + claimErr.message }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!claimed) {
+      return new Response(JSON.stringify({ ok: false, error: "Campaign already claimed by another sender" }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const PAGE = 100;
     let cursor = 0;

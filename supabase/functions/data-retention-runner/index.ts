@@ -80,7 +80,11 @@ Deno.serve(async (req) => {
     //    require a valid JWT from an admin/super_admin user. ──────────────
     const authHeader = req.headers.get("Authorization") ?? "";
     const bearer = authHeader.replace("Bearer ", "");
-    const isServiceRole = constantTimeEquals(bearer, SERVICE_ROLE);
+    // The pg_cron tick (tick_data_retention_runner, migration 20261431000300) authenticates with the shared cron
+    // secret, like batch-worker; the service-role bearer keeps working for any other scheduled caller.
+    const isServiceRole =
+      constantTimeEquals(req.headers.get("X-Cron-Secret"), Deno.env.get("CRON_SHARED_SECRET")) ||
+      constantTimeEquals(bearer, SERVICE_ROLE);
 
     let triggeredBy: string | null = null;
     if (!isServiceRole) {
