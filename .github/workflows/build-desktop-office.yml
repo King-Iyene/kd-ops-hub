@@ -1,8 +1,8 @@
 name: Build KD Ops desktop app
 
 # Builds the KD Ops desktop app (desktop-office/: KD Ops and the Office in one window) for Windows, macOS and Linux as downloadable workflow artifacts.
-# It does NOT publish a release: run it by hand (Actions, then "Run workflow"), download the installers from the run page,
-# and publish them only when the owner says so. Publish the versioned release with --latest=false (the Time Tracker owns "Latest"),
+# It only publishes when "publish" is ticked in Run workflow (tick it only when the owner says so); otherwise download the installers
+# from the run page. A published build is the versioned release plus the update channel. Publish the versioned release with --latest=false (the Time Tracker owns "Latest"),
 # and put the same files (including latest*.yml) on the release tagged kd-ops-desktop-channel, which is where installed apps look for updates. Each installer is built on its own operating system, because a macOS .dmg
 # cannot be built on Linux.
 #
@@ -11,6 +11,11 @@ name: Build KD Ops desktop app
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish this build (the release and the update channel, so installed apps update by themselves)
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -57,3 +62,41 @@ jobs:
             desktop-office/release/*.blockmap
           if-no-files-found: error
           retention-days: 14
+
+  # Publishing is the step that was forgotten before: installed apps only update from the "kd-ops-desktop-channel" release, so a build that was
+  # never put there left every employee on the old version until they reinstalled. Tick "publish" when running the workflow and it does it:
+  # the versioned release (not marked Latest, the Time Tracker owns that) and the update channel, Windows files first and latest.yml last.
+  publish:
+    if: ${{ inputs.publish }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Publish the release and the update channel
+        run: |
+          set -e
+          V=$(node -p "require('./desktop-office/package.json').version")
+          echo "Publishing KD Ops $V"
+          WIN=$(ls dist/kd-ops-windows-latest/*.exe dist/kd-ops-windows-latest/*.blockmap)
+          MAC=$(ls dist/kd-ops-macos-latest/*.dmg dist/kd-ops-macos-latest/*.zip dist/kd-ops-macos-latest/*.blockmap 2>/dev/null || true)
+          LIN=$(ls dist/kd-ops-ubuntu-latest/*.AppImage dist/kd-ops-ubuntu-latest/*.deb 2>/dev/null || true)
+          if gh release view "office-desktop-v$V" >/dev/null 2>&1; then
+            echo "release office-desktop-v$V exists: adding the files to it"
+            gh release upload "office-desktop-v$V" --clobber $WIN $MAC $LIN dist/*/latest*.yml
+          else
+            gh release create "office-desktop-v$V" --target "$GITHUB_SHA" --latest=false --title "KD Ops desktop app $V" \
+              --notes "KD Ops $V. Windows: KD-Ops-Setup-$V.exe. Mac: KD-Ops-$V.dmg. Linux: KD-Ops-$V.AppImage. Installed apps update by themselves." \
+              $WIN $MAC $LIN dist/*/latest*.yml
+          fi
+          # the update channel: installers first, then the latest*.yml files that tell installed apps a new version exists
+          gh release upload kd-ops-desktop-channel --clobber $WIN $MAC $LIN
+          gh release upload kd-ops-desktop-channel --clobber dist/kd-ops-windows-latest/latest.yml
+          gh release upload kd-ops-desktop-channel --clobber dist/kd-ops-macos-latest/latest-mac.yml dist/kd-ops-ubuntu-latest/latest-linux.yml
+          curl -sL https://github.com/${{ github.repository }}/releases/download/kd-ops-desktop-channel/latest.yml | head -3
