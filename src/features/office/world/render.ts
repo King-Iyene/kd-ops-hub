@@ -274,6 +274,68 @@ function paintTile(ctx: Ctx, x: number, y: number, ff: string | undefined, zk: s
         disc(ctx, fx, fy, 2, ['#f9a8d4', '#fde047', '#ffffff', '#c4b5fd'][Math.floor(h2(x + 5, y + 9) * 4)]);
         disc(ctx, fx, fy, 0.8, '#f59e0b');
       }
+    } else if (ff === 'darkwood') {
+      // dark polished planks
+      for (let r = 0; r < 3; r++) {
+        const off = ((x * 2 + y + r) % 3) / 3;
+        ctx.fillStyle = h2(x * 3 + r, y + 70) > 0.5 ? (theme.dark ? '#3f2916' : '#6b4527') : (theme.dark ? '#38240f' : '#5d3b20');
+        ctx.fillRect(px, py + r * 12, TILE, 12);
+        ctx.fillStyle = 'rgba(0,0,0,0.38)';
+        ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
+        ctx.fillRect(px + TILE * off + 4, py + r * 12, 1, 11);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(px, py + r * 12, TILE, 1);
+      }
+    } else if (ff === 'marble') {
+      ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#4a5160' : '#f3f5f8') : (theme.dark ? '#444b59' : '#e8ebf0');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.strokeStyle = theme.dark ? 'rgba(255,255,255,0.10)' : 'rgba(120,130,150,0.28)';
+      ctx.lineWidth = 1;
+      const sx = px + h2(x * 3, y) * TILE;
+      ctx.beginPath();
+      ctx.moveTo(sx, py);
+      ctx.quadraticCurveTo(sx + 8 - h2(y, x) * 16, py + TILE / 2, sx + 10 - h2(x, y * 3) * 20, py + TILE);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.fillRect(px, py + TILE - 1, TILE, 1);
+      ctx.fillRect(px + TILE - 1, py, 1, TILE);
+    } else if (ff === 'checker') {
+      ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#1b2230' : '#1f2937') : (theme.dark ? '#c7ced9' : '#f3f4f6');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.fillRect(px, py, TILE, 1);
+    } else if (ff === 'navy' || ff === 'sage') {
+      ctx.fillStyle = ff === 'navy' ? (theme.dark ? '#27345a' : '#33477a') : (theme.dark ? '#3c5a47' : '#cfe3cf');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = ff === 'navy' ? (theme.dark ? '#33447a' : '#41568f') : (theme.dark ? '#46684f' : '#bcd5bc');
+      for (let i = 0; i < 6; i++) ctx.fillRect(px + h2(x * 7 + i, y + 3) * (TILE - 2), py + h2(x + 3, y * 7 + i) * (TILE - 2), 2, 2);
+    } else if (ff === 'sand') {
+      ctx.fillStyle = theme.dark ? '#8a7a52' : '#e9d7a8';
+      ctx.fillRect(px, py, TILE, TILE);
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = h2(x * 5 + i, y * 3 + 1) > 0.5 ? (theme.dark ? '#77693f' : '#d8c38d') : (theme.dark ? '#9b8a5e' : '#f3e6bf');
+        ctx.fillRect(px + h2(x * 9 + i, y + 2) * (TILE - 2), py + h2(x + 2, y * 9 + i) * (TILE - 2), 2, 2);
+      }
+    } else if (ff === 'brick') {
+      // red brick paving, courses staggered
+      for (let r = 0; r < 3; r++) {
+        const off = (((y * 3 + r) % 2) * TILE) / 2;
+        ctx.fillStyle = h2(x * 3 + r, y + 11) > 0.5 ? (theme.dark ? '#7a3a29' : '#b5543a') : (theme.dark ? '#6f3425' : '#a84b33');
+        ctx.fillRect(px, py + r * 12, TILE, 12);
+        ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.4)' : 'rgba(80,35,20,0.45)';
+        ctx.fillRect(px, py + r * 12 + 11, TILE, 1);
+        ctx.fillRect(px + ((off + 18) % TILE), py + r * 12, 1, 11);
+      }
+    } else if (ff === 'bluetile') {
+      ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#35566a' : '#cfe6f2') : (theme.dark ? '#2f4e61' : '#c2dcea');
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.6)';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillStyle = theme.dark ? 'rgba(0,0,0,0.3)' : 'rgba(80,120,140,0.35)';
+      ctx.fillRect(px, py + TILE - 1, TILE, 1);
+      ctx.fillRect(px + TILE - 1, py, 1, TILE);
     } else if (ff === 'stone') {
       ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#4a5160' : '#cfd3d9') : (theme.dark ? '#444b59' : '#c4c9d0');
       ctx.fillRect(px, py, TILE, TILE);
