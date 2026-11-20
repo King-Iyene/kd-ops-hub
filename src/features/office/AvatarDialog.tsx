@@ -1,12 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Dices, Footprints, RotateCcw } from 'lucide-react';
-import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, SKIN_CHOICES, TIES } from './world/avatarParts';
+import { AIDS, BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, SKIN_CHOICES, TIES } from './world/avatarParts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { AvatarStyle } from './world/types';
 import { HAIR_COLORS, PANTS_COLORS, SHIRT_COLORS, SKIN_TONES, TILE, defaultAvatar, drawPerson } from './world/render';
 
-type NumKey = 'hairStyle' | 'outfit' | 'beard' | 'jacket' | 'shoes' | 'hat' | 'glasses' | 'tie' | 'extra' | 'bottom' | 'costume';
+type NumKey = 'hairStyle' | 'outfit' | 'beard' | 'jacket' | 'shoes' | 'hat' | 'glasses' | 'tie' | 'extra' | 'bottom' | 'costume' | 'aid';
 type ColorKey = 'skin' | 'hair' | 'shirt' | 'pants' | 'jacketColor' | 'inner' | 'shoeColor' | 'hatColor' | 'tieColor';
 type Focus = 'head' | 'torso' | 'feet' | 'full';
 
@@ -61,11 +61,12 @@ const TABS: { id: string; label: string; sections: Section[] }[] = [
       { id: 'glasses', label: 'Glasses', focus: 'head', option: 'glasses', labels: GLASSES },
       { id: 'tie', label: 'Tie and scarf', focus: 'torso', color: 'tieColor', palette: COLORS, option: 'tie', labels: TIES },
       { id: 'extra', label: 'Extras', focus: 'head', option: 'extra', labels: EXTRAS },
+      { id: 'aid', label: 'Walking stick, crutches, wheelchair', focus: 'full', option: 'aid', labels: AIDS },
     ],
   },
 ];
 
-const CLEAR: Partial<AvatarStyle> = { costume: 0, bottom: 0, jacket: 0, tie: 0, hat: 0, glasses: 0, extra: 0, beard: 0 };
+const CLEAR: Partial<AvatarStyle> = { aid: 0, costume: 0, bottom: 0, jacket: 0, tie: 0, hat: 0, glasses: 0, extra: 0, beard: 0 };
 
 /** Ready-made looks: one tap puts a whole outfit together. Every piece in them can also be picked by hand in the other tabs. */
 export const LOOKS: { id: string; label: string; apply: (a: AvatarStyle) => Partial<AvatarStyle> }[] = [
@@ -294,6 +295,15 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
                       <span className="text-[11px] font-semibold">{l.label}</span>
                     </button>
                   ))}
+                </div>
+                <div className="mt-3 space-y-2.5 rounded-xl bg-muted/40 p-2.5">
+                  <p className="text-xs font-semibold">Change the colours of what you are wearing</p>
+                  <ColorRow label="Top" palette={[...SHIRT_COLORS, ...COLORS]} value={draft.shirt} onPick={(c) => set({ shirt: c })} />
+                  <ColorRow label="Bottom" palette={[...PANTS_COLORS, ...COLORS]} value={draft.pants} onPick={(c) => set({ pants: c })} />
+                  <ColorRow label="Shoes" palette={COLORS} value={draft.shoeColor} onPick={(c) => set({ shoeColor: c })} />
+                  {draft.jacket > 0 && <ColorRow label="Jacket" palette={COLORS} value={draft.jacketColor} onPick={(c) => set({ jacketColor: c })} />}
+                  {draft.tie > 0 && <ColorRow label="Tie and scarf" palette={COLORS} value={draft.tieColor} onPick={(c) => set({ tieColor: c })} />}
+                  {draft.hat > 0 && <ColorRow label="Hat" palette={COLORS} value={draft.hatColor} onPick={(c) => set({ hatColor: c })} />}
                 </div>
               </div>
             )}

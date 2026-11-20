@@ -335,7 +335,7 @@ export default function Training() {
         <>
         <div className="hidden md:block rounded-xl border overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b bg-card/95 backdrop-blur-sm sticky top-0 z-10">
+            <thead className="border-b bg-card sticky top-0 z-10">
               <tr>
                 {['Employee', 'Title / Provider', 'Type', 'Category', 'Dates', 'Score', 'Status', ''].map(h => (
                   <th key={h} className="text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>

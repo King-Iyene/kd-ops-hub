@@ -406,15 +406,15 @@ const Clients = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Client</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Industry</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Contract Value</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Placements</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Revenue</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Contact</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Start Date</TableHead>
-                        {canManage && <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>}
+                        <TableHead className="sticky top-0 z-10 bg-card">Client</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Industry</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card text-right">Contract Value</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card text-center">Placements</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card text-right">Monthly Revenue</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Contact</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Status</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Start Date</TableHead>
+                        {canManage && <TableHead className="sticky top-0 z-10 bg-card text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>

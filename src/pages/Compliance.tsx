@@ -1202,7 +1202,7 @@ const Compliance = () => {
             <>
             <div className="hidden md:block overflow-x-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead>Period</TableHead>
                     <TableHead>Type</TableHead>
@@ -1373,7 +1373,7 @@ const Compliance = () => {
             <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Filing</TableHead>
                   <TableHead>Period</TableHead>
@@ -1521,7 +1521,7 @@ const Compliance = () => {
                             </p>
                             <div className="rounded-md border bg-background overflow-x-auto">
                               <Table>
-                                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                                <TableHeader className="sticky top-0 z-10 bg-card">
                                   <TableRow>
                                     <TableHead className="text-xs">PFA</TableHead>
                                     <TableHead className="text-xs text-right">RSAs</TableHead>

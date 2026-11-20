@@ -154,7 +154,7 @@ export default function AppLayout() {
           <header
             role="banner"
             aria-label="Site header"
-            className={`h-14 flex items-center justify-between border-b bg-card/90 backdrop-blur-xl px-4 sticky top-0 z-20 dark:bg-card/70 kd-transition ${scrolled ? 'border-border/60 shadow-md shadow-black/5 dark:shadow-black/20' : 'border-border/50 dark:border-border/30'}`}>
+            className={`h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-20 kd-transition ${scrolled ? 'border-border/60 shadow-md shadow-black/5 dark:shadow-black/20' : 'border-border/50 dark:border-border/30'}`}>
             <div className="flex items-center gap-3 min-w-0">
               {/* Hamburger only on tablet+ where the sidebar exists */}
               <SidebarTrigger className="hidden md:inline-flex shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />

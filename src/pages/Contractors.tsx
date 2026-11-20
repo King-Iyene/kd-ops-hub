@@ -1686,7 +1686,7 @@ const Contractors = () => {
                 {/* Select-all checkbox in the header — toggles every
                     visible (filtered) row on/off. Indeterminate state
                     when only some rows are picked. */}
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm w-10">
+                <TableHead className="sticky top-0 z-10 bg-card w-10">
                   <Checkbox
                     aria-label="Select all contractors on this page"
                     checked={
@@ -1705,13 +1705,13 @@ const Contractors = () => {
                     }}
                   />
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Name</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Bank</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Account</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Default Amount</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Onboarding</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">HeyReach Status</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Actions</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">Name</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">Bank</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">Account</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card text-right">Default Amount</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">Onboarding</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">HeyReach Status</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-card">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

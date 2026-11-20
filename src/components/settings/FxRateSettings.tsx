@@ -338,7 +338,7 @@ export default function FxRateSettings() {
               <>
                 <div className="hidden md:block overflow-x-auto">
                   <Table>
-                    <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                    <TableHeader className="sticky top-0 z-10 bg-card">
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="text-right">Rate (₦/$)</TableHead>
                         <TableHead>Status</TableHead>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
+import { AID_SPEED } from './world/avatarAids';
 import { INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
@@ -121,6 +122,8 @@ function cachedSolid(map: MapDef, items: Item[]): boolean[][] {
 
 /** when each following pet next makes a sound (ms) */
 const petVoiceAt = new Map<string, number>();
+/** each pet has its own voice: a steady pitch worked out from its id (big and deep, or small and high) */
+const petPitch = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return 0.82 + (h % 1000) / 1000 * 0.42; };
 
 export function OfficeCanvas(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -674,31 +677,48 @@ export function OfficeCanvas(props: Props) {
                 lastPlan.current = now;
               }
               while (route.current.length > 1 && Math.hypot(route.current[0].x - me.x, route.current[0].y - me.y) < 0.25) route.current.shift();
-              const w = route.current[0] ?? goal;
-              // if the straight way to the next point is not open (a doorway, a corner), first line up with the middle of my own tile, so I do not clip the wall
-              let aimX = w.x;
-              let aimY = w.y;
-              if (route.current.length && !lineClear(solid, me.x, me.y, w.x, w.y)) {
-                const cx = Math.floor(me.x) + 0.5;
-                const cy = Math.floor(me.y) + 0.5;
-                if (Math.hypot(cx - me.x, cy - me.y) > 0.1) { aimX = cx; aimY = cy; }
-              }
-              const dx = aimX - me.x;
-              const dy = aimY - me.y;
-              const d = Math.hypot(dx, dy) || 1;
-              v = { vx: (dx / d) * WALK_SPEED, vy: (dy / d) * WALK_SPEED };
-              // no real progress for a while: give up rather than push into a wall forever
-              const st = autoStuck.current;
-              if (!st || Math.hypot(me.x - st.x, me.y - st.y) > 0.5) autoStuck.current = { t: now, x: me.x, y: me.y };
-              else if (now - st.t > 1800) {
-                autoStuck.current = null;
+              // where to head: the next waypoint (always the middle of a tile). With no waypoints left we are in the target's own tile:
+              // head for the exact spot only if that tile is open, kept clear of the tile's edge so a wall next to it cannot trap us.
+              // A target that is itself solid (a lounger, an umbrella, the sea) is never walked into: we stop beside it.
+              const gtx = Math.floor(goal.x);
+              const gty = Math.floor(goal.y);
+              const goalOpen = solid[gty]?.[gtx] === false;
+              const cl = (n: number, lo: number) => Math.min(lo + 0.68, Math.max(lo + 0.32, n));
+              const w: { x: number; y: number } | null = route.current.length ? route.current[0] : goalOpen ? { x: cl(goal.x, gtx), y: cl(goal.y, gty) } : null;
+              if (!w || (route.current.length <= 1 && Math.hypot(w.x - me.x, w.y - me.y) < (route.current.length ? 0.25 : 0.1))) {
+                // arrived as near as the floor allows
                 route.current = [];
-                if (p.follow) p.onFollowEnd(); else walkGoal.current = null;
+                autoStuck.current = null;
+                if (!p.follow) walkGoal.current = null;
+                else if (p.followOnce) p.onFollowEnd();
+                v = { vx: 0, vy: 0 };
+              } else {
+                // if the straight way to the next point is not open (a doorway, a corner), first line up with the middle of my own tile, so I do not clip the wall
+                let aimX = w.x;
+                let aimY = w.y;
+                if (route.current.length && !lineClear(solid, me.x, me.y, w.x, w.y)) {
+                  const cx = Math.floor(me.x) + 0.5;
+                  const cy = Math.floor(me.y) + 0.5;
+                  if (Math.hypot(cx - me.x, cy - me.y) > 0.1) { aimX = cx; aimY = cy; }
+                }
+                const dx = aimX - me.x;
+                const dy = aimY - me.y;
+                const d = Math.hypot(dx, dy) || 1;
+                v = { vx: (dx / d) * WALK_SPEED, vy: (dy / d) * WALK_SPEED };
+                // no real progress for a while: give up rather than push into a wall forever
+                const st = autoStuck.current;
+                if (!st || Math.hypot(me.x - st.x, me.y - st.y) > 0.5) autoStuck.current = { t: now, x: me.x, y: me.y };
+                else if (now - st.t > 1800) {
+                  autoStuck.current = null;
+                  route.current = [];
+                  if (p.follow) p.onFollowEnd(); else walkGoal.current = null;
+                }
               }
             }
           }
         }
         if (p.riding) v = { vx: v.vx * RIDE_SPEED, vy: v.vy * RIDE_SPEED };
+        else if (p.me.avatar.aid) { const k = AID_SPEED[p.me.avatar.aid] ?? 1; v = { vx: v.vx * k, vy: v.vy * k }; }
         me.vx = v.vx;
         me.vy = v.vy;
         const ease = 1 - Math.exp(-dt * 15);
@@ -812,7 +832,7 @@ export function OfficeCanvas(props: Props) {
           if (!pet) continue;
           const res = applyPetCmd(pet, cmd, now, { x: me.x, y: me.y, dir: me.dir }, solid);
           if (res.hearts) petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: cmd.kind === 'treat' ? '🦴' : '❤️' });
-          if (res.sound) ambient.pet(pet.kind, res.sound);
+          if (res.sound) ambient.pet(pet.kind, res.sound, 1, petPitch(pet.id));
         }
         playTick(petRegistry.values(), now, dt, Math.random);
         for (const pet of petRegistry.values()) {
@@ -825,14 +845,14 @@ export function OfficeCanvas(props: Props) {
             if (at === undefined) petVoiceAt.set(pet.id, now + 1500 + Math.random() * 2500);
             else if (now >= at && dme < 9) {
               petVoiceAt.set(pet.id, now + 4500 + Math.random() * 7000);
-              ambient.pet(pet.kind, pet.dashing ? 'happy' : pet.kind === 'dog' ? 'bark' : 'meow', Math.max(0.2, 1 - dme / 9));
+              ambient.pet(pet.kind, pet.dashing ? 'happy' : pet.kind === 'dog' ? 'bark' : 'meow', Math.max(0.2, 1 - dme / 9), petPitch(pet.id));
               petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: pet.kind === 'dog' ? '🐾' : '💬' });
             } else if (now >= at) petVoiceAt.set(pet.id, now + 2000);
           }
           if (pet.mode === 'play' && now - pet.fxAt > 900) {
             pet.fxAt = now;
             petFx.current.push({ x: pet.x, y: pet.y - 1.1, born: now, e: pet.kind === 'dog' ? '💨' : '😼' });
-            if (Math.random() < 0.35) ambient.pet(pet.kind, pet.kind === 'dog' ? 'bark' : 'meow');
+            if (Math.random() < 0.35) ambient.pet(pet.kind, pet.kind === 'dog' ? 'bark' : 'meow', 1, petPitch(pet.id));
           }
           if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
           officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now || pet.wait < 1.4 : true });

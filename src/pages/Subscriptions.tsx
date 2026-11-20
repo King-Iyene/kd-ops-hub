@@ -933,14 +933,14 @@ const Subscriptions = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Name</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Cycle</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Priority</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Payment Method</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Next Renewal</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Days</TableHead>
-                        <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Actions</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Name</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card text-right">Amount</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Cycle</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Priority</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Payment Method</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Next Renewal</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card">Days</TableHead>
+                        <TableHead className="sticky top-0 z-10 bg-card text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

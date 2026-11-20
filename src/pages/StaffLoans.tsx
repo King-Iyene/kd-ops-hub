@@ -418,14 +418,14 @@ export default function StaffLoans() {
                       <Table>
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Principal</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Outstanding</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Monthly Deduction</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-center">Tenure</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Status</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Repayment</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Employee</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Loan Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card text-right">Principal</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card text-right">Outstanding</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card text-right">Monthly Deduction</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card text-center">Tenure</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Status</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Repayment</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -517,12 +517,12 @@ export default function StaffLoans() {
                       <Table>
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Employee</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Loan Type</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right">Amount</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Type</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Period</TableHead>
-                            <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">Date</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Employee</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Loan Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card text-right">Amount</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Type</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Period</TableHead>
+                            <TableHead className="sticky top-0 z-10 bg-card">Date</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

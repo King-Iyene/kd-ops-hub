@@ -35,7 +35,7 @@ export function ActivityTab({ activityLogs }: ActivityTabProps) {
           <div className="hidden md:block">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead>Action</TableHead>
                     <TableHead>Details</TableHead>

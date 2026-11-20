@@ -328,7 +328,7 @@ export function NotificationBell() {
                 if (items.length === 0) return null;
                 return (
                   <div key={bucket}>
-                    <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur-sm px-4 py-1.5 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">
+                    <div className="sticky top-0 z-10 bg-popover px-4 py-1.5 text-3xs font-bold uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">
                       {BUCKET_LABEL[bucket]}
                     </div>
                     {items.map((n: any) => {

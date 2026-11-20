@@ -661,7 +661,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
               <div className="hidden md:block">
                 <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                  <TableHeader className="sticky top-0 z-10 bg-card">
                     <TableRow>
                       <TableHead>Vehicle</TableHead>
                       <TableHead>Service Type</TableHead>

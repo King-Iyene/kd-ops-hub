@@ -1011,7 +1011,7 @@ function PnLReport({ range }: { range: DateRange }) {
               <div className="overflow-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="sticky top-0 z-10 border-b border-border/50 bg-card/95 backdrop-blur-sm">
+                    <tr className="sticky top-0 z-10 border-b border-border/50 bg-card">
                       <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Month</th>
                       <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
                       <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>

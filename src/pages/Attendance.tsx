@@ -387,7 +387,7 @@ export default function Attendance() {
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border border-border/60 bg-card overflow-x-auto">
             <table className="w-full text-sm min-w-[640px]">
-              <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <thead className="sticky top-0 z-10 bg-card">
                 <tr className="border-b border-border/50">
                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>
                   <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>

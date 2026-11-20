@@ -217,7 +217,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
           <CardContent>
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <thead className="sticky top-0 z-10 bg-card">
                   <tr className="border-b text-xs text-muted-foreground">
                     <th className="text-left py-2 pr-2">#</th>
                     <th className="text-left py-2">Vehicle</th>
