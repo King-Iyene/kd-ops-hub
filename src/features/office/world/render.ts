@@ -765,14 +765,6 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       rr(ctx, x + 9, y + 7, W * 0.38, 3, 2);
       ctx.fill();
-      // a little vase in the middle
-      const vx = x + W / 2;
-      const vy = y + H / 2 - 4;
-      ellipse(ctx, vx, vy + 5, 5, 2.4, 'rgba(15,23,42,0.2)');
-      ctx.fillStyle = '#e2e8f0';
-      rr(ctx, vx - 3, vy - 2, 6, 8, 2);
-      ctx.fill();
-      for (let i = 0; i < 3; i++) disc(ctx, vx + (i - 1) * 3.2 + sway * 0.5, vy - 5 - (i === 1 ? 2 : 0), 2.6, FLOWER_COLORS[(i + Math.floor(seed * 6)) % 6]);
       break;
     }
     case 'coffeetable': {
@@ -783,14 +775,6 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
       ctx.fillStyle = dark ? 'rgba(125,180,230,0.55)' : 'rgba(186,222,255,0.9)';
       rr(ctx, x + 3, y + 3, W - 6, H - 11, 8);
       ctx.fill();
-      ctx.fillStyle = '#ef4444';
-      ctx.save();
-      ctx.translate(x + 18, y + H / 2 - 3);
-      ctx.rotate(-0.18);
-      ctx.fillRect(-7, -5, 14, 10);
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(-6, -4, 12, 3);
-      ctx.restore();
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -1233,6 +1217,218 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cx = x + W / 2;
   const cy = y + H / 2;
   switch (item.t) {
+    case 'longtable':
+    case 'worktable':
+    case 'sidetable':
+    case 'conference': {
+      // flat tops with nothing painted on them, so a computer, papers or a mug can go anywhere on them
+      const spec = item.t === 'worktable' ? { top0: '#ffffff', top1: '#e6ebf2', edge: '#b9c3d0', leg: '#8b97a8' }
+        : item.t === 'conference' ? { top0: '#556070', top1: '#343e4d', edge: '#1f2733', leg: '#111827' }
+        : item.t === 'sidetable' ? { top0: '#f3dfc4', top1: '#dcb98b', edge: '#a77c4c', leg: '#7a5532' }
+        : { top0: '#efd8b4', top1: '#d9b283', edge: '#9d7143', leg: '#7a5532' };
+      softShadow(ctx, x, y, W, H, 8);
+      ctx.fillStyle = col ? shade(col, -0.45) : spec.leg;
+      ctx.fillRect(x + 4, y + H - 6, 4, 5);
+      ctx.fillRect(x + W - 8, y + H - 6, 4, 5);
+      ctx.fillStyle = col ? shade(col, -0.25) : spec.edge;
+      rr(ctx, x + 1.5, y + 6, W - 3, H - 9, 7);
+      ctx.fill();
+      ctx.fillStyle = vgrad(ctx, y + 2, y + H - 9, col ? shade(col, 0.45) : spec.top0, col ? shade(col, 0.05) : spec.top1);
+      rr(ctx, x + 1.5, y + 2, W - 3, H - 11, 7);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(x + 8, y + 4, W - 16, 1.5);
+      return true;
+    }
+    case 'bed':
+    case 'singlebed': {
+      // drawn upright with the head at the top, then turned if the bed lies sideways
+      const sideways = W > H;
+      const lw = sideways ? H : W;
+      const lh = sideways ? W : H;
+      ctx.save();
+      if (sideways) { ctx.translate(x, y + H); ctx.rotate(-Math.PI / 2); } else ctx.translate(x, y);
+      const cover = col ?? ['#5fb5a8', '#7c83e8', '#e08aa6', '#d9a35f'][Math.floor(seed * 4)];
+      softShadow(ctx, 0, 0, lw, lh, 8);
+      ctx.fillStyle = '#8a5a2b';
+      rr(ctx, 2, 2, lw - 4, lh - 4, 8);
+      ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      rr(ctx, 5, 9, lw - 10, lh - 14, 7);
+      ctx.fill();
+      const pillows = item.t === 'bed' ? 2 : 1;
+      const pw = (lw - 14) / pillows;
+      for (let i = 0; i < pillows; i++) {
+        ctx.fillStyle = '#ffffff';
+        rr(ctx, 7 + i * pw + 1, 12, pw - 2, 16, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(100,116,139,0.4)';
+        ctx.lineWidth = 1;
+        rr(ctx, 7 + i * pw + 1, 12, pw - 2, 16, 6);
+        ctx.stroke();
+      }
+      ctx.fillStyle = cover;
+      rr(ctx, 5, lh * 0.4, lw - 10, lh * 0.6 - 7, 7);
+      ctx.fill();
+      ctx.fillStyle = shade(cover, 0.4);
+      rr(ctx, 5, lh * 0.4, lw - 10, 6, 3);
+      ctx.fill();
+      ctx.strokeStyle = shade(cover, -0.15);
+      ctx.lineWidth = 1;
+      for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(8, lh * 0.4 + 6 + k * ((lh * 0.6 - 16) / 4)); ctx.lineTo(lw - 8, lh * 0.4 + 6 + k * ((lh * 0.6 - 16) / 4)); ctx.stroke(); }
+      ctx.fillStyle = '#6b4423';
+      rr(ctx, 1, 0, lw - 2, 9, 4);
+      ctx.fill();
+      ctx.restore();
+      return true;
+    }
+    case 'nightstand':
+    case 'dresser': {
+      softShadow(ctx, x, y, W, H, 6);
+      const wood = col ?? '#b07d4f';
+      ctx.fillStyle = shade(wood, -0.25);
+      rr(ctx, x + 2, y + 7, W - 4, H - 9, 6);
+      ctx.fill();
+      ctx.fillStyle = vgrad(ctx, y + 2, y + H - 9, shade(wood, 0.45), shade(wood, 0.1));
+      rr(ctx, x + 2, y + 3, W - 4, H - 12, 6);
+      ctx.fill();
+      const n = Math.max(1, Math.round(Math.max(W, H) / TILE));
+      for (let i = 0; i < n; i++) {
+        const dx = x + 5 + (i * (W - 10)) / n;
+        ctx.fillStyle = shade(wood, -0.1);
+        rr(ctx, dx, y + H - 14, (W - 10) / n - 3, 8, 2);
+        ctx.fill();
+        disc(ctx, dx + ((W - 10) / n - 3) / 2, y + H - 10, 1.4, '#f5d98a');
+      }
+      return true;
+    }
+    case 'wardrobe': {
+      softShadow(ctx, x, y, W, H, 6);
+      const wood = col ?? '#a9825a';
+      ctx.fillStyle = shade(wood, -0.3);
+      rr(ctx, x + 1, y + 2, W - 2, H - 4, 5);
+      ctx.fill();
+      ctx.fillStyle = vgrad(ctx, y + 4, y + H - 4, shade(wood, 0.3), wood);
+      rr(ctx, x + 4, y + 5, W - 8, H - 11, 4);
+      ctx.fill();
+      ctx.strokeStyle = shade(wood, -0.4);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (H > W) { ctx.moveTo(x + 6, cy); ctx.lineTo(x + W - 6, cy); } else { ctx.moveTo(cx, y + 6); ctx.lineTo(cx, y + H - 7); }
+      ctx.stroke();
+      if (H > W) { disc(ctx, cx, cy - 4, 1.6, '#f5d98a'); disc(ctx, cx, cy + 4, 1.6, '#f5d98a'); } else { disc(ctx, cx - 4, cy, 1.6, '#f5d98a'); disc(ctx, cx + 4, cy, 1.6, '#f5d98a'); }
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(x + 6, y + 6, W - 12, 2);
+      return true;
+    }
+    case 'mirror': {
+      softShadow(ctx, x, y, W, H, 6);
+      ctx.fillStyle = col ? shade(col, -0.2) : '#8a6038';
+      rr(ctx, x + 7, y + 2, W - 14, H - 6, 6);
+      ctx.fill();
+      const glass = ctx.createLinearGradient(x, y, x + W, y + H);
+      glass.addColorStop(0, dark ? '#9ec5e8' : '#e6f4ff');
+      glass.addColorStop(1, dark ? '#5d86ad' : '#a8d2f0');
+      ctx.fillStyle = glass;
+      rr(ctx, x + 10, y + 5, W - 20, H - 12, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 13, y + 14);
+      ctx.lineTo(x + W - 14, y + 7);
+      ctx.stroke();
+      return true;
+    }
+    case 'clothesrack': {
+      softShadow(ctx, x, y, W, H, 6);
+      ctx.strokeStyle = '#6b7280';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 5, y + 8); ctx.lineTo(x + W - 5, y + 8);
+      ctx.moveTo(x + 6, y + 8); ctx.lineTo(x + 6, y + H - 3);
+      ctx.moveTo(x + W - 6, y + 8); ctx.lineTo(x + W - 6, y + H - 3);
+      ctx.stroke();
+      const palette = ['#e11d74', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed', '#0ea5e9', '#ef4444'];
+      const n = Math.max(3, Math.round(Math.max(W, H) / 12));
+      for (let i = 0; i < n; i++) {
+        const gx = x + 10 + (i * (W - 20)) / Math.max(1, n - 1);
+        const c = col ?? palette[(i + Math.floor(seed * 7)) % palette.length];
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(gx, y + 8); ctx.lineTo(gx, y + 11); ctx.stroke();
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        if (i % 2 === 0) { ctx.moveTo(gx - 3, y + 11); ctx.lineTo(gx + 3, y + 11); ctx.lineTo(gx + 6, y + H - 6); ctx.lineTo(gx - 6, y + H - 6); } else { rr(ctx, gx - 4, y + 11, 8, H - 20, 2); }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(gx - 1, y + 13, 1.5, H - 24);
+      }
+      return true;
+    }
+    case 'mannequin': {
+      ellipse(ctx, cx, y + H - 5, 11, 4, 'rgba(15,23,42,0.22)');
+      ctx.fillStyle = '#4b5563';
+      ctx.fillRect(cx - 1, y + H - 14, 2, 9);
+      ellipse(ctx, cx, y + H - 5, 8, 3, '#374151');
+      const dress = col ?? '#e11d74';
+      ctx.fillStyle = dress;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6, cy - 6); ctx.lineTo(cx + 6, cy - 6); ctx.lineTo(cx + 5, cy + 2); ctx.lineTo(cx + 12, y + H - 12); ctx.lineTo(cx - 12, y + H - 12); ctx.lineTo(cx - 5, cy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = shade(dress, 0.35);
+      ctx.fillRect(cx - 5, cy + 1, 10, 2);
+      disc(ctx, cx, cy - 11, 4.6, '#e7dccd');
+      ctx.fillStyle = '#d9cdbb';
+      ctx.fillRect(cx - 1.5, cy - 8, 3, 3);
+      return true;
+    }
+    case 'shoerack': {
+      softShadow(ctx, x, y, W, H, 6);
+      ctx.fillStyle = '#8a6038';
+      rr(ctx, x + 3, y + 4, W - 6, H - 8, 4);
+      ctx.fill();
+      const shoes = ['#111827', '#dc2626', '#f8fafc', '#2563eb', '#f59e0b', '#16a34a'];
+      for (let r = 0; r < 3; r++) {
+        const sy = y + 8 + r * ((H - 16) / 3);
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(x + 5, sy + 7, W - 10, 1.5);
+        for (let k = 0; k < 2; k++) {
+          ellipse(ctx, x + 11 + k * 13, sy + 4, 5, 2.6, shoes[(r * 2 + k + Math.floor(seed * 6)) % 6]);
+        }
+      }
+      return true;
+    }
+    case 'armchair':
+    case 'loveseat': {
+      softShadow(ctx, x, y, W, H, 10);
+      const fab = col ?? '#6d8fd6';
+      ctx.fillStyle = shade(fab, -0.3);
+      rr(ctx, x + 2, y + 3, W - 4, H - 5, 10);
+      ctx.fill();
+      ctx.fillStyle = shade(fab, -0.12);
+      rr(ctx, x + 2, y + 3, W - 4, 11, 8);
+      ctx.fill();
+      ctx.fillStyle = fab;
+      rr(ctx, x + 9, y + 12, W - 18, H - 19, 8);
+      ctx.fill();
+      ctx.fillStyle = shade(fab, 0.3);
+      rr(ctx, x + 12, y + 14, W - 24, 5, 3);
+      ctx.fill();
+      return true;
+    }
+    case 'ottoman': {
+      ellipse(ctx, cx, cy + 5, 13, 8, 'rgba(15,23,42,0.22)');
+      const fab = col ?? '#d9a35f';
+      disc(ctx, cx, cy + 1, 12.5, shade(fab, -0.3));
+      const g = ctx.createRadialGradient(cx - 4, cy - 5, 2, cx, cy, 12);
+      g.addColorStop(0, shade(fab, 0.4));
+      g.addColorStop(1, fab);
+      disc(ctx, cx, cy - 2, 11.5, g);
+      return true;
+    }
     case 'bike': {
       // a parked bike faces the way it was left (rotation 1 means facing left)
       bikeSprite(ctx, cx, cy + 4, 'side', item.r === 1 ? -1 : 1, 0, col);
@@ -1871,10 +2067,6 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
       g.addColorStop(0, shade(wood, 0.45));
       g.addColorStop(1, wood);
       disc(ctx, cx, cy, R - 5, g);
-      ctx.fillStyle = '#e2e8f0';
-      rr(ctx, cx - 3, cy - 6, 6, 8, 2);
-      ctx.fill();
-      for (let i = 0; i < 3; i++) disc(ctx, cx + (i - 1) * 3.4 + sway * 0.5, cy - 9 - (i === 1 ? 2 : 0), 2.6, FLOWER_COLORS[(i + Math.floor(seed * 6)) % 6]);
       break;
     }
     case 'piano': {

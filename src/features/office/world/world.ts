@@ -102,7 +102,29 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   bike: { w: 1, h: 1, solid: false, label: 'Bike' },
   kart: { w: 1, h: 1, solid: false, label: 'Bike' },
   cat: { w: 1, h: 1, solid: false, label: 'Cat' },
+  // flat tables (nothing painted on top, so a computer, papers or a mug can go anywhere on them)
+  longtable: { w: 4, h: 1, solid: true, label: 'Long table' },
+  worktable: { w: 2, h: 1, solid: true, label: 'White work table' },
+  sidetable: { w: 1, h: 1, solid: true, label: 'Side table' },
+  conference: { w: 4, h: 2, solid: true, label: 'Meeting table' },
+  // bedroom and clothes
+  bed: { w: 2, h: 2, solid: true, label: 'Double bed' },
+  singlebed: { w: 1, h: 2, solid: true, label: 'Single bed' },
+  nightstand: { w: 1, h: 1, solid: true, label: 'Bedside table' },
+  wardrobe: { w: 2, h: 1, solid: true, label: 'Wardrobe' },
+  dresser: { w: 2, h: 1, solid: true, label: 'Chest of drawers' },
+  mirror: { w: 1, h: 1, solid: true, label: 'Standing mirror' },
+  clothesrack: { w: 2, h: 1, solid: true, label: 'Clothes rack' },
+  mannequin: { w: 1, h: 1, solid: true, label: 'Mannequin' },
+  shoerack: { w: 1, h: 1, solid: true, label: 'Shoe rack' },
+  // more seating
+  armchair: { w: 1, h: 1, solid: true, label: 'Armchair' },
+  loveseat: { w: 2, h: 1, solid: true, label: 'Two-seater' },
+  ottoman: { w: 1, h: 1, solid: true, label: 'Ottoman' },
 };
+
+/** Furniture with a flat top: small things (a computer, papers, a mug) can be placed on any tile of these. */
+export const SURFACE_ITEMS: ItemType[] = ['desk', 'standingdesk', 'execdesk', 'cornerdesk', 'table', 'coffeetable', 'roundtable', 'longtable', 'worktable', 'sidetable', 'conference', 'nightstand', 'dresser'];
 
 /** Small things that sit on top of a desk or table (one of each kind per tile). */
 export const TOP_ITEMS: ItemType[] = ['computer', 'papers', 'mug', 'laptop', 'books', 'plate', 'globe', 'trophy', 'headphones', 'pizza', 'dualmonitor', 'ultrawide'];
@@ -407,7 +429,7 @@ export function canPlace(map: MapDef, items: Item[], item: Item): PlaceResult {
     if (map.walls[c.y]?.[c.x]) return { ok: false, reason: 'That is a wall' };
   }
   if (TOP_ITEMS.includes(item.t)) {
-    const surfaces = items.filter((i) => i.t === 'desk' || i.t === 'standingdesk' || i.t === 'execdesk' || i.t === 'cornerdesk' || i.t === 'table' || i.t === 'coffeetable' || i.t === 'roundtable');
+    const surfaces = items.filter((i) => SURFACE_ITEMS.includes(i.t));
     const onSurface = surfaces.some((s) => itemCells(s).some((c) => c.x === item.x && c.y === item.y));
     if (!onSurface) return { ok: false, reason: `${ITEM_DEFS[item.t].label} goes on a desk or table` };
     if (items.some((i) => i.t === item.t && i.x === item.x && i.y === item.y)) return { ok: false, reason: `Already a ${ITEM_DEFS[item.t].label.toLowerCase()} here` };
