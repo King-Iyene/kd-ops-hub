@@ -760,7 +760,7 @@ const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
 /** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
-const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman']);
+const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall']);
 /** Plants, flowers and trees only sway (nothing else moves), so they are drawn in 8 sway poses and each frame picks the nearest one. */
 const SWAY_PIECES = new Set<string>(['plant', 'flowers', 'tree', 'balloons', 'bamboo', 'palm', 'grass']);
 const SWAY_POSES = 8;
@@ -778,7 +778,7 @@ function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | unde
     pose = Math.floor((theta / TAU) * SWAY_POSES) % SWAY_POSES;
     tPose = (((pose + 0.5) / SWAY_POSES) * TAU - seed * 6.28) * 900;
   }
-  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}`;
+  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}${item.t === 'valueswall' ? '|' + (officeInfo.titles[item.id] ?? '') : ''}`;
   let pic = spriteCache.get(key);
   if (!pic) {
     pic = document.createElement('canvas');
@@ -1772,16 +1772,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
         ctx.closePath();
         ctx.fill();
       });
-      // a soft shine that slides across now and then
-      const sx = ((t / 3200) % 1.6 - 0.3) * W;
-      const g = ctx.createLinearGradient(x + sx - 14, y, x + sx + 14, y);
-      g.addColorStop(0, 'rgba(255,255,255,0)');
-      g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = g;
-      rr(ctx, x + 3, y + 4, W - 6, H - 8, 5);
-      ctx.fill();
-      return true;
+      return true; // no moving shine any more: the sign is drawn once and reused (see STATIC_PIECES)
     }
     case 'noticeboard': {
       ctx.fillStyle = '#7a4b22';

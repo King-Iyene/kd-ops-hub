@@ -28,7 +28,7 @@ export function shade(hex: string, amount: number): string {
 
 // ---------- the lists the editor shows (the position in each list is the number saved on the avatar) ----------
 export const HAIR_STYLES = ['Short', 'Long', 'Bun', 'None', 'Curly', 'Quiff', 'Braids', 'Afro', 'Bob', 'Mohawk', 'Locs', 'Pigtails', 'Ponytail', 'Cornrows', 'Locs bun', 'Space buns', 'Side part', 'Fade', 'Topknot', 'Long and straight', 'Bob with fringe', 'Afro puffs', 'Bantu knots', 'Twists', 'Mullet', 'Crown braid', 'Long braid'];
-export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top', 'Kimono', 'Sari', 'Kurta', 'Cheongsam', 'Hanbok', 'Ao dai', 'Poncho', 'Charro suit', 'Flamenco dress', 'Thobe', 'Kilt', 'Maasai shuka', 'Sherwani', 'Tracksuit', 'Scrubs', 'Puffer jacket', 'Football shirt'];
+export const OUTFITS = ['T-shirt', 'Hoodie', 'Blazer', 'Dress', 'Skirt', 'Kaftan', 'Ankara top', 'Agbada', 'Buba and sokoto', 'Iro and buba', 'Ball gown', 'Wedding dress', 'Graduation gown', 'Abaya', 'Dashiki', 'Kente wrap', 'Overalls', 'Lab coat', 'Tank top', 'Kimono', 'Sari', 'Kurta', 'Cheongsam', 'Hanbok', 'Ao dai', 'Poncho', 'Charro suit', 'Flamenco dress', 'Thobe', 'Kilt', 'Maasai shuka', 'Sherwani', 'Tracksuit', 'Scrubs', 'Puffer jacket', 'Football shirt', 'Etibo and George', 'Wrapper and blouse', 'George wrapper', 'Chest wrapper'];
 export const BEARDS = ['None', 'Stubble', 'Moustache', 'Beard', 'Goatee', 'Handlebar', 'Long beard'];
 export const SHOES = ['Sneakers', 'Formal', 'Boots', 'Sandals', 'Heels', 'Slippers', 'Barefoot'];
 export const BOTTOMS = ['Trousers', 'Shorts', 'Capri', 'Leggings', 'Joggers', 'Bermuda', 'Bare legs'];
@@ -40,7 +40,7 @@ export const JACKETS = ['None', 'Blazer', 'Denim', 'Bomber', 'Waistcoat'];
 export const TIES = ['None', 'Tie', 'Bow tie', 'Scarf'];
 
 /** Outfits whose sleeves reach the wrist or beyond. */
-export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17, 19, 21, 22, 24, 26, 28, 31, 32, 34];
+export const LONG_SLEEVE_OUTFITS = [1, 2, 7, 12, 13, 17, 19, 21, 22, 24, 26, 28, 31, 32, 34, 36];
 /** Outfits that hide the legs (a gown or robe to the floor). */
 export const FLOOR_OUTFITS = [7, 10, 11, 12, 13, 19, 20, 23, 27, 28];
 
@@ -596,6 +596,54 @@ export function drawOutfitX(ctx: Ctx, a: AvatarStyle, P: Pose) {
     for (const sd of [-1, 1]) { disc(ctx, px + sd * 9.8, top + 2.6, 3.4, col); ctx.fillStyle = '#ffffff'; ctx.fillRect(px + sd * 9.8 - 2.4, top + 4.4, 4.8, 1); }
     ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('10', px, py - 1 + bob); ctx.textAlign = 'start';
     if (!back) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(px - 3.4, top - 0.4); ctx.lineTo(px + 3.4, top - 0.4); ctx.lineTo(px, top + 4.2); ctx.closePath(); ctx.fill(); ctx.fillStyle = a.skin; ctx.beginPath(); ctx.moveTo(px - 2.2, top - 0.4); ctx.lineTo(px + 2.2, top - 0.4); ctx.lineTo(px, top + 2.8); ctx.closePath(); ctx.fill(); }
+  } else if (o === 36) { // an etibo: the Ijaw man's long embroidered shirt, worn over a George wrapper (a plaid cloth) tied at the waist
+    const wr = () => { ctx.beginPath(); ctx.moveTo(px - 9.6, py + 1 + bob); ctx.lineTo(px + 9.6, py + 1 + bob); ctx.lineTo(px + 11.4 + sway, py + 10 + bob); ctx.lineTo(px - 11.4 + sway, py + 10 + bob); ctx.closePath(); };
+    ctx.fillStyle = grad(py + 1 + bob, py + 10 + bob, a.pants); wr(); ctx.fill();
+    ctx.save(); wr(); ctx.clip();
+    ctx.lineWidth = 0.9;
+    for (let k = 0; k < 7; k++) { ctx.strokeStyle = k % 2 ? 'rgba(17,24,39,0.5)' : 'rgba(250,204,21,0.75)'; ctx.beginPath(); ctx.moveTo(px - 11 + k * 3.7, py); ctx.lineTo(px - 11 + k * 3.7, py + 11 + bob); ctx.stroke(); }
+    for (let k = 0; k < 3; k++) { ctx.strokeStyle = k % 2 ? 'rgba(17,24,39,0.5)' : 'rgba(250,204,21,0.75)'; ctx.beginPath(); ctx.moveTo(px - 12, py + 3.4 + k * 2.8 + bob); ctx.lineTo(px + 12, py + 3.4 + k * 2.8 + bob); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = grad(top, py + 5 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 9.4, top); ctx.lineTo(px + 9.4, top); ctx.lineTo(px + 10.8 + sway * 0.5, py + 5 + bob); ctx.lineTo(px - 10.8 + sway * 0.5, py + 5 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(col, -0.22); ctx.fillRect(px - 10.8 + sway * 0.5, py + 4 + bob, 21.6, 1.1);
+    if (!back) {
+      ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top, 2.8, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = gold; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.arc(px, top, 3.6, 0, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px, top + 3.4); ctx.lineTo(px, py + 4 + bob); ctx.stroke();
+      for (let k = 0; k < 4; k++) disc(ctx, px, top + 4.6 + k * 2.6, 0.7, gold);
+      pattern(ctx, 'diamonds', px - 6.6, top + 3.4, 3.4, 7, gold, '#fff7e0'); pattern(ctx, 'diamonds', px + 3.2, top + 3.4, 3.4, 7, gold, '#fff7e0');
+    }
+  } else if (o === 37) { // a wrapper and blouse: a fitted blouse over a printed wrapper tied at the waist, with the knot at the side
+    ctx.fillStyle = a.pants; ctx.beginPath(); ctx.moveTo(px - 9, py - 3 + bob); ctx.lineTo(px + 9, py - 3 + bob); ctx.lineTo(px + 11.4 + sway, py + 9.6 + bob); ctx.lineTo(px - 11.4 + sway, py + 9.6 + bob); ctx.closePath(); ctx.fill();
+    pattern(ctx, 'stripes', px - 11, py - 3 + bob, 22, 13, gold, shade(a.pants, 0.35));
+    ctx.fillStyle = shade(a.pants, -0.25); ctx.fillRect(px - 9, py - 3.6 + bob, 18, 1.8);
+    ctx.fillStyle = grad(top, py - 2 + bob, col); rr(ctx, px - 9.2, top, 18.4, 9.6, 3); ctx.fill();
+    for (const sd of [-1, 1]) disc(ctx, px + sd * 9.8, top + 2.8, 3.2, col);
+    if (!back) {
+      ctx.fillStyle = a.skin; ctx.beginPath(); ctx.arc(px, top, 3.4, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = shade(a.pants, 0.25); ctx.beginPath(); ctx.ellipse(px + 6, py - 1 + bob, 3, 2, -0.5, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = shade(a.pants, -0.3); ctx.lineWidth = 0.7; ctx.stroke();
+    }
+  } else if (o === 38) { // a George wrapper: a long wrapper with a wide shiny border, an off-the-shoulder blouse and coral beads
+    ctx.fillStyle = grad(py - 4 + bob, py + 11 + bob, a.pants);
+    ctx.beginPath(); ctx.moveTo(px - 8.6, py - 4 + bob); ctx.lineTo(px + 8.6, py - 4 + bob); ctx.lineTo(px + 13 + sway, py + 10 + bob); ctx.quadraticCurveTo(px + sway * 0.5, py + 12.4 + bob, px - 13 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = gold; ctx.beginPath(); ctx.moveTo(px - 12 + sway, py + 7 + bob); ctx.lineTo(px + 12 + sway, py + 7 + bob); ctx.lineTo(px + 13 + sway, py + 10 + bob); ctx.quadraticCurveTo(px + sway * 0.5, py + 12.4 + bob, px - 13 + sway, py + 10 + bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; for (let k = 0; k < 5; k++) disc(ctx, px - 9 + k * 4.5 + sway * 0.6, py + 8.6 + bob, 0.8, ctx.fillStyle);
+    ctx.fillStyle = grad(top, py - 3 + bob, col); rr(ctx, px - 8.6, top + 0.6, 17.2, 8.6, 4); ctx.fill();
+    for (const sd of [-1, 1]) disc(ctx, px + sd * 10.2, top + 3.6, 3.9, col);
+    if (!back) {
+      ctx.fillStyle = a.skin; ctx.beginPath(); ctx.ellipse(px, top + 0.6, 7.4, 3.4, 0, 0, Math.PI); ctx.fill();
+      for (let k = 0; k < 9; k++) { const an = Math.PI * (0.08 + k * 0.105); disc(ctx, px + Math.cos(an) * 5.8, top + 0.6 + Math.sin(an) * 3.8, 1, k % 3 === 1 ? '#f8fafc' : '#dc2626'); }
+    }
+  } else if (o === 39) { // a wrapper tied above the chest: one large cloth wrapped round the body and knotted at the side
+    ctx.fillStyle = grad(top + 2, py + 10 + bob, col);
+    ctx.beginPath(); ctx.moveTo(px - 8.8, top + 2.4); ctx.lineTo(px + 8.8, top + 2.4); ctx.lineTo(px + 11.2 + sway, py + 9.6 + bob); ctx.lineTo(px - 11.2 + sway, py + 9.6 + bob); ctx.closePath(); ctx.fill();
+    pattern(ctx, 'dots', px - 11, top + 3, 22, py + 8 - top + bob, gold, shade(col, 0.4));
+    ctx.fillStyle = shade(col, 0.22); ctx.fillRect(px - 8.8, top + 2.4, 17.6, 1.8);
+    if (!back) {
+      ctx.fillStyle = shade(col, -0.2); ctx.beginPath(); ctx.ellipse(px + 4.6, top + 5.4, 3.2, 2.3, 0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = shade(col, -0.4); ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(px + 4.6, top + 7); ctx.lineTo(px + 2.4, py + 9 + bob); ctx.stroke(); ctx.stroke();
+    }
   } else if (o === 17) { // a lab coat
     ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(px - 9.6, top); ctx.lineTo(px + 9.6, top); ctx.lineTo(px + 11 + sway, py + 8 + bob); ctx.lineTo(px - 11 + sway, py + 8 + bob); ctx.closePath(); ctx.fill();
     if (!back) {

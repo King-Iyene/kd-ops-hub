@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
-import { INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, inputVelocity, zoneAt } from './world/world';
+import { INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
@@ -118,6 +118,9 @@ function cachedSolid(map: MapDef, items: Item[]): boolean[][] {
   solidMemo = { map, items, solid };
   return solid;
 }
+
+/** when each following pet next makes a sound (ms) */
+const petVoiceAt = new Map<string, number>();
 
 export function OfficeCanvas(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -254,9 +257,14 @@ export function OfficeCanvas(props: Props) {
     let w = 0;
     let h = 0;
 
+    // sharpness steps down by itself when the frames are slow (a big screen at 2x draws four times as many pixels)
+    const QUALITY = [1.5, 1, 0.75];
+    let qualityLevel = 0;
+    let qualityAt = 0;
+    let msAvg = 16;
     const resize = () => {
       const r = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, QUALITY[qualityLevel]);
       w = r.width;
       h = r.height;
       canvas.width = Math.round(w * dpr);
@@ -545,6 +553,11 @@ export function OfficeCanvas(props: Props) {
       if (tabHidden.current) { if (now - slowAt < 250) return; slowAt = now; }
       const p = propsRef.current;
       const dt = Math.min(0.05, (now - last) / 1000);
+      const frameMs = now - last;
+      if (frameMs > 0 && frameMs < 400 && !tabHidden.current) {
+        msAvg += (frameMs - msAvg) * 0.04;
+        if (msAvg > 26 && now - qualityAt > 4000 && qualityLevel < QUALITY.length - 1) { qualityLevel++; qualityAt = now; msAvg = 16; resize(); }
+      }
       last = now;
       const solid = cachedSolid(p.map, p.items);
       const me = meRef.current;
@@ -572,12 +585,19 @@ export function OfficeCanvas(props: Props) {
           if (!s0) return;
           const bodies = peerBodies();
           const order: [number, number][] = me.dir === 3 ? [[0, -1], [1, 0], [-1, 0], [0, 1]] : me.dir === 1 ? [[-1, 0], [0, 1], [0, -1], [1, 0]] : me.dir === 2 ? [[1, 0], [0, 1], [0, -1], [-1, 0]] : [[0, 1], [1, 0], [-1, 0], [0, -1]];
+          let placed = false;
           for (const [dx, dy] of order) {
             const nx = s0.x + dx, ny = s0.y + dy;
             if (solid[Math.floor(ny)]?.[Math.floor(nx)] !== false) continue;
             if (bodies.some((q) => Math.hypot(q.x - nx, q.y - ny) < 0.8)) continue;
             me.x = nx; me.y = ny; me.sx = 0; me.sy = 0;
+            placed = true;
             break;
+          }
+          if (!placed) {
+            // every tile around the seat is taken (a chair at the end of a table, against a wall): the nearest free floor, not left stuck in the chair
+            const free = nearestOpenTile(solid, s0.x, s0.y, bodies, 5);
+            if (free) { me.x = free.x; me.y = free.y; me.sx = 0; me.sy = 0; }
           }
           sitRef.current = null;
           wantSit.current = null;
@@ -589,7 +609,8 @@ export function OfficeCanvas(props: Props) {
           const cells = itemCells(item).filter((c) => !bodies.some((q) => Math.hypot(q.x - (c.x + 0.5), q.y - (c.y + 0.5)) < 0.8));
           if (!cells.length) { ripples.push({ x: item.x + 0.5, y: item.y + 0.5, t: performance.now() }); return; }
           const pick = (tile && cells.find((c) => c.x === tile.x && c.y === tile.y)) ?? cells.sort((a, b) => Math.hypot(a.x + 0.5 - me.x, a.y + 0.5 - me.y) - Math.hypot(b.x + 0.5 - me.x, b.y + 0.5 - me.y))[0];
-          if (Math.hypot(pick.x + 0.5 - me.x, pick.y + 0.5 - me.y) < 2.1) {
+          const dSeat = Math.hypot(pick.x + 0.5 - me.x, pick.y + 0.5 - me.y);
+          if (dSeat < 1 || (dSeat < 2.1 && lineClear(solid, me.x, me.y, pick.x + 0.5, pick.y + 0.5))) {
             me.x = pick.x + 0.5; me.y = pick.y + 0.5; me.sx = 0; me.sy = 0; me.vx = 0; me.vy = 0;
             sitRef.current = { x: me.x, y: me.y };
             walkGoal.current = null; route.current = []; wantSit.current = null;
@@ -631,13 +652,39 @@ export function OfficeCanvas(props: Props) {
               else if (p.followOnce) p.onFollowEnd(); // "go to" a person: stop when we get there
             } else {
               if (!route.current.length || now - lastPlan.current > 500) {
-                route.current = findPath(solid, me.x, me.y, goal.x, goal.y) ?? [];
+                let r = findPath(solid, me.x, me.y, goal.x, goal.y);
+                if (!r) {
+                  // no way to that exact spot (it is inside something, or shut off): go to the nearest place that can be reached, or stay put.
+                  // Walking straight at it is what left people stuck against a wall.
+                  let best: { x: number; y: number } | null = null;
+                  let bd = Infinity;
+                  for (const key of reachable(solid, me.x, me.y)) {
+                    const [tx, ty] = key.split(',').map(Number);
+                    const dd = Math.hypot(tx + 0.5 - goal.x, ty + 0.5 - goal.y);
+                    if (dd < bd) { bd = dd; best = { x: tx + 0.5, y: ty + 0.5 }; }
+                  }
+                  r = best && bd + 0.5 < dist ? findPath(solid, me.x, me.y, best.x, best.y) : null;
+                  if (!r) {
+                    walkGoal.current = null;
+                    if (p.follow) p.onFollowEnd();
+                    r = [{ x: me.x, y: me.y }];
+                  }
+                }
+                route.current = r;
                 lastPlan.current = now;
               }
               while (route.current.length > 1 && Math.hypot(route.current[0].x - me.x, route.current[0].y - me.y) < 0.25) route.current.shift();
               const w = route.current[0] ?? goal;
-              const dx = w.x - me.x;
-              const dy = w.y - me.y;
+              // if the straight way to the next point is not open (a doorway, a corner), first line up with the middle of my own tile, so I do not clip the wall
+              let aimX = w.x;
+              let aimY = w.y;
+              if (route.current.length && !lineClear(solid, me.x, me.y, w.x, w.y)) {
+                const cx = Math.floor(me.x) + 0.5;
+                const cy = Math.floor(me.y) + 0.5;
+                if (Math.hypot(cx - me.x, cy - me.y) > 0.1) { aimX = cx; aimY = cy; }
+              }
+              const dx = aimX - me.x;
+              const dy = aimY - me.y;
               const d = Math.hypot(dx, dy) || 1;
               v = { vx: (dx / d) * WALK_SPEED, vy: (dy / d) * WALK_SPEED };
               // no real progress for a while: give up rather than push into a wall forever
@@ -742,7 +789,7 @@ export function OfficeCanvas(props: Props) {
       } else if (!drag.down) { inertia.x = 0; inertia.y = 0; }
       const cf = camFocus.current;
       if (!cf || Math.hypot(me.x - cf.x, me.y - cf.y) > 14) camFocus.current = { x: me.x, y: me.y };
-      else { const kc = 1 - Math.exp(-dt * 6.5); cf.x += (me.x - cf.x) * kc; cf.y += (me.y - cf.y) * kc; }
+      else { const kc = 1 - Math.exp(-dt * (p.riding ? 18 : 7.5)); cf.x += (me.x - cf.x) * kc; cf.y += (me.y - cf.y) * kc; }
       const focus = camFocus.current ?? me;
       let ox = w / 2 - focus.x * TILE * scale + pan.current.x;
       let oy = h / 2 - focus.y * TILE * scale + pan.current.y;
@@ -771,6 +818,17 @@ export function OfficeCanvas(props: Props) {
         for (const pet of petRegistry.values()) {
           const was = pet.happyUntil;
           stepPet(pet, dt, now, { x: me.x, y: me.y, dir: me.dir }, solid, Math.random, petRegistry);
+          // a pet that is following me barks or meows now and then, louder the closer it is
+          if (pet.mode === 'follow' && !p.editing) {
+            const dme = Math.hypot(pet.x - me.x, pet.y - me.y);
+            const at = petVoiceAt.get(pet.id);
+            if (at === undefined) petVoiceAt.set(pet.id, now + 1500 + Math.random() * 2500);
+            else if (now >= at && dme < 9) {
+              petVoiceAt.set(pet.id, now + 4500 + Math.random() * 7000);
+              ambient.pet(pet.kind, pet.dashing ? 'happy' : pet.kind === 'dog' ? 'bark' : 'meow', Math.max(0.2, 1 - dme / 9));
+              petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: pet.kind === 'dog' ? '🐾' : '💬' });
+            } else if (now >= at) petVoiceAt.set(pet.id, now + 2000);
+          }
           if (pet.mode === 'play' && now - pet.fxAt > 900) {
             pet.fxAt = now;
             petFx.current.push({ x: pet.x, y: pet.y - 1.1, born: now, e: pet.kind === 'dog' ? '💨' : '😼' });
