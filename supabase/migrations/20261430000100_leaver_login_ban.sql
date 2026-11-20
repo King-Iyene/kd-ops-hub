@@ -98,7 +98,7 @@ $$;
 
 COMMENT ON FUNCTION public.sync_leaver_login_ban() IS
   'Keeps auth.users.banned_until in step with profiles.status: inactive -> banned (never a super_admin), '
-  'active -> ban lifted. See 20261430000000_leaver_login_ban.sql.';
+  'active -> ban lifted. See 20261430000100_leaver_login_ban.sql.';
 
 -- Nobody calls this directly; it only runs as a trigger.
 REVOKE ALL ON FUNCTION public.sync_leaver_login_ban() FROM PUBLIC, anon, authenticated;

@@ -1,5 +1,5 @@
 -- =============================================================================
--- S2: leaver login ban (20261430000000_leaver_login_ban.sql)
+-- S2: leaver login ban (20261430000100_leaver_login_ban.sql)
 --
 -- Run AFTER the migration on the local replay database:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/leaver_login_ban.sql

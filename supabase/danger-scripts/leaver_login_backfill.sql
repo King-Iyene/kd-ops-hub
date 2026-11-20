@@ -1,5 +1,5 @@
 -- =============================================================================
--- One-time backfill for 20261430000000_leaver_login_ban.sql: block sign-in for people who are ALREADY inactive.
+-- One-time backfill for 20261430000100_leaver_login_ban.sql: block sign-in for people who are ALREADY inactive.
 -- The trigger only fires on a status change, so existing leavers are not covered until this is run.
 --
 -- Not a migration on purpose: run it by hand AFTER the migration is live and AFTER checking the list in step 1.
