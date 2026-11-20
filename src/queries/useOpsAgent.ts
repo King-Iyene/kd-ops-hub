@@ -95,7 +95,11 @@ export function useSavePersonProfile() {
   const uid = useAuthStore((s) => s.profile?.id);
   return useSupabaseMutation<unknown, Partial<AgentPersonProfile> & { person_id: string }>(
     (v) => adb.from('agent_person_profile').upsert({ ...v, updated_by: uid ?? null }, { onConflict: 'person_id' }).select(),
-    { onSuccess: () => { qc.invalidateQueries({ queryKey: K.profiles() }); qc.invalidateQueries({ queryKey: K.audit() }); } },
+    { onSuccess: () => {
+      qc.invalidateQueries({ queryKey: K.profiles() }); qc.invalidateQueries({ queryKey: K.audit() });
+      // the dashboard tiles (Reports in ... of ...) depend on exemptions and groups: refresh them at once
+      qc.invalidateQueries({ queryKey: [...K.all, 'team-pulse'] });
+    } },
   );
 }
 

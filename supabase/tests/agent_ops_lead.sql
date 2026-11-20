@@ -315,5 +315,28 @@ BEGIN
   RAISE NOTICE 'PASS 8: report audit';
 END $$;
 
+-- ── 9. leadership reports too; exemptions decide, and are picked up at once ─
+DO $$
+DECLARE r jsonb;
+BEGIN
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  r := public.agent_chat_tool('daily_reports', '{"date":"2026-11-18"}');
+  PERFORM public.t_eq('Alice reported', r -> 'reported' ->> 0, 'Alice');
+  PERFORM public.t_eq('Sue (Leadership) is expected and has not reported', (SELECT count(*) FROM jsonb_array_elements(r -> 'missing') m WHERE m ->> 'name' = 'Sue Super'), 1::bigint);
+  PERFORM public.t_eq('placed staff (Finn) are not expected', (SELECT count(*) FROM jsonb_array_elements(r -> 'missing') m WHERE m ->> 'name' = 'Finn'), 0::bigint);
+  RESET ROLE;
+  PERFORM public.agent_run_rules('2026-11-18T23:30:00Z');   -- 6:30 PM EST, past the deadline
+  PERFORM public.t_eq('a missing-report item exists for Sue', (SELECT count(*) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND p.full_name = 'Sue Super' AND f.status = 'open'), 1::bigint);
+  -- exempt her from reports: it is picked up on the next look
+  UPDATE public.agent_person_profile SET exemptions = '{"reports": true}'::jsonb WHERE person_id = 'a0000000-0000-0000-0000-000000000001';
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  r := public.agent_chat_tool('daily_reports', '{"date":"2026-11-18"}');
+  PERFORM public.t_eq('exempted: no longer expected', (SELECT count(*) FROM jsonb_array_elements(r -> 'missing') m WHERE m ->> 'name' = 'Sue Super'), 0::bigint);
+  RESET ROLE;
+  PERFORM public.agent_run_rules('2026-11-18T23:31:00Z');
+  PERFORM public.t_eq('and her open item is closed', (SELECT count(*) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND p.full_name = 'Sue Super' AND f.status = 'open'), 0::bigint);
+  RAISE NOTICE 'PASS 9: leadership and exemptions';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

@@ -237,15 +237,15 @@ BEGIN
   IF (r -> 'missing')::text LIKE '%Fola%' OR (r -> 'missing')::text LIKE '%Nuhu%' THEN RAISE EXCEPTION 'FAIL: a Field Agent or an NDI person was expected: %', r -> 'missing'; END IF;
   r := public.agent_chat_tool('daily_reports', jsonb_build_object('date', to_char(current_date - 3, 'YYYY-MM-DD')));
   PERFORM public.t_eq('the report dated 3 days ago counts for that day', r -> 'reported', '["Tola Staff"]'::jsonb);
-  -- with a core group, only the core group is expected; an exemption removes a person
+  -- a group no longer narrows who is expected: the whole team is, minus placed staff and anyone exempted from reports
   RESET ROLE;
   INSERT INTO public.agent_person_profile (person_id, group_name) VALUES
     ('a0000000-0000-0000-0000-000000000005', 'core'), ('a0000000-0000-0000-0000-000000000008', 'core');
   UPDATE public.agent_person_profile SET exemptions = '{"reports": true}' WHERE person_id = 'a0000000-0000-0000-0000-000000000008';
   PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
   r := public.agent_chat_tool('daily_reports', '{}');
-  PERFORM public.t_eq('core group only, exemption honoured: 1 expected', (r ->> 'expected')::int, 1);
-  PERFORM public.t_eq('nobody missing', r -> 'missing', '[]'::jsonb);
+  PERFORM public.t_eq('whole team minus the exempted person', (r ->> 'expected')::int, 5);
+  IF (r -> 'missing')::text LIKE '%Tola%' THEN RAISE EXCEPTION 'FAIL: an exempted person is listed as missing: %', r -> 'missing'; END IF;
   RAISE NOTICE 'PASS 5a: every tool answers for a Super Admin; tasks, hours, leave, flags and who-has-reported are correct';
 END $$;
 

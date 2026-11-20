@@ -1,0 +1,1 @@
+-- Rollback for 20261430600000_reports_include_leadership.sql: re-apply agent_team_pulse (20261413000000_agent_v5.sql), agent_rule_rp01 (20261410000100_agent_monitor.sql), agent_rule_rp03 (20261411000100_agent_team_rules.sql) and agent_chat_tool (20261410000000_agent_team_focus.sql).

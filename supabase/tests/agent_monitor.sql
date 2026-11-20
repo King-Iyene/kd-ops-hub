@@ -312,16 +312,16 @@ BEGIN
   PERFORM public.agent_run_rules('2026-11-18T23:03:00Z'); -- 18:03 EST: inside the 5 minute grace
   PERFORM public.t_eq('nothing within 5 minutes of the deadline', public.t_count('RP01'), 0::bigint);
   PERFORM public.agent_run_rules('2026-11-18T23:10:00Z'); -- 18:10 EST
-  PERFORM public.t_eq('Bob, Cara, Hana, Yan and Zed have not reported; Alice has; Gus is on leave; Finn is placed; Sue is leadership; Dan and Eve are not the team',
-    (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND f.status = 'open'), 'Bob,Cara,Hana,Yan,Zed');
+  PERFORM public.t_eq('Bob, Cara, Hana, Sue (leadership is in the team), Yan and Zed have not reported; Alice has; Gus is on leave; Finn is placed; Dan and Eve are not the team',
+    (SELECT string_agg(p.full_name, ',' ORDER BY p.full_name) FROM public.agent_flags f JOIN public.profiles p ON p.id = f.person_id WHERE f.rule_code = 'RP01' AND f.status = 'open'), 'Bob,Cara,Hana,Sue Super,Yan,Zed');
   PERFORM public.t_eq('high', (public.t_flag('RP01', 'Bob')).severity, 'high');
   IF (public.t_flag('RP01', 'Bob')).why NOT LIKE '%The deadline was 6:00 PM EST.' THEN RAISE EXCEPTION 'FAIL: why %', (public.t_flag('RP01', 'Bob')).why; END IF;
   INSERT INTO public.tm_table_records (table_id, data) VALUES
     ('d0000000-0000-0000-0000-0000000000a1', jsonb_build_object('f0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000002', '2026-11-18'));
   PERFORM public.agent_run_rules('2026-11-18T23:20:00Z');
   PERFORM public.t_eq('a late report closes the flag', (public.t_flag('RP01', 'Bob')).status, 'auto_resolved');
-  PERFORM public.t_eq('the others stay open', public.t_count('RP01'), 4::bigint);
-  RAISE NOTICE 'PASS 5: RP01 waits for the deadline plus 5 minutes, skips leave, placement, leadership and non-team, and closes when the report arrives';
+  PERFORM public.t_eq('the others stay open', public.t_count('RP01'), 5::bigint);
+  RAISE NOTICE 'PASS 5: RP01 waits for the deadline plus 5 minutes, skips leave, placement and non-team (leadership is expected), and closes when the report arrives';
 END $$;
 
 -- ── 6. switches and failures ───────────────────────────────────────────────
