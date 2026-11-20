@@ -17,6 +17,15 @@ describe('returning after sign-in', () => {
     expect(afterSignIn(true)).toBe('/office');
     expect(afterSignIn(false)).toBe('/dashboard');
   });
+  it('in the KD Ops desktop app the KD Ops tab never lands on the office, the Office tab always does', () => {
+    rememberReturnTo('/office');
+    expect(afterSignIn(true, 'ops')).toBe('/dashboard');
+    rememberReturnTo('/expenses');
+    expect(afterSignIn(true, 'ops')).toBe('/expenses');
+    rememberReturnTo('/expenses');
+    expect(afterSignIn(true, 'office')).toBe('/office');
+    expect(takeReturnTo()).toBe('/expenses'); // the Office tab leaves it for the KD Ops tab
+  });
   it('forgets an old request', () => {
     rememberReturnTo('/office');
     expect(takeReturnTo(Date.now() + 16 * 60 * 1000)).toBeNull();

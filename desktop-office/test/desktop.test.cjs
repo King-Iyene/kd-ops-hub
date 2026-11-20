@@ -54,6 +54,10 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const bo = await bridge('ops'); const bf = await bridge('office');
   check('desktop bridge is exposed to both tabs', bo.platform === process.platform && bf.platform === process.platform && bo.fns.includes('notify') && bf.fns.includes('setBadge') && bf.fns.includes('focus'), bf.fns);
 
+  // ---- each page knows which tab it is in and whether that tab is showing (the Office stops drawing while hidden)
+  check('each page knows its own tab', (await inTab('ops', 'window.kdDesktop.tab')) === 'ops' && (await inTab('office', 'window.kdDesktop.tab')) === 'office');
+  check('the Office page is told it is hidden while you are in KD Ops', (await inTab('office', 'window.kdDesktop.isVisible()')) === false && (await inTab('ops', 'window.kdDesktop.isVisible()')) === true);
+
   // ---- only the tab you are on is shown, the other keeps running
   await inTab('office', 'window.__ticks = 0; setInterval(() => { window.__ticks++; }, 100); 1');
   await bar.waitForTimeout(2500);
@@ -63,6 +67,7 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   await bar.click('button[data-tab="office"]');
   await bar.waitForTimeout(500);
   check('clicking the Office tab shows the Office', (await active()) === 'office');
+  check('...and the Office page is told it is showing again, KD Ops that it is hidden', (await inTab('office', 'window.kdDesktop.isVisible()')) === true && (await inTab('ops', 'window.kdDesktop.isVisible()')) === false);
   await bar.click('button[data-tab="ops"]');
   await bar.waitForTimeout(500);
   check('clicking the KD Ops tab switches back', (await active()) === 'ops');
@@ -80,6 +85,25 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   await inTab('office', "history.pushState({}, '', '/dashboard'); 1");
   await bar.waitForTimeout(900);
   check('leaving the Office for a KD Ops page goes to the KD Ops tab', (await active()) === 'ops' && (await urlOf('office')).includes('/office'), await urlOf('office'));
+
+  // ---- a sign-in page opens in the tab that needed it (it must not bounce to the other tab)
+  await bar.click('button[data-tab="ops"]');
+  await bar.waitForTimeout(300);
+  await inTab('office', "history.pushState({}, '', '/login'); 1");
+  await bar.waitForTimeout(900);
+  check('a sign-in page in the Office tab stays in the Office tab', (await active()) === 'ops' && (await urlOf('ops')).startsWith(base) && !(await urlOf('ops')).includes('/login'), await urlOf('ops'));
+  check('...and the Office page really is on the sign-in page', (await inTab('office', 'location.pathname')) === '/login');
+  await inTab('office', "history.pushState({}, '', '/office'); 1");
+  await bar.waitForTimeout(500);
+
+  // ---- if the KD Ops tab ever shows the Office page, opening the tab puts it back on the dashboard
+  await app.evaluate(({ webContents }, a) => webContents.fromId(a.id).loadURL(a.url), { id: ids.ops, url: base + '/office' });
+  await bar.waitForTimeout(700);
+  await bar.click('button[data-tab="office"]');
+  await bar.waitForTimeout(300);
+  await bar.click('button[data-tab="ops"]');
+  await bar.waitForTimeout(900);
+  check('opening the KD Ops tab never leaves it on the Office page (goes to the dashboard)', !(await urlOf('ops')).includes('/office') && (await urlOf('ops')).startsWith(base), await urlOf('ops'));
 
   // ---- notifications: record what the app is asked to show (nothing is really shown, so the test never pops up on someone's screen)
   await app.evaluate(({ Notification }) => {

@@ -1,5 +1,5 @@
 import { afterSignIn } from '@/lib/returnTo';
-import { inDesktopApp } from '@/features/office/desktopApp';
+import { desktopTab, inDesktopApp } from '@/features/office/desktopApp';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -158,7 +158,7 @@ export const useAuth = () => {
             everLoadedProfile.current = true;
             setLoading(false);
             if (redirectIfLogin && window.location.pathname === '/login') {
-              navigate(afterSignIn(inDesktopApp()), { replace: true });
+              navigate(afterSignIn(inDesktopApp(), desktopTab()), { replace: true });
             }
             return;
           }
@@ -182,7 +182,7 @@ export const useAuth = () => {
 
       setLoading(false);
       if (redirectIfLogin && window.location.pathname === '/login') {
-        navigate(afterSignIn(inDesktopApp()), { replace: true });
+        navigate(afterSignIn(inDesktopApp(), desktopTab()), { replace: true });
       }
     };
 

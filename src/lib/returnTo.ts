@@ -31,7 +31,16 @@ export function takeReturnTo(now = Date.now()): string | null {
   } catch { return null; }
 }
 
-/** Where to go after signing in: where you were headed, the office when this is the desktop app, otherwise the dashboard. */
-export function afterSignIn(inDesktop: boolean): string {
-  return takeReturnTo() ?? (inDesktop ? '/office' : '/dashboard');
+const isOfficePath = (p: string) => p === '/office' || p.startsWith('/office/');
+
+/**
+ * Where to go after signing in: where you were headed, the office when this is the old Office-only desktop app, otherwise the dashboard.
+ * The KD Ops desktop app has two tabs: its Office tab always returns to the office, and its KD Ops tab never lands on the office
+ * (that page belongs to the other tab), it goes where you were headed or to the dashboard.
+ */
+export function afterSignIn(inDesktop: boolean, tab: 'ops' | 'office' | null = null): string {
+  if (tab === 'office') return '/office';
+  const remembered = takeReturnTo();
+  if (tab === 'ops') return remembered && !isOfficePath(remembered) ? remembered : '/dashboard';
+  return remembered ?? (inDesktop ? '/office' : '/dashboard');
 }
