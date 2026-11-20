@@ -23380,41 +23380,6 @@ export type Database = {
             referencedRelation: "company_wallet_summary"
             referencedColumns: ["company_id"]
           },
-          {
-            foreignKeyName: "profiles_reporting_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "agent_team_v"
-            referencedColumns: ["person_id"]
-          },
-          {
-            foreignKeyName: "profiles_reporting_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "org_chart_v"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "profiles_reporting_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "probation_employees_v"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "profiles_reporting_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_reporting_manager_id_fkey"
-            columns: ["manager_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       company_wallet_summary: {
@@ -23963,6 +23928,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      agent_manager_of: { Args: { p_person: string }; Returns: string }
       agent_memory_suggest: {
         Args: {
           p_content: string
