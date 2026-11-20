@@ -1119,3 +1119,210 @@ describe('Settings > People: Cliq and Slack ids', () => {
     expect(within(row).getByLabelText('Ada Obi Cliq user id')).toBeDisabled();
   });
 });
+
+describe('Connections: Zoho Cliq through the API', () => {
+  const SECRETS = ['SECRET-CLIENT-VALUE', 'GRANT-CODE-VALUE', 'REFRESH-TOKEN-VALUE'];
+  const openApi = async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-cliq-api'));
+    return dialog;
+  };
+  const type = (dialog: HTMLElement, label: string, value: string) => fireEvent.change(within(dialog).getByLabelText(label), { target: { value } });
+  const fillAll = (dialog: HTMLElement) => {
+    type(dialog, 'Name', 'Ops via API');
+    type(dialog, 'Client ID', '1000.ABCDEF');
+    type(dialog, 'Client secret', SECRETS[0]);
+    type(dialog, 'Grant code', SECRETS[1]);
+    type(dialog, 'Channel unique name', 'ops_alerts');
+  };
+  const saves = () => only('invoke:agent-connections:save').map((c) => c.args[0] as Record<string, unknown>);
+  beforeEach(() => {
+    // jsdom has no pointer capture or scrolling, which the drop-down list asks for
+    Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture ?? (() => false);
+    Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture ?? (() => undefined);
+    Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => undefined);
+  });
+
+  it('the picker offers both ways, API first, and the webhook one keeps working as before', async () => {
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    const api = within(dialog).getByTestId('tool-cliq-api');
+    const hook = within(dialog).getByTestId('tool-cliq');
+    expect(api).toHaveTextContent('Zoho Cliq (API, recommended)');
+    expect(hook).toHaveTextContent('Zoho Cliq (webhook address)');
+    expect(api.compareDocumentPosition(hook) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(dialog).getAllByTestId('logo-cliq')).toHaveLength(2); // both ways use the Zoho logo
+    fireEvent.click(hook);
+    expect(within(dialog).getByLabelText('Cliq webhook address')).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Client ID')).not.toBeInTheDocument();
+  });
+
+  it('explains the Zoho steps in plain words and shows only the API fields', async () => {
+    const dialog = await openApi();
+    const steps = within(dialog).getByTestId('setup-steps');
+    expect(steps).toHaveTextContent('https://api-console.zoho.com');
+    expect(steps).toHaveTextContent('Self Client');
+    expect(steps).toHaveTextContent('ZohoCliq.Webhooks.CREATE');
+    expect(steps).toHaveTextContent('10 minutes');
+    expect(steps).toHaveTextContent('refresh token');
+    expect(steps).toHaveTextContent('accounts.zoho.com/oauth/serverinfo');
+    for (const l of ['Data center', 'Client ID', 'Client secret', 'Grant code', 'Refresh token (optional)', 'Channel unique name']) expect(within(dialog).getByLabelText(l)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Cliq webhook address')).not.toBeInTheDocument();
+    for (const l of ['Client secret', 'Grant code', 'Refresh token (optional)']) expect((within(dialog).getByLabelText(l) as HTMLInputElement).type).toBe('password');
+    expect((within(dialog).getByLabelText('Client ID') as HTMLInputElement).type).toBe('text');
+    expect(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })).toBeChecked();
+    expect(within(dialog).getByRole('checkbox', { name: 'Tag the person in each message' })).toBeChecked();
+  });
+
+  it('needs a client id, client secret, a valid channel name and a grant code or refresh token', async () => {
+    const dialog = await openApi();
+    const save = within(dialog).getByTestId('connection-save');
+    type(dialog, 'Name', 'Ops via API');
+    expect(save).toBeDisabled();
+    type(dialog, 'Client ID', '1000.ABCDEF');
+    type(dialog, 'Channel unique name', 'Ops Alerts');
+    expect(within(dialog).getByTestId('channel-error')).toBeInTheDocument();
+    type(dialog, 'Channel unique name', 'ops_alerts');
+    expect(within(dialog).queryByTestId('channel-error')).not.toBeInTheDocument();
+    expect(save).toBeDisabled(); // no client secret yet
+    type(dialog, 'Client secret', SECRETS[0]);
+    expect(save).toBeDisabled(); // no grant code or refresh token yet
+    expect(within(dialog).getByTestId('credential-needed')).toBeInTheDocument();
+    type(dialog, 'Refresh token (optional)', SECRETS[2]);
+    expect(save).toBeEnabled(); // a refresh token is enough on its own
+    expect(within(dialog).queryByTestId('credential-needed')).not.toBeInTheDocument();
+  });
+
+  it('saves with mode api and the secrets on that one call only, then clears them and keeps Send test and tag me working', async () => {
+    const dialog = await openApi();
+    fillAll(dialog);
+    // pick another data center from the list
+    const dc = within(dialog).getByLabelText('Data center');
+    fireEvent.keyDown(dc, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('option', { name: 'Europe (.eu)' }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })); // off
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })); // and on again
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(saves()[0]).toEqual({
+      action: 'save', kind: 'cliq', preset: 'cliq-api', name: 'Ops via API', mode: 'api', dc: 'eu', client_id: '1000.ABCDEF', channel: 'ops_alerts',
+      client_secret: SECRETS[0], grant_code: SECRETS[1], cc_manager: true, mention_people: true, events: ['flag_high', 'summary_day'],
+    });
+    expect(saves()[0].url).toBeUndefined();
+    // nothing typed stays on the screen, and the boxes say "saved"
+    await waitFor(() => expect((within(dialog).getByLabelText('Client secret') as HTMLInputElement).value).toBe(''));
+    expect((within(dialog).getByLabelText('Grant code') as HTMLInputElement).value).toBe('');
+    for (const s of SECRETS) expect(document.body.innerHTML).not.toContain(s);
+    expect(within(dialog).getByLabelText('Client secret')).toHaveProperty('placeholder', expect.stringContaining('saved'));
+    expect(within(dialog).getByLabelText('Refresh token (optional)')).toHaveProperty('placeholder', expect.stringContaining('saved'));
+    // the test buttons work on the saved connection
+    fireEvent.click(within(dialog).getByTestId('connection-send-test-tag'));
+    await waitFor(() => expect(only('invoke:agent-connections:test')).toHaveLength(1));
+    expect(only('invoke:agent-connections:test')[0].args[0]).toEqual({ action: 'test', id: 'conn-new', tag_me: true });
+    // no secret appears in any other request
+    const others = h.calls.filter((c) => c.op !== 'invoke:agent-connections:save').map((c) => JSON.stringify(c.args));
+    for (const s of SECRETS) expect(others.join('')).not.toContain(s);
+    // saving again without typing anything sends no secrets
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(2));
+    expect(saves()[1]).toMatchObject({ id: 'conn-new', mode: 'api' });
+    for (const k of ['client_secret', 'grant_code', 'refresh_token']) expect(saves()[1][k], k).toBeUndefined();
+  });
+
+  it('sends a pasted refresh token instead of a grant code', async () => {
+    const dialog = await openApi();
+    type(dialog, 'Name', 'Ops via API');
+    type(dialog, 'Client ID', '1000.ABCDEF');
+    type(dialog, 'Client secret', SECRETS[0]);
+    type(dialog, 'Refresh token (optional)', SECRETS[2]);
+    type(dialog, 'Channel unique name', 'ops_alerts');
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(saves()[0]).toMatchObject({ mode: 'api', dc: 'com', refresh_token: SECRETS[2], client_secret: SECRETS[0] });
+    expect(saves()[0].grant_code).toBeUndefined();
+  });
+
+  it('shows the server refusal (for example an expired grant code) and keeps what was typed', async () => {
+    h.save = { ok: false, error: 'Zoho did not accept the grant code. It may have expired. Generate a new one.' };
+    const dialog = await openApi();
+    fillAll(dialog);
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    expect(await within(dialog).findByTestId('connection-error')).toHaveTextContent('may have expired');
+    expect((within(dialog).getByLabelText('Grant code') as HTMLInputElement).value).toBe(SECRETS[1]);
+    expect(within(dialog).getByTestId('connection-send-test-tag')).toBeDisabled(); // nothing saved, so nothing to test
+  });
+
+  const API_ROW = { id: 'c-api', kind: 'cliq', name: 'Ops via API', status: 'connected', config: { mode: 'api', preset: 'cliq-api', dc: 'in', client_id: '1000.ABCDEF', channel: 'ops_alerts', cc_manager: true, mention_people: true, events: ['flag_high'] }, vault_secret_names: ['agent_conn_x_secret', 'agent_conn_x_refresh'], last_error: null, last_tested_at: null };
+  const HOOK_ROW = { id: 'c-hook', kind: 'cliq', name: 'Ops via webhook', status: 'connected', config: { host: 'cliq.zoho.com', preset: 'cliq', mention_people: true }, vault_secret_names: ['agent_conn_y_url'], last_error: null, last_tested_at: null };
+
+  it('editing shows saved secrets as saved, and blank secret boxes send none', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [API_ROW] };
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via API' }));
+    const dialog = await screen.findByTestId('connection-dialog');
+    expect((within(dialog).getByLabelText('Client ID') as HTMLInputElement).value).toBe('1000.ABCDEF');
+    expect((within(dialog).getByLabelText('Channel unique name') as HTMLInputElement).value).toBe('ops_alerts');
+    expect(within(dialog).getByLabelText('Data center')).toHaveTextContent('India (.in)');
+    for (const l of ['Client secret', 'Refresh token (optional)']) {
+      const box = within(dialog).getByLabelText(l) as HTMLInputElement;
+      expect(box.value).toBe('');
+      expect(box.placeholder).toContain('saved');
+    }
+    expect(within(dialog).getByLabelText('Grant code')).toBeInTheDocument(); // optional once a refresh token is saved
+    expect(within(dialog).getByRole('checkbox', { name: "CC the person's manager" })).toBeChecked();
+    const save = within(dialog).getByTestId('connection-save');
+    expect(save).toBeEnabled();
+    type(dialog, 'Channel unique name', 'ops_two');
+    fireEvent.click(save);
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(saves()[0]).toMatchObject({ id: 'c-api', mode: 'api', dc: 'in', client_id: '1000.ABCDEF', channel: 'ops_two', cc_manager: true });
+    for (const k of ['client_secret', 'grant_code', 'refresh_token', 'url']) expect(saves()[0][k], k).toBeUndefined();
+  });
+
+  it('a new grant code can be pasted on edit to connect again', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [API_ROW] };
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via API' }));
+    const dialog = await screen.findByTestId('connection-dialog');
+    type(dialog, 'Grant code', SECRETS[1]);
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(saves()[0].grant_code).toBe(SECRETS[1]);
+    expect(saves()[0].client_secret).toBeUndefined();
+  });
+
+  it('the cards say whether a Cliq connection uses the API or a webhook', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [API_ROW, HOOK_ROW] };
+    renderAt('/agent/connections');
+    const rows = await screen.findAllByTestId('connection-row');
+    expect(within(rows[0]).getByTestId('connection-mode')).toHaveTextContent('API');
+    expect(rows[0]).toHaveTextContent('#ops_alerts');
+    expect(rows[0]).toHaveTextContent('cliq.zoho.in');
+    expect(within(rows[0]).getByTestId('cc-manager-chip')).toBeInTheDocument();
+    expect(within(rows[0]).getByTestId('connection-test-tag')).toBeInTheDocument();
+    expect(within(rows[1]).getByTestId('connection-mode')).toHaveTextContent('Webhook');
+    expect(within(rows[1]).queryByTestId('cc-manager-chip')).not.toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent('cliq.zoho.com');
+  });
+
+  it('a webhook Cliq connection can also CC the manager, but only sends it when changed', async () => {
+    h.tables = { ...BASE_TABLES, agent_connections: [HOOK_ROW] };
+    renderAt('/agent/connections');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via webhook' }));
+    const dialog = await screen.findByTestId('connection-dialog');
+    expect(within(dialog).getByLabelText('Cliq webhook address')).toBeInTheDocument();
+    const cc = within(dialog).getByRole('checkbox', { name: "CC the person's manager" });
+    expect(cc).not.toBeChecked();
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(1));
+    expect(saves()[0].cc_manager).toBeUndefined();
+    expect(saves()[0].mode).toBeUndefined();
+    fireEvent.click(cc);
+    fireEvent.click(within(dialog).getByTestId('connection-save'));
+    await waitFor(() => expect(saves()).toHaveLength(2));
+    expect(saves()[1].cc_manager).toBe(true);
+  });
+});
