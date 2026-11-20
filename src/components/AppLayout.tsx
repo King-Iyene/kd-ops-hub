@@ -85,7 +85,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/my-dashboard':         'My Portal',
   '/approval-workflows':   'Approval Workflows',
   '/task':                 'Task',
-  '/agent':                'Ops Agent',
+  '/agent':                'Agent',
   '/task/my-tasks':        'My Tasks',
   '/task/dashboards':      'Task Dashboard',
 };

@@ -269,7 +269,7 @@ export function ChatTab() {
         <form className="mx-auto w-full max-w-[46rem] px-3 pb-3 sm:px-6 sm:pb-4" onSubmit={(e) => { e.preventDefault(); ask(); }}>
           <div className="flex items-end gap-2 rounded-3xl border bg-card py-2 pl-4 pr-2 shadow-lg focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/40 kd-transition">
             <textarea
-              ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={1} maxLength={4000} placeholder="Ask the Ops Agent…" aria-label="Your question"
+              ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={1} maxLength={4000} placeholder="Ask the Agent…" aria-label="Your question"
               className="max-h-48 min-h-[2.25rem] flex-1 resize-none bg-transparent py-1.5 text-sm leading-6 placeholder:text-muted-foreground focus:outline-none"
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); ask(); } }}
             />

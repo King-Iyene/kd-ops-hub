@@ -31,7 +31,7 @@ export function OpsAgentSidebarNav({ variant = 'sidebar', onNavigate }: { varian
   const tabs = AGENT_TABS.filter((tab) => !tab.superOnly || scope.data?.configure === true);
 
   return (
-    <nav aria-label="Ops Agent" className="space-y-0.5 px-2" data-testid="agent-sidebar-nav">
+    <nav aria-label="Agent" className="space-y-0.5 px-2" data-testid="agent-sidebar-nav">
       {tabs.map(({ key, label, path, icon: Icon }) => (
         <NavLink
           key={key} to={path} end={key === 'inbox'} onClick={onNavigate}
