@@ -23799,6 +23799,7 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_due_date_audit: { Args: { p_hours?: number }; Returns: Json }
       agent_flag_detail: { Args: { p_flag: string }; Returns: Json }
       agent_flag_draft: { Args: { p_flag: string }; Returns: Json }
       agent_flag_link: { Args: { p_flag: string }; Returns: Json }
