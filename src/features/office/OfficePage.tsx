@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -11,7 +11,7 @@ import { EditorPanel, type EditTool } from './EditorPanel';
 import { RoomNameDialog, type RoomOverride } from './RoomNameDialog';
 import { OfficeSettingsDialog } from './OfficeSettingsDialog';
 import { DeskDialog } from './DeskDialog';
-import { AvatarDialog } from './AvatarDialog';
+import { AvatarDialog, LOOKS } from './AvatarDialog';
 import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
@@ -60,12 +60,12 @@ import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
 import { cleanZones } from './world/clock';
 import { skyState, type SeasonMode, type TimeMode } from './world/sky';
-import type { Item, TileEdits, Zone } from './world/types';
+import type { AvatarStyle, Item, TileEdits, Zone } from './world/types';
 
 
 /**
@@ -267,9 +267,12 @@ function OfficeRoom() {
   const undo = () => { const h = hist.current; const prev = h.past.pop(); if (!prev) return; h.future.push(draft); h.skip = true; setDraft(prev); setHeld(null); setHistTick((n) => n + 1); };
   const redo = () => { const h = hist.current; const next = h.future.pop(); if (!next) return; h.past.push(draft); h.skip = true; setDraft(next); setHeld(null); setHistTick((n) => n + 1); };
   const duplicate = () => { if (held) setHeld({ item: { ...held.item, id: newItemId() }, dx: held.dx, dy: held.dy, copy: true }); };
-  const turnHeld = () => { if (held) setHeld({ ...held, item: { ...held.item, r: (((held.item.r ?? 0) + 1) % 4) as 0 | 1 | 2 | 3 } }); };
-  const editKeys = useRef<{ undo: () => void; redo: () => void; duplicate: () => void; turnHeld: () => void; holding: boolean; cancel: () => void }>({ undo, redo, duplicate, turnHeld, holding: false, cancel: () => undefined });
-  editKeys.current = { undo, redo, duplicate, turnHeld, holding: !!held, cancel: () => undefined };
+  /** turn the piece being carried a quarter turn (or, when carrying nothing, the way the next piece will be placed) */
+  const turnHeld = () => { if (held) setHeld({ ...held, item: { ...held.item, r: (((held.item.r ?? 0) + 1) % 4) as 0 | 1 | 2 | 3 } }); else setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3)); };
+  /** throw away the piece being carried */
+  const deleteHeld = () => { if (!held) return; if (!held.copy) setDraft((d) => d.filter((i) => i.id !== held.item.id)); setHeld(null); };
+  const editKeys = useRef<{ undo: () => void; redo: () => void; duplicate: () => void; turnHeld: () => void; deleteHeld: () => void; holding: boolean; cancel: () => void }>({ undo, redo, duplicate, turnHeld, deleteHeld, holding: false, cancel: () => undefined });
+  editKeys.current = { undo, redo, duplicate, turnHeld, deleteHeld, holding: !!held, cancel: () => undefined };
   useEffect(() => {
     if (!editing) return;
     const onKey = (e: KeyboardEvent) => {
@@ -280,6 +283,7 @@ function OfficeRoom() {
       else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); editKeys.current.redo(); }
       else if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); editKeys.current.duplicate(); }
       else if (k === 'r' && !e.ctrlKey && !e.metaKey) editKeys.current.turnHeld();
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && editKeys.current.holding) { e.preventDefault(); editKeys.current.deleteHeld(); }
       else if (e.key === 'Escape' && !editKeys.current.holding) editKeys.current.cancel();
     };
     window.addEventListener('keydown', onKey);
@@ -1138,6 +1142,44 @@ function OfficeRoom() {
   useEffect(() => { if (superseded && myLiveRef.current) { myLiveRef.current = false; setMyLive(false); setTownHall(false); } }, [superseded]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pollsOpen, setPollsOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
+  // quick change: [ and ] flip through the ready-made looks at once; the choice is saved a moment after the last press
+  const lookAt = useRef(-1);
+  const lookSave = useRef<{ timer: number | null; style: AvatarStyle | null }>({ timer: null, style: null });
+  const lookLabelTimer = useRef<number | null>(null);
+  const [lookLabel, setLookLabel] = useState<string | null>(null);
+  const quickLook = (d: 1 | -1) => {
+    if (!me || editing || avatarOpen) return;
+    const n = LOOKS.length;
+    lookAt.current = lookAt.current < 0 ? (d > 0 ? 0 : n - 1) : (lookAt.current + d + n) % n;
+    const look = LOOKS[lookAt.current];
+    const next = { ...me.avatar, ...look.apply(me.avatar) } as AvatarStyle;
+    actions.previewAvatar(me.id, next);
+    setLookLabel(look.label);
+    if (lookLabelTimer.current) window.clearTimeout(lookLabelTimer.current);
+    lookLabelTimer.current = window.setTimeout(() => setLookLabel(null), 1800);
+    const sv = lookSave.current;
+    sv.style = next;
+    if (sv.timer) window.clearTimeout(sv.timer);
+    sv.timer = window.setTimeout(() => {
+      sv.timer = null;
+      const st = sv.style;
+      sv.style = null;
+      if (st) void actions.saveAvatar(me.id, st).catch((err) => toast({ title: 'Could not save your look', description: errorMessage(err), variant: 'destructive' }));
+    }, 700);
+  };
+  const quickLookRef = useRef(quickLook);
+  quickLookRef.current = quickLook;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== '[' && e.key !== ']') || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      quickLookRef.current(e.key === ']' ? 1 : -1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== 'e' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
@@ -1424,7 +1466,7 @@ function OfficeRoom() {
               if (hit && hit.t === 'kanban') { setTaskBoardId(hit.id); return; }
               if (hit) { setPanel(hit); return; }
             }} dark={dark} zoom={zoom}
-            editing={editing} tool={tool} ghost={ghost} held={held} onTile={onTile}
+            editing={editing} tool={tool} ghost={ghost} held={held} onTile={onTile} onSecondary={turnHeld}
           />
           {!editing && (
             <div className="absolute bottom-16 right-3 z-10 flex flex-col gap-1">
@@ -1495,11 +1537,25 @@ function OfficeRoom() {
               <Button size="sm" className="h-7 px-3 text-xs" onClick={save} disabled={saving}><SaveIcon className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
             </div>
           )}
+          {lookLabel && !editing && (
+            <div role="status" className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs font-medium shadow-lg backdrop-blur">
+              Look: {lookLabel} <kbd className="ml-1 rounded border px-1">[</kbd><kbd className="ml-0.5 rounded border px-1">]</kbd>
+            </div>
+          )}
+          {editing && held && (
+            <div role="toolbar" aria-label="Carrying" className="absolute left-1/2 top-14 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/95 px-2 py-1 shadow-lg backdrop-blur">
+              <span className="px-2 text-xs font-medium">{ITEM_DEFS[held.item.t]?.label ?? 'Piece'}: click a spot, or drag it there</span>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={turnHeld} title="Turn it (R, or right-click)"><RotateCw className="mr-1 h-3.5 w-3.5" />Turn</Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={duplicate} title="Make another one (Ctrl+D)"><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={deleteHeld} title="Delete it (Delete)"><Trash2 className="mr-1 h-3.5 w-3.5" />Delete</Button>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setHeld(null)} title="Put it back (Esc)">Put back</Button>
+            </div>
+          )}
           {editing && (
             <EditorPanel
               onUndo={undo} onRedo={redo} canUndo={hist.current.past.length > 0 && histTick >= 0} canRedo={hist.current.future.length > 0} onDuplicate={duplicate}
               tool={tool} onTool={setTool} color={color} onColor={setColor}
-              onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
+              onTurn={turnHeld}
               onReset={() => { if (tool === 'wall' || tool === 'unwall' || tool === 'floor') setTileDraft({ wallsOn: [], wallsOff: [], floors: {} }); else setDraft(map.items.map((i) => ({ ...i }))); }}
               onCancel={requestCancel} onSave={save} saving={saving} limited={!!scope} canWalls={isAdmin}
               floorKind={floorKind} onFloorKind={setFloorKind} brush={brush} onBrush={setBrush}

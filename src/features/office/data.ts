@@ -212,6 +212,11 @@ export function useOfficeMutations() {
       if (error) throw error;
       await Promise.all(['members', 'directory', 'invitable', 'invites'].map((k) => qc.invalidateQueries({ queryKey: ['office', k] })));
     },
+    /** show a new look at once (everywhere in this tab) without saving it yet */
+    previewAvatar(userId: string, style: AvatarStyle) {
+      qc.setQueryData(['office', 'avatar', userId], style);
+      qc.setQueryData<Person[]>(['office', 'directory'], (old) => old?.map((p) => (p.id === userId ? { ...p, avatar: style } : p)));
+    },
     async saveAvatar(userId: string, style: AvatarStyle) {
       const { error } = await supabase.from('office_avatars').upsert({ profile_id: userId, style: style as never, updated_at: new Date().toISOString() });
       if (error) throw error;

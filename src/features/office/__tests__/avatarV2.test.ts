@@ -86,4 +86,12 @@ describe('the editor: surprise me and the ready-made looks', () => {
     expect(LOOKS.length).toBeGreaterThan(25);
     for (const l of LOOKS) { const a = { ...base, ...l.apply(base) }; expect(cleanAvatar(a, 'someone'), l.label).toEqual(a); }
   }, 30000);
+  it('has a ready-made look for every outfit that is not a plain one, and for every character', async () => {
+    const { LOOKS } = await import('../AvatarDialog');
+    const base = defaultAvatar('someone');
+    const outfits = new Set(LOOKS.map((l) => l.apply(base).outfit));
+    const costumes = new Set(LOOKS.map((l) => l.apply(base).costume));
+    for (let o = 7; o < OUTFITS.length; o++) expect(outfits.has(o), OUTFITS[o]).toBe(true);
+    for (let c = 1; c < COSTUMES.length; c++) expect(costumes.has(c), COSTUMES[c]).toBe(true);
+  }, 30000);
 });

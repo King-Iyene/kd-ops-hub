@@ -94,6 +94,8 @@ interface Props {
   /** furniture picked up with the Move tool (drawn following the pointer) */
   held?: { item: Item; dx: number; dy: number; copy?: boolean } | null;
   onTile: (tile: { x: number; y: number }) => void;
+  /** edit mode: right-click (turns the piece being carried) */
+  onSecondary?: () => void;
 }
 
 /** puffs of smoke left behind bikes (shared by every rider on screen) */
@@ -276,6 +278,7 @@ export function OfficeCanvas(props: Props) {
     const setCursor = (c: string) => { if (canvas.style.cursor !== c) canvas.style.cursor = c; };
     const painting = () => { const t = propsRef.current.tool; return propsRef.current.editing && (t === 'wall' || t === 'unwall' || t === 'floor'); };
     let lastPaint = '';
+    let dragPick: string | null = null; // edit mode: a piece picked up by pressing on it, placed when the button is let go on another tile
     const hoverId = { current: null as string | null };
     const hoverZoneId = { current: null as string | null };
     const personAt = (e: MouseEvent) => {
@@ -394,12 +397,16 @@ export function OfficeCanvas(props: Props) {
       drag.px = pan.current.x;
       drag.py = pan.current.y;
       if (painting()) { const t = toTile(e); lastPaint = `${t.x},${t.y}`; propsRef.current.onTile(t); }
+      dragPick = null;
+      const pe = propsRef.current;
+      if (pe.editing && pe.tool === 'move' && !pe.held) { const t = toTile(e); if (pe.ghost(t).ok) { pe.onTile(t); dragPick = `${t.x},${t.y}`; } } // press on a piece to pick it up, then drag it
     };
     const up = (e: MouseEvent) => {
       if (!drag.down) return;
       drag.down = false;
       if (propsRef.current.editing) setCursor('crosshair'); else setCursor('grab');
       if (!drag.moved) { inertia.x = 0; inertia.y = 0; }
+      if (dragPick) { const k = dragPick; dragPick = null; const t = toTile(e); if (`${t.x},${t.y}` !== k) propsRef.current.onTile(t); return; } // let go on another tile: put it down there
       if (drag.moved || painting()) return;
       if (!propsRef.current.editing) {
         const pet = petAt(e);
@@ -423,7 +430,7 @@ export function OfficeCanvas(props: Props) {
     const ctxMenu = (e: MouseEvent) => {
       e.preventDefault();
       const p = propsRef.current;
-      if (p.editing) return;
+      if (p.editing) { p.onSecondary?.(); return; }
       const r = canvas.getBoundingClientRect();
       const { ox, oy, scale } = cam.current;
       const wx = (e.clientX - r.left - ox) / (TILE * scale);

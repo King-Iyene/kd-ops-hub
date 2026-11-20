@@ -102,6 +102,32 @@ export const LOOKS: { id: string; label: string; apply: (a: AvatarStyle) => Part
   { id: 'skeleton', label: 'Skeleton', apply: () => ({ ...CLEAR, costume: 8 }) },
 ];
 
+/** One look for each outfit that has no look of its own yet, and one for every character (so every piece is one tap away). */
+const OUTFIT_LOOKS: [number, string, Partial<AvatarStyle>][] = [
+  [16, 'Dungarees', { shirt: '#3b6ea5', shoes: 0, shoeColor: '#ffffff', hat: 19, hatColor: '#ef4444' }],
+  [19, 'Kimono', { shirt: '#be185d', pants: '#111827', shoes: 5, shoeColor: '#111827', hairStyle: 2 }],
+  [20, 'Sari', { shirt: '#dc2626', shoes: 4, shoeColor: '#d6ac50', extra: 8, hairStyle: 1 }],
+  [21, 'Kurta', { shirt: '#0ea5e9', pants: '#f8fafc', shoes: 3, shoeColor: '#6b4423' }],
+  [22, 'Cheongsam', { shirt: '#b91c1c', shoes: 4, shoeColor: '#d6ac50', hairStyle: 2 }],
+  [23, 'Hanbok', { shirt: '#f9a8d4', pants: '#2563eb', shoes: 3, shoeColor: '#f8fafc', hairStyle: 2 }],
+  [24, 'Ao dai', { shirt: '#f8fafc', pants: '#f8fafc', shoes: 3, shoeColor: '#6b4423', hat: 32, hatColor: '#e8cfa6' }],
+  [25, 'Poncho', { shirt: '#c2410c', pants: '#374151', shoes: 2, shoeColor: '#6b4423', hat: 25, hatColor: '#e8cfa6', beard: 2 }],
+  [26, 'Charro', { shirt: '#111827', pants: '#111827', shoes: 2, shoeColor: '#111827', hat: 25, hatColor: '#d6ac50', beard: 2 }],
+  [27, 'Flamenco', { shirt: '#dc2626', shoes: 4, shoeColor: '#111827', hairStyle: 2, extra: 4 }],
+  [28, 'Thobe', { shirt: '#f8fafc', shoes: 3, shoeColor: '#6b4423', hat: 31, hatColor: '#f8fafc', beard: 3 }],
+  [29, 'Kilt', { shirt: '#166534', pants: '#374151', shoes: 1, shoeColor: '#111827', beard: 3 }],
+  [30, 'Maasai', { shirt: '#dc2626', pants: '#111827', shoes: 3, shoeColor: '#6b4423', extra: 6 }],
+  [31, 'Sherwani', { shirt: '#7f1d1d', inner: '#e8cfa6', pants: '#f8fafc', shoes: 1, shoeColor: '#6b4423', beard: 3 }],
+  [32, 'Tracksuit', { shirt: '#2563eb', pants: '#1e3a8a', shoes: 0, shoeColor: '#ffffff' }],
+  [33, 'Scrubs', { shirt: '#0ea5e9', pants: '#0ea5e9', shoes: 0, shoeColor: '#ffffff', glasses: 1 }],
+  [34, 'Puffer', { shirt: '#f97316', pants: '#111827', shoes: 2, shoeColor: '#374151', hat: 2, hatColor: '#111827' }],
+  [35, 'Football', { shirt: '#dc2626', bottom: 1, pants: '#ffffff', shoes: 0, shoeColor: '#111827' }],
+];
+LOOKS.push(
+  ...OUTFIT_LOOKS.map(([outfit, label, rest]): (typeof LOOKS)[number] => ({ id: 'outfit-' + outfit, label, apply: () => ({ ...CLEAR, outfit, ...rest }) })),
+  ...COSTUMES.slice(9).map((label, i): (typeof LOOKS)[number] => ({ id: 'costume-' + label.toLowerCase(), label, apply: () => ({ ...CLEAR, costume: 9 + i }) })),
+);
+
 const pickOf = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
 const upTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 
@@ -256,7 +282,7 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
             {tab === 'looks' && (
               <div>
-                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from (traditional, formal, fun or a full character), then change anything you like in the other tabs. Every piece can be picked by hand too.</p>
+                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from (traditional, formal, fun or a full character), then change anything you like in the other tabs. In the office, press [ or ] to flip through these looks without opening anything. Every piece can be picked by hand too.</p>
                 <div className="grid max-h-[22rem] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
                   {LOOKS.map((l) => (
                     <button key={l.id} type="button" onClick={() => set(l.apply(draft))} className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 p-1.5 ring-1 ring-transparent transition hover:bg-muted hover:ring-primary/40">
