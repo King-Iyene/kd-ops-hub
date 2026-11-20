@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, plainText } from '../../../../supabase/functions/_shared/agent-dispatch-core';
+import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, isTeamRule, plainText } from '../../../../supabase/functions/_shared/agent-dispatch-core';
 
 describe('formatFlag', () => {
   const f = { id: '1', rule_code: 'TR01', severity: 'high', title: 'Not tracking time', why: 'Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.', suggested_action: 'Ask her to start a timer.', item_type: 'flag' };
@@ -69,5 +69,16 @@ describe('formatSummary: briefing and scorecard', () => {
   it('are named for what they are', () => {
     expect(formatSummary({ period_kind: 'briefing', period_start: '2026-11-18', period_end: '2026-11-18', narrative: '## Good morning' }).title).toBe('Morning briefing, 2026-11-18');
     expect(formatSummary({ period_kind: 'scorecard', period_start: '2026-11-16', period_end: '2026-11-22', narrative: null }).title).toBe('Weekly scorecard, 2026-11-16 to 2026-11-22');
+  });
+});
+
+describe('isTeamRule: only team items are sent on their own', () => {
+  it('tasks, time tracking and daily reports are team items', () => {
+    for (const c of ['TK01', 'TK13', 'TR01', 'TR10', 'RP01', 'RP03']) expect(isTeamRule(c)).toBe(true);
+  });
+  it('system, payment, HR and setup items stay in the Inbox', () => {
+    for (const c of ['SY01', 'SY03', 'PY01', 'PY02', 'BK01', 'LN01', 'DC01', 'PF01', 'HL01', 'CT01', 'SU01', 'FT01', 'ES01', '']) expect(isTeamRule(c)).toBe(false);
+    expect(isTeamRule(null)).toBe(false);
+    expect(isTeamRule(undefined)).toBe(false);
   });
 });

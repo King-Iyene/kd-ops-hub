@@ -292,5 +292,32 @@ BEGIN
   RAISE NOTICE 'PASS 5: Admin access';
 END $$;
 
+-- ── 6. automatic messages are about the team only ──────────────────────────
+DO $$
+DECLARE n bigint;
+BEGIN
+  DELETE FROM public.agent_outbox; DELETE FROM public.agent_flags WHERE rule_code NOT IN ('SU01');
+  INSERT INTO public.agent_connections (id, kind, name, config) VALUES ('c1000000-0000-0000-0000-0000000000c9', 'cliq', 'Everything', '{"events": ["flag_all", "flag_high"]}');
+  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, title, why, item_type, status) VALUES
+    ('SY01', 'high', 'system', 'job:failed', 'Scheduled job failed: x', 'x', 'flag', 'open'),
+    ('PY01', 'high', 'system', 'pay', 'Payroll run waiting for approval', 'x', 'flag', 'open'),
+    ('BK01', 'critical', 'system', 'bank', 'Bank batch failed', 'x', 'flag', 'open'),
+    ('DC01', 'high', 'system', 'dc', 'Grievances open too long', 'x', 'flag', 'open'),
+    ('SU01', 'high', 'system', 'su', 'Setup gap', 'x', 'flag', 'open'),
+    ('TK01', 'high', 'task', 'tk', 'Overdue: Client proposal', 'x', 'flag', 'open'),
+    ('TR01', 'medium', 'person', 'tr', 'Not tracking time', 'x', 'flag', 'open'),
+    ('RP01', 'high', 'person', 'rp', 'Daily report missing', 'x', 'flag', 'open');
+  PERFORM public.t_eq('only tasks, time tracking and reports are queued for a channel',
+    (SELECT string_agg(f.rule_code, ',' ORDER BY f.rule_code) FROM public.agent_outbox o JOIN public.agent_flags f ON f.id = o.ref_id WHERE o.kind = 'flag' AND o.connection_id = 'c1000000-0000-0000-0000-0000000000c9'), 'RP01,TK01,TR01');
+  PERFORM public.t_eq('the other items are still in the Inbox', (SELECT count(*) FROM public.agent_flags WHERE rule_code IN ('SY01', 'PY01', 'BK01', 'DC01') AND status = 'open'), 4::bigint);
+  -- follow-ups are team items too
+  INSERT INTO public.agent_flags (id, rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status) VALUES
+    ('f3000000-0000-0000-0000-000000000001', 'DC02', 'high', 'person', 'dc2', 'a0000000-0000-0000-0000-000000000004', 'Disciplinary record not acknowledged', 'x', 'flag', 'open');
+  INSERT INTO public.agent_outbox (connection_id, kind, ref_id, status, sent_at) VALUES ('c1000000-0000-0000-0000-0000000000c9', 'flag', 'f3000000-0000-0000-0000-000000000001', 'sent', '2026-11-17T14:00:00Z');
+  PERFORM public.agent_run_followups('2026-11-24T15:30:00Z');
+  PERFORM public.t_eq('no follow-up for a discipline item', (SELECT count(*) FROM public.agent_followups WHERE flag_id = 'f3000000-0000-0000-0000-000000000001'), 0::bigint);
+  RAISE NOTICE 'PASS 6: team focus';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

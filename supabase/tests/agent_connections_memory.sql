@@ -45,8 +45,8 @@ BEGIN
   PERFORM public.t_eq('low: nobody', public.t_out('f1000000-0000-0000-0000-000000000003'), '');
   PERFORM public.t_eq('a completed task is not news', public.t_out('f1000000-0000-0000-0000-000000000004'), '');
   PERFORM public.t_eq('a question is not sent', public.t_out('f1000000-0000-0000-0000-000000000005'), '');
-  PERFORM public.t_eq('a human action item is', public.t_out('f1000000-0000-0000-0000-000000000006'), '1,2');
-  PERFORM public.t_eq('every queued row waits', (SELECT count(*) FROM public.agent_outbox WHERE status = 'pending' AND attempts = 0), 5::bigint);
+  PERFORM public.t_eq('a human action item is NOT sent on its own: it is for the Super Admin, not the team channel', public.t_out('f1000000-0000-0000-0000-000000000006'), '');
+  PERFORM public.t_eq('every queued row waits', (SELECT count(*) FROM public.agent_outbox WHERE status = 'pending' AND attempts = 0), 3::bigint);
   -- a refresh of the same item does not queue it again
   UPDATE public.agent_flags SET why = 'again' WHERE id = 'f1000000-0000-0000-0000-000000000001';
   PERFORM public.t_eq('no duplicate on update', public.t_out('f1000000-0000-0000-0000-000000000001'), '1,2');

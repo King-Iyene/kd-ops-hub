@@ -12,7 +12,7 @@ import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
-import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
+import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, isTeamRule, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
 
 function equal(a: string | null, b: string | undefined): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
       if (row.kind === 'flag') {
         const { data: f } = await db.from('agent_flags').select('id, rule_code, severity, title, why, suggested_action, item_type, person_id').eq('id', row.ref_id).maybeSingle();
         if (!f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
+        if (!isTeamRule(f.rule_code)) { await finish({ status: 'failed', error: 'Not a team item: it stays in the Inbox.' }); out.failed++; continue; }
         let person: string | null = null;
         if (f.person_id) person = (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null;
         // Tag the person it is about (their manager for items waiting for review), so the right person is notified in the channel,
@@ -60,6 +61,7 @@ Deno.serve(async (req) => {
         const { data: fu } = await db.from('agent_followups').select('flag_id, stage').eq('id', row.ref_id).maybeSingle();
         const { data: f } = fu ? await db.from('agent_flags').select('id, rule_code, severity, title, why, suggested_action, item_type, person_id').eq('id', fu.flag_id).maybeSingle() : { data: null };
         if (!fu || !f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
+        if (!isTeamRule(f.rule_code)) { await finish({ status: 'failed', error: 'Not a team item: it stays in the Inbox.' }); out.failed++; continue; }
         const person = f.person_id ? (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null : null;
         const managerId = await managerOf(db, f.person_id);
         const managerName = managerId ? (await db.from('profiles').select('full_name').eq('id', managerId).maybeSingle()).data?.full_name ?? null : null;

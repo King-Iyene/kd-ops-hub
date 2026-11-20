@@ -390,7 +390,7 @@ describe('Connections', () => {
     fireEvent.click(save);
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
     const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
-    expect(sent).toMatchObject({ action: 'save', kind: 'slack', preset: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day', 'summary_briefing'] });
+    expect(sent).toMatchObject({ action: 'save', kind: 'slack', preset: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'] });
     // the address is cleared from the box once saved, and nothing is sent by saving
     await waitFor(() => expect((within(dialog).getByLabelText('Slack webhook address') as HTMLInputElement).value).toBe(''));
     expect(document.body.innerHTML).not.toContain('SECRETXYZ');
@@ -467,7 +467,6 @@ describe('Connections', () => {
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'New high-priority items' })); // off
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Time tracking alerts' })); // off (on by default)
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Follow-ups and escalations' })); // off (on by default)
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Morning briefing' })); // off (on by default)
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Weekly summary' })); // on
     // with no flag events left the severity choice goes away
     expect(within(dialog).queryByLabelText('Lowest severity to send')).not.toBeInTheDocument();
@@ -493,7 +492,7 @@ describe('Connections', () => {
     expect(within(dialog).getByLabelText('Lowest severity to send')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
-    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ kind: 'email', preset: 'email', to: 'ops@example.com', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day', 'summary_briefing'] });
+    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ kind: 'email', preset: 'email', to: 'ops@example.com', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'] });
   });
 
   it('an API tool shows the method, how the token is sent, extra headers and a live body preview', async () => {
@@ -1288,7 +1287,7 @@ describe('Connections: Zoho Cliq through the API', () => {
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0]).toEqual({
       action: 'save', kind: 'cliq', preset: 'cliq-api', name: 'Zoho Cliq', mode: 'api', dc: 'eu', client_id: '1000.ABCDEF', channel: 'ops_alerts',
-      client_secret: SECRETS[0], cc_manager: true, mention_people: true, events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day', 'summary_briefing'],
+      client_secret: SECRETS[0], cc_manager: true, mention_people: true, events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'],
     });
     expect('grant_code' in saves()[0]).toBe(false);
     expect('refresh_token' in saves()[0]).toBe(false);
