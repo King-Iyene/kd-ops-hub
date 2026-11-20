@@ -608,6 +608,8 @@ function initAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: (...a) => logUpdate('info', ...a), warn: (...a) => logUpdate('warn', ...a), error: (...a) => logUpdate('error', ...a), debug: () => undefined };
   logUpdate('updater ready, app version', app.getVersion());
+  // some computers have AppData encrypted, where a downloaded installer cannot be saved: use a folder where it can
+  const cacheReady = require('./update-cache').useSafeUpdateCache(autoUpdater, 'kd-ops-desktop-updater', (...a) => logUpdate(...a)).catch(() => null);
   autoUpdater.on('error', (e) => { logUpdate('updater error:', e); /* offline or no new version file: try again at the next check */ });
   let foundAt = 0;
   autoUpdater.on('update-available', (info) => { foundAt = Date.now(); logUpdate('update available', info.version); });
@@ -626,7 +628,7 @@ function initAutoUpdater() {
     n.on('close', () => shown.delete(n));
     n.show();
   });
-  const check = () => { autoUpdater.checkForUpdates().catch((e) => logUpdate('check failed:', e)); };
+  const check = () => { cacheReady.then(() => autoUpdater.checkForUpdates()).catch((e) => logUpdate('check failed:', e)); };
   setTimeout(check, 20000);
   setInterval(check, 60 * 60 * 1000);
   // away from the computer: install now

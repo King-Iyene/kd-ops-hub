@@ -3,6 +3,7 @@ import Store from 'electron-store';
 import * as path from 'path';
 import * as fs from 'fs';
 import { autoUpdater } from 'electron-updater';
+import { useSafeUpdateCache } from './updateCache';
 
 // dotenv is a dev-only convenience for `npm start` — it loads a local .env
 // file into process.env so supabaseClient.ts (required below) can pick up
@@ -134,6 +135,8 @@ function initAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: (...a: unknown[]) => logUpdate('info', ...a), warn: (...a: unknown[]) => logUpdate('warn', ...a), error: (...a: unknown[]) => logUpdate('error', ...a), debug: () => undefined } as never;
   logUpdate('updater ready, app version', app.getVersion());
+  // some computers have AppData encrypted, where a downloaded installer cannot be saved: use a folder where it can
+  const cacheReady = useSafeUpdateCache(autoUpdater, 'kd-ops-timetrack-agent-updater', logUpdate).catch(() => null);
   let foundAt = 0;
   autoUpdater.on('update-available', (info) => { foundAt = Date.now(); logUpdate('update available', info.version); });
   autoUpdater.on('error', (err) => {
@@ -153,13 +156,13 @@ function initAutoUpdater() {
     n.on('click', () => installUpdateNow());
     n.show();
   });
-  autoUpdater.checkForUpdatesAndNotify().catch(() => {
+  void cacheReady.then(() => autoUpdater.checkForUpdatesAndNotify()).catch(() => {
     // Same reasoning as the .on('error', ...) handler above.
   });
   // The tracker stays open for days, so a check only at launch meant people never got new versions.
   // Look again every 2 hours.
   setInterval(() => {
-    autoUpdater.checkForUpdates().catch(() => { /* offline or GitHub hiccup: try again next time */ });
+    cacheReady.then(() => autoUpdater.checkForUpdates()).catch(() => { /* offline or GitHub hiccup: try again next time */ });
   }, 60 * 60 * 1000);
   setInterval(() => { if (updateReadyVersion && powerMonitor.getSystemIdleTime() >= 600) installByItself('away for 10 minutes'); }, 60 * 1000);
   powerMonitor.on('lock-screen', () => { if (updateReadyVersion) installByItself('screen locked'); });
