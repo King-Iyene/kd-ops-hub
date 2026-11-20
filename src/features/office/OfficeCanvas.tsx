@@ -5,7 +5,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import type { Motion } from './world/netSync';
 import { dotColor } from './status';
-import { drawBirds, drawGroundWeather, drawSky } from './world/skyfx';
+import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 import { applyPetCmd, initPet, petBus, petRegistry, playTick, stepPet, type PetState } from './world/pets';
@@ -1125,7 +1125,6 @@ export function OfficeCanvas(props: Props) {
         }
         ambient.setWeather(rain, season === 'harmattan' ? 1 : 0);
         drawSky(ctx, w, h, sky, season, rain, bolt.strength, now);
-        drawBirds(ctx, w, h, sky.light, rain, wall);
       }
       drawVignette(ctx, w, h, p.dark);
       // the minimap: the whole campus in a corner, with the rooms, everyone, and what you can see; click it to walk there

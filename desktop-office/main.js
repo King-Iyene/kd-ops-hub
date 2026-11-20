@@ -11,7 +11,7 @@
 //  - microphone, camera and screen sharing work without browser prompts
 //  - a friendly offline screen that reconnects by itself (power and network cuts happen)
 //  - only one copy runs, it can start with your computer, and it updates itself
-const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences, screen, powerMonitor } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences, screen, powerMonitor, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -167,6 +167,34 @@ function selectTab(id, { focus = true } = {}) {
   pushBar();
   const v = views[id];
   if (focus && v && !v.webContents.isDestroyed()) v.webContents.focus();
+}
+
+/** What pressing the X does: 'ask' (the first time), 'tray' (keep running in the tray) or 'quit'. Older installs that chose "do not keep me in the tray" mean 'quit'. */
+function closeAction() {
+  const st = readSettings();
+  if (st.closeAction === 'ask' || st.closeAction === 'tray' || st.closeAction === 'quit') return st.closeAction;
+  if (st.closeToTray === false) return 'quit';
+  return process.env.KD_OPS_TEST ? 'tray' : 'ask';
+}
+let closeAsking = false;
+function askWhatToDoOnClose() {
+  if (closeAsking || !win) return;
+  closeAsking = true;
+  void dialog.showMessageBox(win, {
+    type: 'question',
+    title: NAME,
+    message: 'Close KD Ops?',
+    detail: 'Keep it in the tray and rings, calls and messages still reach you, or quit it completely.',
+    buttons: ['Keep in the tray', `Quit ${NAME}`, 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+    checkboxLabel: 'Remember my choice (you can change it from the tray menu)',
+  }).then((r) => {
+    if (r.response === 2) return;
+    if (r.checkboxChecked) writeSettings({ closeAction: r.response === 1 ? 'quit' : 'tray' });
+    if (r.response === 1) { quitting = true; app.quit(); } else if (win) win.hide();
+  }).catch(() => undefined).finally(() => { closeAsking = false; });
 }
 
 function showWindow(tab) {
@@ -417,8 +445,12 @@ function createWindow() {
   win.on('close', (e) => {
     const b = win.getBounds();
     writeSettings({ width: b.width, height: b.height, maximized: win.isMaximized() });
-    // closing goes to the tray unless the person chose to quit instead (tray menu: "Closing the window keeps me in the tray")
-    if (!quitting && !SMOKE && readSettings().closeToTray !== false) { e.preventDefault(); win.hide(); }
+    if (quitting || SMOKE) return;
+    const how = closeAction();
+    if (how === 'quit') { quitting = true; app.quit(); return; } // the window closes and the whole app ends with it
+    e.preventDefault();
+    if (how === 'tray') win.hide();
+    else askWhatToDoOnClose();
   });
   win.on('closed', () => {
     for (const id of TAB_IDS) {
@@ -454,10 +486,12 @@ function trayMenu() {
     { label: 'Open the Office', click: () => showWindow('office') },
     { type: 'separator' },
     {
-      label: 'Closing the window keeps me in the tray',
-      type: 'checkbox',
-      checked: readSettings().closeToTray !== false,
-      click: (item) => writeSettings({ closeToTray: item.checked }),
+      label: 'When I close the window',
+      submenu: [
+        { label: 'Ask me', type: 'radio', checked: closeAction() === 'ask', click: () => writeSettings({ closeAction: 'ask' }) },
+        { label: 'Keep KD Ops in the tray', type: 'radio', checked: closeAction() === 'tray', click: () => writeSettings({ closeAction: 'tray' }) },
+        { label: `Quit ${NAME}`, type: 'radio', checked: closeAction() === 'quit', click: () => writeSettings({ closeAction: 'quit' }) },
+      ],
     },
     {
       label: 'Start with my computer',
@@ -679,6 +713,6 @@ app.whenReady().then(() => {
 });
 
 app.on('activate', () => showWindow());
-app.on('before-quit', () => { quitting = true; try { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); } catch { /* going away anyway */ } if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
+app.on('before-quit', () => { quitting = true; setTimeout(() => app.exit(0), 6000).unref(); try { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); } catch { /* going away anyway */ } if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
 // closing the last window must not quit (the tray keeps you in the office)
 app.on('window-all-closed', () => { if (SMOKE || process.platform !== 'darwin') { if (quitting || SMOKE) app.quit(); } });

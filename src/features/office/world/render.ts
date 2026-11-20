@@ -419,8 +419,44 @@ function tilePic(dark: boolean, kind: number, combo: { ff: string | undefined; z
   return pic;
 }
 
-export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
-  const G = tileGrid(map);
+/**
+ * The floor and the walls do not change from frame to frame, so each is drawn once into a picture of the part of the map you are looking at
+ * (and a few tiles around it) and that picture is reused: walking only redraws it when you get near its edge, standing still never does.
+ * Before this, about 900 tiles were drawn again every frame.
+ */
+interface LayerCache { owner: unknown; dark: boolean; s: number; x0: number; y0: number; x1: number; y1: number; cv: HTMLCanvasElement }
+const LAYER_MARGIN = 4;
+const MAX_LAYER_PIXELS = 18_000_000;
+function drawCachedLayer(slot: { c: LayerCache | null }, ctx: Ctx, owner: unknown, dark: boolean, mapW: number, mapH: number, view: TileView, paint: (pc: Ctx, v: TileView) => void): boolean {
+  if (typeof document === 'undefined') return false;
+  const tf = ctx.getTransform();
+  const s = Math.hypot(tf.a, tf.b) > 1.25 ? 2 : 1;
+  const need = { x0: Math.max(0, view.x0), y0: Math.max(0, view.y0), x1: Math.min(mapW, view.x1), y1: Math.min(mapH, view.y1) };
+  if (need.x1 <= need.x0 || need.y1 <= need.y0) return true;
+  let c = slot.c;
+  if (!c || c.owner !== owner || c.dark !== dark || c.s !== s || need.x0 < c.x0 || need.y0 < c.y0 || need.x1 > c.x1 || need.y1 > c.y1) {
+    const x0 = Math.max(0, need.x0 - LAYER_MARGIN), y0 = Math.max(0, need.y0 - LAYER_MARGIN);
+    const x1 = Math.min(mapW, need.x1 + LAYER_MARGIN), y1 = Math.min(mapH, need.y1 + LAYER_MARGIN);
+    const pw = (x1 - x0) * TILE * s, ph = (y1 - y0) * TILE * s;
+    if (pw * ph > MAX_LAYER_PIXELS) return false;
+    const cv = c && c.cv.width === pw && c.cv.height === ph ? c.cv : document.createElement('canvas');
+    cv.width = pw;
+    cv.height = ph;
+    const pc = cv.getContext('2d');
+    if (!pc) return false;
+    pc.scale(s, s);
+    pc.translate(-x0 * TILE, -y0 * TILE);
+    paint(pc as unknown as Ctx, { x0, y0, x1, y1 });
+    c = { owner, dark, s, x0, y0, x1, y1, cv };
+    slot.c = c;
+  }
+  ctx.drawImage(c.cv, c.x0 * TILE, c.y0 * TILE, (c.x1 - c.x0) * TILE, (c.y1 - c.y0) * TILE);
+  return true;
+}
+const floorSlot: { c: LayerCache | null } = { c: null };
+const wallSlot: { c: LayerCache | null } = { c: null };
+
+function paintFloorTiles(ctx: Ctx, map: MapDef, theme: Theme, t: number, view: TileView | undefined, G: ReturnType<typeof tileGrid>) {
   for (let y = Math.max(0, view?.y0 ?? 0); y < Math.min(map.h, view?.y1 ?? map.h); y++) {
     for (let x = Math.max(0, view?.x0 ?? 0); x < Math.min(map.w, view?.x1 ?? map.w); x++) {
       if (map.walls[y][x]) continue;
@@ -430,6 +466,11 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
       else paintTile(ctx, x, y, G.floor[gi], G.zone[gi]?.kind, theme, t);
     }
   }
+}
+
+export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+  const G = tileGrid(map);
+  if (!view || !drawCachedLayer(floorSlot, ctx, G, theme.dark, map.w, map.h, view, (pc, v) => paintFloorTiles(pc, map, theme, 0, v, G))) paintFloorTiles(ctx, map, theme, t, view, G);
   // doorways glow and breathe
   for (const z of map.zones) {
     if (z.kind !== 'portal') continue;
@@ -459,6 +500,12 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
 }
 
 export function drawWalls(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: TileView) {
+  // the walls are drawn once into a picture and reused (only a faint window reflection drifted before, and that is not worth redrawing them every frame)
+  if (view && drawCachedLayer(wallSlot, ctx, map, theme.dark, map.w, map.h, view, (pc, v) => drawWallsNow(pc, map, theme, 0, v))) return;
+  drawWallsNow(ctx, map, theme, t, view);
+}
+
+function drawWallsNow(ctx: Ctx, map: MapDef, theme: Theme, t: number, view?: TileView) {
   const hq = map.style === 'hq';
   const c = hq
     ? { ...pal(theme.dark), ...(theme.dark ? { wallCap: '#6b4a33', wallFront: '#4a2e1a', wallBase: '#2f1c0f' } : { wallCap: '#a4714b', wallFront: '#7a4a2a', wallBase: '#4f2f19' }) }
@@ -713,13 +760,25 @@ const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
 /** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
-const STATIC_PIECES = new Set<string>(['gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman']);
+const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman']);
+/** Plants, flowers and trees only sway (nothing else moves), so they are drawn in 8 sway poses and each frame picks the nearest one. */
+const SWAY_PIECES = new Set<string>(['plant', 'flowers', 'tree', 'balloons', 'bamboo', 'palm', 'grass']);
+const SWAY_POSES = 8;
 const SPRITE_SCALE = 3;
 const SPRITE_PAD = 10;
 const spriteCache = new Map<string, HTMLCanvasElement>();
-function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, seed: number): boolean {
+function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, seed: number, swayAt?: number): boolean {
   if (typeof document === 'undefined') return false;
-  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}`;
+  // which sway pose (the sway is sin(t / 900 + seed * 6.28)); a piece that does not sway has just one
+  let pose = -1;
+  let tPose = 0;
+  if (swayAt !== undefined) {
+    const TAU = Math.PI * 2;
+    const theta = (((swayAt / 900 + seed * 6.28) % TAU) + TAU) % TAU;
+    pose = Math.floor((theta / TAU) * SWAY_POSES) % SWAY_POSES;
+    tPose = (((pose + 0.5) / SWAY_POSES) * TAU - seed * 6.28) * 900;
+  }
+  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}`;
   let pic = spriteCache.get(key);
   if (!pic) {
     pic = document.createElement('canvas');
@@ -729,15 +788,15 @@ function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | unde
     if (!pc) return false;
     pc.scale(SPRITE_SCALE, SPRITE_SCALE);
     pc.translate(SPRITE_PAD, SPRITE_PAD);
-    drawExtra(pc as unknown as Ctx, item, dark, 0, col, 0, 0, W, H, seed);
-    if (spriteCache.size > 600) spriteCache.clear();
+    drawItem(pc as unknown as Ctx, { ...item, x: 0, y: 0 }, dark, tPose, false); // the same drawing code, once, at the origin
+    if (spriteCache.size > 900) spriteCache.clear();
     spriteCache.set(key, pic);
   }
   ctx.drawImage(pic, x - SPRITE_PAD, y - SPRITE_PAD, W + SPRITE_PAD * 2, H + SPRITE_PAD * 2);
   return true;
 }
 
-function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
+function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number, useCache = true) {
   const { w, h } = itemSize(item);
   const x = item.x * TILE;
   const y = item.y * TILE;
@@ -746,7 +805,8 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
   const seed = hs(item.id);
   const sway = Math.sin(t / 900 + seed * 6.28);
   const col = item.c !== undefined ? ITEM_COLORS[item.c] : undefined;
-  if (STATIC_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed)) return;
+  if (useCache && STATIC_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed)) return;
+  if (useCache && SWAY_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed, t)) return;
   if (drawExtra(ctx, item, dark, t, col, x, y, W, H, seed)) return;
   switch (item.t) {
     case 'rug': {

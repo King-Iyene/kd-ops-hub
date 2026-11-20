@@ -210,6 +210,41 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const opened = await app.evaluate(() => global.__opened);
   check('...they are handed to the normal browser instead', opened.length === 2 && opened.every((u) => u.startsWith('https://example.com')), JSON.stringify(opened));
 
+  // ---- pressing X asks once (keep in the tray / quit / cancel); "remember" makes it silent afterwards
+  const settingsFile = require('path').join(userData, 'settings.json');
+  const cur = (() => { try { return JSON.parse(require('fs').readFileSync(settingsFile, 'utf8')); } catch { return {}; } })();
+  require('fs').writeFileSync(settingsFile, JSON.stringify({ ...cur, closeAction: 'ask' }));
+  const answer = (response, checked) => app.evaluate(({ dialog }, a) => { dialog.showMessageBox = async () => { global.__asked = (global.__asked || 0) + 1; return { response: a.r, checkboxChecked: a.c }; }; }, { r: response, c: checked });
+  const asked = () => app.evaluate(() => global.__asked || 0);
+  const mainShown = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).isVisible());
+  const closeMain = async () => { await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).close()); await bar.waitForTimeout(700); };
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(400);
+  await answer(2, false);
+  await closeMain();
+  check('pressing X asks, and Cancel keeps the window open', (await asked()) === 1 && (await mainShown()) === true);
+  await answer(0, false);
+  await closeMain();
+  check('"Keep in the tray" hides the window and the app keeps running', (await asked()) === 2 && (await mainShown()) === false);
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(400);
+  await answer(0, true);
+  await closeMain();
+  check('"Remember my choice" is saved', (await mainShown()) === false && JSON.parse(require('fs').readFileSync(settingsFile, 'utf8')).closeAction === 'tray');
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(400);
+  const askedBefore = await asked();
+  await closeMain();
+  check('after that, pressing X just hides it without asking again', (await asked()) === askedBefore && (await mainShown()) === false);
+  require('fs').writeFileSync(settingsFile, JSON.stringify({ ...JSON.parse(require('fs').readFileSync(settingsFile, 'utf8')), closeAction: 'ask' }));
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(400);
+  await answer(1, false);
+  const exited = new Promise((res) => app.process().once('exit', (code) => res(code)));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).close()).catch(() => undefined);
+  const code = await Promise.race([exited, new Promise((r) => setTimeout(() => r('still running'), 8000))]);
+  check('"Quit" ends the whole app (every process)', code === 0, String(code));
+
   await app.evaluate(({ app }) => { app.exit(0); }).catch(() => undefined);
   server.close();
 
