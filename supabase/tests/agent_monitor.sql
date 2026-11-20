@@ -807,4 +807,59 @@ BEGIN
 END $$;
 
 
+-- ── 12. a moved due date is flagged wherever it happens ─────────────────────
+SELECT public.t_as(NULL);
+DELETE FROM public.agent_flags;
+INSERT INTO public.tm_tasks (id, title, status, assignee_id, due_date, parent_id) VALUES
+  ('b4000000-0000-0000-0000-000000000001', 'Team task',        'to_do', 'a0000000-0000-0000-0000-000000000004', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000002', 'A subtask',        'to_do', 'a0000000-0000-0000-0000-000000000004', '2026-12-30', 'b4000000-0000-0000-0000-000000000001'),
+  ('b4000000-0000-0000-0000-000000000003', 'Nobody has this',  'to_do', NULL,                                   '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000004', 'Leader task',      'to_do', 'a0000000-0000-0000-0000-000000000001', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000005', 'Not our people',   'to_do', 'a0000000-0000-0000-0000-000000000005', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000006', 'Edited three times','to_do','a0000000-0000-0000-0000-000000000004', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000007', 'Moved and back',   'to_do', 'a0000000-0000-0000-0000-000000000004', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000008', 'Date removed',     'to_do', 'a0000000-0000-0000-0000-000000000004', '2026-12-30', NULL),
+  ('b4000000-0000-0000-0000-000000000009', 'First time set',   'to_do', 'a0000000-0000-0000-0000-000000000004', NULL, NULL);
+INSERT INTO public.tm_task_activity (task_id, actor_id, kind, detail, created_at) VALUES
+  ('b4000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-20","to":"2026-12-22"}', '2026-12-14T13:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-22","to":"2026-12-26"}', '2026-12-14T13:30:00Z'),
+  ('b4000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000003', 'due_date', '{"from":"2026-12-26","to":"2026-12-30"}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-30","to":"2027-01-05"}', '2026-12-14T13:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2027-01-05","to":"2026-12-30"}', '2026-12-14T13:30:00Z'),
+  ('b4000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":"2026-12-30","to":null}', '2026-12-14T14:00:00Z'),
+  ('b4000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000002', 'due_date', '{"from":null,"to":"2026-12-30"}', '2026-12-14T14:00:00Z');
+DO $$
+DECLARE r jsonb; a jsonb;
+BEGIN
+  r := public.agent_rule_tk02('2026-12-14T15:00:00Z');
+  PERFORM public.t_eq('team task, subtask, unassigned, leader, edited-three-times and removed are flagged; not-our-people, moved-and-back and first-set are not',
+    (SELECT string_agg(f.evidence ->> 'task_title', ',' ORDER BY f.evidence ->> 'task_title') FROM public.agent_flags f WHERE f.rule_code = 'TK02'),
+    'A subtask,Date removed,Edited three times,Leader task,Nobody has this,Team task');
+  PERFORM public.t_eq('six items', (r ->> 'created')::int, 6);
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'TK02' AND evidence ->> 'task_title' = 'Edited three times') NOT LIKE '%from Dec 20 to Dec 30.%3 changes today.%' THEN RAISE EXCEPTION 'FAIL: grouped wording %', (SELECT why FROM public.agent_flags WHERE rule_code = 'TK02' AND evidence ->> 'task_title' = 'Edited three times'); END IF;
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'TK02' AND evidence ->> 'task_title' = 'Date removed') NOT LIKE 'Alice removed the due date (it was Dec 30).%' THEN RAISE EXCEPTION 'FAIL: removal wording'; END IF;
+  IF (SELECT why FROM public.agent_flags WHERE rule_code = 'TK02' AND evidence ->> 'task_title' = 'Nobody has this') NOT LIKE '%The task has no assignee.' THEN RAISE EXCEPTION 'FAIL: unassigned wording'; END IF;
+  PERFORM public.t_eq('an unassigned task is an item about no person', (SELECT person_id FROM public.agent_flags WHERE rule_code = 'TK02' AND evidence ->> 'task_title' = 'Nobody has this'), NULL::uuid);
+  r := public.agent_rule_tk02('2026-12-14T15:05:00Z');
+  PERFORM public.t_eq('running again changes nothing', (r ->> 'created')::int, 0);
+  PERFORM public.t_eq('and makes no duplicates', public.t_count('TK02'), 6::bigint);
+
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  a := public.agent_due_date_audit(100000);
+  PERFORM public.t_eq('the audit counts the first-time set separately', (a ->> 'first_time_set')::int >= 1, true);
+  PERFORM public.t_eq('and the moves on subtasks', (a ->> 'moved_on_subtasks')::int, 1);
+  PERFORM public.t_eq('and the unassigned ones', (a ->> 'moved_unassigned')::int, 1);
+  PERFORM public.t_eq('and the ones owned by someone outside the team', (a ->> 'moved_owner_not_on_team')::int, 1);
+  PERFORM public.t_eq('and says the rule is on', a ->> 'rule_enabled', 'true');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_denied($q$SELECT public.agent_due_date_audit(24)$q$, 'an Admin running the audit');
+  RESET ROLE;
+  RAISE NOTICE 'PASS 12: every move or removal of a due date is flagged (subtasks, unassigned, leaders), several edits in a day are one item, moved-and-back and the first time set are not, and the audit explains the rest';
+END $$;
+
 ROLLBACK;
