@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useFieldTeamIds } from '@/features/timetrack/lib/trackerEmployees';
 import { ConfirmAction } from '@/features/timetrack/ui/ConfirmAction';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Download, Plus, Trash2, Send, FileDown } from 'lucide-react';
@@ -54,6 +55,7 @@ export default function ExportCenterPage() {
 
   const [onDemand, setOnDemand] = useState({ data_type: 'time_entries' as DataType, days: '30' });
   const [exporting, setExporting] = useState(false);
+  const fieldIds = useFieldTeamIds();
 
   const runOnDemandExport = async () => {
     setExporting(true);
@@ -67,21 +69,21 @@ export default function ExportCenterPage() {
           .gte('start_time', since).order('start_time', { ascending: false }).limit(20000);
         if (error) throw error;
         header = ['employee_id', 'project_id', 'task_id', 'start_time', 'end_time', 'duration_minutes', 'is_billable', 'invoiced', 'notes'];
-        rows = (data ?? []).map((r) => [r.employee_id, r.project_id, r.task_id, r.start_time, r.end_time, r.duration_minutes, r.is_billable, r.invoiced, r.notes]);
+        rows = (data ?? []).filter((r) => !fieldIds.has(r.employee_id)).map((r) => [r.employee_id, r.project_id, r.task_id, r.start_time, r.end_time, r.duration_minutes, r.is_billable, r.invoiced, r.notes]);
       } else if (onDemand.data_type === 'activity') {
         const { data, error } = await supabase.from('time_activity_logs')
           .select('employee_id, app_name, window_title, url, productivity_category, is_outside_geofence, captured_at')
           .gte('captured_at', since).order('captured_at', { ascending: false }).limit(20000);
         if (error) throw error;
         header = ['employee_id', 'app_name', 'window_title', 'url', 'productivity_category', 'is_outside_geofence', 'captured_at'];
-        rows = (data ?? []).map((r) => [r.employee_id, r.app_name, r.window_title, r.url, r.productivity_category, r.is_outside_geofence, r.captured_at]);
+        rows = (data ?? []).filter((r) => !fieldIds.has(r.employee_id)).map((r) => [r.employee_id, r.app_name, r.window_title, r.url, r.productivity_category, r.is_outside_geofence, r.captured_at]);
       } else {
         const { data, error } = await supabase.from('time_expenses')
           .select('employee_id, project_id, client_id, category_id, amount, currency, expense_date, is_billable, status, description')
           .gte('expense_date', since.slice(0, 10)).order('expense_date', { ascending: false }).limit(20000);
         if (error) throw error;
         header = ['employee_id', 'project_id', 'client_id', 'category_id', 'amount', 'currency', 'expense_date', 'is_billable', 'status', 'description'];
-        rows = (data ?? []).map((r) => [r.employee_id, r.project_id, r.client_id, r.category_id, r.amount, r.currency, r.expense_date, r.is_billable, r.status, r.description]);
+        rows = (data ?? []).filter((r) => !fieldIds.has(r.employee_id)).map((r) => [r.employee_id, r.project_id, r.client_id, r.category_id, r.amount, r.currency, r.expense_date, r.is_billable, r.status, r.description]);
       }
       downloadCsv(`${onDemand.data_type}-export-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(header, rows));
     } catch (err) {

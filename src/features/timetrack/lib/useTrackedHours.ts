@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useLogsWithIntervals } from '../pages/activity/shared';
+import { useFieldTeamIds } from './trackerEmployees';
 
 export interface TrackedHours {
   /** Hours on a started task timer (time_entries). */
@@ -27,6 +28,7 @@ export interface TrackedHours {
  */
 export function useTrackedHours(start: string, end: string): Map<string, TrackedHours> {
   const { data: logData } = useLogsWithIntervals(start, end);
+  const fieldIds = useFieldTeamIds();
 
   const { data: entries } = useQuery({
     queryKey: ['timetrack', 'entries-range', start, end],
@@ -49,6 +51,7 @@ export function useTrackedHours(start: string, end: string): Map<string, Tracked
 
     const intervalsByEmployee = new Map<string, { s: number; e: number }[]>();
     for (const en of entries ?? []) {
+      if (fieldIds.has(en.employee_id)) continue;
       const s = new Date(en.start_time).getTime();
       const e = en.end_time ? new Date(en.end_time).getTime() : now;
       const list = intervalsByEmployee.get(en.employee_id) ?? [];
@@ -76,5 +79,5 @@ export function useTrackedHours(start: string, end: string): Map<string, Tracked
 
     for (const row of result.values()) row.total = row.entryHours + row.unassignedHours;
     return result;
-  }, [logData, entries]);
+  }, [logData, entries, fieldIds]);
 }

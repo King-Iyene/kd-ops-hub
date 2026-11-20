@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { captureDomain } from '../../lib/siteNames';
+import { useFieldTeamIds } from '../../lib/trackerEmployees';
 import { DateRangeSelect } from '@/features/timetrack/ui/DateRangeSelect';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -146,7 +147,8 @@ function effectiveIntervals(logs: ActivityLog[], configured: Map<string, number>
 /** Captures in range joined with each employee's capture interval, so raw tick counts can be
  * turned into estimated tracked hours (each tick represents roughly one interval of activity). */
 export function useLogsWithIntervals(start: string, end: string) {
-  return useQuery({
+  const fieldIds = useFieldTeamIds();
+  const q = useQuery({
     queryKey: ['timetrack', 'activity-logs-range', start, end],
     queryFn: async () => {
       // The server returns at most 1000 rows per request, so a big range (many people, weeks of data) used to be
@@ -183,6 +185,12 @@ export function useLogsWithIntervals(start: string, end: string) {
       return { logs: typedLogs, intervalByEmployee: effectiveIntervals(typedLogs, configured) };
     },
   });
+  // The KD Squares field team is never part of Track: their captures are left out of every page that reads this.
+  const data = useMemo(() => {
+    if (!q.data || fieldIds.size === 0) return q.data;
+    return { ...q.data, logs: q.data.logs.filter((l) => !fieldIds.has(l.employee_id)) };
+  }, [q.data, fieldIds]);
+  return { ...q, data };
 }
 
 /**

@@ -86,19 +86,21 @@ export default function DashboardPage() {
   const trackedToday = useTrackedHours(todayStr, todayStr);
   const trackedWeek = useTrackedHours(weekStartStr, todayStr);
 
-  const todayRows = today ?? [];
+  // The field team is not part of Track, and neither is anyone the company filter leaves out: they are not in any total below.
+  const shownIds = useCompanyEmployeeIds();
+  const todayRows = useMemo(() => (today ?? []).filter((r) => !shownIds || shownIds.has(r.employee_id)), [today, shownIds]);
   const myWeekTotal = myWeek?.total ?? 0;
   const myWeekComputer = trackedWeek.get(profile?.id ?? '')?.computerHours ?? 0;
-  const teamComputerToday = [...trackedToday.values()].reduce((s, t) => s + t.computerHours, 0);
+  const teamComputerToday = [...trackedToday.entries()].filter(([id]) => !shownIds || shownIds.has(id)).reduce((s, [, t]) => s + t.computerHours, 0);
   const computerTodayFor = (id: string) => trackedToday.get(id)?.computerHours ?? 0;
 
   const activeNow = todayRows.filter((t) => t.is_timer_active).length;
   const teamHoursToday = todayRows.reduce((s, t) => s + t.hours_today, 0);
   const myToday = todayRows.find((t) => t.employee_id === profile?.id);
 
-  const companyIds = useCompanyEmployeeIds();
+  const companyIds = shownIds;
   const roster = useMemo(() => {
-    const rows = todayRows.filter((r) => !companyIds || companyIds.has(r.employee_id)).sort((a, b) => {
+    const rows = [...todayRows].sort((a, b) => {
       if (a.is_timer_active !== b.is_timer_active) return a.is_timer_active ? -1 : 1;
       return b.hours_today - a.hours_today;
     });

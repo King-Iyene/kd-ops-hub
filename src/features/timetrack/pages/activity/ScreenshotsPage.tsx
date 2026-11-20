@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, endOfDay, format, startOfDay } from 'date-fns';
 import { Loader2, Image as ImageIcon, Trash2, CheckSquare, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, Rows3, GalleryHorizontal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
-import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
+import { useActiveEmployees, useFieldTeamIds } from '@/features/timetrack/lib/trackerEmployees';
 import { useTimetrackCapabilities } from '../../lib/capabilities';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { Button } from '@/components/ui/button';
@@ -79,7 +79,7 @@ export default function ScreenshotsPage() {
     },
   });
 
-  const { data: rows, isLoading } = useQuery({
+  const { data: allRows, isLoading } = useQuery({
     queryKey: ['timetrack', 'screenshots', employeeId, day],
     queryFn: async () => {
       let q = supabase
@@ -96,6 +96,8 @@ export default function ScreenshotsPage() {
       return data as unknown as ScreenshotRow[];
     },
   });
+  const fieldIds = useFieldTeamIds();
+  const rows = useMemo(() => (allRows ?? []).filter((r) => !fieldIds.has(r.employee_id)), [allRows, fieldIds]);
 
   useEffect(() => {
     setSelected(new Set());

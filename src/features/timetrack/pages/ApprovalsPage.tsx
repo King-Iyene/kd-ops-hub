@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Check, X, Unlock, CheckSquare } from 'lucide-react';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
@@ -8,7 +8,7 @@ import { errorMessage } from '@/lib/db-errors';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useTimetrackCapabilities } from '../lib/capabilities';
-import { useActiveEmployees } from '@/features/timetrack/lib/trackerEmployees';
+import { useActiveEmployees, useFieldTeamIds } from '@/features/timetrack/lib/trackerEmployees';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,7 +32,8 @@ export default function ApprovalsPage() {
   const canApprove = has('approve_timesheets');
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
-  const { data: approvals, isLoading } = useQuery({
+  const fieldIds = useFieldTeamIds();
+  const { data: allApprovals, isLoading } = useQuery({
     queryKey: ['timetrack', 'approvals', canApprove ? 'all' : profile?.id],
     queryFn: async () => {
       let q = supabase.from('time_approvals').select('*').order('week_start_date', { ascending: false });
@@ -43,6 +44,8 @@ export default function ApprovalsPage() {
     },
     enabled: !!profile?.id,
   });
+
+  const approvals = useMemo(() => allApprovals?.filter((a) => !fieldIds.has(a.employee_id)), [allApprovals, fieldIds]);
 
   const [decisionTarget, setDecisionTarget] = useState<{ approval: TimeApproval; decision: 'approved' | 'rejected' } | null>(null);
   const [comment, setComment] = useState('');

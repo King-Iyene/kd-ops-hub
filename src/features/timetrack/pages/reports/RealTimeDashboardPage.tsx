@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabase';
+import { useCompanyEmployeeIds } from '@/features/timetrack/lib/trackerEmployees';
 import { formatHours } from '../../reports/useReportData';
 
 const MONTH_OPTIONS = Array.from({ length: 6 }, (_, i) => {
@@ -24,8 +25,10 @@ function useMonthEntries(month: string) {
   const monthStart = parseISO(`${month}-01`);
   const start = format(startOfMonth(monthStart), 'yyyy-MM-dd');
   const end = format(endOfMonth(monthStart), 'yyyy-MM-dd');
+  // never the field team (or anyone the company filter leaves out)
+  const shownIds = useCompanyEmployeeIds();
   return useQuery({
-    queryKey: ['timetrack', 'dashboard-month', month],
+    queryKey: ['timetrack', 'dashboard-month', month, shownIds ? [...shownIds].sort().join(',') : 'all'],
     queryFn: async (): Promise<DashRow[]> => {
       const { data, error } = await supabase
         .from('time_entries')
@@ -35,7 +38,7 @@ function useMonthEntries(month: string) {
       if (error) throw error;
       const { data: employeesRaw } = await supabase.from('profiles_directory').select('id, full_name');
       const nameMap = new Map((employeesRaw ?? []).map((e) => [e.id, e.full_name ?? e.id]));
-      return (data ?? []).map((e) => ({
+      return (data ?? []).filter((e) => !shownIds || shownIds.has(e.employee_id)).map((e) => ({
         employee_id: e.employee_id,
         employee_name: nameMap.get(e.employee_id) ?? e.employee_id,
         project_name: (e.time_tasks as unknown as { time_projects: { name: string } | null } | null)?.time_projects?.name ?? '—',
