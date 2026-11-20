@@ -1228,6 +1228,35 @@ export type Database = {
           },
         ]
       }
+      agent_followups: {
+        Row: {
+          created_at: string
+          flag_id: string
+          id: string
+          stage: number
+        }
+        Insert: {
+          created_at?: string
+          flag_id: string
+          id?: string
+          stage: number
+        }
+        Update: {
+          created_at?: string
+          flag_id?: string
+          id?: string
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_followups_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_identity_map: {
         Row: {
           cliq_user_id: string | null
@@ -23846,6 +23875,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      agent_build_briefing: { Args: { p_now?: string }; Returns: Json }
+      agent_build_scorecard: { Args: { p_mon: string }; Returns: Json }
       agent_build_summary: {
         Args: { p_end: string; p_kind: string; p_start: string }
         Returns: Json
@@ -23977,11 +24008,13 @@ export type Database = {
       agent_role: { Args: never; Returns: string }
       agent_rule_bk01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_bk02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_br01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ct01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_es01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_es02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ft01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_hl01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln02: { Args: { p_now?: string }; Returns: Json }
@@ -23994,6 +24027,8 @@ export type Database = {
       agent_rule_py02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_rp01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_rp03: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_sc01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_su01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_sy01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_sy02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_sy04: { Args: { p_now?: string }; Returns: Json }
@@ -24015,6 +24050,7 @@ export type Database = {
       agent_rule_tr08: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr09: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr10: { Args: { p_now?: string }; Returns: Json }
+      agent_run_followups: { Args: { p_now?: string }; Returns: Json }
       agent_run_rules: {
         Args: { p_now?: string; p_trigger?: string }
         Returns: Json
@@ -24093,6 +24129,20 @@ export type Database = {
         }[]
       }
       agent_valid_timezone: { Args: { p: string }; Returns: boolean }
+      agent_week_stats: {
+        Args: { p_mon: string }
+        Returns: {
+          expected_days: number
+          expected_hours: number
+          full_name: string
+          manager_id: string
+          person_id: string
+          reports_expected: number
+          reports_submitted: number
+          tasks_done: number
+          tracked_hours: number
+        }[]
+      }
       approve_advance_request: {
         Args: { p_request_id: string }
         Returns: {
