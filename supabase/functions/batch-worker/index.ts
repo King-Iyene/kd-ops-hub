@@ -49,6 +49,7 @@ const TIME_BUDGET_MS     = 120_000;    // stay under 150 s edge timeout
 const CHUNK_SIZE         = 50;          // items per pull (per-item dispatch path)
 const CONCURRENCY        = 8;           // parallel dispatches per chunk (per-item path)
 const ORPHAN_THRESHOLD_S = 60;          // cron picks up batches stale > this
+const ORPHAN_MAX_AGE_H   = 48;          // ...but not batches untouched for longer than this (left for a person)
 
 // Bulk-transfer path constants. Used when KDOPS_DISPATCH_MODE === "bulk" —
 // the permanent dispatch path for scaling to 1k+ recipients. Paystack
@@ -975,11 +976,16 @@ const MAX_ORPHANS_PER_TICK = 5;
 
 async function workOrphans(svc: SupabaseClient) {
   const cutoff = new Date(Date.now() - ORPHAN_THRESHOLD_S * 1000).toISOString();
+  // Only recent batches. updated_at did not exist until 20261431000100, so the watchdog never matched
+  // anything before; batches left in 'processing' / 'partially_processed' for days are for a person to
+  // review, not for the first run of the watchdog to push to the bank.
+  const oldest = new Date(Date.now() - ORPHAN_MAX_AGE_H * 3600 * 1000).toISOString();
   const { data: orphans } = await svc
     .from("payment_batches")
     .select("id, updated_at")
     .in("status", ["processing", "partially_processed"])
     .lt("updated_at", cutoff)
+    .gte("updated_at", oldest)
     .order("updated_at", { ascending: true })
     .limit(MAX_ORPHANS_PER_TICK);
 

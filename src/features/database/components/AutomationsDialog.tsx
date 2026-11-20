@@ -1215,6 +1215,9 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
     if (d.trigger_type === 'scheduled' && !d.trigger_config?.cron) {
       errors.push('Scheduled trigger requires a cron expression');
     }
+    if (d.trigger_type === 'webhook_inflow' && !String(d.trigger_config?.secret ?? '').trim()) {
+      errors.push('Webhook trigger requires a secret (use Generate)');
+    }
     for (const act of d.actions) {
       const label = ACTION_TYPES.find(t => t.type === act.type)?.label ?? act.type;
       if (act.type === 'send_webhook' && !act.config.url) {
@@ -1740,17 +1743,31 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">
                       Send a POST request to this URL with a JSON body. The body will be available as the record data in your actions.
                     </p>
-                    {(draft.trigger_config as any).secret && (
-                      <div>
-                        <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Secret (optional)</label>
+                    <div>
+                      <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Secret (required)</label>
+                      <div className="flex items-center gap-2">
                         <input
-                          className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                          className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
                           value={(draft.trigger_config as any).secret ?? ''}
                           onChange={(e) => updateDraft({ trigger_config: { ...draft.trigger_config, secret: e.target.value } })}
                           placeholder="Shared secret for HMAC verification"
                         />
+                        <button
+                          type="button"
+                          className="shrink-0 px-2.5 py-1.5 rounded-md text-2xs font-medium border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:bg-[#EBF0FF] dark:hover:bg-[hsl(220,25%,15%)] transition-colors"
+                          onClick={() => {
+                            const bytes = crypto.getRandomValues(new Uint8Array(24));
+                            const secret = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+                            updateDraft({ trigger_config: { ...draft.trigger_config, secret } });
+                          }}
+                        >
+                          Generate
+                        </button>
                       </div>
-                    )}
+                      <p className="text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] mt-1">
+                        Sign each request: send the header <span className="font-mono">X-KDOps-Signature: sha256=&lt;HMAC-SHA256 of the raw body, keyed with this secret&gt;</span>. Requests without a valid signature are rejected, and an automation with no secret cannot be triggered.
+                      </p>
+                    </div>
                   </div>
                 )}
 

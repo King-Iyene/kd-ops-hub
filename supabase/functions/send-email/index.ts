@@ -22,6 +22,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { constantTimeEquals } from "../_shared/timing.ts";
+import { SEND_RATE_LIMIT_ACTION, decideSendRateLimit, rateWindowStart } from "../_shared/rate-limit-core.ts";
 
 // ─── Mustache-lite renderer (mirrors src/lib/email-templates.ts) ────────────
 const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -138,24 +139,30 @@ Deno.serve(async (req) => {
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
-        const since = new Date(Date.now() - 60_000).toISOString();
-        const { count } = await serviceRl
+        // audit_logs columns are user_id / action_type / description / created_at. This used to filter on
+        // "action" and "table_name", which do not exist; supabase-js returns { error } instead of throwing,
+        // so the count came back null (= 0) and nothing was ever limited. A failed count now fails closed.
+        const since = rateWindowStart();
+        const { count, error: countErr } = await serviceRl
           .from("audit_logs")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("action", "send_notification")
+          .eq("action_type", SEND_RATE_LIMIT_ACTION)
           .gte("created_at", since);
-        if ((count ?? 0) >= 10) {
+        const decision = decideSendRateLimit(count, countErr);
+        if (decision === "limited") {
           return new Response(
             JSON.stringify({ ok: false, error: "Rate limit exceeded — max 10 notifications per minute" }),
             { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        await serviceRl.from("audit_logs").insert({
+        if (decision === "unavailable") throw new Error(countErr?.message ?? "rate-limit count unavailable");
+        const { error: logErr } = await serviceRl.from("audit_logs").insert({
           user_id: user.id,
-          action: "send_notification",
-          table_name: "notifications",
+          action_type: SEND_RATE_LIMIT_ACTION,
+          description: "Notification send via send-email (rate-limit counter)",
         });
+        if (logErr) console.error("[send-email] rate-limit log insert failed:", logErr.message);
       } catch (rlErr) {
         console.error("[send-email] rate-limit check failed:", rlErr);
         return new Response(

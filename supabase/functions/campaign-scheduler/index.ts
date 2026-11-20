@@ -9,11 +9,16 @@
 // Auth: X-Cron-Secret header must match CRON_SHARED_SECRET (same secret
 // used by batch-worker / payroll-scheduler — not per-function).
 //
-// Claim-before-dispatch: each due row is atomically flipped from
-// 'scheduled' to 'sending' with a conditional UPDATE (WHERE status =
-// 'scheduled') before its sender is invoked. If the UPDATE affects zero
-// rows, another tick already claimed it — skip. This is what makes it safe
-// for the cron tick to overlap with a slow-running previous invocation.
+// The claim lives in the sender, NOT here. This function only finds due rows
+// and hands each to its sender; the sender atomically flips the row
+// 'scheduled' -> 'sending' (claim_campaign_for_sending /
+// claim_message_campaign_for_sending: UPDATE ... WHERE status = 'scheduled'
+// AND scheduled_for <= now() RETURNING). If another tick or sender already
+// claimed it, the sender answers 409 and nothing is sent twice. (Previously
+// this function flipped the row to 'sending' itself and the senders then
+// refused anything already 'sending', so scheduled campaigns never sent.)
+// A hand-off that fails before the claim leaves the row 'scheduled', so the
+// next tick retries it.
 //
 // Deploy:
 //   supabase functions deploy campaign-scheduler --no-verify-jwt
@@ -50,15 +55,7 @@ Deno.serve(async (req) => {
       .lte("scheduled_for", nowIso);
 
     for (const row of (dueEmail ?? []) as any[]) {
-      const { data: claimed } = await service
-        .from("email_campaigns")
-        .update({ status: "sending", started_at: nowIso })
-        .eq("id", row.id)
-        .eq("status", "scheduled")
-        .select("id");
-      if (!claimed || claimed.length === 0) continue; // another tick claimed it first
-
-      const { error } = await service.functions.invoke("bulk-email-sender", {
+      const { error } =await service.functions.invoke("bulk-email-sender", {
         body: { campaign_id: row.id },
         headers: { Authorization: `Bearer ${SERVICE_ROLE}` },
       });
@@ -73,15 +70,7 @@ Deno.serve(async (req) => {
       .lte("scheduled_for", nowIso);
 
     for (const row of (dueMessage ?? []) as any[]) {
-      const { data: claimed } = await service
-        .from("message_campaigns")
-        .update({ status: "sending", started_at: nowIso })
-        .eq("id", row.id)
-        .eq("status", "scheduled")
-        .select("id");
-      if (!claimed || claimed.length === 0) continue;
-
-      const { error } = await service.functions.invoke("message-campaign-sender", {
+      const { error } =await service.functions.invoke("message-campaign-sender", {
         body: { campaign_id: row.id },
         headers: { Authorization: `Bearer ${SERVICE_ROLE}` },
       });

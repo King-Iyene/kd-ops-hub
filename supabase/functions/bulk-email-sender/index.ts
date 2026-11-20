@@ -24,6 +24,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { constantTimeEquals } from "../_shared/timing.ts";
+import { precheckCampaignStatus } from "../_shared/campaign-send-core.ts";
 
 const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
@@ -126,8 +127,11 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (["sent","failed","cancelled","sending"].includes((campaign as any).status)) {
-      return new Response(JSON.stringify({ ok: false, error: `Campaign already ${(campaign as any).status}` }), {
+    // Only a draft, or a scheduled campaign that is now due, may be sent. 'sending' is refused: it means
+    // someone already claimed it (the claim below is the authoritative, atomic gate).
+    const pre = precheckCampaignStatus((campaign as any).status, (campaign as any).scheduled_for);
+    if (!pre.ok) {
+      return new Response(JSON.stringify({ ok: false, error: pre.error }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

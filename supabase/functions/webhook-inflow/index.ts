@@ -7,10 +7,17 @@
  * URL: /functions/v1/webhook-inflow?automation_id=<uuid>
  *
  * The incoming JSON body becomes the "record" passed to automation actions.
- * No authentication required — the automation_id acts as the secret token.
+ * Authentication: the request must carry `X-KDOps-Signature: sha256=<hex>`, the HMAC-SHA256 of the raw request body
+ * keyed with the automation's shared secret (trigger_config.secret) — the same scheme KD Ops uses for the webhooks it
+ * sends (see _shared/webhook-signing.ts). Fails closed: an automation with no secret cannot be triggered, because the
+ * automation_id in the URL is only an identifier. Set the secret in the automation's trigger settings.
+ *
+ * Deploy: supabase functions deploy webhook-inflow --no-verify-jwt  (callers are external services with no Supabase JWT;
+ * authentication is the signature check above).
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { INFLOW_SIGNATURE_HEADER, verifyInflowSignature } from '../_shared/webhook-inflow-core.ts';
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -18,7 +25,7 @@ function json(body: Record<string, unknown>, status = 200): Response {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'content-type',
+      'Access-Control-Allow-Headers': 'content-type, x-kdops-signature',
     },
   });
 }
@@ -29,7 +36,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       status: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'content-type',
+        'Access-Control-Allow-Headers': 'content-type, x-kdops-signature',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
       },
     });
@@ -51,12 +58,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     global: { headers: { Authorization: `Bearer ${serviceRoleKey}` } },
   });
 
-  let incomingData: Record<string, any> = {};
-  try {
-    incomingData = await req.json();
-  } catch {
-    return json({ success: false, error: 'Invalid JSON body' }, 400);
-  }
+  // Read the raw body first: the signature covers the exact bytes that were sent.
+  const rawBody = await req.text();
 
   const { data: automation, error: fetchErr } = await supabase
     .schema('nc_meta')
@@ -72,6 +75,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   if (!automation) {
     return json({ success: false, error: 'Automation not found or not enabled' }, 404);
+  }
+
+  const verdict = await verifyInflowSignature(
+    (automation.trigger_config as Record<string, unknown> | null)?.secret,
+    rawBody,
+    req.headers.get(INFLOW_SIGNATURE_HEADER),
+  );
+  if (!verdict.ok) {
+    return json({ success: false, error: verdict.error }, verdict.status);
+  }
+
+  let incomingData: Record<string, any> = {};
+  try {
+    incomingData = JSON.parse(rawBody);
+  } catch {
+    return json({ success: false, error: 'Invalid JSON body' }, 400);
   }
 
   // Forward to the automation-runner with the incoming data as the record

@@ -213,3 +213,12 @@ jobs:
       # Ops Agent dispatcher: sends the outbox to connections. Called by pg_cron with the shared cron secret, not a user JWT.
       - name: Deploy agent-dispatch
         run: supabase functions deploy agent-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Inbound webhooks for Database automations. Callers are external services, so no Supabase JWT: --no-verify-jwt,
+      # and the function authenticates every request by an HMAC signature (X-KDOps-Signature) against the automation's secret.
+      - name: Deploy webhook-inflow
+        run: supabase functions deploy webhook-inflow --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
+      # Removes screenshot files whose row is gone. Cron-only (X-Cron-Secret), ticked daily by tick_timetrack_screenshot_cleaner().
+      - name: Deploy timetrack-screenshot-cleaner
+        run: supabase functions deploy timetrack-screenshot-cleaner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
