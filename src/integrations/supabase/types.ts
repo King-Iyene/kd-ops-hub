@@ -23909,6 +23909,10 @@ export type Database = {
         Returns: Json
       }
       agent_due_date_audit: { Args: { p_hours?: number }; Returns: Json }
+      agent_entry_day: {
+        Args: { p_source: string; p_start: string; p_tz: string }
+        Returns: string
+      }
       agent_flag_detail: { Args: { p_flag: string }; Returns: Json }
       agent_flag_draft: { Args: { p_flag: string }; Returns: Json }
       agent_flag_link: { Args: { p_flag: string }; Returns: Json }
@@ -24039,6 +24043,11 @@ export type Database = {
       agent_rule_tr02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr03: { Args: { p_now?: string }; Returns: Json }
       agent_rule_tr05: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr06: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr07: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr08: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr09: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_tr10: { Args: { p_now?: string }; Returns: Json }
       agent_run_rules: {
         Args: { p_now?: string; p_trigger?: string }
         Returns: Json
