@@ -297,5 +297,23 @@ BEGIN
   RAISE NOTICE 'PASS 7: briefing removed';
 END $$;
 
+-- ── 8. the report audit ────────────────────────────────────────────────────
+DO $$
+DECLARE r jsonb;
+BEGIN
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  r := public.agent_report_audit('2026-11-18');
+  PERFORM public.t_eq('the audit counts the one report in the table that day', (r ->> 'people_counted')::int, 1);
+  PERFORM public.t_eq('and shows the row', jsonb_array_length(r -> 'rows_for_the_day'), 1);
+  PERFORM public.t_eq('with the name it counts', r -> 'rows_for_the_day' -> 0 -> 'names' ->> 0, 'Alice');
+  PERFORM public.t_eq('for that day', (r -> 'rows_for_the_day' -> 0 ->> 'counted_for_day')::boolean, true);
+  PERFORM public.t_eq('seven days are listed', jsonb_array_length(r -> 'last_7_days'), 7);
+  RESET ROLE;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_denied($q$SELECT public.agent_report_audit()$q$, 'a member reading the audit');
+  RESET ROLE;
+  RAISE NOTICE 'PASS 8: report audit';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;
