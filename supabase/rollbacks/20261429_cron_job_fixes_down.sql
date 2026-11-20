@@ -1,0 +1,1 @@
+-- Rollback for 20261429000000_cron_job_fixes.sql: re-apply notify_expiring_overrides (20260814000000_transfer_auth_b3_b5_m1_m5.sql), flag_awol_yesterday (_pre_applied/20260812000000_sprint_c_leave_attendance.sql), check_cron_health and cron_last_errors (20261427000000_cron_failure_reasons.sql).
