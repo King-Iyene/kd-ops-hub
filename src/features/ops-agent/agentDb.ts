@@ -116,6 +116,10 @@ export interface AgentConnection {
     events?: string[]; min_severity?: MinSeverity;
     /** Cliq and Slack only: tag the person a message is about. */
     mention_people?: boolean; mention_template?: string;
+    /** Cliq: `api` posts through the Cliq REST API after a Zoho sign-in, `webhook` (the default) uses a webhook address. */
+    mode?: 'webhook' | 'api'; dc?: string; client_id?: string; channel?: string;
+    /** Cliq and Slack: also tag the manager of the person a message is about. */
+    cc_manager?: boolean;
   };
   vault_secret_names: string[]; last_error: string | null; last_tested_at: string | null; last_sent_at?: string | null;
 }
@@ -123,6 +127,9 @@ export interface SaveConnectionInput {
   id?: string; kind: ConnectionKind; name: string; preset?: string; url?: string; token?: string; clear_token?: boolean; to?: string; chat_id?: string;
   method?: string; auth_type?: AuthType; header_name?: string; query_param?: string; content_type?: ContentType; extra_headers?: Record<string, string>;
   body_template?: string; events?: string[]; min_severity?: MinSeverity; mention_people?: boolean; mention_template?: string;
+  /** Cliq. `api` needs dc, client_id, channel, a client_secret and a grant_code or refresh_token (on create); `url` is not used. The three secrets are write only. */
+  mode?: 'webhook' | 'api'; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel?: string;
+  cc_manager?: boolean;
 }
 /** One delivery the agent tried (or will try) to a connection. Read from agent_outbox when allowed. */
 export interface OutboxRow { id: string; connection_id: string; kind: 'flag' | 'summary'; ref_id: string | null; status: 'pending' | 'sent' | 'failed'; attempts: number; error: string | null; created_at: string; sent_at: string | null }
@@ -133,7 +140,7 @@ export interface ChatReply { ok: boolean; thread_id?: string; reply?: string; to
 
 export const CONNECTION_KINDS: { kind: ConnectionKind; label: string; help: string }[] = [
   { kind: 'slack', label: 'Slack', help: 'Posts to a channel through an incoming webhook.' },
-  { kind: 'cliq', label: 'Zoho Cliq', help: 'Posts to a Cliq channel or bot through its webhook.' },
+  { kind: 'cliq', label: 'Zoho Cliq', help: 'Posts to a Cliq channel through the Cliq API (sign in with Zoho) or through a webhook address.' },
   { kind: 'discord', label: 'Discord', help: 'Posts to a channel through a webhook.' },
   { kind: 'teams', label: 'Microsoft Teams', help: 'Posts to a channel through a workflow webhook.' },
   { kind: 'gchat', label: 'Google Chat', help: 'Posts to a space through a webhook.' },

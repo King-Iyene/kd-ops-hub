@@ -4,10 +4,12 @@
 //
 // POST { action: 'save',   id?, kind, name, url?, token?, to?, chat_id?, method?, auth_type?, header_name?, query_param?, content_type?,
 //                          extra_headers?, body_template?, events?, min_severity?, preset?, clear_token? }
+//   Cliq through the API (the way n8n connects): kind 'cliq' with mode 'api' takes dc, client_id, client_secret, grant_code (one time, swapped here
+//   for a refresh token that is kept in the Vault) or refresh_token, channel (the channel's unique name) and cc_manager.
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
-//   sends the message a person edited in the Inbox about one item, with the link to the exact thing. When it has gone out the item is marked
+//   sends the message a person edited in the Inbox about one item, with the link to the exact thing. cc_manager tags their manager too (Cliq, Slack). When it has gone out the item is marked
 //   handled (close: false keeps it open). Answers { ok: true, closed }.
 //   It sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
 //   for review items) from the item itself, so an address is never taken from the browser. The result is kept on the item.
@@ -22,6 +24,9 @@ import { serviceClient } from '../_shared/agent-claude.ts';
 import { mentionFor } from '../_shared/agent-mention.ts';
 import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
+import { exchangeGrantCode } from '../_shared/agent-cliq.ts';
+import { validChannel, validClientId, validDc, validZohoValue } from '../_shared/agent-cliq-core.ts';
+import { accessSaver, readConnectionSecrets, secretName } from '../_shared/agent-conn-secrets.ts';
 import { API_METHODS, AUTH_TYPES, CONTENT_TYPES, buildApiRequest, checkOutboundUrl, parseRecipients, validHeaderName, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 
 const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
@@ -32,9 +37,8 @@ const EVENTS = ['flag_high', 'flag_all', 'summary_day', 'summary_week', 'summary
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
-interface Body { tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { mode?: string; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel_name?: string; cc_manager?: boolean; tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -56,15 +60,7 @@ Deno.serve(async (req) => {
     const { data } = await db.from('agent_connections').select('id, kind, name, config, vault_secret_names').eq('id', id).maybeSingle();
     return data as { id: string; kind: ConnectionKind; name: string; config: Record<string, unknown>; vault_secret_names: string[] } | null;
   };
-  const readSecrets = async (c: { id: string; vault_secret_names: string[] }) => {
-    const get = async (part: 'url' | 'token') => {
-      const n = secretName(c.id, part);
-      if (!c.vault_secret_names.includes(n)) return null;
-      const { data } = await db.rpc('agent_secret_get', { p_name: n });
-      return typeof data === 'string' ? data : null;
-    };
-    return { url: await get('url'), token: await get('token') };
-  };
+  const readSecrets = (c: { id: string; vault_secret_names: string[] }) => readConnectionSecrets(db, c);
   const record = (id: string, r: { ok: boolean; error?: string }) =>
     db.from('agent_connections').update({ status: r.ok ? 'connected' : 'error', last_error: r.ok ? null : (r.error ?? 'Failed').slice(0, 300), last_tested_at: new Date().toISOString() }).eq('id', id);
 
@@ -82,7 +78,40 @@ Deno.serve(async (req) => {
       const config: Record<string, unknown> = {};
       let secretUrl: string | null = null;
       const url = (body.url ?? '').trim();
-      if (SECRET_URL_KINDS.includes(kind)) {
+      const cliqApi = kind === 'cliq' && (body.mode === 'api' || (body.mode === undefined && existing?.config.mode === 'api'));
+      let cliqClientSecret: string | null = null;
+      let cliqRefresh: string | null = null;
+      if (cliqApi) {
+        if (existing && existing.config.mode !== 'api') return jsonResponse(cors(req), { ok: false, error: 'This connection uses a webhook address. Add a new Cliq connection to use the API.' }, 400);
+        const dc = body.dc ?? (existing?.config.dc as string | undefined) ?? 'com';
+        if (!validDc(dc)) return jsonResponse(cors(req), { ok: false, error: 'Pick the Zoho data center that matches your Zoho account.' }, 400);
+        const clientId = (body.client_id ?? (existing?.config.client_id as string | undefined) ?? '').trim();
+        if (!validClientId(clientId)) return jsonResponse(cors(req), { ok: false, error: 'Paste the Client ID from the Zoho API console.' }, 400);
+        const channelName = String(body.channel_name ?? body.channel ?? existing?.config.channel ?? '').trim();
+        if (!validChannel(channelName)) return jsonResponse(cors(req), { ok: false, error: 'The channel unique name must be lowercase letters, digits and underscores (find it in Cliq under Channel settings, Unique name).' }, 400);
+        config.mode = 'api'; config.dc = dc; config.client_id = clientId; config.channel = channelName;
+        config.cc_manager = body.cc_manager === undefined ? (existing?.config.cc_manager ?? true) : body.cc_manager === true;
+        const secretIn = (body.client_secret ?? '').trim();
+        const code = (body.grant_code ?? '').trim();
+        const refreshIn = (body.refresh_token ?? '').trim();
+        if (secretIn && !validZohoValue(secretIn)) return jsonResponse(cors(req), { ok: false, error: 'That does not look like a Zoho Client Secret. Copy it again from the API console.' }, 400);
+        if (code && !validZohoValue(code)) return jsonResponse(cors(req), { ok: false, error: 'That does not look like a grant code. Copy it again from the Self Client.' }, 400);
+        if (refreshIn && !validZohoValue(refreshIn)) return jsonResponse(cors(req), { ok: false, error: 'That does not look like a refresh token.' }, 400);
+        const haveSecret = secretIn || (existing ? existing.vault_secret_names.includes(secretName(existing.id, 'secret')) : false);
+        if (!haveSecret) return jsonResponse(cors(req), { ok: false, error: 'Paste the Client Secret from the Zoho API console.' }, 400);
+        const haveRefresh = refreshIn || code || (existing ? existing.vault_secret_names.includes(secretName(existing.id, 'refresh')) : false);
+        if (!haveRefresh) return jsonResponse(cors(req), { ok: false, error: 'Paste the grant code from the Self Client (or a refresh token).' }, 400);
+        cliqClientSecret = secretIn || null;
+        if (refreshIn) cliqRefresh = refreshIn;
+        else if (code) {
+          // Swap the one-time code now: it only works once, and a wrong one should be reported before anything is saved.
+          const sec = secretIn || (existing ? (await readSecrets(existing)).secret ?? '' : '');
+          if (!sec) return jsonResponse(cors(req), { ok: false, error: 'Paste the Client Secret from the Zoho API console.' }, 400);
+          const swapped = await exchangeGrantCode(dc, clientId, sec, code);
+          if (!swapped.ok) return jsonResponse(cors(req), { ok: false, error: swapped.error }, 400);
+          cliqRefresh = swapped.refresh;
+        }
+      } else if (SECRET_URL_KINDS.includes(kind)) {
         if (url) {
           const c = checkOutboundUrl(url);
           if (!c.ok) return jsonResponse(cors(req), { ok: false, error: c.error }, 400);
@@ -136,6 +165,7 @@ Deno.serve(async (req) => {
       // Tagging: Cliq and Slack can tag the person a message is about. On by default; the Cliq tag format is editable.
       if (kind === 'cliq' || kind === 'slack') {
         config.mention_people = body.mention_people === undefined ? (existing?.config.mention_people ?? true) : body.mention_people === true;
+        if (!cliqApi) config.cc_manager = body.cc_manager === undefined ? (existing?.config.cc_manager ?? false) : body.cc_manager === true;
         if (body.mention_template !== undefined && body.mention_template !== '') {
           if (!validMentionTemplate(body.mention_template)) return jsonResponse(cors(req), { ok: false, error: 'The tag format must contain %s where the person goes, for example {@%s}.' }, 400);
           config.mention_template = body.mention_template;
@@ -162,11 +192,17 @@ Deno.serve(async (req) => {
 
       const names = new Set(existing?.vault_secret_names ?? []);
       if (secretUrl) { await db.rpc('agent_secret_set', { p_name: secretName(id, 'url'), p_value: secretUrl }); names.add(secretName(id, 'url')); }
+      if (cliqClientSecret) { await db.rpc('agent_secret_set', { p_name: secretName(id, 'secret'), p_value: cliqClientSecret }); names.add(secretName(id, 'secret')); }
+      if (cliqRefresh) {
+        await db.rpc('agent_secret_set', { p_name: secretName(id, 'refresh'), p_value: cliqRefresh }); names.add(secretName(id, 'refresh'));
+        // a new sign-in makes any saved access token stale
+        await db.rpc('agent_secret_delete', { p_name: secretName(id, 'access') }); names.delete(secretName(id, 'access'));
+      }
       const token = (body.token ?? '').trim();
       if (token) { await db.rpc('agent_secret_set', { p_name: secretName(id, 'token'), p_value: token }); names.add(secretName(id, 'token')); }
       if (body.clear_token) { await db.rpc('agent_secret_delete', { p_name: secretName(id, 'token') }); names.delete(secretName(id, 'token')); }
       await db.from('agent_connections').update({ vault_secret_names: [...names] }).eq('id', id);
-      await audit(existing ? 'connection.updated' : 'connection.created', id, { kind, name, token_changed: !!token || !!body.clear_token });
+      await audit(existing ? 'connection.updated' : 'connection.created', id, { kind, name, token_changed: !!token || !!body.clear_token, mode: cliqApi ? 'api' : undefined });
       return jsonResponse(cors(req), { ok: true, id });
     }
 
@@ -179,7 +215,7 @@ Deno.serve(async (req) => {
       // "Send test and tag me": proves the tag format works before any real person is tagged.
       const mention = isTest && body.tag_me ? await mentionFor(db, conn.kind, actor) : undefined;
       if (isTest && body.tag_me && !mention && (conn.kind === 'cliq' || conn.kind === 'slack')) return jsonResponse(cors(req), { ok: false, error: 'There is no Cliq or Slack id or email on your profile to tag. Add yours in Settings, People.' }, 400);
-      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text: mention ? 'This is a test message. If your name is highlighted above, tagging works.' : text, event: isTest ? 'test' : 'message', mention });
+      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text: mention ? 'This is a test message. If your name is highlighted above, tagging works.' : text, event: isTest ? 'test' : 'message', mention }, { saveAccess: accessSaver(db, conn) });
       await record(conn.id, r);
       await audit(isTest ? 'connection.tested' : 'connection.sent', conn.id, { ok: r.ok, characters: text.length });
       return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
@@ -207,7 +243,19 @@ Deno.serve(async (req) => {
         const conn = await load(body.connection_id);
         if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
         channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
-        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention: await mentionFor(db, conn.kind, d.recipient_id) });
+        // The person it is about is tagged; with cc_manager (the connection's setting unless the caller says otherwise) their manager is tagged as a CC.
+        let mention = await mentionFor(db, conn.kind, d.recipient_id);
+        const wantCc = body.cc_manager === undefined ? conn.config.cc_manager === true : body.cc_manager === true;
+        if (mention && wantCc) {
+          const { data: fl } = await db.from('agent_flags').select('person_id, manager_id').eq('id', body.flag_id).maybeSingle();
+          const personId = (fl?.person_id as string | null) ?? null;
+          const managerId = (fl?.manager_id as string | null) ?? (personId ? ((await db.from('profiles').select('reporting_manager_id').eq('id', personId).maybeSingle()).data?.reporting_manager_id as string | null) : null);
+          if (managerId && managerId !== d.recipient_id) {
+            const cc = await mentionFor(db, conn.kind, managerId);
+            if (cc) mention = { ...mention, cc: { name: cc.name, id: cc.id } };
+          }
+        }
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention }, { saveAccess: accessSaver(db, conn) });
         await record(conn.id, r);
       } else {
         return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);

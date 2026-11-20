@@ -24,6 +24,7 @@ const SEVERITY: Record<string, string> = { low: 'Low and above', medium: 'Medium
 /** Where this connection points, without showing anything secret: a host name or the addresses an email goes to. */
 const detail = (c: AgentConnection) => {
   if (c.kind === 'email') return c.config.to ?? '';
+  if (c.kind === 'cliq' && c.config.mode === 'api') return `${c.config.channel ? `#${c.config.channel} on ` : ''}cliq.zoho.${c.config.dc ?? 'com'}`;
   if (c.config.host) return c.config.host;
   try { return c.config.url ? new URL(c.config.url).host : ''; } catch { return ''; }
 };
@@ -48,7 +49,7 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
       <div className="flex flex-wrap items-center gap-3">
         <ToolIcon preset={preset} />
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold"><span className="truncate">{c.name}</span><span className="text-xs font-normal text-muted-foreground">{preset.name}</span></p>
+          <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold"><span className="truncate">{c.name}</span><span className="text-xs font-normal text-muted-foreground">{c.kind === 'cliq' ? 'Zoho Cliq' : preset.name}</span>{c.kind === 'cliq' && <span className="rounded-full border px-2 py-0.5 text-2xs font-medium text-muted-foreground" data-testid="connection-mode">{c.config.mode === 'api' ? 'API' : 'Webhook'}</span>}</p>
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5" data-testid="connection-status"><span className={cn('h-2 w-2 rounded-full', status.dot)} aria-hidden="true" />{status.label}</span>
             {detail(c) && <span className="truncate">· {detail(c)}</span>}
@@ -69,11 +70,11 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" data-testid="connection-events" aria-label="Sent automatically">
-        {events.length === 0 ? <><span className="text-xs text-muted-foreground">Sends nothing automatically</span>{tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}</> : (
+        {events.length === 0 ? <><span className="text-xs text-muted-foreground">Sends nothing automatically</span>{tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}</> : (
           <>
             <span className="text-xs text-muted-foreground">Sends:</span>
             {events.map((e) => <span key={e} className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium">{SHORT[e] ?? e}</span>)}
-            {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}
+            {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}
             {c.config.min_severity && <span className="rounded-full border px-2 py-0.5 text-2xs text-muted-foreground">{SEVERITY[c.config.min_severity] ?? c.config.min_severity}</span>}
           </>
         )}

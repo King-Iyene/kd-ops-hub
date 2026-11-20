@@ -597,3 +597,101 @@ describe('v5: sending closes the item, links, deep links, escalations, dispatch 
     });
   });
 });
+
+describe('sending to a Cliq or Slack channel: CC the manager', () => {
+  const CONNECTIONS = [
+    { id: 'cq', kind: 'cliq', name: 'Ops Cliq', status: 'connected', config: { mode: 'api', cc_manager: true, mention_people: true }, vault_secret_names: ['a_secret', 'a_refresh'], last_error: null, last_tested_at: null },
+    { id: 'sl', kind: 'slack', name: 'Ops Slack', status: 'connected', config: { mention_people: true }, vault_secret_names: ['a_url'], last_error: null, last_tested_at: null },
+    { id: 'wh', kind: 'webhook', name: 'Billing hook', status: 'connected', config: {}, vault_secret_names: [], last_error: null, last_tested_at: null },
+  ];
+  const open = async () => {
+    const cards = await screen.findAllByTestId('inbox-item');
+    fireEvent.click(within(cards.find((c) => c.getAttribute('data-rule') === 'TR01')!).getByTestId('flag-open'));
+    const sheet = await screen.findByTestId('flag-detail');
+    await within(sheet).findByLabelText('Message');
+    return sheet;
+  };
+  const pick = async (sheet: HTMLElement, name: RegExp) => {
+    const trigger = within(sheet).getByTestId('channel-select');
+    await waitFor(() => expect(trigger).toBeEnabled()); // the saved connections have loaded
+    fireEvent.keyDown(trigger, { key: 'Enter' }); // opens the drop-down list from the keyboard
+    fireEvent.click(await screen.findByRole('option', { name }));
+  };
+  const sendToChannel = async (sheet: HTMLElement) => {
+    fireEvent.click(within(sheet).getByTestId('send-channel'));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Send to channel' }));
+    await waitFor(() => expect(only('invoke:agent-connections:send_flag')).toHaveLength(1));
+    return only('invoke:agent-connections:send_flag')[0].args[0] as Record<string, unknown>;
+  };
+
+  beforeEach(() => {
+    h.tables = { ...h.tables, agent_connections: CONNECTIONS };
+    // jsdom has no pointer capture or scrolling, which the drop-down list asks for
+    Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture ?? (() => false);
+    Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture ?? (() => undefined);
+    Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => undefined);
+  });
+
+  it('a Cliq API connection starts with the box ticked, says who is tagged, and sends cc_manager: true', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    expect(within(sheet).queryByTestId('cc-manager')).not.toBeInTheDocument(); // nothing picked yet
+    await pick(sheet, /Ops Cliq/);
+    const box = within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss' });
+    expect(box).toBeChecked();
+    expect(within(sheet).getByTestId('cc-manager-note')).toHaveTextContent('Tags Cara and CCs their manager Dayo in the channel.');
+    expect(within(sheet).getByTestId('cc-manager-note').textContent).not.toMatch(/\b(her|his|she|he)\b/i);
+    const req = await sendToChannel(sheet);
+    expect(req).toMatchObject({ action: 'send_flag', flag_id: 'f1', channel: 'connection', connection_id: 'cq', cc_manager: true });
+  });
+
+  it('unticking sends cc_manager: false and the note says the manager is not tagged', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    await pick(sheet, /Ops Cliq/);
+    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss' }));
+    expect(within(sheet).getByTestId('cc-manager-note')).toHaveTextContent('Tags Cara in the channel. Their manager is not tagged.');
+    const req = await sendToChannel(sheet);
+    expect(req.cc_manager).toBe(false);
+  });
+
+  it('a Slack connection follows its own setting (off here), and ticking sends true', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    await pick(sheet, /Ops Slack/);
+    const box = within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss' });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    const req = await sendToChannel(sheet);
+    expect(req).toMatchObject({ connection_id: 'sl', cc_manager: true });
+  });
+
+  it('is not offered for other connections, and email never carries cc_manager', async () => {
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    await pick(sheet, /Billing hook/);
+    expect(within(sheet).queryByTestId('cc-manager')).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByTestId('send-email'));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Send email' }));
+    await waitFor(() => expect(only('invoke:agent-connections:send_flag')).toHaveLength(1));
+    expect('cc_manager' in (only('invoke:agent-connections:send_flag')[0].args[0] as Record<string, unknown>)).toBe(false);
+  });
+
+  it('is hidden when the person has no manager, and no cc_manager is sent', async () => {
+    h.detail = { ...h.detail, f1: detailFor(trackingFlag, { person: { ...person, manager: null } }) };
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    await pick(sheet, /Ops Cliq/);
+    expect(within(sheet).queryByTestId('cc-manager')).not.toBeInTheDocument();
+    const req = await sendToChannel(sheet);
+    expect('cc_manager' in req).toBe(false);
+  });
+
+  it('is hidden when the message already goes to the manager', async () => {
+    h.detail = { ...h.detail, f1: detailFor(trackingFlag, { draft: { to: 'manager', recipient_name: 'Dayo Boss', recipient_id: 'm1', subject: 'Cara has not tracked time', body: 'Hi Dayo,\n\nPlease check in.' } }) };
+    renderUi(<InboxTab />);
+    const sheet = await open();
+    await pick(sheet, /Ops Cliq/);
+    expect(within(sheet).queryByTestId('cc-manager')).not.toBeInTheDocument();
+  });
+});

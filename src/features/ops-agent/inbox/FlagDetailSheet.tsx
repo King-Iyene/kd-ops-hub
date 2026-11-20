@@ -103,6 +103,7 @@ export function FlagDetailSheet({ flagId, listFlag, onClose, onOpenOther, busy, 
           <Block title="Message to send" testId="detail-draft">
             <DraftEditor
               key={flag.id} flagId={flag.id} draft={draft} recipientPhoto={photoFor(draft.recipient_id)}
+              aboutName={d?.person?.full_name ?? null} manager={d?.person?.manager ?? null}
               onClosed={onClose}
             />
           </Block>

@@ -2,6 +2,7 @@
 // resolved, and every address it resolves to must be public. No redirects are followed. Nothing about a secret is
 // ever put in a result: only a short, human sentence about what happened.
 
+import { cliqAccessToken } from './agent-cliq.ts';
 import { buildRequest, checkOutboundUrl, describeStatus, isPrivateIp, type ConnectionLite, type Outgoing, type Secrets } from './agent-deliver-core.ts';
 
 export interface DeliverDeps {
@@ -9,6 +10,8 @@ export interface DeliverDeps {
   resolveDns?: (host: string, type: 'A' | 'AAAA') => Promise<string[]>;
   supabaseUrl?: string;
   serviceKey?: string;
+  /** Saves a fresh Cliq access token so the next message can reuse it (the caller writes it to the Vault). */
+  saveAccess?: (packed: string) => Promise<void>;
 }
 export type DeliverResult = { ok: true; status: number } | { ok: false; status?: number; error: string };
 
@@ -29,7 +32,13 @@ async function hostIsPublic(host: string, resolve: NonNullable<DeliverDeps['reso
 export async function deliver(conn: ConnectionLite, secrets: Secrets, msg: Outgoing, deps: DeliverDeps = {}): Promise<DeliverResult> {
   const doFetch = deps.fetch ?? fetch;
   const resolve = deps.resolveDns ?? ((h, t) => Deno.resolveDns(h, t));
-  const built = await buildRequest(conn, secrets, msg);
+  let usable = secrets;
+  if (conn.kind === 'cliq' && conn.config?.mode === 'api') {
+    const t = await cliqAccessToken(conn.config, secrets, deps.saveAccess, doFetch);
+    if (!t.ok) return { ok: false, error: t.error };
+    usable = { ...secrets, access: t.token };
+  }
+  const built = await buildRequest(conn, usable, msg);
   if (built.type === 'error') return { ok: false, error: built.error };
 
   try {
@@ -49,8 +58,12 @@ export async function deliver(conn: ConnectionLite, secrets: Secrets, msg: Outgo
     const dnsProblem = await hostIsPublic(checked.url.hostname, resolve);
     if (dnsProblem) return { ok: false, error: dnsProblem };
 
-    const res = await doFetch(checked.url.toString(), { ...built.init, redirect: 'manual', signal: AbortSignal.timeout(10_000) });
+    let res = await doFetch(checked.url.toString(), { ...built.init, redirect: 'manual', signal: AbortSignal.timeout(10_000) });
     await res.body?.cancel().catch(() => {});
+    if (res.status === 401 && built.retryAuthorization) {
+      res = await doFetch(checked.url.toString(), { ...built.init, headers: { ...built.init.headers, Authorization: built.retryAuthorization }, redirect: 'manual', signal: AbortSignal.timeout(10_000) });
+      await res.body?.cancel().catch(() => {});
+    }
     return res.status >= 200 && res.status < 300 ? { ok: true, status: res.status } : { ok: false, status: res.status, error: describeStatus(res.status) };
   } catch (e) {
     const timedOut = e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError');

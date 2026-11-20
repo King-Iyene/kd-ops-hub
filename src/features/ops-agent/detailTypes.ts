@@ -51,8 +51,8 @@ export interface FlagDetail {
   messages: SentMessage[];
 }
 
-/** `close: false` keeps the item open; left out, a sent message marks it handled. */
-export interface SendFlagInput { flag_id: string; channel: 'email' | 'connection'; connection_id?: string; subject: string; text: string; close?: boolean }
+/** `close: false` keeps the item open; left out, a sent message marks it handled. `cc_manager` (Cliq and Slack connections only) also tags the person's manager. */
+export interface SendFlagInput { flag_id: string; channel: 'email' | 'connection'; connection_id?: string; subject: string; text: string; close?: boolean; cc_manager?: boolean }
 export interface SendFlagResult { ok: boolean; closed?: boolean; error?: string }
 
 export interface SiteVerdictResult { domain: string; verdict: SiteVerdict; reason: string }

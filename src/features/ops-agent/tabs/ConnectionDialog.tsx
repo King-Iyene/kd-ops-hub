@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSaveConnection, useTestConnection } from '@/queries/useOpsAgent';
 import type { AgentConnection, MinSeverity, SaveConnectionInput } from '../agentDb';
-import { AUTO_EVENTS, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
+import { AUTO_EVENTS, CLIQ_CHANNEL_PATTERN, DEFAULT_CLIQ_DC, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
 import { MENTION_DEFAULTS, MENTION_MAX, mentionTemplateProblem, supportsMentions } from '../connectionTemplate';
 import { Field } from '../settings/shared';
 import { useAgentToast } from '../settings/useAgentToast';
@@ -21,8 +21,11 @@ const SEVERITIES: { value: MinSeverity; label: string }[] = [
 ];
 const ANY = 'any';
 
-type Part = 'url' | 'token';
-const savedSecret = (c: AgentConnection | null, part: Part) => !!c && c.vault_secret_names.some((n) => n.endsWith(`_${part}`));
+/** The secrets a connection can hold, and how the server names them in vault_secret_names. */
+type Part = 'url' | 'token' | 'client_secret' | 'refresh_token';
+const PART_SUFFIX: Record<Part, string> = { url: '_url', token: '_token', client_secret: '_secret', refresh_token: '_refresh' };
+const isPart = (f: string): f is Part => f in PART_SUFFIX;
+const savedSecret = (c: AgentConnection | null, part: Part) => !!c && c.vault_secret_names.some((n) => n.endsWith(PART_SUFFIX[part]));
 
 function apiFormFor(preset: ConnectionPreset, c: AgentConnection | null): ApiForm {
   const d = preset.api;
@@ -41,8 +44,12 @@ function apiFormFor(preset: ConnectionPreset, c: AgentConnection | null): ApiFor
 
 /** The saved address is only shown back when it is not a secret (a Slack or Discord address works like a password). */
 const initialValue = (f: PresetField, c: AgentConnection | null): string => {
+  if (f.field === 'dc' && !c) return DEFAULT_CLIQ_DC;
   if (!c) return '';
   if (f.secret) return '';
+  if (f.field === 'dc') return c.config.dc ?? DEFAULT_CLIQ_DC;
+  if (f.field === 'client_id') return c.config.client_id ?? '';
+  if (f.field === 'channel') return c.config.channel ?? '';
   if (f.field === 'url') return c.config.url ?? '';
   if (f.field === 'to') return c.config.to ?? '';
   if (f.field === 'chat_id') return c.config.chat_id ?? '';
@@ -91,7 +98,11 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const tags = supportsMentions(preset.kind);
   const defaultFormat = MENTION_DEFAULTS[preset.kind] ?? '';
   const savedFormat = editing?.config.mention_template ?? '';
+  const isCliqApi = preset.mode === 'api';
   const [mentionPeople, setMentionPeople] = useState(editing?.config.mention_people ?? true);
+  // Cliq can also tag the manager of the person an item is about. On by default for the API way, off for an older webhook connection.
+  const savedCc = editing?.config.cc_manager;
+  const [ccManager, setCcManager] = useState(savedCc ?? isCliqApi);
   const [format, setFormat] = useState(savedFormat || defaultFormat);
   const isApi = preset.kind === 'api';
   const fields = preset.fields.filter((f) => !['method', 'header_name', 'query_param', 'body_template'].includes(f.field));
@@ -115,10 +126,15 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
     if (f.field === 'body_template') return false;
     if (f.field === 'token' && !tokenUsed) return false;
     const filled = (values[f.field] ?? '').trim().length > 0;
-    return !(filled || (f.secret && (f.field === 'url' || f.field === 'token') && hasSaved(f.field)));
+    return !(filled || (f.secret && isPart(f.field) && hasSaved(f.field)));
   });
+  // Cliq API: the channel name must be the lowercase unique name, and there must be some way to get a refresh token (a grant code or a
+  // refresh token pasted now, or one already saved).
+  const channelText = (values.channel ?? '').trim();
+  const channelBad = isCliqApi && channelText !== '' && !CLIQ_CHANNEL_PATTERN.test(channelText);
+  const noCredential = isCliqApi && !((values.grant_code ?? '').trim() || (values.refresh_token ?? '').trim() || hasSaved('refresh_token'));
   const formatBad = tags ? mentionTemplateProblem(format) : null;
-  const apiBad = !!formatBad || (isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim())));
+  const apiBad = !!formatBad || channelBad || noCredential || (isApi && (headerProblem(api.headers) !== null || (api.auth === 'header' && !api.headerName.trim()) || (api.auth === 'query' && !api.queryParam.trim()) || (api.method !== 'GET' && !api.body.trim())));
   const ready = name.trim().length > 0 && !missing && !apiBad;
 
   const body = (): SaveConnectionInput => {
@@ -136,6 +152,17 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       if (f !== '' && f !== defaultFormat) input.mention_template = f;
       else if (savedFormat) input.mention_template = '';
     }
+    if (isCliqApi) {
+      input.mode = 'api';
+      input.dc = (values.dc ?? '').trim() || DEFAULT_CLIQ_DC;
+      input.client_id = v('client_id');
+      input.channel = channelText;
+      // Secrets go out on the save call only, and only when something was typed: blank means "keep what is saved".
+      input.client_secret = v('client_secret');
+      input.grant_code = v('grant_code');
+      input.refresh_token = v('refresh_token');
+      input.cc_manager = ccManager;
+    } else if (preset.kind === 'cliq' && ccManager !== (savedCc ?? false)) input.cc_manager = ccManager;
     if (isApi) {
       input.method = api.method;
       input.auth_type = api.auth;
@@ -158,8 +185,15 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
           const wasNew = !savedId;
           setSavedId(id);
           // Secrets are write only: whatever was typed is dropped and the field says "saved".
-          setJustSaved((s) => { const n = new Set(s); if (sent.url && preset.fields.find((f) => f.field === 'url')?.secret) n.add('url'); if (sent.token) n.add('token'); return n; });
-          setValues((p) => ({ ...p, token: '', ...(preset.fields.find((f) => f.field === 'url')?.secret ? { url: '' } : {}) }));
+          setJustSaved((s) => {
+            const n = new Set(s);
+            if (sent.url && preset.fields.find((f) => f.field === 'url')?.secret) n.add('url');
+            if (sent.token) n.add('token');
+            if (sent.client_secret) n.add('client_secret');
+            if (sent.refresh_token || sent.grant_code) n.add('refresh_token'); // a grant code is swapped for a refresh token on the server
+            return n;
+          });
+          setValues((p) => ({ ...p, token: '', ...Object.fromEntries(preset.fields.filter((f) => f.secret).map((f) => [f.field, ''])) }));
           setClearToken(false);
           setNote({ tone: 'good', text: 'Saved. Press Send test to check it works.' });
           onSaved(id, wasNew);
@@ -211,18 +245,32 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
         </Field>
 
         {fields.map((f) => {
-          const part = f.field === 'url' || f.field === 'token' ? (f.field as Part) : null;
+          const part = isPart(f.field) ? f.field : null;
           const saved = !!f.secret && part !== null && hasSaved(part);
           const id = `conn-${f.field}`;
-          const hint = saved ? 'Saved. Leave blank to keep it, or paste a new one.' : f.hint ?? (f.secret ? 'It works like a password, so it is kept encrypted.' : undefined);
+          let hint = saved ? 'Saved. Leave blank to keep it, or paste a new one.' : f.hint ?? (f.secret ? 'It works like a password, so it is kept encrypted.' : undefined);
+          if (f.field === 'grant_code' && hasSaved('refresh_token')) hint = 'Not needed now. Only paste a new code here to connect again, for example if the connection stops working.';
           if (f.field === 'token' && !tokenUsed) return null;
+          if (f.options) {
+            return (
+              <Field key={f.field} label={f.label} htmlFor={id} hint={hint}>
+                <Select value={values[f.field] || f.options[0].value} onValueChange={(v) => setValues((p) => ({ ...p, [f.field]: v }))}>
+                  <SelectTrigger id={id} className="sm:w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>{f.options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+            );
+          }
           return (
             <Field key={f.field} label={isApi && f.field === 'token' ? tokenLabel(api, f.label) : f.label} htmlFor={id} hint={hint}>
               <Input
                 id={id} type={f.secret ? 'password' : 'text'} autoComplete="off" value={values[f.field] ?? ''} required={f.required}
+                aria-invalid={f.field === 'channel' && channelBad ? true : undefined}
                 onChange={(e) => setValues((p) => ({ ...p, [f.field]: e.target.value }))}
                 placeholder={saved ? '•••••••• saved' : f.placeholder}
               />
+              {f.field === 'channel' && channelBad && <p className="mt-1 text-xs text-destructive" role="alert" data-testid="channel-error">Use the channel's unique name: lowercase letters, numbers and underscores only, no spaces.</p>}
+              {f.field === 'refresh_token' && noCredential && <p className="mt-1 text-xs text-muted-foreground" data-testid="credential-needed">Paste a grant code above (or a refresh token here) to connect.</p>}
               {f.field === 'token' && hasSaved('token') && (
                 <label className="mt-1.5 flex items-center gap-2 text-sm"><Checkbox checked={clearToken} onCheckedChange={(c) => setClearToken(c === true)} /> Remove the saved {isApi ? 'token' : 'secret'}</label>
               )}
@@ -245,6 +293,12 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
               <Checkbox className="mt-0.5" checked={mentionPeople} onCheckedChange={(c) => setMentionPeople(c === true)} aria-label="Tag the person in each message" />
               <span><span className="font-medium">Tag the person in each message</span><span className="block text-xs text-muted-foreground">So they get notified in {preset.name}. People are matched in Settings, People.</span></span>
             </label>
+            {preset.kind === 'cliq' && (
+              <label className="flex items-start gap-2.5 text-sm">
+                <Checkbox className="mt-0.5" checked={ccManager} onCheckedChange={(c) => setCcManager(c === true)} aria-label="CC the person's manager" />
+                <span><span className="font-medium">CC the person's manager</span><span className="block text-xs text-muted-foreground">Also tags the person's manager in the same message, so the right people see it.</span></span>
+              </label>
+            )}
             <details className="text-sm" data-testid="tag-advanced">
               <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Advanced</summary>
               <div className="mt-2">
