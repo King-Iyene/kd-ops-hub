@@ -436,7 +436,8 @@ function OfficeRoom() {
         return;
       }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
-      await actions.saveLayout(space, template, changed ? draft : undefined, isAdmin ? overrides : undefined, isAdmin ? tileDraft : undefined);
+      // walls and floors are the building: only an admin's changes to them are saved, everybody else's save keeps what is already there
+      await actions.saveLayout(space, template, changed ? draft : undefined, overrides, isAdmin ? tileDraft : savedTiles);
       // offices decorated by their owners keep following what the owner sees, so keep them in step
       for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
       toast({ title: 'Space saved', description: 'Everyone sees the new look right away.' });
