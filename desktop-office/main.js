@@ -73,10 +73,18 @@ function isOfficeUrl(url) {
     return u.origin === ORIGIN && (u.pathname === '/office' || u.pathname.startsWith('/office/'));
   } catch { return false; }
 }
-/** 'ops' | 'office' for an address on our own site, 'external' for any other web address, 'block' for anything else. */
+// sign-in pages show up in whichever tab needed you to sign in (the Office tab too), so they never move between tabs
+function isAuthUrl(url) {
+  try {
+    const p = new URL(url).pathname;
+    return ['/login', '/register', '/forgot-password', '/reset-password', '/unauthorized'].some((a) => p === a || p.startsWith(a + '/'));
+  } catch { return false; }
+}
+/** 'ops' | 'office' for an address on our own site, 'auth' for a sign-in page, 'external' for any other web address, 'block' for anything else. */
 function routeOf(url) {
   if (!/^https?:/i.test(url)) return 'block';
   if (!sameOrigin(url)) return 'external';
+  if (isAuthUrl(url)) return 'auth';
   return isOfficeUrl(url) ? 'office' : 'ops';
 }
 function tabOf(webContents) {
@@ -118,12 +126,20 @@ function layout() {
     if (!v) continue;
     v.setBounds({ x: 0, y: BAR_HEIGHT, width: Math.max(0, w), height: Math.max(0, h - BAR_HEIGHT) });
     v.setVisible(id === active);
+    if (!v.webContents.isDestroyed()) v.webContents.send('kd:tab-visible', id === active);
   }
 }
 
 function selectTab(id, { focus = true } = {}) {
   if (!TAB_URLS[id]) return;
   active = id;
+  // the KD Ops tab is for the ops site: if it ever shows the Office page, put it on the dashboard (the Office has its own tab)
+  if (id === 'ops') {
+    const ov = views.ops;
+    let cur = '';
+    try { cur = ov && !ov.webContents.isDestroyed() ? ov.webContents.getURL() : ''; } catch { /* gone */ }
+    if (cur && isOfficeUrl(cur)) void ov.webContents.loadURL(TAB_URLS.ops).catch(() => undefined);
+  }
   layout();
   writeSettings({ tab: id });
   pushBar();
@@ -167,6 +183,7 @@ function createView(id) {
   const view = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      additionalArguments: [`--kd-tab=${id}`],
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -188,6 +205,7 @@ function createView(id) {
     const r = routeOf(url);
     if (r === 'external') void shell.openExternal(url);
     else if (r === 'ops' || r === 'office') openInTab(r, url);
+    else if (r === 'auth') openInTab('ops', url);
     return { action: 'deny' };
   });
 
@@ -195,6 +213,7 @@ function createView(id) {
     if (url.startsWith('kd-retry:')) { e.preventDefault(); void loadTab(id); return; }
     if (url.startsWith('file:')) return;
     const r = routeOf(url);
+    if (r === 'auth') return;
     if (r === id) { lastGood[id] = url; return; }
     e.preventDefault();
     if (r === 'external') void shell.openExternal(url);
@@ -216,6 +235,7 @@ function createView(id) {
   });
 
   wc.on('did-navigate', (_e, url) => { if (routeOf(url) === id) lastGood[id] = url; });
+  wc.on('did-finish-load', () => { if (!wc.isDestroyed()) wc.send('kd:tab-visible', active === id); });
 
   // an unread count from the page title, "(3) Virtual Office"
   wc.on('page-title-updated', (_e, title) => {

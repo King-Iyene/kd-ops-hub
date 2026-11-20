@@ -144,6 +144,8 @@ export function OfficeCanvas(props: Props) {
   const autoStuck = useRef<{ t: number; x: number; y: number } | null>(null);
   const hover = useRef<{ x: number; y: number } | null>(null);
   const cam = useRef({ ox: 0, oy: 0, scale: 1 });
+  /** true while the KD Ops desktop app has the Office on a hidden tab */
+  const tabHidden = useRef(false);
 
   useEffect(() => {
     ambient.setEnabled(props.sound);
@@ -151,11 +153,14 @@ export function OfficeCanvas(props: Props) {
   useEffect(() => () => ambient.stop(), []);
   // in the desktop app, the office's own sounds stop while the window is hidden in the tray (calls and alerts keep working)
   useEffect(() => {
-    if (typeof window === 'undefined' || !(window as unknown as { kdDesktop?: unknown }).kdDesktop) return;
-    const on = () => ambient.setQuiet(document.visibilityState === 'hidden');
+    const desk = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { onVisible?: (cb: (v: boolean) => void) => () => void } }).kdDesktop;
+    if (!desk) return;
+    // the KD Ops app keeps this page running in a hidden tab: then nothing is drawn (only a slow beat) and the sounds stop
+    const on = () => ambient.setQuiet(document.visibilityState === 'hidden' || tabHidden.current);
+    const off = desk.onVisible?.((v) => { tabHidden.current = !v; on(); });
     document.addEventListener('visibilitychange', on);
     on();
-    return () => { document.removeEventListener('visibilitychange', on); ambient.setQuiet(false); };
+    return () => { off?.(); document.removeEventListener('visibilitychange', on); ambient.setQuiet(false); };
   }, []);
 
   // a new office: start at its entrance, except when you open or refresh the page, then you are back where you last stood
@@ -525,8 +530,11 @@ export function OfficeCanvas(props: Props) {
     canvas.addEventListener('dblclick', dbl);
     canvas.addEventListener('contextmenu', ctxMenu);
 
+    let slowAt = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
+      // on a hidden tab nobody is looking: draw about 4 times a second instead of 60, so the tab you are in stays fast
+      if (tabHidden.current) { if (now - slowAt < 250) return; slowAt = now; }
       const p = propsRef.current;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;

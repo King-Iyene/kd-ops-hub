@@ -1,7 +1,13 @@
 /** Where to get the KD Ops desktop app (the ops site and the Office in one window), and whether we are already inside it. */
-export const DESKTOP_VERSION = '0.2.0';
+export const DESKTOP_VERSION = '0.2.1';
 const REPO = 'https://github.com/King-Iyene/kd-ops-hub/releases';
 export const DESKTOP_RELEASE_PAGE = `${REPO}/tag/office-desktop-v${DESKTOP_VERSION}`;
+
+/** Inside the KD Ops desktop app: which tab this page is in ('ops' or 'office'); null in a browser or the old Office-only app. */
+export function desktopTab(): 'ops' | 'office' | null {
+  const t = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { tab?: unknown } }).kdDesktop?.tab;
+  return t === 'ops' || t === 'office' ? t : null;
+}
 
 export function inDesktopApp(): boolean {
   return typeof window !== 'undefined' && !!(window as unknown as { kdDesktop?: unknown }).kdDesktop;
