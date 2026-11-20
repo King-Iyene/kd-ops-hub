@@ -11,7 +11,7 @@
 //  - microphone, camera and screen sharing work without browser prompts
 //  - a friendly offline screen that reconnects by itself (power and network cuts happen)
 //  - only one copy runs, it can start with your computer, and it updates itself
-const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Notification, Tray, nativeImage, session, shell, powerSaveBlocker, desktopCapturer, ipcMain, systemPreferences, screen, powerMonitor } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -265,6 +265,84 @@ function createView(id) {
   return view;
 }
 
+// ---- Mini Mode: a small always-on-top strip with who is around, your status and a way back. Like Gather, it opens by itself when you
+// switch to another app (not when you minimise), and it hides again when you come back. Closing it by hand keeps it closed until the next time you come back to the app.
+let miniWin = null;
+let miniState = null; // the last list the Office sent
+let miniDismissed = false;
+let miniTimer = null;
+const MINI_W = 252;
+
+const COLOR = /^#[0-9a-fA-F]{3,8}$/;
+function cleanAvatar(a) {
+  const o = {};
+  if (a && typeof a === 'object') for (const k of ['skin', 'hair', 'shirt']) if (typeof a[k] === 'string' && COLOR.test(a[k])) o[k] = a[k];
+  return o;
+}
+const cleanStatus = (v) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 60) : '');
+function cleanMiniState(p) {
+  if (!p || typeof p !== 'object' || !p.me || !Array.isArray(p.people)) return null;
+  return {
+    me: { name: String(p.me.name || '').slice(0, 40), status: cleanStatus(p.me.status), a: cleanAvatar(p.me.a) },
+    people: p.people.slice(0, 14).map((q) => ({ id: String(q.id || '').slice(0, 64), name: String(q.name || '').slice(0, 40), status: cleanStatus(q.status), a: cleanAvatar(q.a) })),
+  };
+}
+
+function miniPosition(w, h) {
+  if (process.env.KD_OPS_TEST) return { x: -4000, y: -4000 }; // the automatic tests keep it off-screen
+  const st = readSettings();
+  const primary = screen.getPrimaryDisplay().workArea;
+  let x = Number.isFinite(st.miniX) ? st.miniX : primary.x + primary.width - w - 16;
+  let y = Number.isFinite(st.miniY) ? st.miniY : primary.y + primary.height - h - 16;
+  const wa = screen.getDisplayMatching({ x, y, width: w, height: h }).workArea;
+  x = Math.min(Math.max(x, wa.x), wa.x + wa.width - w);
+  y = Math.min(Math.max(y, wa.y), wa.y + wa.height - h);
+  return { x, y };
+}
+
+function createMini() {
+  if (miniWin && !miniWin.isDestroyed()) return miniWin;
+  const p = miniPosition(MINI_W, 220);
+  miniWin = new BrowserWindow({
+    width: MINI_W, height: 220, x: p.x, y: p.y,
+    frame: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    skipTaskbar: true, alwaysOnTop: true, show: false, backgroundColor: '#0b0f17', title: 'KD Ops mini', icon: ICON,
+    webPreferences: { preload: path.join(__dirname, 'preload-mini.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false, spellcheck: false },
+  });
+  miniWin.setAlwaysOnTop(true, 'screen-saver');
+  void miniWin.loadFile(path.join(__dirname, 'mini.html'));
+  // after you drag it: it snaps to a screen edge when it is close, and it remembers where you left it
+  miniWin.on('moved', () => {
+    if (!miniWin || miniWin.isDestroyed()) return;
+    const b = miniWin.getBounds();
+    const wa = screen.getDisplayMatching(b).workArea;
+    const SNAP = 24;
+    let { x, y } = b;
+    if (Math.abs(x - wa.x) < SNAP) x = wa.x;
+    if (Math.abs(x + b.width - (wa.x + wa.width)) < SNAP) x = wa.x + wa.width - b.width;
+    if (Math.abs(y - wa.y) < SNAP) y = wa.y;
+    if (Math.abs(y + b.height - (wa.y + wa.height)) < SNAP) y = wa.y + wa.height - b.height;
+    if (x !== b.x || y !== b.y) miniWin.setPosition(x, y);
+    writeSettings({ miniX: x, miniY: y });
+  });
+  miniWin.on('closed', () => { miniWin = null; });
+  return miniWin;
+}
+function sendMini() { if (miniWin && !miniWin.isDestroyed() && miniState) miniWin.webContents.send('mini:state', miniState); }
+function showMini() {
+  if (!miniState || quitting) return;
+  const m = createMini();
+  sendMini();
+  if (!m.isVisible()) m.showInactive();
+}
+function hideMini() { if (miniWin && !miniWin.isDestroyed() && miniWin.isVisible()) miniWin.hide(); }
+function maybeShowMini() {
+  if (readSettings().autoMini === false || miniDismissed || !miniState || quitting) return;
+  if (win && win.isVisible() && win.isFocused()) return;
+  showMini();
+}
+function scheduleMini() { clearTimeout(miniTimer); miniTimer = setTimeout(maybeShowMini, 700); }
+
 function createWindow() {
   const s = readSettings();
   active = TAB_URLS[s.tab] ? s.tab : 'ops';
@@ -301,7 +379,9 @@ function createWindow() {
   for (const id of TAB_IDS) void loadTab(id);
 
   for (const ev of ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'restore', 'show']) win.on(ev, layout);
-  win.on('focus', () => { clearCounts(); });
+  win.on('focus', () => { clearCounts(); miniDismissed = false; clearTimeout(miniTimer); hideMini(); });
+  win.on('blur', scheduleMini);
+  win.on('hide', scheduleMini);
 
   // closing the window keeps you in the office (in the tray); Quit from the tray really leaves
   win.on('close', (e) => {
@@ -317,6 +397,7 @@ function createWindow() {
       clearTimeout(retryTimers[id]);
     }
     win = null;
+    hideMini();
   });
 }
 
@@ -354,6 +435,19 @@ function trayMenu() {
       checked: app.getLoginItemSettings().openAtLogin,
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked, args: item.checked ? ['--hidden'] : [] }),
     },
+    {
+      label: 'Show a small window when I switch to another app',
+      type: 'checkbox',
+      checked: readSettings().autoMini !== false,
+      click: (item) => { writeSettings({ autoMini: item.checked }); if (!item.checked) hideMini(); },
+    },
+    {
+      label: 'Do not disturb when my computer locks or sleeps',
+      type: 'checkbox',
+      checked: readSettings().autoDndOnLock !== false,
+      click: (item) => writeSettings({ autoDndOnLock: item.checked }),
+    },
+    { label: 'Show the small window now', click: () => { miniDismissed = false; showMini(); } },
     { label: 'Reload this tab', click: () => { void loadTab(active); } },
     { type: 'separator' },
     { label: `Quit ${NAME}`, click: () => { quitting = true; app.quit(); } },
@@ -480,6 +574,37 @@ ipcMain.on('kd:notify', (e, p) => {
 ipcMain.on('kd:focus', (e) => { const id = fromOurPages(e); if (id) showWindow(id); });
 ipcMain.on('kd:badge', (e, n) => { const id = fromOurPages(e); if (id) setCount(id, Number(n) || 0); });
 
+// the Office page sends who is around (only the Office tab may)
+ipcMain.on('kd:mini-state', (e, p) => {
+  if (fromOurPages(e) !== 'office') return;
+  const clean = cleanMiniState(p);
+  if (!clean) return;
+  miniState = clean;
+  sendMini();
+});
+const fromMini = (e) => !!miniWin && !miniWin.isDestroyed() && e.sender.id === miniWin.webContents.id;
+ipcMain.on('mini:ready', (e) => { if (fromMini(e)) sendMini(); });
+ipcMain.on('mini:expand', (e) => { if (!fromMini(e)) return; miniDismissed = false; hideMini(); showWindow('office'); });
+ipcMain.on('mini:close', (e) => { if (!fromMini(e)) return; miniDismissed = true; hideMini(); });
+ipcMain.on('mini:size', (e, h) => {
+  if (!fromMini(e) || !Number.isFinite(h)) return;
+  const b = miniWin.getBounds();
+  const height = Math.max(120, Math.min(420, Math.round(h)));
+  if (height !== b.height) miniWin.setBounds({ x: b.x, y: Math.max(screen.getDisplayMatching(b).workArea.y, Math.min(b.y, screen.getDisplayMatching(b).workArea.y + screen.getDisplayMatching(b).workArea.height - height)), width: b.width, height });
+});
+ipcMain.on('mini:status', (e, id) => {
+  if (!fromMini(e) || typeof id !== 'string' || !/^(available|busy|dnd)$/.test(id)) return;
+  const v = views.office;
+  if (v && !v.webContents.isDestroyed()) v.webContents.send('kd:set-status', id);
+});
+
+// Do not disturb while the computer is locked or asleep, and back to how it was afterwards (the Office page does the switching)
+function sendPower(state) {
+  if (readSettings().autoDndOnLock === false) return;
+  const v = views.office;
+  if (v && !v.webContents.isDestroyed()) v.webContents.send('kd:power', state);
+}
+
 function zoomActive(delta) {
   const v = views[active];
   if (!v || v.webContents.isDestroyed()) return;
@@ -492,6 +617,8 @@ app.whenReady().then(() => {
   powerSaveBlocker.start('prevent-app-suspension');
   allowMedia();
   void askMacAccess();
+  for (const ev of ['lock-screen', 'suspend']) powerMonitor.on(ev, () => sendPower('away'));
+  for (const ev of ['unlock-screen', 'resume']) powerMonitor.on(ev, () => sendPower('back'));
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
     {
@@ -520,6 +647,6 @@ app.whenReady().then(() => {
 });
 
 app.on('activate', () => showWindow());
-app.on('before-quit', () => { quitting = true; if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
+app.on('before-quit', () => { quitting = true; try { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); } catch { /* going away anyway */ } if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
 // closing the last window must not quit (the tray keeps you in the office)
 app.on('window-all-closed', () => { if (SMOKE || process.platform !== 'darwin') { if (quitting || SMOKE) app.quit(); } });

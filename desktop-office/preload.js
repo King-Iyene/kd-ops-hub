@@ -28,5 +28,11 @@ contextBridge.exposeInMainWorld('kdDesktop', {
     ipcRenderer.send('kd:notify', { id: String(p.id), title: p.title, body: String(p.body || '') });
   },
   // runs when you click one of those notifications
+  // who is around and my status, for the small always-on-top window (the app validates and trims it)
+  miniUpdate: (state) => { try { ipcRenderer.send('kd:mini-state', state); } catch { /* not worth stopping for */ } },
+  // the small window asked for a different status (available, busy or dnd)
+  onSetStatus: (cb) => { const h = (_e, id) => cb(String(id)); ipcRenderer.on('kd:set-status', h); return () => ipcRenderer.removeListener('kd:set-status', h); },
+  // the computer locked or went to sleep ('away'), or woke up ('back')
+  onPower: (cb) => { const h = (_e, s) => cb(String(s)); ipcRenderer.on('kd:power', h); return () => ipcRenderer.removeListener('kd:power', h); },
   onNotificationClick: (cb) => ipcRenderer.on('kd:notification-click', (_e, id) => cb(String(id))),
 });

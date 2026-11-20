@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>KD Ops mini</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0b0f17; color: #e6eaf2; font: 13px "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; user-select: none; }
+  #app { border: 1px solid #1f2a3d; border-radius: 12px; overflow: hidden; background: linear-gradient(180deg, #111a2b, #0b0f17); }
+  header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px 12px; -webkit-app-region: drag; }
+  header .brand { font-weight: 700; font-size: 12px; letter-spacing: .02em; color: #9fdcec; flex: 1; }
+  header button { -webkit-app-region: no-drag; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: #8d99b0; cursor: pointer; font-size: 14px; line-height: 1; }
+  header button:hover { background: #1c2740; color: #fff; }
+  .me { display: flex; align-items: center; gap: 8px; padding: 4px 12px 8px; }
+  .me .who { flex: 1; min-width: 0; }
+  .me .who b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .me .who span { color: #8d99b0; font-size: 11px; }
+  .modes { display: flex; gap: 4px; padding: 0 12px 8px; }
+  .modes button { flex: 1; border: 1px solid #1f2a3d; background: #0f1626; color: #b7c2d8; border-radius: 8px; padding: 5px 0; font-size: 11px; cursor: pointer; }
+  .modes button:hover { background: #17233b; }
+  .modes button.on { border-color: #00a9c4; background: #0c2a37; color: #fff; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  h6 { margin: 0; padding: 4px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #6c7893; }
+  .list { max-height: 260px; overflow-y: auto; padding: 0 6px 4px; }
+  .p { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; }
+  .p:hover { background: #121c30; }
+  .p .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p .s { color: #8d99b0; font-size: 11px; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+  .empty { padding: 6px 12px 10px; color: #8d99b0; font-size: 12px; }
+  footer { padding: 6px; border-top: 1px solid #1a2438; }
+  footer button { width: 100%; border: 0; border-radius: 8px; padding: 7px 0; background: #006994; color: #fff; font-weight: 600; cursor: pointer; }
+  footer button:hover { background: #0a7fae; }
+  canvas { border-radius: 50%; background: #1b2438; flex: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header><span class="brand">KD Ops · who is around</span><button id="expand" title="Open the office">⤢</button><button id="close" title="Hide (it comes back next time you switch away)">✕</button></header>
+  <div class="me"><canvas id="meAvatar" width="36" height="36" style="width:36px;height:36px"></canvas><div class="who"><b id="meName">You</b><span id="meStatus">Available</span></div></div>
+  <div class="modes" id="modes">
+    <button data-s="available"><i class="dot" style="background:#10b981"></i>Available</button>
+    <button data-s="busy"><i class="dot" style="background:#f59e0b"></i>Busy</button>
+    <button data-s="dnd" title="Do not disturb: nobody can ring or wave at you"><i class="dot" style="background:#ef4444"></i>DND</button>
+  </div>
+  <h6 id="count">In the office</h6>
+  <div class="list" id="list"></div>
+  <footer><button id="open">Open the office</button></footer>
+</div>
+<script>
+  const LABELS = { available: 'Available', busy: 'Busy', dnd: 'Do not disturb', focus: 'Focusing', meeting: 'In a meeting', lunch: 'Lunch', away: 'Away' };
+  const COLORS = { busy: '#f59e0b', dnd: '#ef4444', focus: '#6366f1', meeting: '#3b82f6', lunch: '#f97316', away: '#94a3b8' };
+  const labelOf = (s) => { if (!s) return 'Available'; if (LABELS[s]) return LABELS[s]; if (s.startsWith('c:')) { const i = s.indexOf('|'); return i > 0 ? s.slice(i + 1) : 'Available'; } return 'Available'; };
+  const colorOf = (s) => COLORS[s] || (s && s.startsWith('c:') ? '#a855f7' : '#10b981');
+  function avatar(cv, a) {
+    const g = cv.getContext('2d'); const w = cv.width;
+    g.clearRect(0, 0, w, w);
+    g.fillStyle = (a && a.shirt) || '#3b82f6'; g.beginPath(); g.ellipse(w / 2, w * 0.98, w * 0.36, w * 0.3, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = (a && a.skin) || '#e0b48a'; g.beginPath(); g.arc(w / 2, w * 0.42, w * 0.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = (a && a.hair) || '#2b1b10'; g.beginPath(); g.arc(w / 2, w * 0.38, w * 0.21, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+  }
+  const $ = (id) => document.getElementById(id);
+  function render(s) {
+    $('meName').textContent = s.me.name || 'You';
+    $('meStatus').textContent = labelOf(s.me.status);
+    avatar($('meAvatar'), s.me.a);
+    for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', (s.me.status || 'available') === b.dataset.s);
+    const list = $('list'); list.textContent = '';
+    $('count').textContent = s.people.length ? 'In the office · ' + s.people.length : 'In the office';
+    if (!s.people.length) { const d = document.createElement('div'); d.className = 'empty'; d.textContent = 'Nobody else is here right now.'; list.appendChild(d); }
+    for (const p of s.people) {
+      const row = document.createElement('div'); row.className = 'p';
+      const cv = document.createElement('canvas'); cv.width = 28; cv.height = 28; cv.style.width = '28px'; cv.style.height = '28px'; avatar(cv, p.a);
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = p.name;
+      const st = document.createElement('div'); st.className = 's';
+      const dot = document.createElement('i'); dot.className = 'dot'; dot.style.background = colorOf(p.status);
+      st.appendChild(dot); st.appendChild(document.createTextNode(labelOf(p.status)));
+      row.appendChild(cv); row.appendChild(n); row.appendChild(st); list.appendChild(row);
+    }
+    requestAnimationFrame(() => window.kdMini.size(document.getElementById('app').offsetHeight + 2));
+  }
+  window.kdMini.onState(render);
+  for (const b of document.querySelectorAll('#modes button')) b.addEventListener('click', () => window.kdMini.setStatus(b.dataset.s));
+  $('expand').addEventListener('click', () => window.kdMini.expand());
+  $('open').addEventListener('click', () => window.kdMini.expand());
+  $('close').addEventListener('click', () => window.kdMini.close());
+  window.kdMini.ready();
+</script>
+</body>
+</html>

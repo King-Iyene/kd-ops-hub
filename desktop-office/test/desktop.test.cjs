@@ -149,6 +149,46 @@ const cleanEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
   const back = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible());
   check('focus request (clicking a notification) brings the window back on the right tab', back === true && (await active()) === 'office');
 
+  // ---- mini mode: a small always-on-top strip with who is around, shown when the app is not in front
+  await inTab('office', "window.__st = []; window.__pw = []; window.kdDesktop.onSetStatus((id) => window.__st.push(id)); window.kdDesktop.onPower((s) => window.__pw.push(s)); window.kdDesktop.miniUpdate({ me: { name: 'Tester', status: 'busy', a: { skin: '#e0b48a', hair: '#2b1b10', shirt: '#3b82f6' } }, people: [{ id: '1', name: 'Ada Lovelace', status: 'dnd', a: { skin: '#e0b48a' } }, { id: '2', name: 'Bola', status: '', a: {} }] }); 1");
+  const miniInfo = () => app.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().endsWith('mini.html'));
+    if (!w) return null;
+    const text = await w.webContents.executeJavaScript('document.getElementById("meName").textContent + "|" + document.getElementById("list").innerText + "|" + document.getElementById("meStatus").textContent');
+    return { visible: w.isVisible(), onTop: w.isAlwaysOnTop(), text };
+  });
+  const mainVisible = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).isVisible());
+  check('the small window stays hidden while the app is in front', (await miniInfo()) === null || (await miniInfo()).visible === false);
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).hide());
+  await bar.waitForTimeout(1600);
+  const mini1 = await miniInfo();
+  check('switching away shows the small window, always on top', !!mini1 && mini1.visible && mini1.onTop, JSON.stringify(mini1 && { v: mini1.visible, t: mini1.onTop }));
+  check('it lists me with my status and the others with theirs', !!mini1 && mini1.text.includes('Tester') && mini1.text.includes('Ada Lovelace') && mini1.text.includes('Bola') && mini1.text.includes('Busy') && mini1.text.includes('Do not disturb'), mini1 && String(mini1.text).split(String.fromCharCode(10)).join(' / '));
+  await app.evaluate(async ({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('mini.html')); await w.webContents.executeJavaScript('window.kdMini.setStatus("dnd"); window.kdMini.setStatus("evil"); 1'); });
+  await bar.waitForTimeout(400);
+  check('a status picked in the small window reaches the Office (and nothing else is accepted)', JSON.stringify(await inTab('office', 'window.__st')) === '["dnd"]', JSON.stringify(await inTab('office', 'window.__st')));
+  await app.evaluate(({ powerMonitor }) => { powerMonitor.emit('lock-screen'); powerMonitor.emit('unlock-screen'); });
+  await bar.waitForTimeout(400);
+  check('locking and unlocking the computer tells the Office (away, then back)', JSON.stringify(await inTab('office', 'window.__pw')) === '["away","back"]', JSON.stringify(await inTab('office', 'window.__pw')));
+  await app.evaluate(async ({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('mini.html')); await w.webContents.executeJavaScript('window.kdMini.close(); 1'); });
+  await bar.waitForTimeout(500);
+  check('closing the small window hides it', (await miniInfo()).visible === false);
+  await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')); w.emit('blur'); });
+  await bar.waitForTimeout(1600);
+  check('...and it stays closed until you come back to the app', (await miniInfo()).visible === false);
+  await inTab('office', 'window.kdDesktop.focus(); 1');
+  await bar.waitForTimeout(500);
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('tabs.html')).hide());
+  await bar.waitForTimeout(1600);
+  const mini2 = await miniInfo();
+  check('after coming back, switching away shows it again', !!mini2 && mini2.visible);
+  await app.evaluate(async ({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('mini.html')); await w.webContents.executeJavaScript('window.kdMini.expand(); 1'); });
+  await bar.waitForTimeout(700);
+  check('Expand opens the office and tucks the small window away', (await mainVisible()) === true && (await miniInfo()).visible === false && (await active()) === 'office');
+  const forged = await inTab('ops', "window.kdDesktop.miniUpdate({ me: { name: 'FORGED', status: '', a: {} }, people: [] }); 1");
+  await bar.waitForTimeout(300);
+  check('only the Office tab can change what the small window shows', !String((await miniInfo()).text).includes('FORGED'), forged);
+
   // ---- other sites never replace the app, they open in the normal browser (recorded here, never really opened)
   await app.evaluate(({ shell }) => { global.__opened = []; shell.openExternal = (u) => { global.__opened.push(u); return Promise.resolve(); }; });
   await inTab('ops', "window.open('https://example.com'); 1");
