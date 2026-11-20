@@ -42,7 +42,7 @@ function Thumb({ type, color }: { type: ItemType; color?: number }) {
 }
 
 /** The editing panel: pick an object, pick a colour, click the floor. */
-export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited, floorKind, onFloorKind, brush, onBrush }: {
+export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, tool, onTool, color, onColor, onTurn, onReset, onCancel, onSave, saving, limited, canWalls = true, floorKind, onFloorKind, brush, onBrush }: {
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -55,6 +55,8 @@ export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, too
   onBrush: (b: 1 | 3) => void;
   /** an owner decorating their own office: no name plates, only inside their office */
   limited?: boolean;
+  /** walls and floors can only be painted by an admin: everybody else just places furniture */
+  canWalls?: boolean;
   tool: EditTool;
   onTool: (t: EditTool) => void;
   color: number | undefined;
@@ -66,7 +68,7 @@ export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, too
   saving: boolean;
 }) {
   const [cat, setCat] = useState(CATEGORIES[0].id);
-  const buildMode = tool === 'wall' || tool === 'unwall' || tool === 'floor';
+  const buildMode = canWalls && (tool === 'wall' || tool === 'unwall' || tool === 'floor');
   const [q, setQ] = useState('');
   const list = useMemo<ItemType[]>(() => {
     const needle = q.trim().toLowerCase();
@@ -82,7 +84,7 @@ export function EditorPanel({ onUndo, onRedo, canUndo, canRedo, onDuplicate, too
           <Button size="sm" className="h-7 px-2 text-xs" onClick={onSave} disabled={saving}><Save className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
         </div>
       </div>
-      {!limited && (
+      {!limited && canWalls && (
         <div className="flex gap-1 px-2 pt-2">
           <button type="button" onClick={() => onTool('desk')} className={`flex-1 rounded-md px-2 py-1 text-xs ${!buildMode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>Objects</button>
           <button type="button" onClick={() => onTool('floor')} className={`flex-1 rounded-md px-2 py-1 text-xs ${buildMode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>Walls and floors</button>

@@ -9,6 +9,7 @@ export type ItemType =
   | 'pond' | 'waterfall' | 'sea' | 'sand' | 'flowerbed' | 'rocks' | 'birdbath'
   | 'beachchair' | 'umbrella' | 'towel' | 'sandcastle' | 'dock' | 'boat' | 'dogball'
   | 'pinetree' | 'campfire' | 'log' | 'stump' | 'tent' | 'mushrooms' | 'firewood' | 'lantern' | 'coffeebar'
+  | 'longtable' | 'worktable' | 'sidetable' | 'conference' | 'bed' | 'singlebed' | 'nightstand' | 'wardrobe' | 'dresser' | 'mirror' | 'clothesrack' | 'mannequin' | 'shoerack' | 'armchair' | 'loveseat' | 'ottoman'
   | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard' | 'podium';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */

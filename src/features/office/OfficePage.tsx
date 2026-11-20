@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -266,8 +266,8 @@ function OfficeRoom() {
   const redo = () => { const h = hist.current; const next = h.future.pop(); if (!next) return; h.past.push(draft); h.skip = true; setDraft(next); setHeld(null); setHistTick((n) => n + 1); };
   const duplicate = () => { if (held) setHeld({ item: { ...held.item, id: newItemId() }, dx: held.dx, dy: held.dy, copy: true }); };
   const turnHeld = () => { if (held) setHeld({ ...held, item: { ...held.item, r: (((held.item.r ?? 0) + 1) % 4) as 0 | 1 | 2 | 3 } }); };
-  const editKeys = useRef({ undo, redo, duplicate, turnHeld });
-  editKeys.current = { undo, redo, duplicate, turnHeld };
+  const editKeys = useRef<{ undo: () => void; redo: () => void; duplicate: () => void; turnHeld: () => void; holding: boolean; cancel: () => void }>({ undo, redo, duplicate, turnHeld, holding: false, cancel: () => undefined });
+  editKeys.current = { undo, redo, duplicate, turnHeld, holding: !!held, cancel: () => undefined };
   useEffect(() => {
     if (!editing) return;
     const onKey = (e: KeyboardEvent) => {
@@ -278,6 +278,7 @@ function OfficeRoom() {
       else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); editKeys.current.redo(); }
       else if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); editKeys.current.duplicate(); }
       else if (k === 'r' && !e.ctrlKey && !e.metaKey) editKeys.current.turnHeld();
+      else if (e.key === 'Escape' && !editKeys.current.holding) editKeys.current.cancel();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -323,6 +324,15 @@ function OfficeRoom() {
   const startEdit = (only?: Zone) => { setTilesEditing(true); setTileDraft(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} }); setScope(only ?? null); setDraft(composedItems.map((i) => ({ ...i }))); setHeld(null); setTool('move'); editBase.current = space?.updated_at ?? null; setEditing(true); };
   const stopEdit = () => { setTilesEditing(false); setTileDraft(undefined); setEditing(false); setScope(null); setTool(null); setNameZone(null); setOverrides(savedOverrides ?? {}); };
   useEffect(() => { stopEdit(); }, [spaceId]);
+  // leaving the editor: if nothing was changed it closes straight away, otherwise ONE question (keep editing is the safe default)
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const editDirty = () => {
+    if (hist.current.past.length > 0) return true;
+    if (tileDraft && JSON.stringify(tileDraft) !== JSON.stringify(savedTiles ?? { wallsOn: [], wallsOff: [], floors: {} })) return true;
+    return JSON.stringify(overrides) !== JSON.stringify(savedOverrides ?? {});
+  };
+  const requestCancel = () => { if (editDirty()) setDiscardOpen(true); else stopEdit(); };
+  editKeys.current.cancel = requestCancel;
 
   const itemAt = (tile: { x: number; y: number }) => {
     const hits = draft.filter((i) => itemCells(i).some((c) => c.x === tile.x && c.y === tile.y));
@@ -366,7 +376,7 @@ function OfficeRoom() {
   const onTile = (tile: { x: number; y: number }) => {
     if (!editing || !tool) return;
     if (scope && !inScope(tile)) { toast({ title: 'Only inside your own office', variant: 'destructive' }); return; }
-    if (tool === 'wall' || tool === 'unwall' || tool === 'floor') { if (!scope) paintTiles(tile); return; }
+    if (tool === 'wall' || tool === 'unwall' || tool === 'floor') { if (!scope && isAdmin) paintTiles(tile); else if (!isAdmin) toast({ title: 'Walls and floors are for admins', description: 'You can still place and move furniture.' }); return; }
     if (tool === 'move') {
       if (!held) {
         const hit = itemAt(tile);
@@ -426,7 +436,7 @@ function OfficeRoom() {
         return;
       }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
-      await actions.saveLayout(space, template, changed ? draft : undefined, overrides, tileDraft);
+      await actions.saveLayout(space, template, changed ? draft : undefined, isAdmin ? overrides : undefined, isAdmin ? tileDraft : undefined);
       // offices decorated by their owners keep following what the owner sees, so keep them in step
       for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
       toast({ title: 'Space saved', description: 'Everyone sees the new look right away.' });
@@ -1470,18 +1480,37 @@ function OfficeRoom() {
           )}
 
           {editing && (
+            <div role="toolbar" aria-label="Editing" className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/95 px-2 py-1 shadow-lg backdrop-blur">
+              <span className="px-2 text-xs font-medium">{scope ? 'Customising your office' : 'Editing'}</span>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={undo} disabled={!(hist.current.past.length > 0 && histTick >= 0)} aria-label="Undo" title="Undo (Ctrl+Z)"><UndoIcon className="h-4 w-4" /></Button>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={redo} disabled={!(hist.current.future.length > 0)} aria-label="Redo" title="Redo (Ctrl+Y)"><RedoIcon className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={requestCancel} title="Leave without saving (Esc)"><CloseIcon className="mr-1 h-3.5 w-3.5" />Cancel</Button>
+              <Button size="sm" className="h-7 px-3 text-xs" onClick={save} disabled={saving}><SaveIcon className="mr-1 h-3.5 w-3.5" />{saving ? 'Saving…' : 'Save'}</Button>
+            </div>
+          )}
+          {editing && (
             <EditorPanel
               onUndo={undo} onRedo={redo} canUndo={hist.current.past.length > 0 && histTick >= 0} canRedo={hist.current.future.length > 0} onDuplicate={duplicate}
               tool={tool} onTool={setTool} color={color} onColor={setColor}
               onTurn={() => setRot((r) => (((r + 1) % 4) as 0 | 1 | 2 | 3))}
               onReset={() => { if (tool === 'wall' || tool === 'unwall' || tool === 'floor') setTileDraft({ wallsOn: [], wallsOff: [], floors: {} }); else setDraft(map.items.map((i) => ({ ...i }))); }}
-              onCancel={stopEdit} onSave={save} saving={saving} limited={!!scope}
+              onCancel={requestCancel} onSave={save} saving={saving} limited={!!scope} canWalls={isAdmin}
               floorKind={floorKind} onFloorKind={setFloorKind} brush={brush} onBrush={setBrush}
             />
           )}
         </div>
       </div>
 
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent className="ko md:max-w-sm">
+          <DialogHeader><DialogTitle>Discard your changes?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Everything you changed since you started editing is thrown away. The space stays exactly as it was.</p>
+          <div className="flex gap-2">
+            <Button className="flex-1" autoFocus onClick={() => setDiscardOpen(false)}>Keep editing</Button>
+            <Button className="flex-1" variant="outline" onClick={() => { setDiscardOpen(false); stopEdit(); }}>Discard changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={joinPrompt && !calls.joined} onOpenChange={(o) => { if (!o) closeJoinPrompt(); }}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko md:max-w-sm">
           <DialogHeader><DialogTitle>Join the voice and video?</DialogTitle></DialogHeader>
