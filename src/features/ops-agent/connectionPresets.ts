@@ -39,6 +39,9 @@ export const DEFAULT_CLIQ_DC: CliqDataCenter = 'com';
 /** Cliq channel unique names: lowercase letters, digits and underscores. */
 export const CLIQ_CHANNEL_PATTERN = /^[a-z0-9_]{1,50}$/;
 
+/** Cliq API fields that are only for the older ways to connect. They sit under "Other ways to connect (advanced)". */
+export const CLIQ_ADVANCED_FIELDS: readonly string[] = ['grant_code', 'refresh_token'];
+
 export interface PresetField {
   /** The field the save call takes. */
   field: 'url' | 'token' | 'to' | 'chat_id' | 'method' | 'header_name' | 'query_param' | 'body_template'
@@ -85,19 +88,20 @@ export const CONNECTION_PRESETS: ConnectionPreset[] = [
   {
     id: 'cliq-api', name: 'Zoho Cliq (API, recommended)', tagline: 'Sign in with Zoho, post to a channel, tag the person and their manager', kind: 'cliq', mode: 'api', brand: 'cliq', icon: 'MessageSquare',
     steps: [
-      'Go to https://api-console.zoho.com and choose "Self Client". If your Zoho account is not on the .com site, use your own: api-console.zoho.eu, .in, .com.au, .jp, .ca or .sa.',
-      'Copy the Client ID and Client Secret shown on the Self Client page and paste them below. The secret is stored encrypted and never shown again.',
-      'Open "Generate Code". Use the scope ZohoCliq.Webhooks.CREATE, a time duration of 10 minutes, any description, and press Create. Copy the code and paste it into "Grant code" below straight away, because it expires in minutes and works once. Then press Save. KD Ops swaps it for a long-lived refresh token and stores that encrypted, so nothing expires every hour. If you already have a refresh token, you can paste it in "Refresh token" instead of a grant code.',
-      'Channel unique name: in Cliq open the channel, choose Channel settings, and copy "Unique name" (lowercase, no spaces). Pick the data center that matches your Zoho account (you can check it at accounts.zoho.com/oauth/serverinfo).',
-      'Leave "Tag the person" and "CC their manager" on. Their Cliq user ids are in Settings, People, otherwise their KD Ops email is used. Then press "Send test and tag me".',
+      'Open https://api-console.zoho.com (use the site for your data center if you are not on .com: api-console.zoho.eu, .in, .com.au, .jp, .ca or .sa). Choose "Add Client" and pick "Server-based Applications".',
+      'Client Name: anything, for example "KD Ops Agent". Paste the Homepage URL and the Authorized Redirect URI shown in the boxes below into Zoho exactly as they are (use the Copy buttons). Press Create.',
+      'Zoho shows a Client ID and a Client Secret. Paste them below. Pick your data center and type the Channel unique name (in Cliq, open the channel, then Channel settings, then Unique name: lowercase, no spaces).',
+      'Press Save, then "Connect to Zoho". Zoho asks you to allow access (scope ZohoCliq.Webhooks.CREATE, which only lets KD Ops post messages). Approve it and you come back here, connected. Nothing expires every hour.',
+      'Press "Send test and tag me". If your name is highlighted in the channel, tagging works.',
     ],
     fields: [
       { field: 'dc', label: 'Data center', options: CLIQ_DATA_CENTERS, hint: 'The region of your Zoho account.' },
       { field: 'client_id', label: 'Client ID', placeholder: '1000.XXXXXXXXXXXXXXXX', required: true },
       { field: 'client_secret', label: 'Client secret', secret: true, required: true },
-      { field: 'grant_code', label: 'Grant code', secret: true, hint: 'Paste the code you just generated. It works once and expires in about 10 minutes.' },
-      { field: 'refresh_token', label: 'Refresh token (optional)', secret: true, hint: 'Only if you already have one. Use it instead of a grant code.' },
       { field: 'channel', label: 'Channel unique name', placeholder: 'opschannel', required: true, hint: 'Lowercase letters, numbers and underscores. No spaces.' },
+      // Advanced: the Self Client way (a one-time grant code) or a refresh token you already have. Not needed with "Connect to Zoho".
+      { field: 'grant_code', label: 'Grant code', secret: true, hint: 'Only if you use a Self Client in Zoho. The code works once and expires in about 10 minutes.' },
+      { field: 'refresh_token', label: 'Refresh token (optional)', secret: true, hint: 'Only if you already have one.' },
     ],
     sample: 'A message with a bold title, a "For Cara: @Cara" tag line, "CC: @Dan" for their manager, the details and a link to the exact item.',
   },
