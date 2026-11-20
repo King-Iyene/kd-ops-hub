@@ -4,8 +4,10 @@
 //
 // POST { action: 'save',   id?, kind, name, url?, token?, to?, chat_id?, method?, auth_type?, header_name?, query_param?, content_type?,
 //                          extra_headers?, body_template?, events?, min_severity?, preset?, clear_token? }
-//   Cliq through the API (the way n8n connects): kind 'cliq' with mode 'api' takes dc, client_id, client_secret, grant_code (one time, swapped here
-//   for a refresh token that is kept in the Vault) or refresh_token, channel (the channel's unique name) and cc_manager.
+//   Cliq through the API (the way n8n connects): kind 'cliq' with mode 'api' takes dc, client_id, client_secret, channel (the channel's unique name)
+//   and cc_manager. The sign-in with Zoho is then done with oauth_start / oauth_finish below; a grant_code or refresh_token may still be pasted instead.
+// POST { action: 'oauth_start',  id, redirect_uri }       -> { ok, url }  the Zoho consent address to send the browser to
+// POST { action: 'oauth_finish', code, state, redirect_uri, accounts_server? }  swaps the code Zoho sent back for a refresh token (kept in the Vault)
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
@@ -25,9 +27,14 @@ import { mentionFor } from '../_shared/agent-mention.ts';
 import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { exchangeGrantCode } from '../_shared/agent-cliq.ts';
-import { validChannel, validClientId, validDc, validZohoValue } from '../_shared/agent-cliq-core.ts';
+import { consentUrl, dcFromAccountsServer, validChannel, validClientId, validDc, validRedirectUri, validZohoValue } from '../_shared/agent-cliq-core.ts';
 import { accessSaver, readConnectionSecrets, secretName } from '../_shared/agent-conn-secrets.ts';
 import { API_METHODS, AUTH_TYPES, CONTENT_TYPES, buildApiRequest, checkOutboundUrl, parseRecipients, validHeaderName, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
+
+async function sha256Hex(v: string): Promise<string> {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 const cors = (req: Request) => ({ ...getCorsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS' });
 const KINDS: ConnectionKind[] = ['slack', 'cliq', 'discord', 'teams', 'gchat', 'telegram', 'email', 'webhook', 'n8n', 'api'];
@@ -38,7 +45,7 @@ const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-interface Body { mode?: string; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel_name?: string; cc_manager?: boolean; tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { redirect_uri?: string; code?: string; state?: string; accounts_server?: string; mode?: string; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel_name?: string; cc_manager?: boolean; tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -81,6 +88,7 @@ Deno.serve(async (req) => {
       const cliqApi = kind === 'cliq' && (body.mode === 'api' || (body.mode === undefined && existing?.config.mode === 'api'));
       let cliqClientSecret: string | null = null;
       let cliqRefresh: string | null = null;
+      let resetSignIn = false;
       if (cliqApi) {
         if (existing && existing.config.mode !== 'api') return jsonResponse(cors(req), { ok: false, error: 'This connection uses a webhook address. Add a new Cliq connection to use the API.' }, 400);
         const dc = body.dc ?? (existing?.config.dc as string | undefined) ?? 'com';
@@ -89,6 +97,8 @@ Deno.serve(async (req) => {
         if (!validClientId(clientId)) return jsonResponse(cors(req), { ok: false, error: 'Paste the Client ID from the Zoho API console.' }, 400);
         const channelName = String(body.channel_name ?? body.channel ?? existing?.config.channel ?? '').trim();
         if (!validChannel(channelName)) return jsonResponse(cors(req), { ok: false, error: 'The channel unique name must be lowercase letters, digits and underscores (find it in Cliq under Channel settings, Unique name).' }, 400);
+        // A refresh token belongs to one Zoho client and data center: a different one means signing in again.
+        resetSignIn = !!existing && (existing.config.client_id !== clientId || existing.config.dc !== dc);
         config.mode = 'api'; config.dc = dc; config.client_id = clientId; config.channel = channelName;
         config.cc_manager = body.cc_manager === undefined ? (existing?.config.cc_manager ?? true) : body.cc_manager === true;
         const secretIn = (body.client_secret ?? '').trim();
@@ -99,8 +109,6 @@ Deno.serve(async (req) => {
         if (refreshIn && !validZohoValue(refreshIn)) return jsonResponse(cors(req), { ok: false, error: 'That does not look like a refresh token.' }, 400);
         const haveSecret = secretIn || (existing ? existing.vault_secret_names.includes(secretName(existing.id, 'secret')) : false);
         if (!haveSecret) return jsonResponse(cors(req), { ok: false, error: 'Paste the Client Secret from the Zoho API console.' }, 400);
-        const haveRefresh = refreshIn || code || (existing ? existing.vault_secret_names.includes(secretName(existing.id, 'refresh')) : false);
-        if (!haveRefresh) return jsonResponse(cors(req), { ok: false, error: 'Paste the grant code from the Self Client (or a refresh token).' }, 400);
         cliqClientSecret = secretIn || null;
         if (refreshIn) cliqRefresh = refreshIn;
         else if (code) {
@@ -192,6 +200,9 @@ Deno.serve(async (req) => {
 
       const names = new Set(existing?.vault_secret_names ?? []);
       if (secretUrl) { await db.rpc('agent_secret_set', { p_name: secretName(id, 'url'), p_value: secretUrl }); names.add(secretName(id, 'url')); }
+      if (resetSignIn && !cliqRefresh) {
+        for (const part of ['refresh', 'access'] as const) { await db.rpc('agent_secret_delete', { p_name: secretName(id, part) }); names.delete(secretName(id, part)); }
+      }
       if (cliqClientSecret) { await db.rpc('agent_secret_set', { p_name: secretName(id, 'secret'), p_value: cliqClientSecret }); names.add(secretName(id, 'secret')); }
       if (cliqRefresh) {
         await db.rpc('agent_secret_set', { p_name: secretName(id, 'refresh'), p_value: cliqRefresh }); names.add(secretName(id, 'refresh'));
@@ -273,6 +284,47 @@ Deno.serve(async (req) => {
         closed = !closeError;
       }
       return jsonResponse(cors(req), r.ok ? { ok: true, closed } : { ok: false, error: r.error });
+    }
+
+    if (body.action === 'oauth_start' || body.action === 'oauth_finish') {
+      const { data: st } = await db.from('agent_settings').select('app_url').eq('id', true).maybeSingle();
+      const origins = [(st?.app_url as string | undefined) ?? null, req.headers.get('origin')];
+      const redirectUri = validRedirectUri(body.redirect_uri, origins);
+      if (!redirectUri) return jsonResponse(cors(req), { ok: false, error: 'That return address is not allowed. Open KD Ops from its normal address and try again.' }, 400);
+
+      if (body.action === 'oauth_start') {
+        const conn = await load(body.id);
+        if (!conn || conn.kind !== 'cliq' || conn.config.mode !== 'api') return jsonResponse(cors(req), { ok: false, error: 'Save the Zoho Cliq connection first.' }, 404);
+        const dc = conn.config.dc, clientId = String(conn.config.client_id ?? '');
+        if (!validDc(dc) || !validClientId(clientId)) return jsonResponse(cors(req), { ok: false, error: 'The Client ID or data center is missing.' }, 400);
+        if (!conn.vault_secret_names.includes(secretName(conn.id, 'secret'))) return jsonResponse(cors(req), { ok: false, error: 'Save the Client Secret first.' }, 400);
+        // A one-time state ties the way back to this connection and this moment; only its hash is kept.
+        const state = `${crypto.randomUUID()}${crypto.randomUUID()}`.replaceAll('-', '');
+        await db.from('agent_connections').update({ config: { ...conn.config, oauth: { state_hash: await sha256Hex(state), exp: Date.now() + 10 * 60_000 } } }).eq('id', conn.id);
+        await audit('connection.oauth_started', conn.id, { dc });
+        return jsonResponse(cors(req), { ok: true, url: consentUrl({ dc, clientId, redirectUri, state }) });
+      }
+
+      const code = (body.code ?? '').trim(), state = (body.state ?? '').trim();
+      if (!code || !/^[A-Za-z0-9._-]{8,300}$/.test(code) || !/^[a-f0-9]{64}$/.test(state)) return jsonResponse(cors(req), { ok: false, error: 'Zoho did not send back what was needed. Press "Connect to Zoho" again.' }, 400);
+      const { data: found } = await db.from('agent_connections').select('id').filter('config->oauth->>state_hash', 'eq', await sha256Hex(state)).maybeSingle();
+      const conn = found ? await load((found as { id: string }).id) : null;
+      const oauth = conn?.config.oauth as { exp?: number } | undefined;
+      if (!conn || !oauth || typeof oauth.exp !== 'number' || oauth.exp < Date.now()) return jsonResponse(cors(req), { ok: false, error: 'That sign-in link has expired or was already used. Press "Connect to Zoho" again.' }, 400);
+      const dc = dcFromAccountsServer(body.accounts_server) ?? conn.config.dc;
+      const sec = (await readSecrets(conn)).secret;
+      if (!validDc(dc) || !sec) return jsonResponse(cors(req), { ok: false, error: 'The Client Secret is missing. Save it and try again.' }, 400);
+      // The one-time state is spent before the code is, so a replay finds nothing.
+      const { oauth: _spent, ...rest } = conn.config; void _spent;
+      await db.from('agent_connections').update({ config: { ...rest, dc } }).eq('id', conn.id);
+      const swapped = await exchangeGrantCode(dc, String(conn.config.client_id), sec, code, fetch, redirectUri);
+      if (!swapped.ok) { await audit('connection.oauth_failed', conn.id, { dc }); return jsonResponse(cors(req), { ok: false, error: swapped.error }, 400); }
+      await db.rpc('agent_secret_set', { p_name: secretName(conn.id, 'refresh'), p_value: swapped.refresh });
+      await db.rpc('agent_secret_delete', { p_name: secretName(conn.id, 'access') });
+      const names = new Set(conn.vault_secret_names); names.add(secretName(conn.id, 'refresh')); names.delete(secretName(conn.id, 'access'));
+      await db.from('agent_connections').update({ vault_secret_names: [...names], last_error: null }).eq('id', conn.id);
+      await audit('connection.oauth_connected', conn.id, { dc });
+      return jsonResponse(cors(req), { ok: true, id: conn.id });
     }
 
     if (body.action === 'delete') {

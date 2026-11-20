@@ -19,9 +19,9 @@ async function swap(dc: CliqDc, form: string, grant: 'code' | 'refresh', doFetch
   }
 }
 
-/** The one-time grant code from a Zoho Self Client becomes a refresh token (which the caller stores in the vault). */
-export function exchangeGrantCode(dc: CliqDc, clientId: string, clientSecret: string, code: string, doFetch: Fetch = fetch): Promise<TokenResult> {
-  return swap(dc, tokenForm({ clientId, clientSecret, code }), 'code', doFetch);
+/** The one-time code (from the Zoho sign-in page, or a Self Client) becomes a refresh token (which the caller stores in the vault). */
+export function exchangeGrantCode(dc: CliqDc, clientId: string, clientSecret: string, code: string, doFetch: Fetch = fetch, redirectUri?: string): Promise<TokenResult> {
+  return swap(dc, tokenForm({ clientId, clientSecret, code, redirectUri }), 'code', doFetch);
 }
 
 /**

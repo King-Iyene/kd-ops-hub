@@ -130,3 +130,39 @@ describe('Cliq API delivery', () => {
     expect((fetchMock.mock.calls[0] as unknown[])[0]).toBe('https://accounts.zoho.eu/oauth/v2/token');
   });
 });
+
+import { consentUrl, dcFromAccountsServer, validRedirectUri } from '../../../../supabase/functions/_shared/agent-cliq-core';
+
+describe('Zoho sign-in page (server-based app)', () => {
+  const site = 'https://ops.kdsquares.com';
+  it('only returns to our own page on a known address', () => {
+    expect(validRedirectUri('https://ops.kdsquares.com/agent/oauth/zoho', [site])).toBe('https://ops.kdsquares.com/agent/oauth/zoho');
+    expect(validRedirectUri('https://evil.example/agent/oauth/zoho', [site])).toBeNull();
+    expect(validRedirectUri('https://ops.kdsquares.com/other', [site])).toBeNull();
+    expect(validRedirectUri('https://ops.kdsquares.com/agent/oauth/zoho?x=1', [site])).toBeNull();
+    expect(validRedirectUri('http://ops.kdsquares.com/agent/oauth/zoho', [site])).toBeNull();
+    expect(validRedirectUri('https://u:p@ops.kdsquares.com/agent/oauth/zoho', [site])).toBeNull();
+    expect(validRedirectUri('https://app.example.org/agent/oauth/zoho', [site, 'https://app.example.org'])).toBe('https://app.example.org/agent/oauth/zoho');
+    expect(validRedirectUri(undefined, [site])).toBeNull();
+  });
+  it('reads the data center Zoho says the person signed in on, from fixed hosts only', () => {
+    expect(dcFromAccountsServer('https://accounts.zoho.eu')).toBe('eu');
+    expect(dcFromAccountsServer('https://accounts.zoho.com.au/')).toBe('com.au');
+    expect(dcFromAccountsServer('https://accounts.zoho.evil.com')).toBeNull();
+    expect(dcFromAccountsServer('https://evil.com')).toBeNull();
+    expect(dcFromAccountsServer(undefined)).toBeNull();
+  });
+  it('builds the consent address with offline access so a refresh token comes back', () => {
+    const u = new URL(consentUrl({ dc: 'com', clientId: '1000.ABCDEFGH12345678', redirectUri: 'https://ops.kdsquares.com/agent/oauth/zoho', state: 'a'.repeat(64) }));
+    expect(u.origin + u.pathname).toBe('https://accounts.zoho.com/oauth/v2/auth');
+    expect(u.searchParams.get('scope')).toBe('ZohoCliq.Webhooks.CREATE');
+    expect(u.searchParams.get('access_type')).toBe('offline');
+    expect(u.searchParams.get('response_type')).toBe('code');
+    expect(u.searchParams.get('redirect_uri')).toBe('https://ops.kdsquares.com/agent/oauth/zoho');
+    expect(u.searchParams.get('state')).toBe('a'.repeat(64));
+  });
+  it('sends the same return address when it swaps the code', () => {
+    const f = new URLSearchParams(tokenForm({ clientId: 'cid', clientSecret: 'sec', code: 'c1', redirectUri: 'https://ops.kdsquares.com/agent/oauth/zoho' }));
+    expect(f.get('redirect_uri')).toBe('https://ops.kdsquares.com/agent/oauth/zoho');
+  });
+});

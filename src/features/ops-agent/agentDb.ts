@@ -35,6 +35,8 @@ export interface AgentSettings {
   readonly_query_enabled: boolean;
   escalation_window_days: number;
   operating_rules: string;
+  /** The site's address (https://host, no trailing slash). Used for links back to KD Ops and for the Zoho sign-in. */
+  app_url?: string;
   updated_at: string;
 }
 
@@ -127,7 +129,7 @@ export interface SaveConnectionInput {
   id?: string; kind: ConnectionKind; name: string; preset?: string; url?: string; token?: string; clear_token?: boolean; to?: string; chat_id?: string;
   method?: string; auth_type?: AuthType; header_name?: string; query_param?: string; content_type?: ContentType; extra_headers?: Record<string, string>;
   body_template?: string; events?: string[]; min_severity?: MinSeverity; mention_people?: boolean; mention_template?: string;
-  /** Cliq. `api` needs dc, client_id, channel, a client_secret and a grant_code or refresh_token (on create); `url` is not used. The three secrets are write only. */
+  /** Cliq. `api` needs dc, client_id, channel and a client_secret; `url` is not used. A grant_code or refresh_token is optional (the person normally signs in to Zoho afterwards with oauth_start). The three secrets are write only. */
   mode?: 'webhook' | 'api'; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel?: string;
   cc_manager?: boolean;
 }

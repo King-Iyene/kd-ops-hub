@@ -16,14 +16,38 @@ export const validClientId = (c: unknown): c is string => typeof c === 'string' 
 /** Zoho secrets, codes and refresh tokens are plain letters, digits, dots and dashes. Anything else is a paste mistake. */
 export const validZohoValue = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9._-]{8,200}$/.test(v);
 
+export const OAUTH_PATH = '/agent/oauth/zoho';
+
+/** Where Zoho sends the person back to: our own page, https, no extras, on an address we know (the site address, or the one the browser called from). */
+export function validRedirectUri(raw: unknown, allowedOrigins: (string | null | undefined)[]): string | null {
+  if (typeof raw !== 'string') return null;
+  let u: URL;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash || u.pathname !== OAUTH_PATH) return null;
+  const ok = allowedOrigins.some((o) => { try { return !!o && new URL(o).origin === u.origin; } catch { return false; } });
+  return ok ? u.toString() : null;
+}
+
+/** Zoho adds `accounts-server` (for example https://accounts.zoho.eu) to the way back. Only the fixed Zoho hosts count. */
+export function dcFromAccountsServer(raw: unknown): CliqDc | null {
+  if (typeof raw !== 'string') return null;
+  const m = raw.trim().match(/^https:\/\/accounts\.zoho\.([a-z.]{2,7})\/?$/);
+  return m && validDc(m[1]) ? m[1] : null;
+}
+
+export function consentUrl(p: { dc: CliqDc; clientId: string; redirectUri: string; state: string }): string {
+  const q = new URLSearchParams({ scope: CLIQ_SCOPE, client_id: p.clientId, response_type: 'code', access_type: 'offline', prompt: 'consent', redirect_uri: p.redirectUri, state: p.state });
+  return `https://accounts.zoho.${p.dc}/oauth/v2/auth?${q.toString()}`;
+}
+
 export const accountsUrl = (dc: CliqDc) => `https://accounts.zoho.${dc}/oauth/v2/token`;
 export const messagesUrl = (dc: CliqDc, channel: string) => `https://cliq.zoho.${dc}/api/v3/channelsbyname/${encodeURIComponent(channel)}/messages`;
 
 /** The form body for either swap: a grant code for a refresh token, or a refresh token for an access token. */
-export function tokenForm(p: { clientId: string; clientSecret: string; code?: string; refreshToken?: string }): string {
+export function tokenForm(p: { clientId: string; clientSecret: string; code?: string; refreshToken?: string; redirectUri?: string }): string {
   const f = new URLSearchParams();
   f.set('client_id', p.clientId); f.set('client_secret', p.clientSecret);
-  if (p.code) { f.set('grant_type', 'authorization_code'); f.set('code', p.code); }
+  if (p.code) { f.set('grant_type', 'authorization_code'); f.set('code', p.code); if (p.redirectUri) f.set('redirect_uri', p.redirectUri); }
   else { f.set('grant_type', 'refresh_token'); f.set('refresh_token', p.refreshToken ?? ''); }
   return f.toString();
 }

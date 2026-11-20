@@ -10,6 +10,7 @@ import {
   type AgentUsageRow, type AiStatus, type AiTestResult, type AgentApiKey, type ChatMessage, type ChatReply, type ChatThread,
   type KeyResult, type OutboxRow, type SaveConnectionInput,
 } from '@/features/ops-agent/agentDb';
+import { zohoOAuthUrls } from '@/features/ops-agent/zohoOAuth';
 
 /** Every hook here only reads on mount. Writes happen from a button or a changed field, never from a render. */
 const K = queryKeys.opsAgent;
@@ -253,6 +254,30 @@ export function useTestConnection() {
   return useMutation<{ ok: boolean; error?: string }, Error, string | { id: string; tag_me?: boolean }>({
     mutationFn: (v) => invokeAgent('agent-connections', { action: 'test', ...(typeof v === 'string' ? { id: v } : v) }),
     onSettled: () => { qc.invalidateQueries({ queryKey: K.connections() }); },
+  });
+}
+/** Result of asking the server for Zoho's consent address. */
+export interface ZohoStartResult { ok: boolean; url?: string; error?: string }
+/** Result of handing Zoho's one-time code back to the server. */
+export interface ZohoFinishResult { ok: boolean; id?: string; error?: string }
+
+/** The two addresses for Zoho's API console and whether the site address is known yet. Same values on the dialog and the callback page. */
+export function useZohoOAuthUrls() {
+  const settings = useAgentSettings();
+  return { ...zohoOAuthUrls(settings.data?.app_url), ready: !settings.isLoading };
+}
+/** Step 1 of the Zoho sign-in: the server returns the Zoho consent address to send the browser to. */
+export function useZohoOAuthStart() {
+  return useMutation<ZohoStartResult, Error, { id: string; redirect_uri: string }>({
+    mutationFn: (v) => invokeAgent('agent-connections', { action: 'oauth_start', ...v }),
+  });
+}
+/** Step 2: Zoho sent the person back with a one-time code. The code works once, so call this once per code. */
+export function useZohoOAuthFinish() {
+  const qc = useQueryClient();
+  return useMutation<ZohoFinishResult, Error, { code: string; state: string; redirect_uri: string; accounts_server?: string }>({
+    mutationFn: (v) => invokeAgent('agent-connections', { action: 'oauth_finish', ...v }),
+    onSettled: () => { qc.invalidateQueries({ queryKey: K.connections() }); qc.invalidateQueries({ queryKey: K.audit() }); },
   });
 }
 export function useDeleteConnection() {
