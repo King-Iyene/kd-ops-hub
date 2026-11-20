@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { confirm } from '@/hooks/use-confirm';
 import { cn } from '@/lib/utils';
-import { useAgentConnections, useDeleteConnection, useOutbox, useTestConnection } from '@/queries/useOpsAgent';
+import { useAgentConnections, useDeleteConnection, useOutbox, useTestConnection, useZohoOAuthUrls } from '@/queries/useOpsAgent';
 import { useTeamPulse } from '@/queries/useOpsAgentLive';
 import type { AgentConnection, OutboxRow } from '../agentDb';
 import { Section } from '../settings/shared';
@@ -15,6 +15,7 @@ import { supportsMentions } from '../connectionTemplate';
 import { isZohoAuthorized, needsZohoSignIn } from '../zohoOAuth';
 import { ApiKeysCard } from './ApiKeysCard';
 import { ConnectionDialog } from './ConnectionDialog';
+import { PasteIntoZoho } from './ZohoSetupPanels';
 import { ToolIcon, presetForConnection } from './ToolIcon';
 
 const SHORT: Record<string, string> = {
@@ -111,6 +112,7 @@ export function ConnectionsTab() {
   const pulse = useTeamPulse();
   const test = useTestConnection();
   const del = useDeleteConnection();
+  const zoho = useZohoOAuthUrls();
   const toast = useAgentToast();
   const [dialog, setDialog] = useState<{ open: boolean; editing: AgentConnection | null }>({ open: false, editing: null });
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -145,6 +147,12 @@ export function ConnectionsTab() {
           <p>Automatic sending cannot run yet: the database is missing the shared secret that wakes the sender. The Inbox will also show a System item with the exact steps.</p>
         </div>
       )}
+      <PasteIntoZoho
+        homepageUrl={zoho.homepageUrl} redirectUri={zoho.redirectUri} loading={!zoho.ready} testId="zoho-paste-card"
+        title="Setting up Zoho Cliq? Paste these into Zoho"
+        description="Copy these two addresses before you open the setup. Zoho asks for them when you create the client in its API console."
+      />
+
       <Section
         title="Send to other tools"
         description="Connect a tool once and choose what the agent sends to it by itself. A connection only sends data out."

@@ -176,8 +176,9 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       input.channel = channelText;
       // Secrets go out on the save call only, and only when something was typed: blank means "keep what is saved".
       input.client_secret = v('client_secret');
-      input.grant_code = v('grant_code');
-      input.refresh_token = v('refresh_token');
+      // Left out entirely (not just undefined) unless typed under "Other ways to connect": the normal way is Connect to Zoho.
+      if (v('grant_code')) input.grant_code = v('grant_code');
+      if (v('refresh_token')) input.refresh_token = v('refresh_token');
       input.cc_manager = ccManager;
     } else if (preset.kind === 'cliq' && ccManager !== (savedCc ?? false)) input.cc_manager = ccManager;
     if (isApi) {
@@ -297,6 +298,8 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       </DialogHeader>
 
       <div className="space-y-5">
+        {isCliqApi && <PasteIntoZoho homepageUrl={zoho.homepageUrl} redirectUri={zoho.redirectUri} loading={!zoho.ready} />}
+
         <section aria-label={`How to connect ${preset.name}`} className="rounded-xl border bg-muted/30 p-3.5" data-testid="setup-steps">
           <h3 className="mb-2 text-sm font-semibold">How to connect {preset.name}</h3>
           <ol className="space-y-2 text-sm">
@@ -308,8 +311,6 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
             ))}
           </ol>
         </section>
-
-        {isCliqApi && <PasteIntoZoho homepageUrl={zoho.homepageUrl} redirectUri={zoho.redirectUri} loading={!zoho.ready} />}
 
         <Field label="Name" htmlFor="conn-name" hint="How you will recognise it, for example Ops channel.">
           <Input id="conn-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />

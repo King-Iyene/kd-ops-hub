@@ -1192,11 +1192,15 @@ describe('Connections: Zoho Cliq through the API', () => {
     const dialog = await openApi();
     const block = within(dialog).getByTestId('zoho-paste-block');
     expect(block).toHaveTextContent('Paste these into Zoho');
+    // at the very top: before the how-to steps and the credential fields, and never collapsed
+    expect(block.compareDocumentPosition(within(dialog).getByTestId('setup-steps')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.compareDocumentPosition(within(dialog).getByLabelText('Client ID')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.closest('details')).toBeNull();
     await waitFor(() => expect((within(block).getByLabelText('Homepage URL') as HTMLInputElement).value).toBe('https://ops.example.com'));
-    const redirect = within(block).getByLabelText('Authorized Redirect URI') as HTMLInputElement;
+    const redirect = within(block).getByLabelText('Authorized Redirect URI (the callback)') as HTMLInputElement;
     expect(redirect.value).toBe('https://ops.example.com/agent/oauth/zoho');
     expect(redirect.readOnly).toBe(true);
-    fireEvent.click(within(block).getByRole('button', { name: 'Copy Authorized Redirect URI' }));
+    fireEvent.click(within(block).getByRole('button', { name: 'Copy Authorized Redirect URI (the callback)' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://ops.example.com/agent/oauth/zoho'));
     expect(await within(block).findByText('Copied')).toBeInTheDocument();
     // the grant code and refresh token live under a collapsed "advanced" section
@@ -1206,12 +1210,30 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(advanced).getByLabelText('Grant code')).toBeInTheDocument();
   });
 
+  it('the Connections page itself shows the same two addresses with Copy buttons, before any dialog is opened', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    renderAt('/agent/connections');
+    const card = await screen.findByTestId('zoho-paste-card');
+    expect(card).toHaveTextContent('Setting up Zoho Cliq? Paste these into Zoho');
+    await waitFor(() => expect((within(card).getByLabelText('Homepage URL') as HTMLInputElement).value).toBe('https://ops.example.com'));
+    expect((within(card).getByLabelText('Authorized Redirect URI (the callback)') as HTMLInputElement).value).toBe('https://ops.example.com/agent/oauth/zoho');
+    fireEvent.click(within(card).getByRole('button', { name: 'Copy Homepage URL' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://ops.example.com'));
+    expect(await within(card).findByText('Copied')).toBeInTheDocument();
+    // the dialog has its own copy of the rows, and both show the same values
+    fireEvent.click(await screen.findByTestId('connection-add'));
+    const dialog = await screen.findByTestId('connection-dialog');
+    fireEvent.click(within(dialog).getByTestId('tool-cliq-api'));
+    expect((within(dialog).getByLabelText('Authorized Redirect URI (the callback)') as HTMLInputElement).value).toBe('https://ops.example.com/agent/oauth/zoho');
+  });
+
   it('falls back to the browser address when no site address is saved, and tells the person to select the text if copying is blocked', async () => {
     h.tables = { ...BASE_TABLES, agent_settings: { ...SETTINGS, app_url: undefined } };
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
     document.execCommand = vi.fn().mockReturnValue(false);
     const dialog = await openApi();
-    const redirect = (await within(dialog).findByLabelText('Authorized Redirect URI')) as HTMLInputElement;
+    const redirect = (await within(dialog).findByLabelText('Authorized Redirect URI (the callback)')) as HTMLInputElement;
     await waitFor(() => expect(redirect.value).toBe(`${realLocation.origin}/agent/oauth/zoho`));
     expect((within(dialog).getByLabelText('Homepage URL') as HTMLInputElement).value).toBe(realLocation.origin);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Copy Homepage URL' }));

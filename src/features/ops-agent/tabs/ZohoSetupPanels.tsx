@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Check, Circle, Copy, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { copyText } from '../zohoOAuth';
 
 /** One read-only value with a Copy button. If the browser refuses to copy, the text is selected so Ctrl+C or Cmd+C works. */
-function CopyRow({ id, label, value, testId }: { id: string; label: string; value: string; testId: string }) {
+function CopyRow({ label, value, testId }: { label: string; value: string; testId: string }) {
+  const id = useId(); // the same row can be on the page twice (the Connections tab and the dialog), so ids cannot be fixed
   const [state, setState] = useState<'idle' | 'copied' | 'manual'>('idle');
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(timer.current), []);
   const copy = async () => {
@@ -22,7 +22,12 @@ function CopyRow({ id, label, value, testId }: { id: string; label: string; valu
     <div className="space-y-1" data-testid={testId}>
       <label htmlFor={id} className="text-xs font-medium">{label}</label>
       <div className="flex items-center gap-2">
-        <Input ref={input} id={id} readOnly value={value} className="min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+        {/* A read-only text area wraps a long address onto more lines instead of scrolling sideways. */}
+        <textarea
+          ref={input} id={id} readOnly value={value} rows={Math.max(1, Math.ceil(value.length / 44))} spellCheck={false}
+          className="min-h-9 min-w-0 flex-1 resize-none break-all rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onFocus={(e) => e.currentTarget.select()}
+        />
         <Button type="button" size="sm" variant="outline" className="h-9 shrink-0" onClick={copy} aria-label={`Copy ${label}`} data-testid={`${testId}-copy`}>
           {state === 'copied' ? <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />}
           {state === 'copied' ? 'Copied' : 'Copy'}
@@ -34,19 +39,21 @@ function CopyRow({ id, label, value, testId }: { id: string; label: string; valu
 }
 
 /** The two addresses Zoho asks for when the client is created. Pasted exactly as shown. */
-export function PasteIntoZoho({ homepageUrl, redirectUri, loading }: { homepageUrl: string; redirectUri: string; loading?: boolean }) {
+export function PasteIntoZoho({ homepageUrl, redirectUri, loading, title = 'Paste these into Zoho', description = 'Zoho asks for both when you create the client. Copy each one exactly as it is.', testId = 'zoho-paste-block' }: {
+  homepageUrl: string; redirectUri: string; loading?: boolean; title?: string; description?: string; testId?: string;
+}) {
   return (
-    <section aria-label="Paste these into Zoho" className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5" data-testid="zoho-paste-block">
+    <section aria-label={title} className="min-w-0 space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5" data-testid={testId}>
       <div>
-        <h3 className="text-sm font-semibold">Paste these into Zoho</h3>
-        <p className="text-xs text-muted-foreground">Zoho asks for both when you create the client (step 2). Copy each one exactly as it is.</p>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {loading ? (
         <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Getting your site address…</p>
       ) : (
         <>
-          <CopyRow id="zoho-homepage-url" label="Homepage URL" value={homepageUrl} testId="zoho-homepage" />
-          <CopyRow id="zoho-redirect-uri" label="Authorized Redirect URI" value={redirectUri} testId="zoho-redirect" />
+          <CopyRow label="Homepage URL" value={homepageUrl} testId="zoho-homepage" />
+          <CopyRow label="Authorized Redirect URI (the callback)" value={redirectUri} testId="zoho-redirect" />
         </>
       )}
     </section>
