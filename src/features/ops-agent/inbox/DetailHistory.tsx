@@ -3,7 +3,7 @@ import type { SentMessage, TimelineEvent } from '../detailTypes';
 import { formatEst } from '../time';
 
 const KIND: Record<string, string> = {
-  created: 'First seen', opened: 'Opened', seen: 'Seen again', reopened: 'Reopened', handled: 'Marked as handled', snoozed: 'Snoozed',
+  created: 'First seen', opened: 'Opened', seen: 'Seen again', reopened: 'Reopened', repeated: 'Checked again', handled: 'Marked as handled', snoozed: 'Snoozed',
   dismissed: 'Dismissed', auto_resolved: 'Cleared by the agent', escalated: 'Escalated', message_sent: 'Message sent', sent: 'Message sent',
 };
 const kindLabel = (k: string) => KIND[k] ?? (k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()));

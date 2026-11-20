@@ -89,6 +89,9 @@ describe('prompt building', () => {
     expect(IDENTITY).toMatch(/Never guess/);
     expect(IDENTITY).toMatch(/untrusted/);
     expect(IDENTITY).toMatch(/never judgements about a person/);
+    expect(IDENTITY).toMatch(/operational lead/);
+    expect(IDENTITY).toMatch(/fall through the cracks/);
+    expect(IDENTITY).toMatch(/Follow through/);
   });
 });
 
