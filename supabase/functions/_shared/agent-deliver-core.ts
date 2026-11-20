@@ -4,14 +4,16 @@
 export type ConnectionKind = 'slack' | 'cliq' | 'discord' | 'teams' | 'gchat' | 'telegram' | 'email' | 'webhook' | 'n8n' | 'api' | 'whatsapp';
 
 export interface ConnectionLite { kind: ConnectionKind; name: string; config: Record<string, unknown> }
-export interface Secrets { url?: string | null; token?: string | null }
+/** url: a webhook address. token: a bot or API token. secret / refresh / access: the Zoho Cliq API sign-in (client secret, refresh token, saved access token). */
+export interface Secrets { url?: string | null; token?: string | null; secret?: string | null; refresh?: string | null; access?: string | null }
 export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
 import { renderMention } from './agent-mention-core.ts';
+import { messagesUrl, validChannel, validDc } from './agent-cliq-core.ts';
 
 export interface OutgoingLink { url: string; label: string }
 export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink;
   /** Who the message is about, to be tagged in Cliq or Slack when the connection allows it. */
-  mention?: { name: string; id: string } }
+  mention?: { name: string; id: string; /** Their manager, tagged as a CC under the person. */ cc?: { name: string; id: string } } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -91,7 +93,7 @@ export function parseRecipients(raw: unknown): string[] {
 }
 
 export type BuiltRequest =
-  | { type: 'http'; url: string; init: { method: string; headers: Record<string, string>; body?: string } }
+  | { type: 'http'; url: string; init: { method: string; headers: Record<string, string>; body?: string }; /** Zoho takes two spellings of the sign-in header; if the first is refused the sender tries this one once. */ retryAuthorization?: string }
   | { type: 'email'; payload: { channel: 'email'; to: string; subject: string; html: string } }
   | { type: 'error'; error: string };
 
@@ -179,12 +181,24 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
   }
 
   if (conn.kind === 'slack' || conn.kind === 'cliq') {
-    if (!secrets.url) return { type: 'error', error: 'The webhook address is missing.' };
+    const api = conn.kind === 'cliq' && cfg.mode === 'api';
+    if (!api && !secrets.url) return { type: 'error', error: 'The webhook address is missing.' };
     // Tag the person this is about: a line of its own right under the title, so it notifies them and still reads well.
-    const tag = msg.mention && cfg.mention_people !== false
-      ? `For ${msg.mention.name}: ${renderMention(conn.kind, cfg.mention_template, msg.mention.id)}\n` : '';
+    // Their manager is tagged on the next line as a CC.
+    const tagging = msg.mention && cfg.mention_people !== false;
+    const tag = tagging
+      ? `For ${msg.mention!.name}: ${renderMention(conn.kind, cfg.mention_template, msg.mention!.id)}\n`
+        + (msg.mention!.cc ? `CC ${msg.mention!.cc.name} (manager): ${renderMention(conn.kind, cfg.mention_template, msg.mention!.cc.id)}\n` : '')
+      : '';
     const body = JSON.stringify({ text: title ? `*${title}*\n${tag}${text}` : `${tag}${text}` });
-    return { type: 'http', url: secrets.url, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };
+    if (api) {
+      if (!validDc(cfg.dc)) return { type: 'error', error: 'The Zoho data center is missing.' };
+      if (!validChannel(cfg.channel)) return { type: 'error', error: 'The channel unique name is missing or not valid (lowercase letters, digits and underscores).' };
+      if (!secrets.access) return { type: 'error', error: 'Cliq did not give an access token.' };
+      return { type: 'http', url: messagesUrl(cfg.dc, cfg.channel), retryAuthorization: `Bearer ${secrets.access}`,
+        init: { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Zoho-oauthtoken ${secrets.access}` }, body } };
+    }
+    return { type: 'http', url: secrets.url!, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };
   }
 
   if (conn.kind === 'discord' || conn.kind === 'gchat' || conn.kind === 'teams') {

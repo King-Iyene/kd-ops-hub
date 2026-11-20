@@ -23,14 +23,33 @@ export const AUTO_EVENTS = [
 export type AutoEvent = (typeof AUTO_EVENTS)[number]['key'];
 export const DEFAULT_EVENTS: AutoEvent[] = ['flag_high', 'summary_day'];
 
+/** Zoho keeps each customer's data in one region. The Cliq API address and the sign-in address both depend on it. */
+export const CLIQ_DATA_CENTERS = [
+  { value: 'com', label: 'United States (.com)' },
+  { value: 'eu', label: 'Europe (.eu)' },
+  { value: 'in', label: 'India (.in)' },
+  { value: 'com.au', label: 'Australia (.com.au)' },
+  { value: 'jp', label: 'Japan (.jp)' },
+  { value: 'ca', label: 'Canada (.ca)' },
+  { value: 'sa', label: 'Saudi Arabia (.sa)' },
+  { value: 'com.cn', label: 'China (.com.cn)' },
+] as const;
+export type CliqDataCenter = (typeof CLIQ_DATA_CENTERS)[number]['value'];
+export const DEFAULT_CLIQ_DC: CliqDataCenter = 'com';
+/** Cliq channel unique names: lowercase letters, digits and underscores. */
+export const CLIQ_CHANNEL_PATTERN = /^[a-z0-9_]{1,50}$/;
+
 export interface PresetField {
   /** The field the save call takes. */
-  field: 'url' | 'token' | 'to' | 'chat_id' | 'method' | 'header_name' | 'query_param' | 'body_template';
+  field: 'url' | 'token' | 'to' | 'chat_id' | 'method' | 'header_name' | 'query_param' | 'body_template'
+    | 'dc' | 'client_id' | 'client_secret' | 'grant_code' | 'refresh_token' | 'channel';
   label: string;
   hint?: string;
   placeholder?: string;
   secret?: boolean;
   required?: boolean;
+  /** A fixed list of choices, shown as a drop-down. */
+  options?: readonly { value: string; label: string }[];
 }
 
 export interface ConnectionPreset {
@@ -39,6 +58,10 @@ export interface ConnectionPreset {
   /** Short line under the name in the picker. */
   tagline: string;
   kind: ConnectionKind;
+  /** Tools that can be reached in two ways (Cliq) have one preset per way. `api` posts through the tool's REST API after a Zoho sign-in. */
+  mode?: 'webhook' | 'api';
+  /** Which brand logo to draw when it is not the preset's own id. */
+  brand?: string;
   /** lucide icon name, used by the picker */
   icon: 'MessageSquare' | 'Mail' | 'Send' | 'Webhook' | 'Table2' | 'KanbanSquare' | 'FileText' | 'Plug' | 'Workflow' | 'Phone';
   /** Numbered steps shown before the fields. Plain language, in the tool's own words. */
@@ -60,7 +83,26 @@ export const CONNECTION_PRESETS: ConnectionPreset[] = [
     sample: 'A message with a bold title and the details.',
   },
   {
-    id: 'cliq', name: 'Zoho Cliq', tagline: 'Post to your ops channel and tag the person', kind: 'cliq', icon: 'MessageSquare',
+    id: 'cliq-api', name: 'Zoho Cliq (API, recommended)', tagline: 'Sign in with Zoho, post to a channel, tag the person and their manager', kind: 'cliq', mode: 'api', brand: 'cliq', icon: 'MessageSquare',
+    steps: [
+      'Go to https://api-console.zoho.com and choose "Self Client". If your Zoho account is not on the .com site, use your own: api-console.zoho.eu, .in, .com.au, .jp, .ca or .sa.',
+      'Copy the Client ID and Client Secret shown on the Self Client page and paste them below. The secret is stored encrypted and never shown again.',
+      'Open "Generate Code". Use the scope ZohoCliq.Webhooks.CREATE, a time duration of 10 minutes, any description, and press Create. Copy the code and paste it into "Grant code" below straight away, because it expires in minutes and works once. Then press Save. KD Ops swaps it for a long-lived refresh token and stores that encrypted, so nothing expires every hour. If you already have a refresh token, you can paste it in "Refresh token" instead of a grant code.',
+      'Channel unique name: in Cliq open the channel, choose Channel settings, and copy "Unique name" (lowercase, no spaces). Pick the data center that matches your Zoho account (you can check it at accounts.zoho.com/oauth/serverinfo).',
+      'Leave "Tag the person" and "CC their manager" on. Their Cliq user ids are in Settings, People, otherwise their KD Ops email is used. Then press "Send test and tag me".',
+    ],
+    fields: [
+      { field: 'dc', label: 'Data center', options: CLIQ_DATA_CENTERS, hint: 'The region of your Zoho account.' },
+      { field: 'client_id', label: 'Client ID', placeholder: '1000.XXXXXXXXXXXXXXXX', required: true },
+      { field: 'client_secret', label: 'Client secret', secret: true, required: true },
+      { field: 'grant_code', label: 'Grant code', secret: true, hint: 'Paste the code you just generated. It works once and expires in about 10 minutes.' },
+      { field: 'refresh_token', label: 'Refresh token (optional)', secret: true, hint: 'Only if you already have one. Use it instead of a grant code.' },
+      { field: 'channel', label: 'Channel unique name', placeholder: 'opschannel', required: true, hint: 'Lowercase letters, numbers and underscores. No spaces.' },
+    ],
+    sample: 'A message with a bold title, a "For Cara: @Cara" tag line, "CC: @Dan" for their manager, the details and a link to the exact item.',
+  },
+  {
+    id: 'cliq', name: 'Zoho Cliq (webhook address)', tagline: 'Post with a webhook address and tag the person', kind: 'cliq', mode: 'webhook', icon: 'MessageSquare',
     steps: [
       'In Zoho Cliq, set up an incoming webhook for the channel that should receive the messages (the ops channel), or for a bot that posts to it. Cliq gives you a web address that includes a secret key (zapikey).',
       'Copy that whole address, key included, and paste it below. It works like a password, so it is kept encrypted and never shown again.',

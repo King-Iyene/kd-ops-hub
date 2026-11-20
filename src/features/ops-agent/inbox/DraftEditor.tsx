@@ -12,7 +12,8 @@ import { useAgentConnections } from '@/queries/useOpsAgent';
 import { useSendFlagMessage } from '@/queries/useOpsAgentV4';
 import { CONNECTION_KINDS } from '../agentDb';
 import { PersonAvatar } from '../PersonAvatar';
-import type { DetailDraft } from '../detailTypes';
+import { supportsMentions } from '../connectionTemplate';
+import type { DetailDraft, DetailPerson } from '../detailTypes';
 
 const firstName = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/)[0] || 'them';
 
@@ -21,8 +22,10 @@ const firstName = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/
  * The request names the item and the channel only; the server decides the real recipient, so no address is sent from here.
  * A message that goes out marks the item handled, unless "Mark as handled after sending" is unticked (then the request says `close: false`).
  */
-export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
-  flagId: string; draft: DetailDraft; recipientPhoto: string | null; onClosed: () => void;
+export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, manager = null, onClosed }: {
+  flagId: string; draft: DetailDraft; recipientPhoto: string | null;
+  /** The person the item is about, and their manager (when they have one). Used for the "CC" choice on Cliq and Slack. */
+  aboutName?: string | null; manager?: DetailPerson['manager'] | null; onClosed: () => void;
 }) {
   const { toast } = useToast();
   const connections = useAgentConnections();
@@ -32,6 +35,8 @@ export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
   const [bodyEdit, setBodyEdit] = useState<string | null>(null);
   const [connectionId, setConnectionId] = useState('');
   const [closeAfter, setCloseAfter] = useState(true);
+  // What the person chose for "CC the manager", remembered with the connection it was chosen for. Until they choose, the connection's own setting decides.
+  const [ccChoice, setCcChoice] = useState<{ id: string; value: boolean } | null>(null);
   const [sentNote, setSentNote] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -43,6 +48,12 @@ export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
   const toLabel = draft.to === 'manager' ? 'to their manager' : 'to the person';
   const canSend = subject.trim().length > 0 && body.trim().length > 0 && !send.isPending;
   const usable = (connections.data ?? []).filter((c) => c.status !== 'error');
+  // The checkbox only makes sense for a Cliq or Slack connection, when the person has a manager and the message is not already for them.
+  const picked = usable.find((c) => c.id === connectionId);
+  const managerName = manager?.full_name?.trim() || null;
+  const canCc = !!picked && supportsMentions(picked.kind) && !!manager && draft.to !== 'manager' && draft.recipient_id !== manager.id;
+  const cc = ccChoice?.id === connectionId ? ccChoice.value : picked?.config.cc_manager === true;
+  const tagsPerson = picked?.config.mention_people !== false;
 
   const reset = () => { setSubjectEdit(null); setBodyEdit(null); setProblem(null); };
   const copy = async () => {
@@ -60,7 +71,7 @@ export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
     if (!ok) return;
     setProblem(null);
     send.mutate(
-      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), subject: subject.trim(), text: body.trim(), ...(closeAfter ? {} : { close: false }) },
+      { flag_id: flagId, channel, ...(conn ? { connection_id: conn.id } : {}), ...(conn && canCc ? { cc_manager: cc } : {}), subject: subject.trim(), text: body.trim(), ...(closeAfter ? {} : { close: false }) },
       {
         onSuccess: (r) => {
           if (r?.ok) {
@@ -121,6 +132,15 @@ export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
         {usable.length === 0 && !connections.isLoading && <p className="w-full text-2xs text-muted-foreground">Add a Slack, Cliq, email, webhook or n8n connection in Connections to post there.</p>}
       </div>
 
+      {canCc && (
+        <div className="space-y-1" data-testid="cc-manager">
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={cc} onCheckedChange={(c) => setCcChoice({ id: connectionId, value: c === true })} aria-label={`CC ${managerName ?? 'their manager'}`} data-testid="cc-manager-box" /> CC {managerName ?? 'their manager'}
+          </label>
+          <p className="text-xs text-muted-foreground" data-testid="cc-manager-note">{tagNote(tagsPerson, aboutName, cc, managerName)}</p>
+        </div>
+      )}
+
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={closeAfter} onCheckedChange={(c) => setCloseAfter(c === true)} data-testid="close-after" /> Mark as handled after sending
       </label>
@@ -130,4 +150,14 @@ export function DraftEditor({ flagId, draft, recipientPhoto, onClosed }: {
       {sentNote && <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-2.5 text-sm" role="status" data-testid="sent-note"><Check className="h-4 w-4 text-success" aria-hidden="true" />{sentNote}</p>}
     </section>
   );
+}
+
+/** Who will be tagged in the channel, in plain words and without pronouns. */
+function tagNote(tagsPerson: boolean, aboutName: string | null, cc: boolean, managerName: string | null): string {
+  const person = aboutName?.trim() ? firstName(aboutName) : 'the person';
+  const manager = managerName ? `their manager ${firstName(managerName)}` : 'their manager';
+  if (tagsPerson && cc) return `Tags ${person} and CCs ${manager} in the channel.`;
+  if (tagsPerson) return `Tags ${person} in the channel. Their manager is not tagged.`;
+  if (cc) return `CCs ${manager} in the channel.`;
+  return 'Nobody is tagged in the channel.';
 }

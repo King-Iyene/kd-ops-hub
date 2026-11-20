@@ -10,9 +10,8 @@ import { serviceClient } from '../_shared/agent-claude.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 import { mentionFor } from '../_shared/agent-mention.ts';
+import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { MAX_ATTEMPTS, formatFlag, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
-
-const secretName = (id: string, part: 'url' | 'token') => `agent_conn_${id.replaceAll('-', '')}_${part}`;
 
 function equal(a: string | null, b: string | undefined): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -49,20 +48,24 @@ Deno.serve(async (req) => {
         if (who && (f.rule_code === 'TK08' || f.rule_code === 'TK13')) {
           who = (await db.from('profiles').select('reporting_manager_id').eq('id', who).maybeSingle()).data?.reporting_manager_id ?? who;
         }
-        msg = { ...msg, mention: await mentionFor(db, conn.kind, who) };
+        let mention = await mentionFor(db, conn.kind, who);
+        // A connection set to CC the manager also tags the person's manager (when it is not the person already tagged).
+        if (mention && (conn.config as Record<string, unknown>).cc_manager === true && f.person_id) {
+          const { data: fl } = await db.from('agent_flags').select('manager_id').eq('id', f.id).maybeSingle();
+          const managerId = (fl?.manager_id as string | null) ?? ((await db.from('profiles').select('reporting_manager_id').eq('id', f.person_id).maybeSingle()).data?.reporting_manager_id as string | null) ?? null;
+          if (managerId && managerId !== who) {
+            const cc = await mentionFor(db, conn.kind, managerId);
+            if (cc) mention = { ...mention, cc: { name: cc.name, id: cc.id } };
+          }
+        }
+        msg = { ...msg, mention };
       } else {
         const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }
         msg = formatSummary(s as SummaryRow, appUrl);
       }
 
-      const secret = async (part: 'url' | 'token') => {
-        const n = secretName(conn.id, part);
-        if (!(conn.vault_secret_names as string[]).includes(n)) return null;
-        const { data } = await db.rpc('agent_secret_get', { p_name: n });
-        return typeof data === 'string' ? data : null;
-      };
-      const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: conn.config as Record<string, unknown> }, { url: await secret('url'), token: await secret('token') }, msg);
+      const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: conn.config as Record<string, unknown> }, await readConnectionSecrets(db, conn as { id: string; vault_secret_names: string[] }), msg, { saveAccess: accessSaver(db, conn as { id: string; vault_secret_names: string[] }) });
       const attempts = row.attempts + 1;
       if (r.ok) {
         await finish({ status: 'sent', attempts, error: null, sent_at: new Date().toISOString() });
