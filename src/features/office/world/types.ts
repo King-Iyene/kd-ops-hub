@@ -9,6 +9,7 @@ export type ItemType =
   | 'pond' | 'waterfall' | 'sea' | 'sand' | 'flowerbed' | 'rocks' | 'birdbath'
   | 'beachchair' | 'umbrella' | 'towel' | 'sandcastle' | 'dock' | 'boat' | 'dogball'
   | 'pinetree' | 'campfire' | 'log' | 'stump' | 'tent' | 'mushrooms' | 'firewood' | 'lantern' | 'coffeebar'
+  | 'gamingchair' | 'diningchair' | 'barstool' | 'executivechair' | 'rockingchair'
   | 'longtable' | 'worktable' | 'sidetable' | 'conference' | 'bed' | 'singlebed' | 'nightstand' | 'wardrobe' | 'dresser' | 'mirror' | 'clothesrack' | 'mannequin' | 'shoerack' | 'armchair' | 'loveseat' | 'ottoman'
   | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard' | 'podium';
 

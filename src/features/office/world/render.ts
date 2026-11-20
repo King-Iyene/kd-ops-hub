@@ -712,6 +712,31 @@ const FLOWER_COLORS = ['#f472b6', '#fbbf24', '#a78bfa', '#fb7185', '#fb923c', '#
 const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
+/** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
+const STATIC_PIECES = new Set<string>(['gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman']);
+const SPRITE_SCALE = 3;
+const SPRITE_PAD = 10;
+const spriteCache = new Map<string, HTMLCanvasElement>();
+function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, seed: number): boolean {
+  if (typeof document === 'undefined') return false;
+  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}`;
+  let pic = spriteCache.get(key);
+  if (!pic) {
+    pic = document.createElement('canvas');
+    pic.width = (W + SPRITE_PAD * 2) * SPRITE_SCALE;
+    pic.height = (H + SPRITE_PAD * 2) * SPRITE_SCALE;
+    const pc = pic.getContext('2d');
+    if (!pc) return false;
+    pc.scale(SPRITE_SCALE, SPRITE_SCALE);
+    pc.translate(SPRITE_PAD, SPRITE_PAD);
+    drawExtra(pc as unknown as Ctx, item, dark, 0, col, 0, 0, W, H, seed);
+    if (spriteCache.size > 600) spriteCache.clear();
+    spriteCache.set(key, pic);
+  }
+  ctx.drawImage(pic, x - SPRITE_PAD, y - SPRITE_PAD, W + SPRITE_PAD * 2, H + SPRITE_PAD * 2);
+  return true;
+}
+
 function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
   const { w, h } = itemSize(item);
   const x = item.x * TILE;
@@ -721,6 +746,7 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number) {
   const seed = hs(item.id);
   const sway = Math.sin(t / 900 + seed * 6.28);
   const col = item.c !== undefined ? ITEM_COLORS[item.c] : undefined;
+  if (STATIC_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed)) return;
   if (drawExtra(ctx, item, dark, t, col, x, y, W, H, seed)) return;
   switch (item.t) {
     case 'rug': {
@@ -1279,6 +1305,121 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
   const cx = x + W / 2;
   const cy = y + H / 2;
   switch (item.t) {
+    case 'gamingchair': {
+      ellipse(ctx, cx, cy + 8, 12, 6, 'rgba(15,23,42,0.22)');
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx, cy + 6); ctx.lineTo(cx + Math.cos(a) * 10, cy + 6 + Math.sin(a) * 4.4); ctx.stroke(); }
+      const main = col ?? '#16181d';
+      const accent = col ? shade(col, 0.35) : '#dc2626';
+      rr(ctx, cx - 11, cy - 15, 22, 17, 7);
+      ctx.fillStyle = shade(main, -0.1);
+      ctx.fill();
+      ctx.fillStyle = accent;
+      rr(ctx, cx - 9, cy - 17, 18, 6, 3);
+      ctx.fill();
+      rr(ctx, cx - 11, cy - 10, 4, 12, 2);
+      ctx.fill();
+      rr(ctx, cx + 7, cy - 10, 4, 12, 2);
+      ctx.fill();
+      rr(ctx, cx - 9, cy - 1, 18, 13, 6);
+      ctx.fillStyle = main;
+      ctx.fill();
+      ctx.fillStyle = accent;
+      rr(ctx, cx - 9, cy + 9, 18, 3, 1.5);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      rr(ctx, cx - 5, cy + 1, 10, 3, 1.5);
+      ctx.fill();
+      return true;
+    }
+    case 'diningchair': {
+      ellipse(ctx, cx, cy + 9, 10, 4.5, 'rgba(15,23,42,0.2)');
+      const wood = col ?? '#b98a5a';
+      ctx.fillStyle = shade(wood, -0.3);
+      for (const [dx, dy] of [[-8, 8], [8, 8], [-8, 1], [8, 1]]) ctx.fillRect(cx + dx - 1.2, cy + dy, 2.4, 6);
+      rr(ctx, cx - 9, cy - 16, 18, 14, 3);
+      ctx.fillStyle = shade(wood, -0.15);
+      ctx.fill();
+      ctx.fillStyle = shade(wood, 0.25);
+      for (let i = 0; i < 3; i++) ctx.fillRect(cx - 7 + i * 5.2, cy - 14, 3.4, 10);
+      rr(ctx, cx - 10, cy - 3, 20, 14, 4);
+      ctx.fillStyle = vgrad(ctx, cy - 3, cy + 11, shade(wood, 0.3), wood);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(cx - 7, cy - 1, 14, 1.5);
+      return true;
+    }
+    case 'barstool': {
+      ellipse(ctx, cx, cy + 12, 9, 4, 'rgba(15,23,42,0.22)');
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6, cy + 10); ctx.lineTo(cx - 3, cy);
+      ctx.moveTo(cx + 6, cy + 10); ctx.lineTo(cx + 3, cy);
+      ctx.moveTo(cx, cy + 11); ctx.lineTo(cx, cy);
+      ctx.stroke();
+      ctx.strokeStyle = '#6b7280';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 7, 7, 2.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      const c = col ?? '#c0392b';
+      disc(ctx, cx, cy - 2, 10, shade(c, -0.3));
+      const g = ctx.createRadialGradient(cx - 3, cy - 6, 1, cx, cy - 3, 10);
+      g.addColorStop(0, shade(c, 0.4));
+      g.addColorStop(1, c);
+      disc(ctx, cx, cy - 4, 9, g);
+      return true;
+    }
+    case 'executivechair': {
+      ellipse(ctx, cx, cy + 9, 13, 6, 'rgba(15,23,42,0.24)');
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.3; ctx.beginPath(); ctx.moveTo(cx, cy + 7); ctx.lineTo(cx + Math.cos(a) * 10, cy + 7 + Math.sin(a) * 4.4); ctx.stroke(); }
+      const leather = col ?? '#6b3f26';
+      rr(ctx, cx - 12, cy - 17, 24, 20, 9);
+      ctx.fillStyle = shade(leather, -0.2);
+      ctx.fill();
+      rr(ctx, cx - 9, cy - 15, 18, 15, 6);
+      ctx.fillStyle = leather;
+      ctx.fill();
+      ctx.strokeStyle = shade(leather, 0.25);
+      ctx.lineWidth = 1;
+      for (const k of [-4, 0, 4]) { ctx.beginPath(); ctx.moveTo(cx + k, cy - 13); ctx.lineTo(cx + k, cy - 3); ctx.stroke(); }
+      ctx.fillStyle = shade(leather, -0.3);
+      rr(ctx, cx - 13, cy - 6, 4, 13, 2);
+      ctx.fill();
+      rr(ctx, cx + 9, cy - 6, 4, 13, 2);
+      ctx.fill();
+      rr(ctx, cx - 10, cy - 1, 20, 14, 6);
+      ctx.fillStyle = vgrad(ctx, cy - 1, cy + 13, shade(leather, 0.3), leather);
+      ctx.fill();
+      return true;
+    }
+    case 'rockingchair': {
+      ellipse(ctx, cx, cy + 10, 12, 4.5, 'rgba(15,23,42,0.2)');
+      const wood = col ?? '#a9743f';
+      ctx.strokeStyle = shade(wood, -0.35);
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - 12, cy + 4); ctx.quadraticCurveTo(cx - 11, cy + 12, cx - 3, cy + 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + 12, cy + 4); ctx.quadraticCurveTo(cx + 11, cy + 12, cx + 3, cy + 12); ctx.stroke();
+      rr(ctx, cx - 9, cy - 17, 18, 15, 3);
+      ctx.fillStyle = shade(wood, -0.15);
+      ctx.fill();
+      ctx.fillStyle = shade(wood, 0.28);
+      for (let i = 0; i < 4; i++) ctx.fillRect(cx - 7.5 + i * 4.2, cy - 15, 2.6, 11);
+      rr(ctx, cx - 10, cy - 3, 20, 13, 4);
+      ctx.fillStyle = vgrad(ctx, cy - 3, cy + 10, shade(wood, 0.3), wood);
+      ctx.fill();
+      ctx.fillStyle = '#e8d8c0';
+      rr(ctx, cx - 7, cy - 1, 14, 9, 3);
+      ctx.fill();
+      return true;
+    }
     case 'longtable':
     case 'worktable':
     case 'sidetable':

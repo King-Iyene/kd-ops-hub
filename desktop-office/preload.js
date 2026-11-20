@@ -5,11 +5,16 @@ const { contextBridge, ipcRenderer } = require('electron');
 const tabArg = (process.argv.find((a) => a.startsWith('--kd-tab=')) || '').slice('--kd-tab='.length);
 const tab = tabArg === 'ops' || tabArg === 'office' ? tabArg : null;
 let visible = true;
+let focused = true;
 const watchers = new Set();
+const activeWatchers = new Set();
+const tellActive = () => { for (const cb of activeWatchers) { try { cb(visible && focused); } catch { /* one bad listener must not stop the rest */ } } };
 ipcRenderer.on('kd:tab-visible', (_e, v) => {
   visible = !!v;
   for (const cb of watchers) { try { cb(visible); } catch { /* one bad listener must not stop the rest */ } }
+  tellActive();
 });
+ipcRenderer.on('kd:window-focus', (_e, v) => { focused = !!v; tellActive(); });
 
 contextBridge.exposeInMainWorld('kdDesktop', {
   platform: process.platform,
@@ -17,6 +22,9 @@ contextBridge.exposeInMainWorld('kdDesktop', {
   // is this page's tab being shown? (the Office uses it to stop drawing while you are in the other tab)
   isVisible: () => visible,
   onVisible: (cb) => { watchers.add(cb); cb(visible); return () => { watchers.delete(cb); }; },
+  // is this tab showing AND is the app in front? (the Office draws slowly and goes quiet when it is not)
+  isActive: () => visible && focused,
+  onActive: (cb) => { activeWatchers.add(cb); cb(visible && focused); return () => { activeWatchers.delete(cb); }; },
   // bring this window to the front (used when you click a notification)
   focus: () => ipcRenderer.send('kd:focus'),
   // how many things are waiting for you, for the taskbar and tray

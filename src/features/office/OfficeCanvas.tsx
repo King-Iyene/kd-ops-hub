@@ -153,11 +153,12 @@ export function OfficeCanvas(props: Props) {
   useEffect(() => () => ambient.stop(), []);
   // in the desktop app, the office's own sounds stop while the window is hidden in the tray (calls and alerts keep working)
   useEffect(() => {
-    const desk = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { onVisible?: (cb: (v: boolean) => void) => () => void } }).kdDesktop;
+    const desk = typeof window === 'undefined' ? undefined : (window as unknown as { kdDesktop?: { onVisible?: (cb: (v: boolean) => void) => () => void; onActive?: (cb: (v: boolean) => void) => () => void } }).kdDesktop;
     if (!desk) return;
     // the KD Ops app keeps this page running in a hidden tab: then nothing is drawn (only a slow beat) and the sounds stop
     const on = () => ambient.setQuiet(document.visibilityState === 'hidden' || tabHidden.current);
-    const off = desk.onVisible?.((v) => { tabHidden.current = !v; on(); });
+    const watch = desk.onActive ?? desk.onVisible; // the newer app also tells us when it is not in front
+    const off = watch?.((v) => { tabHidden.current = !v; on(); });
     document.addEventListener('visibilitychange', on);
     on();
     return () => { off?.(); document.removeEventListener('visibilitychange', on); ambient.setQuiet(false); };
