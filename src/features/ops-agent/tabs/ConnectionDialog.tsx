@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, AtSign, Check, Loader2, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -59,7 +60,12 @@ export function ConnectionDialog({ open, onOpenChange, editing, onSaved }: {
   const preset = editing ? presetForConnection(editing) : picked;
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setPicked(null); onOpenChange(o); }}>
-      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto" data-testid="connection-dialog">
+      <DialogContent
+        // The base dialog caps its width at md:max-w-lg, so the wider size has to be given at the same breakpoint. Children may shrink
+        // (min-w-0) so a long address or help line wraps instead of pushing the form off the right edge.
+        className={cn('max-h-[92vh] overflow-y-auto overflow-x-hidden md:w-[min(92vw,56rem)] [&>*]:min-w-0', preset ? 'md:max-w-4xl' : 'md:max-w-3xl')}
+        data-testid="connection-dialog"
+      >
         {preset ? (
           <Setup key={`${editing?.id ?? 'new'}-${preset.id}`} preset={preset} editing={editing} onBack={editing ? undefined : () => setPicked(null)} onClose={() => { onOpenChange(false); setPicked(null); }} onSaved={onSaved} />
         ) : (
@@ -277,7 +283,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
         {note && <p className={note.tone === 'good' ? 'flex items-center gap-1.5 text-sm text-success' : 'text-sm text-destructive'} role={note.tone === 'good' ? 'status' : 'alert'} data-testid="connection-note">{note.tone === 'good' && <Check className="h-4 w-4" aria-hidden="true" />}{note.text}</p>}
       </div>
 
-      <DialogFooter className="gap-2 sm:gap-2">
+      <DialogFooter className="flex-wrap gap-2 sm:gap-2">
         {onBack && !savedId && <Button variant="ghost" className="sm:mr-auto" onClick={onBack} data-testid="connection-back"><ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Choose another tool</Button>}
         <Button variant="ghost" onClick={onClose}>{savedId ? 'Done' : 'Cancel'}</Button>
         <Button variant="outline" onClick={() => sendTest(false)} disabled={!savedId || test.isPending} title={savedId ? 'Sends a test message using the saved settings' : 'Save first, then send a test'} data-testid="connection-send-test">

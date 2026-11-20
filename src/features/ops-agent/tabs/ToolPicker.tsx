@@ -21,7 +21,7 @@ export function ToolPicker({ onPick }: { onPick: (p: ConnectionPreset) => void }
       {shown.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tool matches "{query}". Pick "Any other tool (API)" to connect anything that has an API.</p>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2" aria-label="Tools">
+        <ul className="grid gap-2 sm:grid-cols-2 md:grid-cols-3" aria-label="Tools">
           {shown.map((p) => (
             <li key={p.id}>
               <button
