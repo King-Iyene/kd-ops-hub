@@ -15,6 +15,7 @@
 //   handled (close: false keeps it open). Answers { ok: true, closed }.
 //   It sends the message a person edited in the Inbox about one item. The server decides who it goes to (the person, or their manager
 //   for review items) from the item itself, so an address is never taken from the browser. The result is kept on the item.
+// POST { action: 'record_test', rule_id }   sends the newest entry of a Task table through one "send new entries" rule, marked as a test
 // POST { action: 'delete', id }
 //
 // Secrets (a Slack or Cliq webhook address, a token) are written to Vault and never come back. A browser only ever
@@ -26,6 +27,7 @@ import { serviceClient } from '../_shared/agent-claude.ts';
 import { mentionFor } from '../_shared/agent-mention.ts';
 import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
+import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
 import { exchangeGrantCode } from '../_shared/agent-cliq.ts';
 import { consentUrl, dcFromAccountsServer, validChannel, validClientId, validDc, validRedirectUri, validZohoValue } from '../_shared/agent-cliq-core.ts';
 import { accessSaver, readConnectionSecrets, secretName } from '../_shared/agent-conn-secrets.ts';
@@ -45,7 +47,7 @@ const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 const PRESET = /^[a-z0-9_-]{1,30}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-interface Body { redirect_uri?: string; code?: string; state?: string; accounts_server?: string; mode?: string; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel_name?: string; cc_manager?: boolean; tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
+interface Body { rule_id?: string; redirect_uri?: string; code?: string; state?: string; accounts_server?: string; mode?: string; dc?: string; client_id?: string; client_secret?: string; grant_code?: string; refresh_token?: string; channel_name?: string; cc_manager?: boolean; tag_me?: boolean; mention_people?: boolean; mention_template?: string; close?: boolean; chat_id?: string; auth_type?: string; query_param?: string; content_type?: string; extra_headers?: Record<string, unknown>; body_template?: string; events?: unknown; min_severity?: string; preset?: string; flag_id?: string; channel?: string; connection_id?: string; subject?: string; action?: string; id?: string; kind?: string; name?: string; url?: string; token?: string; to?: string; method?: string; header_name?: string; text?: string; title?: string; clear_token?: boolean }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
@@ -325,6 +327,20 @@ Deno.serve(async (req) => {
       await db.from('agent_connections').update({ vault_secret_names: [...names], last_error: null }).eq('id', conn.id);
       await audit('connection.oauth_connected', conn.id, { dc });
       return jsonResponse(cors(req), { ok: true, id: conn.id });
+    }
+
+    if (body.action === 'record_test') {
+      if (typeof body.rule_id !== 'string' || !UUID.test(body.rule_id)) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
+      const { data: rule } = await db.from('tm_table_connections').select('connection_id').eq('id', body.rule_id).maybeSingle();
+      const conn = rule ? await load((rule as { connection_id: string }).connection_id) : null;
+      if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
+      const { data: st } = await db.from('agent_settings').select('app_url').eq('id', true).maybeSingle();
+      const built = await buildRecordMessage(db, body.rule_id, null, (st?.app_url as string | undefined) ?? 'https://ops.kdsquares.com', conn.kind, true);
+      if (!built.ok) return jsonResponse(cors(req), { ok: false, error: built.error }, 200);
+      const r = await deliver({ kind: conn.kind, name: conn.name, config: effectiveConfig(conn.config, conn.kind, built.rule) }, await readSecrets(conn), built.msg, { saveAccess: accessSaver(db, conn) });
+      await record(conn.id, r);
+      await audit('table_connection.tested', body.rule_id, { ok: r.ok });
+      return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
     }
 
     if (body.action === 'delete') {

@@ -37,6 +37,7 @@ import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
+import { TableConnectionsButton } from '@/features/task-module/table/ConnectionsDialog';
 import { ROW_HEIGHTS, asRowHeight, autoWidth, clampWidth, effectiveWidth, MIN_COL, type RowHeight } from '@/features/task-module/table/columnWidths';
 import { RangeBar, ReportDatePicker, ReportInbox } from '@/features/task-module/table/ReportViews';
 import {
@@ -292,6 +293,7 @@ function TableScreen({ tableId }: { tableId: string }) {
           <Button size="sm" variant="ghost" className={toolBtn} onClick={() => setDialog('forms')}>
             <FileText className="h-3.5 w-3.5" /> Forms
           </Button>
+          <TableConnectionsButton tableId={tableId} tableName={table?.name ?? 'Table'} fields={fields} />
           <Button size="sm" variant="ghost" className={toolBtn} onClick={() => setDialog('tasks')} disabled={!rows.length}>
             <ListPlus className="h-3.5 w-3.5" /> Create tasks
           </Button>

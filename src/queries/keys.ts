@@ -29,6 +29,11 @@ export const queryKeys = {
     outbox: () => [...queryKeys.opsAgent.all, 'outbox'] as const,
     pulse: () => [...queryKeys.opsAgent.all, 'team-pulse'] as const,
   },
+  tableConnections: {
+    all: ['table-connections'] as const,
+    list: (tableId: string) => [...queryKeys.tableConnections.all, 'list', tableId] as const,
+    outbox: (tableId: string) => [...queryKeys.tableConnections.all, 'outbox', tableId] as const,
+  },
   employees: {
     all: ['employees'] as const,
     list: () => [...queryKeys.employees.all, 'list'] as const,

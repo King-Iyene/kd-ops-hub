@@ -11,6 +11,7 @@ import { deliver } from '../_shared/agent-deliver.ts';
 import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 import { mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
+import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
 import { MAX_ATTEMPTS, formatFlag, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
 
 function equal(a: string | null, b: string | undefined): boolean {
@@ -29,12 +30,16 @@ Deno.serve(async (req) => {
   const out = { sent: 0, failed: 0, retried: 0 };
   const appUrl = ((await db.from('agent_settings').select('app_url').eq('id', true).maybeSingle()).data?.app_url as string | undefined) ?? 'https://ops.kdsquares.com';
   try {
-    const { data: rows } = await db.from('agent_outbox').select('id, connection_id, kind, ref_id, attempts').eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
+    const { data: rows } = await db.from('agent_outbox').select('id, connection_id, kind, ref_id, rule_id, attempts').eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true }).limit(20);
-    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary'; ref_id: string; attempts: number }[]) {
+    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary' | 'record'; ref_id: string; rule_id: string | null; attempts: number }[]) {
       const finish = (patch: Record<string, unknown>) => db.from('agent_outbox').update(patch).eq('id', row.id);
       const { data: conn } = await db.from('agent_connections').select('id, kind, name, config, vault_secret_names').eq('id', row.connection_id).maybeSingle();
       if (!conn) { await finish({ status: 'failed', error: 'The connection was deleted.' }); out.failed++; continue; }
+      // Take the message before sending it: two senders running at once (the every-minute one and a "send now") must never both send it.
+      const { data: claimed } = await db.from('agent_outbox').update({ attempts: row.attempts + 1 }).eq('id', row.id).eq('status', 'pending').eq('attempts', row.attempts).select('id');
+      if (!claimed || claimed.length === 0) continue;
+      let sendConfig = conn.config as Record<string, unknown>;
 
       let msg;
       if (row.kind === 'flag') {
@@ -59,16 +64,23 @@ Deno.serve(async (req) => {
           }
         }
         msg = { ...msg, mention };
+      } else if (row.kind === 'record') {
+        // A new entry in a Task table, sent through the rule that asked for it.
+        const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;
+        if (!built || !built.ok) { await finish({ status: 'failed', error: (built && !built.ok ? built.error : 'The rule no longer exists.').slice(0, 300) }); out.failed++; continue; }
+        msg = built.msg;
+        sendConfig = effectiveConfig(conn.config as Record<string, unknown>, conn.kind as string, built.rule);
       } else {
         const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }
         msg = formatSummary(s as SummaryRow, appUrl);
       }
 
-      const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: conn.config as Record<string, unknown> }, await readConnectionSecrets(db, conn as { id: string; vault_secret_names: string[] }), msg, { saveAccess: accessSaver(db, conn as { id: string; vault_secret_names: string[] }) });
+      const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: sendConfig }, await readConnectionSecrets(db, conn as { id: string; vault_secret_names: string[] }), msg, { saveAccess: accessSaver(db, conn as { id: string; vault_secret_names: string[] }) });
       const attempts = row.attempts + 1;
       if (r.ok) {
         await finish({ status: 'sent', attempts, error: null, sent_at: new Date().toISOString() });
+        if (row.kind === 'record' && row.rule_id) await db.from('tm_table_connections').update({ last_sent_at: new Date().toISOString() }).eq('id', row.rule_id);
         await db.from('agent_connections').update({ status: 'connected', last_error: null }).eq('id', conn.id);
         out.sent++;
       } else {
