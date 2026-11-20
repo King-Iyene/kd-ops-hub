@@ -24025,6 +24025,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      agent_report_audit: { Args: { p_day?: string }; Returns: Json }
       agent_report_submitters: { Args: { p_day: string }; Returns: string[] }
       agent_resolve_flags: {
         Args: {
