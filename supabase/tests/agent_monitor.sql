@@ -159,7 +159,7 @@ BEGIN
   PERFORM public.t_eq('module', fl.module, 'track');
   PERFORM public.t_eq('period is the Eastern day', fl.period_key, '2026-11-18');
   PERFORM public.t_eq('an event records it', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = fl.id AND kind = 'created'), 1::bigint);
-  IF fl.why NOT LIKE '%opened 60 minutes ago%' THEN RAISE EXCEPTION 'FAIL: why text: %', fl.why; END IF;
+  IF fl.why NOT LIKE 'Their work day started at 9:00 AM EST and nothing has been tracked 60 minutes in.' THEN RAISE EXCEPTION 'FAIL: why text: %', fl.why; END IF;
 
   -- running again changes nothing
   PERFORM public.agent_run_rules('2026-11-18T15:00:00Z');

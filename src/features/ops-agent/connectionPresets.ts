@@ -15,13 +15,14 @@ export type ContentType = 'json' | 'form' | 'text';
 /** What the agent can push on its own, per connection. */
 export const AUTO_EVENTS = [
   { key: 'flag_high', label: 'New high-priority items', help: 'The moment a high or critical item is raised.' },
+  { key: 'flag_tracking', label: 'Time tracking alerts', help: 'Not tracking 30 minutes into the day, forgotten timers, timers with no tracker proof, manual time, blocked apps.' },
   { key: 'flag_all', label: 'Every new item', help: 'All new Inbox items. Can be a lot on a busy day.' },
   { key: 'summary_day', label: 'Daily summary', help: 'At 6:30 PM Eastern on working days.' },
   { key: 'summary_week', label: 'Weekly summary', help: 'On the last working day of the week.' },
   { key: 'summary_month', label: 'Monthly summary', help: 'On the last working day of the month.' },
 ] as const;
 export type AutoEvent = (typeof AUTO_EVENTS)[number]['key'];
-export const DEFAULT_EVENTS: AutoEvent[] = ['flag_high', 'summary_day'];
+export const DEFAULT_EVENTS: AutoEvent[] = ['flag_high', 'flag_tracking', 'summary_day'];
 
 /** Zoho keeps each customer's data in one region. The Cliq API address and the sign-in address both depend on it. */
 export const CLIQ_DATA_CENTERS = [
