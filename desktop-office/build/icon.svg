@@ -1,14 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#0a86b5"/><stop offset="0.5" stop-color="#006994"/><stop offset="1" stop-color="#004c6d"/></linearGradient>
-  <linearGradient id="cyan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ff6ff"/><stop offset="0.5" stop-color="#00ECFF"/><stop offset="1" stop-color="#00c2dc"/></linearGradient>
-  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efd391"/><stop offset="0.5" stop-color="#D6AC50"/><stop offset="1" stop-color="#b98f35"/></linearGradient>
-  <linearGradient id="white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#bfe9f1"/></linearGradient>
-  <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="40"/></filter>
-  <filter id="depth" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#00243a" flood-opacity="0.38"/></filter>
-</defs>
-<rect x="30" y="30" width="964" height="964" rx="236" fill="url(#bg)"/>
-<ellipse cx="512" cy="560" rx="330" ry="360" fill="#00ECFF" opacity="0.16" filter="url(#blur)"/>
-<g transform="translate(512 520) scale(1.14) translate(-512 -525)"><path d="M262 500 A250 250 0 0 1 762 500 L762 774 Q762 800 736 800 L288 800 Q262 800 262 774 Z" fill="url(#cyan)" filter="url(#depth)"/><path d="M308 500 A204 204 0 0 1 716 500 L716 734 Q716 760 690 760 L334 760 Q308 760 308 734 Z" fill="#006994" filter="url(#depth)"/><path d="M350 500 A162 162 0 0 1 674 500 L674 700 Q674 726 648 726 L376 726 Q350 726 350 700 Z" fill="url(#gold)" filter="url(#depth)"/><path d="M392 504 A120 120 0 0 1 632 504 L632 664 Q632 690 606 690 L418 690 Q392 690 392 664 Z" fill="#006994" filter="url(#depth)"/><path d="M434 508 A78 78 0 0 1 590 508 L590 628 Q590 654 564 654 L460 654 Q434 654 434 628 Z" fill="url(#white)" filter="url(#depth)"/>
-<path d="M352 560 Q352 420 440 372" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="7" stroke-linecap="round"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- KD Squares brand: primary #006994, cyan #00ECFF, gold #D6AC50 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#0a8fbd"/><stop offset="0.5" stop-color="#006994"/><stop offset="1" stop-color="#00364f"/></linearGradient>
+    <radialGradient id="glow" cx="0.28" cy="0.2" r="0.75"><stop offset="0" stop-color="#8ff6ff" stop-opacity="0.30"/><stop offset="1" stop-color="#8ff6ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="core" cx="0.34" cy="0.28" r="0.85"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#d9f6fb"/><stop offset="1" stop-color="#7fd3e6"/></radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#66f2ff"/><stop offset="0.5" stop-color="#ffffff"/><stop offset="1" stop-color="#66f2ff"/></linearGradient>
+    <radialGradient id="gold" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#f6e2a4"/><stop offset="0.45" stop-color="#d6ac50"/><stop offset="1" stop-color="#a47a28"/></radialGradient>
+    <radialGradient id="halo"><stop offset="0" stop-color="#d6ac50" stop-opacity="0.6"/><stop offset="1" stop-color="#d6ac50" stop-opacity="0"/></radialGradient>
+    <clipPath id="front"><rect x="0" y="512" width="1024" height="512"/></clipPath>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="230" fill="url(#glow)"/>
+  <rect x="3" y="3" width="1018" height="1018" rx="227" fill="none" stroke="#00ecff" stroke-opacity="0.28" stroke-width="6"/>
+  <ellipse cx="512" cy="512" rx="440" ry="190" fill="none" stroke="#00ecff" stroke-opacity="0.30" stroke-width="8" transform="rotate(-24 512 512)"/>
+  <g fill="#ffffff"><circle cx="170" cy="230" r="11" opacity=".75"/><circle cx="868" cy="800" r="9" opacity=".6"/><circle cx="262" cy="812" r="7" opacity=".5"/><circle cx="800" cy="196" r="6" opacity=".45"/></g>
+  <g transform="rotate(-24 512 512)"><ellipse cx="512" cy="512" rx="372" ry="148" fill="none" stroke="url(#ring)" stroke-width="54" opacity="0.92"/></g>
+  <ellipse cx="520" cy="742" rx="150" ry="30" fill="#001e2e" opacity="0.4" filter="url(#soft)"/>
+  <circle cx="512" cy="512" r="196" fill="url(#core)"/>
+  <ellipse cx="440" cy="430" rx="78" ry="48" fill="#ffffff" opacity="0.6" transform="rotate(-30 440 430)"/>
+  <g transform="rotate(-24 512 512)"><g clip-path="url(#front)"><ellipse cx="512" cy="512" rx="372" ry="148" fill="none" stroke="url(#ring)" stroke-width="54"/></g></g>
+  <circle cx="739" cy="306" r="118" fill="url(#halo)"/>
+  <circle cx="739" cy="306" r="70" fill="url(#gold)" stroke="#006994" stroke-width="16"/>
+  <circle cx="718" cy="284" r="19" fill="#ffffff" opacity="0.75"/>
 </svg>

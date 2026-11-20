@@ -32,6 +32,8 @@ const TAB_IDS = Object.keys(TAB_URLS);
 const BAR_HEIGHT = 40;
 const SMOKE = process.argv.includes('--smoke');
 const ICON = path.join(__dirname, 'build', 'icon.png');
+// the tray has its own small, simplified icon (tray.png, with tray@2x.png and tray@3x.png for sharper screens)
+const TRAY_ICON = path.join(__dirname, 'build', 'tray.png');
 const NAME = 'KD Ops';
 
 let win = null;
@@ -271,6 +273,8 @@ function createWindow() {
     height: s.height || 900,
     minWidth: 900,
     minHeight: 600,
+    // the automatic tests open their windows far off-screen so they never pop up on anyone's desktop
+    ...(process.env.KD_OPS_TEST ? { x: -4000, y: -4000 } : {}),
     backgroundColor: '#0b0f17',
     title: NAME,
     icon: ICON,
@@ -357,8 +361,8 @@ function trayMenu() {
 }
 
 function createTray() {
-  const img = nativeImage.createFromPath(ICON).resize({ width: 18, height: 18 });
-  tray = new Tray(img);
+  const img = nativeImage.createFromPath(TRAY_ICON);
+  tray = new Tray(img.isEmpty() ? nativeImage.createFromPath(ICON).resize({ width: 18, height: 18 }) : img);
   tray.setToolTip(NAME);
   tray.on('click', () => { if (win && win.isVisible() && win.isFocused()) win.hide(); else showWindow(); });
   tray.setContextMenu(trayMenu());
@@ -405,7 +409,19 @@ async function askMacAccess() {
 // so they can never be mixed up with the Time Tracker's releases.
 function installUpdateNow() {
   quitting = true;
-  try { autoUpdater.quitAndInstall(false, true); } catch { app.quit(); }
+  // silent: no installer wizard, the app closes, updates and starts again by itself
+  logUpdate('restart to update requested');
+  try { autoUpdater.quitAndInstall(true, true); } catch (e) { logUpdate('quitAndInstall failed: ' + (e && e.message)); app.quit(); }
+}
+
+// A small log of what the updater does (userData/updater.log), so "it did not update" can be answered by reading it.
+function logUpdate(...parts) {
+  try {
+    const file = path.join(app.getPath('userData'), 'updater.log');
+    try { if (fs.statSync(file).size > 200000) fs.writeFileSync(file, ''); } catch { /* no log yet */ }
+    fs.appendFileSync(file, `${new Date().toISOString()} ${parts.map((p) => (p && p.stack) || String(p)).join(' ')}
+`);
+  } catch { /* logging must never break the app */ }
 }
 
 function initAutoUpdater() {
@@ -413,9 +429,13 @@ function initAutoUpdater() {
   try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('error', () => { /* offline or no new version file: try again at the next check */ });
+  autoUpdater.logger = { info: (...a) => logUpdate('info', ...a), warn: (...a) => logUpdate('warn', ...a), error: (...a) => logUpdate('error', ...a), debug: () => undefined };
+  logUpdate('updater ready, app version', app.getVersion());
+  autoUpdater.on('error', (e) => { logUpdate('updater error:', e); /* offline or no new version file: try again at the next check */ });
+  autoUpdater.on('update-available', (info) => logUpdate('update available', info.version));
   autoUpdater.on('update-downloaded', (info) => {
     updateReadyVersion = info.version;
+    logUpdate('update downloaded', info.version);
     rebuildTray();
     const n = new Notification({
       title: NAME,
@@ -500,6 +520,6 @@ app.whenReady().then(() => {
 });
 
 app.on('activate', () => showWindow());
-app.on('before-quit', () => { quitting = true; });
+app.on('before-quit', () => { quitting = true; if (updateReadyVersion) logUpdate('quitting with update', updateReadyVersion, 'ready to install'); });
 // closing the last window must not quit (the tray keeps you in the office)
 app.on('window-all-closed', () => { if (SMOKE || process.platform !== 'darwin') { if (quitting || SMOKE) app.quit(); } });
