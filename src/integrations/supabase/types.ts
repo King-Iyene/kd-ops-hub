@@ -11975,6 +11975,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         Insert: {
           advance_reason?: string | null
@@ -12018,6 +12019,7 @@ export type Database = {
           second_approver_id?: string | null
           status?: string
           total_amount?: number
+          updated_at?: string
         }
         Update: {
           advance_reason?: string | null
@@ -12061,6 +12063,7 @@ export type Database = {
           second_approver_id?: string | null
           status?: string
           total_amount?: number
+          updated_at?: string
         }
         Relationships: [
           {
@@ -16710,6 +16713,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      storage_delete_queue: {
+        Row: {
+          attempts: number
+          bucket: string
+          id: number
+          last_error: string | null
+          path: string
+          queued_at: string
+        }
+        Insert: {
+          attempts?: number
+          bucket: string
+          id?: never
+          last_error?: string | null
+          path: string
+          queued_at?: string
+        }
+        Update: {
+          attempts?: number
+          bucket?: string
+          id?: never
+          last_error?: string | null
+          path?: string
+          queued_at?: string
+        }
+        Relationships: []
       }
       subscription_payments: {
         Row: {
@@ -24308,6 +24338,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -24498,6 +24529,10 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: boolean
       }
+      claim_message_campaign_for_sending: {
+        Args: { p_campaign_id: string }
+        Returns: boolean
+      }
       client_finalize_transfer: {
         Args: {
           p_event: string
@@ -24508,6 +24543,11 @@ export type Database = {
         }
         Returns: Json
       }
+      company_settings_is_secret_column: {
+        Args: { p_column: string }
+        Returns: boolean
+      }
+      company_settings_regrant_columns: { Args: never; Returns: undefined }
       complete_offboarding: {
         Args: { p_termination_id: string }
         Returns: {
@@ -24599,6 +24639,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -24718,6 +24759,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -24874,6 +24916,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -24963,6 +25006,8 @@ export type Database = {
           severity: string
         }[]
       }
+      get_company_settings: { Args: never; Returns: Json }
+      get_company_settings_secrets: { Args: never; Returns: Json }
       get_current_rate: {
         Args: { p_base: string; p_quote: string }
         Returns: number
@@ -25179,6 +25224,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -25762,6 +25808,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -25886,6 +25933,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -26143,6 +26191,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -26196,6 +26245,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -26253,6 +26303,7 @@ export type Database = {
           second_approver_id: string | null
           status: string
           total_amount: number
+          updated_at: string
         }
         SetofOptions: {
           from: "*"
@@ -26267,12 +26318,14 @@ export type Database = {
       }
       tick_batch_worker: { Args: never; Returns: undefined }
       tick_campaign_scheduler: { Args: never; Returns: undefined }
+      tick_data_retention_runner: { Args: never; Returns: undefined }
       tick_fx_rate_sync: { Args: never; Returns: undefined }
       tick_heyreach_sync: { Args: never; Returns: undefined }
       tick_payment_reconciliation: { Args: never; Returns: undefined }
       tick_payroll_disburse: { Args: never; Returns: undefined }
       tick_payroll_scheduler: { Args: never; Returns: undefined }
       tick_timetrack_export_runner: { Args: never; Returns: undefined }
+      tick_timetrack_screenshot_cleaner: { Args: never; Returns: undefined }
       tick_webhook_retry_worker: { Args: never; Returns: undefined }
       time_admin_unlock_week: {
         Args: { p_approval_id: string; p_reason: string }
@@ -26430,6 +26483,13 @@ export type Database = {
         Returns: string
       }
       time_submit_week: { Args: { p_week_start: string }; Returns: string }
+      timetrack_orphan_screenshot_objects: {
+        Args: { p_limit?: number; p_min_age?: string }
+        Returns: {
+          created_at: string
+          name: string
+        }[]
+      }
       tm_form_cond_met: {
         Args: { p_ans: Json; p_op: string; p_val: Json }
         Returns: boolean
