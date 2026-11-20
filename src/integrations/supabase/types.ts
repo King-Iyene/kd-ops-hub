@@ -24810,6 +24810,15 @@ export type Database = {
             }
             Returns: Json
           }
+      cron_last_errors: {
+        Args: never
+        Returns: {
+          error: string
+          job_name: string
+          started_at: string
+          status: string
+        }[]
+      }
       current_tenant_id: { Args: never; Returns: string }
       current_user_is_active: { Args: never; Returns: boolean }
       current_user_is_hr_admin: { Args: never; Returns: boolean }
