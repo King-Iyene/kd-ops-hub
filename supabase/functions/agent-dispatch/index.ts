@@ -9,7 +9,7 @@
 import { serviceClient } from '../_shared/agent-claude.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
-import { mentionFor } from '../_shared/agent-mention.ts';
+import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
 import { MAX_ATTEMPTS, formatFlag, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
@@ -48,22 +48,13 @@ Deno.serve(async (req) => {
         let person: string | null = null;
         if (f.person_id) person = (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null;
         msg = formatFlag(f as FlagRow, person, appUrl);
-        // Tag the person it is about (their manager for items waiting for review), so the right person is notified in the channel.
+        // Tag the person it is about (their manager for items waiting for review), so the right person is notified in the channel,
+        // and CC the person's manager unless the connection says not to.
         let who: string | null = f.person_id ?? null;
-        if (who && (f.rule_code === 'TK08' || f.rule_code === 'TK13')) {
-          who = (await db.from('profiles').select('reporting_manager_id').eq('id', who).maybeSingle()).data?.reporting_manager_id ?? who;
-        }
-        let mention = await mentionFor(db, conn.kind, who);
-        // A connection set to CC the manager also tags the person's manager (when it is not the person already tagged).
-        if (mention && (conn.config as Record<string, unknown>).cc_manager === true && f.person_id) {
-          const { data: fl } = await db.from('agent_flags').select('manager_id').eq('id', f.id).maybeSingle();
-          const managerId = (fl?.manager_id as string | null) ?? ((await db.from('profiles').select('reporting_manager_id').eq('id', f.person_id).maybeSingle()).data?.reporting_manager_id as string | null) ?? null;
-          if (managerId && managerId !== who) {
-            const cc = await mentionFor(db, conn.kind, managerId);
-            if (cc) mention = { ...mention, cc: { name: cc.name, id: cc.id } };
-          }
-        }
-        msg = { ...msg, mention };
+        if (who && (f.rule_code === 'TK08' || f.rule_code === 'TK13')) who = (await managerOf(db, who)) ?? who;
+        const mention = await mentionFor(db, conn.kind, who);
+        const cc = (conn.config as Record<string, unknown>).cc_manager !== false && f.person_id ? await ccFor(db, conn.kind, f.person_id, who) : undefined;
+        msg = { ...msg, mention, cc };
       } else if (row.kind === 'record') {
         // A new entry in a Task table, sent through the rule that asked for it.
         const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;

@@ -65,7 +65,7 @@ describe('sending an entry to Cliq', () => {
   });
   it('tags the person and CCs their manager in the channel message', async () => {
     const b = await buildRequest({ kind: 'cliq', name: 'c', config: { mode: 'api', dc: 'com', channel: 'reports' } }, { access: '1000.accesstoken123' }, {
-      title: 'New entry in Reports', text: 'Name: Cara Obi', mention: { name: 'Cara Obi', id: '111', cc: { name: 'Dan', id: '222' } }, link: { url: 'https://ops.kdsquares.com/task/table/x', label: 'Open the table' },
+      title: 'New entry in Reports', text: 'Name: Cara Obi', mention: { name: 'Cara Obi', id: '111' }, cc: { name: 'Dan', id: '222' }, link: { url: 'https://ops.kdsquares.com/task/table/x', label: 'Open the table' },
     });
     if (b.type !== 'http') throw new Error('expected http');
     const text = JSON.parse(b.init.body!).text as string;

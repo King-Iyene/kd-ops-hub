@@ -52,7 +52,7 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
   const picked = usable.find((c) => c.id === connectionId);
   const managerName = manager?.full_name?.trim() || null;
   const canCc = !!picked && supportsMentions(picked.kind) && !!manager && draft.to !== 'manager' && draft.recipient_id !== manager.id;
-  const cc = ccChoice?.id === connectionId ? ccChoice.value : picked?.config.cc_manager === true;
+  const cc = ccChoice?.id === connectionId ? ccChoice.value : picked?.config.cc_manager !== false;
   const tagsPerson = picked?.config.mention_people !== false;
 
   const reset = () => { setSubjectEdit(null); setBodyEdit(null); setProblem(null); };

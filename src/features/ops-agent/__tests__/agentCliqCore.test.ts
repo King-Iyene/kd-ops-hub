@@ -53,7 +53,7 @@ describe('Cliq API message', () => {
   it('posts to the channel with the person tagged and their manager as a CC', async () => {
     const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: cfg }, secrets, {
       title: 'Report missing', text: 'No report yet.',
-      mention: { name: 'Cara', id: '111', cc: { name: 'Dan', id: '222' } },
+      mention: { name: 'Cara', id: '111' }, cc: { name: 'Dan', id: '222' },
     });
     expect(b.type).toBe('http');
     if (b.type !== 'http') return;
@@ -66,9 +66,22 @@ describe('Cliq API message', () => {
     expect(text).toContain('No report yet.');
   });
   it('does not tag anyone when tagging is off', async () => {
-    const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: { ...cfg, mention_people: false } }, secrets, { text: 'Hi', mention: { name: 'Cara', id: '111', cc: { name: 'Dan', id: '222' } } });
+    const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: { ...cfg, mention_people: false } }, secrets, { text: 'Hi', mention: { name: 'Cara', id: '111' }, cc: { name: 'Dan', id: '222' } });
     if (b.type !== 'http') throw new Error('expected http');
     expect(JSON.parse(b.init.body!).text).toBe('Hi');
+  });
+  it('still names the person and the manager when there is no Cliq id to tag with', async () => {
+    const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: cfg }, secrets, { text: 'No tracking', mention: { name: 'Pat', id: '' }, cc: { name: 'Dan', id: '' } });
+    if (b.type !== 'http') throw new Error('expected http');
+    const text = JSON.parse(b.init.body!).text as string;
+    expect(text).toContain('For Pat\n');
+    expect(text).toContain('CC Dan (manager)\n');
+    expect(text).not.toContain('{@');
+  });
+  it('CCs the manager even when the person themselves cannot be tagged', async () => {
+    const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: cfg }, secrets, { text: 'x', cc: { name: 'Dan', id: '222' } });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toBe('CC Dan (manager): {@222}\nx');
   });
   it('refuses a bad data center or channel name', async () => {
     expect((await buildRequest({ kind: 'cliq', name: 'c', config: { ...cfg, dc: 'x.evil' } }, secrets, { text: 'Hi' })).type).toBe('error');

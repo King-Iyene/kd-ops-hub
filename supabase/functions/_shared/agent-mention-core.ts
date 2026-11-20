@@ -5,7 +5,8 @@
 // (default {@%s}, where %s is replaced by the id or email): a wrong guess is fixed in Connections without a new release.
 
 export type MentionKind = 'cliq' | 'slack';
-export interface Mention { name: string; id: string; /** Their manager, tagged as a CC under the person. */ cc?: { name: string; id: string } }
+/** `id` is empty when there is nothing safe to tag with: the message then shows the plain name. */
+export interface Mention { name: string; id: string }
 export interface IdentityRow { cliq_user_id?: string | null; slack_user_id?: string | null; email?: string | null }
 
 export const DEFAULT_MENTION_TEMPLATE: Record<MentionKind, string> = { cliq: '{@%s}', slack: '<@%s>' };

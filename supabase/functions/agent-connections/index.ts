@@ -24,7 +24,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { authenticateAgentCaller, jsonResponse } from '../_shared/agent-auth.ts';
 import { serviceClient } from '../_shared/agent-claude.ts';
-import { mentionFor } from '../_shared/agent-mention.ts';
+import { ccFor, mentionFor } from '../_shared/agent-mention.ts';
 import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
@@ -227,8 +227,8 @@ Deno.serve(async (req) => {
       if (!text) return jsonResponse(cors(req), { ok: false, error: 'There is nothing to send.' }, 400);
       // "Send test and tag me": proves the tag format works before any real person is tagged.
       const mention = isTest && body.tag_me ? await mentionFor(db, conn.kind, actor) : undefined;
-      if (isTest && body.tag_me && !mention && (conn.kind === 'cliq' || conn.kind === 'slack')) return jsonResponse(cors(req), { ok: false, error: 'There is no Cliq or Slack id or email on your profile to tag. Add yours in Settings, People.' }, 400);
-      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text: mention ? 'This is a test message. If your name is highlighted above, tagging works.' : text, event: isTest ? 'test' : 'message', mention }, { saveAccess: accessSaver(db, conn) });
+      if (isTest && body.tag_me && !mention?.id && (conn.kind === 'cliq' || conn.kind === 'slack')) return jsonResponse(cors(req), { ok: false, error: 'There is no Cliq or Slack id or email on your profile to tag. Add yours in Settings, People.' }, 400);
+      const r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: isTest ? 'KD Ops Agent test' : body.title, text: mention?.id ? 'This is a test message. If your name is highlighted above, tagging works.' : text, event: isTest ? 'test' : 'message', mention }, { saveAccess: accessSaver(db, conn) });
       await record(conn.id, r);
       await audit(isTest ? 'connection.tested' : 'connection.sent', conn.id, { ok: r.ok, characters: text.length });
       return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
@@ -256,19 +256,16 @@ Deno.serve(async (req) => {
         const conn = await load(body.connection_id);
         if (!conn) return jsonResponse(cors(req), { ok: false, error: 'That connection no longer exists.' }, 404);
         channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
-        // The person it is about is tagged; with cc_manager (the connection's setting unless the caller says otherwise) their manager is tagged as a CC.
-        let mention = await mentionFor(db, conn.kind, d.recipient_id);
-        const wantCc = body.cc_manager === undefined ? conn.config.cc_manager === true : body.cc_manager === true;
-        if (mention && wantCc) {
-          const { data: fl } = await db.from('agent_flags').select('person_id, manager_id').eq('id', body.flag_id).maybeSingle();
-          const personId = (fl?.person_id as string | null) ?? null;
-          const managerId = (fl?.manager_id as string | null) ?? (personId ? ((await db.from('profiles').select('reporting_manager_id').eq('id', personId).maybeSingle()).data?.reporting_manager_id as string | null) : null);
-          if (managerId && managerId !== d.recipient_id) {
-            const cc = await mentionFor(db, conn.kind, managerId);
-            if (cc) mention = { ...mention, cc: { name: cc.name, id: cc.id } };
-          }
+        // The person it is about is tagged, and their manager is CC'd: the connection's setting unless the caller says otherwise
+        // (on unless the connection turned it off). The manager comes from the one rule in agent_manager_of.
+        const mention = await mentionFor(db, conn.kind, d.recipient_id);
+        const wantCc = body.cc_manager === undefined ? conn.config.cc_manager !== false : body.cc_manager === true;
+        let cc;
+        if (wantCc) {
+          const { data: fl } = await db.from('agent_flags').select('person_id').eq('id', body.flag_id).maybeSingle();
+          cc = await ccFor(db, conn.kind, (fl?.person_id as string | null) ?? d.recipient_id, d.recipient_id);
         }
-        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention }, { saveAccess: accessSaver(db, conn) });
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention, cc }, { saveAccess: accessSaver(db, conn) });
         await record(conn.id, r);
       } else {
         return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);

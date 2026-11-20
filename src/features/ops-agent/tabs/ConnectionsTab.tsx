@@ -81,11 +81,11 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" data-testid="connection-events" aria-label="Sent automatically">
-        {events.length === 0 ? <><span className="text-xs text-muted-foreground">Sends nothing automatically</span>{tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}</> : (
+        {events.length === 0 ? <><span className="text-xs text-muted-foreground">Sends nothing automatically</span>{tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}</> : (
           <>
             <span className="text-xs text-muted-foreground">Sends:</span>
             {events.map((e) => <span key={e} className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium">{SHORT[e] ?? e}</span>)}
-            {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}
+            {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}
             {c.config.min_severity && <span className="rounded-full border px-2 py-0.5 text-2xs text-muted-foreground">{SEVERITY[c.config.min_severity] ?? c.config.min_severity}</span>}
           </>
         )}

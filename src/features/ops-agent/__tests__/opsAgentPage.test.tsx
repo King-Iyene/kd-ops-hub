@@ -1411,7 +1411,7 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(rows[0]).getByTestId('cc-manager-chip')).toBeInTheDocument();
     expect(within(rows[0]).getByTestId('connection-test-tag')).toBeInTheDocument();
     expect(within(rows[1]).getByTestId('connection-mode')).toHaveTextContent('Webhook');
-    expect(within(rows[1]).queryByTestId('cc-manager-chip')).not.toBeInTheDocument();
+    expect(within(rows[1]).getByTestId('cc-manager-chip')).toBeInTheDocument(); // on unless it was turned off
     expect(rows[1]).toHaveTextContent('cliq.zoho.com');
   });
 
@@ -1443,14 +1443,14 @@ describe('Connections: Zoho Cliq through the API', () => {
     expect(within(dialog).getByTestId('zoho-status-tested')).toHaveAttribute('data-done', 'true');
   });
 
-  it('a webhook Cliq connection can also CC the manager, but only sends it when changed', async () => {
+  it('a webhook Cliq connection CCs the manager unless turned off, and only sends the setting when changed', async () => {
     h.tables = { ...BASE_TABLES, agent_connections: [HOOK_ROW] };
     renderAt('/agent/connections');
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Ops via webhook' }));
     const dialog = await screen.findByTestId('connection-dialog');
     expect(within(dialog).getByLabelText('Cliq webhook address')).toBeInTheDocument();
     const cc = within(dialog).getByRole('checkbox', { name: "CC the person's manager" });
-    expect(cc).not.toBeChecked();
+    expect(cc).toBeChecked();
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0].cc_manager).toBeUndefined();
@@ -1458,6 +1458,6 @@ describe('Connections: Zoho Cliq through the API', () => {
     fireEvent.click(cc);
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(saves()).toHaveLength(2));
-    expect(saves()[1].cc_manager).toBe(true);
+    expect(saves()[1].cc_manager).toBe(false);
   });
 });

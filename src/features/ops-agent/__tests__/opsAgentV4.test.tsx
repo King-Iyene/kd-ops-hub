@@ -655,15 +655,15 @@ describe('sending to a Cliq or Slack channel: CC the manager', () => {
     expect(req.cc_manager).toBe(false);
   });
 
-  it('a Slack connection follows its own setting (off here), and ticking sends true', async () => {
+  it('a Slack connection CCs the manager unless it was turned off, and unticking sends false', async () => {
     renderUi(<InboxTab />);
     const sheet = await open();
     await pick(sheet, /Ops Slack/);
     const box = within(sheet).getByRole('checkbox', { name: 'CC Dayo Boss' });
-    expect(box).not.toBeChecked();
+    expect(box).toBeChecked();
     fireEvent.click(box);
     const req = await sendToChannel(sheet);
-    expect(req).toMatchObject({ connection_id: 'sl', cc_manager: true });
+    expect(req).toMatchObject({ connection_id: 'sl', cc_manager: false });
   });
 
   it('is not offered for other connections, and email never carries cc_manager', async () => {

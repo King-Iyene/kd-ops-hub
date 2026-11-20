@@ -105,9 +105,9 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const savedFormat = editing?.config.mention_template ?? '';
   const isCliqApi = preset.mode === 'api';
   const [mentionPeople, setMentionPeople] = useState(editing?.config.mention_people ?? true);
-  // Cliq can also tag the manager of the person an item is about. On by default for the API way, off for an older webhook connection.
+  // Cliq can also tag the manager of the person an item is about. On unless it was turned off.
   const savedCc = editing?.config.cc_manager;
-  const [ccManager, setCcManager] = useState(savedCc ?? isCliqApi);
+  const [ccManager, setCcManager] = useState(savedCc ?? true);
   const [format, setFormat] = useState(savedFormat || defaultFormat);
   const isApi = preset.kind === 'api';
   const fields = preset.fields.filter((f) => !['method', 'header_name', 'query_param', 'body_template'].includes(f.field));
@@ -180,7 +180,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
       if (v('grant_code')) input.grant_code = v('grant_code');
       if (v('refresh_token')) input.refresh_token = v('refresh_token');
       input.cc_manager = ccManager;
-    } else if (preset.kind === 'cliq' && ccManager !== (savedCc ?? false)) input.cc_manager = ccManager;
+    } else if (preset.kind === 'cliq' && ccManager !== (savedCc ?? true)) input.cc_manager = ccManager;
     if (isApi) {
       input.method = api.method;
       input.auth_type = api.auth;

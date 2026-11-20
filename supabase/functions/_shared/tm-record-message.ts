@@ -2,7 +2,7 @@
 // (see tm-record-message-core.ts). Used by the sender (agent-dispatch) and by "Send test" (agent-connections).
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import type { Outgoing } from './agent-deliver-core.ts';
-import { mentionFor } from './agent-mention.ts';
+import { ccFor, mentionFor } from './agent-mention.ts';
 import { buildEntryText, easternTime, findPersonId, type FieldDef, type Names } from './tm-record-message-core.ts';
 
 export interface RecordRule { id: string; table_id: string; connection_id: string; name: string; template: string | null; channel: string | null; tag_person: boolean; cc_manager: boolean }
@@ -44,24 +44,17 @@ export async function buildRecordMessage(db: SupabaseClient, ruleId: string, rec
 
   // Who it is about: the first person in the entry, otherwise whoever submitted it. Their manager is tagged as a CC.
   let mention: Outgoing['mention'];
+  let cc: Outgoing['cc'];
   let personName = '';
   const personId = findPersonId(fields, data) ?? rec.created_by;
   if (personId) {
     personName = names.people[personId] ?? ((await db.from('profiles').select('full_name').eq('id', personId).maybeSingle()).data?.full_name as string | undefined) ?? '';
-    if (r.tag_person) {
-      mention = await mentionFor(db, kind, personId);
-      if (mention && r.cc_manager) {
-        const managerId = (await db.from('profiles').select('reporting_manager_id').eq('id', personId).maybeSingle()).data?.reporting_manager_id as string | null | undefined;
-        if (managerId && managerId !== personId) {
-          const cc = await mentionFor(db, kind, managerId);
-          if (cc) mention = { ...mention, cc: { name: cc.name, id: cc.id } };
-        }
-      }
-    }
+    if (r.tag_person) mention = await mentionFor(db, kind, personId);
+    if (r.cc_manager) cc = await ccFor(db, kind, personId, personId);
   }
   return {
     ok: true, rule: r,
-    msg: { title: text.title, text: text.text, event: 'record', meta: { severity: 'info', rule: r.name, person: personName }, link: { url: link, label: 'Open the table' }, mention },
+    msg: { title: text.title, text: text.text, event: 'record', meta: { severity: 'info', rule: r.name, person: personName }, link: { url: link, label: 'Open the table' }, mention, cc },
   };
 }
 

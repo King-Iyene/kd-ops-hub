@@ -13,7 +13,9 @@ import { messagesUrl, validChannel, validDc } from './agent-cliq-core.ts';
 export interface OutgoingLink { url: string; label: string }
 export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink;
   /** Who the message is about, to be tagged in Cliq or Slack when the connection allows it. */
-  mention?: { name: string; id: string; /** Their manager, tagged as a CC under the person. */ cc?: { name: string; id: string } } }
+  mention?: { name: string; id: string };
+  /** Their manager, shown as a CC under the person (tagged when there is an id, the plain name when there is not). */
+  cc?: { name: string; id: string } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -185,10 +187,11 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     if (!api && !secrets.url) return { type: 'error', error: 'The webhook address is missing.' };
     // Tag the person this is about: a line of its own right under the title, so it notifies them and still reads well.
     // Their manager is tagged on the next line as a CC.
-    const tagging = msg.mention && cfg.mention_people !== false;
+    const tagging = cfg.mention_people !== false;
+    const ref = (n: { name: string; id: string }) => (n.id ? renderMention(conn.kind as 'cliq' | 'slack', cfg.mention_template, n.id) : '');
     const tag = tagging
-      ? `For ${msg.mention!.name}: ${renderMention(conn.kind, cfg.mention_template, msg.mention!.id)}\n`
-        + (msg.mention!.cc ? `CC ${msg.mention!.cc.name} (manager): ${renderMention(conn.kind, cfg.mention_template, msg.mention!.cc.id)}\n` : '')
+      ? (msg.mention ? `For ${msg.mention.name}${ref(msg.mention) ? `: ${ref(msg.mention)}` : ''}\n` : '')
+        + (msg.cc ? `CC ${msg.cc.name} (manager)${ref(msg.cc) ? `: ${ref(msg.cc)}` : ''}\n` : '')
       : '';
     const body = JSON.stringify({ text: title ? `*${title}*\n${tag}${text}` : `${tag}${text}` });
     if (api) {
