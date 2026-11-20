@@ -4,12 +4,27 @@
  * Executes DDL commands (CREATE TABLE, ALTER TABLE, etc.) for the metadata-driven
  * database platform. Receives JSON requests and runs SQL against Postgres.
  *
+ * ACCESS: Super Admin only. This function runs as the database owner (it bypasses RLS and column grants), so
+ * authenticateCaller verifies the JWT and then looks the caller up in public.profiles with the service client:
+ * role must be 'super_admin' and status 'active'. Anyone else gets 403. System schemas are off limits for every
+ * action (see _shared/ddl-guard-core.ts).
+ *
  * DEPENDENCY: Requires the `SUPABASE_DB_URL` environment variable to be available
  * in the Edge Function runtime (set automatically by Supabase for linked projects).
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { Pool } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
+import {
+  BULK_INSERT_BATCH,
+  GuardError,
+  buildDirectQuery,
+  buildInsertBatch,
+  isActiveSuperAdmin,
+  isDeniedSchema,
+  planBulkInsert,
+  quoteIdent,
+} from '../_shared/ddl-guard-core.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -164,7 +179,7 @@ function sanitizeUsingExpression(rawExpression: string): string {
 }
 
 function validateSchemaAccess(schemaName: string): void {
-  if (PROTECTED_SCHEMAS.has(schemaName)) {
+  if (PROTECTED_SCHEMAS.has(schemaName) || isDeniedSchema(schemaName)) {
     throw new ForbiddenError(`Schema "${schemaName}" is protected and cannot be modified.`);
   }
 }
@@ -210,6 +225,18 @@ async function authenticateCaller(
 
   if (error || !user) {
     throw new ForbiddenError('Invalid or expired token.');
+  }
+
+  // Authorisation: an ACTIVE Super Admin only. The role comes from the database row of the verified user id,
+  // read with the service client. It is never taken from the JWT claims (user_metadata is user-writable) or from
+  // the request body.
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, status')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (profileError || !isActiveSuperAdmin(profile)) {
+    throw new ForbiddenError('Only an active Super Admin can use the database tools.');
   }
 
   return { userId: user.id };
@@ -943,15 +970,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if (!jnRows.length) return json({ success: false, error: 'Junction table not found' }, 404);
           const jnTable = jnRows[0].pg_table_name;
 
-          const s = `"${schemaName}"`;
+          // These names come from nc_meta rows (writable by signed-in users), so they are validated and
+          // quoted like any other identifier before they go into SQL.
+          const s = quoteIdent(schemaName, 'schema name');
+          if (isDeniedSchema(schemaName)) throw new ForbiddenError(`Schema "${schemaName}" is protected.`);
+          const qSrc = quoteIdent(srcTable, 'table name');
+          const qJn = quoteIdent(jnTable, 'table name');
+          const qTgt = quoteIdent(tgtTable, 'table name');
+          const qPrimary = quoteIdent(primaryCol, 'column name');
 
           if (lqMode === 'filter') {
             // Return source record IDs where any linked target record's primary field matches
             const sql = `
-              SELECT DISTINCT src."id"::text AS id FROM ${s}."${srcTable}" src
-              JOIN ${s}."${jnTable}" jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
-              JOIN ${s}."${tgtTable}" tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
-              WHERE tgt."${primaryCol}"::text ILIKE $1
+              SELECT DISTINCT src."id"::text AS id FROM ${s}.${qSrc} src
+              JOIN ${s}.${qJn} jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
+              JOIN ${s}.${qTgt} tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
+              WHERE tgt.${qPrimary}::text ILIKE $1
             `;
             const { rows: matchRows } = await lqConn.queryObject<{ id: string }>(sql, [`%${lqSearch}%`]);
             return json({ success: true, ids: matchRows.map((r) => r.id) });
@@ -960,10 +994,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
             const dir = lqDir === 'desc' ? 'DESC' : 'ASC';
             const sql = `
               SELECT src."id"::text AS id,
-                     COALESCE(string_agg(tgt."${primaryCol}"::text, ', ' ORDER BY tgt."${primaryCol}"::text), '') AS linked_names
-              FROM ${s}."${srcTable}" src
-              LEFT JOIN ${s}."${jnTable}" jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
-              LEFT JOIN ${s}."${tgtTable}" tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
+                     COALESCE(string_agg(tgt.${qPrimary}::text, ', ' ORDER BY tgt.${qPrimary}::text), '') AS linked_names
+              FROM ${s}.${qSrc} src
+              LEFT JOIN ${s}.${qJn} jn ON jn."source_id" = src."id" OR jn."target_id" = src."id"
+              LEFT JOIN ${s}.${qTgt} tgt ON (tgt."id" = jn."target_id" OR tgt."id" = jn."source_id") AND tgt."id" != src."id"
               GROUP BY src."id"
               ORDER BY linked_names ${dir}, src."nc_order" ASC
             `;
@@ -975,65 +1009,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
         } finally { lqConn.release(); }
       }
       case 'directQuery': {
-        const { schemaName: dqSchema, tableName: dqTable, columns: dqCols, where: dqWhere, limit: dqLimit, offset: dqOffset } = body;
-        if (!dqSchema || !dqTable) {
-          return json({ success: false, error: 'Missing schemaName or tableName' }, 400);
-        }
+        // Identifiers are validated + quoted, operators whitelisted, values are bind parameters (see ddl-guard-core).
+        const { sql: dqSql, params: dqParams } = buildDirectQuery(body);
+        // The pool holds ONE connection, so release it before logAudit asks for another.
         const dqConn = await pool.connect();
+        let dqRows: unknown[];
         try {
-          const cols = dqCols?.length ? dqCols.map((c: string) => `"${c}"`).join(', ') : '*';
-          let sql = `SELECT ${cols} FROM "${dqSchema}"."${dqTable}"`;
-          const params: unknown[] = [];
-          if (dqWhere) {
-            const clauses: string[] = [];
-            for (const [col, op, val] of dqWhere) {
-              if (op === 'IS NOT' && val === null) {
-                clauses.push(`"${col}" IS NOT NULL`);
-              } else if (op === 'IS' && val === null) {
-                clauses.push(`"${col}" IS NULL`);
-              } else {
-                params.push(val);
-                clauses.push(`"${col}" ${op} $${params.length}`);
-              }
-            }
-            sql += ` WHERE ${clauses.join(' AND ')}`;
-          }
-          if (dqLimit) sql += ` LIMIT ${parseInt(String(dqLimit), 10)}`;
-          if (dqOffset) sql += ` OFFSET ${parseInt(String(dqOffset), 10)}`;
-          const { rows } = await dqConn.queryObject(sql, params);
-          return json({ success: true, rows });
+          dqRows = (await dqConn.queryObject(dqSql, dqParams)).rows;
         } finally { dqConn.release(); }
+        await logAudit(pool, userId, action, {
+          schemaName: body.schemaName,
+          tableName: body.tableName,
+          columns: Array.isArray(body.columns) ? body.columns : null,
+          rowCount: dqRows.length,
+        });
+        return json({ success: true, rows: dqRows });
       }
       case 'bulkInsert': {
-        const { schemaName: biSchema, tableName: biTable, columns: biCols, rows: biRows } = body;
-        if (!biSchema || !biTable || !biCols?.length || !biRows?.length) {
-          return json({ success: false, error: 'Missing schemaName, tableName, columns, or rows' }, 400);
-        }
+        const plan = planBulkInsert(body);
         const conn = await pool.connect();
+        let inserted = 0;
         try {
-          const colList = biCols.map((c: string) => `"${c}"`).join(', ');
-          const batchSize = 200;
-          let inserted = 0;
-          for (let i = 0; i < biRows.length; i += batchSize) {
-            const chunk = biRows.slice(i, i + batchSize);
-            const valueClauses: string[] = [];
-            const params: unknown[] = [];
-            for (const row of chunk) {
-              const placeholders: string[] = [];
-              for (const col of biCols) {
-                params.push(row[col] ?? null);
-                placeholders.push(`$${params.length}`);
-              }
-              valueClauses.push(`(${placeholders.join(', ')})`);
-            }
-            await conn.queryObject(
-              `INSERT INTO "${biSchema}"."${biTable}" (${colList}) VALUES ${valueClauses.join(', ')}`,
-              params,
-            );
+          for (let i = 0; i < plan.rows.length; i += BULK_INSERT_BATCH) {
+            const chunk = plan.rows.slice(i, i + BULK_INSERT_BATCH);
+            const { sql, params } = buildInsertBatch(plan, chunk);
+            await conn.queryObject(sql, params);
             inserted += chunk.length;
           }
-          return json({ success: true, inserted });
         } finally { conn.release(); }
+        await logAudit(pool, userId, action, {
+          schemaName: body.schemaName,
+          tableName: body.tableName,
+          columns: plan.columns,
+          inserted,
+        });
+        return json({ success: true, inserted });
       }
       default:
         return json({ success: false, error: `Unknown action: ${action}` }, 400);
@@ -1054,6 +1064,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   } catch (err) {
     if (err instanceof ForbiddenError) {
       return json({ success: false, error: err.message }, 403);
+    }
+    if (err instanceof GuardError) {
+      return json({ success: false, error: err.message }, err.status);
     }
     console.error('DDL Executor error:', (err as Error).message, (err as Error).stack);
     return json({ success: false, error: (err as Error).message }, 500);

@@ -278,12 +278,13 @@ function AppRoutes() {
       />
 
 
-      {/* Database Platform — full-screen app shell, no KDOps sidebar. */}
+      {/* Database Platform — full-screen app shell, no KDOps sidebar. Super Admin only (the ddl-executor edge
+          function it calls enforces the same rule server-side). */}
       <Route
         path="/data"
         element={
           <AuthGuard>
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -296,7 +297,7 @@ function AppRoutes() {
         path="/data/:baseId"
         element={
           <AuthGuard>
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -308,7 +309,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId"
         element={
           <AuthGuard>
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
@@ -320,7 +321,7 @@ function AppRoutes() {
         path="/data/:baseId/:tableId/:viewId"
         element={
           <AuthGuard>
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <ErrorBoundary>
                 <DatabasePage />
               </ErrorBoundary>
