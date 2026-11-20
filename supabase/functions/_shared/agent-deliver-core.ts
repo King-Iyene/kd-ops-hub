@@ -16,6 +16,8 @@ export interface Outgoing { title?: string; text: string; event?: string; meta?:
   mention?: { name: string; id: string };
   /** Their manager, shown as a CC under the person (tagged when there is an id, the plain name when there is not). */
   cc?: { name: string; id: string };
+  /** Other people named in the text as "@Full Name" (for example each manager in a scorecard): tagged where they have an id. */
+  mentions?: { name: string; id: string }[];
   /**
    * A message written to the person it is about: what was noticed, a question, and (when their manager is known) a line at the bottom
    * asking the manager to follow up. Cliq and Slack lay it out with tags; other tools show `text`.
@@ -204,6 +206,10 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
       for (const k of ['mention', 'cc'] as const) {
         const n = k === 'mention' ? msg.mention : msg.cc;
         if (n?.name && inline.includes(`@${n.name}`)) { inline = inline.replace(`@${n.name}`, ref(n) || n.name); named[k] = true; }
+      }
+      // everyone else named as "@Full Name" (each manager on a scorecard), every time they appear
+      for (const n of msg.mentions ?? []) {
+        if (n?.name && n.id) inline = inline.split(`@${n.name}`).join(ref(n));
       }
     }
     const tag = tagging && !msg.ask

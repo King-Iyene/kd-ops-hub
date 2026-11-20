@@ -23891,6 +23891,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      agent_fmt_span: { Args: { p_min: number }; Returns: string }
       agent_fmt_ts: { Args: { p_ts: string; p_tz: string }; Returns: string }
       agent_generate_summary: { Args: { p_kind: string }; Returns: string }
       agent_hm: { Args: { p_min: number }; Returns: string }

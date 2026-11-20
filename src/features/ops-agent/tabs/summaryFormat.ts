@@ -13,13 +13,13 @@ function parse(d: string): { y: number; m: number; day: number } | null {
 
 const short = (d: string) => { const p = parse(d); return p ? `${MONTHS[p.m].slice(0, 3)} ${p.day}` : d; };
 
-export const KIND_LABEL: Record<SummaryKind, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly' };
+export const KIND_LABEL: Record<SummaryKind, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly', briefing: 'Briefing', scorecard: 'Scorecard' };
 
 /** "Thursday, Nov 19" for a day, "Nov 9 to Nov 15" for a week, "November 2026" for a month. */
 export function periodLabel(kind: string, start: string, end: string): string {
   const s = parse(start);
   const e = parse(end);
-  if (kind === 'day' && s) return `${DAYS[new Date(Date.UTC(s.y, s.m, s.day)).getUTCDay()]}, ${short(start)}`;
+  if ((kind === 'day' || kind === 'briefing') && s) return `${DAYS[new Date(Date.UTC(s.y, s.m, s.day)).getUTCDay()]}, ${short(start)}`;
   if (kind === 'month' && e) return `${MONTHS[e.m]} ${e.y}`;
   return `${short(start)} to ${short(end)}`;
 }
@@ -50,7 +50,7 @@ export function groupByMonth(rows: AgentSummary[]): { key: string; heading: stri
 }
 
 export type KindsShown = Record<SummaryKind, boolean>;
-export const DEFAULT_KINDS: KindsShown = { day: true, week: false, month: false };
+export const DEFAULT_KINDS: KindsShown = { day: true, week: false, month: false, briefing: true, scorecard: true };
 const STORAGE_KEY = 'kd-agent-summary-kinds';
 
 /** Remembered per browser. Any failure (private window, blocked storage, bad value) falls back to Daily only. */
@@ -59,7 +59,7 @@ export function loadKinds(): KindsShown {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_KINDS;
     const v = JSON.parse(raw) as Partial<KindsShown>;
-    return { day: v.day !== false, week: v.week === true, month: v.month === true };
+    return { day: v.day !== false, week: v.week === true, month: v.month === true, briefing: v.briefing !== false, scorecard: v.scorecard !== false };
   } catch { return DEFAULT_KINDS; }
 }
 

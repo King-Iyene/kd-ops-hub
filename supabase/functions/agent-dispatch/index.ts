@@ -12,7 +12,7 @@ import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
-import { MAX_ATTEMPTS, formatFlag, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
+import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
 
 function equal(a: string | null, b: string | undefined): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   try {
     const { data: rows } = await db.from('agent_outbox').select('id, connection_id, kind, ref_id, rule_id, attempts').eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true }).limit(20);
-    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary' | 'record'; ref_id: string; rule_id: string | null; attempts: number }[]) {
+    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary' | 'record' | 'followup'; ref_id: string; rule_id: string | null; attempts: number }[]) {
       const finish = (patch: Record<string, unknown>) => db.from('agent_outbox').update(patch).eq('id', row.id);
       const { data: conn } = await db.from('agent_connections').select('id, kind, name, config, vault_secret_names').eq('id', row.connection_id).maybeSingle();
       if (!conn) { await finish({ status: 'failed', error: 'The connection was deleted.' }); out.failed++; continue; }
@@ -55,6 +55,18 @@ Deno.serve(async (req) => {
         const mention = await mentionFor(db, conn.kind, who);
         const cc = (conn.config as Record<string, unknown>).cc_manager !== false && f.person_id ? await ccFor(db, conn.kind, f.person_id, who) : undefined;
         msg = { ...formatFlag(f as FlagRow, person, { toManager }), mention, cc: toManager ? undefined : cc };
+      } else if (row.kind === 'followup') {
+        // Nothing changed after a message: a follow-up to the person, then (a day later) their manager is asked to step in.
+        const { data: fu } = await db.from('agent_followups').select('flag_id, stage').eq('id', row.ref_id).maybeSingle();
+        const { data: f } = fu ? await db.from('agent_flags').select('id, rule_code, severity, title, why, suggested_action, item_type, person_id').eq('id', fu.flag_id).maybeSingle() : { data: null };
+        if (!fu || !f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
+        const person = f.person_id ? (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null : null;
+        const managerId = await managerOf(db, f.person_id);
+        const managerName = managerId ? (await db.from('profiles').select('full_name').eq('id', managerId).maybeSingle()).data?.full_name ?? null : null;
+        const toManager = fu.stage >= 2 && !!managerId;
+        const mention = await mentionFor(db, conn.kind, toManager ? managerId : f.person_id);
+        const cc = !toManager && (conn.config as Record<string, unknown>).cc_manager !== false && f.person_id ? await ccFor(db, conn.kind, f.person_id, f.person_id) : undefined;
+        msg = { ...formatFollowup(f as FlagRow, person, fu.stage, managerName), mention, cc };
       } else if (row.kind === 'record') {
         // A new entry in a Task table, sent through the rule that asked for it.
         const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;
@@ -62,9 +74,15 @@ Deno.serve(async (req) => {
         msg = built.msg;
         sendConfig = effectiveConfig(conn.config as Record<string, unknown>, conn.kind as string, built.rule);
       } else {
-        const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
+        const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative, metrics').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }
         msg = formatSummary(s as SummaryRow);
+        // The Monday scorecard names each manager as "@Name": tag them in Cliq and Slack.
+        if (s.period_kind === 'scorecard') {
+          const managers = ((s.metrics as { managers?: { manager_id: string | null }[] } | null)?.managers ?? []).filter((m) => m.manager_id).slice(0, 40);
+          const tags = await Promise.all(managers.map((m) => mentionFor(db, conn.kind, m.manager_id)));
+          msg = { ...msg, mentions: tags.filter((t): t is { name: string; id: string } => !!t) };
+        }
       }
 
       const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: sendConfig }, await readConnectionSecrets(db, conn as { id: string; vault_secret_names: string[] }), msg, { saveAccess: accessSaver(db, conn as { id: string; vault_secret_names: string[] }) });

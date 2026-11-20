@@ -7,13 +7,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAgentSummaries } from '@/queries/useOpsAgent';
-import { useAgentRules, useGenerateSummary, usePeopleDirectory, type SummaryKind } from '@/queries/useOpsAgentV4';
+import { useAgentRules, useGenerateSummary, usePeopleDirectory, type GenerateKind, type SummaryKind } from '@/queries/useOpsAgentV4';
 import { useAgentToast } from '../settings/useAgentToast';
 import { SummaryCard } from './SummaryCard';
 import { byNewest, groupByMonth, KIND_LABEL, loadKinds, saveKinds, type KindsShown } from './summaryFormat';
 
-const SCHEDULE = 'Daily at 6:30 PM Eastern on working days; weekly on the last working day of the week; monthly on the last working day of the month.';
-const KINDS: SummaryKind[] = ['day', 'week', 'month'];
+const SCHEDULE = 'Briefing at 7:00 AM Eastern on working days; daily summary at 6:30 PM; weekly on the last working day of the week; monthly on the last working day of the month; scorecard on the first working day of the week at 8:00 AM.';
+const KINDS: SummaryKind[] = ['briefing', 'day', 'scorecard', 'week', 'month'];
+const GENERATE_KINDS: GenerateKind[] = ['day', 'week', 'month'];
 
 /**
  * Daily, weekly and monthly write-ups, grouped by month. Daily is shown; Weekly and Monthly are hidden until you turn them on
@@ -36,7 +37,7 @@ export function SummariesTab() {
   const counts = useMemo(() => Object.fromEntries(KINDS.map((k) => [k, rows.filter((r) => r.period_kind === k).length])) as Record<SummaryKind, number>, [rows]);
 
   const toggle = (k: SummaryKind) => setShown((s) => { const next = { ...s, [k]: !s[k] }; saveKinds(next); return next; });
-  const make = (k: SummaryKind) => generate.mutate(k, {
+  const make = (k: GenerateKind) => generate.mutate(k, {
     onSuccess: () => notify({ title: `${KIND_LABEL[k]} summary made`, description: 'It is at the top of its month.' }),
     onError: toast.failed,
   });
@@ -67,7 +68,7 @@ export function SummariesTab() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {KINDS.map((k) => <DropdownMenuItem key={k} onSelect={() => make(k)} data-testid={`generate-${k}`}>{KIND_LABEL[k]}</DropdownMenuItem>)}
+          {GENERATE_KINDS.map((k) => <DropdownMenuItem key={k} onSelect={() => make(k)} data-testid={`generate-${k}`}>{KIND_LABEL[k]}</DropdownMenuItem>)}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -90,7 +91,7 @@ export function SummariesTab() {
       {toolbar}
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground" data-testid="summaries-none-shown">
-          {KINDS.every((k) => !shown[k]) ? 'Nothing is shown. Turn on Daily, Weekly or Monthly above.' : 'No summaries of the kinds you are showing yet. Turn on Weekly or Monthly above, or use Generate now.'}
+          {KINDS.every((k) => !shown[k]) ? 'Nothing is shown. Turn on a kind of summary above.' : 'No summaries of the kinds you are showing yet. Turn on Weekly or Monthly above, or use Generate now.'}
         </p>
       ) : groups.map((g) => (
         <section key={g.key} aria-label={g.heading} data-testid="summary-group">
