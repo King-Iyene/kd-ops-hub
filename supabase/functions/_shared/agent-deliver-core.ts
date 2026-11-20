@@ -15,7 +15,12 @@ export interface Outgoing { title?: string; text: string; event?: string; meta?:
   /** Who the message is about, to be tagged in Cliq or Slack when the connection allows it. */
   mention?: { name: string; id: string };
   /** Their manager, shown as a CC under the person (tagged when there is an id, the plain name when there is not). */
-  cc?: { name: string; id: string } }
+  cc?: { name: string; id: string };
+  /**
+   * A message written to the person it is about: what was noticed, a question, and (when their manager is known) a line at the bottom
+   * asking the manager to follow up. Cliq and Slack lay it out with tags; other tools show `text`.
+   */
+  ask?: { observation: string; question: string; followUp: string } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -193,7 +198,15 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
       ? (msg.mention ? `For ${msg.mention.name}${ref(msg.mention) ? `: ${ref(msg.mention)}` : ''}\n` : '')
         + (msg.cc ? `CC ${msg.cc.name} (manager)${ref(msg.cc) ? `: ${ref(msg.cc)}` : ''}\n` : '')
       : '';
-    const body = JSON.stringify({ text: title ? `*${title}*\n${tag}${text}` : `${tag}${text}` });
+    // Written to the person: they are addressed and asked what is going on, and their manager is tagged at the bottom to follow up.
+    let content = `${tag}${text}`;
+    if (msg.ask && tagging && msg.mention) {
+      const who = ref(msg.mention) || msg.mention.name;
+      const lines = [`${who}, here is what we noticed: ${msg.ask.observation}`, msg.ask.question];
+      if (msg.cc && msg.ask.followUp) lines.push('', `${ref(msg.cc) || msg.cc.name} ${msg.ask.followUp}`);
+      content = lines.join('\n');
+    }
+    const body = JSON.stringify({ text: title ? `*${title}*\n${content}` : content });
     if (api) {
       if (!validDc(cfg.dc)) return { type: 'error', error: 'The Zoho data center is missing.' };
       if (!validChannel(cfg.channel)) return { type: 'error', error: 'The channel unique name is missing or not valid (lowercase letters, digits and underscores).' };

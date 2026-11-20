@@ -7,17 +7,27 @@ export interface FlagRow { id: string; rule_code: string; severity: string; titl
 
 const LABEL: Record<string, string> = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW', info: 'INFO' };
 
-export function formatFlag(f: FlagRow, personName: string | null, appUrl?: string): Outgoing {
-  const lines = [f.why.trim()];
-  if (personName) lines.push(`Person: ${personName}`);
-  if (f.suggested_action) lines.push(`Suggested: ${f.suggested_action.trim()}`);
-  lines.push('Open the card in the Ops Agent Inbox for the full detail and a drafted message.');
+const firstName = (n: string | null | undefined) => (n ?? '').trim().split(/\s+/)[0] ?? '';
+
+/**
+ * An Inbox item as a message in another tool. It is written to the person it is about: what was noticed, and a question asking what
+ * is going on. In Cliq and Slack their manager is tagged at the bottom, asked to follow up and get clarity (see `ask` in
+ * agent-deliver-core.ts). An item waiting for a manager's review is addressed to the manager. There is no suggestion and no link
+ * into the Agent: the people who read the channel cannot open it.
+ */
+export function formatFlag(f: FlagRow, personName: string | null, opts: { toManager?: boolean } = {}): Outgoing {
+  const observation = f.why.trim();
+  const first = firstName(personName);
+  const question = opts.toManager ? 'Could you take a look and let us know what is happening?' : 'Can you tell us what is going on with this?';
   return {
-    link: appUrl ? { url: `${appUrl}/agent/inbox?flag=${f.id}`, label: 'Open this item' } : undefined,
     title: `[${LABEL[f.severity] ?? f.severity.toUpperCase()}] ${f.title}`.slice(0, 200),
-    text: lines.filter(Boolean).join('\n'),
+    // what a tool that cannot tag sees (webhook, email, Teams ...)
+    text: [observation, personName ? question : ''].filter(Boolean).join('\n'),
     event: 'flag',
     meta: { severity: f.severity, rule: f.rule_code, person: personName ?? '' },
+    ask: personName
+      ? { observation, question, followUp: opts.toManager || !first ? '' : `please follow up with ${first} and get clarity on what is happening.` }
+      : undefined,
   };
 }
 
@@ -28,10 +38,10 @@ export function plainText(md: string): string {
   return md.replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-export function formatSummary(s: SummaryRow, appUrl?: string): Outgoing {
+export function formatSummary(s: SummaryRow): Outgoing {
   const kind = s.period_kind === 'day' ? 'Daily' : s.period_kind === 'week' ? 'Weekly' : 'Monthly';
   const when = s.period_start === s.period_end ? s.period_start : `${s.period_start} to ${s.period_end}`;
-  return { title: `${kind} summary, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }, link: appUrl ? { url: `${appUrl}/agent/summaries`, label: 'Open the summaries' } : undefined };
+  return { title: `${kind} summary, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }};
 }
 
 /** At most this many tries; a message that keeps failing stops being tried and shows as failed. */

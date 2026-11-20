@@ -2,20 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { MAX_ATTEMPTS, formatFlag, formatSummary, plainText } from '../../../../supabase/functions/_shared/agent-dispatch-core';
 
 describe('formatFlag', () => {
-  const f = { id: '1', rule_code: 'TR01', severity: 'high', title: 'Not tracking time', why: 'Cara has not tracked since 9:20 AM EST.', suggested_action: 'Ask her to start a timer.', item_type: 'flag' };
-  it('reads well in any tool', () => {
-    const m = formatFlag(f, 'Cara');
+  const f = { id: '1', rule_code: 'TR01', severity: 'high', title: 'Not tracking time', why: 'Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.', suggested_action: 'Ask her to start a timer.', item_type: 'flag' };
+  it('is written to the person: what was noticed and a question, with no suggestion and no link', () => {
+    const m = formatFlag(f, 'Cara Obi');
     expect(m.title).toBe('[HIGH] Not tracking time');
-    expect(m.text).toContain('Cara has not tracked since 9:20 AM EST.');
-    expect(m.text).toContain('Person: Cara');
-    expect(m.text).toContain('Suggested: Ask her to start a timer.');
+    expect(m.text).toBe('Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.\nCan you tell us what is going on with this?');
+    expect(m.text).not.toContain('Suggested');
+    expect(m.text).not.toContain('Ops Agent');
+    expect(m.link).toBeUndefined();
+    expect(m.ask).toEqual({ observation: f.why, question: 'Can you tell us what is going on with this?', followUp: 'please follow up with Cara and get clarity on what is happening.' });
     expect(m.event).toBe('flag');
-    expect(m.meta).toEqual({ severity: 'high', rule: 'TR01', person: 'Cara' });
+    expect(m.meta).toEqual({ severity: 'high', rule: 'TR01', person: 'Cara Obi' });
   });
-  it('has no person line for a system item', () => {
-    const m = formatFlag({ ...f, rule_code: 'LN01', suggested_action: null }, null);
-    expect(m.text).not.toContain('Person:');
-    expect(m.text).not.toContain('Suggested:');
+  it('has no question or follow up for a system item', () => {
+    const m = formatFlag({ ...f, rule_code: 'LN01', suggested_action: null, why: '3 loan requests are waiting.' }, null);
+    expect(m.text).toBe('3 loan requests are waiting.');
+    expect(m.ask).toBeUndefined();
+  });
+  it('an item waiting for a manager is put to the manager, with no follow up line', () => {
+    const m = formatFlag({ ...f, rule_code: 'TK08', why: 'A task is waiting for review.' }, 'Cara Obi', { toManager: true });
+    expect(m.ask).toEqual({ observation: 'A task is waiting for review.', question: 'Could you take a look and let us know what is happening?', followUp: '' });
   });
 });
 
@@ -31,11 +37,8 @@ describe('formatSummary', () => {
 
 describe('retries', () => { it('stops after a few tries', () => { expect(MAX_ATTEMPTS).toBe(4); }); });
 
-describe('links', () => {
-  it('a flag and a summary carry a link back to the agent', () => {
-    const f = { id: 'abc', rule_code: 'TR01', severity: 'high', title: 'T', why: 'w', suggested_action: null, item_type: 'flag' };
-    expect(formatFlag(f, null, 'https://ops.kdsquares.com').link).toEqual({ url: 'https://ops.kdsquares.com/agent/inbox?flag=abc', label: 'Open this item' });
-    expect(formatFlag(f, null).link).toBeUndefined();
-    expect(formatSummary({ period_kind: 'day', period_start: 'a', period_end: 'a', narrative: 'x' }, 'https://ops.kdsquares.com').link?.url).toBe('https://ops.kdsquares.com/agent/summaries');
+describe('no link into the Agent', () => {
+  it('a summary carries no link, because the people who read the channel cannot open the Agent', () => {
+    expect(formatSummary({ period_kind: 'day', period_start: 'a', period_end: 'a', narrative: 'x' }).link).toBeUndefined();
   });
 });

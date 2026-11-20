@@ -47,14 +47,14 @@ Deno.serve(async (req) => {
         if (!f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
         let person: string | null = null;
         if (f.person_id) person = (await db.from('profiles').select('full_name').eq('id', f.person_id).maybeSingle()).data?.full_name ?? null;
-        msg = formatFlag(f as FlagRow, person, appUrl);
         // Tag the person it is about (their manager for items waiting for review), so the right person is notified in the channel,
         // and CC the person's manager unless the connection says not to.
         let who: string | null = f.person_id ?? null;
         if (who && (f.rule_code === 'TK08' || f.rule_code === 'TK13')) who = (await managerOf(db, who)) ?? who;
+        const toManager = who !== null && who !== f.person_id;
         const mention = await mentionFor(db, conn.kind, who);
         const cc = (conn.config as Record<string, unknown>).cc_manager !== false && f.person_id ? await ccFor(db, conn.kind, f.person_id, who) : undefined;
-        msg = { ...msg, mention, cc };
+        msg = { ...formatFlag(f as FlagRow, person, { toManager }), mention, cc: toManager ? undefined : cc };
       } else if (row.kind === 'record') {
         // A new entry in a Task table, sent through the rule that asked for it.
         const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       } else {
         const { data: s } = await db.from('agent_summaries').select('period_kind, period_start, period_end, narrative').eq('id', row.ref_id).maybeSingle();
         if (!s) { await finish({ status: 'failed', error: 'The summary no longer exists.' }); out.failed++; continue; }
-        msg = formatSummary(s as SummaryRow, appUrl);
+        msg = formatSummary(s as SummaryRow);
       }
 
       const r = await deliver({ kind: conn.kind as ConnectionKind, name: conn.name, config: sendConfig }, await readConnectionSecrets(db, conn as { id: string; vault_secret_names: string[] }), msg, { saveAccess: accessSaver(db, conn as { id: string; vault_secret_names: string[] }) });

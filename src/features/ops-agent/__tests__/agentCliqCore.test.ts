@@ -48,6 +48,29 @@ describe('Cliq API pieces', () => {
   });
 });
 
+describe('Cliq API message to the person, with the manager at the bottom', () => {
+  const ask = { observation: 'Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.', question: 'Can you tell us what is going on with this?', followUp: 'please follow up with Cara and get clarity on what is happening.' };
+  const conn = { kind: 'cliq' as const, name: 'Cliq', config: { mode: 'api', dc: 'com', channel: 'ops_alerts' } };
+  it('addresses the person with a tag, asks what is happening, and tags the manager last', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: '[HIGH] Not tracking time', text: 'x', mention: { name: 'Cara Obi', id: '111' }, cc: { name: 'Dan', id: '222' }, ask });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toBe('*[HIGH] Not tracking time*\n{@111}, here is what we noticed: Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.\nCan you tell us what is going on with this?\n\n{@222} please follow up with Cara and get clarity on what is happening.');
+  });
+  it('uses plain names when there is nothing to tag with, and leaves out the manager line when there is no manager', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'T', text: 'x', mention: { name: 'Cara Obi', id: '' }, ask });
+    if (b.type !== 'http') throw new Error('expected http');
+    const text = JSON.parse(b.init.body!).text as string;
+    expect(text).toContain('Cara Obi, here is what we noticed:');
+    expect(text).not.toContain('follow up');
+    expect(text).not.toContain('{@');
+  });
+  it('shows just the plain text when tagging is off', async () => {
+    const b = await buildRequest({ ...conn, config: { ...conn.config, mention_people: false } }, { access: '1000.accesstoken123' }, { title: 'T', text: 'Plain text', mention: { name: 'Cara', id: '111' }, ask });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toBe('*T*\nPlain text');
+  });
+});
+
 describe('Cliq API message', () => {
   const secrets = { access: '1000.accesstoken123' };
   it('posts to the channel with the person tagged and their manager as a CC', async () => {
