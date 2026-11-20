@@ -23905,7 +23905,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      agent_build_briefing: { Args: { p_now?: string }; Returns: Json }
       agent_build_scorecard: { Args: { p_mon: string }; Returns: Json }
       agent_build_summary: {
         Args: { p_end: string; p_kind: string; p_start: string }
@@ -24039,7 +24038,6 @@ export type Database = {
       agent_role: { Args: never; Returns: string }
       agent_rule_bk01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_bk02: { Args: { p_now?: string }; Returns: Json }
-      agent_rule_br01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ct01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
