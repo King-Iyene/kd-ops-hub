@@ -74,7 +74,7 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
 
       {open && (
         <div id={bodyId} className="space-y-4 border-t px-4 pb-4 pt-3">
-          {m && (
+          {m && !['briefing', 'scorecard'].includes(summary.period_kind) && (
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4" data-testid="summary-tiles">
               <Tile testId="tile-tracking" label="Tracking" main={of(m.tracking?.tracked_days, m.tracking?.expected_days)} hint={`person-days · ${m.tracking?.hours ?? 0} h`} />
               <Tile testId="tile-reports" label="Reports" main={of(m.reports?.submitted, m.reports?.expected)} hint="sent of expected" />

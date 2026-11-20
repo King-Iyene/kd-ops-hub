@@ -31,6 +31,30 @@ export function formatFlag(f: FlagRow, personName: string | null, opts: { toMana
   };
 }
 
+export interface FollowupRow { stage: number }
+
+/**
+ * The follow-up after a message that changed nothing. Stage 1 goes back to the person (their manager copied, as for any message).
+ * Stage 2, a day later, goes to their manager and asks them to step in; with no manager it stays with the person and says so.
+ */
+export function formatFollowup(f: FlagRow, personName: string | null, stage: number, managerName: string | null): Outgoing {
+  const why = f.why.trim();
+  const first = firstName(personName);
+  const toManager = stage >= 2 && !!managerName && !!personName;
+  const observation = toManager
+    ? `${personName}'s item has been open for 2 days with no change, even after we followed up. ${why}`
+    : stage >= 2 ? `This has now been open for 2 days with no change, and no manager is set for you, so a Super Admin needs to step in. ${why}`
+    : `This is still open 24 hours after we first asked. ${why}`;
+  const question = toManager ? 'Could you step in, find out what is happening and let us know when it will be sorted?' : 'Can you tell us where this stands and when it will be sorted?';
+  return {
+    title: `[${stage >= 2 ? 'ESCALATION' : 'FOLLOW-UP'}] ${f.title}`.slice(0, 200),
+    text: [observation, question].join('\n'),
+    event: 'flag',
+    meta: { severity: f.severity, rule: f.rule_code, person: personName ?? '' },
+    ask: personName ? { observation, question, followUp: toManager || stage >= 2 || !first ? '' : `please follow up with ${first} and get clarity on what is happening.` } : undefined,
+  };
+}
+
 export interface SummaryRow { period_kind: string; period_start: string; period_end: string; narrative: string | null }
 
 /** Markdown headings and bold become plain text: every tool shows plain text the same way. */
@@ -39,9 +63,10 @@ export function plainText(md: string): string {
 }
 
 export function formatSummary(s: SummaryRow): Outgoing {
-  const kind = s.period_kind === 'day' ? 'Daily' : s.period_kind === 'week' ? 'Weekly' : 'Monthly';
+  const name = s.period_kind === 'briefing' ? 'Morning briefing' : s.period_kind === 'scorecard' ? 'Weekly scorecard'
+    : `${s.period_kind === 'day' ? 'Daily' : s.period_kind === 'week' ? 'Weekly' : 'Monthly'} summary`;
   const when = s.period_start === s.period_end ? s.period_start : `${s.period_start} to ${s.period_end}`;
-  return { title: `${kind} summary, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }};
+  return { title: `${name}, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }};
 }
 
 /** At most this many tries; a message that keeps failing stops being tried and shows as failed. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_ATTEMPTS, formatFlag, formatSummary, plainText } from '../../../../supabase/functions/_shared/agent-dispatch-core';
+import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, plainText } from '../../../../supabase/functions/_shared/agent-dispatch-core';
 
 describe('formatFlag', () => {
   const f = { id: '1', rule_code: 'TR01', severity: 'high', title: 'Not tracking time', why: 'Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.', suggested_action: 'Ask her to start a timer.', item_type: 'flag' };
@@ -40,5 +40,34 @@ describe('retries', () => { it('stops after a few tries', () => { expect(MAX_ATT
 describe('no link into the Agent', () => {
   it('a summary carries no link, because the people who read the channel cannot open the Agent', () => {
     expect(formatSummary({ period_kind: 'day', period_start: 'a', period_end: 'a', narrative: 'x' }).link).toBeUndefined();
+  });
+});
+
+describe('formatFollowup', () => {
+  const f = { id: '1', rule_code: 'TK01', severity: 'medium', title: 'Overdue: Client proposal', why: 'Four days late.', suggested_action: null, item_type: 'flag' };
+  it('stage 1 goes back to the person and still copies the manager', () => {
+    const m = formatFollowup(f, 'Cara Obi', 1, 'Alice Eze');
+    expect(m.title).toBe('[FOLLOW-UP] Overdue: Client proposal');
+    expect(m.ask).toEqual({ observation: 'This is still open 24 hours after we first asked. Four days late.', question: 'Can you tell us where this stands and when it will be sorted?', followUp: 'please follow up with Cara and get clarity on what is happening.' });
+    expect(m.text).toBe('This is still open 24 hours after we first asked. Four days late.\nCan you tell us where this stands and when it will be sorted?');
+  });
+  it('stage 2 asks the manager to step in, with no one else to follow up', () => {
+    const m = formatFollowup(f, 'Cara Obi', 2, 'Alice Eze');
+    expect(m.title).toBe('[ESCALATION] Overdue: Client proposal');
+    expect(m.ask?.observation).toBe("Cara Obi's item has been open for 2 days with no change, even after we followed up. Four days late.");
+    expect(m.ask?.question).toBe('Could you step in, find out what is happening and let us know when it will be sorted?');
+    expect(m.ask?.followUp).toBe('');
+  });
+  it('stage 2 with no manager stays with the person and says a Super Admin must step in', () => {
+    const m = formatFollowup(f, 'Cara Obi', 2, null);
+    expect(m.ask?.observation).toContain('no manager is set for you, so a Super Admin needs to step in');
+    expect(m.ask?.followUp).toBe('');
+  });
+});
+
+describe('formatSummary: briefing and scorecard', () => {
+  it('are named for what they are', () => {
+    expect(formatSummary({ period_kind: 'briefing', period_start: '2026-11-18', period_end: '2026-11-18', narrative: '## Good morning' }).title).toBe('Morning briefing, 2026-11-18');
+    expect(formatSummary({ period_kind: 'scorecard', period_start: '2026-11-16', period_end: '2026-11-22', narrative: null }).title).toBe('Weekly scorecard, 2026-11-16 to 2026-11-22');
   });
 });

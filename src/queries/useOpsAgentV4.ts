@@ -96,12 +96,14 @@ export function useUpdateRule() {
 }
 
 // ── Summaries ──────────────────────────────────────────────────────────────
-export type SummaryKind = 'day' | 'week' | 'month';
+/** Daily, weekly and monthly are made on request too; the morning briefing and the Monday scorecard are written by the schedule only. */
+export type GenerateKind = 'day' | 'week' | 'month';
+export type SummaryKind = GenerateKind | 'briefing' | 'scorecard';
 
 /** "Generate now": makes the latest finished period of that kind. */
 export function useGenerateSummary() {
   const qc = useQueryClient();
-  return useSupabaseMutation<unknown, SummaryKind>(
+  return useSupabaseMutation<unknown, GenerateKind>(
     (kind) => adb.rpc('agent_generate_summary', { p_kind: kind }),
     { onSuccess: () => { qc.invalidateQueries({ queryKey: K.summaries() }); } },
   );

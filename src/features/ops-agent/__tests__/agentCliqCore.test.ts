@@ -239,3 +239,20 @@ describe('Zoho sign-in page (server-based app)', () => {
     expect(f.get('redirect_uri')).toBe('https://ops.kdsquares.com/agent/oauth/zoho');
   });
 });
+
+describe('Cliq: a scorecard tags each manager where they are named', () => {
+  const conn = { kind: 'cliq' as const, name: 'Cliq', config: { mode: 'api', dc: 'com', channel: 'ops_alerts' } };
+  const text = '### @Alice Eze (2 people)\n- Bob: 10 of 40 h\n\n### @Dan Obi (1 person)\n- Eve: 38 of 40 h';
+  it('replaces "@Name" with the tag for managers that have an id, and keeps the name for the rest', async () => {
+    const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'Weekly scorecard', text, mentions: [{ name: 'Alice Eze', id: '111' }, { name: 'Dan Obi', id: '' }] });
+    if (b.type !== 'http') throw new Error('expected http');
+    const out = JSON.parse(b.init.body!).text as string;
+    expect(out).toContain('### {@111} (2 people)');
+    expect(out).toContain('### @Dan Obi (1 person)');
+  });
+  it('leaves the text alone when tagging is off', async () => {
+    const b = await buildRequest({ ...conn, config: { ...conn.config, mention_people: false } }, { access: '1000.accesstoken123' }, { title: 'S', text, mentions: [{ name: 'Alice Eze', id: '111' }] });
+    if (b.type !== 'http') throw new Error('expected http');
+    expect(JSON.parse(b.init.body!).text).toContain('@Alice Eze');
+  });
+});
