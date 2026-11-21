@@ -1,0 +1,1 @@
+-- Rollback: re-apply agent_build_summary from 20261433000000_summary_key_numbers.sql.

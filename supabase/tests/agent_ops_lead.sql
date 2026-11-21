@@ -443,7 +443,6 @@ BEGIN
   PERFORM public.t_eq('consistent reporters are those with a report that day', (k ->> 'reporters_consistent')::int, v_sub);
   PERFORM public.t_eq('the not-consistent list leaves out the consistent', (SELECT count(*)::int FROM jsonb_array_elements(k -> 'trackers_inconsistent') x WHERE x ->> 'name' IN ('Alice', 'Cara')), 0);
   PERFORM public.t_eq('the threshold is stated', (k ->> 'threshold')::int, 80);
-  PERFORM public.t_eq('the period before is carried for comparison', (b -> 'metrics' -> 'previous') IS NOT NULL, true);
   PERFORM public.t_eq('a daily summary does not carry these', (public.agent_build_summary('day', '2026-11-18', '2026-11-18') -> 'metrics' -> 'kpis') IS NULL OR (public.agent_build_summary('day', '2026-11-18', '2026-11-18') -> 'metrics' ->> 'kpis') IS NULL, true);
 
   -- tasks, week of Nov 16 to 20: two already open (one of them closed on the 17th), two opened (17th, 18th), two closed (17th on time, 19th late)
@@ -465,8 +464,13 @@ BEGIN
   IF b ->> 'narrative' NOT LIKE '%people tracked consistently%' OR b ->> 'narrative' NOT LIKE '%of the work in play was closed%' THEN RAISE EXCEPTION 'FAIL: narrative %', b ->> 'narrative'; END IF;
   IF b -> 'metrics' ->> 'headline' NOT LIKE '%50% of tasks closed (2 of 4)%' THEN RAISE EXCEPTION 'FAIL: headline %', b -> 'metrics' ->> 'headline'; END IF;
   -- the month works the same way
+  PERFORM public.t_eq('the period before is carried for comparison when it has data (tasks were open then)', (b -> 'metrics' -> 'previous') IS NOT NULL, true);
+  -- a period whose previous period is empty compares with nothing, and the text does not say "last week: 0 of ..."
+  b := public.agent_build_summary('week', '2026-11-02', '2026-11-06');
+  PERFORM public.t_eq('nothing recorded the week before: no comparison', (b -> 'metrics' -> 'previous') IS NULL OR (b -> 'metrics' ->> 'previous') IS NULL, true);
+  IF b ->> 'narrative' LIKE '%last week%' THEN RAISE EXCEPTION 'FAIL: a comparison with an empty week: %', b ->> 'narrative'; END IF;
   b := public.agent_build_summary('month', '2026-11-01', '2026-11-20');
-  PERFORM public.t_eq('the monthly one carries the numbers and the previous month', (b -> 'metrics' -> 'kpis' -> 'tasks' ->> 'closed')::int >= 2 AND (b -> 'metrics' -> 'previous') IS NOT NULL, true);
+  PERFORM public.t_eq('the monthly one carries the numbers', (b -> 'metrics' -> 'kpis' -> 'tasks' ->> 'closed')::int >= 2, true);
   RAISE NOTICE 'PASS 12: weekly and monthly key numbers';
 END $$;
 
