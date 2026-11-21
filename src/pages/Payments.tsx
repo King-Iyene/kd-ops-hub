@@ -575,7 +575,7 @@ const Payments = () => {
           ) : (
             <>
               {/* Column header */}
-              <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 sticky top-0 z-10 bg-card">
                 <span />
                 <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
                 <p className="text-3xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>

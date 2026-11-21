@@ -14,8 +14,9 @@ export const ITEM_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6
 
 export const PANTS_COLORS = ['#334155', '#1e293b', '#475569', '#78350f', '#1e3a8a', '#14532d'];
 
-import { BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_HIDING_HATS, HAIR_STYLES, HATS, LONG_SLEEVE_OUTFITS, OUTFITS, SHOES, drawBeardX, drawExtraX, drawGlassesX, drawHairX, drawHatX, drawOutfitX, drawShoeX, type Pose } from './avatarParts';
+import { AIDS, BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_HIDING_HATS, HAIR_STYLES, HATS, LONG_SLEEVE_OUTFITS, OUTFITS, SHOES, drawBeardX, drawExtraX, drawGlassesX, drawHairX, drawHatX, drawOutfitX, drawShoeX, type Pose } from './avatarParts';
 import { COSTUME_KINDS, costumeStyle, drawCostumeBack, drawCostumeFront } from './avatarCostumes';
+import { castOnLeg, drawStandingAid, drawWheelchairOver, drawWheelchairUnder } from './avatarAids';
 
 type Hair = AvatarStyle['hairStyle'];
 const upTo = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
@@ -36,7 +37,7 @@ function fromAccessory(acc: number): { hat: AvatarStyle['hat']; glasses: AvatarS
 /** An avatar in the old shape, given the new layers (nothing changes how it looks). */
 export function upgradeAvatar(a: LegacyAvatar): AvatarStyle {
   const m = fromAccessory(a.accessory);
-  return { ...a, bottom: 0, costume: 0, accessory: 0, jacket: 0, jacketColor: '#1f2937', inner: '#f8fafc', tie: m.tie, tieColor: '#b91c1c', shoes: 0, shoeColor: '#0f172a', hat: m.hat, hatColor: a.shirt, glasses: m.glasses, extra: m.extra };
+  return { ...a, bottom: 0, costume: 0, aid: 0, accessory: 0, jacket: 0, jacketColor: '#1f2937', inner: '#f8fafc', tie: m.tie, tieColor: '#b91c1c', shoes: 0, shoeColor: '#0f172a', hat: m.hat, hatColor: a.shirt, glasses: m.glasses, extra: m.extra };
 }
 
 export function defaultAvatar(id: string, gender?: string | null): AvatarStyle {
@@ -111,6 +112,7 @@ export function cleanAvatar(raw: unknown, id: string, gender?: string | null): A
     extra: pick<AvatarStyle['extra']>(o.extra, upTo(EXTRAS.length), mig.extra),
     bottom: pick<number>(o.bottom, upTo(BOTTOMS.length), 0),
     costume: pick<number>(o.costume, upTo(COSTUMES.length), 0),
+    aid: pick<number>(o.aid, upTo(AIDS.length), 0),
   };
   return {
     skin: col(o.skin, d.skin),
@@ -420,13 +422,15 @@ function tilePic(dark: boolean, kind: number, combo: { ff: string | undefined; z
 }
 
 /**
- * The floor and the walls do not change from frame to frame, so each is drawn once into a picture of the part of the map you are looking at
- * (and a few tiles around it) and that picture is reused: walking only redraws it when you get near its edge, standing still never does.
- * Before this, about 900 tiles were drawn again every frame.
+ * The floor and the walls do not change from frame to frame, so they are drawn once and reused. The map is cut into squares of 16 by 16 tiles,
+ * each drawn into its own picture the first time it comes into view; a frame only draws the few squares on screen. Walking (or riding fast)
+ * draws at most one new small square now and then, instead of redrawing the whole screen's worth of tiles every few steps.
+ * Each square is drawn with a tile of its neighbours around it (so a wall's top or a shadow that spills over an edge is right) and shown through
+ * a window of exactly its own tiles.
  */
-interface LayerCache { owner: unknown; dark: boolean; s: number; x0: number; y0: number; x1: number; y1: number; cv: HTMLCanvasElement }
-const LAYER_MARGIN = 4;
-const MAX_LAYER_PIXELS = 18_000_000;
+interface LayerCache { owner: unknown; dark: boolean; s: number; chunks: Map<number, HTMLCanvasElement> }
+const CHUNK = 16;
+const MAX_CHUNKS = 160;
 function drawCachedLayer(slot: { c: LayerCache | null }, ctx: Ctx, owner: unknown, dark: boolean, mapW: number, mapH: number, view: TileView, paint: (pc: Ctx, v: TileView) => void): boolean {
   if (typeof document === 'undefined') return false;
   const tf = ctx.getTransform();
@@ -434,23 +438,37 @@ function drawCachedLayer(slot: { c: LayerCache | null }, ctx: Ctx, owner: unknow
   const need = { x0: Math.max(0, view.x0), y0: Math.max(0, view.y0), x1: Math.min(mapW, view.x1), y1: Math.min(mapH, view.y1) };
   if (need.x1 <= need.x0 || need.y1 <= need.y0) return true;
   let c = slot.c;
-  if (!c || c.owner !== owner || c.dark !== dark || c.s !== s || need.x0 < c.x0 || need.y0 < c.y0 || need.x1 > c.x1 || need.y1 > c.y1) {
-    const x0 = Math.max(0, need.x0 - LAYER_MARGIN), y0 = Math.max(0, need.y0 - LAYER_MARGIN);
-    const x1 = Math.min(mapW, need.x1 + LAYER_MARGIN), y1 = Math.min(mapH, need.y1 + LAYER_MARGIN);
-    const pw = (x1 - x0) * TILE * s, ph = (y1 - y0) * TILE * s;
-    if (pw * ph > MAX_LAYER_PIXELS) return false;
-    const cv = c && c.cv.width === pw && c.cv.height === ph ? c.cv : document.createElement('canvas');
-    cv.width = pw;
-    cv.height = ph;
-    const pc = cv.getContext('2d');
-    if (!pc) return false;
-    pc.scale(s, s);
-    pc.translate(-x0 * TILE, -y0 * TILE);
-    paint(pc as unknown as Ctx, { x0, y0, x1, y1 });
-    c = { owner, dark, s, x0, y0, x1, y1, cv };
-    slot.c = c;
+  if (!c || c.owner !== owner || c.dark !== dark || c.s !== s || c.chunks.size > MAX_CHUNKS) { c = { owner, dark, s, chunks: new Map() }; slot.c = c; }
+  const cx0 = Math.floor(need.x0 / CHUNK), cx1 = Math.floor((need.x1 - 1) / CHUNK);
+  const cy0 = Math.floor(need.y0 / CHUNK), cy1 = Math.floor((need.y1 - 1) / CHUNK);
+  for (let cy = cy0; cy <= cy1; cy++) {
+    for (let cx = cx0; cx <= cx1; cx++) {
+      const x0 = cx * CHUNK, y0 = cy * CHUNK;
+      const x1 = Math.min(mapW, x0 + CHUNK), y1 = Math.min(mapH, y0 + CHUNK);
+      if (x1 <= x0 || y1 <= y0) continue;
+      const px0 = Math.max(0, x0 - 1), py0 = Math.max(0, y0 - 1), px1 = Math.min(mapW, x1 + 1), py1 = Math.min(mapH, y1 + 1);
+      const key = cy * 1000 + cx;
+      let cv = c.chunks.get(key);
+      if (!cv) {
+        cv = document.createElement('canvas');
+        cv.width = (px1 - px0) * TILE * s;
+        cv.height = (py1 - py0) * TILE * s;
+        const pc = cv.getContext('2d');
+        if (!pc) return false;
+        pc.scale(s, s);
+        pc.translate(-px0 * TILE, -py0 * TILE);
+        paint(pc as unknown as Ctx, { x0: px0, y0: py0, x1: px1, y1: py1 });
+        c.chunks.set(key, cv);
+      }
+      // shown through a window of its own tiles (a hair wider, so no thin line shows between two squares)
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x0 * TILE, y0 * TILE, (x1 - x0) * TILE + (x1 < mapW ? 0.6 : 0), (y1 - y0) * TILE + (y1 < mapH ? 0.6 : 0));
+      ctx.clip();
+      ctx.drawImage(cv, px0 * TILE, py0 * TILE, (px1 - px0) * TILE, (py1 - py0) * TILE);
+      ctx.restore();
+    }
   }
-  ctx.drawImage(c.cv, c.x0 * TILE, c.y0 * TILE, (c.x1 - c.x0) * TILE, (c.y1 - c.y0) * TILE);
   return true;
 }
 const floorSlot: { c: LayerCache | null } = { c: null };
@@ -474,6 +492,7 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
   // doorways glow and breathe
   for (const z of map.zones) {
     if (z.kind !== 'portal') continue;
+    if (view && (z.x + z.w + 2 < view.x0 || z.x - 2 > view.x1 || z.y + z.h + 2 < view.y0 || z.y - 2 > view.y1)) continue; // off screen: nothing to draw
     const cx = (z.x + z.w / 2) * TILE;
     const cy = (z.y + z.h / 2) * TILE;
     const pulse = 0.55 + 0.25 * Math.sin(t / 420);
@@ -493,6 +512,7 @@ export function drawFloor(ctx: Ctx, map: MapDef, theme: Theme, t = 0, view?: Til
   // soft trim where a room meets the open floor
   for (const z of map.zones) {
     if (z.kind !== 'meeting' && z.kind !== 'lounge') continue;
+    if (view && (z.x + z.w + 1 < view.x0 || z.x - 1 > view.x1 || z.y + z.h + 1 < view.y0 || z.y - 1 > view.y1)) continue;
     ctx.strokeStyle = theme.dark ? 'rgba(148,163,184,0.25)' : 'rgba(71,85,105,0.22)';
     ctx.lineWidth = 2;
     ctx.strokeRect(z.x * TILE + 1, z.y * TILE + 1, z.w * TILE - 2, z.h * TILE - 2);
@@ -4608,6 +4628,21 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     if (view !== 'side') bikeSprite(ctx, p.x * TILE, p.y * TILE + 2, view, face, roll, undefined, 'over');
     return;
   }
+  if ((p.avatar.aid ?? 0) === 3 && !p.seated) {
+    // in a wheelchair: the chair underneath, the person sitting in it, and the wheels, footrests and a leg in a cast in front
+    const sideV = p.dir === 1 || p.dir === 2;
+    const view = sideV ? 'side' : p.dir === 3 ? 'back' : 'front';
+    const face = p.dir === 1 ? -1 : 1;
+    const roll = p.moving ? stridePhase(p, t) * 1.5 : 0;
+    const dr = costumeStyle(p.avatar);
+    drawWheelchairUnder(ctx, p.x * TILE, p.y * TILE, view, face);
+    ctx.save();
+    ctx.translate(0, -3);
+    drawPersonBase(ctx, { ...p, avatar: { ...p.avatar, aid: 0 }, seated: true }, t, theme);
+    ctx.restore();
+    drawWheelchairOver(ctx, p.x * TILE, p.y * TILE, view, face, roll, { skin: dr.skin, pants: dr.pants, shoeColor: dr.shoeColor }, true);
+    return;
+  }
   const costume = COSTUME_KINDS[p.avatar.costume] ?? 'none';
   const dressedAs = costumeStyle(p.avatar);
   // a hat that covers all the hair hides the hairstyle underneath
@@ -4617,8 +4652,11 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const ph = stridePhase(p, t); // one stride about every 1.2 tiles walked, counted along the way actually walked
   const dancing = !!p.dancing && !p.moving && !p.seated;
   const beat = t / 135;
-  const step = dancing ? Math.sin(beat) : p.moving && !p.seated ? Math.sin(ph) : 0;
-  const bob = dancing ? -Math.abs(Math.sin(beat)) * 4.2 : p.seated ? (p.moving ? Math.sin(t / 130) * 0.45 : 0) : p.moving ? -Math.abs(Math.cos(ph)) * 1.9 : Math.sin(t / 750) * 0.6;
+  const aid = a.aid ?? 0;
+  const stepRaw = dancing ? Math.sin(beat) : p.moving && !p.seated ? Math.sin(ph) : 0;
+  // a stick means a gentle limp; on crutches the leg in the cast stays up and the body hops
+  const step = dancing ? stepRaw : aid === 2 ? stepRaw * 0.35 : aid === 1 ? stepRaw * 0.7 : stepRaw;
+  const bob = dancing ? -Math.abs(Math.sin(beat)) * 4.2 : p.seated ? (p.moving ? Math.sin(t / 130) * 0.45 : 0) : p.moving ? (aid === 2 ? -Math.abs(Math.sin(ph * 0.5)) * 3.2 : -Math.abs(Math.cos(ph)) * 1.9) : Math.sin(t / 750) * 0.6;
   const lean = dancing ? Math.sin(beat / 2) * 3.2 : p.moving ? (p.dir === 1 ? -1.2 : p.dir === 2 ? 1.2 : 0) : 0;
   const side = p.dir === 1 || p.dir === 2;
   const back = p.dir === 3;
@@ -4673,7 +4711,8 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     const flare = [1, 2, 5, 6].includes(a.bottom);
     const lw = a.bottom === 3 ? 4.6 : a.bottom === 4 ? 6.2 : 5.5;
     const off = (5.5 - lw) / 2;
-    for (const [lx, ly] of [[px - 6.5 + stride + off, py + 2 + lift(step)], [px + 1 - stride + off, py + 2 + lift(-step)]] as const) {
+    const cast2 = aid === 2 && !p.seated;
+    for (const [lx, ly] of [[px - 6.5 + stride + off, py + 2 + lift(step)], [px + 1 - stride * (cast2 ? 0.3 : 1) + off + (cast2 ? fx * 1.5 : 0), py + 2 + lift(-step) - (cast2 ? 3.2 : 0)]] as const) {
       ctx.fillStyle = a.skin;
       rr(ctx, lx, ly, lw, legLen, 2);
       ctx.fill();
@@ -4711,7 +4750,11 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   };
   if (!p.seated) {
     shoe(px - 7.5 + fx * 1.5 + stride, py + lift(step));
-    shoe(px + 0.5 + fx * 1.5 - stride, py + lift(-step));
+    const c2 = aid === 2;
+    const sx2 = px + 0.5 + fx * 1.5 - stride * (c2 ? 0.3 : 1) + (c2 ? fx * 1.5 : 0);
+    const sy2 = py + lift(-step) - (c2 ? 3.2 : 0);
+    shoe(sx2, sy2);
+    if (c2) castOnLeg(ctx, sx2 - 0.4, sy2 + 2.6, 6.6, 9);
   }
 
   // arms swing opposite to the legs
@@ -4811,82 +4854,87 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     }
   }
 
-  // jacket: worn over the top, with the inner shirt showing at the collar
-  if (a.jacket > 0) {
-    const jw = tw + 2;
-    const jc = a.jacketColor;
-    const jg = vgrad(ctx, py - 11 + bob, py + 4 + bob, shade(jc, 0.12), shade(jc, -0.14));
-    if (a.jacket === 4) {
-      // a waistcoat: narrower, the shirt sleeves show either side
-      ctx.fillStyle = jg;
-      rr(ctx, px - (tw - 5) / 2, py - 10.5 + bob, tw - 5, 14, 4);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = jg;
-      rr(ctx, px - jw / 2, py - 11.5 + bob, jw, 16, 6);
-      ctx.fill();
-    }
-    if (!back) {
-      // the opening at the front: the shirt underneath
-      ctx.fillStyle = a.inner;
-      ctx.beginPath();
-      ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = a.skin;
-      ctx.beginPath(); ctx.arc(px, py - 11.2 + bob, 2.6, 0, Math.PI); ctx.fill();
-      ctx.strokeStyle = shade(jc, -0.35);
-      ctx.lineWidth = 0.9;
-      ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.stroke();
-      if (a.jacket === 1) {
-        // blazer: lapels, buttons and a breast pocket
-        ctx.fillStyle = shade(jc, 0.2);
-        ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 6.6, py - 7.5 + bob); ctx.lineTo(px - 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 6.6, py - 7.5 + bob); ctx.lineTo(px + 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
-        disc(ctx, px + 1.9, py - 3 + bob, 0.8, '#e5e7eb'); disc(ctx, px + 1.9, py + 0.4 + bob, 0.8, '#e5e7eb');
-        ctx.fillStyle = shade(jc, -0.25); ctx.fillRect(px - 7.4, py - 7.6 + bob, 3.4, 0.9);
-      } else if (a.jacket === 2) {
-        // denim: collar, pockets and stitching
-        ctx.fillStyle = shade(jc, 0.18);
-        ctx.fillRect(px - 5.2, py - 11.6 + bob, 3.2, 2.4); ctx.fillRect(px + 2, py - 11.6 + bob, 3.2, 2.4);
-        ctx.strokeStyle = 'rgba(253,224,171,0.85)'; ctx.lineWidth = 0.6;
-        for (const sx2 of [-6.2, 3.4]) { ctx.strokeRect(px + sx2, py - 8 + bob, 2.8, 2.6); }
-        ctx.beginPath(); ctx.moveTo(px - 8.4, py + 1.8 + bob); ctx.lineTo(px + 8.4, py + 1.8 + bob); ctx.stroke();
-        disc(ctx, px + 1.4, py - 5 + bob, 0.7, '#fcd34d'); disc(ctx, px + 1.4, py - 1.6 + bob, 0.7, '#fcd34d');
-      } else if (a.jacket === 3) {
-        // bomber: ribbed collar and hem, a zip down the middle
-        ctx.fillStyle = shade(jc, -0.3);
-        rr(ctx, px - jw / 2, py + 1.6 + bob, jw, 3, 1.4); ctx.fill();
-        rr(ctx, px - 5.5, py - 12 + bob, 11, 3, 1.4); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(px, py - 9 + bob); ctx.lineTo(px, py + 2 + bob); ctx.stroke();
+  // jacket and tie: worn over the top, with the inner shirt showing at the collar.
+  // On a dress, kaftan or traditional outfit they go on after the garment, so they are not hidden under it.
+  const layersOver = a.outfit === 5 || dressy || (a.outfit >= 7 && a.outfit !== 18);
+  const drawJacketTie = () => {
+    if (a.jacket > 0) {
+      const jw = tw + 2;
+      const jc = a.jacketColor;
+      const jg = vgrad(ctx, py - 11 + bob, py + 4 + bob, shade(jc, 0.12), shade(jc, -0.14));
+      if (a.jacket === 4) {
+        // a waistcoat: narrower, the shirt sleeves show either side
+        ctx.fillStyle = jg;
+        rr(ctx, px - (tw - 5) / 2, py - 10.5 + bob, tw - 5, 14, 4);
+        ctx.fill();
       } else {
-        // waistcoat: buttons down the front
-        for (let b = 0; b < 3; b++) disc(ctx, px, py - 8 + b * 3.2 + bob, 0.8, '#e5e7eb');
+        ctx.fillStyle = jg;
+        rr(ctx, px - jw / 2, py - 11.5 + bob, jw, 16, 6);
+        ctx.fill();
+      }
+      if (!back) {
+        // the opening at the front: the shirt underneath
+        ctx.fillStyle = a.inner;
+        ctx.beginPath();
+        ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = a.skin;
+        ctx.beginPath(); ctx.arc(px, py - 11.2 + bob, 2.6, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = shade(jc, -0.35);
+        ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 0.8, py - 1.5 + bob); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 0.8, py - 1.5 + bob); ctx.stroke();
+        if (a.jacket === 1) {
+          // blazer: lapels, buttons and a breast pocket
+          ctx.fillStyle = shade(jc, 0.2);
+          ctx.beginPath(); ctx.moveTo(px - 3.8, py - 11.2 + bob); ctx.lineTo(px - 6.6, py - 7.5 + bob); ctx.lineTo(px - 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(px + 3.8, py - 11.2 + bob); ctx.lineTo(px + 6.6, py - 7.5 + bob); ctx.lineTo(px + 2.4, py - 6 + bob); ctx.closePath(); ctx.fill();
+          disc(ctx, px + 1.9, py - 3 + bob, 0.8, '#e5e7eb'); disc(ctx, px + 1.9, py + 0.4 + bob, 0.8, '#e5e7eb');
+          ctx.fillStyle = shade(jc, -0.25); ctx.fillRect(px - 7.4, py - 7.6 + bob, 3.4, 0.9);
+        } else if (a.jacket === 2) {
+          // denim: collar, pockets and stitching
+          ctx.fillStyle = shade(jc, 0.18);
+          ctx.fillRect(px - 5.2, py - 11.6 + bob, 3.2, 2.4); ctx.fillRect(px + 2, py - 11.6 + bob, 3.2, 2.4);
+          ctx.strokeStyle = 'rgba(253,224,171,0.85)'; ctx.lineWidth = 0.6;
+          for (const sx2 of [-6.2, 3.4]) { ctx.strokeRect(px + sx2, py - 8 + bob, 2.8, 2.6); }
+          ctx.beginPath(); ctx.moveTo(px - 8.4, py + 1.8 + bob); ctx.lineTo(px + 8.4, py + 1.8 + bob); ctx.stroke();
+          disc(ctx, px + 1.4, py - 5 + bob, 0.7, '#fcd34d'); disc(ctx, px + 1.4, py - 1.6 + bob, 0.7, '#fcd34d');
+        } else if (a.jacket === 3) {
+          // bomber: ribbed collar and hem, a zip down the middle
+          ctx.fillStyle = shade(jc, -0.3);
+          rr(ctx, px - jw / 2, py + 1.6 + bob, jw, 3, 1.4); ctx.fill();
+          rr(ctx, px - 5.5, py - 12 + bob, 11, 3, 1.4); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(px, py - 9 + bob); ctx.lineTo(px, py + 2 + bob); ctx.stroke();
+        } else {
+          // waistcoat: buttons down the front
+          for (let b = 0; b < 3; b++) disc(ctx, px, py - 8 + b * 3.2 + bob, 0.8, '#e5e7eb');
+        }
       }
     }
-  }
-  // a tie, bow tie or scarf
-  if (a.tie > 0) {
-    const ty = py - 10.6 + bob;
-    if (a.tie === 1 && !back) {
-      ctx.fillStyle = a.tieColor;
-      ctx.beginPath(); ctx.moveTo(px - 1.8, ty); ctx.lineTo(px + 1.8, ty); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px - 1.1, ty + 2.2); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(px - 1.1, ty + 2.2); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px + 2, ty + 9.4); ctx.lineTo(px, ty + 11); ctx.lineTo(px - 2, ty + 9.4); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(px - 0.5, ty + 3, 0.9, 5);
-    } else if (a.tie === 2 && !back) {
-      ctx.fillStyle = a.tieColor;
-      ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px - 5, ty - 2.2); ctx.lineTo(px - 5, ty + 3); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px + 5, ty - 2.2); ctx.lineTo(px + 5, ty + 3); ctx.closePath(); ctx.fill();
-      disc(ctx, px, ty + 0.4, 1.6, shade(a.tieColor, -0.3));
-    } else if (a.tie === 3) {
-      ctx.fillStyle = a.tieColor;
-      ctx.beginPath(); ctx.ellipse(px, ty + 0.4, 7, 2.8, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = shade(a.tieColor, -0.2);
-      ctx.beginPath(); ctx.ellipse(px, ty + 1.4, 7, 1.6, 0, 0, Math.PI); ctx.fill();
-      if (!back) { ctx.fillStyle = a.tieColor; rr(ctx, px + 1.2, ty + 1, 3.6, 8.4, 1.4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px + 1.8, ty + 7, 2.4, 0.8); ctx.fillRect(px + 1.8, ty + 8.4, 2.4, 0.8); }
+    // a tie, bow tie or scarf
+    if (a.tie > 0) {
+      const ty = py - 10.6 + bob;
+      if (a.tie === 1 && !back) {
+        ctx.fillStyle = a.tieColor;
+        ctx.beginPath(); ctx.moveTo(px - 1.8, ty); ctx.lineTo(px + 1.8, ty); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px - 1.1, ty + 2.2); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(px - 1.1, ty + 2.2); ctx.lineTo(px + 1.1, ty + 2.2); ctx.lineTo(px + 2, ty + 9.4); ctx.lineTo(px, ty + 11); ctx.lineTo(px - 2, ty + 9.4); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(px - 0.5, ty + 3, 0.9, 5);
+      } else if (a.tie === 2 && !back) {
+        ctx.fillStyle = a.tieColor;
+        ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px - 5, ty - 2.2); ctx.lineTo(px - 5, ty + 3); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(px, ty + 0.4); ctx.lineTo(px + 5, ty - 2.2); ctx.lineTo(px + 5, ty + 3); ctx.closePath(); ctx.fill();
+        disc(ctx, px, ty + 0.4, 1.6, shade(a.tieColor, -0.3));
+      } else if (a.tie === 3) {
+        ctx.fillStyle = a.tieColor;
+        ctx.beginPath(); ctx.ellipse(px, ty + 0.4, 7, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(a.tieColor, -0.2);
+        ctx.beginPath(); ctx.ellipse(px, ty + 1.4, 7, 1.6, 0, 0, Math.PI); ctx.fill();
+        if (!back) { ctx.fillStyle = a.tieColor; rr(ctx, px + 1.2, ty + 1, 3.6, 8.4, 1.4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px + 1.8, ty + 7, 2.4, 0.8); ctx.fillRect(px + 1.8, ty + 8.4, 2.4, 0.8); }
+      }
     }
-  }
+  };
+  if (!layersOver) drawJacketTie();
 
   // dress or skirt: a flared skirt over the legs
   if (a.outfit === 5) {
@@ -4926,6 +4974,7 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   }
 
   if (a.outfit >= 7 && a.outfit !== 18) drawOutfitX(ctx, a, P);
+  if (layersOver) drawJacketTie();
 
   // head
   const hg = ctx.createRadialGradient(px - 2, hy - 3, 1, px, hy, 10);
@@ -5153,6 +5202,7 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
 
   if (a.hat >= 5) drawHatX(ctx, a, P);
   if (costume !== 'none') drawCostumeFront(ctx, costume, a, P);
+  if ((aid === 1 || aid === 2) && !p.seated) drawStandingAid(ctx, aid, P, a.skin);
   if (a.extra === 2 && !back) {
     for (const ex of side ? [px - fx * 6.5] : [px - 8.6, px + 8.6]) {
       disc(ctx, ex, hy + 4.4, 1.9, '#d6ac50');

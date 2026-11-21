@@ -107,6 +107,8 @@ export interface AvatarStyle {
   bottom: number;
   /** a full character costume: 0 none, then robot, zombie, ghost, pirate, rat, alien, clown, skeleton, cat, dog, bear, astronaut, ninja, wizard, knight, superhero, devil, angel, pumpkin, banana, duck */
   costume: number;
+  /** 0 none, 1 walking stick, 2 crutches (and a leg in a cast), 3 wheelchair (and a leg in a cast); older avatars do not have it */
+  aid?: number;
 }
 
 export interface PlayerState {

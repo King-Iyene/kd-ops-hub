@@ -1186,7 +1186,7 @@ export function TripsTab({ staff, vehicles, tripLogs, isAdmin, profile, onRefres
           <CardContent className="p-0">
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Date</TableHead>

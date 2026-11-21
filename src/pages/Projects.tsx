@@ -564,13 +564,13 @@ export default function Projects() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/30">
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Project</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Status</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Owner</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Client</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Progress</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Due</th>
-                        <th className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right py-2.5 px-4 font-medium text-xs text-muted-foreground">Actions</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Project</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Status</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Owner</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Client</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Progress</th>
+                        <th className="sticky top-0 z-10 bg-card text-left py-2.5 px-4 font-medium text-xs text-muted-foreground">Due</th>
+                        <th className="sticky top-0 z-10 bg-card text-right py-2.5 px-4 font-medium text-xs text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody>

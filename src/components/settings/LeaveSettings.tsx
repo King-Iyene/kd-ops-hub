@@ -165,7 +165,7 @@ export default function LeaveSettings() {
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead>Leave type</TableHead>
                   <TableHead className="w-[100px] text-center">Days / yr</TableHead>

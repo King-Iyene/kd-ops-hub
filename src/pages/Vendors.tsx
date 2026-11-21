@@ -296,7 +296,7 @@ export default function Vendors() {
             <thead className="border-b bg-muted/30">
               <tr>
                 {['Vendor', 'Category', 'Status', 'Contact', 'Payment Terms', 'Contract', ''].map(h => (
-                  <th key={h} className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
+                  <th key={h} className="sticky top-0 z-10 bg-card text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
                 ))}
               </tr>
             </thead>

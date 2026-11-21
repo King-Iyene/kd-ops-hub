@@ -616,7 +616,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
         {/* Action buttons — pinned to the bottom of the (scrollable) modal so
             Share / Download / Print stay reachable on short mobile screens,
             where the centred receipt used to push them below the fold. */}
-        <div className="kd-receipt-actions sticky bottom-0 z-10 flex flex-wrap items-center justify-center sm:justify-end gap-2 px-4 py-3 bg-card/95 backdrop-blur-sm border-t border-border/40 rounded-b-2xl">
+        <div className="kd-receipt-actions sticky bottom-0 z-10 flex flex-wrap items-center justify-center sm:justify-end gap-2 px-4 py-3 bg-card border-t border-border/40 rounded-b-2xl">
           {/* Share — dropdown lets the operator pick PNG (the default
               for chat apps + WhatsApp where image previews render) or
               PDF (better for email attachments + finance archives). */}

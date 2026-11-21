@@ -300,7 +300,7 @@ const Fleet = () => {
       )}
 
       {/* ─── Horizontal tab strip ─── */}
-      <div className="-mx-4 md:-mx-5 lg:-mx-6 px-4 md:px-5 lg:px-6 sticky top-14 z-10 bg-background/95 backdrop-blur-sm border-b border-border/40 -mt-1 pt-1 pb-1.5">
+      <div className="-mx-4 md:-mx-5 lg:-mx-6 px-4 md:px-5 lg:px-6 sticky top-14 z-10 bg-background border-b border-border/40 -mt-1 pt-1 pb-1.5">
         <div className="overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-0.5 min-w-max">
             {[

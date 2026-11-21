@@ -105,14 +105,15 @@ class Ambient {
     if (this.blipTimer !== null) { window.clearTimeout(this.blipTimer); this.blipTimer = null; }
     if (tone?.blips) {
       const loop = () => {
-        this.blip();
+        this.roomBlip();
         this.blipTimer = window.setTimeout(loop, 600 + Math.random() * 1700);
       };
       this.blipTimer = window.setTimeout(loop, 900);
     }
   }
 
-  private blip() {
+  /** one arcade bleep for the game room (the other blip below is a tone with its own settings; they shared a name, so this one never ran) */
+  private roomBlip() {
     const c = this.ctx;
     if (!this.enabled || !c || !this.master || c.state !== 'running') return;
     const base = [440, 523, 659, 784, 988][Math.floor(Math.random() * 5)];
@@ -325,8 +326,93 @@ class Ambient {
     }
   }
 
-  /** a bark, a meow, or a happy purr or yip */
-  pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy', volume = 1) {
+  /**
+   * One animal call made the way a real throat makes it: a buzzing source (the voice box) pushed through
+   * moving resonances (the mouth), with a little breath on top. f0 / f1 / f2 are [seconds, hertz] paths.
+   */
+  private call(
+    c: AudioContext, out: AudioNode, t: number,
+    o: { dur: number; f0: [number, number][]; f1: [number, number][]; f2: [number, number][]; peak: number; attack: number; breath: number; vib?: number; vibHz?: number; growl?: number },
+  ) {
+    const path = (p: AudioParam, pts: [number, number][]) => {
+      p.setValueAtTime(pts[0][1], t + pts[0][0]);
+      for (let i = 1; i < pts.length; i++) p.linearRampToValueAtTime(pts[i][1], t + pts[i][0]);
+    };
+    const amp = c.createGain();
+    amp.gain.setValueAtTime(0.0001, t);
+    amp.gain.exponentialRampToValueAtTime(o.peak, t + o.attack);
+    amp.gain.setValueAtTime(o.peak, t + Math.max(o.attack, o.dur * 0.55));
+    amp.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
+    // the voice box: a buzz rich in harmonics
+    const src = c.createOscillator();
+    src.type = 'sawtooth';
+    path(src.frequency, o.f0);
+    if (o.vib) {
+      const v = c.createOscillator();
+      v.frequency.value = o.vibHz ?? 6;
+      const vg = c.createGain();
+      vg.gain.value = o.vib;
+      v.connect(vg);
+      vg.connect(src.frequency);
+      v.start(t);
+      v.stop(t + o.dur + 0.05);
+    }
+    // a growl is the buzz being chopped fast
+    const buzz = c.createGain();
+    buzz.gain.value = 1;
+    if (o.growl) {
+      const g = c.createOscillator();
+      g.frequency.value = o.growl;
+      const gd = c.createGain();
+      gd.gain.value = 0.45;
+      g.connect(gd);
+      gd.connect(buzz.gain);
+      g.start(t);
+      g.stop(t + o.dur + 0.05);
+    }
+    src.connect(buzz);
+    // breath and rasp
+    const n = c.createBufferSource();
+    n.buffer = this.noise;
+    const ng = c.createGain();
+    ng.gain.value = o.breath;
+    n.connect(ng);
+    // the mouth: two or three resonances that move as the mouth opens and closes
+    const mouth = c.createGain();
+    mouth.gain.value = 1;
+    const formant = (pts: [number, number][], q: number, level: number) => {
+      const f = c.createBiquadFilter();
+      f.type = 'bandpass';
+      f.Q.value = q;
+      path(f.frequency, pts);
+      const g = c.createGain();
+      g.gain.value = level;
+      buzz.connect(f);
+      ng.connect(f);
+      f.connect(g);
+      g.connect(mouth);
+    };
+    formant(o.f1, 5, 1.6);
+    formant(o.f2, 7, 1.1);
+    formant([[0, 3300], [o.dur, 3000]], 8, 0.35);
+    // a touch of the throat's own low body
+    const body = c.createBiquadFilter();
+    body.type = 'lowpass';
+    body.frequency.value = 900;
+    buzz.connect(body);
+    const bodyG = c.createGain();
+    bodyG.gain.value = 0.18;
+    body.connect(bodyG);
+    bodyG.connect(mouth);
+    mouth.connect(amp);
+    amp.connect(out);
+    src.start(t);
+    src.stop(t + o.dur + 0.05);
+    n.start(t, Math.random() * 1.5, o.dur + 0.05);
+  }
+
+  /** a bark, a meow, or a happy purr or yip. `pitch` makes each animal its own: below 1 is bigger, above 1 is smaller. */
+  pet(kind: 'dog' | 'cat', sound: 'bark' | 'meow' | 'happy', volume = 1, pitch = 1) {
     if (!this.enabled) return;
     const c = this.ensure();
     if (!c || !this.master || !this.noise || c.state !== 'running') return;
@@ -334,79 +420,85 @@ class Ambient {
     const bus = c.createGain();
     bus.gain.value = Math.max(0, Math.min(1, volume));
     bus.connect(this.master);
-    const out = bus;
-    const now = c.currentTime;
-    const env = (g: GainNode, at: number, peak: number, len: number) => {
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(peak, at + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    };
+    const out: AudioNode = bus;
+    const now = c.currentTime + 0.01;
+    const jitter = () => 0.94 + Math.random() * 0.12;
     if (kind === 'dog') {
-      const barks = sound === 'happy' ? 3 : 2;
-      for (let i = 0; i < barks; i++) {
-        const t = now + i * (sound === 'happy' ? 0.13 : 0.2);
-        const o = c.createOscillator();
-        o.type = 'sawtooth';
-        const hi = sound === 'happy' ? 1.6 : 1;
-        o.frequency.setValueAtTime(260 * hi, t);
-        o.frequency.exponentialRampToValueAtTime(130 * hi, t + 0.11);
-        const lp = c.createBiquadFilter();
-        lp.type = 'lowpass';
-        lp.frequency.value = 1300;
-        const g = c.createGain();
-        env(g, t, 0.22, 0.14);
-        o.connect(lp);
-        lp.connect(g);
-        g.connect(out);
-        o.start(t);
-        o.stop(t + 0.18);
+      if (sound === 'happy') {
+        // excited yips: quick, high, a little breathless
+        const n = 3 + (Math.random() < 0.5 ? 1 : 0);
+        for (let i = 0; i < n; i++) {
+          const t = now + i * (0.16 + Math.random() * 0.04);
+          const f = 640 * pitch * jitter() * (1 + i * 0.03);
+          this.call(c, out, t, {
+            dur: 0.12, peak: 0.34, attack: 0.006, breath: 0.12,
+            f0: [[0, f * 0.8], [0.03, f * 1.12], [0.12, f * 0.82]],
+            f1: [[0, 700], [0.05, 1000], [0.12, 780]],
+            f2: [[0, 1700], [0.05, 2200], [0.12, 1800]],
+          });
+        }
+        return;
+      }
+      // a proper woof: a sharp start, a gravelly middle, a quick fall; two or three, each a little different
+      const n = Math.random() < 0.4 ? 3 : 2;
+      let t = now;
+      for (let i = 0; i < n; i++) {
+        const f = 330 * pitch * jitter() * (1 - i * 0.04);
+        const len = 0.17 + Math.random() * 0.05;
+        this.call(c, out, t, {
+          dur: len, peak: 0.5 - i * 0.07, attack: 0.007, breath: 0.2, growl: 70 + Math.random() * 25,
+          f0: [[0, f * 1.18], [0.025, f * 1.3], [len, f * 0.7]],
+          f1: [[0, 560], [0.04, 880], [len, 560]],
+          f2: [[0, 1250], [0.04, 1650], [len, 1100]],
+        });
+        t += len + 0.12 + Math.random() * 0.1;
       }
       return;
     }
     if (sound === 'happy') {
-      // a purr: low noise wobbling about 25 times a second
-      const n = c.createBufferSource();
-      n.buffer = this.noise;
+      // a purr: a low rumble, chopped about 25 times a second, that swells and fades
+      const nz = c.createBufferSource();
+      nz.buffer = this.noise;
       const lp = c.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.frequency.value = 160;
+      lp.frequency.value = 240;
       const g = c.createGain();
       g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.5, now + 0.2);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+      g.gain.exponentialRampToValueAtTime(0.5, now + 0.3);
+      g.gain.setValueAtTime(0.5, now + 1.1);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 2);
       const lfo = c.createOscillator();
-      lfo.frequency.value = 25;
+      lfo.frequency.value = 24 + Math.random() * 3;
       const depth = c.createGain();
-      depth.gain.value = 0.25;
+      depth.gain.value = 0.3;
       lfo.connect(depth);
       depth.connect(g.gain);
-      n.connect(lp);
+      const hum = c.createOscillator();
+      hum.type = 'triangle';
+      hum.frequency.value = 52 * pitch;
+      const hg = c.createGain();
+      hg.gain.value = 0.15;
+      hum.connect(hg);
+      hg.connect(g);
+      nz.connect(lp);
       lp.connect(g);
       g.connect(out);
-      n.start(now, 0, 1.7);
+      nz.start(now, 0, 2.1);
       lfo.start(now);
-      lfo.stop(now + 1.7);
+      hum.start(now);
+      lfo.stop(now + 2.1);
+      hum.stop(now + 2.1);
       return;
     }
-    const o = c.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(620, now);
-    o.frequency.linearRampToValueAtTime(980, now + 0.18);
-    o.frequency.linearRampToValueAtTime(540, now + 0.5);
-    const vib = c.createOscillator();
-    vib.frequency.value = 7;
-    const vd = c.createGain();
-    vd.gain.value = 18;
-    vib.connect(vd);
-    vd.connect(o.frequency);
-    const g = c.createGain();
-    env(g, now, 0.2, 0.55);
-    o.connect(g);
-    g.connect(out);
-    o.start(now);
-    vib.start(now);
-    o.stop(now + 0.6);
-    vib.stop(now + 0.6);
+    // a meow, "mee-ow": it starts closed and nasal, opens and climbs, then slides down and closes
+    const f = 520 * pitch * jitter();
+    const len = 0.72 + Math.random() * 0.18;
+    this.call(c, out, now, {
+      dur: len, peak: 0.42, attack: 0.09, breath: 0.1, vib: 7, vibHz: 6.5,
+      f0: [[0, f * 0.82], [len * 0.25, f * 1.22], [len * 0.55, f * 1.1], [len, f * 0.7]],
+      f1: [[0, 420], [len * 0.25, 760], [len * 0.7, 640], [len, 480]],
+      f2: [[0, 2300], [len * 0.25, 2000], [len * 0.7, 1300], [len, 1000]],
+    });
   }
 
   // ---- building blocks --------------------------------------------------------

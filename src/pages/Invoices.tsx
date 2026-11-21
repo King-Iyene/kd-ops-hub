@@ -523,13 +523,13 @@ const Invoices = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/50 hover:bg-transparent">
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Invoice #</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Client</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Issued</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Due</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-right text-xs">Amount</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs">Status</TableHead>
-                    <TableHead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm text-xs print:hidden">Actions</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs">Invoice #</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs">Client</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs">Issued</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs">Due</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-right text-xs">Amount</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs">Status</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card text-xs print:hidden">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

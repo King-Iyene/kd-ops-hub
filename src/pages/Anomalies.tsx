@@ -361,7 +361,7 @@ export default function Anomalies() {
             )}
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   {/* Select-all toggles every visible 'open' row. Only
                       open rows are selectable because bulk actions

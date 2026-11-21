@@ -563,7 +563,7 @@ export default function TransferAuthSettings() {
             <>
             <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
-                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="w-[130px]">Role</TableHead>
                     <TableHead className="min-w-[160px]">Single transfer (₦)</TableHead>
@@ -810,7 +810,7 @@ export default function TransferAuthSettings() {
             <>
             <div className="hidden md:block overflow-x-auto">
               <Table className="min-w-[700px]">
-                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead className="text-right">Single</TableHead>
@@ -951,7 +951,7 @@ export default function TransferAuthSettings() {
             <>
             <div className="hidden md:block overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   <TableHead className="w-[160px]">Action</TableHead>
                   <TableHead className="w-[100px]">Tier</TableHead>
@@ -1153,7 +1153,7 @@ export default function TransferAuthSettings() {
             <>
               <div className="hidden md:block overflow-x-auto">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+                  <TableHeader className="sticky top-0 z-10 bg-card">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">When</TableHead>
                       <TableHead>Actor</TableHead>
