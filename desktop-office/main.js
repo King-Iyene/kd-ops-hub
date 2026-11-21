@@ -320,7 +320,7 @@ let miniWin = null;
 let miniState = null; // the last list the Office sent
 let miniDismissed = false;
 let miniTimer = null;
-const MINI_W = 204;
+const MINI_W = 172;
 
 const COLOR = /^#[0-9a-fA-F]{3,8}$/;
 function cleanAvatar(a) {

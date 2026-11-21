@@ -93,39 +93,30 @@ export function PwaUpdatePrompt() {
   const later = () => { if (kind === 'site') setNeedRefresh(false); else setHiddenFor(kind + (appVersion ?? '')); };
 
   return (
-    <div className="fixed inset-x-0 top-14 z-[100] flex justify-center px-4 pointer-events-none">
+    <div className="fixed inset-x-0 top-2 z-[100] flex justify-center px-4 pointer-events-none">
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-auto relative flex w-full max-w-md items-center gap-3.5 overflow-hidden rounded-2xl border border-primary/25 bg-card/95 p-3.5 pr-3 shadow-[0_12px_40px_-12px_hsl(var(--primary)/0.45)] ring-1 ring-black/5 backdrop-blur animate-in fade-in slide-in-from-top-4 duration-500"
+        title={kind === 'app' ? 'Restart to install it. It only takes a few seconds.' : 'Update to get the newest features and fixes.'}
+        className="pointer-events-auto flex items-center gap-2 rounded-full border border-primary/30 bg-card/95 py-1 pl-1.5 pr-1 text-xs shadow-[0_6px_20px_-8px_hsl(var(--primary)/0.5)] backdrop-blur animate-in fade-in slide-in-from-top-2 duration-300"
       >
-        {/* a soft glow behind the icon, and a thin line of colour along the top */}
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/0 via-primary to-primary/0" />
-        <div aria-hidden className="pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-primary/15 blur-2xl" />
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md">
-          {working ? <RefreshCw className="h-5 w-5 animate-spin" /> : kind === 'app' ? <Download className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
-        </div>
-        <div className="relative min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-tight tracking-tight">
-            {working ? 'Updating…' : kind === 'app' ? `KD Ops ${appVersion} is ready` : 'A fresh version is ready'}
-          </p>
-          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-            {working
-              ? kind === 'app' ? 'KD Ops will close and open again by itself.' : 'Just a moment.'
-              : kind === 'app' ? 'Restart to install it. It only takes a few seconds.' : 'Update to get the newest features and fixes.'}
-          </p>
-        </div>
-        <Button size="sm" className="relative shrink-0 rounded-full px-4 shadow-sm" disabled={working} onClick={onUpdate}>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
+          {working ? <RefreshCw className="h-3 w-3 animate-spin" /> : kind === 'app' ? <Download className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+        </span>
+        <span className="font-medium leading-none">
+          {working ? 'Updating…' : kind === 'app' ? `KD Ops ${appVersion} is ready` : 'New version ready'}
+        </span>
+        <Button size="sm" className="h-6 rounded-full px-3 text-xs" disabled={working} onClick={onUpdate}>
           {kind === 'app' ? 'Restart' : 'Update'}
         </Button>
         <button
           type="button"
           aria-label="Not now"
           title="Not now"
-          className="relative shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={later}
         >
-          <X className="h-4 w-4" />
+          <X className="h-3 w-3" />
         </button>
       </div>
     </div>
