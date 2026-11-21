@@ -87,9 +87,9 @@ export interface SummaryMetrics {
   tracking?: { expected_days?: number; tracked_days?: number; hours?: number; avg_hours_per_day?: number; low_days?: number };
   tasks?: { completed?: number; created?: number; overdue?: number; in_review?: number; blocked?: number };
   reports?: { expected?: number; submitted?: number; missing?: { person_id: string; name: string; days: number }[] };
-  flags?: { opened?: number; high?: number; resolved?: number; open_now?: number; by_rule?: Record<string, number> };
+  flags?: { opened?: number; high?: number; other_opened?: number; resolved?: number; open_now?: number; by_rule?: Record<string, number> };
   repeat?: { person_id: string; name: string; rule: string; count: number }[];
-  sites?: { domain: string; minutes: number; people: number }[];
+  sites?: { domain: string; minutes: number; people: number; category?: 'unproductive' | 'unfamiliar' }[];
   /** Daily summaries made before the 6:30 PM change carry `today`; newer ones carry `tomorrow`. Both are read. */
   today?: { due_today?: number; on_leave?: number };
   tomorrow?: { due_tomorrow?: number; on_leave?: number };

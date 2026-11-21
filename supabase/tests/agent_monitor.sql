@@ -356,6 +356,11 @@ BEGIN
 END $$;
 
 -- ── 7. pulse and permissions ───────────────────────────────────────────────
+-- the pulse reads the real clock: make every day a work day so the numbers do not depend on the day the test runs
+RESET ROLE;
+CREATE TEMP TABLE _wd AS SELECT default_working_days FROM public.agent_settings WHERE id;
+GRANT SELECT ON _wd TO PUBLIC;
+UPDATE public.agent_settings SET default_working_days = '{1,2,3,4,5,6,7}';
 SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$
 DECLARE v jsonb;
@@ -370,6 +375,8 @@ BEGIN
   PERFORM public.t_eq('open flag count matches', (v ->> 'open_flags')::int, (SELECT count(*)::int FROM public.agent_flags WHERE status = 'open'));
   PERFORM public.t_eq('Super can check now', (public.agent_check_now() ->> 'errors'), '[]');
 END $$;
+RESET ROLE;
+UPDATE public.agent_settings SET default_working_days = (SELECT default_working_days FROM _wd);   -- put the work days back
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');
 DO $$
 BEGIN
@@ -586,9 +593,9 @@ BEGIN
   PERFORM public.t_eq('daily made at 6:30 PM', r -> 'made', '["day"]'::jsonb);
   SELECT metrics INTO m FROM public.agent_summaries WHERE period_kind = 'day' AND period_start = '2026-11-18' AND period_end = '2026-11-18';
   PERFORM public.t_eq('it covers that same day', m IS NOT NULL, true);
-  PERFORM public.t_eq('expected person-days (not exempt)', (m -> 'tracking' ->> 'expected_days')::int, 5);
-  PERFORM public.t_eq('person-days with time tracked (Cara, Zed, Yan and Bob''s short timer)', (m -> 'tracking' ->> 'tracked_days')::int, 4);
-  PERFORM public.t_eq('hours in all', (m -> 'tracking' ->> 'hours')::numeric, 9.4);
+  PERFORM public.t_eq('expected person-days (not exempt, leadership included)', (m -> 'tracking' ->> 'expected_days')::int, 6);
+  PERFORM public.t_eq('person-days with time tracked (Cara, Zed, Yan, Bob''s short timer and Alice''s timer that is still running)', (m -> 'tracking' ->> 'tracked_days')::int, 5);
+  PERFORM public.t_eq('hours in all: 9.4 recorded plus 12 for the timer left running (counted up to 12 hours from its start)', (m -> 'tracking' ->> 'hours')::numeric, 21.4);
   PERFORM public.t_eq('headline present', m ->> 'headline' LIKE 'Wednesday, Nov 18:%', true);
   PERFORM public.t_eq('outlook for tomorrow on a daily', m -> 'tomorrow' ? 'due_tomorrow', true);
   IF (SELECT narrative FROM public.agent_summaries WHERE period_kind = 'day') NOT LIKE '## Wednesday, Nov 18%' THEN RAISE EXCEPTION 'FAIL: narrative heading'; END IF;

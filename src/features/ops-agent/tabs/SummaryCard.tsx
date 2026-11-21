@@ -79,7 +79,7 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
               <Tile testId="tile-tracking" label="Tracking" main={of(m.tracking?.tracked_days, m.tracking?.expected_days)} hint={`person-days · ${m.tracking?.hours ?? 0} h`} />
               <Tile testId="tile-reports" label="Reports" main={of(m.reports?.submitted, m.reports?.expected)} hint="sent of expected" />
               <Tile testId="tile-tasks" label="Tasks" main={<>{m.tasks?.completed ?? 0} <span className="text-sm font-normal text-muted-foreground">done</span></>} hint={`${m.tasks?.overdue ?? 0} overdue`} />
-              <Tile testId="tile-items" label="Items" main={<>{m.flags?.opened ?? 0} <span className="text-sm font-normal text-muted-foreground">opened</span></>} hint={`${m.flags?.high ?? 0} high or critical`} />
+              <Tile testId="tile-items" label="Items" main={<>{m.flags?.opened ?? 0} <span className="text-sm font-normal text-muted-foreground">opened</span></>} hint={`${m.flags?.high ?? 0} high or critical · team items`} />
             </div>
           )}
 
@@ -114,7 +114,7 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
               <ul className="flex flex-wrap gap-1.5" aria-label="Flagged sites">
                 {sites.map((s) => (
                   <li key={s.domain} className="inline-flex max-w-full items-center gap-2 rounded-full border bg-background/60 py-1 pl-1 pr-3 text-xs" data-testid="summary-site">
-                    <SiteIcon domain={s.domain} category="unknown" size={22} />
+                    <SiteIcon domain={s.domain} category={s.category === 'unproductive' ? 'unproductive' : 'unknown'} size={22} />
                     <span className="truncate font-medium">{s.domain}</span>
                     <span className="tabular-nums text-muted-foreground">{s.minutes}m · {s.people} {s.people === 1 ? 'person' : 'people'}</span>
                   </li>

@@ -363,5 +363,65 @@ BEGIN
   RAISE NOTICE 'PASS 10: tracking expected honours exemptions';
 END $$;
 
+-- ── 11. summaries count the same people as the Inbox, honour site assignments and show only team items ─
+DO $$
+DECLARE b jsonb; n0 integer; o0 integer; v_sites jsonb;
+BEGIN
+  RESET ROLE;
+  -- earlier sections exempted Sue (reports) and Alice (time tracking): lift both so this section starts from the plain rule
+  UPDATE public.agent_person_profile SET exemptions = '{}'::jsonb WHERE person_id IN ('a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002');
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  PERFORM public.t_eq('tracking expects the team who work that day, minus placed and exempt: leadership is in',
+    (b -> 'metrics' -> 'tracking' ->> 'expected_days')::int,
+    (SELECT count(*)::int FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.expects_work AND coalesce(t.grp, '') <> 'placement' AND NOT t.exempt_time));
+  PERFORM public.t_eq('Sue (leadership) is one of them', (SELECT count(*)::int FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.person_id = 'a0000000-0000-0000-0000-000000000001' AND t.expects_work AND NOT t.exempt_time), 1);
+  PERFORM public.t_eq('a timer still running counts as tracked (Alice), and so does Cara', (b -> 'metrics' -> 'tracking' ->> 'tracked_days')::int, 2);
+  PERFORM public.t_eq('reports expect the same people, plus anyone only exempt from tracking',
+    (b -> 'metrics' -> 'reports' ->> 'expected')::int,
+    (SELECT count(*)::int FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.expects_work AND coalesce(t.grp, '') <> 'placement' AND NOT t.exempt_reports));
+  PERFORM public.t_eq('Sue is missing a report, as the Inbox says', (SELECT count(*)::int FROM jsonb_array_elements(b -> 'metrics' -> 'reports' -> 'missing') m WHERE m ->> 'name' = 'Sue Super'), 1);
+  UPDATE public.agent_person_profile SET exemptions = '{"time": true}'::jsonb WHERE person_id = 'a0000000-0000-0000-0000-000000000002';
+  PERFORM public.t_eq('exempt Alice from tracking: she leaves the expected number at once', (public.agent_build_summary('day', '2026-11-18', '2026-11-18') -> 'metrics' -> 'tracking' ->> 'expected_days')::int, (b -> 'metrics' -> 'tracking' ->> 'expected_days')::int - 1);
+  UPDATE public.agent_person_profile SET exemptions = '{}'::jsonb WHERE person_id = 'a0000000-0000-0000-0000-000000000002';
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  -- overdue is the Inbox rule: a task due today is not overdue yet
+  PERFORM public.t_eq('overdue: Alice has two, nobody else has one before the 18th', (b -> 'metrics' -> 'tasks' ->> 'overdue')::int, 2);
+  INSERT INTO public.tm_tasks (title, status, assignee_id, due_date) VALUES ('Bob due today', 'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-11-18');
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  PERFORM public.t_eq('a task due today is not counted as overdue', (b -> 'metrics' -> 'tasks' ->> 'overdue')::int, 2);
+
+  -- items: the team's only; the others are counted apart
+  n0 := (b -> 'metrics' -> 'flags' ->> 'opened')::int; o0 := (b -> 'metrics' -> 'flags' ->> 'other_opened')::int;
+  PERFORM public.agent_raise_flag('SY01', 'system', NULL, 'system', 'sum-test', '', 'high', 'A system thing', 'w', '{}'::jsonb, '', '2026-11-18T15:00:00Z');
+  PERFORM public.agent_raise_flag('TK01', 'task', 'a0000000-0000-0000-0000-000000000002', 'task', 'b1000000-0000-0000-0000-0000000000ff', '', 'high', 'A task thing', 'w', '{}'::jsonb, '', '2026-11-18T15:00:00Z');
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  PERFORM public.t_eq('a team item is counted', (b -> 'metrics' -> 'flags' ->> 'opened')::int, n0 + 1);
+  PERFORM public.t_eq('a system item is counted apart, not as a team item', (b -> 'metrics' -> 'flags' ->> 'other_opened')::int, o0 + 1);
+
+  -- sites: Track says youtube is unproductive; your assignment in Agent wins either way
+  INSERT INTO public.time_activity_logs (employee_id, captured_at, app_name, url, productivity_category)
+  SELECT 'a0000000-0000-0000-0000-000000000003', ts, 'Chrome', 'https://www.youtube.com/watch?v=1', 'unproductive'
+    FROM (VALUES ('2026-11-18T14:10:00Z'::timestamptz), ('2026-11-18T14:11:00Z'), ('2026-11-18T14:12:00Z')) v(ts);
+  PERFORM public.agent_rule_tr05('2026-11-18T15:00:00Z');
+  PERFORM public.t_eq('Bob has an open unproductive-site item', (SELECT count(*) FROM public.agent_flags f WHERE f.rule_code = 'TR05' AND f.person_id = 'a0000000-0000-0000-0000-000000000003' AND f.status = 'open'), 1::bigint);
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  v_sites := b -> 'metrics' -> 'sites';
+  PERFORM public.t_eq('the summary lists youtube as unproductive', v_sites -> 0 ->> 'domain' || ':' || (v_sites -> 0 ->> 'category'), 'youtube.com:unproductive');
+  INSERT INTO public.agent_domain_list (domain, category, source) VALUES ('youtube.com', 'approved', 'manual');   -- you assign it productive
+  PERFORM public.agent_rule_tr05('2026-11-18T15:01:00Z');
+  PERFORM public.t_eq('marked productive: youtube leaves Bob''s item on the next look (his other, unfamiliar sites stay)',
+    (SELECT count(*) FROM public.agent_flags f, jsonb_array_elements(f.evidence -> 'sites') x WHERE f.rule_code = 'TR05' AND f.person_id = 'a0000000-0000-0000-0000-000000000003' AND f.status = 'open' AND x ->> 'domain' = 'youtube.com'), 0::bigint);
+  PERFORM public.t_eq('and the item is no longer an unproductive one', (SELECT (f.evidence ->> 'unproductive_seconds')::int FROM public.agent_flags f WHERE f.rule_code = 'TR05' AND f.person_id = 'a0000000-0000-0000-0000-000000000003' AND f.status = 'open'), 0);
+  b := public.agent_build_summary('day', '2026-11-18', '2026-11-18');
+  PERFORM public.t_eq('marked productive: the summary no longer lists it', (SELECT count(*) FROM jsonb_array_elements(b -> 'metrics' -> 'sites') x WHERE x ->> 'domain' = 'youtube.com'), 0::bigint);
+  PERFORM public.t_eq('the class helper: your assignment first', public.agent_site_class('www.youtube.com', 'unproductive'), 'productive');
+  PERFORM public.t_eq('the class helper: otherwise Track''s category', public.agent_site_class('github.com', 'productive'), 'productive');
+  PERFORM public.t_eq('the class helper: unclassified', public.agent_site_class('nothing.example', NULL), NULL::text);
+
+  -- the Monday scorecard counts leadership too
+  PERFORM public.t_eq('the weekly stats include Sue (leadership)', (SELECT count(*) FROM public.agent_week_stats('2026-11-16') w WHERE w.person_id = 'a0000000-0000-0000-0000-000000000001'), 1::bigint);
+  RAISE NOTICE 'PASS 11: summaries match the Inbox';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;
