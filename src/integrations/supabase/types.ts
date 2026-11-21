@@ -24122,6 +24122,10 @@ export type Database = {
       agent_sev_rank: { Args: { p: string }; Returns: number }
       agent_shorten_json: { Args: { j: Json }; Returns: Json }
       agent_shorten_val: { Args: { v: Json }; Returns: Json }
+      agent_site_class: {
+        Args: { p_cat?: string; p_domain: string }
+        Returns: string
+      }
       agent_site_hint: { Args: { p_domain: string }; Returns: Json }
       agent_suggest_person_profiles: {
         Args: { p_leadership_pay_groups?: string[] }
