@@ -19,7 +19,7 @@ import { ChatDialog } from './ChatDialog';
 import { allowed } from './OfficeSettingsDialog';
 import { desktopDownload, inDesktopApp } from './desktopApp';
 import { useDesktopMini } from './useDesktopMini';
-import { markOfficeAlive } from '@/lib/officeAlive';
+import { markOfficeAlive, setOfficeHere } from '@/lib/officeAlive';
 import { isHeld, useVehicles } from './useVehicles';
 import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
@@ -1059,7 +1059,16 @@ function OfficeRoom() {
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
   // while the Office is open nobody is signed out for being idle (the idle sign-out reads this heartbeat)
-  useEffect(() => { markOfficeAlive(); const id = window.setInterval(() => markOfficeAlive(), 15_000); return () => window.clearInterval(id); }, []);
+  useEffect(() => {
+    setOfficeHere(true);
+    markOfficeAlive();
+    const beat = () => markOfficeAlive();
+    const id = window.setInterval(beat, 15_000);
+    // when the computer wakes up or the window comes back, say so at once instead of waiting for the next beat
+    document.addEventListener('visibilitychange', beat);
+    window.addEventListener('focus', beat);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); window.removeEventListener('focus', beat); setOfficeHere(false); };
+  }, []);
   // the KD Ops desktop app's small window shows who is around and sets Do not disturb while the computer is locked (nothing happens in a browser)
   useDesktopMini({ name: me?.name ?? '', avatar: me?.avatar, status, roster, myUid: me?.id ?? '', onStatus: chooseStatus });
   // like Gather: Ctrl+O available, Ctrl+I busy, Ctrl+U do not disturb
