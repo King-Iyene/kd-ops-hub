@@ -7,7 +7,8 @@
 //
 // Mounted once per authed session inside AppLayout. Never runs on /login.
 // While the Office is open (a tab or the desktop app) nobody is signed out for being idle: the Office stays signed in, and the
-// KD Ops pages cannot sign it out (the sign-in is shared). With the Office closed, this works as before.
+// KD Ops pages cannot sign it out (the sign-in is shared). With the Office closed, this works as before (one hour of no activity).
+// Whatever the page, you sign in again once a month.
 //
 // Activity events: mousemove, keydown, scroll, touchstart, click. Throttled
 // to once per second so we don't spam state updates.
@@ -17,10 +18,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
-import { idleAction, officeIsOpen } from '@/lib/officeAlive';
+import { WAKE_GRACE_MS, idleAction, justWoke, monthlyLimitReached, officeIsOpen } from '@/lib/officeAlive';
 
 const SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
-const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const;
+// 'wheel' and 'pointerdown' count too: scrolling inside a panel does not reach the window as a 'scroll' event
+const ACTIVITY_EVENTS = ['mousemove', 'pointerdown', 'wheel', 'keydown', 'scroll', 'touchstart', 'click'] as const;
 const WARNING_BEFORE_MS = 60_000; // 1 minute warning before sign-out
 const ACTIVITY_THROTTLE_MS = 1000;
 
@@ -67,14 +69,30 @@ export function useIdleTimeout() {
       }
     };
     for (const ev of ACTIVITY_EVENTS) {
-      window.addEventListener(ev, onActivity, { passive: true });
+      window.addEventListener(ev, onActivity, { passive: true, capture: true });
     }
 
     // ── Periodic checker (every 10s) ─────────────────────────────────────
+    let lastTickAt = Date.now();
+    let graceUntil = 0;
     const tick = () => {
-      const idle = Date.now() - lastActivityRef.current;
+      const now = Date.now();
+      // The computer was asleep: give the Office a moment to write its "I am open" heartbeat before anybody is called idle
+      if (justWoke(now - lastTickAt, 10_000)) graceUntil = now + WAKE_GRACE_MS;
+      lastTickAt = now;
+
+      // The Office keeps you signed in for a month; then you sign in again once.
+      if (monthlyLimitReached(user.last_sign_in_at, now)) {
+        toast({ title: 'Please sign in again', description: 'For security, you sign in again once a month.' });
+        void signOut().then(() => navigate('/login', { replace: true }));
+        return;
+      }
+
+      const idle = now - lastActivityRef.current;
       const limit = timeoutMsRef.current;
-      const action = idleAction(idle, limit, WARNING_BEFORE_MS, warnedRef.current, officeIsOpen());
+      const open = officeIsOpen(now);
+      if (now < graceUntil && !open) return;
+      const action = idleAction(idle, limit, WARNING_BEFORE_MS, warnedRef.current, open);
       if (action === 'restart') {
         lastActivityRef.current = Date.now();
         warnedRef.current = false;
@@ -102,7 +120,7 @@ export function useIdleTimeout() {
     return () => {
       cancelled = true;
       for (const ev of ACTIVITY_EVENTS) {
-        window.removeEventListener(ev, onActivity);
+        window.removeEventListener(ev, onActivity, { capture: true });
       }
       if (checkerRef.current) window.clearInterval(checkerRef.current);
     };
