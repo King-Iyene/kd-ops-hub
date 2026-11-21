@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X } from 'lucide-react';
+import { Download, RefreshCw, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { logWarn } from '@/lib/logger';
-import { inDesktopApp } from '@/features/office/desktopApp';
+import { inDesktopApp, installDesktopUpdate, onDesktopUpdate } from '@/features/office/desktopApp';
 
 /** Update for sure: ask the waiting worker to take over, and if the page has not reloaded within a moment, drop the worker and the caches and reload by force. */
 export async function reloadToUpdate(updateServiceWorker: (reload?: boolean) => Promise<void>): Promise<void> {
@@ -74,26 +74,49 @@ export function PwaUpdatePrompt() {
   // A new version never reloads the page by itself (that caused reload loops while deploys were landing back to back):
   // it only shows the prompt below, and the person chooses when to reload.
 
-  if (!needRefresh) return null;
+  // The desktop app itself (not just the pages it shows) has a newer version downloaded and waiting
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+  const [hiddenFor, setHiddenFor] = useState<string | null>(null);
+  useEffect(() => onDesktopUpdate(setAppVersion), []);
+
+  const kind: 'app' | 'site' | null = appVersion ? 'app' : needRefresh ? 'site' : null;
+  if (!kind || hiddenFor === kind + (appVersion ?? '')) return null;
+
+  const onUpdate = () => {
+    setWorking(true);
+    if (kind === 'app') installDesktopUpdate();
+    else void reloadToUpdate(updateServiceWorker);
+    // if nothing happened after a while (a blocked update), let the person try again
+    window.setTimeout(() => setWorking(false), 15000);
+  };
+  const later = () => { if (kind === 'site') setNeedRefresh(false); else setHiddenFor(kind + (appVersion ?? '')); };
 
   return (
-    <div className="fixed inset-x-0 top-16 z-[100] flex justify-center px-4 pointer-events-none">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-        <RefreshCw className="h-4 w-4 shrink-0 text-primary" />
-        <div className="text-sm">
-          <p className="font-medium leading-tight">A new version of KD Ops is available.</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Reload to pick up the latest changes.</p>
-        </div>
-        <Button size="sm" className="shrink-0" onClick={() => { void reloadToUpdate(updateServiceWorker); }}>
-          Reload
+    <div className="fixed inset-x-0 top-2 z-[100] flex justify-center px-4 pointer-events-none">
+      <div
+        role="status"
+        aria-live="polite"
+        title={kind === 'app' ? 'Restart to install it. It only takes a few seconds.' : 'Update to get the newest features and fixes.'}
+        className="pointer-events-auto flex items-center gap-2 rounded-full border border-primary/30 bg-card/95 py-1 pl-1.5 pr-1 text-xs shadow-[0_6px_20px_-8px_hsl(var(--primary)/0.5)] backdrop-blur animate-in fade-in slide-in-from-top-2 duration-300"
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
+          {working ? <RefreshCw className="h-3 w-3 animate-spin" /> : kind === 'app' ? <Download className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+        </span>
+        <span className="font-medium leading-none">
+          {working ? 'Updating…' : kind === 'app' ? `KD Ops ${appVersion} is ready` : 'New version ready'}
+        </span>
+        <Button size="sm" className="h-6 rounded-full px-3 text-xs" disabled={working} onClick={onUpdate}>
+          {kind === 'app' ? 'Restart' : 'Update'}
         </Button>
         <button
           type="button"
-          aria-label="Dismiss"
-          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => setNeedRefresh(false)}
+          aria-label="Not now"
+          title="Not now"
+          className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={later}
         >
-          <X className="h-4 w-4" />
+          <X className="h-3 w-3" />
         </button>
       </div>
     </div>

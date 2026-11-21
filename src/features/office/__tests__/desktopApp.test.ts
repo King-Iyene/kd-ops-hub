@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DESKTOP_RELEASE_PAGE, desktopDownload } from '../desktopApp';
+import { DESKTOP_RELEASE_PAGE, desktopDownload, installDesktopUpdate, onDesktopUpdate } from '../desktopApp';
 
 describe('desktop app download', () => {
   it('picks the installer for the computer', () => {
@@ -11,5 +11,28 @@ describe('desktop app download', () => {
   it('sends phones and unknown systems to the release page', () => {
     expect(desktopDownload('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)').url).toBe(DESKTOP_RELEASE_PAGE);
     expect(desktopDownload('something odd').url).toBe(DESKTOP_RELEASE_PAGE);
+  });
+});
+
+describe('desktop app update bridge', () => {
+  it('does nothing in a browser (no desktop app around)', () => {
+    let called = false;
+    const off = onDesktopUpdate(() => { called = true; });
+    installDesktopUpdate();
+    off();
+    expect(called).toBe(false);
+  });
+  it('passes the waiting version on, and null when there is none', () => {
+    const seen: Array<string | null> = [];
+    (globalThis as unknown as { window: unknown }).window = {
+      kdDesktop: { onUpdate: (cb: (v: unknown) => void) => { cb('0.3.7'); cb(null); cb(42); return () => undefined; }, installUpdate: () => { seen.push('install'); } },
+    };
+    try {
+      onDesktopUpdate((v) => seen.push(v));
+      installDesktopUpdate();
+      expect(seen).toEqual(['0.3.7', null, null, 'install']);
+    } finally {
+      delete (globalThis as unknown as { window?: unknown }).window;
+    }
   });
 });
