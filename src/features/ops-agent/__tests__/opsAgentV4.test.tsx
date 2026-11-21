@@ -69,6 +69,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: (t: { title?: st
 
 import { InboxTab } from '@/features/ops-agent/tabs/InboxTab';
 import { SummariesTab } from '@/features/ops-agent/tabs/SummariesTab';
+import { SummaryCard } from '@/features/ops-agent/tabs/SummaryCard';
 import OpsAgent from '@/pages/OpsAgent';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
 
@@ -335,6 +336,38 @@ describe('Summaries', () => {
     expect(screen.getAllByTestId('summary-group').map((g) => g.getAttribute('aria-label'))).toEqual(['November 2026', 'October 2026']);
     expect(JSON.parse(window.localStorage.getItem('kd-agent-summary-kinds') ?? '{}')).toEqual({ day: true, week: true, month: true, scorecard: true });
     expect(writes()).toEqual([]);
+  });
+
+  it('a weekly summary leads with consistent trackers and reporters, the task completion rate and the week before', () => {
+    const summary = {
+      id: 'w1', period_kind: 'week', period_start: '2026-11-16', period_end: '2026-11-20', company_id: null, narrative: '## Week\n\nText', auto: true, created_at: '2026-11-20T23:30:00Z',
+      metrics: {
+        headline: 'Week of Nov 16 to Nov 20: 6 of 13 people tracked consistently',
+        flags: { opened: 146, high: 99 },
+        kpis: {
+          threshold: 80, trackers_total: 13, trackers_consistent: 6, trackers_none: 2, reporters_total: 13, reporters_consistent: 2, reporters_none: 5, reports_sent: 7, reports_expected: 65,
+          hours: 210.5, expected_hours: 390, hours_pct: 54, avg_hours_per_day: 6.8,
+          trackers_inconsistent: [{ person_id: 'p1', name: 'Nathan Samuel', days: 2, expected: 5 }],
+          reporters_inconsistent: [{ person_id: 'p2', name: 'Tonye John', days: 0, expected: 5 }],
+          tasks: { opened: 25, closed: 12, open_start: 17, open_end: 30, workload: 42, completion_rate: 29, on_time_n: 10, on_time_rate: 70, avg_days_to_close: 3.4, overdue_now: 0 },
+        },
+        previous: { trackers_total: 12, trackers_consistent: 4, reporters_total: 12, reporters_consistent: 1, tasks: { workload: 30, completion_rate: 40 } },
+      },
+    };
+    renderUi(<ul><SummaryCard summary={summary as never} defaultOpen people={new Map()} ruleTitles={new Map()} /></ul>);
+    expect(screen.getByTestId('tile-trackers')).toHaveTextContent('6 of 13');
+    expect(screen.getByTestId('tile-trackers')).toHaveTextContent('80%+ of days · last week 4 of 12');
+    expect(screen.getByTestId('tile-reporters')).toHaveTextContent('2 of 13');
+    expect(screen.getByTestId('tile-completion')).toHaveTextContent('29%');
+    expect(screen.getByTestId('tile-completion')).toHaveTextContent('12 closed of 42 in play · last week 40%');
+    expect(screen.getByTestId('tile-hours')).toHaveTextContent('210.5 of 390 h');
+    expect(screen.getByTestId('tile-opened-closed')).toHaveTextContent('open 17 → 30');
+    expect(screen.getByTestId('tile-ontime')).toHaveTextContent('70%');
+    expect(screen.queryByTestId('tile-tracking')).not.toBeInTheDocument(); // no raw person-day tile on a weekly
+    const who = screen.getByTestId('summary-inconsistent');
+    expect(within(who).getByText('Nathan Samuel')).toBeInTheDocument();
+    expect(within(who).getByText('2 of 5 days')).toBeInTheDocument();
+    expect(within(who).getByText('Not reporting consistently')).toBeInTheDocument();
   });
 
   it('expands an older summary to show the figures, missing reports and flagged sites', async () => {

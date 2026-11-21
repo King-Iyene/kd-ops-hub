@@ -81,8 +81,24 @@ export interface AgentFlag {
 }
 export interface AgentSummary { id: string; period_kind: string; period_start: string; period_end: string; company_id: string | null; narrative: string | null; auto: boolean; created_at: string; metrics?: SummaryMetrics | null }
 
+/** A person who was not consistent, with the days they did it out of the days they were expected to. */
+export interface SummaryConsistency { person_id: string; name: string; days: number; expected: number }
+/** The key numbers of a weekly or monthly summary (and of the period before it, for comparison). */
+export interface PeriodKpis {
+  threshold?: number;
+  trackers_total?: number; trackers_consistent?: number; trackers_none?: number; trackers_inconsistent?: SummaryConsistency[];
+  reporters_total?: number; reporters_consistent?: number; reporters_none?: number; reporters_inconsistent?: SummaryConsistency[];
+  reports_sent?: number; reports_expected?: number;
+  hours?: number; expected_hours?: number; hours_pct?: number | null; avg_hours_per_day?: number;
+  tasks?: {
+    opened?: number; closed?: number; open_start?: number; open_end?: number; workload?: number; completion_rate?: number | null;
+    on_time_n?: number; on_time_rate?: number | null; avg_days_to_close?: number | null; overdue_now?: number; top_closers?: { name: string; closed: number }[];
+  };
+}
+
 /** The numbers inside a summary (see the header of the agent_summaries migration). Older rows may lack any part of this. */
 export interface SummaryMetrics {
+  kpis?: PeriodKpis | null; previous?: PeriodKpis | null;
   headline?: string; team_size?: number; working_days?: number;
   tracking?: { expected_days?: number; tracked_days?: number; hours?: number; avg_hours_per_day?: number; low_days?: number };
   tasks?: { completed?: number; created?: number; overdue?: number; in_review?: number; blocked?: number };

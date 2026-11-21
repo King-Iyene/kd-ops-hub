@@ -423,5 +423,52 @@ BEGIN
   RAISE NOTICE 'PASS 11: summaries match the Inbox';
 END $$;
 
+-- ── 12. weekly and monthly: consistent trackers and reporters, task completion rate, and the period before ─
+DO $$
+DECLARE b jsonb; k jsonb; v_tasks jsonb; v_exp_t integer; v_exp_r integer; v_sub integer;
+BEGIN
+  RESET ROLE;
+  UPDATE public.agent_person_profile SET exemptions = '{}'::jsonb WHERE person_id IN ('a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002');
+  -- a one-day "week" (Wed 18th): consistent means tracked or reported on at least 80% of the person's working days, here that one day
+  b := public.agent_build_summary('week', '2026-11-18', '2026-11-18');
+  k := b -> 'metrics' -> 'kpis';
+  SELECT count(*)::int INTO v_exp_t FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.expects_work AND coalesce(t.grp, '') <> 'placement' AND NOT t.exempt_time;
+  SELECT count(*)::int INTO v_exp_r FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.expects_work AND coalesce(t.grp, '') <> 'placement' AND NOT t.exempt_reports;
+  SELECT count(*)::int INTO v_sub FROM public.agent_team_today('2026-11-18T17:00:00Z') t WHERE t.expects_work AND coalesce(t.grp, '') <> 'placement' AND NOT t.exempt_reports
+     AND t.person_id IN (SELECT x FROM public.agent_report_submitters('2026-11-18') x);
+  PERFORM public.t_eq('people expected to track', (k ->> 'trackers_total')::int, v_exp_t);
+  PERFORM public.t_eq('consistent trackers: Alice (a timer still running) and Cara', (k ->> 'trackers_consistent')::int, 2);
+  PERFORM public.t_eq('the others tracked nothing', (k ->> 'trackers_none')::int, v_exp_t - 2);
+  PERFORM public.t_eq('people expected to report', (k ->> 'reporters_total')::int, v_exp_r);
+  PERFORM public.t_eq('consistent reporters are those with a report that day', (k ->> 'reporters_consistent')::int, v_sub);
+  PERFORM public.t_eq('the not-consistent list leaves out the consistent', (SELECT count(*)::int FROM jsonb_array_elements(k -> 'trackers_inconsistent') x WHERE x ->> 'name' IN ('Alice', 'Cara')), 0);
+  PERFORM public.t_eq('the threshold is stated', (k ->> 'threshold')::int, 80);
+  PERFORM public.t_eq('the period before is carried for comparison', (b -> 'metrics' -> 'previous') IS NOT NULL, true);
+  PERFORM public.t_eq('a daily summary does not carry these', (public.agent_build_summary('day', '2026-11-18', '2026-11-18') -> 'metrics' -> 'kpis') IS NULL OR (public.agent_build_summary('day', '2026-11-18', '2026-11-18') -> 'metrics' ->> 'kpis') IS NULL, true);
+
+  -- tasks, week of Nov 16 to 20: two already open (one of them closed on the 17th), two opened (17th, 18th), two closed (17th on time, 19th late)
+  INSERT INTO public.tm_tasks (title, status, assignee_id, due_date, created_at, completed_at) VALUES
+    ('KPI already open',          'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-12-01', '2026-11-10T15:00:00Z', NULL),
+    ('KPI open, closed the 17th', 'done',        'a0000000-0000-0000-0000-000000000003', '2026-11-18', '2026-11-10T15:00:00Z', '2026-11-17T15:00:00Z'),
+    ('KPI opened 17th, closed 19th late', 'done','a0000000-0000-0000-0000-000000000003', '2026-11-18', '2026-11-17T12:00:00Z', '2026-11-19T15:00:00Z'),
+    ('KPI opened the 18th',       'in_progress', 'a0000000-0000-0000-0000-000000000003', '2026-12-01', '2026-11-18T15:00:00Z', NULL);
+  b := public.agent_build_summary('week', '2026-11-16', '2026-11-20');
+  v_tasks := b -> 'metrics' -> 'kpis' -> 'tasks';
+  PERFORM public.t_eq('opened in the week', (v_tasks ->> 'opened')::int, 2);
+  PERFORM public.t_eq('closed in the week', (v_tasks ->> 'closed')::int, 2);
+  PERFORM public.t_eq('open at the start', (v_tasks ->> 'open_start')::int, 2);
+  PERFORM public.t_eq('work in play = already open + opened', (v_tasks ->> 'workload')::int, 4);
+  PERFORM public.t_eq('completion rate: 2 closed of 4 in play', (v_tasks ->> 'completion_rate')::int, 50);
+  PERFORM public.t_eq('open at the end of the week', (v_tasks ->> 'open_end')::int, 2);
+  PERFORM public.t_eq('on time: one of the two closed tasks with a due date', (v_tasks ->> 'on_time_rate')::int, 50);
+  PERFORM public.t_eq('Bob closed the most', v_tasks -> 'top_closers' -> 0 ->> 'name', 'Bob');
+  IF b ->> 'narrative' NOT LIKE '%people tracked consistently%' OR b ->> 'narrative' NOT LIKE '%of the work in play was closed%' THEN RAISE EXCEPTION 'FAIL: narrative %', b ->> 'narrative'; END IF;
+  IF b -> 'metrics' ->> 'headline' NOT LIKE '%50% of tasks closed (2 of 4)%' THEN RAISE EXCEPTION 'FAIL: headline %', b -> 'metrics' ->> 'headline'; END IF;
+  -- the month works the same way
+  b := public.agent_build_summary('month', '2026-11-01', '2026-11-20');
+  PERFORM public.t_eq('the monthly one carries the numbers and the previous month', (b -> 'metrics' -> 'kpis' -> 'tasks' ->> 'closed')::int >= 2 AND (b -> 'metrics' -> 'previous') IS NOT NULL, true);
+  RAISE NOTICE 'PASS 12: weekly and monthly key numbers';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

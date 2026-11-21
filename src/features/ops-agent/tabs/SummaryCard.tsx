@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { AgentSummary } from '../agentDb';
+import type { AgentSummary, SummaryConsistency } from '../agentDb';
 import { Markdown } from '../Markdown';
 import { PersonAvatar } from '../PersonAvatar';
 import { SiteIcon } from '../inbox/SiteFavicon';
@@ -18,6 +18,9 @@ function Tile({ label, main, hint, testId }: { label: string; main: ReactNode; h
     </div>
   );
 }
+
+const pct = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `${n}%`);
+const was = (label: string, n: number | string | null | undefined) => (n === null || n === undefined ? '' : ` · ${label} ${n}`);
 
 const of = (a: number | undefined, b: number | undefined) => <>{a ?? 0} <span className="text-sm font-normal text-muted-foreground">of {b ?? 0}</span></>;
 
@@ -47,7 +50,13 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
   const kind = (summary.period_kind as keyof typeof KIND_LABEL) in KIND_LABEL ? KIND_LABEL[summary.period_kind as keyof typeof KIND_LABEL] : summary.period_kind;
   const label = periodLabel(summary.period_kind, summary.period_start, summary.period_end);
   const headline = m?.headline ?? summary.narrative?.split('\n').find((l) => l.trim() && !l.startsWith('#'))?.slice(0, 220) ?? null;
-  const missing = m?.reports?.missing ?? [];
+  const k = m?.kpis ?? null;
+  const pk = m?.previous ?? null;
+  const kt = k?.tasks;
+  const prevWord = summary.period_kind === 'month' ? 'last month' : 'last week';
+  const slow = (k?.trackers_inconsistent ?? []) as SummaryConsistency[];
+  const late = (k?.reporters_inconsistent ?? []) as SummaryConsistency[];
+  const missing = k ? [] : (m?.reports?.missing ?? []);
   const repeat = m?.repeat ?? [];
   const sites = m?.sites ?? [];
   // The write-up opens with the period as a heading; the card header already says it.
@@ -74,7 +83,30 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
 
       {open && (
         <div id={bodyId} className="space-y-4 border-t px-4 pb-4 pt-3">
-          {m && summary.period_kind !== 'scorecard' && (
+          {m && k && (summary.period_kind === 'week' || summary.period_kind === 'month') && (
+            <div className="space-y-px overflow-hidden rounded-lg border bg-border" data-testid="summary-tiles">
+              <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
+                <Tile testId="tile-trackers" label="Consistent trackers" main={of(k.trackers_consistent, k.trackers_total)}
+                  hint={`${k.threshold ?? 80}%+ of days${was(prevWord, pk?.trackers_total ? `${pk.trackers_consistent ?? 0} of ${pk.trackers_total}` : null)}`} />
+                <Tile testId="tile-reporters" label="Consistent reporters" main={of(k.reporters_consistent, k.reporters_total)}
+                  hint={`${k.threshold ?? 80}%+ of days${was(prevWord, pk?.reporters_total ? `${pk.reporters_consistent ?? 0} of ${pk.reporters_total}` : null)}`} />
+                <Tile testId="tile-completion" label="Task completion" main={pct(kt?.completion_rate)}
+                  hint={`${kt?.closed ?? 0} closed of ${kt?.workload ?? 0} in play${was(prevWord, pk?.tasks?.workload ? pct(pk.tasks.completion_rate) : null)}`} />
+                <Tile testId="tile-items" label="Team items" main={<>{m.flags?.opened ?? 0} <span className="text-sm font-normal text-muted-foreground">opened</span></>} hint={`${m.flags?.high ?? 0} high or critical`} />
+              </div>
+              <div className="grid grid-cols-2 gap-px lg:grid-cols-4" data-testid="summary-extras">
+                <Tile testId="tile-hours" label="Hours tracked" main={<>{k.hours ?? 0} <span className="text-sm font-normal text-muted-foreground">of {k.expected_hours ?? 0} h</span></>}
+                  hint={`${pct(k.hours_pct)} of expected · ${k.avg_hours_per_day ?? 0} h a tracked day`} />
+                <Tile testId="tile-opened-closed" label="Tasks opened / closed" main={<>{kt?.opened ?? 0} <span className="text-sm font-normal text-muted-foreground">/ {kt?.closed ?? 0}</span></>}
+                  hint={`open ${kt?.open_start ?? 0} → ${kt?.open_end ?? 0}`} />
+                <Tile testId="tile-ontime" label="Closed on time" main={pct(kt?.on_time_rate)}
+                  hint={kt?.on_time_n ? `of ${kt.on_time_n} with a due date` : 'no due dates'} />
+                <Tile testId="tile-overdue" label="Overdue now" main={<span className={cn((kt?.overdue_now ?? 0) > 0 && 'text-destructive')}>{kt?.overdue_now ?? 0}</span>}
+                  hint={kt?.avg_days_to_close ? `a task took ${kt.avg_days_to_close} days to close` : undefined} />
+              </div>
+            </div>
+          )}
+          {m && !k && summary.period_kind !== 'scorecard' && (
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4" data-testid="summary-tiles">
               <Tile testId="tile-tracking" label="Tracking" main={of(m.tracking?.tracked_days, m.tracking?.expected_days)} hint={`person-days · ${m.tracking?.hours ?? 0} h`} />
               <Tile testId="tile-reports" label="Reports" main={of(m.reports?.submitted, m.reports?.expected)} hint="sent of expected" />
@@ -92,6 +124,21 @@ export function SummaryCard({ summary, defaultOpen, people, ruleTitles }: { summ
           )}
 
           {narrative && <Markdown text={narrative} className="text-sm" />}
+
+          {k && (slow.length > 0 || late.length > 0) && (
+            <div className="grid gap-4 sm:grid-cols-2" data-testid="summary-inconsistent">
+              {slow.length > 0 && (
+                <Names title="Not tracking consistently">
+                  {slow.map((p) => <Person key={p.person_id} id={p.person_id} name={p.name} people={people}>{p.days} of {p.expected} days</Person>)}
+                </Names>
+              )}
+              {late.length > 0 && (
+                <Names title="Not reporting consistently">
+                  {late.map((p) => <Person key={p.person_id} id={p.person_id} name={p.name} people={people}>{p.days} of {p.expected} days</Person>)}
+                </Names>
+              )}
+            </div>
+          )}
 
           {(missing.length > 0 || repeat.length > 0) && (
             <div className="grid gap-4 sm:grid-cols-2">
