@@ -24004,6 +24004,10 @@ export type Database = {
       }
       agent_my_scope: { Args: never; Returns: Json }
       agent_ordinal: { Args: { n: number }; Returns: string }
+      agent_period_kpis: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
       agent_plural: {
         Args: { p_many: string; p_n: number; p_one: string }
         Returns: string
