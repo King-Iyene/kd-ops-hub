@@ -286,7 +286,7 @@ function createView(id) {
   });
 
   wc.on('did-navigate', (_e, url) => { if (routeOf(url) === id) lastGood[id] = url; });
-  wc.on('did-finish-load', () => { delete lastTold[id]; syncPageState(); });
+  wc.on('did-finish-load', () => { delete lastTold[id]; syncPageState(); tellPagesAboutUpdate(wc); });
 
   // an unread count from the page title, "(3) Virtual Office"
   wc.on('page-title-updated', (_e, title) => {
@@ -566,6 +566,14 @@ async function askMacAccess() {
 // ---- updates: the app checks for a newer version by itself and installs it the next time you quit.
 // The update files live on one fixed release page that belongs to this app only (see build.publish in package.json),
 // so they can never be mixed up with the Time Tracker's releases.
+// The pages show a "restart to update" prompt of their own, so tell them when an update is waiting (one page, or both).
+function tellPagesAboutUpdate(only) {
+  if (!updateReadyVersion) return;
+  const targets = only ? [only] : Object.values(views).filter(Boolean).map((v) => v.webContents);
+  for (const wc of targets) { try { if (wc && !wc.isDestroyed() && sameOrigin(wc.getURL())) wc.send('kd:update', updateReadyVersion); } catch { /* the page is going away */ } }
+}
+ipcMain.on('kd:install-update', (e) => { if (fromOurPages(e) && updateReadyVersion) installUpdateNow(); });
+
 function installUpdateNow() {
   quitting = true;
   // silent: no installer wizard, the app closes, updates and starts again by itself
@@ -618,6 +626,7 @@ function initAutoUpdater() {
     logUpdate('update downloaded', info.version);
     if (Date.now() - foundAt < 15000 && Date.now() - startedAt < 5 * 60 * 1000) setTimeout(() => installByItself('it was downloaded earlier and the app has just started'), 3000);
     rebuildTray();
+    tellPagesAboutUpdate();
     const n = new Notification({
       title: NAME,
       body: `Version ${info.version} is ready. Click here to restart and install it now, or use "Restart to update" in the tray menu. It also installs when you quit.`,

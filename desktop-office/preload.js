@@ -16,9 +16,21 @@ ipcRenderer.on('kd:tab-visible', (_e, v) => {
 });
 ipcRenderer.on('kd:window-focus', (_e, v) => { focused = !!v; tellActive(); });
 
+// a newer version of the app itself has been downloaded (version number) or is not waiting (null); a page that opens later is told straight away
+let updateVersion = null;
+const updateWatchers = new Set();
+ipcRenderer.on('kd:update', (_e, v) => {
+  updateVersion = typeof v === 'string' && v ? v : null;
+  for (const cb of updateWatchers) { try { cb(updateVersion); } catch { /* one bad listener must not stop the rest */ } }
+});
+
 contextBridge.exposeInMainWorld('kdDesktop', {
   platform: process.platform,
   tab,
+  // a downloaded update is waiting: show "restart to update" in the page
+  onUpdate: (cb) => { updateWatchers.add(cb); if (updateVersion) cb(updateVersion); return () => { updateWatchers.delete(cb); }; },
+  // restart the app now so the update installs (the app ignores it when no update is waiting)
+  installUpdate: () => ipcRenderer.send('kd:install-update'),
   // is this page's tab being shown? (the Office uses it to stop drawing while you are in the other tab)
   isVisible: () => visible,
   onVisible: (cb) => { watchers.add(cb); cb(visible); return () => { watchers.delete(cb); }; },
