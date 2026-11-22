@@ -40,7 +40,7 @@ export const SURFACES: Record<string, { lp: number; peak: number; len: number }>
 /** The hum of each room: a filtered murmur, a soft pad, or the bleeps of the arcade. */
 export const ROOM_TONES: Record<string, { murmur: number; murmurHz: number; pad: number; blips: boolean }> = {
   library: { murmur: 0.012, murmurHz: 160, pad: 0, blips: false },
-  game: { murmur: 0.02, murmurHz: 900, pad: 0, blips: true },
+  game: { murmur: 0.02, murmurHz: 900, pad: 0, blips: false }, // the arcade bleeps were switched off: people heard them as random typing
   wellness: { murmur: 0.006, murmurHz: 140, pad: 0.03, blips: false },
   workshop: { murmur: 0.022, murmurHz: 520, pad: 0, blips: false },
   hall: { murmur: 0.018, murmurHz: 420, pad: 0, blips: false },
