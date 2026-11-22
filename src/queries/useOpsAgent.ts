@@ -284,6 +284,32 @@ export function useZohoOAuthFinish() {
     onSettled: () => { qc.invalidateQueries({ queryKey: K.connections() }); qc.invalidateQueries({ queryKey: K.audit() }); },
   });
 }
+
+// ── Cliq watch: tagged messages that nobody answered ───────────────────────
+export interface CliqWatchStatus {
+  connection_id: string; enabled: boolean; last_run_at: string | null; last_ok_at: string | null; last_error: string | null; waiting: number; answered_7d: number;
+  stats: { channels?: number; scanned_messages?: number; new_tagged?: number; answered?: number; failed_channels?: number } | null;
+}
+export function useCliqWatchStatus(enabled = true) {
+  return useSupabaseQuery<CliqWatchStatus[]>(['opsAgent', 'cliqWatch'], () => adb.rpc('agent_cliq_watch_status') as never, { enabled, staleTime: 15_000 });
+}
+/** Switching it on starts from now. Runs from a button, never from a render. */
+export function useSetCliqWatch() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<unknown, { id: string; enabled: boolean }>(
+    (v) => adb.rpc('agent_cliq_watch_set', { p_connection: v.id, p_enabled: v.enabled }) as never,
+    { onSuccess: () => { qc.invalidateQueries({ queryKey: ['opsAgent', 'cliqWatch'] }); qc.invalidateQueries({ queryKey: K.audit() }); } },
+  );
+}
+export interface CliqCheckResult { ok: boolean; error?: string; channels?: number; scanned?: number; tracked?: number; answered?: number }
+/** Reads Cliq right now (what the schedule does every 2 working hours). */
+export function useCliqWatchCheck() {
+  const qc = useQueryClient();
+  return useMutation<CliqCheckResult, Error, string>({
+    mutationFn: (id) => invokeAgent('agent-connections', { action: 'cliq_watch_check', id }),
+    onSettled: () => { qc.invalidateQueries({ queryKey: ['opsAgent', 'cliqWatch'] }); },
+  });
+}
 export function useDeleteConnection() {
   const qc = useQueryClient();
   return useMutation<{ ok: boolean }, Error, string>({

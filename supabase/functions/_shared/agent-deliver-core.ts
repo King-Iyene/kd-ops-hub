@@ -9,6 +9,7 @@ export interface Secrets { url?: string | null; token?: string | null; secret?: 
 export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
 import { renderMention } from './agent-mention-core.ts';
 import { messagesUrl, validChannel, validDc } from './agent-cliq-core.ts';
+import { OWN_MARK } from './agent-cliq-monitor-core.ts';
 
 export interface OutgoingLink { url: string; label: string }
 export interface Outgoing { title?: string; text: string; event?: string; meta?: OutgoingMeta; /** The exact thing being talked about: shown as a button in email and a line elsewhere. */ link?: OutgoingLink;
@@ -22,7 +23,9 @@ export interface Outgoing { title?: string; text: string; event?: string; meta?:
    * A message written to the person it is about: what was noticed, a question, and (when their manager is known) a line at the bottom
    * asking the manager to follow up. Cliq and Slack lay it out with tags; other tools show `text`.
    */
-  ask?: { observation: string; question: string; followUp: string } }
+  ask?: { observation: string; question: string; followUp: string };
+  /** Cliq API only: post in this channel (its unique name) instead of the connection's own, as a reply in the thread of this message. */
+  cliq?: { channel?: string; replyTo?: string } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -224,12 +227,16 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
       if (msg.cc && msg.ask.followUp) lines.push('', `${ref(msg.cc) || msg.cc.name} ${msg.ask.followUp}`);
       content = lines.join('\n');
     }
-    const body = JSON.stringify({ text: title ? `*${title}*\n${content}` : content });
+    const replyTo = api && typeof msg.cliq?.replyTo === 'string' && /^[A-Za-z0-9_.:-]{4,120}$/.test(msg.cliq.replyTo) ? msg.cliq.replyTo : null;
+    // Everything the agent posts to Cliq carries an invisible mark, so the Cliq watch never mistakes it for something a person wrote.
+    const bodyText = `${title ? `*${title}*\n${content}` : content}${api ? OWN_MARK : ''}`;
+    const body = JSON.stringify({ text: bodyText, ...(replyTo ? { reply_to: replyTo } : {}) });
     if (api) {
+      const channel = msg.cliq?.channel ?? cfg.channel;
       if (!validDc(cfg.dc)) return { type: 'error', error: 'The Zoho data center is missing.' };
-      if (!validChannel(cfg.channel)) return { type: 'error', error: 'The channel unique name is missing or not valid (lowercase letters, digits and underscores).' };
+      if (!validChannel(channel)) return { type: 'error', error: 'The channel unique name is missing or not valid (lowercase letters, digits and underscores).' };
       if (!secrets.access) return { type: 'error', error: 'Cliq did not give an access token.' };
-      return { type: 'http', url: messagesUrl(cfg.dc, cfg.channel), retryAuthorization: `Bearer ${secrets.access}`,
+      return { type: 'http', url: messagesUrl(cfg.dc, channel), retryAuthorization: `Bearer ${secrets.access}`,
         init: { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Zoho-oauthtoken ${secrets.access}` }, body } };
     }
     return { type: 'http', url: secrets.url!, init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body } };

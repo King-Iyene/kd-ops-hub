@@ -560,5 +560,93 @@ BEGIN
   RAISE NOTICE 'PASS 13: tailored messages, repeat warning, the warning is remembered, a call is raised once when it happens again';
 END $$;
 
+-- ── 14. Cliq watch: tagged and not answered ─────────────────────────────────
+DO $$
+DECLARE v_conn uuid := 'c1000000-0000-0000-0000-0000000000d1'; m1 uuid; m2 uuid; m5 uuid; m6 uuid; v_flag uuid; d jsonb; n bigint; r jsonb;
+BEGIN
+  RESET ROLE;
+  UPDATE public.agent_settings SET default_working_days = '{1,2,3,4,5}';   -- earlier sections made every day a working day
+  -- working time: only working days, only 9 to 5 Eastern
+  PERFORM public.t_eq('two hours inside a working day', public.agent_working_minutes('2026-11-18T15:00:00Z', '2026-11-18T17:00:00Z'), 120::numeric);
+  PERFORM public.t_eq('4 PM to 10 AM next day is 2 working hours', public.agent_working_minutes('2026-11-18T21:00:00Z', '2026-11-19T15:00:00Z'), 120::numeric);
+  PERFORM public.t_eq('Friday 4 PM to Monday 10 AM skips the weekend', public.agent_working_minutes('2026-11-20T21:00:00Z', '2026-11-23T15:00:00Z'), 120::numeric);
+  PERFORM public.t_eq('all of Saturday is nothing', public.agent_working_minutes('2026-11-21T14:00:00Z', '2026-11-22T02:00:00Z'), 0::numeric);
+
+  INSERT INTO public.agent_connections (id, kind, name, status, config) VALUES (v_conn, 'cliq', 'Cliq watch', 'connected', '{"mode": "api", "dc": "com", "channel": "ops"}');
+  INSERT INTO public.agent_identity_map (person_id, cliq_user_id) VALUES
+    ('a0000000-0000-0000-0000-000000000002', '1003'), ('a0000000-0000-0000-0000-000000000003', '1001'), ('a0000000-0000-0000-0000-000000000004', '1002'), ('a0000000-0000-0000-0000-000000000005', '1005')
+  ON CONFLICT (person_id) DO UPDATE SET cliq_user_id = EXCLUDED.cliq_user_id;
+
+  -- only the Super Admin switches it on, and it starts from now
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000002');
+  PERFORM public.t_denied($q$SELECT public.agent_cliq_watch_set('c1000000-0000-0000-0000-0000000000d1', true)$q$, 'an Operations user switching the watch on');
+  PERFORM public.t_denied($q$SELECT public.agent_cliq_watch_status()$q$, 'an Operations user reading the watch');
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.agent_cliq_watch_set(v_conn, true);
+  RESET ROLE;
+  PERFORM public.t_eq('the watch is on', (SELECT enabled FROM public.agent_cliq_watch WHERE connection_id = v_conn), true);
+  PERFORM public.t_eq('and starts from now', (SELECT checked_through IS NOT NULL AND enabled_at IS NOT NULL FROM public.agent_cliq_watch WHERE connection_id = v_conn), true);
+
+  -- when it reads: working days, 9 to 5:30, every 2 hours
+  UPDATE public.agent_cliq_watch SET last_run_at = NULL WHERE connection_id = v_conn;
+  PERFORM public.t_eq('due on a working morning', public.agent_cliq_watch_due('2026-11-18T14:07:00Z'), true);
+  PERFORM public.t_eq('due at the end of the day', public.agent_cliq_watch_due('2026-11-18T22:07:00Z'), true);
+  PERFORM public.t_eq('not before work', public.agent_cliq_watch_due('2026-11-18T12:07:00Z'), false);
+  PERFORM public.t_eq('not in the evening', public.agent_cliq_watch_due('2026-11-18T23:07:00Z'), false);
+  PERFORM public.t_eq('not on a Saturday', public.agent_cliq_watch_due('2026-11-21T15:07:00Z'), false);
+  UPDATE public.agent_cliq_watch SET last_run_at = '2026-11-18T14:07:00Z' WHERE connection_id = v_conn;
+  PERFORM public.t_eq('not again within the 2 hours', public.agent_cliq_watch_due('2026-11-18T15:07:00Z'), false);
+  PERFORM public.t_eq('again after 2 hours', public.agent_cliq_watch_due('2026-11-18T16:07:00Z'), true);
+
+  -- tagged messages: Alice tags Bob (a request), Cara (a thank-you), someone unknown, Dan (a field agent) and herself
+  INSERT INTO public.agent_cliq_messages (connection_id, channel_name, channel_unique, message_id, posted_at, sender_cliq_id, sender_name, tagged_cliq_id, tagged_name, text, classification) VALUES
+    (v_conn, 'ops', 'ops', 'M1', '2026-11-18T14:00:00Z', '1003', 'Alice', '1001', 'Bob', 'Can you send the report?', 'request') RETURNING id INTO m1;
+  INSERT INTO public.agent_cliq_messages (connection_id, channel_name, channel_unique, message_id, posted_at, sender_cliq_id, sender_name, tagged_cliq_id, tagged_name, text, classification) VALUES
+    (v_conn, 'ops', 'ops', 'M2', '2026-11-18T14:00:00Z', '1003', 'Alice', '1002', 'Cara', 'thanks!', 'ack') RETURNING id INTO m2;
+  INSERT INTO public.agent_cliq_messages (connection_id, channel_name, channel_unique, message_id, posted_at, sender_cliq_id, sender_name, tagged_cliq_id, tagged_name, text, classification) VALUES
+    (v_conn, 'ops', 'ops', 'M3', '2026-11-18T14:00:00Z', '1003', 'Alice', '9999', 'Unknown', 'Can you look at this?', 'request'),
+    (v_conn, 'ops', 'ops', 'M4', '2026-11-18T14:00:00Z', '1003', 'Alice', '1005', 'Dan', 'Can you look at this?', 'request'),
+    (v_conn, 'ops', 'ops', 'M5', '2026-11-18T14:00:00Z', '1003', 'Alice', '1003', 'Alice', 'note to self?', 'request');
+  PERFORM public.t_eq('two writes of the same tag are one', (SELECT count(*) FROM public.agent_cliq_messages WHERE message_id = 'M1'), 1::bigint);
+
+  r := public.agent_rule_cq01('2026-11-18T15:30:00Z');    -- 90 working minutes
+  PERFORM public.t_eq('under 2 working hours: nothing yet', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'CQ01'), 0::bigint);
+  r := public.agent_rule_cq01('2026-11-18T16:05:00Z');    -- 125 working minutes
+  PERFORM public.t_eq('after 2 working hours: one item, for Bob only', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'CQ01' AND status = 'open'), 1::bigint);
+  SELECT id INTO v_flag FROM public.agent_flags WHERE rule_code = 'CQ01';
+  PERFORM public.t_eq('about Bob', (SELECT person_id FROM public.agent_flags WHERE id = v_flag), 'a0000000-0000-0000-0000-000000000003'::uuid);
+  PERFORM public.t_eq('medium', (SELECT severity FROM public.agent_flags WHERE id = v_flag), 'medium');
+  PERFORM public.t_eq('the message is remembered on the item', (SELECT evidence ->> 'text' FROM public.agent_flags WHERE id = v_flag), 'Can you send the report?');
+  PERFORM public.t_eq('and the row knows its item', (SELECT flag_id FROM public.agent_cliq_messages WHERE id = m1), v_flag);
+  r := public.agent_rule_cq01('2026-11-18T16:06:00Z');
+  PERFORM public.t_eq('never twice', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'CQ01'), 1::bigint);
+
+  -- the message that asks for a reply goes to the tagged person and says who asked
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_flag);
+  PERFORM public.t_eq('the draft goes to Bob', d ->> 'recipient_name', 'Bob');
+  IF d ->> 'channel_body' NOT LIKE 'Hi Bob, Alice tagged you in #ops at 9:00 AM EST and I do not see a reply yet: "Can you send the report?". What is happening? Can you reply in the thread%' THEN
+    RAISE EXCEPTION 'FAIL: Cliq draft: %', d ->> 'channel_body';
+  END IF;
+  RESET ROLE;
+
+  -- a reply from the tagged person closes it (the reader marks the row answered; the rule closes the item)
+  UPDATE public.agent_cliq_messages SET status = 'answered', answered_at = '2026-11-18T16:30:00Z', answered_in = 'thread' WHERE id = m1;
+  r := public.agent_rule_cq01('2026-11-18T17:00:00Z');
+  PERFORM public.t_eq('answered: the item closes by itself', (SELECT status FROM public.agent_flags WHERE id = v_flag), 'auto_resolved');
+
+  -- not watching any more closes what is left; an old, unanswered one expires
+  INSERT INTO public.agent_cliq_messages (connection_id, channel_name, channel_unique, message_id, posted_at, sender_cliq_id, sender_name, tagged_cliq_id, tagged_name, text, classification)
+    VALUES (v_conn, 'ops', 'ops', 'M6', '2026-11-18T14:00:00Z', '1003', 'Alice', '1002', 'Cara', 'Please confirm the numbers', 'request') RETURNING id INTO m6;
+  r := public.agent_rule_cq01('2026-11-18T16:05:00Z');
+  PERFORM public.t_eq('a new one for Cara', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'CQ01' AND status = 'open'), 1::bigint);
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  PERFORM public.agent_cliq_watch_set(v_conn, false);
+  RESET ROLE;
+  r := public.agent_rule_cq01('2026-11-18T16:10:00Z');
+  PERFORM public.t_eq('watch off: items close', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'CQ01' AND status = 'open'), 0::bigint);
+  RAISE NOTICE 'PASS 14: Cliq watch: working time, when it reads, who is tracked, 2 working hours, the draft, answered and switched off';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

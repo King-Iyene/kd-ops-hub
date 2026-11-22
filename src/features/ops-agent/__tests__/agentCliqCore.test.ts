@@ -54,7 +54,7 @@ describe('Cliq API message to the person, with the manager at the bottom', () =>
   it('addresses the person with a tag, asks what is happening, and tags the manager last', async () => {
     const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: '[HIGH] Not tracking time', text: 'x', mention: { name: 'Cara Obi', id: '111' }, cc: { name: 'Dan', id: '222' }, ask });
     if (b.type !== 'http') throw new Error('expected http');
-    expect(JSON.parse(b.init.body!).text).toBe('*[HIGH] Not tracking time*\n{@111}, here is what we noticed: Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.\nCan you tell us what is going on with this?\n\n{@222} please follow up with Cara and get clarity on what is happening.');
+    expect(JSON.parse(b.init.body!).text).toBe('*[HIGH] Not tracking time*\n{@111}, here is what we noticed: Their work day started at 9:00 AM ET and nothing has been tracked 30 minutes in.\nCan you tell us what is going on with this?\n\n{@222} please follow up with Cara and get clarity on what is happening.\u2063');
   });
   it('uses plain names when there is nothing to tag with, and leaves out the manager line when there is no manager', async () => {
     const b = await buildRequest(conn, { access: '1000.accesstoken123' }, { title: 'T', text: 'x', mention: { name: 'Cara Obi', id: '' }, ask });
@@ -67,7 +67,7 @@ describe('Cliq API message to the person, with the manager at the bottom', () =>
   it('shows just the plain text when tagging is off', async () => {
     const b = await buildRequest({ ...conn, config: { ...conn.config, mention_people: false } }, { access: '1000.accesstoken123' }, { title: 'T', text: 'Plain text', mention: { name: 'Cara', id: '111' }, ask });
     if (b.type !== 'http') throw new Error('expected http');
-    expect(JSON.parse(b.init.body!).text).toBe('*T*\nPlain text');
+    expect(JSON.parse(b.init.body!).text).toBe('*T*\nPlain text\u2063');
   });
 });
 
@@ -128,7 +128,7 @@ describe('Cliq API message', () => {
   it('does not tag anyone when tagging is off', async () => {
     const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: { ...cfg, mention_people: false } }, secrets, { text: 'Hi', mention: { name: 'Cara', id: '111' }, cc: { name: 'Dan', id: '222' } });
     if (b.type !== 'http') throw new Error('expected http');
-    expect(JSON.parse(b.init.body!).text).toBe('Hi');
+    expect(JSON.parse(b.init.body!).text).toBe('Hi\u2063');
   });
   it('still names the person and the manager when there is no Cliq id to tag with', async () => {
     const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: cfg }, secrets, { text: 'No tracking', mention: { name: 'Pat', id: '' }, cc: { name: 'Dan', id: '' } });
@@ -141,7 +141,7 @@ describe('Cliq API message', () => {
   it('CCs the manager even when the person themselves cannot be tagged', async () => {
     const b = await buildRequest({ kind: 'cliq', name: 'Cliq', config: cfg }, secrets, { text: 'x', cc: { name: 'Dan', id: '222' } });
     if (b.type !== 'http') throw new Error('expected http');
-    expect(JSON.parse(b.init.body!).text).toBe('CC Dan (manager): {@222}\nx');
+    expect(JSON.parse(b.init.body!).text).toBe('CC Dan (manager): {@222}\nx\u2063');
   });
   it('refuses a bad data center or channel name', async () => {
     expect((await buildRequest({ kind: 'cliq', name: 'c', config: { ...cfg, dc: 'x.evil' } }, secrets, { text: 'Hi' })).type).toBe('error');
@@ -228,7 +228,7 @@ describe('Zoho sign-in page (server-based app)', () => {
   it('builds the consent address with offline access so a refresh token comes back', () => {
     const u = new URL(consentUrl({ dc: 'com', clientId: '1000.ABCDEFGH12345678', redirectUri: 'https://ops.kdsquares.com/agent/oauth/zoho', state: 'a'.repeat(64) }));
     expect(u.origin + u.pathname).toBe('https://accounts.zoho.com/oauth/v2/auth');
-    expect(u.searchParams.get('scope')).toBe('ZohoCliq.Webhooks.CREATE');
+    expect(u.searchParams.get('scope')).toBe('ZohoCliq.Webhooks.CREATE,ZohoCliq.Channels.READ,ZohoCliq.Messages.READ,ZohoCliq.Chats.READ,ZohoCliq.Users.READ');
     expect(u.searchParams.get('access_type')).toBe('offline');
     expect(u.searchParams.get('response_type')).toBe('code');
     expect(u.searchParams.get('redirect_uri')).toBe('https://ops.kdsquares.com/agent/oauth/zoho');

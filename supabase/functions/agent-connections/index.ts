@@ -8,6 +8,8 @@
 //   and cc_manager. The sign-in with Zoho is then done with oauth_start / oauth_finish below; a grant_code or refresh_token may still be pasted instead.
 // POST { action: 'oauth_start',  id, redirect_uri }       -> { ok, url }  the Zoho consent address to send the browser to
 // POST { action: 'oauth_finish', code, state, redirect_uri, accounts_server? }  swaps the code Zoho sent back for a refresh token (kept in the Vault)
+// POST { action: 'cliq_watch_check', id }           reads Cliq now for the connection that has Watch on (what pg_cron does every 2 working hours)
+//                                                     -> { ok, channels, scanned, tracked, answered, error? }
 // POST { action: 'test',   id }                      sends a short test message and records the result
 // POST { action: 'send',   id, text, title? }        sends a message a person wrote or approved
 // POST { action: 'send_flag', flag_id, channel: 'email' | 'connection', connection_id?, subject?, text }
@@ -29,6 +31,7 @@ import { validMentionTemplate } from '../_shared/agent-mention-core.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
 import { exchangeGrantCode } from '../_shared/agent-cliq.ts';
+import { runCliqWatch } from '../_shared/agent-cliq-monitor.ts';
 import { consentUrl, dcFromAccountsServer, validChannel, validClientId, validDc, validRedirectUri, validZohoValue } from '../_shared/agent-cliq-core.ts';
 import { accessSaver, readConnectionSecrets, secretName } from '../_shared/agent-conn-secrets.ts';
 import { API_METHODS, AUTH_TYPES, CONTENT_TYPES, buildApiRequest, checkOutboundUrl, parseRecipients, validHeaderName, type ConnectionKind } from '../_shared/agent-deliver-core.ts';
@@ -238,6 +241,16 @@ Deno.serve(async (req) => {
       return jsonResponse(cors(req), r.ok ? { ok: true } : { ok: false, error: r.error });
     }
 
+    if (body.action === 'cliq_watch_check') {
+      const conn = await load(body.id);
+      if (!conn || conn.kind !== 'cliq' || conn.config.mode !== 'api') return jsonResponse(cors(req), { ok: false, error: 'Choose a Zoho Cliq connection that signs in with Zoho.' }, 404);
+      const { data: w } = await db.from('agent_cliq_watch').select('enabled').eq('connection_id', conn.id).maybeSingle();
+      if (!w?.enabled) return jsonResponse(cors(req), { ok: false, error: 'Switch the watch on first.' }, 400);
+      const [r] = await runCliqWatch(db, { connectionId: conn.id, force: true });
+      await audit('connection.cliq_watch_checked', conn.id, { ok: r?.ok ?? false, channels: r?.channels ?? 0 });
+      return jsonResponse(cors(req), { ok: r?.ok ?? false, error: r?.error, channels: r?.channels ?? 0, scanned: r?.scanned ?? 0, tracked: r?.tracked ?? 0, answered: r?.answered ?? 0 });
+    }
+
     if (body.action === 'send_flag') {
       const text = (body.text ?? '').trim().slice(0, 3000);
       if (!text) return jsonResponse(cors(req), { ok: false, error: 'There is nothing to send.' }, 400);
@@ -248,7 +261,7 @@ Deno.serve(async (req) => {
       const d = draft as { to?: string; recipient_id: string | null; recipient_name: string | null; recipient_email: string | null; subject: string | null; link?: { label?: string; url?: string; person_url?: string | null } | null };
       const subject = (body.subject ?? d.subject ?? 'Ops Agent').trim().slice(0, 200);
       const label = d.recipient_name ?? 'the person';
-      let r: { ok: boolean; error?: string };
+      let r: { ok: boolean; status?: number; error?: string };
       let channel: 'email' | 'slack' | 'cliq' | 'webhook';
       if (body.channel === 'email') {
         if (!d.recipient_email) return jsonResponse(cors(req), { ok: false, error: `${label} has no email address on their profile.` }, 400);
@@ -269,14 +282,34 @@ Deno.serve(async (req) => {
         channel = conn.kind === 'slack' || conn.kind === 'cliq' ? conn.kind : 'webhook';
         // The person it is about is tagged, and their manager is CC'd: the connection's setting unless the caller says otherwise
         // (on unless the connection turned it off). The manager comes from the one rule in agent_manager_of.
-        const mention = await mentionFor(db, conn.kind, d.recipient_id);
+        let mention = await mentionFor(db, conn.kind, d.recipient_id);
+        // A Cliq "tagged and not answered" item is answered in the thread it came from: same channel, as a reply to the message, tagging the person.
+        const { data: fl0 } = await db.from('agent_flags').select('rule_code, evidence').eq('id', body.flag_id).maybeSingle();
+        let cliqTarget: { channel: string; replyTo: string } | undefined;
+        let askedBy = 'them';
+        if (fl0?.rule_code === 'CQ01') {
+          const ev = (fl0.evidence ?? {}) as { message_row_id?: string; sender_name?: string };
+          const { data: row } = typeof ev.message_row_id === 'string' && UUID.test(ev.message_row_id)
+            ? await db.from('agent_cliq_messages').select('connection_id, channel_unique, message_id, tagged_cliq_id, tagged_name').eq('id', ev.message_row_id).maybeSingle() : { data: null };
+          if (!row) return jsonResponse(cors(req), { ok: false, error: 'That Cliq message is no longer on record.' }, 404);
+          if (conn.kind !== 'cliq' || conn.config.mode !== 'api' || row.connection_id !== conn.id) return jsonResponse(cors(req), { ok: false, error: 'Send this one through the Zoho Cliq connection that watches the channel.' }, 400);
+          cliqTarget = { channel: row.channel_unique as string, replyTo: row.message_id as string };
+          mention = { name: (row.tagged_name as string) || label, id: row.tagged_cliq_id as string };
+          askedBy = ev.sender_name || 'them';
+        }
         const wantCc = body.cc_manager === undefined ? conn.config.cc_manager !== false : body.cc_manager === true;
         let cc;
         if (wantCc) {
           const { data: fl } = await db.from('agent_flags').select('person_id').eq('id', body.flag_id).maybeSingle();
           cc = await ccFor(db, conn.kind, (fl?.person_id as string | null) ?? d.recipient_id, d.recipient_id);
         }
-        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, await readSecrets(conn), { title: subject, text, event: 'flag_message', link: d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined, mention, cc }, { saveAccess: accessSaver(db, conn) });
+        const secrets = await readSecrets(conn);
+        const link = cliqTarget ? undefined : d.link?.url ? { url: d.link.url, label: d.link.label ?? 'Open it' } : undefined;
+        r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, secrets, { title: cliqTarget ? undefined : subject, text, event: 'flag_message', link, mention, cc, ...(cliqTarget ? { cliq: cliqTarget } : {}) }, { saveAccess: accessSaver(db, conn) });
+        // If Zoho refuses the thread reply, the message is still posted in the same channel, saying whose message it is about.
+        if (!r.ok && cliqTarget && r.status === 400) {
+          r = await deliver({ kind: conn.kind, name: conn.name, config: conn.config }, secrets, { text: `(replying to ${askedBy}'s message above)\n${text}`, event: 'flag_message', mention, cc, cliq: { channel: cliqTarget.channel } }, { saveAccess: accessSaver(db, conn) });
+        }
         await record(conn.id, r);
       } else {
         return jsonResponse(cors(req), { ok: false, error: 'Choose email or a connection.' }, 400);

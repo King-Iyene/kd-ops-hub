@@ -1,14 +1,15 @@
 // Ops Agent, Zoho Cliq through the API (OAuth): pure parts, no Deno APIs, so it can be unit tested.
 //
 // The way the owner connected Cliq in n8n: a Zoho "Self Client" gives a Client ID, a Client Secret and a one-time grant code
-// (scope ZohoCliq.Webhooks.CREATE). The grant code is swapped once for a long-lived refresh token; the refresh token is swapped
+// (scope ZohoCliq.Webhooks.CREATE; reading for the Cliq watch also needs the READ scopes in CLIQ_SCOPE). The grant code is swapped once for a long-lived refresh token; the refresh token is swapped
 // for a one-hour access token whenever one is needed. Messages then go to
 //   POST https://cliq.zoho.<dc>/api/v3/channelsbyname/<channel unique name>/messages    { "text": "..." }
 // Every host here comes from a fixed list of Zoho data centers, so a typed address can never point anywhere else.
 
 export const CLIQ_DCS = ['com', 'eu', 'in', 'com.au', 'jp', 'ca', 'sa', 'com.cn'] as const;
 export type CliqDc = (typeof CLIQ_DCS)[number];
-export const CLIQ_SCOPE = 'ZohoCliq.Webhooks.CREATE';
+/** Posting, plus the read permissions the Cliq watch needs (channels, the messages in them, and the people who wrote them). */
+export const CLIQ_SCOPE = 'ZohoCliq.Webhooks.CREATE,ZohoCliq.Channels.READ,ZohoCliq.Messages.READ,ZohoCliq.Chats.READ,ZohoCliq.Users.READ';
 
 export const validDc = (d: unknown): d is CliqDc => typeof d === 'string' && (CLIQ_DCS as readonly string[]).includes(d);
 export const validChannel = (c: unknown): c is string => typeof c === 'string' && /^[a-z0-9_]{1,50}$/.test(c);

@@ -90,7 +90,7 @@ export const CONNECTION_PRESETS: ConnectionPreset[] = [
       'Open https://api-console.zoho.com (use the site for your data center if you are not on .com: api-console.zoho.eu, .in, .com.au, .jp, .ca or .sa). Choose "Add Client" and pick "Server-based Applications".',
       'Client Name: anything, for example "KD Ops Agent". Paste the Homepage URL and the Authorized Redirect URI shown in the boxes at the top of this window into Zoho exactly as they are (use the Copy buttons). Press Create.',
       'Zoho shows a Client ID and a Client Secret. Paste them below. Pick your data center and type the Channel unique name (in Cliq, open the channel, then Channel settings, then Unique name: lowercase, no spaces).',
-      'Press Save, then "Connect to Zoho". Zoho asks you to allow access (scope ZohoCliq.Webhooks.CREATE, which only lets KD Ops post messages). Approve it and you come back here, connected. Nothing expires every hour.',
+      'Press Save, then "Connect to Zoho". Zoho asks you to allow access (ZohoCliq.Webhooks.CREATE to post messages, and the Channels, Messages, Chats and Users READ permissions that the Cliq watch uses to read them). Approve it and you come back here, connected. Nothing expires every hour.',
       'Press "Send test and tag me". If your name is highlighted in the channel, tagging works.',
     ],
     fields: [

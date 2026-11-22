@@ -214,6 +214,10 @@ jobs:
       - name: Deploy agent-dispatch
         run: supabase functions deploy agent-dispatch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
+      # Ops Agent Cliq watch: reads Cliq every 2 working hours for tagged messages with no answer. Cron-only (X-Cron-Secret), woken by agent_cliq_watch_tick().
+      - name: Deploy agent-cliq-monitor
+        run: supabase functions deploy agent-cliq-monitor --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       # Inbound webhooks for Database automations. Callers are external services, so no Supabase JWT: --no-verify-jwt,
       # and the function authenticates every request by an HMAC signature (X-KDOps-Signature) against the automation's secret.
       - name: Deploy webhook-inflow

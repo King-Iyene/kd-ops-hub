@@ -17,6 +17,7 @@ import { ApiOptions, headerProblem, type ApiForm } from './ApiOptions';
 import { ToolIcon, presetForConnection } from './ToolIcon';
 import { ToolPicker } from './ToolPicker';
 import { ConnectToZoho, PasteIntoZoho, ZohoChecklist } from './ZohoSetupPanels';
+import { CliqWatchCard } from './CliqWatchCard';
 
 
 /** The secrets a connection can hold, and how the server names them in vault_secret_names. */
@@ -316,6 +317,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
           <>
             {savedId && <ZohoChecklist status={zohoStatus} />}
             <ConnectToZoho saved={!!savedId} dirty={dirty} authorized={authorized} busy={oauthStart.isPending || !zoho.ready} onConnect={connectToZoho} />
+            {savedId && <CliqWatchCard connectionId={savedId} authorized={authorized} />}
             <details className="rounded-xl border p-3.5 text-sm" data-testid="cliq-advanced">
               <summary className="cursor-pointer text-sm font-medium">Other ways to connect (advanced)</summary>
               <div className="mt-3 space-y-4">
