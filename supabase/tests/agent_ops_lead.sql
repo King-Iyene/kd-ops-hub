@@ -473,5 +473,92 @@ BEGIN
   RAISE NOTICE 'PASS 12: weekly and monthly key numbers';
 END $$;
 
+-- ── 13. tailored messages, the warning that a call will follow, and the "Call needed" item ─
+DO $$
+DECLARE v_f1 uuid; v_f2 uuid; v_f3 uuid; d jsonb; v_msg uuid; v_call uuid; n bigint;
+BEGIN
+  RESET ROLE;
+  UPDATE public.agent_person_profile SET exemptions = '{}'::jsonb WHERE person_id IN ('a0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002');
+  UPDATE public.profiles SET reporting_manager_id = 'a0000000-0000-0000-0000-000000000002' WHERE id = 'a0000000-0000-0000-0000-000000000003';
+  DELETE FROM public.agent_warnings; DELETE FROM public.agent_flags WHERE rule_code IN ('TR01', 'TK06', 'FT02') AND person_id = 'a0000000-0000-0000-0000-000000000003';
+
+  -- the first time: short, personal, asks what is happening, no warning
+  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status, period_key, first_seen_at, evidence)
+    VALUES ('TR01', 'medium', 'person', 'a0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Not tracking time', 'x', 'flag', 'open', '2026-11-09', '2026-11-09T15:00:00Z',
+            '{"tracked_minutes_today": 0, "work_started_at": "2026-11-09T14:00:00Z", "idle_minutes": 60}') RETURNING id INTO v_f1;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_f1);
+  IF d ->> 'body' NOT LIKE 'Hi Bob, I found that you are not tracking time. Work starts at 9 AM EST and I have nothing from you yet. What is happening?%' THEN RAISE EXCEPTION 'FAIL: TR01 wording: %', d ->> 'body'; END IF;
+  PERFORM public.t_eq('first time: no warning', d -> 'warning' ->> 'level', 'none');
+  IF d ->> 'body' LIKE '%call with you%' THEN RAISE EXCEPTION 'FAIL: the first time must not mention a call'; END IF;
+
+  -- a person with no task: the message asks them to reach out to their manager
+  RESET ROLE;
+  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status, period_key, first_seen_at)
+    VALUES ('TK06', 'low', 'person', 'a0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000004', 'No open tasks', 'x', 'flag', 'open', '2026-11-18', '2026-11-18T15:00:00Z') RETURNING id INTO v_f3;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_f3);
+  IF d ->> 'body' NOT LIKE 'Hi Cara, there is no task assigned to you in Task. What is happening? Can you reach out to your manager?%' THEN RAISE EXCEPTION 'FAIL: TK06 wording: %', d ->> 'body'; END IF;
+
+  -- the second time in the window: says so, and names the manager's call
+  RESET ROLE;
+  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status, period_key, first_seen_at, evidence)
+    VALUES ('TR01', 'medium', 'person', 'a0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Not tracking time', 'x', 'flag', 'open', '2026-11-12', '2026-11-12T15:00:00Z',
+            '{"tracked_minutes_today": 0, "work_started_at": "2026-11-12T14:00:00Z", "idle_minutes": 60}') RETURNING id INTO v_f2;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_f2);
+  PERFORM public.t_eq('second time: a warning', d -> 'warning' ->> 'level', 'warn');
+  IF d ->> 'body' NOT LIKE '%This is the 2nd time in the last 14 days that this has come up. If it happens again, Alice will have a call with you.%' THEN RAISE EXCEPTION 'FAIL: warning wording: %', d ->> 'body'; END IF;
+  RESET ROLE;
+  PERFORM public.t_eq('nothing is recorded until the message is sent', (SELECT count(*) FROM public.agent_warnings), 0::bigint);
+
+  -- sending it records the warning (once), on the item's history
+  INSERT INTO public.agent_messages (flag_id, recipient_id, recipient_label, channel, body, status, sent_by, sent_at)
+    VALUES (v_f2, 'a0000000-0000-0000-0000-000000000003', 'Bob', 'email', 'x', 'sent', 'a0000000-0000-0000-0000-000000000001', '2026-11-12T16:00:00Z') RETURNING id INTO v_msg;
+  PERFORM public.t_eq('the warning is recorded', (SELECT count(*) FROM public.agent_warnings WHERE person_id = 'a0000000-0000-0000-0000-000000000003' AND rule_code = 'TR01'), 1::bigint);
+  PERFORM public.t_eq('with the manager', (SELECT manager_id FROM public.agent_warnings WHERE message_id = v_msg), 'a0000000-0000-0000-0000-000000000002'::uuid);
+  PERFORM public.t_eq('and a note on the item', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = v_f2 AND kind = 'note' AND detail ->> 'note' LIKE 'Warned:%'), 1::bigint);
+  -- a message to the manager, a failed message, and a first-time message are not warnings
+  INSERT INTO public.agent_messages (flag_id, recipient_id, recipient_label, channel, body, status, sent_at) VALUES (v_f1, 'a0000000-0000-0000-0000-000000000003', 'Bob', 'email', 'x', 'sent', now());
+  INSERT INTO public.agent_messages (flag_id, recipient_id, recipient_label, channel, body, status) VALUES (v_f2, 'a0000000-0000-0000-0000-000000000003', 'Bob', 'email', 'x', 'failed');
+  INSERT INTO public.agent_messages (flag_id, recipient_id, recipient_label, channel, body, status, sent_at) VALUES (v_f2, 'a0000000-0000-0000-0000-000000000002', 'Alice', 'cliq', 'x', 'sent', now());
+  PERFORM public.t_eq('still one warning', (SELECT count(*) FROM public.agent_warnings), 1::bigint);
+
+  -- no call item yet: it has not happened again
+  PERFORM public.agent_rule_ft02('2026-11-13T15:00:00Z');
+  PERFORM public.t_eq('no call needed before it happens again', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'FT02'), 0::bigint);
+
+  -- it happens again after the warning
+  INSERT INTO public.agent_flags (rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status, period_key, first_seen_at, evidence)
+    VALUES ('TR01', 'medium', 'person', 'a0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Not tracking time', 'x', 'flag', 'open', '2026-11-18', '2026-11-18T15:00:00Z',
+            '{"tracked_minutes_today": 0, "work_started_at": "2026-11-18T14:00:00Z", "idle_minutes": 60}') RETURNING id INTO v_f3;
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_f3);
+  PERFORM public.t_eq('after a warning: the call', d -> 'warning' ->> 'level', 'call');
+  IF d ->> 'body' NOT LIKE '%This has come up again since I messaged you on Nov 12. Alice will have a call with you about it.%' THEN RAISE EXCEPTION 'FAIL: call wording: %', d ->> 'body'; END IF;
+  RESET ROLE;
+  PERFORM public.agent_rule_ft02('2026-11-18T15:30:00Z');
+  PERFORM public.t_eq('a Call needed item is raised', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'FT02' AND status = 'open'), 1::bigint);
+  SELECT id INTO v_call FROM public.agent_flags WHERE rule_code = 'FT02';
+  PERFORM public.t_eq('it is about Bob', (SELECT person_id FROM public.agent_flags WHERE id = v_call), 'a0000000-0000-0000-0000-000000000003'::uuid);
+  PERFORM public.t_eq('high', (SELECT severity FROM public.agent_flags WHERE id = v_call), 'high');
+  IF (SELECT why FROM public.agent_flags WHERE id = v_call) NOT LIKE '%Bob was told on Nov 12 that Alice would have a call with them%' THEN RAISE EXCEPTION 'FAIL: call item text: %', (SELECT why FROM public.agent_flags WHERE id = v_call); END IF;
+  PERFORM public.t_eq('the warning knows its call item', (SELECT call_flag_id FROM public.agent_warnings LIMIT 1), v_call);
+  PERFORM public.agent_rule_ft02('2026-11-18T15:31:00Z');
+  PERFORM public.t_eq('never twice', (SELECT count(*) FROM public.agent_flags WHERE rule_code = 'FT02'), 1::bigint);
+  -- the call item goes to the manager, as a short note without a question
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
+  d := public.agent_flag_draft(v_call);
+  PERFORM public.t_eq('the call goes to the manager', d ->> 'recipient_name', 'Alice');
+  IF d ->> 'body' NOT LIKE 'Hi Alice, %' OR d ->> 'body' LIKE '%What is happening%' THEN RAISE EXCEPTION 'FAIL: call draft: %', d ->> 'body'; END IF;
+  RESET ROLE;
+  -- only the people who run the Agent can read the warnings
+  PERFORM public.t_as('a0000000-0000-0000-0000-000000000003');
+  PERFORM public.t_eq('a member sees no warnings', (SELECT count(*) FROM public.agent_warnings), 0::bigint);
+  PERFORM public.t_denied($q$SELECT public.agent_rule_ft02()$q$, 'a signed-in user running FT02');
+  RESET ROLE;
+  RAISE NOTICE 'PASS 13: tailored messages, repeat warning, the warning is remembered, a call is raised once when it happens again';
+END $$;
+
 ROLLBACK;
 SELECT 'ok' AS agent_ops_lead;

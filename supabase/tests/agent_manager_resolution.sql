@@ -60,9 +60,9 @@ DO $$
 DECLARE d jsonb;
 BEGIN
   d := public.agent_flag_draft('f1000000-0000-0000-0000-000000000003');
-  IF d ->> 'body' NOT LIKE 'Hi Sam,%Here is what we noticed: Their work day started at 9:00 AM ET%Can you tell us what is going on with this, and what happened?%' THEN RAISE EXCEPTION 'FAIL: the draft asks the person: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE 'Hi Sam, I found that you are not tracking time. Work starts at 9 AM EST and I have nothing from you yet. What is happening?%' THEN RAISE EXCEPTION 'FAIL: the draft asks the person: %', d ->> 'body'; END IF;
   IF d ->> 'body' NOT LIKE '%I have copied Pat Profile (your manager) so they can follow up with you.%Thank you,%' THEN RAISE EXCEPTION 'FAIL: the email names the copied manager: %', d ->> 'body'; END IF;
-  IF d ->> 'channel_body' NOT LIKE '%Can you tell us what is going on with this, and what happened?%@Pat Profile please follow up with Sam and get clarity on what is happening.' THEN RAISE EXCEPTION 'FAIL: the channel message tags the manager last: %', d ->> 'channel_body'; END IF;
+  IF d ->> 'channel_body' NOT LIKE '%What is happening?%@Pat Profile please follow up with Sam.' THEN RAISE EXCEPTION 'FAIL: the channel message tags the manager last: %', d ->> 'channel_body'; END IF;
   IF d ->> 'channel_body' LIKE '%Thank you%' OR d ->> 'channel_body' LIKE '%I have copied%' THEN RAISE EXCEPTION 'FAIL: the channel message has no email wording'; END IF;
   IF d -> 'manager' ->> 'email' <> 'u2@t.local' OR d -> 'manager' ->> 'name' <> 'Pat Profile' THEN RAISE EXCEPTION 'FAIL: the draft carries the manager: %', d -> 'manager'; END IF;
   -- nobody to copy: no manager line, and both texts are the same
@@ -70,7 +70,7 @@ BEGIN
   IF d -> 'manager' <> 'null'::jsonb OR d ->> 'body' LIKE '%copied%' OR d ->> 'channel_body' <> d ->> 'body' THEN RAISE EXCEPTION 'FAIL: no manager means no manager line: %', d; END IF;
   -- a thank-you is not a question and copies nobody
   d := public.agent_flag_draft('f1000000-0000-0000-0000-000000000004');
-  IF d ->> 'body' LIKE '%Can you tell us%' OR d -> 'manager' <> 'null'::jsonb THEN RAISE EXCEPTION 'FAIL: a thank-you stays a thank-you: %', d; END IF;
+  IF d ->> 'body' LIKE '%What is happening%' OR d -> 'manager' <> 'null'::jsonb THEN RAISE EXCEPTION 'FAIL: a thank-you stays a thank-you: %', d; END IF;
 END $$;
 RESET ROLE;
 

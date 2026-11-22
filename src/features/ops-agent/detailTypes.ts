@@ -35,8 +35,11 @@ export interface DraftManager { id: string; name: string; email: string | null }
  */
 export interface DetailDraft {
   to: 'person' | 'manager'; recipient_name: string | null; recipient_email?: string | null; recipient_id: string | null; subject: string; body: string;
-  channel_body?: string | null; manager?: DraftManager | null;
+  channel_body?: string | null; manager?: DraftManager | null; warning?: DraftWarning | null;
 }
+
+/** `warn`: a repeat, the message says a call will follow if it happens again. `call`: it happened again after that warning. `none`: first time. */
+export interface DraftWarning { level: 'none' | 'warn' | 'call'; count: number; window_days: number; manager: string | null; warned_at: string | null }
 
 export interface TimelineEvent { kind: string; at: string; actor: string | null; detail: Record<string, unknown> | null }
 export interface SentMessage { id: string; channel: string; status: string; body: string | null; recipient: string | null; sent_at: string | null; error: string | null }

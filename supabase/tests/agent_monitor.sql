@@ -541,8 +541,8 @@ BEGIN
   PERFORM public.t_eq('today block exists', d -> 'today' ? 'tracked_minutes', true);
   PERFORM public.t_eq('timeline has the creation', jsonb_array_length(d -> 'timeline') >= 1, true);
   PERFORM public.t_eq('draft goes to the person', d -> 'draft' ->> 'to', 'person');
-  IF d -> 'draft' ->> 'body' NOT LIKE 'Hi Cara,%' OR d -> 'draft' ->> 'body' NOT LIKE '%This is the 3rd time in the last 14 days%' OR d -> 'draft' ->> 'body' NOT LIKE '%take it up with your manager%'
-     OR d -> 'draft' ->> 'body' NOT LIKE '%Please send your daily report now.%' THEN RAISE EXCEPTION 'FAIL: draft wording %', d -> 'draft' ->> 'body'; END IF;
+  IF d -> 'draft' ->> 'body' NOT LIKE 'Hi Cara, I have not seen your daily report for%What is happening?%' OR d -> 'draft' ->> 'body' NOT LIKE '%This is the 3rd time in the last 14 days%'
+     OR d -> 'draft' ->> 'body' NOT LIKE '%If it happens again, Alice will have a call with you.%' THEN RAISE EXCEPTION 'FAIL: draft wording %', d -> 'draft' ->> 'body'; END IF;
   d := public.agent_flag_detail(v_first);
   PERFORM public.t_eq('first time label', d -> 'recurrence' ->> 'label', 'First time in the last 14 days');
   IF d -> 'draft' ->> 'body' LIKE '%This is the%' THEN RAISE EXCEPTION 'FAIL: the first time should not say it is a repeat'; END IF;
@@ -656,7 +656,7 @@ BEGIN
   PERFORM public.t_eq('task link is a full address', r ->> 'url', 'https://ops.kdsquares.com/task?task=' || v_task);
   PERFORM public.t_eq('the person gets the same link', r ->> 'person_url', 'https://ops.kdsquares.com/task?task=' || v_task);
   d := public.agent_flag_draft(v_h);
-  IF d ->> 'body' NOT LIKE '%Task: "Prepare the vendor table" (due Dec 4)%' THEN RAISE EXCEPTION 'FAIL: the message does not name the task: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%your task "Prepare the vendor table" is past its due date (Dec 4)%' THEN RAISE EXCEPTION 'FAIL: the message does not name the task: %', d ->> 'body'; END IF;
   IF d ->> 'body' NOT LIKE '%Open it here: https://ops.kdsquares.com/task?task=' || v_task || '%' THEN RAISE EXCEPTION 'FAIL: the message has no link: %', d ->> 'body'; END IF;
   PERFORM public.t_eq('detail carries the link', public.agent_flag_detail(v_h) -> 'link' ->> 'label', 'Open the task');
 
@@ -668,7 +668,7 @@ BEGIN
   PERFORM public.t_eq('no form yet: nothing for the person to open', public.agent_flag_link(v_hh) ->> 'person_url', NULL);
   RESET ROLE; INSERT INTO public.tm_forms (table_id, title, is_open) VALUES (v_table, 'Daily report', true); SELECT token INTO v_tok FROM public.tm_forms WHERE table_id = v_table; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');
   PERFORM public.t_eq('the open form for the person', public.agent_flag_link(v_hh) ->> 'person_url', 'https://ops.kdsquares.com/tf/' || v_tok);
-  IF public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%Daily report for Mon Dec 7%' OR public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%/tf/' || v_tok || '%' THEN RAISE EXCEPTION 'FAIL: report draft %', public.agent_flag_draft(v_hh) ->> 'body'; END IF;
+  IF public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%your daily report for Mon Dec 7%' OR public.agent_flag_draft(v_hh) ->> 'body' NOT LIKE '%/tf/' || v_tok || '%' THEN RAISE EXCEPTION 'FAIL: report draft %', public.agent_flag_draft(v_hh) ->> 'body'; END IF;
   RESET ROLE;
   PERFORM public.agent_raise_flag('ZZ01', NULL, NULL, 'system', 'x', '', 'low', 'Something', 'why', '{}', NULL, '2026-12-07T15:00:00Z');
   SELECT id INTO v_l FROM public.agent_flags WHERE rule_code = 'ZZ01'; PERFORM public.t_as('a0000000-0000-0000-0000-000000000001');

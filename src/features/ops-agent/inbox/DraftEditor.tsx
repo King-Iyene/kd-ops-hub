@@ -128,6 +128,14 @@ export function DraftEditor({ flagId, draft, recipientPhoto, aboutName = null, m
         <p className="text-2xs text-muted-foreground">Edit anything. Nothing is sent until you press Send.</p>
       </div>
 
+      {draft.warning && draft.warning.level !== 'none' && (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs" data-testid="draft-warning">
+          {draft.warning.level === 'call'
+            ? `This has come up again after a warning. This message tells them ${draft.warning.manager ?? 'their manager'} will have a call with them, and a "Call needed" item is raised for the manager.`
+            : `This is a repeat. This message warns that ${draft.warning.manager ?? 'their manager'} will have a call with them if it happens again. Sending it is remembered, so the next time raises a "Call needed" item.`}
+        </p>
+      )}
+
       <div role="tablist" aria-label="Which message to edit" className="inline-flex w-full rounded-lg bg-muted p-1 sm:w-auto" data-testid="draft-tabs">
         {TABS.map((t) => (
           <button

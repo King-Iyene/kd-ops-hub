@@ -564,14 +564,14 @@ BEGIN
   END LOOP;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR06' AND status = 'open' LIMIT 1;
   d := public.agent_flag_draft(v_id);
-  IF d ->> 'body' NOT LIKE '%Your timer, started at 9:16 AM EST%' OR d ->> 'body' NOT LIKE '%captured nothing since it started%' OR d ->> 'body' NOT LIKE '%Open it here: https://%/timesheets%' THEN RAISE EXCEPTION 'FAIL: TR06 draft: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%your timer, started at 9:16 AM EST%' OR d ->> 'body' NOT LIKE '%captured nothing since it started%' OR d ->> 'body' NOT LIKE '%Open it here: https://%/timesheets%' THEN RAISE EXCEPTION 'FAIL: TR06 draft: %', d ->> 'body'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR08' AND status = 'open' LIMIT 1;
   d := public.agent_flag_draft(v_id);
-  IF d ->> 'body' NOT LIKE '%Time in Steam (about 10 min) today.%' OR d ->> 'body' NOT LIKE '%blocked on work time%' THEN RAISE EXCEPTION 'FAIL: TR08 draft: %', d ->> 'body'; END IF;
+  IF d ->> 'body' NOT LIKE '%time in Steam (about 10 min) today.%' OR d ->> 'body' NOT LIKE '%blocked on work time%' THEN RAISE EXCEPTION 'FAIL: TR08 draft: %', d ->> 'body'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR07' AND status = 'open' LIMIT 1;
-  IF public.agent_flag_draft(v_id) ->> 'body' NOT LIKE '%Manual time on Mon Nov 23%' THEN RAISE EXCEPTION 'FAIL: TR07 draft names the day'; END IF;
+  IF public.agent_flag_draft(v_id) ->> 'body' NOT LIKE '%manual time on Mon Nov 23%' THEN RAISE EXCEPTION 'FAIL: TR07 draft names the day'; END IF;
   SELECT id INTO v_id FROM public.agent_flags WHERE rule_code = 'TR10' AND status = 'open' LIMIT 1;
-  IF public.agent_flag_draft(v_id) ->> 'body' NOT LIKE '%Time tracker setup, week 2026-W48%' THEN RAISE EXCEPTION 'FAIL: TR10 draft names the week'; END IF;
+  IF public.agent_flag_draft(v_id) ->> 'body' NOT LIKE '%not fully set up (week 2026-W48)%' THEN RAISE EXCEPTION 'FAIL: TR10 draft names the week'; END IF;
   -- what it said before for the old rules is unchanged
   PERFORM public.t_eq('TR01 still links to Track', public.agent_flag_link((SELECT id FROM public.agent_flags WHERE rule_code = 'TR01' LIMIT 1)) ->> 'path', '/timesheets');
   RAISE NOTICE 'PASS 7a: each new rule has a specific draft message, a Track link and a detail block';
