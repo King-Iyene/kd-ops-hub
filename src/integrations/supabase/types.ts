@@ -2404,6 +2404,137 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_warnings: {
+        Row: {
+          call_flag_id: string | null
+          count_in_window: number
+          created_at: string
+          flag_id: string | null
+          id: string
+          manager_id: string | null
+          message_id: string | null
+          person_id: string
+          rule_code: string
+          warned_at: string
+        }
+        Insert: {
+          call_flag_id?: string | null
+          count_in_window?: number
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          manager_id?: string | null
+          message_id?: string | null
+          person_id: string
+          rule_code: string
+          warned_at?: string
+        }
+        Update: {
+          call_flag_id?: string | null
+          count_in_window?: number
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          manager_id?: string | null
+          message_id?: string | null
+          person_id?: string
+          rule_code?: string
+          warned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_warnings_call_flag_id_fkey"
+            columns: ["call_flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: true
+            referencedRelation: "agent_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_warnings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           body: string | null
@@ -24049,6 +24180,7 @@ export type Database = {
       agent_rule_es01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_es02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ft01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ft02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_hl01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ln02: { Args: { p_now?: string }; Returns: Json }
