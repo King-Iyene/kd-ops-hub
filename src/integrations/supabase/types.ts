@@ -600,6 +600,134 @@ export type Database = {
           },
         ]
       }
+      agent_cliq_messages: {
+        Row: {
+          answered_at: string | null
+          answered_in: string | null
+          channel_id: string | null
+          channel_name: string
+          channel_unique: string
+          chat_id: string | null
+          classification: string
+          connection_id: string
+          created_at: string
+          flag_id: string | null
+          id: string
+          message_id: string
+          posted_at: string
+          sender_cliq_id: string | null
+          sender_name: string
+          status: string
+          tagged_cliq_id: string
+          tagged_name: string
+          text: string
+          thread_chat_id: string | null
+        }
+        Insert: {
+          answered_at?: string | null
+          answered_in?: string | null
+          channel_id?: string | null
+          channel_name?: string
+          channel_unique?: string
+          chat_id?: string | null
+          classification?: string
+          connection_id: string
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          message_id: string
+          posted_at: string
+          sender_cliq_id?: string | null
+          sender_name?: string
+          status?: string
+          tagged_cliq_id: string
+          tagged_name?: string
+          text?: string
+          thread_chat_id?: string | null
+        }
+        Update: {
+          answered_at?: string | null
+          answered_in?: string | null
+          channel_id?: string | null
+          channel_name?: string
+          channel_unique?: string
+          chat_id?: string | null
+          classification?: string
+          connection_id?: string
+          created_at?: string
+          flag_id?: string | null
+          id?: string
+          message_id?: string
+          posted_at?: string
+          sender_cliq_id?: string | null
+          sender_name?: string
+          status?: string
+          tagged_cliq_id?: string
+          tagged_name?: string
+          text?: string
+          thread_chat_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_cliq_messages_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_cliq_messages_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "agent_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_cliq_watch: {
+        Row: {
+          checked_through: string | null
+          connection_id: string
+          enabled: boolean
+          enabled_at: string | null
+          last_error: string | null
+          last_ok_at: string | null
+          last_run_at: string | null
+          stats: Json
+          updated_at: string
+        }
+        Insert: {
+          checked_through?: string | null
+          connection_id: string
+          enabled?: boolean
+          enabled_at?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+          stats?: Json
+          updated_at?: string
+        }
+        Update: {
+          checked_through?: string | null
+          connection_id?: string
+          enabled?: boolean
+          enabled_at?: string | null
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+          stats?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_cliq_watch_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: true
+            referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_company_scope: {
         Row: {
           company_id: string
@@ -24050,6 +24178,13 @@ export type Database = {
       }
       agent_check_now: { Args: never; Returns: Json }
       agent_clean_domain: { Args: { p_raw: string }; Returns: string }
+      agent_cliq_watch_due: { Args: { p_now?: string }; Returns: boolean }
+      agent_cliq_watch_set: {
+        Args: { p_connection: string; p_enabled: boolean }
+        Returns: Json
+      }
+      agent_cliq_watch_status: { Args: never; Returns: Json }
+      agent_cliq_watch_tick: { Args: never; Returns: undefined }
       agent_company_of: { Args: { p_person: string }; Returns: string }
       agent_dispatch_kick: { Args: never; Returns: undefined }
       agent_dispatch_ready: { Args: never; Returns: boolean }
@@ -24174,6 +24309,7 @@ export type Database = {
       agent_role: { Args: never; Returns: string }
       agent_rule_bk01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_bk02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_cq01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ct01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
@@ -24312,6 +24448,10 @@ export type Database = {
           tasks_done: number
           tracked_hours: number
         }[]
+      }
+      agent_working_minutes: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
       }
       approve_advance_request: {
         Args: { p_request_id: string }
