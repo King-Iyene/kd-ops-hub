@@ -113,8 +113,9 @@ describe('computePayslip property-based tests', () => {
       if (!input.nhisEnabled) continue;
       const result = computePayslip(input);
       if (result.nhisEmployeeMonthlyNgn === 0) continue;
-      const ratio = result.nhisEmployerMonthlyNgn / result.nhisEmployeeMonthlyNgn;
-      expect(ratio).toBeCloseTo(2, 1);
+      // both amounts are rounded to whole naira, so on a very small salary the ratio can drift (3 and 5 is 1.67):
+      // compare the amounts themselves, which can only be off by the rounding (1 naira)
+      expect(Math.abs(result.nhisEmployerMonthlyNgn - 2 * result.nhisEmployeeMonthlyNgn)).toBeLessThanOrEqual(1);
     }
   });
 
