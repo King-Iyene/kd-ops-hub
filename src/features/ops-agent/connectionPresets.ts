@@ -12,19 +12,15 @@ export type ConnectionKind = 'slack' | 'cliq' | 'discord' | 'teams' | 'gchat' | 
 export type AuthType = 'none' | 'bearer' | 'header' | 'basic' | 'query';
 export type ContentType = 'json' | 'form' | 'text';
 
-/** What the agent can push on its own, per connection. */
+/** What the agent sends on its own, per connection: the summaries only. Every item stays in the Inbox and is sent by hand with the Send button. */
 export const AUTO_EVENTS = [
-  { key: 'flag_high', label: 'New high-priority items', help: 'The moment a high or critical team item (tasks, time tracking, daily reports) is raised. System, payment and HR items stay in the Inbox.' },
-  { key: 'flag_tracking', label: 'Time tracking alerts', help: 'Not tracking 30 minutes into the day, forgotten timers, timers with no tracker proof, manual time, blocked apps.' },
-  { key: 'flag_all', label: 'Every new item', help: 'All new team items (tasks, time tracking, daily reports). Can be a lot on a busy day.' },
   { key: 'summary_day', label: 'Daily summary', help: 'At 6:30 PM Eastern on working days.' },
   { key: 'summary_week', label: 'Weekly summary', help: 'On the last working day of the week.' },
   { key: 'summary_month', label: 'Monthly summary', help: 'On the last working day of the month.' },
   { key: 'summary_scorecard', label: 'Weekly scorecard', help: 'On the first working day of the week at 8:00 AM: last week per person, each manager tagged on their own team.' },
-  { key: 'flag_followup', label: 'Follow-ups and escalations', help: 'When a message was sent and 24 hours later nothing has changed: a follow-up, then the manager is asked to step in.' },
 ] as const;
 export type AutoEvent = (typeof AUTO_EVENTS)[number]['key'];
-export const DEFAULT_EVENTS: AutoEvent[] = ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'];
+export const DEFAULT_EVENTS: AutoEvent[] = ['summary_day', 'summary_week', 'summary_month'];
 
 /** Zoho keeps each customer's data in one region. The Cliq API address and the sign-in address both depend on it. */
 export const CLIQ_DATA_CENTERS = [

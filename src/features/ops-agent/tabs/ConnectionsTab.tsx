@@ -19,9 +19,8 @@ import { PasteIntoZoho } from './ZohoSetupPanels';
 import { ToolIcon, presetForConnection } from './ToolIcon';
 
 const SHORT: Record<string, string> = {
-  flag_high: 'High-priority items', flag_all: 'Every item', summary_day: 'Daily summary', summary_week: 'Weekly summary', summary_month: 'Monthly summary',
+  summary_day: 'Daily summary', summary_week: 'Weekly summary', summary_month: 'Monthly summary', summary_scorecard: 'Weekly scorecard',
 };
-const SEVERITY: Record<string, string> = { low: 'Low and above', medium: 'Medium and above', high: 'High and above', critical: 'Critical only' };
 
 /** Where this connection points, without showing anything secret: a host name or the addresses an email goes to. */
 const detail = (c: AgentConnection) => {
@@ -40,7 +39,7 @@ const STATUS = {
 function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnection; outbox: OutboxRow[]; testing: boolean; onTest: (tagMe: boolean) => void; onEdit: () => void; onDelete: () => void }) {
   const preset = presetForConnection(c);
   const status = STATUS[c.status] ?? STATUS.disconnected;
-  const events = c.config.events ?? [];
+  const events = (c.config.events ?? []).filter((e) => e.startsWith('summary_'));   // items are never sent on their own, whatever an old setting says
   const tags = supportsMentions(c.kind);
   const pending = outbox.filter((o) => o.status === 'pending').length;
   const failed = outbox.filter((o) => o.status === 'failed').length;
@@ -86,7 +85,6 @@ function Card({ c, outbox, testing, onTest, onEdit, onDelete }: { c: AgentConnec
             <span className="text-xs text-muted-foreground">Sends:</span>
             {events.map((e) => <span key={e} className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium">{SHORT[e] ?? e}</span>)}
             {tags && c.config.mention_people !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="tags-people-chip">Tags people</span>}{tags && c.kind === 'cliq' && c.config.cc_manager !== false && <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-2xs font-medium text-primary" data-testid="cc-manager-chip">CCs managers</span>}
-            {c.config.min_severity && <span className="rounded-full border px-2 py-0.5 text-2xs text-muted-foreground">{SEVERITY[c.config.min_severity] ?? c.config.min_severity}</span>}
           </>
         )}
       </div>

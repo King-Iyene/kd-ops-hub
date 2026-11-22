@@ -40,17 +40,14 @@ INSERT INTO public.agent_flags (id, rule_code, severity, subject_type, subject_i
   ('f1000000-0000-0000-0000-000000000006', 'X2',   'critical','system','f', 'Human action','human_action');
 DO $$
 BEGIN
-  PERFORM public.t_eq('high: the high-only and the all-medium connections', public.t_out('f1000000-0000-0000-0000-000000000001'), '1,2');
-  PERFORM public.t_eq('medium: only the all-medium connection', public.t_out('f1000000-0000-0000-0000-000000000002'), '2');
-  PERFORM public.t_eq('low: nobody', public.t_out('f1000000-0000-0000-0000-000000000003'), '');
+  PERFORM public.t_eq('a high item is not queued, even for a connection that once asked for high items', public.t_out('f1000000-0000-0000-0000-000000000001'), '');
+  PERFORM public.t_eq('a medium item is not queued', public.t_out('f1000000-0000-0000-0000-000000000002'), '');
+  PERFORM public.t_eq('a low item is not queued', public.t_out('f1000000-0000-0000-0000-000000000003'), '');
   PERFORM public.t_eq('a completed task is not news', public.t_out('f1000000-0000-0000-0000-000000000004'), '');
   PERFORM public.t_eq('a question is not sent', public.t_out('f1000000-0000-0000-0000-000000000005'), '');
-  PERFORM public.t_eq('a human action item is NOT sent on its own: it is for the Super Admin, not the team channel', public.t_out('f1000000-0000-0000-0000-000000000006'), '');
-  PERFORM public.t_eq('every queued row waits', (SELECT count(*) FROM public.agent_outbox WHERE status = 'pending' AND attempts = 0), 3::bigint);
-  -- a refresh of the same item does not queue it again
-  UPDATE public.agent_flags SET why = 'again' WHERE id = 'f1000000-0000-0000-0000-000000000001';
-  PERFORM public.t_eq('no duplicate on update', public.t_out('f1000000-0000-0000-0000-000000000001'), '1,2');
-  RAISE NOTICE 'PASS 1: new items are queued for exactly the connections that asked for them (event and minimum severity), once';
+  PERFORM public.t_eq('a human action item is not sent', public.t_out('f1000000-0000-0000-0000-000000000006'), '');
+  PERFORM public.t_eq('nothing is waiting', (SELECT count(*) FROM public.agent_outbox), 0::bigint);
+  RAISE NOTICE 'PASS 1: items are never queued on their own';
 END $$;
 
 INSERT INTO public.agent_summaries (id, period_kind, period_start, period_end, narrative, auto) VALUES
@@ -67,6 +64,8 @@ BEGIN
   RAISE NOTICE 'PASS 2: automatic summaries are queued by period; a manual one is not; a deleted connection leaves nothing behind';
 END $$;
 
+-- one summary waiting for another connection, so there is something to read
+INSERT INTO public.agent_outbox (connection_id, kind, ref_id) VALUES ('c1000000-0000-0000-0000-000000000001', 'summary', '51000000-0000-0000-0000-000000000001');
 SELECT public.t_as('a0000000-0000-0000-0000-000000000001');
 DO $$ BEGIN PERFORM public.t_eq('a Super Admin reads the outbox', (SELECT count(*) > 0 FROM public.agent_outbox), true); END $$;
 SELECT public.t_as('a0000000-0000-0000-0000-000000000002');

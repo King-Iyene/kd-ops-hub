@@ -201,7 +201,7 @@ BEGIN
   PERFORM public.t_eq('it is the medium item, stage 1', (SELECT stage FROM public.agent_followups WHERE flag_id = 'f2000000-0000-0000-0000-000000000001'), 1::smallint);
   PERFORM public.t_eq('the history says so', (SELECT count(*) FROM public.agent_flag_events WHERE flag_id = 'f2000000-0000-0000-0000-000000000001' AND kind = 'repeated'), 1::bigint);
   SELECT count(*) INTO n FROM public.agent_outbox WHERE kind = 'followup';
-  PERFORM public.t_eq('queued for the connection it was sent to and the one that asked for follow-ups', n, 2::bigint);
+  PERFORM public.t_eq('a follow-up is shown on the item but never sent on its own', n, 0::bigint);
   PERFORM public.agent_run_followups('2026-11-18T15:31:00Z');
   PERFORM public.t_eq('never twice', (SELECT count(*) FROM public.agent_followups), 1::bigint);
   PERFORM public.agent_run_followups('2026-11-19T14:00:00Z');   -- under 24 hours after stage 1
@@ -210,7 +210,7 @@ BEGIN
   PERFORM public.agent_run_followups('2026-11-19T15:31:00Z');
   PERFORM public.t_eq('stage 2 a day later', (SELECT count(*) FROM public.agent_followups WHERE stage = 2), 1::bigint);
   PERFORM public.t_like('the history names the manager', (SELECT detail ->> 'note' FROM public.agent_flag_events WHERE flag_id = 'f2000000-0000-0000-0000-000000000001' AND kind = 'escalated'),
-    'Still open 2 days after the message: the Agent asked Alice to step in.');
+    'Still open 2 days after the message: Alice should step in.');
   PERFORM public.agent_run_followups('2026-11-20T15:31:00Z');
   PERFORM public.t_eq('no stage 3', (SELECT count(*) FROM public.agent_followups), 2::bigint);
   RAISE NOTICE 'PASS 2: follow-through';
@@ -260,7 +260,7 @@ BEGIN
   RAISE NOTICE 'PASS 5: Admin access';
 END $$;
 
--- ── 6. automatic messages are about the team only ──────────────────────────
+-- ── 6. nothing about an item is sent on its own ───────────────────────────
 DO $$
 DECLARE n bigint;
 BEGIN
@@ -275,8 +275,7 @@ BEGIN
     ('TK01', 'high', 'task', 'tk', 'Overdue: Client proposal', 'x', 'flag', 'open'),
     ('TR01', 'medium', 'person', 'tr', 'Not tracking time', 'x', 'flag', 'open'),
     ('RP01', 'high', 'person', 'rp', 'Daily report missing', 'x', 'flag', 'open');
-  PERFORM public.t_eq('only tasks, time tracking and reports are queued for a channel',
-    (SELECT string_agg(f.rule_code, ',' ORDER BY f.rule_code) FROM public.agent_outbox o JOIN public.agent_flags f ON f.id = o.ref_id WHERE o.kind = 'flag' AND o.connection_id = 'c1000000-0000-0000-0000-0000000000c9'), 'RP01,TK01,TR01');
+  PERFORM public.t_eq('no item is queued for a channel, whatever the connection asks for', (SELECT count(*) FROM public.agent_outbox o WHERE o.kind = 'flag' AND o.connection_id = 'c1000000-0000-0000-0000-0000000000c9'), 0::bigint);
   PERFORM public.t_eq('the other items are still in the Inbox', (SELECT count(*) FROM public.agent_flags WHERE rule_code IN ('SY01', 'PY01', 'BK01', 'DC01') AND status = 'open'), 4::bigint);
   -- follow-ups are team items too
   INSERT INTO public.agent_flags (id, rule_code, severity, subject_type, subject_id, person_id, title, why, item_type, status) VALUES
@@ -284,7 +283,7 @@ BEGIN
   INSERT INTO public.agent_outbox (connection_id, kind, ref_id, status, sent_at) VALUES ('c1000000-0000-0000-0000-0000000000c9', 'flag', 'f3000000-0000-0000-0000-000000000001', 'sent', '2026-11-17T14:00:00Z');
   PERFORM public.agent_run_followups('2026-11-24T15:30:00Z');
   PERFORM public.t_eq('no follow-up for a discipline item', (SELECT count(*) FROM public.agent_followups WHERE flag_id = 'f3000000-0000-0000-0000-000000000001'), 0::bigint);
-  RAISE NOTICE 'PASS 6: team focus';
+  RAISE NOTICE 'PASS 6: items stay in the Inbox';
 END $$;
 
 -- ── 7. the briefing is gone ────────────────────────────────────────────────

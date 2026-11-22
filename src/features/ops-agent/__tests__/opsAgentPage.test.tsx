@@ -390,7 +390,7 @@ describe('Connections', () => {
     fireEvent.click(save);
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
     const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
-    expect(sent).toMatchObject({ action: 'save', kind: 'slack', preset: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'] });
+    expect(sent).toMatchObject({ action: 'save', kind: 'slack', preset: 'slack', name: 'Ops channel', url: 'https://hooks.slack.com/services/T000/B000/SECRETXYZ', events: ['summary_day', 'summary_week', 'summary_month'] });
     // the address is cleared from the box once saved, and nothing is sent by saving
     await waitFor(() => expect((within(dialog).getByLabelText('Slack webhook address') as HTMLInputElement).value).toBe(''));
     expect(document.body.innerHTML).not.toContain('SECRETXYZ');
@@ -464,16 +464,18 @@ describe('Connections', () => {
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops Telegram' } });
     fireEvent.change(within(dialog).getByLabelText('Bot token'), { target: { value: '123:TOPSECRETTOKEN' } });
     fireEvent.change(within(dialog).getByLabelText('Chat id'), { target: { value: '-1001' } });
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'New high-priority items' })); // off
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Time tracking alerts' })); // off (on by default)
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Follow-ups and escalations' })); // off (on by default)
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Weekly summary' })); // on
-    // with no flag events left the severity choice goes away
+    // only the summaries can be sent on their own: no item options are offered
+    expect(within(dialog).queryByRole('checkbox', { name: 'New high-priority items' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('checkbox', { name: 'Time tracking alerts' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('checkbox', { name: 'Follow-ups and escalations' })).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId('items-by-hand')).toHaveTextContent('never sent on their own');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Weekly summary' })); // off (on by default)
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Monthly summary' })); // off (on by default)
     expect(within(dialog).queryByLabelText('Lowest severity to send')).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
     const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
-    expect(sent).toMatchObject({ kind: 'telegram', preset: 'telegram', name: 'Ops Telegram', token: '123:TOPSECRETTOKEN', chat_id: '-1001', events: ['summary_day', 'summary_week'] });
+    expect(sent).toMatchObject({ kind: 'telegram', preset: 'telegram', name: 'Ops Telegram', token: '123:TOPSECRETTOKEN', chat_id: '-1001', events: ['summary_day'] });
     expect(sent.min_severity).toBeUndefined();
     expect(sent.url).toBeUndefined();
     await waitFor(() => expect((within(dialog).getByLabelText('Bot token') as HTMLInputElement).value).toBe(''));
@@ -481,7 +483,7 @@ describe('Connections', () => {
     expect(within(dialog).getByLabelText('Bot token')).toHaveProperty('placeholder', expect.stringContaining('saved'));
   });
 
-  it('sends a minimum severity for flag events', async () => {
+  it('sends the three summaries by default and nothing about items', async () => {
     renderAt('/agent/connections');
     fireEvent.click(await screen.findByTestId('connection-add'));
     const dialog = await screen.findByTestId('connection-dialog');
@@ -489,10 +491,12 @@ describe('Connections', () => {
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ops mail' } });
     fireEvent.change(within(dialog).getByLabelText('Send to'), { target: { value: 'ops@example.com' } });
     expect(within(dialog).getByTestId('setup-steps')).toHaveTextContent('Emails go out through KD Ops');
-    expect(within(dialog).getByLabelText('Lowest severity to send')).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Lowest severity to send')).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByTestId('connection-save'));
     await waitFor(() => expect(only('invoke:agent-connections:save')).toHaveLength(1));
-    expect(only('invoke:agent-connections:save')[0].args[0]).toMatchObject({ kind: 'email', preset: 'email', to: 'ops@example.com', events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'] });
+    const sent = only('invoke:agent-connections:save')[0].args[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({ kind: 'email', preset: 'email', to: 'ops@example.com', events: ['summary_day', 'summary_week', 'summary_month'] });
+    expect(sent.min_severity).toBeUndefined();
   });
 
   it('an API tool shows the method, how the token is sent, extra headers and a live body preview', async () => {
@@ -540,9 +544,8 @@ describe('Connections', () => {
     const card = await screen.findByTestId('connection-row');
     expect(card).toHaveAttribute('data-preset', 'telegram');
     expect(card).toHaveTextContent('Telegram');
-    expect(within(card).getByTestId('connection-events')).toHaveTextContent('High-priority items');
     expect(within(card).getByTestId('connection-events')).toHaveTextContent('Daily summary');
-    expect(within(card).getByTestId('connection-events')).toHaveTextContent('High and above');
+    expect(within(card).getByTestId('connection-events')).not.toHaveTextContent('High-priority items'); // an old item setting is ignored: items are sent by hand
     await waitFor(() => expect(within(card).getByTestId('connection-outbox')).toHaveTextContent('1 pending, 1 failed deliveries'));
     expect(card).toHaveTextContent('Last sent');
   });
@@ -1295,7 +1298,7 @@ describe('Connections: Zoho Cliq through the API', () => {
     await waitFor(() => expect(saves()).toHaveLength(1));
     expect(saves()[0]).toEqual({
       action: 'save', kind: 'cliq', preset: 'cliq-api', name: 'Zoho Cliq', mode: 'api', dc: 'eu', client_id: '1000.ABCDEF', channel: 'ops_alerts',
-      client_secret: SECRETS[0], cc_manager: true, mention_people: true, events: ['flag_high', 'flag_tracking', 'flag_followup', 'summary_day'],
+      client_secret: SECRETS[0], cc_manager: true, mention_people: true, events: ['summary_day', 'summary_week', 'summary_month'],
     });
     expect('grant_code' in saves()[0]).toBe(false);
     expect('refresh_token' in saves()[0]).toBe(false);

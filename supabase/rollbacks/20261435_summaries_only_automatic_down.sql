@@ -1,0 +1,1 @@
+-- Rollback for 20261435000000_summaries_only_automatic.sql: re-apply agent_outbox_flag and agent_run_followups from 20261425000000_agent_team_focus_messages.sql, then tick the item events again on each connection.

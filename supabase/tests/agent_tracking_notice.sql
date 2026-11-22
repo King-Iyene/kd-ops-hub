@@ -1,4 +1,4 @@
--- Ops Agent: time tracking alerts reach connections that asked for them ('flag_tracking'), whatever the severity; other items do not.
+-- Ops Agent: items (tracking alerts, tasks, reports) are never queued for a connection on their own; only summaries are.
 -- Replay: build the minimal fixture, apply the agent migrations, then:  psql -v ON_ERROR_STOP=1 < supabase/tests/agent_tracking_notice.sql
 BEGIN;
 CREATE FUNCTION public.t_eq(p_label text, p_got anyelement, p_want anyelement) RETURNS void LANGUAGE plpgsql AS $$
@@ -22,12 +22,13 @@ INSERT INTO public.agent_flags (id, rule_code, severity, subject_type, subject_i
   ('f1000000-0000-0000-0000-000000000005', 'TR09', 'low',    'system', 'e', 'Hours do not add up',   'flag'),
   ('f1000000-0000-0000-0000-000000000006', 'TR05', 'medium', 'system', 'f', 'Unexpected sites',      'flag');
 
-SELECT public.t_eq('a medium "not tracking" goes to the tracking connection and the everything one', public.t_out('f1000000-0000-0000-0000-000000000001'), '1,3');
-SELECT public.t_eq('a high one also goes to the high-only one and the tracking-high one', public.t_out('f1000000-0000-0000-0000-000000000002'), '1,2,3,4');
-SELECT public.t_eq('an overdue task is not a tracking alert', public.t_out('f1000000-0000-0000-0000-000000000003'), '3');
-SELECT public.t_eq('a timer with no proof is a tracking alert', public.t_out('f1000000-0000-0000-0000-000000000004'), '1,3');
-SELECT public.t_eq('a low tracking alert respects the connection minimum severity', public.t_out('f1000000-0000-0000-0000-000000000005'), '1,3');
-SELECT public.t_eq('sites are not part of the tracking alerts (they are their own kind)', public.t_out('f1000000-0000-0000-0000-000000000006'), '3');
+-- Items are never sent on their own, whatever a connection's old settings say: they stay in the Inbox and are sent by hand.
+SELECT public.t_eq('a tracking alert is not queued for anyone', public.t_out('f1000000-0000-0000-0000-000000000001'), '');
+SELECT public.t_eq('a high tracking alert is not queued either', public.t_out('f1000000-0000-0000-0000-000000000002'), '');
+SELECT public.t_eq('an overdue task is not queued', public.t_out('f1000000-0000-0000-0000-000000000003'), '');
+SELECT public.t_eq('a timer with no proof is not queued', public.t_out('f1000000-0000-0000-0000-000000000004'), '');
+SELECT public.t_eq('hours that do not add up are not queued', public.t_out('f1000000-0000-0000-0000-000000000006'), '');
+SELECT public.t_eq('nothing at all is waiting to be sent', (SELECT count(*) FROM public.agent_outbox), 0::bigint);
 
 ROLLBACK;
 SELECT 'ok' AS agent_tracking_notice;

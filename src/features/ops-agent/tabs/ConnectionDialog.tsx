@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAgentConnections, useSaveConnection, useTestConnection, useZohoOAuthStart, useZohoOAuthUrls } from '@/queries/useOpsAgent';
-import type { AgentConnection, MinSeverity, SaveConnectionInput } from '../agentDb';
+import type { AgentConnection, SaveConnectionInput } from '../agentDb';
 import { AUTO_EVENTS, CLIQ_ADVANCED_FIELDS, CLIQ_CHANNEL_PATTERN, DEFAULT_CLIQ_DC, DEFAULT_EVENTS, type ConnectionPreset, type PresetField } from '../connectionPresets';
 import { MENTION_DEFAULTS, MENTION_MAX, mentionTemplateProblem, supportsMentions } from '../connectionTemplate';
 import { goToZoho, isZohoAuthorized } from '../zohoOAuth';
@@ -18,10 +18,6 @@ import { ToolIcon, presetForConnection } from './ToolIcon';
 import { ToolPicker } from './ToolPicker';
 import { ConnectToZoho, PasteIntoZoho, ZohoChecklist } from './ZohoSetupPanels';
 
-const SEVERITIES: { value: MinSeverity; label: string }[] = [
-  { value: 'low', label: 'Low and above' }, { value: 'medium', label: 'Medium and above' }, { value: 'high', label: 'High and above' }, { value: 'critical', label: 'Critical only' },
-];
-const ANY = 'any';
 
 /** The secrets a connection can hold, and how the server names them in vault_secret_names. */
 type Part = 'url' | 'token' | 'client_secret' | 'refresh_token';
@@ -117,7 +113,6 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(preset.fields.map((f) => [f.field, initialValue(f, editing)])));
   const [api, setApi] = useState<ApiForm>(() => apiFormFor(preset, editing));
   const [events, setEvents] = useState<string[]>(editing?.config.events ?? [...DEFAULT_EVENTS]);
-  const [minSeverity, setMinSeverity] = useState<MinSeverity | typeof ANY>(editing?.config.min_severity ?? ANY);
   const [clearToken, setClearToken] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(editing?.id ?? null);
   const [justSaved, setJustSaved] = useState<Set<Part>>(new Set());
@@ -129,7 +124,6 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
   const current = (savedId ? connections.data?.find((c) => c.id === savedId) : null) ?? editing;
   const hasSaved = (part: Part) => justSaved.has(part) || savedSecret(current, part);
   const tokenUsed = !isApi || api.auth !== 'none';
-  const flagEvents = events.includes('flag_high') || events.includes('flag_all');
   const missing = preset.fields.some((f) => {
     if (!f.required) return false;
     if (f.field === 'body_template') return false;
@@ -147,7 +141,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
 
   // Unsaved edits: the form compared with what was last saved. Typed secrets count as an edit too (`typed`), and are cleared on save.
   const signature = (typed: boolean, clear = clearToken) => JSON.stringify({
-    name, typed, clearToken: clear, events, minSeverity, mentionPeople, ccManager, format, api,
+    name, typed, clearToken: clear, events, mentionPeople, ccManager, format, api,
     plain: preset.fields.filter((f) => !f.secret).map((f) => values[f.field] ?? ''),
   });
   const typedSecret = preset.fields.some((f) => f.secret && (values[f.field] ?? '').trim() !== '');
@@ -159,7 +153,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
     const input: SaveConnectionInput = {
       id: savedId ?? undefined, kind: preset.kind, preset: preset.id, name: name.trim(),
       url: v('url'), token: tokenUsed ? v('token') : undefined, clear_token: clearToken || undefined, to: v('to'), chat_id: v('chat_id'),
-      events, min_severity: flagEvents && minSeverity !== ANY ? minSeverity : undefined,
+      events,
     };
     if (tags) {
       input.mention_people = mentionPeople;
@@ -377,14 +371,7 @@ function Setup({ preset, editing, onBack, onClose, onSaved }: {
               </li>
             ))}
           </ul>
-          {flagEvents && (
-            <Field label="Lowest severity to send" htmlFor="conn-min-sev" hint="Only for items. Summaries are always sent.">
-              <Select value={minSeverity} onValueChange={(v) => setMinSeverity(v as MinSeverity | typeof ANY)}>
-                <SelectTrigger id="conn-min-sev" className="sm:w-64"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value={ANY}>Any severity</SelectItem>{SEVERITIES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
-          )}
+          <p className="text-xs text-muted-foreground" data-testid="items-by-hand">Items (tasks, time tracking, daily reports and everything else) are never sent on their own. They stay in the Inbox, and you send one with its Send button.</p>
         </section>
 
         {error && <p className="text-sm text-destructive" role="alert" data-testid="connection-error">{error}</p>}
