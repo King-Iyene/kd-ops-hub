@@ -20,6 +20,7 @@ import {
 import { AssigneePicker, PersonAvatar } from './pickers';
 import { dueLabel, isOverdue } from './taskDates';
 import { useOpenTask } from './useOpenTask';
+import { useDeleteConfirm } from './DeleteConfirm';
 
 // `inline` puts the action right beside the label (Fields) instead of at the
 // far right (Checklists).
@@ -52,6 +53,7 @@ export function FieldsSection({ task, people }: { task: TaskRow; people: PersonO
   const setField = useSetTaskField();
   const createField = useCreateListField(task.list_id);
   const deleteField = useDeleteListField();
+  const { ask: askDelete, dialog: deleteDialog } = useDeleteConfirm();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<ListFieldType>('text');
@@ -93,11 +95,10 @@ export function FieldsSection({ task, people }: { task: TaskRow; people: PersonO
                 type="button"
                 aria-label={`Delete field ${f.name}`}
                 className="opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive"
-                onClick={() => {
-                  if (window.confirm(`Delete the field "${f.name}" from this list? Values on every task are dropped.`)) {
-                    deleteField.mutate(f.id, { onError: fail('Could not delete field') });
-                  }
-                }}
+                onClick={() => askDelete({
+                  what: 'field', name: f.name, consequence: 'The field is removed from this list, and the values saved in it on every task are deleted.',
+                  onConfirm: () => deleteField.mutate(f.id, { onError: fail('Could not delete field') }),
+                })}
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -121,6 +122,7 @@ export function FieldsSection({ task, people }: { task: TaskRow; people: PersonO
           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAdding(false)}>Cancel</Button>
         </div>
       )}
+      {deleteDialog}
     </section>
   );
 }
@@ -283,6 +285,7 @@ function ChecklistBlock({ checklist }: { checklist: Checklist }) {
   const [body, setBody] = useState('');
   const items = [...checklist.items].sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
   const done = items.filter((i) => i.done).length;
+  const { ask, dialog } = useDeleteConfirm();
   const add = () => {
     if (!body.trim()) return;
     m.addItem.mutate(
@@ -299,7 +302,11 @@ function ChecklistBlock({ checklist }: { checklist: Checklist }) {
           type="button"
           aria-label="Delete checklist"
           className="text-muted-foreground/60 hover:text-destructive"
-          onClick={() => m.deleteChecklist.mutate(checklist.id, { onError: fail('Could not delete checklist') })}
+          onClick={() => ask({
+            what: 'checklist', name: checklist.name,
+            consequence: items.length ? `The checklist and its ${items.length} item${items.length === 1 ? '' : 's'} are deleted from this task.` : 'The checklist is deleted from this task.',
+            onConfirm: () => m.deleteChecklist.mutate(checklist.id, { onError: fail('Could not delete checklist') }),
+          })}
         >
           <Trash2 className="h-3 w-3" />
         </button>
@@ -315,7 +322,10 @@ function ChecklistBlock({ checklist }: { checklist: Checklist }) {
             type="button"
             aria-label="Delete item"
             className="opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive"
-            onClick={() => m.deleteItem.mutate(it.id, { onError: fail('Could not delete item') })}
+            onClick={() => ask({
+              what: 'item', name: it.body, consequence: 'It is removed from the checklist.',
+              onConfirm: () => m.deleteItem.mutate(it.id, { onError: fail('Could not delete item') }),
+            })}
           >
             <X className="h-3 w-3" />
           </button>
@@ -328,6 +338,7 @@ function ChecklistBlock({ checklist }: { checklist: Checklist }) {
         onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
         className="h-7 text-xs mt-1"
       />
+      {dialog}
     </div>
   );
 }
@@ -348,6 +359,7 @@ export function AttachmentsSection({ task }: { task: TaskRow }) {
   const { data: files } = useAttachments(task.id);
   const upload = useUploadAttachment(task.id);
   const remove = useDeleteAttachment();
+  const { ask: askRemove, dialog: removeDialog } = useDeleteConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(0);
@@ -395,7 +407,10 @@ export function AttachmentsSection({ task }: { task: TaskRow }) {
                   type="button"
                   aria-label={`Delete ${a.file_name}`}
                   className="opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive"
-                  onClick={() => remove.mutate(a, { onError: fail('Could not delete file') })}
+                  onClick={() => askRemove({
+                    what: 'file', name: a.file_name, consequence: 'The file is deleted from this task for everyone, and cannot be downloaded again.',
+                    onConfirm: () => remove.mutate(a, { onError: fail('Could not delete file') }),
+                  })}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -430,6 +445,7 @@ export function AttachmentsSection({ task }: { task: TaskRow }) {
           onChange={(e) => { void send(e.target.files); e.target.value = ''; }}
         />
       </div>
+      {removeDialog}
     </section>
   );
 }

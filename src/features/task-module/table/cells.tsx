@@ -20,6 +20,7 @@ import {
   type PersonOption, type TableField, type TableRecordRow, type TaskOption,
 } from '@/queries/useTaskModule';
 import { PersonAvatar } from '../pickers';
+import { useDeleteConfirm } from '../DeleteConfirm';
 import {
   DEFAULT_CURRENCY, FIELD_TYPES, asList, cellValue, formatNumber, optionChip, type AttachmentValue,
 } from './fieldTypes';
@@ -354,11 +355,15 @@ function AttachmentCell({ value, record, ctx, onCommit }: { value: unknown; reco
   const openFile = async (a: AttachmentValue) => {
     try { window.open(await attachmentUrl(a.path), '_blank', 'noopener'); } catch (e) { toast({ title: 'Could not open the file', description: errorMessage(e), variant: 'destructive' }); }
   };
-  const remove = async (a: AttachmentValue) => {
-    const next = files.filter((f) => f.path !== a.path);
-    onCommit(next.length ? next : null);
-    await supabase.storage.from(ATTACHMENT_BUCKET).remove([a.path]);
-  };
+  const { ask, dialog } = useDeleteConfirm();
+  const remove = (a: AttachmentValue) => ask({
+    what: 'file', name: a.name, consequence: 'The file is deleted from this row and cannot be downloaded again.',
+    onConfirm: async () => {
+      const next = files.filter((f) => f.path !== a.path);
+      onCommit(next.length ? next : null);
+      await supabase.storage.from(ATTACHMENT_BUCKET).remove([a.path]);
+    },
+  });
 
   return (
     <Popover>
@@ -380,6 +385,7 @@ function AttachmentCell({ value, record, ctx, onCommit }: { value: unknown; reco
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add files (up to 25 MB each)
         </button>
       </PopoverContent>
+      {dialog}
     </Popover>
   );
 }
