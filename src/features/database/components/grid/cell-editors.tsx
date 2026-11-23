@@ -4,6 +4,7 @@ import { Paperclip, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { matchChoice, nextUnusedColor, splitSelectTokens } from '../../lib/selectOptions';
+import { fromShownPercent, storedAsFraction, toShownPercent } from '../../lib/percent';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DateEditor } from './DateEditor';
 import { MultiSelectCellRenderer, SelectCellRenderer } from './cell-renderers';
@@ -942,8 +943,18 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 }
 
 
-export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} suffix="%" placeholder="0" />;
+export function PercentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const fraction = storedAsFraction(field);
+  const shown = value == null || value === '' || !Number.isFinite(Number(value)) ? value : toShownPercent(Number(value), fraction);
+  return (
+    <NumericEditor
+      value={shown}
+      onCommit={(v) => onCommit(typeof v === 'number' ? fromShownPercent(v, fraction) : v)}
+      onCancel={onCancel}
+      suffix="%"
+      placeholder="0"
+    />
+  );
 }
 
 export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {

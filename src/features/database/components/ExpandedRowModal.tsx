@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { fromShownPercent, storedAsFraction, toShownPercent } from '../lib/percent';
 import { X, ChevronLeft, ChevronRight, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check, ExternalLink, Mail } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import { RecordHistoryPanel } from './RecordHistoryPanel';
@@ -1029,10 +1030,10 @@ export function ExpandedRowModal({
       case 'Percent':
         return (
           <InlineNumberEditor
-            value={val as number | null}
+            value={field.ui_type === 'Percent' && typeof val === 'number' ? toShownPercent(val, storedAsFraction(field)) : (val as number | null)}
             prefix={field.ui_type === 'Currency' ? currencySymbol(field.options?.currencyCode || field.options?.symbol) : undefined}
             suffix={field.ui_type === 'Percent' ? '%' : undefined}
-            onCommit={(v) => handleUpdate(field.id, v)}
+            onCommit={(v) => handleUpdate(field.id, field.ui_type === 'Percent' && typeof v === 'number' ? fromShownPercent(v, storedAsFraction(field)) : v)}
           />
         );
       case 'Duration':

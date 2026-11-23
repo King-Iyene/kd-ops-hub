@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { storedAsFraction, toShownPercent } from '../lib/percent';
 import { X, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { FieldMeta, RecordRow } from '../types';
@@ -42,7 +43,7 @@ export function PrintView({ fields, records, tableName, onClose }: PrintViewProp
     if ((uiType === 'Number' || uiType === 'Decimal') && num !== null) {
       return num.toLocaleString(undefined, uiType === 'Decimal' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined);
     }
-    if ((uiType === 'Percent' || resultType === 'percent') && num !== null) return `${num}%`;
+    if ((uiType === 'Percent' || resultType === 'percent') && num !== null) return `${uiType === 'Percent' ? toShownPercent(num, storedAsFraction(field)) : num}%`;
     if ((uiType === 'Date' || uiType === 'DateTime') && typeof val === 'string') {
       const d = new Date(val);
       if (!isNaN(d.getTime())) return d.toLocaleDateString(undefined, { dateStyle: 'medium' });
