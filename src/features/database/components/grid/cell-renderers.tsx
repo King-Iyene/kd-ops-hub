@@ -15,6 +15,7 @@ import { hasInlineMarks, parseInline } from '../../lib/inlineMarkdown';
 import { RatingGlyph } from './RatingGlyph';
 import { LinkChips } from './LinkChips';
 import { legacyLinkItems, linesForRowHeight } from '../../lib/linkBatch';
+import { LinkPopover } from './LinkCellRenderer';
 
 interface CellRendererProps {
   value: any;
@@ -885,6 +886,7 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 
 export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
+  field,
   record,
   rowHeight,
 }: CellRendererProps) {
@@ -894,6 +896,21 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   }, [record]);
   const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
   const items = useMemo(() => legacyLinkItems(value, lookup), [value, lookup]);
+  // A link to a known table opens the list of records right in the cell, like every other app; the whole record
+  // panel stays one click away from the row.
+  if (field?.options?.relatedTableId) {
+    return (
+      <LinkPopover field={field} record={record} bubbleClick>
+        {items.length === 0 ? (
+          <span className="flex items-center justify-center w-full h-full opacity-0 group-hover/row:opacity-60 transition-opacity">
+            <Plus size={14} style={{ color: colors.muted }} />
+          </span>
+        ) : (
+          <LinkChips items={items} wrap={rowHeight !== 'short'} lines={linesForRowHeight(rowHeight)} />
+        )}
+      </LinkPopover>
+    );
+  }
   if (items.length === 0) {
     return (
       <button
