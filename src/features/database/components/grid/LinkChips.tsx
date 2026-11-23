@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useGridColors } from '../../hooks/useGridColors';
-import { chipsThatFit, type TextMeasurer } from '../../lib/linkBatch';
+import { chipsThatFit, chipsThatFitLines, type TextMeasurer } from '../../lib/linkBatch';
 import type { LinkedItem } from '../../hooks/useBatchedLinks';
 
 /**
@@ -38,10 +38,13 @@ const CHIP_FONT_WEIGHT = 500; // font-medium
 export function LinkChips({
   items,
   wrap,
+  lines = 2,
   onChipClick,
 }: {
   items: LinkedItem[];
   wrap: boolean;
+  /** When wrapping: how many lines the row can show. Whole chips only; the rest become "+N". */
+  lines?: number;
   /** When given, clicking a chip (or the "+N") calls it instead of reaching the cell; blank space still belongs to the cell. */
   onChipClick?: () => void;
 }) {
@@ -66,7 +69,7 @@ export function LinkChips({
     () => (fontFamily ? textMeasurer(`${CHIP_FONT_WEIGHT} ${CHIP_FONT_SIZE}px ${fontFamily}`) : undefined),
     [fontFamily],
   );
-  const visibleCount = wrap ? Math.min(items.length, 12) : chipsThatFit(labels, width, measure);
+  const visibleCount = wrap ? chipsThatFitLines(labels, width, lines, measure) : chipsThatFit(labels, width, measure);
   const hidden = items.length - visibleCount;
   // A lone chip may be cut to the cell's width; with several, none is squeezed.
   const lone = visibleCount === 1;

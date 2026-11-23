@@ -43,7 +43,7 @@ const CHUNK_SIZE = 80;
 const PAGE = 1000;
 const MAX_PAGES = 25;
 
-interface FieldLinkMeta {
+export interface FieldLinkMeta {
   schema: string;
   junctionTable: string | null;
   srcTable: string;
@@ -53,7 +53,7 @@ interface FieldLinkMeta {
   fkColumn: string | undefined;
 }
 
-async function resolveFieldLinkMeta(
+export async function resolveFieldLinkMeta(
   qc: QueryClient,
   baseId: string,
   field: FieldMeta,
@@ -121,7 +121,7 @@ async function readAll<T>(
 }
 
 /** record id -> ids of the records it links to, for one field and one chunk of records. */
-async function fetchLinkedIds(
+export async function fetchLinkedIds(
   meta: FieldLinkMeta,
   recordIds: string[],
 ): Promise<Map<string, string[]>> {

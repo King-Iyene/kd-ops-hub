@@ -17,6 +17,7 @@ import {
 } from '../../hooks/useLinks';
 import { useLinkData, type LinkedItem } from '../../hooks/useBatchedLinks';
 import { LinkChips } from './LinkChips';
+import { linesForRowHeight } from '../../lib/linkBatch';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 
@@ -333,7 +334,7 @@ function BatchedLinkCell({
           <EmptyLinkHint />
         )
       ) : items.length > 0 ? (
-        <LinkChips items={items} wrap={wrap} />
+        <LinkChips items={items} wrap={wrap} lines={linesForRowHeight(rowHeight)} />
       ) : (
         <EmptyLinkHint />
       )}
@@ -371,7 +372,7 @@ function SingleLinkCell({ field, record, rowHeight }: LinkCellRendererProps) {
       {isLoading ? (
         <span className="text-xs text-muted-foreground truncate">Loading...</span>
       ) : items.length > 0 ? (
-        <LinkChips items={items} wrap={rowHeight !== 'short'} />
+        <LinkChips items={items} wrap={rowHeight !== 'short'} lines={linesForRowHeight(rowHeight)} />
       ) : (
         <EmptyLinkHint />
       )}
