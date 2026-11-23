@@ -13,6 +13,7 @@ import {
   type SectionId,
 } from '@/features/developer-hub/lib/navigation';
 import { SectionToc } from '@/features/developer-hub/components/SectionToc';
+import { DocsSearch } from '@/features/developer-hub/components/DocsSearch';
 
 const ApiOverview = lazy(() => import('./ApiOverview'));
 const QuickStart = lazy(() => import('@/features/developer-hub/components/QuickStart'));
@@ -152,7 +153,8 @@ export function DeveloperHub() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <DocsSearch onSelect={goTo} />
               <span className="text-3xs font-mono px-2 py-1 rounded-full bg-success/10 dark:bg-success/10 text-success dark:text-success font-medium">
                 API v1
               </span>

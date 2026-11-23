@@ -44,6 +44,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { expiresAtFromOption } from '@/features/developer-hub/lib/keyExpiry';
 
 const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -122,16 +123,6 @@ async function generateKey() {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
   return { raw, hash, prefix: raw.slice(0, 10) };
-}
-
-function expiresAtFromOption(opt: string | null): string | null {
-  if (!opt || opt === 'never') return null;
-  const ms: Record<string, number> = {
-    '30d': 30 * 86_400_000,
-    '90d': 90 * 86_400_000,
-    '1y': 365 * 86_400_000,
-  };
-  return ms[opt] ? new Date(Date.now() + ms[opt]).toISOString() : null;
 }
 
 /* ------------------------------------------------------------------ */
