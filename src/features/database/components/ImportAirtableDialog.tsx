@@ -30,6 +30,7 @@ import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
+import { linkOptionsFromAirtable, numberFromAirtable } from '../lib/airtableImport';
 
 interface ImportAirtableDialogProps {
   open: boolean;
@@ -526,12 +527,7 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
               options.linkedTableName = linkedTable.name;
               options.linkedTableId = f.options.linkedTableId;
             }
-            if (f.options?.prefersSingleRecordLink) {
-              options.prefersSingleRecordLink = true;
-            }
-            if (f.options?.inverseLinkFieldId) {
-              options.inverseLinkFieldId = f.options.inverseLinkFieldId;
-            }
+            Object.assign(options, linkOptionsFromAirtable(f.options));
           }
           if (f.type === 'lookup') {
             options.recordLinkFieldId = f.options?.recordLinkFieldId;
@@ -696,10 +692,8 @@ export function ImportAirtableDialog({ open, onOpenChange }: ImportAirtableDialo
                   } else if (pt.startsWith('BOOLEAN')) {
                     row[mapping.col] = Boolean(value);
                   } else if (pt === 'NUMERIC' || pt === 'INTEGER' || pt === 'SMALLINT') {
-                    const n = Number(value);
-                    if (!Number.isNaN(n) && Number.isFinite(n)) {
-                      row[mapping.col] = pt === 'INTEGER' || pt === 'SMALLINT' ? Math.round(n) : n;
-                    }
+                    const n = numberFromAirtable(mapping.uiType, pt, value);
+                    if (n !== undefined) row[mapping.col] = n;
                   } else if (pt === 'DATE') {
                     const s = typeof value === 'string' ? value.substring(0, 10) : String(value).substring(0, 10);
                     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) row[mapping.col] = s;
