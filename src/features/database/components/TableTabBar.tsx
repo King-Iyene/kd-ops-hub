@@ -48,6 +48,7 @@ import {
   useDuplicateTable,
   useRecordCount,
 } from '../hooks';
+import { usePrefetchTable } from '../hooks/usePrefetchTable';
 import {
   useManualHiddenTables,
   usePinnedTables,
@@ -169,6 +170,7 @@ export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps
   const { activeBaseId, activeTableId } = useDatabaseUI();
   const { navigateToTable } = useDatabaseNavigate();
   const { data: tables, isFetching: isTablesFetching } = useTables(activeBaseId);
+  const prefetch = usePrefetchTable();
   const { data: bases } = useBases();
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
   const baseColor = activeBase?.color || '#2D7FF9';
@@ -327,6 +329,7 @@ export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps
                 ? 'bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] font-medium rounded-t-md -mb-px'
                 : 'text-white/70 hover:text-white',
             )}
+            {...(activeBaseId ? prefetch.handlersFor(activeBaseId, table.id) : {})}
             onClick={(e) => { e.preventDefault(); navigateToTable(table.id); }}
             onDoubleClick={() => setRenamingId(table.id)}
           >

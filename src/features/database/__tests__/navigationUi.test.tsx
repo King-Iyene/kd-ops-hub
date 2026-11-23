@@ -47,6 +47,10 @@ const views = [
 vi.mock('../hooks/useBases', () => ({ useBases: () => ({ data: bases }) }));
 vi.mock('../hooks/useTables', () => ({ useTables: () => ({ data: tables }) }));
 vi.mock('../hooks/useViews', () => ({ useViews: () => ({ data: views }) }));
+// Hover prefetch needs a QueryClient; these tests are about the lists, not about prefetching.
+vi.mock('../hooks/usePrefetchTable', () => ({
+  usePrefetchTable: () => ({ handlersFor: () => ({}), schedule: () => {}, cancel: () => {} }),
+}));
 vi.mock('../hooks', () => ({
   useBases: () => ({ data: bases }),
   useDeleteBase: () => ({ mutate: vi.fn() }),

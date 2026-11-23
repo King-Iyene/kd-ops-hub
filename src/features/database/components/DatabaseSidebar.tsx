@@ -32,6 +32,7 @@ import { useDatabaseUI } from '../lib/store';
 import { EmojiPicker } from './EmojiPicker';
 import { useBases, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
 import { useTables } from '../hooks/useTables';
+import { usePrefetchTable } from '../hooks/usePrefetchTable';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
 import { HighlightedText } from './HighlightedText';
@@ -97,6 +98,7 @@ function BaseTableList({ baseId }: { baseId: string }) {
   const { data: tables } = useTables(baseId);
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
   const { navigateToTable } = useDatabaseNavigate();
+  const prefetch = usePrefetchTable();
   const [query, setQuery] = useState('');
   const [showHidden, setShowHidden] = useShowHiddenTables();
   const { hiddenIds: manualHidden } = useManualHiddenTables(baseId);
@@ -168,6 +170,7 @@ function BaseTableList({ baseId }: { baseId: string }) {
           title={t.name}
           aria-current={isActive ? 'page' : undefined}
           aria-keyshortcuts="P"
+          {...prefetch.handlersFor(baseId, t.id)}
           onClick={() => navigateToTable(t.id)}
           onKeyDown={(e) => {
             if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey) {
