@@ -831,7 +831,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                       onChange={(e) => { setRollupFn(e.target.value); if (e.target.value === 'COUNT' || e.target.value === 'COUNTALL') setRollupFieldId(''); }}
                       className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
                     >
-                      {['COUNT', 'COUNTALL', 'SUM', 'AVG', 'MIN', 'MAX', 'COUNTA', 'CONCATENATE', 'ARRAY_UNIQUE'].map((fn) => (
+                      {['COUNT', 'COUNTALL', 'SUM', 'AVG', 'MIN', 'MAX', 'MEDIAN', 'COUNTA', 'CONCATENATE', 'ARRAYJOIN', 'ARRAY_UNIQUE', 'ARRAYCOMPACT', 'AND', 'OR', 'XOR'].map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
                       ))}
                     </select>

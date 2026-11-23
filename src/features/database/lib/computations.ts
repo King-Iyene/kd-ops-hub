@@ -31,7 +31,13 @@ export type RollupFunction =
   | 'COUNTA'
   | 'COUNTALL'
   | 'CONCATENATE'
-  | 'ARRAY_UNIQUE';
+  | 'ARRAY_UNIQUE'
+  | 'ARRAYJOIN'
+  | 'ARRAYCOMPACT'
+  | 'AND'
+  | 'OR'
+  | 'XOR'
+  | 'MEDIAN';
 
 export const ROLLUP_FUNCTIONS: RollupFunction[] = [
   'SUM',
@@ -43,6 +49,12 @@ export const ROLLUP_FUNCTIONS: RollupFunction[] = [
   'COUNTALL',
   'CONCATENATE',
   'ARRAY_UNIQUE',
+  'ARRAYJOIN',
+  'ARRAYCOMPACT',
+  'AND',
+  'OR',
+  'XOR',
+  'MEDIAN',
 ];
 
 /** Find a field by id in a pool of fields. Returns null if missing/unresolvable. */
@@ -141,7 +153,7 @@ export function computeRollupValue(
   field: FieldMeta,
   allFields: FieldMeta[],
   linkedRecords: RecordRow[] | null | undefined,
-): number | string | any[] | null {
+): number | string | boolean | any[] | null {
   if (field.ui_type !== 'Rollup' && field.ui_type !== 'Count') return null;
 
   const records = linkedRecords ?? [];
@@ -154,8 +166,8 @@ export function computeRollupValue(
 
   const targetField = findField(allFields, field.options?.rollupFieldId);
   if (!targetField) {
-    if (fn === 'CONCATENATE') return '';
-    if (fn === 'ARRAY_UNIQUE') return [];
+    if (fn === 'CONCATENATE' || fn === 'ARRAYJOIN') return '';
+    if (fn === 'ARRAY_UNIQUE' || fn === 'ARRAYCOMPACT') return [];
     return null;
   }
 
@@ -195,7 +207,29 @@ export function computeRollupValue(
     }
 
     case 'CONCATENATE':
+    case 'ARRAYJOIN':
       return nonEmpty.map(String).join(', ');
+
+    case 'ARRAYCOMPACT':
+      return nonEmpty;
+
+    case 'MEDIAN': {
+      const nums = nonEmpty.map(toNumber).filter((n): n is number => n !== null).sort((a, b) => a - b);
+      if (nums.length === 0) return null;
+      const mid = Math.floor(nums.length / 2);
+      return nums.length % 2 === 1 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+    }
+
+    // True and false values only; blanks are ignored, and with nothing to judge there is no answer.
+    case 'AND':
+    case 'OR':
+    case 'XOR': {
+      if (nonEmpty.length === 0) return null;
+      const flags = nonEmpty.map((v) => v === true || v === 'true' || v === 1 || (typeof v === 'number' && v !== 0));
+      if (fn === 'AND') return flags.every(Boolean);
+      if (fn === 'OR') return flags.some(Boolean);
+      return flags.filter(Boolean).length % 2 === 1;
+    }
 
     case 'ARRAY_UNIQUE': {
       const seen = new Set<string>();
