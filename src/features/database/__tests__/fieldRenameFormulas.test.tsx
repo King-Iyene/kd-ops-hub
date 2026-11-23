@@ -8,21 +8,27 @@ vi.setConfig({ testTimeout: 30000 });
 // A stand-in database: records which rows were updated and with what.
 const updates: Array<{ id: string; payload: Record<string, any> }> = [];
 let failFormulaUpdates = false;
+// What the database holds for the table's formula fields (the rename reads these fresh, not from the cache).
+let formulaRows: Array<Record<string, any>> = [];
 
 function chain(): any {
   let payload: Record<string, any> = {};
   let id = '';
+  let isSelect = false;
+  let isUpdate = false;
   const c: any = new Proxy(function () {}, {
     get(_t, prop) {
       if (prop === 'then') {
         return (resolve: (v: unknown) => unknown) => {
+          if (isSelect && !isUpdate) return resolve({ data: formulaRows, error: null });
           const isFormulaWrite = 'options' in payload && id !== 'renamed-field';
           if (id) updates.push({ id, payload });
           if (failFormulaUpdates && isFormulaWrite) return resolve({ data: null, error: { message: 'write refused' } });
           return resolve({ data: { id: id || 'x', name: payload.name ?? 'x' }, error: null });
         };
       }
-      if (prop === 'update') return (p: Record<string, any>) => { payload = p; return c; };
+      if (prop === 'update') return (p: Record<string, any>) => { payload = p; isUpdate = true; return c; };
+      if (prop === 'select') return () => { isSelect = true; return c; };
       if (prop === 'eq') return (_col: string, value: string) => { id = value; return c; };
       return () => c;
     },
@@ -77,6 +83,11 @@ describe('renaming a field updates the formulas that use it', () => {
   beforeEach(() => {
     updates.length = 0;
     failFormulaUpdates = false;
+    // What the database holds (the same as the cache, unless a test says otherwise).
+    formulaRows = [
+      { id: 'formula-1', ui_type: 'Formula', options: { expression: '{Price} * 2' } },
+      { id: 'formula-2', ui_type: 'Formula', options: { expression: '1 + 1' } },
+    ];
   });
   afterEach(cleanup);
 
@@ -101,6 +112,17 @@ describe('renaming a field updates the formulas that use it', () => {
     // First the rename, then the one formula that mentioned it. The unrelated formula is not touched.
     expect(updates.map((u) => u.id)).toEqual(['renamed-field', 'formula-1']);
     expect(updates[1].payload.options.expression).toBe('{Unit Price} * 2');
+  });
+
+  it('uses the formula as the database holds it now, not an older copy from the cache', async () => {
+    // The cache still has "{Price} * 2", but the formula was edited since: the database has the newer text.
+    formulaRows = [{ id: 'formula-1', ui_type: 'Formula', options: { expression: '{Price} * 2 + {Price} / 10', result: { type: 'number' } } }];
+    const { result } = setup();
+    act(() => {
+      result.current.mutate({ id: 'renamed-field', table_id: 't1', updates: { name: 'Unit Price' } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(updates[1].payload.options).toEqual({ expression: '{Unit Price} * 2 + {Unit Price} / 10', result: { type: 'number' } });
   });
 
   it('does nothing extra for a change that is not a rename', async () => {

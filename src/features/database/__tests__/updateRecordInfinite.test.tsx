@@ -163,13 +163,24 @@ describe('editing and deleting with the grid\'s infinite list in the cache', () 
     expect(updatePayloads[0]).toEqual({ cost: 2 });
   });
 
-  it('does not name updated_by when the table\'s fields are not known yet', async () => {
+  it('when the table\'s fields are not loaded yet it still stamps, as it always did', async () => {
     const { result } = setup(() => useUpdateRecord());
     act(() => {
       result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
     });
     await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
-    expect(updatePayloads[0]).toEqual({ cost: 2 });
+    expect(updatePayloads[0]).toEqual({ cost: 2, updated_by: 'u1' });
+  });
+
+  it('and if that table has no such column, the edit is resent without it', async () => {
+    tableLacksUpdatedBy = true;
+    const { result } = setup(() => useUpdateRecord());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(updatePayloads).toEqual([{ cost: 2, updated_by: 'u1' }, { cost: 2 }]);
   });
 
   it('stamps the current user on a table that has the Last Modified By column', async () => {

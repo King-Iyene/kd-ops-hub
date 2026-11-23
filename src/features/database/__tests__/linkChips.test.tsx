@@ -1,4 +1,4 @@
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.setConfig({ testTimeout: 30000 });
@@ -59,6 +59,64 @@ describe('LinkChips', () => {
     const { container } = render(<LinkChips items={items} wrap />);
     expect(container.querySelectorAll('[data-link-chip]')).toHaveLength(3);
     expect(container.querySelector('[data-link-more]')).toBeNull();
+  });
+});
+
+describe('clicking a link cell', () => {
+  afterEach(cleanup);
+
+  it('a click on a chip or the +N goes to the chip handler and stays out of the cell', () => {
+    const onChipClick = vi.fn();
+    const onCell = vi.fn();
+    const { container } = render(
+      <div onClick={onCell}>
+        <LinkChips items={[{ id: '1', label: 'Project Alpha' }, { id: '2', label: 'Project Beta' }]} wrap={false} onChipClick={onChipClick} />
+      </div>,
+    );
+    fireEvent.click(container.querySelector('[data-link-chip]')!);
+    expect(onChipClick).toHaveBeenCalledTimes(1);
+    fireEvent.click(container.querySelector('[data-link-more]')!);
+    expect(onChipClick).toHaveBeenCalledTimes(2);
+    expect(onCell).not.toHaveBeenCalled();
+  });
+
+  it('a click on blank space in the cell still reaches the cell (to select it or edit it)', () => {
+    const onChipClick = vi.fn();
+    const onCell = vi.fn();
+    const { container } = render(
+      <div onClick={onCell}>
+        <LinkChips items={[{ id: '1', label: 'Project Alpha' }]} wrap={false} onChipClick={onChipClick} />
+      </div>,
+    );
+    fireEvent.click(container.querySelector('[title="Project Alpha"]')!);
+    expect(onCell).toHaveBeenCalledTimes(1);
+    expect(onChipClick).not.toHaveBeenCalled();
+  });
+
+  it('chips without a handler do not look clickable and do not stop the click', () => {
+    const onCell = vi.fn();
+    const { container } = render(
+      <div onClick={onCell}>
+        <LinkChips items={[{ id: '1', label: 'Project Alpha' }]} wrap={false} />
+      </div>,
+    );
+    const chip = container.querySelector('[data-link-chip]')!;
+    expect(chip.className).not.toContain('cursor-pointer');
+    fireEvent.click(chip);
+    expect(onCell).toHaveBeenCalledTimes(1);
+  });
+
+  it('in the older link cell, a chip opens the row and blank space does not', () => {
+    const opened = vi.fn();
+    window.addEventListener('grid:expand-row', opened);
+    const { container } = render(
+      <LinksCellRenderer value={['Project Alpha']} field={{ id: 'f', options: {} } as never} record={{ id: 'r' } as never} rowHeight="short" />,
+    );
+    fireEvent.click(container.querySelector('[data-link-chip]')!);
+    expect(opened).toHaveBeenCalledTimes(1);
+    fireEvent.click(container.firstElementChild!);
+    expect(opened).toHaveBeenCalledTimes(1);
+    window.removeEventListener('grid:expand-row', opened);
   });
 });
 

@@ -204,6 +204,21 @@ describe('completionAt', () => {
     expect(res.options.find((o) => o.kind === 'field')!.insert).toBe('{Amount}');
   });
 
+  it('inside a field name that already has its closing brace, accepting replaces the whole name', () => {
+    const text = '{Total Amount} + 1';
+    const pos = text.indexOf('Total') + 2; // {To|tal Amount}
+    const res = completionAt(text, pos, fields)!;
+    const option = res.options.find((o) => o.label === 'Total Amount')!;
+    const result = text.slice(0, res.from) + option.insert + text.slice(res.to);
+    expect(result).toBe('{Total Amount} + 1');
+  });
+
+  it('does not swallow a later field when the first one is unfinished', () => {
+    const text = '{Am + {Client}';
+    const res = completionAt(text, 3, fields)!;
+    expect(text.slice(res.from, res.to)).toBe('Am');
+  });
+
   it('works in the middle of a formula', () => {
     const text = 'IF({Paid}, {Am, 0)';
     const res = completionAt(text, text.indexOf('{Am') + 3, fields)!;

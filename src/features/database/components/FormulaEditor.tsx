@@ -142,7 +142,9 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
 
   const issues = diagnostics.filter((d) => d.message);
   const blocking = hasBlockingError(issues);
-  const showError = error && !issues.some((d) => d.message === error) ? error : '';
+  // The dialog's own message ("Unexpected token...") says the same as the editor's plain-words list, so it is shown
+  // only while the editor has nothing to say (before its first check, or for an error the editor cannot see).
+  const showError = error && issues.length === 0 ? error : '';
   const isValid = !error && !blocking && value.trim() !== '' && issues.length === 0;
 
   return (

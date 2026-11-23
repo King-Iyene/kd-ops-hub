@@ -341,6 +341,8 @@ const FormulaCodeEditor = forwardRef<FormulaCodeEditorHandle, FormulaCodeEditorP
   const dynamic = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   const onDiagnosticsRef = useRef(onDiagnostics);
+  /** Every text this editor has sent to the parent that the parent has not yet handed back. */
+  const emitted = useRef<string[]>([]);
   onChangeRef.current = onChange;
   onDiagnosticsRef.current = onDiagnostics;
 
@@ -378,7 +380,12 @@ const FormulaCodeEditor = forwardRef<FormulaCodeEditorHandle, FormulaCodeEditorP
           formulaTheme,
           dynamic.current.of(dynamicExtensions(fields, suggestions, pills, (d) => onDiagnosticsRef.current?.(d))),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+            if (!update.docChanged) return;
+            const text = update.state.doc.toString();
+            // Remember what was sent up, so when the parent hands it back the sync effect knows it is an echo.
+            emitted.current.push(text);
+            if (emitted.current.length > 100) emitted.current.shift();
+            onChangeRef.current(text);
           }),
         ],
       }),
@@ -392,12 +399,20 @@ const FormulaCodeEditor = forwardRef<FormulaCodeEditorHandle, FormulaCodeEditorP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A change from outside (the dialog was reset, a function was picked) replaces the text.
+  // A change from outside (the dialog was reset) replaces the text. A value the editor itself sent up and the
+  // parent is now handing back is not a change from outside: while typing fast, the parent can hand back an
+  // older text after a newer keystroke is already in the editor, and writing it back would lose that keystroke.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+    const echoAt = emitted.current.indexOf(value);
+    if (echoAt !== -1) {
+      emitted.current = emitted.current.slice(echoAt + 1);
+      return;
+    }
     const current = view.state.doc.toString();
     if (value !== current) {
+      emitted.current = [];
       view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
     }
   }, [value]);

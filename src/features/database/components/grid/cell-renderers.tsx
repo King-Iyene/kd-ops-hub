@@ -909,8 +909,8 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   }
   // The same chips as every other link cell: whole names that fit, then "+N", never squeezed.
   return (
-    <div className="flex items-center gap-1 overflow-hidden w-full cursor-pointer" onClick={(e) => { e.stopPropagation(); expandRow(); }}>
-      <LinkChips items={items} wrap={rowHeight !== 'short'} />
+    <div className="flex items-center gap-1 overflow-hidden w-full">
+      <LinkChips items={items} wrap={rowHeight !== 'short'} onChipClick={expandRow} />
       <button
         type="button"
         className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity ml-0.5"

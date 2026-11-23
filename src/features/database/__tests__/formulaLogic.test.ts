@@ -66,6 +66,28 @@ describe('IF and SWITCH only run the branch they use', () => {
   });
 });
 
+describe('SWITCH and blanks', () => {
+  const fm = { Status: 'status', Qty: 'qty' };
+  it('a blank matches a blank match value', () => {
+    expect(run('SWITCH({Status}, "", "None", "Other")', { status: null }, fm)).toBe('None');
+    expect(run('SWITCH({Status}, "", "None", "Other")', { status: '' }, fm)).toBe('None');
+  });
+  it('a blank still matches 0, as it always did, but not a word', () => {
+    expect(run('SWITCH({Qty}, 0, "none", "some")', { qty: null }, fm)).toBe('none');
+    expect(run('SWITCH({Status}, "abc", "word", "other")', { status: null }, fm)).toBe('other');
+  });
+  it('a value that is there does not match a blank', () => {
+    expect(run('SWITCH({Status}, "", "None", "Other")', { status: 'Open' }, fm)).toBe('Other');
+  });
+});
+
+describe('ARRAYJOIN on text that holds a list', () => {
+  it('splits a comma-separated text value, as it always did', () => {
+    expect(run('ARRAYJOIN({Tags}, ";")', { tags: 'a, b' }, { Tags: 'tags' })).toBe('a;b');
+    expect(run('ARRAYUNIQUE({Tags})', { tags: 'a, a, b' }, { Tags: 'tags' })).toBe('a, b');
+  });
+});
+
 describe('comparing text', () => {
   it('orders words and dates, not just numbers', () => {
     expect(run('"apple" < "banana"')).toBe(true);

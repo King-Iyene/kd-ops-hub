@@ -230,7 +230,15 @@ export function useUpdateField() {
         const siblings = qc.getQueryData<FieldMeta[]>(['nc', 'fields', input.table_id]);
         const oldName = siblings?.find((f) => f.id === input.id)?.name;
         if (siblings && oldName && oldName !== input.updates.name) {
-          for (const change of formulaRenameChanges(siblings, oldName, input.updates.name)) {
+          // Read the formulas fresh from the database rather than from the cache, so a formula that was just edited
+          // elsewhere is never overwritten with an older copy.
+          const { data: formulaRows } = await supabase
+            .schema('nc_meta')
+            .from('fields')
+            .select('id, ui_type, options')
+            .eq('table_id', input.table_id)
+            .eq('ui_type', 'Formula');
+          for (const change of formulaRenameChanges((formulaRows ?? []) as FieldMeta[], oldName, input.updates.name)) {
             const { error: formulaError } = await supabase
               .schema('nc_meta')
               .from('fields')

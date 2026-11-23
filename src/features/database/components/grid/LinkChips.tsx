@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useGridColors } from '../../hooks/useGridColors';
 import { chipsThatFit, type TextMeasurer } from '../../lib/linkBatch';
 import type { LinkedItem } from '../../hooks/useBatchedLinks';
@@ -24,15 +24,27 @@ function textMeasurer(font: string): TextMeasurer | undefined {
   }
   const ctx = measureContext;
   if (!ctx) return undefined;
-  ctx.font = font;
-  return (text) => ctx.measureText(text).width;
+  // The canvas is shared, so set the font on every measurement rather than trusting nobody else changed it.
+  return (text) => {
+    ctx.font = font;
+    return ctx.measureText(text).width;
+  };
 }
 
 /** The chip text style, kept in one place so the measuring and the drawing agree. */
 const CHIP_FONT_SIZE = 11; // text-2xs
 const CHIP_FONT_WEIGHT = 500; // font-medium
 
-export function LinkChips({ items, wrap }: { items: LinkedItem[]; wrap: boolean }) {
+export function LinkChips({
+  items,
+  wrap,
+  onChipClick,
+}: {
+  items: LinkedItem[];
+  wrap: boolean;
+  /** When given, clicking a chip (or the "+N") calls it instead of reaching the cell; blank space still belongs to the cell. */
+  onChipClick?: () => void;
+}) {
   const colors = useGridColors();
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -58,6 +70,15 @@ export function LinkChips({ items, wrap }: { items: LinkedItem[]; wrap: boolean 
   const hidden = items.length - visibleCount;
   // A lone chip may be cut to the cell's width; with several, none is squeezed.
   const lone = visibleCount === 1;
+  const clickable = onChipClick
+    ? {
+        onClick: (e: ReactMouseEvent) => {
+          e.stopPropagation();
+          onChipClick();
+        },
+      }
+    : {};
+  const clickableClass = onChipClick ? ' cursor-pointer hover:opacity-80 transition-opacity' : '';
 
   return (
     <div
@@ -68,18 +89,20 @@ export function LinkChips({ items, wrap }: { items: LinkedItem[]; wrap: boolean 
       {items.slice(0, visibleCount).map((item) => (
         <span
           key={item.id}
-          className={`inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium leading-tight max-w-[200px] ${lone ? 'shrink min-w-0' : 'shrink-0'}`}
+          className={`inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium leading-tight max-w-[200px] ${lone ? 'shrink min-w-0' : 'shrink-0'}${clickableClass}`}
           style={{ backgroundColor: colors.linkPillBg, color: colors.linkPillText, letterSpacing: '-0.01em' }}
           data-link-chip
+          {...clickable}
         >
           <span className="truncate">{item.label}</span>
         </span>
       ))}
       {hidden > 0 && (
         <span
-          className="shrink-0 rounded px-1.5 py-0.5 text-2xs font-medium"
+          className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-medium${clickableClass}`}
           style={{ backgroundColor: colors.linkPillBg, color: colors.linkPillText }}
           data-link-more
+          {...clickable}
           title={items.slice(visibleCount).map((i) => i.label).join(', ')}
         >
           +{hidden}

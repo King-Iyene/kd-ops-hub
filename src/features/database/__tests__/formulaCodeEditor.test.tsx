@@ -18,6 +18,7 @@ beforeAll(() => {
 import FormulaCodeEditor, { type FormulaCodeEditorHandle } from '../components/formula/FormulaCodeEditor';
 import { FormulaEditor } from '../components/FormulaEditor';
 import { FunctionReference } from '../components/formula/FunctionReference';
+import { keepDialogOpenWhileSuggesting } from '../components/formula/escape';
 
 const FIELDS = [{ name: 'Amount', type: 'Currency' }, { name: 'Paid', type: 'Checkbox' }];
 
@@ -88,6 +89,24 @@ describe('FormulaCodeEditor', () => {
     expect(onChange).toHaveBeenCalledTimes(1); // the replacement itself is reported once, never in a loop
   });
 
+  it('fast typing is not lost when the parent hands back an older text', () => {
+    // Two keystrokes arrive before the parent has re-rendered with the first one.
+    const onChange = vi.fn();
+    const { container, rerender } = render(<FormulaCodeEditor value="A" onChange={onChange} fields={FIELDS} pills />);
+    const view = viewOf(container);
+    view.dispatch({ changes: { from: 1, insert: 'B' } });
+    view.dispatch({ changes: { from: 2, insert: 'C' } });
+    expect(view.state.doc.toString()).toBe('ABC');
+    // The parent now hands back the first text, then the second: neither may overwrite what is in the editor.
+    rerender(<FormulaCodeEditor value="AB" onChange={onChange} fields={FIELDS} pills />);
+    expect(view.state.doc.toString()).toBe('ABC');
+    rerender(<FormulaCodeEditor value="ABC" onChange={onChange} fields={FIELDS} pills />);
+    expect(view.state.doc.toString()).toBe('ABC');
+    // A real change from outside still replaces the text.
+    rerender(<FormulaCodeEditor value="Z" onChange={onChange} fields={FIELDS} pills />);
+    expect(view.state.doc.toString()).toBe('Z');
+  });
+
   it('insert() puts text at the cursor, replacing a selection', () => {
     const ref = createRef<FormulaCodeEditorHandle>();
     const onChange = vi.fn();
@@ -112,6 +131,27 @@ describe('FormulaCodeEditor', () => {
     await waitFor(() => expect(onDiagnostics).toHaveBeenCalled(), { timeout: 3000 });
     const last = onDiagnostics.mock.calls[onDiagnostics.mock.calls.length - 1][0];
     expect(last[0]).toMatchObject({ blocking: true, message: 'A closing parenthesis ) is missing.' });
+  });
+});
+
+describe('Escape inside a dialog', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('keeps the dialog open while the suggestion list is showing', () => {
+    const list = document.createElement('div');
+    list.className = 'cm-tooltip-autocomplete';
+    document.body.append(list);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    keepDialogOpenWhileSuggesting(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('lets the dialog close when there is no suggestion list', () => {
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    keepDialogOpenWhileSuggesting(event);
+    expect(event.defaultPrevented).toBe(false);
   });
 });
 

@@ -1067,10 +1067,10 @@ export function useUpdateRecord() {
       // field for it), and the database rejects an update that names a column the table does not have,
       // which made every edit in those tables fail. So: skip the stamp when the table is known to lack the
       // column, and if the database says so, send the edit again without it and remember that.
-      const stampUser =
-        tableHasUpdatedBy(qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId))) && !tablesWithoutUpdatedBy.has(input.tableId)
-          ? (await getCachedUser())?.id
-          : undefined;
+      // If the table's fields are not loaded yet the stamp is tried anyway, as it always was; the resend below covers a missing column.
+      const knownFields = qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId));
+      const mayStamp = (knownFields === undefined || tableHasUpdatedBy(knownFields)) && !tablesWithoutUpdatedBy.has(input.tableId);
+      const stampUser = mayStamp ? (await getCachedUser())?.id : undefined;
 
       const send = (payload: Record<string, any>) =>
         supabase

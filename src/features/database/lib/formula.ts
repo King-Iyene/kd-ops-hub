@@ -791,6 +791,12 @@ function isErrorValue(v: any): boolean {
 
 /** SWITCH matches loosely, but two different words must not match just because both are "0" as numbers. */
 function sameValue(a: any, b: any): boolean {
+  // A blank matches a blank, and (as it always did) the number 0: `SWITCH({Qty}, 0, "none")` on an empty cell.
+  const aBlank = a == null || a === '';
+  const bBlank = b == null || b === '';
+  if (aBlank && bBlank) return true;
+  if (aBlank) return comparableNumber(b) === 0;
+  if (bBlank) return comparableNumber(a) === 0;
   if (a == b) return true;
   const an = comparableNumber(a);
   const bn = comparableNumber(b);
@@ -816,7 +822,8 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
       if (raw) {
         // For the list functions: keep the items apart, with link ids turned into names.
         if (val == null || val === '') return [];
-        const items: any[] = Array.isArray(val) ? val : [val];
+        // A text value that holds a comma-separated list (an older or imported value) is split, as it always was.
+        const items: any[] = Array.isArray(val) ? val : asList(val);
         return items.map((item) => (lookup && typeof item === 'string' && item in lookup ? lookup[item] : item));
       }
       if (Array.isArray(val)) {

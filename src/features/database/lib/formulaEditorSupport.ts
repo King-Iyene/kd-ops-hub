@@ -245,11 +245,12 @@ export function completionAt(text: string, pos: number, fields: readonly FieldCh
   if (last && last.kind === 'field' && last.closed === false) {
     const query = text.slice(last.from + 1, pos);
     const options = rank([...fields], (f) => f.name, query).slice(0, MAX_OPTIONS);
-    // If a closing brace already follows, replace it too so the formula does not end up with "}}".
-    const closes = text[pos] === '}';
+    // When the cursor is inside a field name that already has its closing brace ("{To|tal Cost}"), the rest of
+    // that name and the brace are replaced too, so accepting a field never leaves "{Total Cost}tal Cost}".
+    const rest = text.slice(pos).match(/^[^{}]*\}/);
     return {
       from: last.from + 1,
-      to: closes ? pos + 1 : pos,
+      to: rest ? pos + rest[0].length : pos,
       options: options.map((f) => fieldOption(f, `${f.name}}`)),
     };
   }
