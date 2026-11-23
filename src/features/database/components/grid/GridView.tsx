@@ -5,6 +5,8 @@ import type { FieldMeta, RecordRow, RowColorRule, UIType } from '@/features/data
 import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
+import { countChecked, dateExtremes, median, toNumbers, uniqueCount } from '../../lib/summaries';
+import { formatDbDate } from '../../lib/dates';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
@@ -17,7 +19,7 @@ import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, getTimezone } from '@/lib/format';
 
 const _ariaFmtMap = new Map<string, Intl.NumberFormat>();
 function _ariaFmtCache(code: string): Intl.NumberFormat {
@@ -129,12 +131,22 @@ function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
 
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
-const SUMMARY_OPTIONS: { value: SummaryFunction; label: string; numericOnly: boolean }[] = [
+const DATE_TYPES: UIType[] = ['Date', 'DateTime', 'CreatedTime', 'LastModifiedTime'];
+
+/** `kind` limits an option to one kind of column; `numericOnly` is kept for the number columns. */
+const SUMMARY_OPTIONS: { value: SummaryFunction; label: string; numericOnly: boolean; kind?: 'date' | 'checkbox' }[] = [
   { value: 'none', label: 'None', numericOnly: false },
   { value: 'sum', label: 'Sum', numericOnly: true },
   { value: 'avg', label: 'Average', numericOnly: true },
   { value: 'min', label: 'Min', numericOnly: true },
   { value: 'max', label: 'Max', numericOnly: true },
+  { value: 'median', label: 'Median', numericOnly: true },
+  { value: 'range', label: 'Range (max minus min)', numericOnly: true },
+  { value: 'earliest', label: 'Earliest date', numericOnly: false, kind: 'date' },
+  { value: 'latest', label: 'Latest date', numericOnly: false, kind: 'date' },
+  { value: 'checked', label: 'Checked', numericOnly: false, kind: 'checkbox' },
+  { value: 'unchecked', label: 'Unchecked', numericOnly: false, kind: 'checkbox' },
+  { value: 'unique', label: 'Unique values', numericOnly: false },
   { value: 'count', label: 'Count all', numericOnly: false },
   { value: 'countEmpty', label: 'Count empty', numericOnly: false },
   { value: 'countFilled', label: 'Count filled', numericOnly: false },
@@ -146,6 +158,8 @@ const SUMMARY_LABELS: Record<SummaryFunction, string> = {
   none: '', sum: 'Sum', avg: 'Average', min: 'Min', max: 'Max',
   count: 'Count', countEmpty: 'Empty', countFilled: 'Filled',
   percentEmpty: '% Empty', percentFilled: '% Filled',
+  median: 'Median', range: 'Range', unique: 'Unique',
+  earliest: 'Earliest', latest: 'Latest', checked: 'Checked', unchecked: 'Unchecked',
 };
 
 function formatSummaryNum(num: number, field?: FieldMeta): string {
@@ -188,13 +202,24 @@ function computeSummary(
   if (fn === 'percentEmpty') return (total > 0 ? ((emptyCount / total) * 100).toFixed(1) + '%' : '0%');
   if (fn === 'percentFilled') return (total > 0 ? ((filledCount / total) * 100).toFixed(1) + '%' : '0%');
 
-  const nums = values.map((v) => (typeof v === 'number' ? v : parseFloat(String(v)))).filter((n) => !isNaN(n));
+  if (fn === 'unique') return uniqueCount(values).toLocaleString();
+  if (fn === 'checked') return countChecked(values).toLocaleString();
+  if (fn === 'unchecked') return (total - countChecked(values)).toLocaleString();
+  if (fn === 'earliest' || fn === 'latest') {
+    const { earliest, latest } = dateExtremes(values);
+    const pick = fn === 'earliest' ? earliest : latest;
+    return pick ? formatDbDate(pick, getTimezone()) : '';
+  }
+
+  const nums = toNumbers(values);
   if (nums.length === 0) return '';
 
   if (fn === 'sum') return formatSummaryNum(nums.reduce((a, b) => a + b, 0), field);
   if (fn === 'avg') return formatSummaryNum(nums.reduce((a, b) => a + b, 0) / nums.length, field);
   if (fn === 'min') return formatSummaryNum(nums.reduce((a, b) => (b < a ? b : a), nums[0]), field);
   if (fn === 'max') return formatSummaryNum(nums.reduce((a, b) => (b > a ? b : a), nums[0]), field);
+  if (fn === 'median') return formatSummaryNum(median(nums) ?? 0, field);
+  if (fn === 'range') return formatSummaryNum(Math.max(...nums) - Math.min(...nums), field);
   return '';
 }
 
@@ -326,7 +351,7 @@ const SummaryRow = React.memo(function SummaryRow({
                     border: `1px solid ${colors.border}`,
                   }}
                 >
-                  {SUMMARY_OPTIONS.filter((opt) => !opt.numericOnly || isNumeric).map((opt) => (
+                  {SUMMARY_OPTIONS.filter((opt) => (!opt.numericOnly || isNumeric) && (!opt.kind || (opt.kind === 'date' ? DATE_TYPES.includes(field.ui_type) : field.ui_type === 'Checkbox'))).map((opt) => (
                     <button
                       key={opt.value}
                       className="w-full text-left px-3 py-1.5 text-xs flex items-center justify-between"
