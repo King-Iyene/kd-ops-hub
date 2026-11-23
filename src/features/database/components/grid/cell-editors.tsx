@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Paperclip, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
+import { matchChoice, nextUnusedColor, splitSelectTokens } from '../../lib/selectOptions';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DateEditor } from './DateEditor';
 import { MultiSelectCellRenderer, SelectCellRenderer } from './cell-renderers';
@@ -517,8 +518,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
     if (!trimmed || !canCreate) return;
-    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
-    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
+    const newChoice: SelectChoice = { title: trimmed, color: nextUnusedColor(choices, SELECT_COLOR_NAMES) };
     const updatedChoices = [...choices, newChoice];
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as Partial<FieldMeta['options']>);
     onCommit(trimmed);
@@ -537,6 +537,10 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         onCommit(filtered[focusedIndex].title);
+      } else if (search.trim() && matchChoice(search, choices)) {
+        onCommit(matchChoice(search, choices)!.title);
+      } else if (search.trim() && filtered.length > 0 && (!canCreate || filtered.length === 1)) {
+        onCommit(filtered[0].title);
       } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
       }
@@ -548,7 +552,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
         onCommit(value);
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, onCommit, value]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, onCommit, value, choices]);
 
   return (
     <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
@@ -581,6 +585,11 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="select-options-list"
+            aria-activedescendant={focusedIndex >= 0 && focusedIndex < filtered.length ? `select-option-${focusedIndex}` : undefined}
+            aria-label="Find an option"
             placeholder="Find an option..."
             className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
             style={{
@@ -589,7 +598,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             }}
           />
         </div>
-        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+        <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }} role="listbox" id="select-options-list" aria-label="Options">
           {filtered.map((choice, idx) => {
             const sc = getSelectColorStyle(choice.color);
             const isFocused = idx === focusedIndex;
@@ -597,6 +606,9 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             return (
               <button
                 key={choice.title}
+                role="option"
+                id={`select-option-${idx}`}
+                aria-selected={isSelected}
                 className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
                 style={{
                   backgroundColor: isFocused ? colors.hoverRow : 'transparent',
@@ -685,8 +697,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
     if (!trimmed || !canCreate) return;
-    const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
-    const newChoice: SelectChoice = { title: trimmed, color: randomColor };
+    const newChoice: SelectChoice = { title: trimmed, color: nextUnusedColor(localChoices, SELECT_COLOR_NAMES) };
     const updatedChoices = [...localChoices, newChoice];
     setLocalChoices(updatedChoices);
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
@@ -737,11 +748,45 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         toggle(filtered[focusedIndex].title);
+      } else if (search.trim() && matchChoice(search, localChoices)) {
+        toggle(matchChoice(search, localChoices)!.title);
+        setSearch('');
       } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
+      } else if (search.trim() && filtered.length === 1) {
+        toggle(filtered[0].title);
+        setSearch('');
+      }
+    } else if (e.key === 'Backspace' && search === '' && selectedRef.current.length > 0) {
+      // Like every tag input: Backspace in an empty box takes off the last chip.
+      e.preventDefault();
+      setSelected((prev) => prev.slice(0, -1));
+    }
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, toggle, localChoices]);
+
+  // Pasting "Design, Sales; Ops" picks each one (creating any that do not exist yet) instead of typing one long word.
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const tokens = splitSelectTokens(e.clipboardData.getData('text'));
+    if (tokens.length < 2) return;
+    e.preventDefault();
+    let nextChoices = localChoices;
+    const picked: string[] = [];
+    for (const token of tokens) {
+      const hit = matchChoice(token, nextChoices);
+      if (hit) {
+        picked.push(hit.title);
+      } else if (canCreate) {
+        nextChoices = [...nextChoices, { title: token, color: nextUnusedColor(nextChoices, SELECT_COLOR_NAMES) }];
+        picked.push(token);
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, toggle]);
+    if (nextChoices !== localChoices) {
+      setLocalChoices(nextChoices);
+      onFieldUpdate?.(field.id, field.table_id, { choices: nextChoices } as any);
+    }
+    setSelected((prev) => [...prev, ...picked.filter((t) => !prev.includes(t))]);
+    setSearch('');
+  }, [localChoices, canCreate, onFieldUpdate, field.id, field.table_id]);
 
   return (
     <>
@@ -802,6 +847,12 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="multi-options-list"
+              aria-activedescendant={focusedIndex >= 0 && focusedIndex < filtered.length ? `multi-option-${focusedIndex}` : undefined}
+              aria-label="Find or create an option"
               placeholder="Find or create an option"
               className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
               style={{
@@ -810,7 +861,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               }}
             />
           </div>
-          <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }}>
+          <div className="overflow-y-auto py-1" style={{ maxHeight: 200 }} role="listbox" id="multi-options-list" aria-multiselectable="true" aria-label="Options">
             {filtered.map((choice, idx) => {
               const sc = getSelectColorStyle(choice.color);
               const isFocused = idx === focusedIndex;
@@ -818,6 +869,9 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               return (
                 <button
                   key={choice.title}
+                  role="option"
+                  id={`multi-option-${idx}`}
+                  aria-selected={isChecked}
                   className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors"
                   style={{
                     backgroundColor: isFocused ? colors.hoverRow : 'transparent',

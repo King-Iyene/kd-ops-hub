@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
-import type { FieldMeta, RecordRow } from '../types';
+import type { FieldMeta, RecordRow, SelectChoice } from '../types';
+import { normalizeSelectPaste } from './selectOptions';
 
 export function exportToCsv(fields: FieldMeta[], records: RecordRow[], tableName: string) {
   const exportFields = fields
@@ -110,8 +111,14 @@ export function coerceValue(value: string, field: FieldMeta): any {
     }
     case 'Checkbox':
       return ['true', '1', 'yes', 'y'].includes(v.toLowerCase());
-    case 'MultiSelect':
-      return v.split(',').map((s) => s.trim()).filter(Boolean);
+    case 'MultiSelect': {
+      const choices = (field.options?.choices ?? []) as SelectChoice[];
+      return normalizeSelectPaste(v, choices, true);
+    }
+    case 'SingleSelect': {
+      const choices = (field.options?.choices ?? []) as SelectChoice[];
+      return normalizeSelectPaste(v, choices, false);
+    }
     case 'JSON':
     case 'Attachment':
       try { return JSON.parse(v); } catch { return null; }
