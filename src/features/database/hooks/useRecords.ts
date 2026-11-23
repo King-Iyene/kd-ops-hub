@@ -811,6 +811,26 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   });
 }
 
+/**
+ * The rows one cached records query holds, whatever its shape: a single page
+ * (`{ records }`) or the grid's infinite list (`{ pages: [{ records }] }`).
+ */
+function cachedRows(data: unknown): RecordRow[] {
+  const d = data as { records?: RecordRow[]; pages?: Array<{ records?: RecordRow[] }> } | null | undefined;
+  if (Array.isArray(d?.records)) return d.records;
+  if (Array.isArray(d?.pages)) return d.pages.flatMap((p) => p.records ?? []);
+  return [];
+}
+
+/** Find a row by id in any of the cached records queries (every loaded page of each). */
+function findCachedRecord(entries: ReadonlyArray<readonly [unknown, unknown]>, recordId: string): RecordRow | undefined {
+  for (const [, data] of entries) {
+    const rec = cachedRows(data).find((r) => r.id === recordId);
+    if (rec) return rec;
+  }
+  return undefined;
+}
+
 function updateInfiniteCache<_T>(
   qc: ReturnType<typeof useQueryClient>,
   queryKeyPrefix: string[],
@@ -930,14 +950,11 @@ export function useUpdateRecord() {
       // Capture the record's prior values (for the fields being changed) so we
       // can push an undo entry that restores them.
       let oldValues: Record<string, any> | null = null;
-      for (const [, data] of previous) {
-        const rec = data?.records.find((r) => r.id === variables.recordId);
-        if (rec) {
-          oldValues = {};
-          for (const key of Object.keys(updates)) {
-            oldValues[key] = (rec as any)[key];
-          }
-          break;
+      const cachedRecord = findCachedRecord(previous, variables.recordId);
+      if (cachedRecord) {
+        oldValues = {};
+        for (const key of Object.keys(updates)) {
+          oldValues[key] = (cachedRecord as any)[key];
         }
       }
 
@@ -967,12 +984,8 @@ export function useUpdateRecord() {
       );
 
       // Capture full old record for automation condition evaluation
-      let oldRecord: Record<string, any> | undefined;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) { oldRecord = { ...rec }; break; }
-      }
+      const foundRecord = findCachedRecord(previous, variables.recordId);
+      const oldRecord: Record<string, any> | undefined = foundRecord ? { ...foundRecord } : undefined;
 
       return { previous, oldRecord };
     },
@@ -1049,15 +1062,7 @@ export function useDeleteRecord() {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
 
-      let deletedRecord: RecordRow | null = null;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) {
-          deletedRecord = rec;
-          break;
-        }
-      }
+      const deletedRecord: RecordRow | null = findCachedRecord(previous, variables.recordId) ?? null;
 
       if (deletedRecord) {
         const record = deletedRecord;
