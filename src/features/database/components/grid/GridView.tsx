@@ -178,7 +178,12 @@ function formatSummaryNum(num: number, field?: FieldMeta): string {
   if (uiType === 'Percent' || resultType === 'percent') {
     return formatPercent(num, { ...shared, precision: o.precision ?? null });
   }
-  return formatNumber(num, { ...shared, precision: o.precision, abbreviate: o.abbreviate });
+  return formatNumber(num, {
+    ...shared,
+    precision: o.precision,
+    abbreviate: o.abbreviate,
+    defaultPrecision: uiType === 'Decimal' ? 2 : null,
+  });
 }
 
 function computeSummary(
@@ -268,7 +273,7 @@ const SummaryRow = React.memo(function SummaryRow({
 
   return (
     <div
-      className="sticky bottom-0 z-20 flex shrink-0"
+      className="sticky bottom-0 z-40 flex shrink-0"
       role="row"
       style={{
         backgroundColor: colors.headerBg,
@@ -829,6 +834,9 @@ function GridViewInner({
   const virtualizer = useVirtualizer({
     count: flatItems ? flatItems.length : records.length,
     getScrollElement: () => parentRef.current,
+    // Rows scrolled into view by the arrow keys must not hide under the sticky header or footer.
+    scrollPaddingStart: HEADER_HEIGHT + (groupByLevels.length > 0 ? 28 : 0),
+    scrollPaddingEnd: 36,
     estimateSize: (index) => {
       if (flatItems && flatItems[index].type === 'header') return GROUP_HEADER_HEIGHT;
       return rowHeightPx;

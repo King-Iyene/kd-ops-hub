@@ -30,6 +30,7 @@ import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 import { orgToday, orgNowIso } from '@/lib/format';
 import { defaultForNewRow } from '../lib/fieldDefaults';
+import { isUuid } from '../lib/shortId';
 
 const KanbanView = lazy(() => import('../components/views/KanbanView'));
 const GalleryView = lazy(() => import('../components/views/GalleryView'));
@@ -290,7 +291,10 @@ export function TableView() {
     return all.filter((f) => visibleIds.has(f.id) || formulaText.includes(`{${f.name}}`));
   }, [patchedFields, visibleFields, activeView?.type, storedViewType]);
 
-  const recordIds = useMemo(() => infiniteRecords.map((r) => r.id), [infiniteRecords]);
+  // Real row ids only (a row being added briefly has a temporary id that is not a uuid), and a
+  // list that keeps its identity while rows are edited so the link queries are not rebuilt.
+  const idList = infiniteRecords.map((r) => r.id).filter((id) => isUuid(String(id))).join(',');
+  const recordIds = useMemo(() => (idList ? idList.split(',') : []), [idList]);
   const { links: batchedLinks, isLoading: linksLoading } = useBatchedLinks(
     activeBaseId,
     linkFieldsToLoad,

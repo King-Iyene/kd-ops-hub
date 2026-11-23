@@ -62,9 +62,11 @@ export function currencySymbol(code: unknown): string {
   return symbol;
 }
 
-function clampPrecision(p: number | null | undefined, fallback: number): number {
-  if (p == null || !Number.isFinite(p)) return fallback;
-  return Math.min(8, Math.max(0, Math.round(p)));
+function clampPrecision(p: number | string | null | undefined, fallback: number): number {
+  if (p == null || p === '') return fallback;
+  const n = Number(p);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(8, Math.max(0, Math.round(n)));
 }
 
 const formatterCache = new Map<string, Intl.NumberFormat>();
@@ -201,7 +203,7 @@ type LooseOptions = Record<string, unknown>;
 export function settingsFromOptions(options: LooseOptions | null | undefined): NumberFormatSettings {
   const o = options ?? {};
   return {
-    precision: typeof o.precision === 'number' ? o.precision : null,
+    precision: o.precision != null && o.precision !== '' && Number.isFinite(Number(o.precision)) ? Number(o.precision) : null,
     thousands: o.thousands !== false,
     negativeStyle: o.negativeStyle === 'parentheses' ? 'parentheses' : 'minus',
     abbreviate: o.abbreviate === true,

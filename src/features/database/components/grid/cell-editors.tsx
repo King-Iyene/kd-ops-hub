@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { DateEditor } from './DateEditor';
 import { MultiSelectCellRenderer, SelectCellRenderer } from './cell-renderers';
 import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
+import { plainNumberString } from '../../lib/cellValue';
 import { formatDuration, normalizeDurationFormat, parseDuration } from '../../lib/duration';
 import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
 import { RatingGlyph } from './RatingGlyph';
@@ -82,7 +83,13 @@ function NumericEditor({
     ref.current?.select();
   }, []);
 
-  const finish = () => exit.commit(num === '' ? null : Number(num));
+  // Text such as "-" or "." is not a number: Enter keeps editing, clicking away discards the edit.
+  const finish = (leaving = false) => {
+    if (num === '') { exit.commit(null); return; }
+    const n = Number(num);
+    if (!Number.isFinite(n)) { if (leaving) exit.cancel(); return; }
+    exit.commit(n);
+  };
 
   return (
     <div className="flex items-center gap-1 w-full h-full min-w-0">
@@ -96,10 +103,16 @@ function NumericEditor({
         onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
         onPaste={(e) => {
           // Pasting "₦1,234.50" or "(500)" keeps the number instead of dropping characters.
-          const parsed = parseNumberInput(e.clipboardData.getData('text'));
+          // Plain digits are left to the browser so they land where the cursor is.
+          const text = e.clipboardData.getData('text');
+          if (/^[0-9.-]*$/.test(text)) return;
+          const parsed = parseNumberInput(text);
           if (parsed != null) {
             e.preventDefault();
-            setNum(String(parsed));
+            const input = e.currentTarget;
+            const start = input.selectionStart ?? num.length;
+            const end = input.selectionEnd ?? num.length;
+            setNum(sanitizeNumeric(num.slice(0, start) + plainNumberString(parsed) + num.slice(end)));
           }
         }}
         onKeyDown={(e) => {
@@ -108,7 +121,7 @@ function NumericEditor({
           else if (e.key === 'Escape') exit.cancel();
           else if (e.key === 'Tab') { e.preventDefault(); finish(); }
         }}
-        onBlur={finish}
+        onBlur={() => finish(true)}
         className="flex-1 min-w-0 h-full px-0 bg-transparent border-0 rounded-none shadow-none outline-none text-right tabular-nums"
         style={{ fontSize: 13, lineHeight: '18px', letterSpacing: '-0.01em', color: 'inherit' }}
       />
@@ -186,7 +199,8 @@ export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   return <DateEditor value={value} mode="date" onCommit={onCommit} onCancel={onCancel} />;
 }
 
-export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function YearCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
   const initial = value ? String(value).slice(0, 4) : '';
   const [year, setYear] = useState(initial);
   const ref = useRef<HTMLInputElement>(null);
@@ -425,6 +439,7 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
   const max = ratingMaxOf(field.options?.max);
   const icon = ratingIconOf(field.options?.icon);
   const hex = ratingHexOf(field.options?.color);
+  const wasEmpty = value == null || value === '';
   const [draft, setDraft] = useState(Number(value) || 0);
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -450,13 +465,13 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === 'Escape') exit.cancel();
-        else if (e.key === 'Enter' || e.key === 'Tab') exit.commit(draft);
+        else if (e.key === 'Enter' || e.key === 'Tab') exit.commit(wasEmpty && draft === 0 ? null : draft);
         else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setDraft((d) => stepRating(d, 1, max)); }
         else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setDraft((d) => stepRating(d, -1, max)); }
         else if (/^[0-9]$/.test(e.key)) { e.preventDefault(); setDraft(Math.min(Number(e.key), max)); }
         else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setDraft(0); }
       }}
-      onBlur={() => exit.commit(draft)}
+      onBlur={() => exit.commit(wasEmpty && draft === 0 ? null : draft)}
     >
       {Array.from({ length: max }, (_, i) => (
         <button
@@ -1068,7 +1083,8 @@ export function DateTimeCellEditor({ value, field, onCommit, onCancel }: CellEdi
   );
 }
 
-export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TimeCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
   const [time, setTime] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
 

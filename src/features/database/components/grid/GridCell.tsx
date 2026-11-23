@@ -3,6 +3,7 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderer-map';
 import { getCellEditor } from './cell-editor-map';
+import { sameCellValue } from '../../lib/cellValue';
 import type { GridColorTokens } from '../../hooks/useGridColors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -147,6 +148,12 @@ export const GridCell = React.memo(function GridCell({
 
   const handleCommit = useCallback(
     (newValue: any) => {
+      // Opening a cell and leaving it unchanged must not write to the database or add an undo step.
+      if (sameCellValue(value, newValue)) {
+        setValidationError(null);
+        setEditingCell(null);
+        return;
+      }
       const error = validateCellValue(field.ui_type, newValue);
       if (error) {
         setValidationError(error);
@@ -157,7 +164,7 @@ export const GridCell = React.memo(function GridCell({
       onCellUpdate(record.id, field.id, newValue);
       setEditingCell(null);
     },
-    [record.id, field.id, field.ui_type, onCellUpdate, setEditingCell],
+    [value, record.id, field.id, field.ui_type, onCellUpdate, setEditingCell],
   );
 
   const handleCancel = useCallback(() => {

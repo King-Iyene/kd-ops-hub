@@ -115,7 +115,9 @@ async function readAll<T>(
   const rows: T[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const { data, error } = await run(page * PAGE, page * PAGE + PAGE - 1);
-    if (error || !data) break;
+    // Throw so TanStack Query retries; swallowing it cached "no links" for a minute.
+    if (error) throw error;
+    if (!data) break;
     rows.push(...data);
     if (data.length < PAGE) break;
   }
@@ -173,10 +175,11 @@ async function fetchLabels(meta: FieldLinkMeta, targetIds: string[]): Promise<Ma
   const column = meta.primaryColumn;
   const db = supabase.schema(meta.schema);
   for (const part of chunk(targetIds, 100)) {
-    const { data } = await db
+    const { data, error } = await db
       .from(meta.tgtTable)
       .select(column ? `id, ${column}` : 'id')
       .in('id', part);
+    if (error) throw error;
     for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
       const text = column ? linkLabel(row[column]) : '';
       // A label that is really an id is shown as an unnamed record, never as the id.

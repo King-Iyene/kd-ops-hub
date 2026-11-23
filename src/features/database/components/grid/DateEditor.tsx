@@ -48,23 +48,22 @@ function todayYMD(): YMD {
 }
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-/** Day, hour and minute held by an existing value (workspace timezone). */
-function readValue(value: unknown, mode: 'date' | 'datetime') {
-  if (typeof value !== 'string' || !value) return { day: null as YMD | null, hour24: 12, minute: 0 };
-  if (mode === 'datetime') {
-    try {
-      const parts = splitWallClock(utcIsoToOrgWallClock(value));
-      if (parts) return { day: parts.date, hour24: parts.hour24, minute: parts.minute };
-    } catch {
-      /* fall through */
-    }
+/** Day, hour and minute held by an existing value, in the workspace timezone (the same day the cell shows). */
+function readValue(value: unknown) {
+  const empty = { day: null as YMD | null, hour24: 12, minute: 0 };
+  if (typeof value !== 'string' || !value) return empty;
+  // A plain date is that calendar day, with no time to convert.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const plain = parseYMD(value);
+    return plain ? { day: plain, hour24: 12, minute: 0 } : empty;
   }
-  const plain = parseYMD(value);
-  if (plain) return { day: plain, hour24: 12, minute: 0 };
-  const d = new Date(value);
-  return Number.isNaN(d.getTime())
-    ? { day: null as YMD | null, hour24: 12, minute: 0 }
-    : { day: fromDay(d), hour24: 12, minute: 0 };
+  try {
+    const parts = splitWallClock(utcIsoToOrgWallClock(value));
+    if (parts) return { day: parts.date, hour24: parts.hour24, minute: parts.minute };
+  } catch {
+    /* not a timestamp */
+  }
+  return empty;
 }
 
 const CALENDAR_CLASSES = {
@@ -87,7 +86,7 @@ const CALENDAR_CLASSES = {
 } as const;
 
 export function DateEditor({ value, mode, use12h = true, onCommit, onCancel }: DateEditorProps) {
-  const initial = useMemo(() => readValue(value, mode), [value, mode]);
+  const initial = useMemo(() => readValue(value), [value]);
   const tz = getTimezone();
 
   const [day, setDay] = useState<YMD | null>(initial.day);
@@ -127,8 +126,9 @@ export function DateEditor({ value, mode, use12h = true, onCommit, onCancel }: D
         save(todayYMD(), parts?.hour24 ?? 12, parts?.minute ?? 0);
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    // Capture phase: the date and time boxes stop key events from bubbling.
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
   }, [save]);
 
   const chooseDay = (next: YMD) => {
@@ -209,6 +209,7 @@ export function DateEditor({ value, mode, use12h = true, onCommit, onCancel }: D
 
         <Calendar
           mode="single"
+          required
           selected={day ? toDay(day) : undefined}
           month={month}
           onMonthChange={setMonth}
