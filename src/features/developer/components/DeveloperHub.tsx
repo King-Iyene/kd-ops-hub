@@ -1,10 +1,11 @@
 import { useState, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Telescope, Zap, BookOpen, Key, Webhook, Terminal, Plug, Lightbulb, AlertTriangle, BookMarked } from 'lucide-react';
+import { Telescope, Rocket, Zap, BookOpen, Key, Webhook, Terminal, Plug, Lightbulb, AlertTriangle, BookMarked } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ApiOverview = lazy(() => import('./ApiOverview'));
+const QuickStart = lazy(() => import('@/features/developer-hub/components/QuickStart'));
 const ApiExplorer = lazy(() => import('./ApiExplorer'));
 const ApiReference = lazy(() => import('./ApiReference'));
 const ApiKeysManager = lazy(() => import('./ApiKeysManager'));
@@ -14,7 +15,7 @@ const Recipes = lazy(() => import('./Recipes'));
 const Troubleshooting = lazy(() => import('./Troubleshooting'));
 const ModuleGuides = lazy(() => import('./ModuleGuides'));
 
-const VALID_TABS = ['overview', 'explorer', 'reference', 'keys', 'webhooks', 'guides', 'recipes', 'modules', 'troubleshooting'];
+const VALID_TABS = ['overview', 'quickstart', 'explorer', 'reference', 'keys', 'webhooks', 'guides', 'recipes', 'modules', 'troubleshooting'];
 
 export function DeveloperHub() {
   const [searchParams] = useSearchParams();
@@ -58,6 +59,7 @@ export function DeveloperHub() {
           <TabsList className="bg-transparent border-b border-zinc-200 dark:border-zinc-800 rounded-none w-full justify-start gap-1 h-auto p-0 flex-nowrap overflow-x-auto overflow-y-hidden">
             {[
               { value: 'overview', label: 'Overview', icon: Telescope },
+              { value: 'quickstart', label: 'Quick Start', icon: Rocket },
               { value: 'explorer', label: 'API Explorer', icon: Zap },
               { value: 'reference', label: 'API Reference', icon: BookOpen },
               { value: 'keys', label: 'API Keys', icon: Key },
@@ -93,6 +95,9 @@ export function DeveloperHub() {
             >
               <TabsContent value="overview" className="mt-0">
                 <ApiOverview onNavigate={setActiveTab} />
+              </TabsContent>
+              <TabsContent value="quickstart" className="mt-0">
+                <QuickStart onNavigate={setActiveTab} />
               </TabsContent>
               <TabsContent value="explorer" className="mt-0">
                 <ApiExplorer />
