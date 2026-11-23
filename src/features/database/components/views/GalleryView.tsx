@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
+import { useDatabaseUI } from '../../lib/store';
+import { describeNarrowing } from '../../lib/filterRules';
+import { NoMatches } from '../NoMatches';
 
 /* ------------------------------------------------------------------ */
 /*  Types & constants                                                 */
@@ -433,6 +436,10 @@ export default function GalleryView({
   onPageChange,
 }: GalleryViewProps) {
   const [cardSize, setCardSize] = useState<CardSize>('medium');
+  const filters = useDatabaseUI((s) => s.filters);
+  const filterGroups = useDatabaseUI((s) => s.filterGroups);
+  const searchQuery = useDatabaseUI((s) => s.searchQuery);
+  const narrowing = describeNarrowing({ filters, groups: filterGroups, search: searchQuery });
   const [coverFieldId, setCoverFieldId] = useState<string | null>(() => {
     const attachmentField = fields.find((f) => f.ui_type === 'Attachment');
     return attachmentField?.id ?? null;
@@ -510,6 +517,13 @@ export default function GalleryView({
       <div className="flex-1 overflow-auto p-4">
         {isLoading && records.length === 0 ? (
           <GallerySkeleton />
+        ) : records.length === 0 && narrowing.active ? (
+          <NoMatches
+            narrowing={narrowing}
+            colors={{ bg: 'transparent', text: 'hsl(var(--foreground))', muted: 'hsl(var(--muted-foreground))', groupHeaderBg: 'hsl(var(--muted))', primary: 'hsl(var(--primary))' }}
+            onClearFilters={() => { const st = useDatabaseUI.getState(); st.setFilters([]); st.setFilterGroups([]); }}
+            onClearSearch={() => useDatabaseUI.getState().setSearchQuery('')}
+          />
         ) : records.length === 0 ? (
           /* Empty state */
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
