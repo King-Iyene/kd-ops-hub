@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Maximize2, Plus, Search, X } from 'lucide-react';
 import {
   Popover,
@@ -21,6 +21,9 @@ import { LinkChips } from './LinkChips';
 import { linesForRowHeight } from '../../lib/linkBatch';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
+
+/** How many candidate records the picker shows at first, and adds each time "Show more" is pressed. */
+const PICKER_PAGE = 30;
 
 interface LinkCellRendererProps {
   value: any;
@@ -142,6 +145,13 @@ function LinkPickerContent({
   const { activeBaseId } = useDatabaseUI();
   const setLinkedRecordExpand = useDatabaseUI((s) => s.setLinkedRecordExpand);
   const [searchTerm, setSearchTerm] = useState('');
+  // Ask the server once typing pauses, not on every key; the box itself stays instant.
+  const [debouncedTerm, setDebouncedTerm] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTerm(searchTerm), 180);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+  const [limit, setLimit] = useState(PICKER_PAGE);
 
   const relatedTableId = field.options?.relatedTableId as string | undefined;
   const linkType = field.options?.type as string | undefined;
@@ -159,9 +169,10 @@ function LinkPickerContent({
   const { data: searchResults = [] } = useRelatedTableSearch({
     baseId: activeBaseId,
     targetTableId: relatedTableId,
-    searchTerm,
+    searchTerm: debouncedTerm,
     primaryField,
     enabled: true,
+    limit,
   });
   const { data: visibleFields = [] } = useTargetTableFields(relatedTableId, true);
   const { linkRecord, unlinkRecord } = useLinkMutations({
@@ -242,7 +253,7 @@ function LinkPickerContent({
           <Input
             placeholder="Find a record..."
             value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setActiveIndex(0); }}
+            onChange={(e) => { setSearchTerm(e.target.value); setActiveIndex(0); setLimit(PICKER_PAGE); }}
             role="combobox"
             aria-expanded="true"
             aria-controls="link-suggestions"
@@ -296,6 +307,19 @@ function LinkPickerContent({
                 onAction={pickRecord}
               />
             ))}
+          </div>
+        )}
+
+        {searchResults.length >= limit && (
+          <div className="p-1.5 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setLimit((n) => n + PICKER_PAGE)}
+              className="w-full rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-show-more-records
+            >
+              Show more records
+            </button>
           </div>
         )}
 
