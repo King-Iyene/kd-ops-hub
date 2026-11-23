@@ -9,6 +9,7 @@ import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { formatDateWithOptions, getTimezone } from '@/lib/format';
 import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
+import { storedAsFraction, toShownPercent } from '../../lib/percent';
 import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
 import { formatDuration, normalizeDurationFormat } from '../../lib/duration';
 import { hasInlineMarks, parseInline } from '../../lib/inlineMarkdown';
@@ -693,8 +694,9 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
-  const num = Number(value);
-  if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  const stored = Number(value);
+  if (isNaN(stored)) return <span className="truncate">{String(value)}</span>;
+  const num = toShownPercent(stored, storedAsFraction(field));
   if (field.options?.percentDisplay === 'text') {
     return (
       <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>

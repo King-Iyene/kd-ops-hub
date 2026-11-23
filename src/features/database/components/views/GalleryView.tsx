@@ -19,6 +19,7 @@ import {
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
 import { useDatabaseUI } from '../../lib/store';
+import { storedAsFraction, toShownPercent } from '../../lib/percent';
 import { describeNarrowing } from '../../lib/filterRules';
 import { NoMatches } from '../NoMatches';
 
@@ -272,7 +273,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     if (ui_type === 'Currency') {
       formatted = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     } else if (ui_type === 'Percent') {
-      formatted = `${value}%`;
+      formatted = `${toShownPercent(value, storedAsFraction(field))}%`;
     } else {
       formatted = value.toLocaleString();
     }
