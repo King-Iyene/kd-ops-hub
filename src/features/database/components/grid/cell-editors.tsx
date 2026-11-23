@@ -5,8 +5,9 @@ import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DateEditor } from './DateEditor';
-import { SelectCellRenderer } from './cell-renderers';
+import { MultiSelectCellRenderer, SelectCellRenderer } from './cell-renderers';
 import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
+import { formatDuration, normalizeDurationFormat, parseDuration } from '../../lib/duration';
 import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
 import { RatingGlyph } from './RatingGlyph';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
@@ -222,67 +223,74 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
   );
 }
 
-export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const totalSeconds = Number(value) || 0;
-  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSeconds % 60).padStart(2, '0');
-  const [text, setText] = useState(`${h}:${m}:${s}`);
+export function DurationCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const format = normalizeDurationFormat(field.options?.format);
+  const hasValue = value != null && value !== '' && Number.isFinite(Number(value));
+  const [text, setText] = useState(hasValue ? formatDuration(Number(value), format) : '');
+  const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  function parseDuration(str: string): number | null {
-    const parts = str.split(':').map(Number);
-    if (parts.some(isNaN)) return null;
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    return null;
-  }
+  // Empty text clears the cell; text that is not a duration keeps the editor open
+  // (Enter, Tab) or discards the edit (clicking away) instead of saving a wrong value.
+  const finish = (leaving: boolean) => {
+    if (text.trim() === '') { exit.commit(null); return; }
+    const seconds = parseDuration(text, format);
+    if (seconds == null) {
+      if (leaving) exit.cancel(); else setInvalid(true);
+      return;
+    }
+    exit.commit(seconds);
+  };
 
   return (
     <input
       ref={ref}
       type="text"
-      placeholder="HH:MM:SS"
+      placeholder={format === 'h:mm' ? 'e.g. 1:30 or 1h 30m' : 'e.g. 1:30:00'}
       value={text}
-      onChange={(e) => setText(e.target.value)}
+      aria-invalid={invalid}
+      onChange={(e) => { setText(e.target.value); setInvalid(false); }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
+        e.stopPropagation();
+        if (e.key === 'Enter') finish(false);
+        else if (e.key === 'Escape') exit.cancel();
+        else if (e.key === 'Tab') { e.preventDefault(); finish(false); }
       }}
-      onBlur={() => { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }}
+      onBlur={() => finish(true)}
       className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent text-right tabular-nums"
-      style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
+      style={{ fontSize: 13, lineHeight: '18px', color: invalid ? '#EF4444' : 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />
   );
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function EmailCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  const commit = useCallback(() => {
+  const commit = useCallback((leaving = false) => {
     const trimmed = String(text).trim();
     if (trimmed && !EMAIL_RE.test(trimmed)) {
-      setInvalid(true);
+      if (leaving) exit.cancel(); else setInvalid(true);
       return;
     }
     setInvalid(false);
-    onCommit(trimmed);
-  }, [text, onCommit]);
+    exit.commit(trimmed);
+  }, [text, exit]);
 
   return (
     <div className="relative w-full h-full">
@@ -292,21 +300,21 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
+          e.stopPropagation();
           if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
-        onBlur={commit}
+        onBlur={() => commit(true)}
         placeholder="name@example.com"
         className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+          color: invalid ? '#EF4444' : 'inherit',
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
           Enter a valid email address
         </div>
       )}
@@ -314,17 +322,18 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
   );
 }
 
-export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function URLCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  const commit = useCallback(() => {
+  const commit = useCallback((leaving = false) => {
     const trimmed = String(text).trim();
     let isValid = true;
     if (trimmed) {
@@ -332,12 +341,12 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       catch { isValid = false; }
     }
     if (trimmed && !isValid) {
-      setInvalid(true);
+      if (leaving) exit.cancel(); else setInvalid(true);
       return;
     }
     setInvalid(false);
-    onCommit(trimmed);
-  }, [text, onCommit]);
+    exit.commit(trimmed);
+  }, [text, exit]);
 
   return (
     <div className="relative w-full h-full">
@@ -347,21 +356,21 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
+          e.stopPropagation();
           if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
-        onBlur={commit}
+        onBlur={() => commit(true)}
         placeholder="https://example.com"
         className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+          color: invalid ? '#EF4444' : 'inherit',
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
           Enter a valid URL
         </div>
       )}
@@ -371,10 +380,11 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
 
 const PHONE_WARN_RE = /[a-wyzA-WYZ]/;
 
-export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function PhoneNumberCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
   const hasLetters = PHONE_WARN_RE.test(String(text));
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
@@ -389,21 +399,21 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(text);
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+          e.stopPropagation();
+          if (e.key === 'Enter') exit.commit(text);
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); exit.commit(text); }
         }}
-        onBlur={() => onCommit(text)}
+        onBlur={() => exit.commit(text)}
         placeholder="(555) 555-5555"
         className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: hasLetters ? 'inset 0 0 0 2px #F59E0B' : undefined,
+          color: hasLetters ? '#D97706' : 'inherit',
         }}
       />
       {hasLetters && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-warning/30 rounded px-2 py-1 shadow text-2xs text-warning whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-warning/30 rounded px-2 py-1 shadow text-2xs text-warning whitespace-nowrap mt-0.5">
           Phone number contains letters
         </div>
       )}
@@ -556,7 +566,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Find an option..."
-            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
             style={{
               border: `1px solid ${colors.border}`,
               color: colors.text,
@@ -639,7 +649,8 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   const anchorRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const colors = useGridColors();
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ top: 0, left: 0 });
+  const canCreate = field.options?.allowNewOptions !== false;
 
   const filtered = search
     ? localChoices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
@@ -657,7 +668,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
-    if (!trimmed) return;
+    if (!trimmed || !canCreate) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...localChoices, newChoice];
@@ -665,7 +676,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
     setSelected((prev) => [...prev, trimmed]);
     setSearch('');
-  }, [search, localChoices, field.id, field.table_id, onFieldUpdate]);
+  }, [search, canCreate, localChoices, field.id, field.table_id, onFieldUpdate]);
 
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
@@ -673,7 +684,9 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   useLayoutEffect(() => {
     if (anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 1, left: rect.left });
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 236));
+      const opensUp = rect.bottom + 320 > window.innerHeight && rect.top > 320;
+      setPos(opensUp ? { bottom: window.innerHeight - rect.top + 1, left } : { top: rect.bottom + 1, left });
     }
   }, []);
 
@@ -708,21 +721,24 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         toggle(filtered[focusedIndex].title);
-      } else if (!exactMatch && search.trim()) {
+      } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, toggle]);
 
   return (
     <>
-      <div ref={anchorRef} className="w-full h-full" />
+      <div ref={anchorRef} className="flex items-center w-full h-full min-w-0 overflow-hidden">
+        {selected.length > 0 ? <MultiSelectCellRenderer value={selected} field={field} record={{ id: '' } as any} rowHeight="short" /> : null}
+      </div>
       {createPortal(
         <div
           ref={dropdownRef}
           style={{
             position: 'fixed',
             top: pos.top,
+            bottom: pos.bottom,
             left: pos.left,
             zIndex: 9999,
             minWidth: 220,
@@ -771,7 +787,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Find or create an option"
-              className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+              className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
               style={{
                 border: `1px solid ${colors.border}`,
                 color: colors.text,
@@ -821,7 +837,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
                 </button>
               );
             })}
-            {!exactMatch && search.trim() && (
+            {!exactMatch && search.trim() && canCreate && (
               <button
                 className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
                 style={{ color: colors.primary }}

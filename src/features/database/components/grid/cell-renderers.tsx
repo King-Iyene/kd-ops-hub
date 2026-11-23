@@ -10,6 +10,7 @@ import { formatDateWithOptions, getTimezone } from '@/lib/format';
 import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
+import { formatDuration, normalizeDurationFormat } from '../../lib/duration';
 import { RatingGlyph } from './RatingGlyph';
 
 interface CellRendererProps {
@@ -694,25 +695,7 @@ export const DurationCellRenderer = React.memo(function DurationCellRenderer({
   if (value == null || value === '') return null;
   const seconds = Number(value);
   if (isNaN(seconds)) return <span className="truncate">{String(value)}</span>;
-  const format = field.options?.format || 'h:mm';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const rawS = seconds % 3600 % 60;
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  let display: string;
-  if (format === 'h:mm') {
-    display = `${h}:${pad2(m)}`;
-  } else if (format === 'h:mm:ss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}`;
-  } else if (format === 'h:mm:ss.s') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${Math.floor((rawS % 1) * 10)}`;
-  } else if (format === 'h:mm:ss.ss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 100)).padStart(2, '0')}`;
-  } else if (format === 'h:mm:ss.sss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 1000)).padStart(3, '0')}`;
-  } else {
-    display = `${h}:${pad2(m)}`;
-  }
+  const display = formatDuration(seconds, normalizeDurationFormat(field.options?.format));
   return (
     <span className="flex items-center gap-1.5 truncate" style={{ color: colors.muted, fontVariantNumeric: 'tabular-nums', fontSize: 13, letterSpacing: '-0.01em' }}>
       <Clock size={12} className="shrink-0" style={{ color: colors.systemText }} />
