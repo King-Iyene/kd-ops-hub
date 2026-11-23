@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { isModShortcut } from '../lib/shortcuts';
 
 /**
  * Hook to register global keyboard shortcuts at the shell level.
@@ -9,11 +10,17 @@ export function useGlobalShortcuts({
   onAddRow,
   onOpenSearch,
   onOpenReplace,
+  onTogglePalette,
+  onToggleTables,
 }: {
   onOpenShortcuts: () => void;
   onAddRow?: () => void;
   onOpenSearch?: () => void;
   onOpenReplace?: () => void;
+  /** Ctrl/Cmd+K: the one command palette. Nothing else in the database module listens for this key. */
+  onTogglePalette?: () => void;
+  /** Ctrl/Cmd+J: the table switcher in the tab strip. */
+  onToggleTables?: () => void;
 }) {
   const handleGlobalKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -23,6 +30,20 @@ export function useGlobalShortcuts({
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable;
+
+      // Ctrl/Cmd+K opens (or closes) the command palette, even while typing in a cell.
+      if (isModShortcut(e, 'k')) {
+        e.preventDefault();
+        onTogglePalette?.();
+        return;
+      }
+
+      // Ctrl/Cmd+J opens (or closes) the table switcher.
+      if (isModShortcut(e, 'j')) {
+        e.preventDefault();
+        onToggleTables?.();
+        return;
+      }
 
       // ? to open shortcuts (only when not typing in an input)
       if (e.key === '?' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -59,7 +80,7 @@ export function useGlobalShortcuts({
         return;
       }
     },
-    [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace],
+    [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace, onTogglePalette, onToggleTables],
   );
 
   useEffect(() => {

@@ -7,9 +7,15 @@ import { useDatabaseNavigate } from '../hooks/useNavigate';
 interface GlobalSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Text to start with, e.g. what the user had typed in the command palette. */
+  initialQuery?: string;
 }
 
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+/**
+ * Search inside the records of every base. Opened from the command palette
+ * ("Search records"); Ctrl/Cmd+K itself belongs to the palette.
+ */
+export function GlobalSearchDialog({ open, onOpenChange, initialQuery = '' }: GlobalSearchDialogProps) {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,26 +25,17 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 
   useEffect(() => {
     if (open) {
-      setQuery('');
+      setQuery(initialQuery);
       setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
+    // initialQuery is read only at the moment the dialog opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     setSelectedIdx(0);
   }, [results]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        onOpenChange(!open);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onOpenChange]);
 
   const navigateToResult = useCallback(
     (idx: number) => {
@@ -207,8 +204,8 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
             {' '}open
           </span>
           <span>
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border font-mono">⌘K</kbd>
-            {' '}toggle
+            <kbd className="px-1 py-0.5 rounded bg-muted border border-border font-mono">esc</kbd>
+            {' '}close
           </span>
         </div>
       </div>
