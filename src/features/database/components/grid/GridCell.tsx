@@ -85,6 +85,13 @@ export const GridCell = React.memo(function GridCell({
     field.ui_type === 'LastModifiedBy' ||
     field.is_system;
 
+  // Calculated columns can never be typed into; make that obvious (soft tint, plain cursor, tooltip).
+  const isComputed =
+    field.ui_type === 'Formula' ||
+    field.ui_type === 'Lookup' ||
+    field.ui_type === 'Rollup' ||
+    field.ui_type === 'Count';
+
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -173,6 +180,7 @@ export const GridCell = React.memo(function GridCell({
     <div
       ref={cellRef}
       data-cell-id={cellId}
+      title={isComputed ? 'Calculated automatically. It cannot be edited here.' : undefined}
       className={`relative flex items-center overflow-hidden ${frozen ? 'sticky z-10' : ''}`}
       style={{
         boxSizing: 'border-box',
@@ -182,13 +190,13 @@ export const GridCell = React.memo(function GridCell({
         padding: '0 8px',
         borderRight: `1px solid ${GRID_COLORS.border}`,
         borderBottom: `1px solid ${GRID_COLORS.border}`,
-        backgroundColor: isEditing ? GRID_COLORS.cellEditorBg : frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField ? GRID_COLORS.headerBg : undefined)),
+        backgroundColor: isEditing ? GRID_COLORS.cellEditorBg : frozen ? (rowBg ?? GRID_COLORS.bg) : (backgroundColor || (isSystemField || isComputed ? GRID_COLORS.headerBg : undefined)),
         outline: isSelected && !isEditing ? `2px solid ${GRID_COLORS.primary}` : 'none',
         boxShadow: isEditing
           ? `inset 0 0 0 2px ${GRID_COLORS.primary}${frozen ? `, ${GRID_COLORS.frozenShadow}` : ''}`
           : frozen ? GRID_COLORS.frozenShadow : undefined,
         outlineOffset: -1,
-        cursor: isSystemField ? 'default' : 'cell',
+        cursor: isSystemField || isComputed ? 'default' : 'cell',
         fontSize: 13,
         lineHeight: '18px',
         color: GRID_COLORS.text,
