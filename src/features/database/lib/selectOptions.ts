@@ -46,3 +46,18 @@ export function nextUnusedColor(choices: SelectChoice[], palette: string[]): str
   const used = new Set(choices.map((c) => c.color));
   return palette.find((c) => !used.has(c)) ?? palette[choices.length % palette.length];
 }
+
+/** Adds each pasted word as a new option (skipping ones that exist), each with a fresh colour. */
+export function addChoicesFromText(choices: SelectChoice[], text: string, palette: string[]): SelectChoice[] {
+  let next = choices;
+  for (const token of splitSelectTokens(text)) {
+    if (matchChoice(token, next)) continue;
+    next = [...next, { title: token, color: nextUnusedColor(next, palette) }];
+  }
+  return next;
+}
+
+/** One-time A to Z sort of the options (not a locked mode: dragging still works afterwards). */
+export function sortChoicesAZ(choices: SelectChoice[]): SelectChoice[] {
+  return [...choices].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }));
+}
