@@ -22,20 +22,18 @@ const listeners = new Set<() => void>();
 
 export function readStored(key: string): string | null {
   try {
-    const value = localStorage.getItem(key);
-    if (value !== null) return value;
+    return localStorage.getItem(key);
   } catch {
-    /* fall through to memory */
+    return memory.get(key) ?? null;
   }
-  return memory.get(key) ?? null;
 }
 
 export function writeStored(key: string, value: string): void {
-  memory.set(key, value);
   try {
     localStorage.setItem(key, value);
+    memory.delete(key);
   } catch {
-    /* kept in memory only */
+    memory.set(key, value);
   }
   listeners.forEach((l) => l());
 }

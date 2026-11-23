@@ -15,6 +15,7 @@ import { CommandPalette } from './CommandPalette';
 import { SearchReplaceDialog } from './SearchReplaceDialog';
 import { useRealtimeMetadata, usePresence } from '../hooks/useRealtime';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
+import { OPEN_PALETTE_EVENT } from '../lib/shortcuts';
 
 export function DatabaseShell() {
   const activeBaseId = useDatabaseUI((s) => s.activeBaseId);
@@ -48,6 +49,13 @@ export function DatabaseShell() {
     onTogglePalette: handleTogglePalette,
     onToggleTables: handleToggleTables,
   });
+
+  // Buttons elsewhere (the sidebar's search button) open the palette through this event.
+  useEffect(() => {
+    const open = () => setPaletteOpen(true);
+    window.addEventListener(OPEN_PALETTE_EVENT, open);
+    return () => window.removeEventListener(OPEN_PALETTE_EVENT, open);
+  }, []);
 
   useRealtimeMetadata();
   usePresence(activeBaseId ?? undefined);

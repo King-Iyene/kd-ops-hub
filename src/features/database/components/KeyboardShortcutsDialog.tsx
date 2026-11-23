@@ -66,6 +66,8 @@ const SECTIONS: ShortcutSection[] = [
   {
     title: 'General',
     shortcuts: [
+      { keys: ['Ctrl', 'K'], description: 'Jump to a base, table, view or action' },
+      { keys: ['Ctrl', 'J'], description: 'Switch table (all tables list)' },
       { keys: ['Ctrl', 'N'], description: 'Add new record' },
       { keys: ['Ctrl', 'F'], description: 'Find / search' },
       { keys: ['Ctrl', 'H'], description: 'Search & replace' },

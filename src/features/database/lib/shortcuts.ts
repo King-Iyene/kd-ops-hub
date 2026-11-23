@@ -15,6 +15,13 @@ export function isModShortcut(e: KeyEventLike, key: string, opts: { shift?: bool
   return e.key.toLowerCase() === key.toLowerCase();
 }
 
+/** Window event a button anywhere in the module can fire to open the command palette (the shell listens). */
+export const OPEN_PALETTE_EVENT = 'kd-ops:db-open-palette';
+
+export function requestOpenPalette(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT));
+}
+
 export function isMacPlatform(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '');
