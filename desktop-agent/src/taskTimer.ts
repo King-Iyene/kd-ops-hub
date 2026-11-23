@@ -39,6 +39,21 @@ export interface PickableProject {
   clientName: string | null;
 }
 
+/**
+ * The projects this person may track time on, or null when that cannot be worked out (then nothing is hidden: a blank picker is worse than
+ * a project too many, and the database still refuses time on a project that is not theirs). A project marked "assigned only" is offered
+ * only to the people assigned to it, its project manager and admins; every other project is offered to everyone.
+ */
+export async function fetchMyProjectIds(client: SupabaseClient): Promise<Set<string> | null> {
+  try {
+    const { data, error } = await (client as unknown as { rpc: (fn: string) => Promise<{ data: unknown; error: unknown }> }).rpc('time_my_project_ids');
+    if (error || !Array.isArray(data)) return null;
+    return new Set((data as unknown[]).map(String));
+  } catch {
+    return null;
+  }
+}
+
 /** All active projects, independent of whether any task exists under them yet.
  * fetchPickableTasks (below) only sees projects that already have at least one
  * task — so a brand-new project with zero tasks is invisible to it, which
@@ -55,7 +70,8 @@ export async function fetchAllProjects(client: SupabaseClient): Promise<Pickable
     .order('name');
   if (error) throw error;
   type Row = { id: string; name: string; time_clients: { id: string; name: string } | null };
-  return ((data ?? []) as unknown as Row[]).map((r) => ({
+  const mine = await fetchMyProjectIds(client);
+  return ((data ?? []) as unknown as Row[]).filter((r) => !mine || mine.has(r.id)).map((r) => ({
     projectId: r.id,
     projectName: r.name,
     clientName: r.time_clients?.name ?? null,
@@ -76,7 +92,8 @@ export async function fetchPickableTasks(client: SupabaseClient): Promise<Pickab
     project_id: string;
     time_projects: { id: string; name: string; time_clients: { id: string; name: string } | null } | null;
   };
-  return ((data ?? []) as unknown as Row[]).map((r) => {
+  const mine = await fetchMyProjectIds(client);
+  return ((data ?? []) as unknown as Row[]).filter((r) => !mine || mine.has(r.project_id)).map((r) => {
     const projectName = r.time_projects?.name ?? '(no project)';
     const clientName = r.time_projects?.time_clients?.name ?? null;
     return {
@@ -249,9 +266,11 @@ export async function fetchSuggestedTasks(
   };
   const seen = new Set<string>();
   const out: PickableTask[] = [];
+  const mine = await fetchMyProjectIds(client);
   for (const r of (data ?? []) as unknown as Row[]) {
     const t = r.time_tasks;
     if (!t || seen.has(t.id)) continue;
+    if (mine && !mine.has(t.project_id)) continue; // recently used, but no longer assigned to this project
     seen.add(t.id);
     const projectName = t.time_projects?.name ?? '(no project)';
     const clientName = t.time_projects?.time_clients?.name ?? null;

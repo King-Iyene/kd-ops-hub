@@ -30,6 +30,23 @@ export async function fetchTasksForProject(projectId: string): Promise<TimeTask[
   return (data ?? []) as TimeTask[];
 }
 
+/**
+ * The projects the signed-in person may track time on, or null when that cannot be worked out (then nothing is hidden: a blank tracker is worse
+ * than a project too many, and the database still refuses time on a project that is not theirs). Admins and project managers get their own
+ * projects; everyone gets every project that is not "assigned only".
+ */
+export async function fetchMyProjectIds(): Promise<Set<string> | null> {
+  const { data, error } = await (supabase as unknown as { rpc: (fn: string) => Promise<{ data: unknown; error: unknown }> }).rpc('time_my_project_ids');
+  if (error || !Array.isArray(data)) return null;
+  return new Set((data as unknown[]).map(String));
+}
+
+/** Active projects the person may track on: what the tracker's pickers offer. The Projects page and reports use fetchActiveProjects (all of them). */
+export async function fetchTrackableProjects(): Promise<TimeProject[]> {
+  const [projects, mine] = await Promise.all([fetchActiveProjects(), fetchMyProjectIds()]);
+  return mine ? projects.filter((p) => mine.has(p.id)) : projects;
+}
+
 export async function fetchAllTags(): Promise<TimeTag[]> {
   const { data, error } = await supabase.from('time_tags').select('*').order('name');
   if (error) throw error;
@@ -53,4 +70,10 @@ export async function fetchAllActiveTasks(): Promise<TaskWithProject[]> {
     .order('name');
   if (error) throw error;
   return (data ?? []) as TaskWithProject[];
+}
+
+/** fetchAllActiveTasks limited to the projects the person may track on. */
+export async function fetchTrackableTasks(): Promise<TaskWithProject[]> {
+  const [tasks, mine] = await Promise.all([fetchAllActiveTasks(), fetchMyProjectIds()]);
+  return mine ? tasks.filter((t) => mine.has(t.project_id)) : tasks;
 }
