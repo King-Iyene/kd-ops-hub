@@ -1,7 +1,9 @@
-import { Fragment, useState, useRef, useEffect, useCallback } from 'react';
+import { Fragment, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Search,
   Table2,
+  Eye,
+  EyeOff,
   X,
   Plus,
   MoreHorizontal,
@@ -32,7 +34,13 @@ import { useBases, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hoo
 import { useTables } from '../hooks/useTables';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
-import type { Base } from '../types';
+import { HighlightedText } from './HighlightedText';
+import { useManualHiddenTables, usePinnedTables, useShowHiddenTables } from '../hooks/useNavPrefs';
+import { fuzzyFilter } from '../lib/fuzzy';
+import { pinnedFirst } from '../lib/navStorage';
+import { modKeyLabel, requestOpenPalette } from '../lib/shortcuts';
+import { countHiddenTables, filterVisibleTables } from '../lib/tableVisibility';
+import type { Base, TableMeta } from '../types';
 
 const BASE_COLORS = [
   '#2D7FF9', '#0D9488', '#8B5CF6', '#EC4899', '#F59E0B',
@@ -84,57 +92,175 @@ function InlineRenameInput({
   );
 }
 
-/** The tables of the open base, listed under it in the sidebar with their own search when the list is long. */
+/** The tables of the open base, listed under it in the sidebar: pinned first, hidden copies tucked away, searchable and keyboard friendly. */
 function BaseTableList({ baseId }: { baseId: string }) {
   const { data: tables } = useTables(baseId);
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
   const { navigateToTable } = useDatabaseNavigate();
   const [query, setQuery] = useState('');
+  const [showHidden, setShowHidden] = useShowHiddenTables();
+  const { hiddenIds: manualHidden } = useManualHiddenTables(baseId);
+  const { pinnedIds, togglePin } = usePinnedTables(baseId);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const refocusId = useRef<string | null>(null);
 
-  const list = tables ?? [];
-  const needle = query.trim().toLowerCase();
-  const shown = needle ? list.filter((t) => t.name.toLowerCase().includes(needle)) : list;
+  const list = useMemo(() => (tables ?? []).filter((t) => t.base_id === baseId), [tables, baseId]);
+  const visible = useMemo(
+    () => filterVisibleTables(list, { showHidden, activeTableId, manualHidden }),
+    [list, showHidden, activeTableId, manualHidden],
+  );
+  const hiddenCount = useMemo(() => countHiddenTables(list, { activeTableId, manualHidden }), [list, activeTableId, manualHidden]);
+  const { pinned, rest } = useMemo(() => pinnedFirst(visible, pinnedIds), [visible, pinnedIds]);
+  const searching = query.trim().length > 0;
+  const results = useMemo(
+    () => (searching ? fuzzyFilter([...pinned, ...rest], query, (t) => t.name) : null),
+    [searching, pinned, rest, query],
+  );
+
+  // Keep keyboard focus on a row after it moves between the pinned and the other section.
+  useEffect(() => {
+    const id = refocusId.current;
+    if (!id) return;
+    refocusId.current = null;
+    rootRef.current?.querySelector<HTMLElement>(`[data-table-id="${id}"]`)?.focus();
+  }, [pinnedIds]);
 
   if (list.length === 0) return null;
 
+  const focusRows = (): HTMLElement[] => Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[data-table-row]') ?? []);
+
+  const handleRowsKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const rows = focusRows();
+    const current = rows.indexOf(document.activeElement as HTMLElement);
+    if (current === -1) return;
+    let next = -1;
+    if (e.key === 'ArrowDown') next = Math.min(current + 1, rows.length - 1);
+    else if (e.key === 'ArrowUp') next = current - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = rows.length - 1;
+    else return;
+    e.preventDefault();
+    if (next < 0) {
+      searchRef.current?.focus();
+      return;
+    }
+    rows[next].focus();
+    rows[next].scrollIntoView({ block: 'nearest' });
+  };
+
+  const renderRow = (t: TableMeta, indices: number[] = []) => {
+    const isActive = t.id === activeTableId;
+    const isPinned = pinnedIds.includes(t.id);
+    return (
+      <div
+        key={t.id}
+        role="listitem"
+        className={cn(
+          'group/row flex items-center gap-0.5 rounded transition-colors',
+          isActive ? 'bg-[#2D7FF9]/10' : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
+        )}
+      >
+        <button
+          type="button"
+          data-table-row
+          data-table-id={t.id}
+          title={t.name}
+          aria-current={isActive ? 'page' : undefined}
+          aria-keyshortcuts="P"
+          onClick={() => navigateToTable(t.id)}
+          onKeyDown={(e) => {
+            if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+              e.preventDefault();
+              refocusId.current = t.id;
+              togglePin(t.id);
+            }
+          }}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9]/60',
+            isActive ? 'font-medium text-[#2D7FF9]' : 'text-[#4B5563] dark:text-[hsl(220,20%,70%)]',
+          )}
+        >
+          {t.icon ? <span className="text-xs shrink-0">{t.icon}</span> : <Table2 size={12} className="shrink-0 opacity-60" />}
+          <span className="min-w-0 truncate">
+            <HighlightedText text={t.name} indices={indices} />
+          </span>
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={isPinned ? `Unpin ${t.name}` : `Pin ${t.name}`}
+          aria-pressed={isPinned}
+          title={isPinned ? 'Unpin' : 'Pin to the top (P)'}
+          onClick={() => {
+            refocusId.current = null;
+            togglePin(t.id);
+          }}
+          className={cn(
+            'mr-0.5 shrink-0 rounded p-0.5 transition-opacity focus-visible:opacity-100',
+            isPinned ? 'text-warning opacity-100' : 'text-[#9AA2AF] opacity-0 hover:text-warning group-hover/row:opacity-100',
+          )}
+        >
+          <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="mx-1.5 mb-1.5 ml-5 pl-2 border-l border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+    <div ref={rootRef} onKeyDown={handleRowsKeyDown} className="mb-1.5 ml-5 mr-1.5 min-w-0 border-l border-[#E5E5E5] pl-2 dark:border-[hsl(220,25%,18%)]">
       {list.length > 8 && (
         <div className="flex items-center gap-1.5 h-6 px-1.5 my-1 rounded bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-[#2D7FF9]">
           <Search size={11} className="text-[#9AA2AF] shrink-0" />
           <input
+            ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === 'Escape') setQuery('');
+              else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                focusRows()[0]?.focus();
+              } else if (e.key === 'Enter') {
+                const first = results ? results[0]?.item : visible[0];
+                if (first) navigateToTable(first.id);
+              }
             }}
-            placeholder={`Find in ${list.length} tables`}
+            placeholder={`Find in ${visible.length} tables`}
             aria-label="Find a table"
             className="flex-1 min-w-0 bg-transparent outline-none text-2xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF]"
           />
         </div>
       )}
-      <div className="max-h-[40vh] overflow-y-auto">
-        {shown.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            title={t.name}
-            onClick={() => navigateToTable(t.id)}
-            className={cn(
-              'flex items-center gap-1.5 w-full px-1.5 py-1 rounded text-left text-xs transition-colors',
-              t.id === activeTableId
-                ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
-                : 'text-[#4B5563] dark:text-[hsl(220,20%,70%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
+      <div className="max-h-[40vh] overflow-y-auto overflow-x-hidden" role="list" aria-label="Tables">
+        {results ? (
+          results.map((r) => renderRow(r.item, r.match.indices))
+        ) : (
+          <>
+            {pinned.length > 0 && (
+              <>
+                <p className="px-1.5 pt-1 pb-0.5 text-3xs font-semibold uppercase tracking-widest text-[#9AA2AF]">Pinned</p>
+                {pinned.map((t) => renderRow(t))}
+                <p className="px-1.5 pt-1.5 pb-0.5 text-3xs font-semibold uppercase tracking-widest text-[#9AA2AF]">Tables</p>
+              </>
             )}
-          >
-            {t.icon ? <span className="text-xs shrink-0">{t.icon}</span> : <Table2 size={12} className="shrink-0 opacity-60" />}
-            <span className="truncate">{t.name}</span>
-          </button>
-        ))}
-        {shown.length === 0 && <p className="px-1.5 py-2 text-2xs text-[#9AA2AF]">No table matches</p>}
+            {rest.map((t) => renderRow(t))}
+          </>
+        )}
+        {results && results.length === 0 && <p className="px-1.5 py-2 text-2xs text-[#9AA2AF]">No table matches</p>}
       </div>
+      {(hiddenCount > 0 || showHidden) && (
+        <button
+          type="button"
+          aria-pressed={showHidden}
+          onClick={() => setShowHidden(!showHidden)}
+          className="mt-0.5 flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-2xs text-[#9AA2AF] hover:bg-[#F4F4F5] hover:text-[#4B5563] dark:hover:bg-[hsl(220,25%,12%)] dark:hover:text-[hsl(220,20%,80%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9]/60"
+        >
+          {showHidden ? <EyeOff size={11} className="shrink-0" /> : <Eye size={11} className="shrink-0" />}
+          <span className="truncate">{showHidden ? 'Hide' : 'Show'} hidden tables ({hiddenCount})</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -278,8 +404,22 @@ export function DatabaseSidebar() {
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
+              onClick={requestOpenPalette}
+              title={`Jump to a base, table or view (${modKeyLabel()} K)`}
+              aria-label="Open command palette"
+              aria-keyshortcuts="Control+K Meta+K"
+            >
+              <Search size={14} />
+            </Button>
+          )}
+          {!sidebarCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
               onClick={() => setCreateBaseOpen(true)}
               title="Create base"
+              aria-label="Create base"
             >
               <Plus size={15} />
             </Button>
@@ -290,6 +430,7 @@ export function DatabaseSidebar() {
             className="h-6 w-6 p-0 text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)] hover:bg-[#E5E5E5] dark:hover:bg-[hsl(220,25%,18%)]"
             onClick={toggleSidebarCollapsed}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {sidebarCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </Button>
@@ -392,17 +533,20 @@ export function DatabaseSidebar() {
                     'p-0.5 rounded transition-opacity shrink-0',
                     starredIds.has(base.id)
                       ? 'opacity-100 text-warning'
-                      : 'opacity-0 group-hover:opacity-100 text-[#9AA2AF] hover:text-warning',
+                      : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[#9AA2AF] hover:text-warning',
                   )}
                   onClick={(e) => toggleStar(base.id, e)}
                   title={starredIds.has(base.id) ? 'Unstar base' : 'Star base'}
+                  aria-label={starredIds.has(base.id) ? `Unstar ${base.name}` : `Star ${base.name}`}
+                  aria-pressed={starredIds.has(base.id)}
                 >
                   <Star size={13} fill={starredIds.has(base.id) ? 'currentColor' : 'none'} />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(220,25%,20%)] transition-opacity shrink-0"
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-0.5 rounded hover:bg-[#D5D5D9] dark:hover:bg-[hsl(220,25%,20%)] transition-opacity shrink-0"
+                      aria-label={`Actions for ${base.name}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreHorizontal size={14} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />
