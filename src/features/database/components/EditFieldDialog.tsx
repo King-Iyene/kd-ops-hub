@@ -25,6 +25,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
 import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
 import { NumberFormatPanel } from './NumberFormatPanel';
+import { FieldDefaultPanel } from './FieldDefaultPanel';
+import { normalizeDefault, supportsDefault } from '../lib/fieldDefaults';
 import { RatingOptionsPanel } from './RatingOptionsPanel';
 import { ratingIconOf, ratingMaxOf, type RatingIcon } from '../lib/ratingStyle';
 import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, settingsFromOptions, type NumberFormatSettings } from '../lib/numberFormat';
@@ -198,6 +200,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
   const [ratingColor, setRatingColor] = useState('amber');
   const [use12h, setUse12h] = useState(true);
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowNewOptions, setAllowNewOptions] = useState(true);
   const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [buttonLabel, setButtonLabel] = useState('Click');
@@ -245,6 +249,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRatingIcon(ratingIconOf((field.options as any)?.icon));
       setRatingColor((field.options as any)?.color ?? 'amber');
       setUse12h((field.options as any)?.use12h !== false);
+      setDefaultValue(field.default_value ?? '');
+      setAllowNewOptions((field.options as any)?.allowNewOptions !== false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
       setButtonUrl((field.options as any)?.url ?? '');
@@ -362,7 +368,13 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       const newDesc = description.trim() || null;
       if (newDesc !== (field.description ?? null)) updates.description = newDesc;
       if (isSelectType) {
-        updates.options = { ...(field.options as any), choices };
+        const next: Record<string, unknown> = { ...(field.options as any), choices };
+        if (allowNewOptions) delete next.allowNewOptions; else next.allowNewOptions = false;
+        updates.options = next;
+      }
+      if (supportsDefault(field.ui_type)) {
+        const nextDefault = normalizeDefault(field.ui_type, defaultValue);
+        if (nextDefault !== (field.default_value ?? null)) updates.default_value = nextDefault;
       }
       if (isFormula) {
         updates.options = { ...(field.options as any), expression: formulaExpression };
@@ -462,6 +474,17 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleSave()}
             />
           </div>
+
+          {field && (
+            <FieldDefaultPanel
+              uiType={field.ui_type}
+              choices={choices}
+              value={defaultValue}
+              onChange={setDefaultValue}
+              allowNewOptions={allowNewOptions}
+              onAllowNewOptionsChange={setAllowNewOptions}
+            />
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>

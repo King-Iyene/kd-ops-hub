@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMe
 import { createPortal } from 'react-dom';
 import { Paperclip, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { SELECT_COLOR_NAMES } from '@/features/database/types';
+import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DateEditor } from './DateEditor';
+import { SelectCellRenderer } from './cell-renderers';
 import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
 import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
 import { RatingGlyph } from './RatingGlyph';
@@ -467,6 +468,10 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
   );
 }
 
+function getSelectColorStyle(colorName: string) {
+  return SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
+}
+
 export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
   const choices: SelectChoice[] = useMemo(() => field.options?.choices || [], [field.options?.choices]);
   const [search, setSearch] = useState('');
@@ -478,19 +483,20 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
     ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
     : choices;
 
+  const canCreate = field.options?.allowNewOptions !== false;
   const exactMatch = search
     ? choices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
     : true;
 
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
-    if (!trimmed) return;
+    if (!trimmed || !canCreate) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...choices, newChoice];
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as Partial<FieldMeta['options']>);
     onCommit(trimmed);
-  }, [search, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
+  }, [search, canCreate, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -505,7 +511,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         onCommit(filtered[focusedIndex].title);
-      } else if (!exactMatch && search.trim()) {
+      } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
       }
     } else if (e.key === 'Tab') {
@@ -516,12 +522,14 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
         onCommit(value);
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, onCommit, value]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, onCommit, value]);
 
   return (
     <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
       <PopoverTrigger asChild>
-        <div className="w-full h-full" />
+        <div className="flex items-center w-full h-full min-w-0">
+          {value ? <SelectCellRenderer value={value} field={field} record={{ id: '' } as any} rowHeight="short" /> : null}
+        </div>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"
@@ -591,7 +599,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
               </button>
             );
           })}
-          {!exactMatch && search.trim() && (
+          {!exactMatch && search.trim() && canCreate && (
             <button
               className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
               style={{ color: colors.primary }}

@@ -16,6 +16,8 @@ import { useTables } from '../hooks/useTables';
 import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
 import { NumberFormatPanel } from './NumberFormatPanel';
+import { FieldDefaultPanel } from './FieldDefaultPanel';
+import { normalizeDefault, supportsDefault } from '../lib/fieldDefaults';
 import { RatingOptionsPanel } from './RatingOptionsPanel';
 import type { RatingIcon } from '../lib/ratingStyle';
 import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, type NumberFormatSettings } from '../lib/numberFormat';
@@ -219,6 +221,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
   const [ratingColor, setRatingColor] = useState('amber');
   const [use12h, setUse12h] = useState(true);
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowNewOptions, setAllowNewOptions] = useState(true);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
   const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
@@ -324,6 +328,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRatingIcon('star');
     setRatingColor('amber');
     setUse12h(true);
+    setDefaultValue('');
+    setAllowNewOptions(true);
     setCurrencyCode('USD');
     setPrecision(2);
     setNumFmt(DEFAULT_NUMBER_SETTINGS);
@@ -368,6 +374,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     const opts: FieldOptions = {};
     if (uiType === 'SingleSelect' || uiType === 'MultiSelect') {
       opts.choices = choices;
+      if (!allowNewOptions) opts.allowNewOptions = false;
     }
     if (uiType === 'Rating') {
       opts.max = ratingMax;
@@ -507,7 +514,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         ui_type: uiType,
         options: Object.keys(options).length > 0 ? options : undefined,
         description: description.trim() || undefined,
+        default_value: supportsDefault(uiType) ? normalizeDefault(uiType, defaultValue) : undefined,
       });
+      setDefaultValue('');
+      setAllowNewOptions(true);
       setName('');
       setUiType('SingleLineText');
       setDescription('');
@@ -545,6 +555,15 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleCreate()}
             />
           </div>
+
+          <FieldDefaultPanel
+            uiType={uiType}
+            choices={choices}
+            value={defaultValue}
+            onChange={setDefaultValue}
+            allowNewOptions={allowNewOptions}
+            onAllowNewOptionsChange={setAllowNewOptions}
+          />
 
           <div className="space-y-1.5">
             <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>

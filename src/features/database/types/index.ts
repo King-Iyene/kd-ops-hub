@@ -114,6 +114,8 @@ export interface FieldOptions {
   negativeStyle?: 'minus' | 'parentheses';
   /** Show 1.2M instead of 1,200,000 (display only). */
   abbreviate?: boolean;
+  /** Select fields: false stops people creating new options from a cell. */
+  allowNewOptions?: boolean;
   /** Rating colour name (amber, red, pink, green, blue, purple). */
   color?: string;
   label?: string;

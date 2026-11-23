@@ -29,6 +29,7 @@ import { LinkDataContext, useBatchedLinks, type LinkDataValue } from '../hooks/u
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 import { orgToday, orgNowIso } from '@/lib/format';
+import { defaultForNewRow } from '../lib/fieldDefaults';
 
 const KanbanView = lazy(() => import('../components/views/KanbanView'));
 const GalleryView = lazy(() => import('../components/views/GalleryView'));
@@ -434,13 +435,11 @@ export function TableView() {
     (record?: Record<string, any>) => {
       if (!activeBaseId || !activeTableId) return;
       const defaults: Record<string, any> = {};
+      const today = orgToday();
+      const nowIso = orgNowIso();
       for (const f of fields ?? []) {
-        if (f.is_system) continue;
-        const opts = f.options as any;
-        if (opts?.defaultToCurrentDate) {
-          if (f.ui_type === 'Date') defaults[f.pg_column_name] = orgToday();
-          else if (f.ui_type === 'DateTime') defaults[f.pg_column_name] = orgNowIso();
-        }
+        const value = defaultForNewRow(f, today, nowIso);
+        if (value !== undefined) defaults[f.pg_column_name] = value;
       }
       const merged = { ...defaults, ...record };
       createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: merged }).then((created) => {
