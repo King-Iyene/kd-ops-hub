@@ -9,18 +9,31 @@ vi.setConfig({ testTimeout: 30000 });
 const calls: string[] = [];
 // What each update sent to the database, so the tests can see which columns it named.
 const updatePayloads: Array<Record<string, unknown>> = [];
+// When true the mock database has no updated_by column.
+let tableLacksUpdatedBy = false;
 
 // Every call on the stand-in query builder returns the builder, and awaiting it gives one row back.
 function chain(): any {
+  let lastPayload: Record<string, unknown> | null = null;
   const c: any = new Proxy(function () {}, {
     get(_t, prop) {
       if (prop === 'then') {
-        return (resolve: (v: unknown) => unknown) => resolve({ data: { id: 'r1', cost: 2 }, error: null });
+        return (resolve: (v: unknown) => unknown) => {
+          // Like the real database: an update that names a column the table does not have is refused.
+          if (tableLacksUpdatedBy && lastPayload && 'updated_by' in lastPayload) {
+            return resolve({
+              data: null,
+              error: { code: 'PGRST204', message: "Could not find the 'updated_by' column of 't' in the schema cache" },
+            });
+          }
+          return resolve({ data: { id: 'r1', cost: 2 }, error: null });
+        };
       }
       if (prop === 'update') {
-        return (payload: unknown) => {
+        return (payload: Record<string, unknown>) => {
           calls.push('update');
           updatePayloads.push(payload);
+          lastPayload = payload;
           return c;
         };
       }
@@ -56,6 +69,7 @@ import {
   useDeleteRecord,
   useDuplicateRecord,
   useUpdateRecord,
+  resetUpdatedByMemory,
 } from '../hooks/useRecords';
 import { useUndoStore } from '../lib/undo';
 
@@ -86,9 +100,56 @@ describe('editing and deleting with the grid\'s infinite list in the cache', () 
   beforeEach(() => {
     calls.length = 0;
     updatePayloads.length = 0;
+    tableLacksUpdatedBy = false;
+    resetUpdatedByMemory();
     useUndoStore.getState().clear();
   });
   afterEach(cleanup);
+
+  it('imported tables list a "Last Modified By" field with no column: the edit is sent again without the stamp, and remembered', async () => {
+    tableLacksUpdatedBy = true;
+    const { result, qc } = setup(() => useUpdateRecord());
+    // What an import leaves behind: metadata for updated_by, no such column in the table.
+    qc.setQueryData(['nc', 'fields', 't'], [{ id: 'f1', pg_column_name: 'cost' }, { id: 'f2', pg_column_name: 'updated_by' }]);
+
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    // First the refused attempt with the stamp, then the one that worked.
+    expect(updatePayloads).toEqual([{ cost: 2, updated_by: 'u1' }, { cost: 2 }]);
+
+    // The next edit in that table does not try the stamp at all.
+    updatePayloads.length = 0;
+    act(() => {
+      result.current.reset();
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r2', fields: { cost: 9 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(updatePayloads).toEqual([{ cost: 9 }]);
+  });
+
+  it('does not change the object the caller passed in (the undo step shares it)', async () => {
+    const { result, qc } = setup(() => useUpdateRecord());
+    qc.setQueryData(['nc', 'fields', 't'], [{ id: 'f2', pg_column_name: 'updated_by' }]);
+    const fields = { cost: 2 };
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(fields).toEqual({ cost: 2 });
+  });
+
+  it('a real failure (not a missing column) still fails the edit', async () => {
+    const { isMissingColumnError } = await import('../hooks/useRecords');
+    expect(isMissingColumnError({ code: 'PGRST204', message: "Could not find the 'updated_by' column" }, 'updated_by')).toBe(true);
+    expect(isMissingColumnError({ code: '42703', message: 'column "updated_by" of relation "t" does not exist' }, 'updated_by')).toBe(true);
+    expect(isMissingColumnError({ code: '23505', message: 'duplicate key value violates unique constraint' }, 'updated_by')).toBe(false);
+    expect(isMissingColumnError({ code: 'PGRST204', message: "Could not find the 'cost' column" }, 'updated_by')).toBe(false);
+    expect(isMissingColumnError(null, 'updated_by')).toBe(false);
+  });
 
   it('does not name updated_by on a table that has no such column (the database would reject the edit)', async () => {
     const { result, qc } = setup(() => useUpdateRecord());

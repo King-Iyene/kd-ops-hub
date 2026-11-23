@@ -49,6 +49,22 @@ export function tableHasUpdatedBy(fields: ReadonlyArray<{ pg_column_name?: strin
   return !!fields?.some((f) => f.pg_column_name === 'updated_by');
 }
 
+/** Tables the database has told us have no `updated_by` column, so later edits do not try to stamp it. */
+const tablesWithoutUpdatedBy = new Set<string>();
+
+/** Test helper: forget which tables lack the column. */
+export function resetUpdatedByMemory() {
+  tablesWithoutUpdatedBy.clear();
+}
+
+/** True when a database error says the named column does not exist on the table. */
+export function isMissingColumnError(error: unknown, column: string): boolean {
+  const e = error as { code?: string; message?: string } | null;
+  const message = e?.message ?? '';
+  if (!message.includes(column)) return false;
+  return e?.code === 'PGRST204' || e?.code === '42703' || /could not find|does not exist/i.test(message);
+}
+
 let _cachedUser: { id: string; email: string } | null = null;
 async function getCachedUser() {
   if (_cachedUser) return _cachedUser;
@@ -1046,23 +1062,30 @@ export function useUpdateRecord() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
 
-      // Stamp the current user as the last modifier, but only on tables that have that column. Tables that
-      // came from an import or an older version have no `updated_by`, and the database rejects an update
-      // that names a column the table does not have, which made every edit in those tables fail.
-      if (tableHasUpdatedBy(qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId)))) {
-        const cachedUser = await getCachedUser();
-        if (cachedUser?.id) {
-          (updates as Record<string, any>).updated_by = cachedUser.id;
-        }
-      }
+      // Stamp the current user as the last modifier, but only where the table can take it. Tables from an
+      // import or an older version have no `updated_by` column (the import even lists a "Last Modified By"
+      // field for it), and the database rejects an update that names a column the table does not have,
+      // which made every edit in those tables fail. So: skip the stamp when the table is known to lack the
+      // column, and if the database says so, send the edit again without it and remember that.
+      const stampUser =
+        tableHasUpdatedBy(qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId))) && !tablesWithoutUpdatedBy.has(input.tableId)
+          ? (await getCachedUser())?.id
+          : undefined;
 
-      const { data, error } = await supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .update(updates)
-        .eq('id', input.recordId)
-        .select()
-        .single();
+      const send = (payload: Record<string, any>) =>
+        supabase
+          .schema(ctx.schemaName)
+          .from(ctx.tableName)
+          .update(payload)
+          .eq('id', input.recordId)
+          .select()
+          .single();
+
+      let { data, error } = await send(stampUser ? { ...updates, updated_by: stampUser } : updates);
+      if (error && stampUser && isMissingColumnError(error, 'updated_by')) {
+        tablesWithoutUpdatedBy.add(input.tableId);
+        ({ data, error } = await send(updates));
+      }
 
       if (error) throw error;
       return data as RecordRow;
