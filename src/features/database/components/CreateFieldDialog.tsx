@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, Search, GripVertical, Info } from 'lucide-react';
+import { Plus, X, Search, GripVertical } from 'lucide-react';
 import { useCreateField } from '../hooks';
 import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
@@ -36,6 +36,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { validateFormula } from '../lib/formula';
 import { FormulaEditor } from './FormulaEditor';
+import { RollupSetup } from './RollupSetup';
 import { keepDialogOpenWhileSuggesting } from './formula/escape';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -259,9 +260,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const selectedLinkField = linkFields.find((f: FieldMeta) => f.id === linkFieldId);
   const targetTableIdFromLink = selectedLinkField?.options?.relatedTableId ?? null;
   const { data: targetFields = [] } = useFields(targetTableIdFromLink);
-  const numericTargetFields = targetFields.filter((f: FieldMeta) =>
-    ['Number', 'Decimal', 'Currency', 'Percent', 'Duration', 'Rating'].includes(f.ui_type),
-  );
 
   const isSelectType = uiType === 'SingleSelect' || uiType === 'MultiSelect';
   const isLinksType = uiType === 'Links';
@@ -577,19 +575,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             />
           </div>
 
-          {uiType === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
-
-          <FieldValidationPanel uiType={uiType} value={validation} onChange={setValidation} />
-
-          <FieldDefaultPanel
-            uiType={uiType}
-            choices={choices}
-            value={defaultValue}
-            onChange={setDefaultValue}
-            allowNewOptions={allowNewOptions}
-            onAllowNewOptionsChange={setAllowNewOptions}
-          />
-
           <div className="space-y-1.5">
             <Label htmlFor="field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>
             <textarea
@@ -809,85 +794,19 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           )}
 
           {(isLookup || isRollup || isCount) && (
-            <div className="space-y-3">
-              {linkFields.length === 0 ? (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
-                  <div className="space-y-2 min-w-0">
-                    <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
-                      This table has no Link fields yet. Create a Link to Another Record field first, then set up your {isLookup ? 'Lookup' : isCount ? 'Count' : 'Rollup'}.
-                    </p>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                      onClick={() => handleTypeChange('Links')}
-                    >
-                      Switch to Link field
-                    </button>
-                  </div>
-                </div>
-              ) : (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Link Field</Label>
-                <select
-                  value={linkFieldId}
-                  onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); setRollupFieldId(''); }}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                >
-                  <option value="">Select a link field...</option>
-                  {linkFields.map((f: FieldMeta) => (
-                    <option key={f.id} value={f.id}>{f.name}</option>
-                  ))}
-                </select>
-              </div>
-              )}
-              {isLookup && linkFieldId && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Lookup Field</Label>
-                  <select
-                    value={lookupFieldId}
-                    onChange={(e) => setLookupFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  >
-                    <option value="">Select a field...</option>
-                    {targetFields.map((f: FieldMeta) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {isRollup && linkFieldId && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Function</Label>
-                    <select
-                      value={rollupFn}
-                      onChange={(e) => { setRollupFn(e.target.value); if (e.target.value === 'COUNT' || e.target.value === 'COUNTALL') setRollupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    >
-                      {['COUNT', 'COUNTALL', 'SUM', 'AVG', 'MIN', 'MAX', 'MEDIAN', 'COUNTA', 'CONCATENATE', 'ARRAYJOIN', 'ARRAY_UNIQUE', 'ARRAYCOMPACT', 'AND', 'OR', 'XOR'].map((fn) => (
-                        <option key={fn} value={fn}>{fn}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {rollupFn !== 'COUNT' && rollupFn !== 'COUNTALL' && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Rollup Field</Label>
-                      <select
-                        value={rollupFieldId}
-                        onChange={(e) => setRollupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                      >
-                        <option value="">Select a field...</option>
-                        {(['SUM', 'AVG', 'MIN', 'MAX'].includes(rollupFn) ? numericTargetFields : targetFields).map((f: FieldMeta) => (
-                          <option key={f.id} value={f.id}>{f.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <RollupSetup
+              kind={isLookup ? 'Lookup' : isCount ? 'Count' : 'Rollup'}
+              linkFields={linkFields}
+              tables={tables}
+              linkFieldId={linkFieldId}
+              onLinkField={(id) => { setLinkFieldId(id); setLookupFieldId(''); setRollupFieldId(''); if (isRollup) setRollupFn('COUNT'); }}
+              targetFields={targetFields}
+              targetFieldId={isLookup ? lookupFieldId : rollupFieldId}
+              onTargetField={isLookup ? setLookupFieldId : setRollupFieldId}
+              fn={rollupFn}
+              onFn={setRollupFn}
+              onCreateLinkField={() => handleTypeChange('Links')}
+            />
           )}
 
           {uiType === 'Currency' && (
@@ -1086,6 +1005,19 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               </div>
             </div>
           )}
+
+          {uiType === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
+
+          <FieldValidationPanel uiType={uiType} value={validation} onChange={setValidation} />
+
+          <FieldDefaultPanel
+            uiType={uiType}
+            choices={choices}
+            value={defaultValue}
+            onChange={setDefaultValue}
+            allowNewOptions={allowNewOptions}
+            onAllowNewOptionsChange={setAllowNewOptions}
+          />
 
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
