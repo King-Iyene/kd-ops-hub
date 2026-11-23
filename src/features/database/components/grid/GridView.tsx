@@ -7,6 +7,8 @@ import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { countChecked, dateExtremes, median, toNumbers, uniqueCount } from '../../lib/summaries';
 import { NUMERIC_TYPES, defaultSummary as getDefaultSummary } from '../../lib/footerColumns';
+import { describeNarrowing } from '../../lib/filterRules';
+import { NoMatches } from '../NoMatches';
 import { formatDbDate } from '../../lib/dates';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
@@ -367,6 +369,12 @@ function GridViewInner({
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
   const conditionalFormats = useDatabaseUI((s) => s.conditionalFormats);
   const summaryFunctions = useDatabaseUI((s) => s.summaryFunctions);
+  const activeFilters = useDatabaseUI((s) => s.filters);
+  const activeFilterGroups = useDatabaseUI((s) => s.filterGroups);
+  const activeSearch = useDatabaseUI((s) => s.searchQuery);
+  const setActiveFilters = useDatabaseUI((s) => s.setFilters);
+  const setActiveFilterGroups = useDatabaseUI((s) => s.setFilterGroups);
+  const setActiveSearch = useDatabaseUI((s) => s.setSearchQuery);
   const setSummaryFunction = useDatabaseUI((s) => s.setSummaryFunction);
   const fieldOrder = useDatabaseUI((s) => s.fieldOrder);
   const fieldWidths = useDatabaseUI((s) => s.fieldWidths);
@@ -1402,6 +1410,18 @@ function GridViewInner({
   }
 
   if (records.length === 0 && !isLoading) {
+    // Filters or a search hiding every row is not the same as an empty table: say so, and offer the way back.
+    const narrowing = describeNarrowing({ filters: activeFilters, groups: activeFilterGroups, search: activeSearch });
+    if (narrowing.active) {
+      return (
+        <NoMatches
+          narrowing={narrowing}
+          colors={GRID_COLORS}
+          onClearFilters={() => { setActiveFilters([]); setActiveFilterGroups([]); }}
+          onClearSearch={() => setActiveSearch('')}
+        />
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center flex-1 min-h-64 gap-4" style={{ backgroundColor: GRID_COLORS.bg }}>
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: GRID_COLORS.groupHeaderBg }}>

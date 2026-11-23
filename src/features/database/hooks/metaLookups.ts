@@ -38,7 +38,12 @@ interface Batcher<V> {
  * `load` throws, every key waiting on it is rejected and nothing is cached, so
  * the next caller tries again.
  */
-export function createBatcher<V>(load: (keys: string[]) => Promise<Map<string, V>>): Batcher<V> {
+export function createBatcher<V>(
+  load: (keys: string[]) => Promise<Map<string, V>>,
+  /** ttlMs: 0 remembers nothing (batching and sharing an in-flight request only), for callers that have their own cache. */
+  options: { ttlMs?: number } = {},
+): Batcher<V> {
+  const remember = options.ttlMs !== 0;
   const cache = new Map<string, { value: V | null; ts: number }>();
   const waiting = new Map<string, Array<{ resolve: (v: V | null) => void; reject: (e: unknown) => void }>>();
   const inFlight = new Map<string, Promise<V | null>>();
@@ -50,7 +55,7 @@ export function createBatcher<V>(load: (keys: string[]) => Promise<Map<string, V
     waiting.clear();
     const keys = [...batch.keys()];
     const settle = (key: string, value: V | null) => {
-      cache.set(key, { value, ts: Date.now() });
+      if (remember) cache.set(key, { value, ts: Date.now() });
       for (const w of batch.get(key) ?? []) w.resolve(value);
     };
     for (const part of chunk(keys, KEYS_PER_REQUEST)) {

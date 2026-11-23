@@ -118,6 +118,49 @@ export function chipsThatFit(labels: readonly string[], available: number, measu
   return Math.max(1, fit);
 }
 
+/** How many lines of chips a row of each height can show (a chip is about 20px, the gap 4px, the cell padding 8px). */
+export function linesForRowHeight(rowHeight: 'short' | 'medium' | 'tall' | 'extra-tall'): number {
+  if (rowHeight === 'short') return 1;
+  if (rowHeight === 'extra-tall') return 4;
+  return 2;
+}
+
+/**
+ * How many chips fit when they wrap over several lines, the way a taller row lays them out. Chips are placed
+ * one after another; a chip that does not fit the rest of the line starts the next one; when the lines run out,
+ * the last line keeps room for the "+N" badge. A chip wider than the cell is cut to the cell's width. Always at
+ * least one.
+ */
+export function chipsThatFitLines(labels: readonly string[], available: number, maxLines: number, measure?: TextMeasurer): number {
+  if (labels.length === 0) return 0;
+  if (available <= 0 || maxLines <= 1) return chipsThatFit(labels, available, measure);
+  let line = 1;
+  let used = 0;
+  let fit = 0;
+  for (let i = 0; i < labels.length; i++) {
+    const w = Math.min(available, chipWidth(labels[i], measure));
+    const isLast = i === labels.length - 1;
+    const place = (): boolean => {
+      const gap = used > 0 ? CHIP_GAP : 0;
+      // On the last line, leave room for the badge unless this is the final chip.
+      const reserve = line === maxLines && !isLast ? BADGE_WIDTH + CHIP_GAP : 0;
+      return used + gap + w + reserve <= available;
+    };
+    if (!place()) {
+      if (line >= maxLines) break;
+      line++;
+      used = 0;
+      if (!place()) {
+        // Even alone on a fresh line there is no room (a badge is needed too): stop here.
+        if (line >= maxLines) break;
+      }
+    }
+    used += (used > 0 ? CHIP_GAP : 0) + w;
+    fit++;
+  }
+  return Math.max(1, fit);
+}
+
 /** Stable key for a list of ids (cheap, order sensitive). */
 export function idsKey(ids: readonly string[]): string {
   return ids.length === 0 ? '0' : `${ids.length}:${ids[0]}:${ids[ids.length - 1]}`;

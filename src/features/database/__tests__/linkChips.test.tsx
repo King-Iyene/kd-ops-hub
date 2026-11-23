@@ -6,7 +6,7 @@ vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: 'light', theme
 
 import { LinkChips } from '../components/grid/LinkChips';
 import { LinksCellRenderer } from '../components/grid/cell-renderers';
-import { chipWidth, chipsThatFit, legacyLinkItems } from '../lib/linkBatch';
+import { chipWidth, chipsThatFit, chipsThatFitLines, legacyLinkItems, linesForRowHeight } from '../lib/linkBatch';
 
 describe('chip fitting with a real text measurer', () => {
   // Pretend every character is exactly 7px wide.
@@ -27,6 +27,51 @@ describe('chip fitting with a real text measurer', () => {
 
   it('a cell that is too narrow for even one chip still shows one', () => {
     expect(chipsThatFit(['Project Alpha', 'Project Gamma'], 60, measure)).toBe(1);
+  });
+});
+
+describe('chips over several lines', () => {
+  const measure = (text: string) => text.length * 7; // 7px a character: "Project Alpha" chip = 109px
+  const names = ['Jessica: GHL Management', 'Sam Lotus: GHL Management', 'Jeremy: System Builds', 'Extendly & HL Pro', 'Product Development'];
+
+  it('row heights give the lines they can show', () => {
+    expect(linesForRowHeight('short')).toBe(1);
+    expect(linesForRowHeight('medium')).toBe(2);
+    expect(linesForRowHeight('tall')).toBe(2);
+    expect(linesForRowHeight('extra-tall')).toBe(4);
+  });
+
+  it('puts whole chips on each line and counts the rest, never a half chip', () => {
+    const labels = ['Project Alpha', 'Project Beta', 'Project Gamma', 'Project Delta', 'Project Epsilon'];
+    // 200px wide: one chip per line (two do not fit), so two lines hold two chips, then "+3".
+    expect(chipsThatFitLines(labels, 200, 2, measure)).toBe(2);
+    // 260px: line 1 holds Alpha and Beta (215px); line 2 holds Gamma and Delta with room left for the badge (256px). Epsilon does not fit.
+    expect(chipsThatFitLines(labels, 260, 2, measure)).toBe(4);
+    // Plenty of room: everything fits and no badge is needed.
+    expect(chipsThatFitLines(labels, 1000, 2, measure)).toBe(5);
+  });
+
+  it('shows everything when it fits the lines, with no room reserved for a badge it will not need', () => {
+    expect(chipsThatFitLines(['A', 'B', 'C'], 200, 2, measure)).toBe(3);
+  });
+
+  it('long names in a tall cell: whole names, then the count', () => {
+    const fit = chipsThatFitLines(names, 180, 2, measure);
+    expect(fit).toBeGreaterThanOrEqual(1);
+    expect(fit).toBeLessThan(names.length);
+  });
+
+  it('a name wider than the cell is cut to the cell, not allowed to overflow', () => {
+    expect(chipsThatFitLines(['x'.repeat(100)], 80, 2, measure)).toBe(1);
+  });
+
+  it('one line behaves like the single-line fit, and an empty cell shows nothing', () => {
+    expect(chipsThatFitLines(names, 300, 1, measure)).toBe(chipsThatFit(names, 300, measure));
+    expect(chipsThatFitLines([], 300, 2, measure)).toBe(0);
+  });
+
+  it('always shows at least one chip, even in a very narrow cell', () => {
+    expect(chipsThatFitLines(names, 20, 2, measure)).toBe(1);
   });
 });
 
@@ -55,10 +100,11 @@ describe('LinkChips', () => {
     expect(container.querySelectorAll('[data-link-chip]')).toHaveLength(1);
   });
 
-  it('a taller row wraps the chips instead', () => {
-    const { container } = render(<LinkChips items={items} wrap />);
-    expect(container.querySelectorAll('[data-link-chip]')).toHaveLength(3);
-    expect(container.querySelector('[data-link-more]')).toBeNull();
+  it('a taller row wraps the chips, and still says how many are hidden', () => {
+    // No layout in jsdom (width 0), so the row is "too narrow": one whole chip and a badge, never a cut-off chip.
+    const { container } = render(<LinkChips items={items} wrap lines={2} />);
+    expect(container.querySelectorAll('[data-link-chip]')).toHaveLength(1);
+    expect(container.querySelector('[data-link-more]')?.textContent).toBe('+2');
   });
 });
 

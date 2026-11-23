@@ -6,6 +6,7 @@ import type { RecordRow, Filter, FilterGroup, Sort, FieldMeta } from '../types';
 import { toast } from '../components/toast-store';
 import { useUndoStore } from '../lib/undo';
 import { fieldsKey, resolveTableContext, resolveTableSchema } from './tableBootstrap';
+import { isIncompleteFilter, isTextColumn, pgQuote } from '../lib/filterRules';
 
 /**
  * Run async batch jobs with a bounded concurrency instead of fully serial
@@ -123,7 +124,7 @@ function daysAgo(n: number): string {
   return d.toISOString();
 }
 
-function applyFilter(
+export function applyFilter(
   query: any,
   col: string,
   operator: string,
@@ -136,7 +137,8 @@ function applyFilter(
       return query.eq(col, value);
     case 'isNot':
     case 'neq':
-      return query.neq(col, value);
+      // "is not X" includes the rows where the cell is empty; a plain != would silently drop them.
+      return query.or(`${col}.is.null,${col}.neq.${pgQuote(value)}`);
     case 'isExactly':
       // For multi-select (TEXT[]) exact array match; otherwise plain eq
       if (pgType === 'TEXT[]') {
@@ -148,8 +150,8 @@ function applyFilter(
       if (pgType === 'TEXT[]') return query.contains(col, [value]);
       return query.ilike(col, `%${value}%`);
     case 'doesNotContain':
-      if (pgType === 'TEXT[]') return query.not(col, 'cs', `{${value}}`);
-      return query.not(col, 'ilike', `%${value}%`);
+      if (pgType === 'TEXT[]') return query.or(`${col}.is.null,${col}.not.cs.{${value}}`);
+      return query.or(`${col}.is.null,${col}.not.ilike.${pgQuote(`%${value}%`)}`);
     case 'containsAnyOf': {
       const items = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
       if (pgType === 'TEXT[]') {
@@ -181,12 +183,13 @@ function applyFilter(
       if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.or(`${col}.is.null,${col}.eq.{},${col}.eq.[]`);
       }
-      return query.or(`${col}.is.null,${col}.eq.`);
+      // An empty string only exists in text columns; asking a number or date column for one is an error.
+      return isTextColumn(pgType) ? query.or(`${col}.is.null,${col}.eq.`) : query.is(col, null);
     case 'isNotEmpty':
       if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.not(col, 'is', null).not(col, 'eq', '{}').not(col, 'eq', '[]');
       }
-      return query.not(col, 'is', null).neq(col, '');
+      return isTextColumn(pgType) ? query.not(col, 'is', null).neq(col, '') : query.not(col, 'is', null);
     case 'gt':
     case 'isAfter':
       return query.gt(col, value);
@@ -249,7 +252,7 @@ function applyFilter(
     case 'isAnyOf':
       return query.in(col, Array.isArray(value) ? value : [value]);
     case 'isNoneOf':
-      return query.not(col, 'in', `(${(Array.isArray(value) ? value : [value]).map((v: string) => `"${v}"`).join(',')})`);
+      return query.or(`${col}.is.null,${col}.not.in.(${(Array.isArray(value) ? value : [value]).map((v: string) => pgQuote(v)).join(',')})`);
     case 'isChecked':
       return query.eq(col, true);
     case 'isNotChecked':
@@ -277,7 +280,7 @@ function applyFilter(
  * Each filter becomes a PostgREST filter expression fragment.
  * Returns null when the list is empty or all filters are unresolvable.
  */
-function buildOrClauseFromFilters(
+export function buildOrClauseFromFilters(
   filters: Filter[],
   fieldMap: Map<string, any>,
 ): string | null {
@@ -285,6 +288,7 @@ function buildOrClauseFromFilters(
   for (const filter of filters) {
     const field = fieldMap.get(filter.field_id);
     if (!field) continue;
+    if (isIncompleteFilter(filter.operator, filter.value)) continue;
     const col = field.pg_column_name;
     const val = filter.value;
     const pgType: string = field.pg_type;
@@ -292,54 +296,54 @@ function buildOrClauseFromFilters(
     switch (filter.operator) {
       case 'is':
       case 'eq':
-        parts.push(`${col}.eq.${val}`);
+        parts.push(`${col}.eq.${pgQuote(val)}`);
         break;
       case 'isNot':
       case 'neq':
-        parts.push(`${col}.neq.${val}`);
+        parts.push(`${col}.is.null,${col}.neq.${pgQuote(val)}`);
         break;
       case 'isExactly':
-        parts.push(`${col}.eq.${val}`);
+        parts.push(`${col}.eq.${pgQuote(val)}`);
         break;
       case 'contains':
         if (pgType === 'TEXT[]') parts.push(`${col}.cs.{${val}}`);
-        else parts.push(`${col}.ilike.%${val}%`);
+        else parts.push(`${col}.ilike.${pgQuote(`%${val}%`)}`);
         break;
       case 'doesNotContain':
         if (pgType === 'TEXT[]') parts.push(`${col}.not.cs.{${val}}`);
-        else parts.push(`${col}.not.ilike.%${val}%`);
+        else parts.push(`${col}.is.null,${col}.not.ilike.${pgQuote(`%${val}%`)}`);
         break;
       case 'startsWith':
-        parts.push(`${col}.ilike.${val}%`);
+        parts.push(`${col}.ilike.${pgQuote(`${val}%`)}`);
         break;
       case 'endsWith':
-        parts.push(`${col}.ilike.%${val}`);
+        parts.push(`${col}.ilike.${pgQuote(`%${val}`)}`);
         break;
       case 'isEmpty':
-        parts.push(`${col}.is.null`);
+        parts.push(isTextColumn(pgType) ? `${col}.is.null,${col}.eq.""` : `${col}.is.null`);
         break;
       case 'isNotEmpty':
-        parts.push(`${col}.not.is.null`);
+        parts.push(isTextColumn(pgType) ? `and(${col}.not.is.null,${col}.neq."")` : `${col}.not.is.null`);
         break;
       case 'gt':
       case 'isAfter':
-        parts.push(`${col}.gt.${val}`);
+        parts.push(`${col}.gt.${pgQuote(val)}`);
         break;
       case 'gte':
       case 'isOnOrAfter':
-        parts.push(`${col}.gte.${val}`);
+        parts.push(`${col}.gte.${pgQuote(val)}`);
         break;
       case 'lt':
       case 'isBefore':
-        parts.push(`${col}.lt.${val}`);
+        parts.push(`${col}.lt.${pgQuote(val)}`);
         break;
       case 'lte':
       case 'isOnOrBefore':
-        parts.push(`${col}.lte.${val}`);
+        parts.push(`${col}.lte.${pgQuote(val)}`);
         break;
       case 'isAnyOf': {
         const arr = Array.isArray(val) ? val : [val];
-        parts.push(`${col}.in.(${arr.map((v: string) => `"${v}"`).join(',')})`);
+        parts.push(`${col}.in.(${arr.map((v: string) => pgQuote(v)).join(',')})`);
         break;
       }
       case 'isChecked':
@@ -408,7 +412,7 @@ function applyFilterGroup(
     // require a server-side function).
     for (const filter of group.filters) {
       const field = fieldMap.get(filter.field_id);
-      if (!field) continue;
+      if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
       const op = filter.operator;
       if (['isBetween', 'isWithin', 'containsAnyOf', 'doesNotContainAnyOf',
            'linkCountIs', 'linkCountGt', 'linkCountLt'].includes(op)) {
@@ -419,7 +423,7 @@ function applyFilterGroup(
     // AND conjunction — chain each filter sequentially
     for (const filter of group.filters) {
       const field = fieldMap.get(filter.field_id);
-      if (!field) continue;
+      if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
       query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
     }
 
@@ -524,7 +528,8 @@ export function useRecords(params: UseRecordsParams) {
           .filter((f: any) => searchableTypes.has(f.pg_type) && !f.pg_column_name?.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
-          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+          // Quoted, so a comma or bracket typed into the search box cannot break the request.
+      const orClause = textCols.map((c: string) => `${c}.ilike.${pgQuote(`%${search}%`)}`).join(',');
           query = query.or(orClause);
         }
       }
@@ -732,7 +737,8 @@ function applyRecordFilters(
 
   for (const filter of state.nonLinkFilters) {
     const field = fieldMap.get(filter.field_id);
-    if (!field) continue;
+    // A filter that has been added but not finished (no value yet) narrows nothing.
+    if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
     q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
   }
 
