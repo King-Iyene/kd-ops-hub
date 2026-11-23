@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { isModShortcut } from '../lib/shortcuts';
 
 /**
  * Hook to register global keyboard shortcuts at the shell level.
@@ -9,11 +10,17 @@ export function useGlobalShortcuts({
   onAddRow,
   onOpenSearch,
   onOpenReplace,
+  onTogglePalette,
+  onToggleTables,
 }: {
   onOpenShortcuts: () => void;
   onAddRow?: () => void;
   onOpenSearch?: () => void;
   onOpenReplace?: () => void;
+  /** Ctrl/Cmd+K: the one command palette. Nothing else in the database module listens for this key. */
+  onTogglePalette?: () => void;
+  /** Ctrl/Cmd+J: the table switcher in the tab strip. */
+  onToggleTables?: () => void;
 }) {
   const handleGlobalKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -23,6 +30,31 @@ export function useGlobalShortcuts({
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable;
+
+      // A cell being edited commits when it loses focus, so opening a panel from inside it would save a
+      // half-typed value. Leave Ctrl+K and Ctrl+J alone there. Another dialog that is already open also
+      // keeps them (the palette itself may still close with Ctrl+K).
+      const inCellEditor = typeof target.closest === 'function' && !!target.closest('[data-cell-id]');
+      const inOtherDialog =
+        typeof target.closest === 'function' &&
+        !!target.closest('[role="dialog"]') &&
+        !target.closest('[data-command-palette]');
+
+      // Ctrl/Cmd+K opens (or closes) the command palette.
+      if (isModShortcut(e, 'k')) {
+        if (inCellEditor || inOtherDialog) return;
+        e.preventDefault();
+        onTogglePalette?.();
+        return;
+      }
+
+      // Ctrl/Cmd+J opens (or closes) the table switcher.
+      if (isModShortcut(e, 'j')) {
+        if (inCellEditor || inOtherDialog) return;
+        e.preventDefault();
+        onToggleTables?.();
+        return;
+      }
 
       // ? to open shortcuts (only when not typing in an input)
       if (e.key === '?' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -59,7 +91,7 @@ export function useGlobalShortcuts({
         return;
       }
     },
-    [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace],
+    [onOpenShortcuts, onAddRow, onOpenSearch, onOpenReplace, onTogglePalette, onToggleTables],
   );
 
   useEffect(() => {

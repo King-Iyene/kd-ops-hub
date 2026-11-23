@@ -81,7 +81,7 @@ export function useLookupValue(field: FieldMeta, record: RecordRow): LookupResul
 }
 
 export interface RollupResult {
-  value: number | string | any[] | null;
+  value: number | string | boolean | any[] | null;
   isConfigured: boolean;
   isLoading: boolean;
 }

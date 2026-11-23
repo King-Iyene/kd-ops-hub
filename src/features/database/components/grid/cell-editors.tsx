@@ -1,16 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Paperclip, Star, Check, X } from 'lucide-react';
+import { Paperclip, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateEditor } from './DateEditor';
+import { MultiSelectCellRenderer, SelectCellRenderer } from './cell-renderers';
+import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
+import { plainNumberString } from '../../lib/cellValue';
+import { formatDuration, normalizeDurationFormat, parseDuration } from '../../lib/duration';
+import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
+import { RatingGlyph } from './RatingGlyph';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
+import type { AttachmentLimits } from '../../lib/attachmentRules';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
 import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderer-map';
-import { toLocalDateString, getTimezone, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -32,6 +38,99 @@ function sanitizeNumeric(raw: string): string {
   return result;
 }
 
+/**
+ * Enter then blur (or Tab then blur) used to commit twice. The first exit wins;
+ * the guard releases after a moment so a rejected value can be corrected and saved.
+ */
+function useEditorExit(onCommit: (value: any) => void, onCancel: () => void) {
+  const busy = useRef(false);
+  const release = () => { setTimeout(() => { busy.current = false; }, 80); };
+  const commit = useCallback((value: any) => {
+    if (busy.current) return;
+    busy.current = true;
+    onCommit(value);
+    release();
+  }, [onCommit]);
+  const cancel = useCallback(() => {
+    if (busy.current) return;
+    busy.current = true;
+    onCancel();
+    release();
+  }, [onCancel]);
+  return { commit, cancel };
+}
+
+/**
+ * Number-like editor: one borderless input that sits exactly where the cell's
+ * text sits (the cell owns the outline and the padding), with an optional
+ * symbol before or after the number.
+ */
+function NumericEditor({
+  value, onCommit, onCancel, prefix, suffix, placeholder,
+}: {
+  value: any;
+  onCommit: (value: any) => void;
+  onCancel: () => void;
+  prefix?: string;
+  suffix?: string;
+  placeholder?: string;
+}) {
+  const [num, setNum] = useState(value == null ? '' : String(value));
+  const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  // Text such as "-" or "." is not a number: Enter keeps editing, clicking away discards the edit.
+  const finish = (leaving = false) => {
+    if (num === '') { exit.commit(null); return; }
+    const n = Number(num);
+    if (!Number.isFinite(n)) { if (leaving) exit.cancel(); return; }
+    exit.commit(n);
+  };
+
+  return (
+    <div className="flex items-center gap-1 w-full h-full min-w-0">
+      {prefix && <span className="shrink-0 text-muted-foreground tabular-nums" style={{ fontSize: 13 }}>{prefix}</span>}
+      <input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        value={num}
+        placeholder={placeholder}
+        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
+        onPaste={(e) => {
+          // Pasting "₦1,234.50" or "(500)" keeps the number instead of dropping characters.
+          // Plain digits are left to the browser so they land where the cursor is.
+          const text = e.clipboardData.getData('text');
+          if (/^[0-9.-]*$/.test(text)) return;
+          const parsed = parseNumberInput(text);
+          if (parsed != null) {
+            e.preventDefault();
+            const input = e.currentTarget;
+            const start = input.selectionStart ?? num.length;
+            const end = input.selectionEnd ?? num.length;
+            setNum(sanitizeNumeric(num.slice(0, start) + plainNumberString(parsed) + num.slice(end)));
+          }
+        }}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') finish();
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); finish(); }
+        }}
+        onBlur={() => finish(true)}
+        className="flex-1 min-w-0 h-full px-0 bg-transparent border-0 rounded-none shadow-none outline-none text-right tabular-nums"
+        style={{ fontSize: 13, lineHeight: '18px', letterSpacing: '-0.01em', color: 'inherit' }}
+      />
+      {suffix && <span className="shrink-0 text-muted-foreground tabular-nums" style={{ fontSize: 13 }}>{suffix}</span>}
+    </div>
+  );
+}
+
 interface CellEditorProps {
   value: any;
   field: FieldMeta;
@@ -40,9 +139,10 @@ interface CellEditorProps {
   onFieldUpdate?: (fieldId: string, tableId: string, updates: Partial<FieldMeta['options']>) => void;
 }
 
-export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TextCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
@@ -72,152 +172,36 @@ export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         e.stopPropagation();
       }}
       onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
     />
   );
 }
 
 export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} placeholder="0" />;
+}
 
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
+export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const symbol = currencySymbol(field.options?.currencyCode || field.options?.symbol);
+  const places = field.options?.precision ?? 2;
   return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      value={num}
-      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      placeholder="0"
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-      style={{ fontSize: 13, color: 'inherit' }}
+    <NumericEditor
+      value={value}
+      onCommit={onCommit}
+      onCancel={onCancel}
+      prefix={symbol}
+      placeholder={places > 0 ? `0.${'0'.repeat(places)}` : '0'}
     />
   );
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩',
-  INR: '₹', BRL: 'R$', CAD: 'CA$', AUD: 'A$', CHF: 'CHF', NGN: '₦',
-};
-
-export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-  const code = field.options?.currencyCode || 'USD';
-  const symbol = CURRENCY_SYMBOLS[code] || code;
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <div className="flex items-center w-full h-full bg-transparent">
-      <span className="pl-2 text-xs-plus text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0 font-medium">{symbol}</span>
-      <input
-        ref={ref}
-        type="text"
-        inputMode="decimal"
-        value={num}
-        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-        }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        placeholder="0.00"
-        className="w-full h-full px-2 outline-none bg-transparent text-right"
-        style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}
-      />
-    </div>
-  );
-}
-
 export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value) : undefined;
-  const [selected, setSelected] = useState<Date | undefined>(initial);
-  const colors = useGridColors();
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
-        e.preventDefault();
-        onCommit(toLocalDateString(new Date()));
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCommit]);
-
-  return (
-    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <PopoverTrigger asChild>
-        <div className="w-full h-full" />
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={1}
-        className="!w-auto !border-none !p-0 !shadow-none"
-        style={{
-          backgroundColor: colors.cellEditorBg,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        }}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <Calendar
-          mode="single"
-          selected={selected}
-          onSelect={(day) => {
-            setSelected(day);
-            if (day) {
-              onCommit(toLocalDateString(day));
-            }
-          }}
-          defaultMonth={selected || new Date()}
-        />
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center justify-between px-3 py-2">
-          <button
-            className="text-xs transition-colors hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
-            style={{ color: colors.muted }}
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-          <button
-            className="text-xs px-3 py-1 rounded transition-opacity hover:opacity-90 active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={{ backgroundColor: colors.primary, color: '#fff' }}
-            onClick={() => {
-              const today = new Date();
-              setSelected(today);
-              onCommit(toLocalDateString(today));
-            }}
-          >
-            Today
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
+  return <DateEditor value={value} mode="date" onCommit={onCommit} onCancel={onCancel} />;
 }
 
-export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function YearCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
   const initial = value ? String(value).slice(0, 4) : '';
   const [year, setYear] = useState(initial);
   const ref = useRef<HTMLInputElement>(null);
@@ -248,73 +232,80 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={commit}
       placeholder="YYYY"
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );
 }
 
-export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const totalSeconds = Number(value) || 0;
-  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSeconds % 60).padStart(2, '0');
-  const [text, setText] = useState(`${h}:${m}:${s}`);
+export function DurationCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const format = normalizeDurationFormat(field.options?.format);
+  const hasValue = value != null && value !== '' && Number.isFinite(Number(value));
+  const [text, setText] = useState(hasValue ? formatDuration(Number(value), format) : '');
+  const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  function parseDuration(str: string): number | null {
-    const parts = str.split(':').map(Number);
-    if (parts.some(isNaN)) return null;
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    return null;
-  }
+  // Empty text clears the cell; text that is not a duration keeps the editor open
+  // (Enter, Tab) or discards the edit (clicking away) instead of saving a wrong value.
+  const finish = (leaving: boolean) => {
+    if (text.trim() === '') { exit.commit(null); return; }
+    const seconds = parseDuration(text, format);
+    if (seconds == null) {
+      if (leaving) exit.cancel(); else setInvalid(true);
+      return;
+    }
+    exit.commit(seconds);
+  };
 
   return (
     <input
       ref={ref}
       type="text"
-      placeholder="HH:MM:SS"
+      placeholder={format === 'h:mm' ? 'e.g. 1:30 or 1h 30m' : 'e.g. 1:30:00'}
       value={text}
-      onChange={(e) => setText(e.target.value)}
+      aria-invalid={invalid}
+      onChange={(e) => { setText(e.target.value); setInvalid(false); }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
+        e.stopPropagation();
+        if (e.key === 'Enter') finish(false);
+        else if (e.key === 'Escape') exit.cancel();
+        else if (e.key === 'Tab') { e.preventDefault(); finish(false); }
       }}
-      onBlur={() => { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }}
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-      style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
+      onBlur={() => finish(true)}
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent text-right tabular-nums"
+      style={{ fontSize: 13, lineHeight: '18px', color: invalid ? '#EF4444' : 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />
   );
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function EmailCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  const commit = useCallback(() => {
+  const commit = useCallback((leaving = false) => {
     const trimmed = String(text).trim();
     if (trimmed && !EMAIL_RE.test(trimmed)) {
-      setInvalid(true);
+      if (leaving) exit.cancel(); else setInvalid(true);
       return;
     }
     setInvalid(false);
-    onCommit(trimmed);
-  }, [text, onCommit]);
+    exit.commit(trimmed);
+  }, [text, exit]);
 
   return (
     <div className="relative w-full h-full">
@@ -324,21 +315,21 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
+          e.stopPropagation();
           if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
-        onBlur={commit}
+        onBlur={() => commit(true)}
         placeholder="name@example.com"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+          color: invalid ? '#EF4444' : 'inherit',
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
           Enter a valid email address
         </div>
       )}
@@ -346,17 +337,18 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
   );
 }
 
-export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function URLCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const [invalid, setInvalid] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
 
-  const commit = useCallback(() => {
+  const commit = useCallback((leaving = false) => {
     const trimmed = String(text).trim();
     let isValid = true;
     if (trimmed) {
@@ -364,12 +356,12 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       catch { isValid = false; }
     }
     if (trimmed && !isValid) {
-      setInvalid(true);
+      if (leaving) exit.cancel(); else setInvalid(true);
       return;
     }
     setInvalid(false);
-    onCommit(trimmed);
-  }, [text, onCommit]);
+    exit.commit(trimmed);
+  }, [text, exit]);
 
   return (
     <div className="relative w-full h-full">
@@ -379,21 +371,21 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
+          e.stopPropagation();
           if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); commit(); }
         }}
-        onBlur={commit}
+        onBlur={() => commit(true)}
         placeholder="https://example.com"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: invalid ? 'inset 0 0 0 2px #EF4444' : undefined,
+          color: invalid ? '#EF4444' : 'inherit',
         }}
       />
       {invalid && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-destructive/30 rounded px-2 py-1 shadow text-2xs text-destructive whitespace-nowrap mt-0.5">
           Enter a valid URL
         </div>
       )}
@@ -403,10 +395,11 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
 
 const PHONE_WARN_RE = /[a-wyzA-WYZ]/;
 
-export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function PhoneNumberCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
   const hasLetters = PHONE_WARN_RE.test(String(text));
+  const exit = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
@@ -421,21 +414,21 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(text);
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); onCommit(text); }
+          e.stopPropagation();
+          if (e.key === 'Enter') exit.commit(text);
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); exit.commit(text); }
         }}
-        onBlur={() => onCommit(text)}
+        onBlur={() => exit.commit(text)}
         placeholder="(555) 555-5555"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
-          color: 'inherit',
-          boxShadow: hasLetters ? 'inset 0 0 0 2px #F59E0B' : undefined,
+          color: hasLetters ? '#D97706' : 'inherit',
         }}
       />
       {hasLetters && (
-        <div className="absolute left-0 top-full z-50 bg-transparent border border-warning/30 rounded px-2 py-1 shadow text-2xs text-warning whitespace-nowrap mt-0.5">
+        <div className="absolute left-0 top-full z-50 bg-popover border border-warning/30 rounded px-2 py-1 shadow text-2xs text-warning whitespace-nowrap mt-0.5">
           Phone number contains letters
         </div>
       )}
@@ -444,44 +437,57 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
 }
 
 export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
-  const max = field.options?.max || 5;
-  const rating = Number(value) || 0;
+  const max = ratingMaxOf(field.options?.max);
+  const icon = ratingIconOf(field.options?.icon);
+  const hex = ratingHexOf(field.options?.color);
+  const wasEmpty = value == null || value === '';
+  const [draft, setDraft] = useState(Number(value) || 0);
+  const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
 
   useEffect(() => {
     ref.current?.focus();
   }, []);
 
+  const shown = hover ?? draft;
+
   return (
     <div
       ref={ref}
       tabIndex={0}
-      className="flex items-center gap-0.5 px-2 h-full bg-transparent outline-none"
+      role="slider"
+      aria-label={field.name}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={draft}
+      className="flex items-center gap-0.5 h-full bg-transparent outline-none rounded-none shadow-none focus-visible:shadow-none"
+      onMouseLeave={() => setHover(null)}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') onCommit(rating);
-        if (e.key === 'Enter') onCommit(rating);
-        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); onCommit(Math.min(rating + 1, max)); }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); onCommit(Math.max(rating - 1, 0)); }
+        e.stopPropagation();
+        if (e.key === 'Escape') exit.cancel();
+        else if (e.key === 'Enter' || e.key === 'Tab') exit.commit(wasEmpty && draft === 0 ? null : draft);
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setDraft((d) => stepRating(d, 1, max)); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setDraft((d) => stepRating(d, -1, max)); }
+        else if (/^[0-9]$/.test(e.key)) { e.preventDefault(); setDraft(Math.min(Number(e.key), max)); }
+        else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setDraft(0); }
       }}
-      onBlur={() => onCommit(rating)}
+      onBlur={() => exit.commit(wasEmpty && draft === 0 ? null : draft)}
     >
       {Array.from({ length: max }, (_, i) => (
         <button
           key={i}
           type="button"
           tabIndex={-1}
-          className="p-0 border-none bg-transparent cursor-pointer"
-          onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
-          aria-label={`Rate ${i + 1} of ${max} stars`}
-          aria-pressed={i < rating}
+          className="p-0 border-0 bg-transparent cursor-pointer rounded-none shadow-none"
+          onMouseEnter={() => setHover(i + 1)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => exit.commit(nextRating(draft, i + 1, max))}
+          aria-label={`Rate ${i + 1} of ${max}`}
         >
-          <Star
-            size={16}
-            fill={i < rating ? '#F59E0B' : 'none'}
-            color={i < rating ? '#F59E0B' : '#9CA3AF'}
-            strokeWidth={1.5}
-          />
+          <span style={{ opacity: hover != null && i >= draft && i < hover ? 0.55 : 1 }}>
+            <RatingGlyph icon={icon} filled={i < shown} hex={hex} />
+          </span>
         </button>
       ))}
     </div>
@@ -489,8 +495,7 @@ export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEdito
 }
 
 function getSelectColorStyle(colorName: string) {
-  const sc = SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
-  return sc;
+  return SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
 }
 
 export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {
@@ -504,19 +509,20 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
     ? choices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
     : choices;
 
+  const canCreate = field.options?.allowNewOptions !== false;
   const exactMatch = search
     ? choices.some((c) => c.title.toLowerCase() === search.trim().toLowerCase())
     : true;
 
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
-    if (!trimmed) return;
+    if (!trimmed || !canCreate) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...choices, newChoice];
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as Partial<FieldMeta['options']>);
     onCommit(trimmed);
-  }, [search, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
+  }, [search, canCreate, choices, field.id, field.table_id, onFieldUpdate, onCommit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -531,7 +537,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         onCommit(filtered[focusedIndex].title);
-      } else if (!exactMatch && search.trim()) {
+      } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
       }
     } else if (e.key === 'Tab') {
@@ -542,12 +548,14 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
         onCommit(value);
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, onCommit, value]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, onCommit, value]);
 
   return (
     <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
       <PopoverTrigger asChild>
-        <div className="w-full h-full" />
+        <div className="flex items-center w-full h-full min-w-0">
+          {value ? <SelectCellRenderer value={value} field={field} record={{ id: '' } as any} rowHeight="short" /> : null}
+        </div>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"
@@ -574,7 +582,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Find an option..."
-            className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+            className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
             style={{
               border: `1px solid ${colors.border}`,
               color: colors.text,
@@ -617,7 +625,7 @@ export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpda
               </button>
             );
           })}
-          {!exactMatch && search.trim() && (
+          {!exactMatch && search.trim() && canCreate && (
             <button
               className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
               style={{ color: colors.primary }}
@@ -657,7 +665,8 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   const anchorRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const colors = useGridColors();
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ top: 0, left: 0 });
+  const canCreate = field.options?.allowNewOptions !== false;
 
   const filtered = search
     ? localChoices.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
@@ -675,7 +684,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 
   const handleCreateOption = useCallback(() => {
     const trimmed = search.trim();
-    if (!trimmed) return;
+    if (!trimmed || !canCreate) return;
     const randomColor = SELECT_COLOR_NAMES[Math.floor(Math.random() * SELECT_COLOR_NAMES.length)];
     const newChoice: SelectChoice = { title: trimmed, color: randomColor };
     const updatedChoices = [...localChoices, newChoice];
@@ -683,7 +692,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
     onFieldUpdate?.(field.id, field.table_id, { choices: updatedChoices } as any);
     setSelected((prev) => [...prev, trimmed]);
     setSearch('');
-  }, [search, localChoices, field.id, field.table_id, onFieldUpdate]);
+  }, [search, canCreate, localChoices, field.id, field.table_id, onFieldUpdate]);
 
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
@@ -691,7 +700,9 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
   useLayoutEffect(() => {
     if (anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 1, left: rect.left });
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 236));
+      const opensUp = rect.bottom + 320 > window.innerHeight && rect.top > 320;
+      setPos(opensUp ? { bottom: window.innerHeight - rect.top + 1, left } : { top: rect.bottom + 1, left });
     }
   }, []);
 
@@ -726,21 +737,24 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
       e.preventDefault();
       if (focusedIndex >= 0 && focusedIndex < filtered.length) {
         toggle(filtered[focusedIndex].title);
-      } else if (!exactMatch && search.trim()) {
+      } else if (!exactMatch && search.trim() && canCreate) {
         handleCreateOption();
       }
     }
-  }, [onCancel, filtered, focusedIndex, exactMatch, search, handleCreateOption, toggle]);
+  }, [onCancel, filtered, focusedIndex, exactMatch, search, canCreate, handleCreateOption, toggle]);
 
   return (
     <>
-      <div ref={anchorRef} className="w-full h-full" />
+      <div ref={anchorRef} className="flex items-center w-full h-full min-w-0 overflow-hidden">
+        {selected.length > 0 ? <MultiSelectCellRenderer value={selected} field={field} record={{ id: '' } as any} rowHeight="short" /> : null}
+      </div>
       {createPortal(
         <div
           ref={dropdownRef}
           style={{
             position: 'fixed',
             top: pos.top,
+            bottom: pos.bottom,
             left: pos.left,
             zIndex: 9999,
             minWidth: 220,
@@ -789,7 +803,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Find or create an option"
-              className="w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
+              className="kd-flat-input w-full px-2 py-1.5 text-xs rounded outline-none bg-transparent"
               style={{
                 border: `1px solid ${colors.border}`,
                 color: colors.text,
@@ -839,7 +853,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
                 </button>
               );
             })}
-            {!exactMatch && search.trim() && (
+            {!exactMatch && search.trim() && canCreate && (
               <button
                 className="w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors text-xs"
                 style={{ color: colors.primary }}
@@ -875,20 +889,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 
 
 export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
-  return (
-    <div className="flex items-center w-full h-full">
-      <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        placeholder="0"
-        className="w-full h-full px-2 outline-none border-none bg-transparent text-right" style={{ fontSize: 13, color: 'inherit' }}
-      />
-      <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
-    </div>
-  );
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} suffix="%" placeholder="0" />;
 }
 
 export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
@@ -922,6 +923,7 @@ export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellE
           onCommit(updated);
         }}
         storagePath={field.id}
+        limits={field.options as AttachmentLimits}
       />
     </>
   );
@@ -1019,7 +1021,7 @@ export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProp
   const editor = pos ? createPortal(
     <div
       className="fixed z-[9999] shadow-xl rounded-md bg-white dark:bg-[hsl(220,20%,10%)]"
-      style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid #2D7FF9' }}
+      style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid hsl(var(--primary))' }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
@@ -1066,202 +1068,25 @@ export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProp
   );
 }
 
-export function DecimalCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
+export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const places = field.options?.precision ?? 2;
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} placeholder={places > 0 ? `0.${'0'.repeat(places)}` : '0'} />;
+}
 
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
+export function DateTimeCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      value={num}
-      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      placeholder="0.00"
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-      style={{ fontSize: 13, color: 'inherit' }}
+    <DateEditor
+      value={value}
+      mode="datetime"
+      use12h={field.options?.use12h !== false}
+      onCommit={onCommit}
+      onCancel={onCancel}
     />
   );
 }
 
-function getOrgTimeParts(d: Date): { hour24: number; minute: number } {
-  const tz = getTimezone();
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    hour: '2-digit', minute: '2-digit',
-  }).formatToParts(d);
-  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? '0', 10);
-  return { hour24: get('hour') % 24, minute: get('minute') };
-}
-
-function to12h(h24: number): { display: number; period: 'AM' | 'PM' } {
-  const period: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
-  let display = h24 % 12;
-  if (display === 0) display = 12;
-  return { display, period };
-}
-
-function to24h(display12: number, period: 'AM' | 'PM'): number {
-  let h = display12 % 12;
-  if (period === 'PM') h += 12;
-  return h;
-}
-
-export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initialDate = value ? new Date(value) : undefined;
-  const orgTime = initialDate ? getOrgTimeParts(initialDate) : { hour24: 12, minute: 0 };
-  const init12 = to12h(orgTime.hour24);
-  const [selected, setSelected] = useState<Date | undefined>(initialDate);
-  const [hour, setHour] = useState(String(init12.display));
-  const [minute, setMinute] = useState(String(orgTime.minute).padStart(2, '0'));
-  const [period, setPeriod] = useState<'AM' | 'PM'>(init12.period);
-  const colors = useGridColors();
-
-  const commitDateTime = useCallback((day: Date | undefined, h: string, m: string, p: 'AM' | 'PM') => {
-    if (!day) { onCommit(null); return; }
-    const h24 = to24h(parseInt(h, 10) || 12, p);
-    const wallClock = `${toLocalDateString(day)}T${String(h24).padStart(2, '0')}:${m.padStart(2, '0')}`;
-    onCommit(orgWallClockToUtcIso(wallClock));
-  }, [onCommit]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
-        e.preventDefault();
-        onCommit(new Date().toISOString());
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCommit]);
-
-  return (
-    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <PopoverTrigger asChild>
-        <div className="w-full h-full" />
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={1}
-        className="!w-auto !border-none !p-0 !shadow-none"
-        style={{
-          backgroundColor: colors.cellEditorBg,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        }}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <Calendar
-          mode="single"
-          selected={selected}
-          onSelect={(day) => setSelected(day)}
-          defaultMonth={selected || new Date()}
-        />
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center gap-2 px-3 py-2">
-          <span className="text-xs" style={{ color: colors.muted }}>Time</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={hour}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9]/g, '');
-              if (v === '' || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 12)) setHour(v);
-            }}
-            className="w-10 text-center text-xs rounded outline-none bg-transparent"
-            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
-          />
-          <span style={{ color: colors.muted }}>:</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={minute}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9]/g, '');
-              if (v === '' || parseInt(v, 10) <= 59) setMinute(v);
-            }}
-            className="w-10 text-center text-xs rounded outline-none bg-transparent"
-            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
-          />
-          <button
-            type="button"
-            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
-            style={{
-              backgroundColor: period === 'AM' ? colors.primary : 'transparent',
-              color: period === 'AM' ? '#fff' : colors.muted,
-              border: `1px solid ${period === 'AM' ? colors.primary : colors.border}`,
-            }}
-            onClick={() => setPeriod('AM')}
-          >
-            AM
-          </button>
-          <button
-            type="button"
-            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
-            style={{
-              backgroundColor: period === 'PM' ? colors.primary : 'transparent',
-              color: period === 'PM' ? '#fff' : colors.muted,
-              border: `1px solid ${period === 'PM' ? colors.primary : colors.border}`,
-            }}
-            onClick={() => setPeriod('PM')}
-          >
-            PM
-          </button>
-        </div>
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center justify-between px-3 py-2">
-          <button
-            className="text-xs transition-colors"
-            style={{ color: colors.muted }}
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              className="text-xs px-2 py-1 rounded transition-colors"
-              style={{ color: colors.muted }}
-              onClick={() => {
-                const now = new Date();
-                const nowOrg = getOrgTimeParts(now);
-                const now12 = to12h(nowOrg.hour24);
-                setSelected(now);
-                setHour(String(now12.display));
-                setMinute(String(nowOrg.minute).padStart(2, '0'));
-                setPeriod(now12.period);
-                commitDateTime(now, String(now12.display), String(nowOrg.minute).padStart(2, '0'), now12.period);
-              }}
-            >
-              Now
-            </button>
-            <button
-              className="text-xs px-3 py-1 rounded"
-              style={{ backgroundColor: colors.primary, color: '#fff' }}
-              onClick={() => commitDateTime(selected, hour, minute, period)}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TimeCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
   const [time, setTime] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
 
@@ -1282,7 +1107,7 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Tab') { e.preventDefault(); onCommit(time || null); }
       }}
       onBlur={() => onCommit(time || null)}
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );

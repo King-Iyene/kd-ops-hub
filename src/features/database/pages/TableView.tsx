@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, useDeferredValue } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Toolbar } from '../components/Toolbar';
 import { ViewBar } from '../components/ViewBar';
 import { useDatabaseUI } from '../lib/store';
@@ -23,11 +24,18 @@ import {
   useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
-import type { RecordRow } from '../types';
+import type { FieldMeta, RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
+import { LinkDataContext, useBatchedLinks, type LinkDataValue } from '../hooks/useBatchedLinks';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 import { orgToday, orgNowIso } from '@/lib/format';
+import { defaultForNewRow } from '../lib/fieldDefaults';
+import { isUuid } from '../lib/shortId';
+import { createRecordDecorator } from '../lib/recordDecorator';
+import { viewGateOpen } from '../lib/prefetch';
+import { useEnsureTableBootstrap } from '../hooks/usePrefetchTable';
+import { DEFAULT_RECORDS_PAGE_SIZE } from '../hooks/useRecords';
 
 const KanbanView = lazy(() => import('../components/views/KanbanView'));
 const GalleryView = lazy(() => import('../components/views/GalleryView'));
@@ -81,6 +89,8 @@ function LinkedRecordExpandModal() {
 }
 
 export function TableView() {
+  // Only the settings this screen uses. Subscribing to the whole store re-rendered the table (and, through
+  // new callbacks, the whole grid) every time a cell was selected or edited.
   const {
     activeTableId,
     activeBaseId,
@@ -92,14 +102,28 @@ export function TableView() {
     searchQuery,
     fieldWidths,
     fieldOrder,
-  } = useDatabaseUI();
+  } = useDatabaseUI(
+    useShallow((s) => ({
+      activeTableId: s.activeTableId,
+      activeBaseId: s.activeBaseId,
+      activeViewId: s.activeViewId,
+      filters: s.filters,
+      filterGroups: s.filterGroups,
+      sorts: s.sorts,
+      hiddenFieldIds: s.hiddenFieldIds,
+      searchQuery: s.searchQuery,
+      fieldWidths: s.fieldWidths,
+      fieldOrder: s.fieldOrder,
+    })),
+  );
   const deferredSearch = useDeferredValue(searchQuery);
+  // First, so the combined table request is already on its way when the hooks below ask for the same data.
+  useEnsureTableBootstrap(activeBaseId, activeTableId);
   useActiveView(activeTableId);
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
-  const { data: fields } = useFields(activeTableId);
-  const { data: views } = useViews(activeTableId);
-  const linkLookup = useLinkDisplayLookup(activeBaseId, fields);
-  const pageSize = 100;
+  const { data: fields, isPlaceholderData: fieldsArePlaceholder } = useFields(activeTableId);
+  const { data: views, isPlaceholderData: viewsArePlaceholder, failureCount: viewsFailureCount } = useViews(activeTableId);
+  const pageSize = DEFAULT_RECORDS_PAGE_SIZE;
   const [galleryPage, setGalleryPage] = useState(0);
   const [fieldDialogOpen, setFieldDialogOpenRaw] = useState(false);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
@@ -141,45 +165,82 @@ export function TableView() {
 
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const initializedRef = useRef(false);
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
+
+  // Saving the view's settings must only happen when a person changed something.
+  // The old effect saved once for every page load (the saved settings arriving in
+  // the store looked like an edit), which is a needless database write each time.
+  const hydrateUntilRef = useRef(0);
+  const baselineSigRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // A new view: give its saved settings a moment to land in the store.
+    hydrateUntilRef.current = Date.now() + 1500;
+    baselineSigRef.current = null;
+  }, [activeViewId]);
 
   useEffect(() => {
     if (!activeViewId || !activeTableId) return;
-    // Skip the first render (view just loaded its config from server)
-    if (!initializedRef.current) {
-      initializedRef.current = true;
+    const fieldVisibility: Record<string, boolean> = {};
+    for (const fid of hiddenFieldIds) fieldVisibility[fid] = false;
+    const updates = {
+      filters,
+      sorts,
+      groups: groupByLevels,
+      field_visibility: fieldVisibility,
+      field_widths: fieldWidths,
+      field_order: fieldOrder,
+    };
+    const sig = JSON.stringify(updates);
+
+    // Same as what is already saved on the server: nothing to write.
+    if (activeView) {
+      const saved = activeView as unknown as Record<string, unknown>;
+      const savedSig = JSON.stringify({
+        filters: saved.filters ?? [],
+        sorts: saved.sorts ?? [],
+        groups: saved.groups ?? [],
+        field_visibility: saved.field_visibility ?? {},
+        field_widths: saved.field_widths ?? {},
+        field_order: saved.field_order ?? [],
+      });
+      if (sig === savedSig) {
+        baselineSigRef.current = sig;
+        return;
+      }
+    }
+    // Still loading the view's settings into the screen: remember them, do not save them back.
+    if (Date.now() < hydrateUntilRef.current || baselineSigRef.current === null) {
+      baselineSigRef.current = sig;
       return;
     }
+    if (sig === baselineSigRef.current) return;
+
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      const fieldVisibility: Record<string, boolean> = {};
-      for (const fid of hiddenFieldIds) fieldVisibility[fid] = false;
-      updateView.mutate({
-        id: activeViewId,
-        table_id: activeTableId,
-        updates: {
-          filters,
-          sorts,
-          groups: groupByLevels,
-          field_visibility: fieldVisibility,
-          field_widths: fieldWidths,
-          field_order: fieldOrder,
-        },
-      });
+      baselineSigRef.current = sig;
+      updateView.mutate({ id: activeViewId, table_id: activeTableId, updates });
     }, 2000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView, activeView]);
 
-  // Reset initialized flag when view changes
-  useEffect(() => {
-    initializedRef.current = false;
-  }, [activeViewId]);
+  // The table opens with no filters in the store and learns the default view's saved filters and sorts a
+  // moment later. Asking for rows in between wasted a request on the wrong filters and showed rows that then
+  // changed. The views arrive together with the columns, so holding back costs no network time (and the
+  // first page for the right filters is usually already loading, see prefetchTable).
+  const viewsReady = viewGateOpen({
+    views,
+    viewsArePlaceholder,
+    viewsFailed: viewsFailureCount > 0,
+    activeViewId,
+  });
 
   const {
     records: infiniteRecords,
     totalCount: infiniteTotalCount,
-    isLoading,
+    data: recordsData,
+    isLoading: recordsQueryLoading,
+    isPlaceholderData: recordsArePlaceholder,
     isError,
     refetch,
     fetchNextPage,
@@ -193,7 +254,13 @@ export function TableView() {
     filterGroups: filterGroups.length > 0 ? filterGroups : undefined,
     sorts: sorts.length > 0 ? sorts : undefined,
     search: deferredSearch || undefined,
+    enabled: viewsReady,
   });
+  // A held-back request is not 'loading' as far as the query knows; the screen still must not call it empty.
+  const isLoading = recordsQueryLoading || (!viewsReady && !recordsData);
+
+  // Names for old Airtable-style link ids. Loaded after the first rows so it never delays them.
+  const linkLookup = useLinkDisplayLookup(activeBaseId, fields, !isLoading);
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
@@ -239,6 +306,63 @@ export function TableView() {
     [patchedFields, hiddenFieldIds],
   );
 
+  // Link fields get a stable column key even when they have no physical column,
+  // so formulas such as {Month} & " — " & {Category} can read them.
+  const linkColumnOf = useCallback(
+    (f: FieldMeta) => f.pg_column_name || `__link_${f.id}`,
+    [],
+  );
+
+  // Which link columns to load in bulk: the ones on screen, the ones a formula
+  // reads, and (for views that show every field) all of them.
+  const storedViewType = useDatabaseUI((s) => s.activeViewType);
+  const linkFieldsToLoad = useMemo(() => {
+    const all = patchedFields.filter((f) => f.ui_type === 'Links' && !!f.options?.relatedTableId);
+    if (all.length === 0) return all;
+    const kind = activeView?.type ?? storedViewType ?? 'grid';
+    if (kind !== 'grid' && kind !== 'kanban' && kind !== 'gallery') return all;
+    const formulaText = patchedFields
+      .filter((f) => f.ui_type === 'Formula')
+      .map((f) => String(f.options?.expression || f.options?.formula || ''))
+      .join('\n');
+    const visibleIds = new Set(visibleFields.map((f) => f.id));
+    return all.filter((f) => visibleIds.has(f.id) || formulaText.includes(`{${f.name}}`));
+  }, [patchedFields, visibleFields, activeView?.type, storedViewType]);
+
+  // Real row ids only (a row being added briefly has a temporary id that is not a uuid), and a
+  // list that keeps its identity while rows are edited so the link queries are not rebuilt.
+  const idList = useMemo(
+    () => infiniteRecords.map((r) => r.id).filter((id) => isUuid(String(id))).join(','),
+    [infiniteRecords],
+  );
+  const recordIds = useMemo(() => (idList ? idList.split(',') : []), [idList]);
+  const { links: batchedLinks, isLoading: linksLoading } = useBatchedLinks(
+    activeBaseId,
+    linkFieldsToLoad,
+    recordIds,
+  );
+
+  const linkData = useMemo<LinkDataValue>(
+    () => ({
+      links: batchedLinks,
+      isLoading: linksLoading,
+      fieldIds: new Set(linkFieldsToLoad.map((f) => f.id)),
+    }),
+    [batchedLinks, linksLoading, linkFieldsToLoad],
+  );
+
+  // id -> readable name for every record the formulas might touch.
+  const mergedLookup = useMemo(() => {
+    if (batchedLinks.size === 0) return linkLookup;
+    const merged: Record<string, string> = { ...linkLookup };
+    for (const perRecord of batchedLinks.values()) {
+      for (const items of perRecord.values()) {
+        for (const item of items) merged[item.id] = item.label;
+      }
+    }
+    return merged;
+  }, [linkLookup, batchedLinks]);
+
   const formulaParsed = useMemo(() => {
     if (!patchedFields || patchedFields.length === 0) return null;
     const formulaFields = patchedFields.filter(
@@ -247,7 +371,8 @@ export function TableView() {
     if (formulaFields.length === 0) return null;
     const fieldMap: Record<string, string> = {};
     for (const f of patchedFields) {
-      if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
+      if (f.ui_type === 'Links') fieldMap[f.name] = linkColumnOf(f);
+      else if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
     }
     const parsed = formulaFields.map((f) => {
       try {
@@ -257,36 +382,37 @@ export function TableView() {
       }
     });
     return { parsed, fieldMap };
-  }, [patchedFields]);
+  }, [patchedFields, linkColumnOf]);
+
+  // Rows plus what the grid derives for them (link ids, formula results, readable names). The decorator
+  // remembers each row with what it was built from, so a page arriving, a link chunk finishing or the names
+  // lookup growing only rebuilds the rows it actually touches; unchanged rows keep their identity and the
+  // memoised grid rows skip rendering. Formulas are evaluated once per row version, not on every change.
+  const decoratorRef = useRef<ReturnType<typeof createRecordDecorator>>();
+  if (!decoratorRef.current) decoratorRef.current = createRecordDecorator();
 
   const records = useMemo(() => {
     const raw = infiniteRecords;
     if (!patchedFields || patchedFields.length === 0) return raw;
 
-    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
+    // The links table is the source of truth for link columns, so it replaces the stored ids once loaded.
+    // Without formulas nothing reads those columns, so (as before) they are left alone.
+    const linkColumns = formulaParsed
+      ? linkFieldsToLoad
+          .filter((f) => batchedLinks.has(f.id))
+          .map((f) => ({ fieldId: f.id, column: linkColumnOf(f) }))
+      : [];
 
-    if (!formulaParsed) {
-      if (!hasLookup) return raw;
-      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
-    }
-
-    const { parsed, fieldMap } = formulaParsed;
-    return raw.map((record) => {
-      const patched = { ...record, __linkLookup: linkLookup } as any;
-      for (const { col, ast } of parsed) {
-        if (!ast) {
-          patched[col] = '#ERROR';
-          continue;
-        }
-        try {
-          patched[col] = evaluateFormula(ast, patched, fieldMap);
-        } catch {
-          patched[col] = '#ERROR';
-        }
-      }
-      return patched as RecordRow;
-    });
-  }, [infiniteRecords, patchedFields, linkLookup, formulaParsed]);
+    return decoratorRef.current!.decorate(raw, {
+      formulas: formulaParsed?.parsed ?? [],
+      fieldMap: formulaParsed?.fieldMap ?? {},
+      linkColumns,
+      getLinkItems: (fieldId, recordId) => batchedLinks.get(fieldId)?.get(recordId),
+      lookup: mergedLookup,
+      evaluate: evaluateFormula,
+      structure: [formulaParsed],
+    }) as RecordRow[];
+  }, [infiniteRecords, patchedFields, mergedLookup, formulaParsed, linkFieldsToLoad, batchedLinks, linkColumnOf]);
 
   // Auto-expand record from URL deep link (?rowId=...)
   const deepLinkedRef = useRef(false);
@@ -303,15 +429,23 @@ export function TableView() {
     }
   }, [records]);
 
+  // Read the latest rows and fields through refs so this callback keeps one identity: it is handed to every
+  // cell, and a new one on each change of the rows re-rendered every visible cell.
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
+  const updateRecordMutate = updateRecord.mutate;
+
   const handleCellUpdate = useCallback(
     (recordId: string, fieldId: string, value: any) => {
-      const field = fields?.find((f) => f.id === fieldId);
+      const field = fieldsRef.current?.find((f) => f.id === fieldId);
       if (!field || !activeBaseId || !activeTableId) return;
 
-      const record = records.find((r: RecordRow) => r.id === recordId);
+      const record = recordsRef.current.find((r: RecordRow) => r.id === recordId);
       const oldValue = record?.[field.pg_column_name];
 
-      updateRecord.mutate({
+      updateRecordMutate({
         baseId: activeBaseId,
         tableId: activeTableId,
         recordId,
@@ -323,7 +457,7 @@ export function TableView() {
         type: 'cell_update',
         payload: { recordId, fieldId, oldValue, newValue: value },
         undo: async () => {
-          updateRecord.mutate({
+          updateRecordMutate({
             baseId: activeBaseId,
             tableId: activeTableId,
             recordId,
@@ -332,7 +466,7 @@ export function TableView() {
           });
         },
         redo: async () => {
-          updateRecord.mutate({
+          updateRecordMutate({
             baseId: activeBaseId,
             tableId: activeTableId,
             recordId,
@@ -342,20 +476,18 @@ export function TableView() {
         },
       });
     },
-    [fields, activeBaseId, activeTableId, updateRecord, records, pushUndo],
+    [activeBaseId, activeTableId, updateRecordMutate, pushUndo],
   );
 
   const handleAddRow = useCallback(
     (record?: Record<string, any>) => {
       if (!activeBaseId || !activeTableId) return;
       const defaults: Record<string, any> = {};
+      const today = orgToday();
+      const nowIso = orgNowIso();
       for (const f of fields ?? []) {
-        if (f.is_system) continue;
-        const opts = f.options as any;
-        if (opts?.defaultToCurrentDate) {
-          if (f.ui_type === 'Date') defaults[f.pg_column_name] = orgToday();
-          else if (f.ui_type === 'DateTime') defaults[f.pg_column_name] = orgNowIso();
-        }
+        const value = defaultForNewRow(f, today, nowIso);
+        if (value !== undefined) defaults[f.pg_column_name] = value;
       }
       const merged = { ...defaults, ...record };
       createRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, record: merged }).then((created) => {
@@ -394,9 +526,10 @@ export function TableView() {
 
   const handleUpdateFieldOptions = useCallback(
     (fieldId: string, options: any) => {
-      updateField.mutate({ id: fieldId, options });
+      if (!activeTableId) return;
+      updateField.mutate({ id: fieldId, table_id: activeTableId, updates: { options } });
     },
-    [updateField],
+    [updateField, activeTableId],
   );
 
   const handleDuplicateRow = useCallback(
@@ -489,6 +622,7 @@ export function TableView() {
 
   const activeViewType = useDatabaseUI((s) => s.activeViewType);
   const viewType = activeView?.type ?? activeViewType ?? 'grid';
+  const handleAddField = useCallback(() => setFieldDialogOpen(true), [setFieldDialogOpen]);
 
   const renderView = () => {
     switch (viewType) {
@@ -574,7 +708,7 @@ export function TableView() {
             isLoading={isLoading}
             onCellUpdate={handleCellUpdate}
             onAddRow={handleAddRow}
-            onAddField={() => setFieldDialogOpen(true)}
+            onAddField={handleAddField}
             onExpandRow={setExpandedRecord}
             onDeleteRow={handleDeleteRow}
             onDuplicateRow={handleDuplicateRow}
@@ -584,7 +718,9 @@ export function TableView() {
             onReorderFields={handleReorderFields}
             onPasteRows={handlePasteRows}
             onLoadMore={fetchNextPage}
-            hasMore={!!hasNextPage}
+            // While the old rows of the previous filter are still showing there is no next page of the new ones.
+            hasMore={!!hasNextPage && !recordsArePlaceholder}
+            fieldsAreCurrent={!fieldsArePlaceholder}
             isLoadingMore={isFetchingNextPage}
             onReorderRows={handleReorderRows}
           />
@@ -607,7 +743,17 @@ export function TableView() {
               Retry
             </button>
           </div>
-        ) : <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>}
+        ) : (
+          <LinkDataContext.Provider value={linkData}>
+            <div
+              className="flex-1 min-h-0 flex flex-col"
+              style={recordsArePlaceholder ? { opacity: 0.6, transition: 'opacity 150ms' } : undefined}
+              aria-busy={recordsArePlaceholder || undefined}
+            >
+              <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>
+            </div>
+          </LinkDataContext.Provider>
+        )}
       </div>
       <Suspense fallback={null}>
         {!!expandedRecord && (

@@ -117,7 +117,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'general'
-                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('general')}
@@ -128,7 +128,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'backups'
-                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('backups')}
@@ -139,7 +139,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'api'
-                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('api')}
@@ -150,7 +150,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             className={cn(
               'px-3 py-1.5 text-xs font-medium border-b-2 transition-colors -mb-px',
               tab === 'webhooks'
-                ? 'border-[#2D7FF9] text-[#2D7FF9]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-[#6A7184] dark:text-[hsl(220,20%,55%)] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]',
             )}
             onClick={() => setTab('webhooks')}
@@ -197,7 +197,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     title={c.name}
                     className={cn(
                       'w-7 h-7 rounded-full transition-transform',
-                      color === c.value && 'ring-2 ring-offset-2 ring-[#2D7FF9] dark:ring-offset-[hsl(220,30%,10%)] scale-110',
+                      color === c.value && 'ring-2 ring-offset-2 ring-primary dark:ring-offset-[hsl(220,30%,10%)] scale-110',
                     )}
                     style={{ backgroundColor: c.value }}
                     onClick={() => setColor(c.value)}
@@ -216,7 +216,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
                     type="button"
                     className={cn(
                       'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-muted transition-colors',
-                      icon === emoji && 'ring-2 ring-[#2D7FF9] bg-[#2D7FF9]/5',
+                      icon === emoji && 'ring-2 ring-primary bg-primary/5',
                     )}
                     onClick={() => setIcon(emoji)}
                   >
@@ -307,7 +307,7 @@ export function BaseSettingsDialog({ open, onOpenChange, base }: BaseSettingsDia
             </Button>
             <Button
               size="sm"
-              className="bg-[#2D7FF9] hover:bg-[#2952CC]"
+              className="bg-primary hover:bg-primary/80"
               onClick={handleSave}
               disabled={updateBase.isPending}
             >
@@ -349,7 +349,7 @@ function BackupsTab({ baseId }: { baseId: string }) {
           />
           <Button
             size="sm"
-            className="bg-[#2D7FF9] hover:bg-[#2952CC] shrink-0"
+            className="bg-primary hover:bg-primary/80 shrink-0"
             onClick={handleCreate}
             disabled={createSnapshot.isPending}
           >
@@ -527,7 +527,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
     <div className="space-y-4">
       <div className="rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9FAFB] dark:bg-[hsl(220,30%,8%)] p-3 space-y-1">
         <p className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex items-center gap-1.5">
-          <Webhook size={13} className="text-[#2D7FF9]" /> Webhooks
+          <Webhook size={13} className="text-primary" /> Webhooks
         </p>
         <p className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
           Send HTTP POST requests to external URLs when records are created, updated, or deleted.
@@ -538,13 +538,13 @@ function WebhooksTab({ baseId }: { baseId: string }) {
       {!showForm ? (
         <Button
           size="sm"
-          className="bg-[#2D7FF9] hover:bg-[#2952CC] w-full"
+          className="bg-primary hover:bg-primary/80 w-full"
           onClick={() => setShowForm(true)}
         >
           <Plus size={12} className="mr-1" /> Add Webhook
         </Button>
       ) : (
-        <div className="rounded-lg border border-[#2D7FF9]/30 bg-[#F0F3FF] dark:bg-[hsl(220,30%,12%)] p-3 space-y-3">
+        <div className="rounded-lg border border-primary/30 bg-[#F0F3FF] dark:bg-[hsl(220,30%,12%)] p-3 space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Name</Label>
             <Input
@@ -572,7 +572,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                   className={cn(
                     'px-2 py-1 rounded text-2xs border transition-colors',
                     newEvents.includes(ev.value)
-                      ? 'bg-[#2D7FF9] text-white border-[#2D7FF9]'
+                      ? 'bg-primary text-white border-primary'
                       : 'bg-white dark:bg-[hsl(220,30%,10%)] border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#6A7184]',
                   )}
                   onClick={() => toggleEvent(ev.value)}
@@ -594,7 +594,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
           <div className="flex gap-2">
             <Button
               size="sm"
-              className="bg-[#2D7FF9] hover:bg-[#2952CC]"
+              className="bg-primary hover:bg-primary/80"
               onClick={handleCreate}
               disabled={creating || !newName.trim() || !newUrl.trim() || !newEvents.length}
             >
@@ -630,7 +630,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                   <p className="text-3xs text-muted-foreground font-mono truncate">{hook.url}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {hook.events.map(ev => (
-                      <span key={ev} className="text-3xs px-1.5 py-0.5 rounded-full bg-[#2D7FF9]/10 text-[#2D7FF9]">
+                      <span key={ev} className="text-3xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                         {ev.replace('record.', '')}
                       </span>
                     ))}
@@ -648,7 +648,7 @@ function WebhooksTab({ baseId }: { baseId: string }) {
                     title={hook.is_active ? 'Disable' : 'Enable'}
                   >
                     {hook.is_active
-                      ? <ToggleRight size={18} className="text-[#2D7FF9]" />
+                      ? <ToggleRight size={18} className="text-primary" />
                       : <ToggleLeft size={18} className="text-muted-foreground" />
                     }
                   </button>
@@ -826,7 +826,7 @@ function ApiKeysTab({ workspaceId, baseSchemaName }: { workspaceId: string; base
           />
           <Button
             size="sm"
-            className="bg-[#2D7FF9] hover:bg-[#2952CC] shrink-0"
+            className="bg-primary hover:bg-primary/80 shrink-0"
             onClick={handleCreate}
             disabled={creating || !newKeyName.trim()}
           >

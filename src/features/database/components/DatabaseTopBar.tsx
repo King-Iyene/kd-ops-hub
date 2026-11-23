@@ -120,7 +120,7 @@ export function DatabaseTopBar() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold flex items-center gap-2">
-              <Share2 size={16} className="text-[#2D7FF9]" />
+              <Share2 size={16} className="text-primary" />
               Share {activeBase?.name ? `"${activeBase.name}"` : 'base'}
             </DialogTitle>
           </DialogHeader>
@@ -141,7 +141,7 @@ export function DatabaseTopBar() {
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs gap-1.5"
-                  style={{ backgroundColor: '#2D7FF9' }}
+                  style={{ backgroundColor: 'hsl(var(--primary))' }}
                   onClick={handleCopyLink}
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -171,13 +171,13 @@ export function DatabaseTopBar() {
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold flex items-center gap-2">
-              <HelpCircle size={16} className="text-[#2D7FF9]" />
+              <HelpCircle size={16} className="text-primary" />
               Help &amp; Shortcuts
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="rounded-lg border border-[#2D7FF9]/20 bg-[#2D7FF9]/5 dark:bg-[#2D7FF9]/10 p-3">
-              <p className="text-xs font-semibold text-[#2D7FF9] mb-1.5">Quick tips</p>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-3">
+              <p className="text-xs font-semibold text-primary mb-1.5">Quick tips</p>
               <ul className="text-2xs text-[#374151] dark:text-[hsl(220,25%,80%)] space-y-1 list-disc pl-3.5">
                 <li>Click the <strong>+</strong> at the end of the header row to add a new field</li>
                 <li>Right-click any column header or row for context menus</li>

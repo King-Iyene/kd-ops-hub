@@ -168,7 +168,7 @@ function ConditionRow({
         {index === 0 ? 'When' : 'AND'}
       </span>
       <select
-        className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+        className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
         value={condition.field_id}
         onChange={(e) => onChange({ ...condition, field_id: e.target.value })}
       >
@@ -178,7 +178,7 @@ function ConditionRow({
         ))}
       </select>
       <select
-        className="w-[130px] shrink-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+        className="w-[130px] shrink-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
         value={condition.operator}
         onChange={(e) => onChange({ ...condition, operator: e.target.value as AutomationConditionOp })}
       >
@@ -188,7 +188,7 @@ function ConditionRow({
       </select>
       {needsValue && (
         <input
-          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
           value={String(condition.value ?? '')}
           onChange={(e) => onChange({ ...condition, value: e.target.value })}
           placeholder="Value..."
@@ -231,7 +231,7 @@ function ConditionBuilder({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 mb-1">
-        <Filter size={12} className="text-[#2D7FF9]" />
+        <Filter size={12} className="text-primary" />
         <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Conditions</label>
       </div>
 
@@ -255,7 +255,7 @@ function ConditionBuilder({
       </div>
 
       <button
-        className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors mt-1"
+        className="flex items-center gap-1 text-2xs text-primary hover:text-[#1a5fd4] transition-colors mt-1"
         onClick={addCondition}
       >
         <Plus size={11} /> Add condition
@@ -300,13 +300,13 @@ function ActionConfigForm({
           {(!c._showCc || !c._showBcc || !c._showReplyTo) && (
             <div className="flex items-center gap-2 flex-wrap">
               {!c._showCc && (
-                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showCc', true)}>+ CC</button>
+                <button className="text-2xs text-primary hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showCc', true)}>+ CC</button>
               )}
               {!c._showBcc && (
-                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showBcc', true)}>+ BCC</button>
+                <button className="text-2xs text-primary hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showBcc', true)}>+ BCC</button>
               )}
               {!c._showReplyTo && (
-                <button className="text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showReplyTo', true)}>+ Reply-To</button>
+                <button className="text-2xs text-primary hover:text-[#1a5fd4] transition-colors" onClick={() => set('_showReplyTo', true)}>+ Reply-To</button>
               )}
             </div>
           )}
@@ -323,7 +323,7 @@ function ActionConfigForm({
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Method</label>
             <select
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-[hsl(220,25%,13%)]"
               value={c.method ?? 'POST'}
               onChange={(e) => set('method', e.target.value)}
             >
@@ -340,7 +340,7 @@ function ActionConfigForm({
                 <input
                   type="radio"
                   name={`webhook-body-${action.id}`}
-                  className="accent-[#2D7FF9]"
+                  className="accent-primary"
                   checked={c.body_type !== 'custom'}
                   onChange={() => set('body_type', 'auto')}
                 />
@@ -350,7 +350,7 @@ function ActionConfigForm({
                 <input
                   type="radio"
                   name={`webhook-body-${action.id}`}
-                  className="accent-[#2D7FF9]"
+                  className="accent-primary"
                   checked={c.body_type === 'custom'}
                   onChange={() => set('body_type', 'custom')}
                 />
@@ -379,7 +379,7 @@ function ActionConfigForm({
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Record to update</label>
             <select
-              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+              className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-[hsl(220,25%,13%)]"
               value={c.record_id ?? '{{record.id}}'}
               onChange={(e) => set('record_id', e.target.value)}
             >
@@ -388,7 +388,7 @@ function ActionConfigForm({
             </select>
             {c.record_id === '_custom' && (
               <input
-                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                className="w-full mt-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
                 value={c.custom_record_id ?? ''}
                 onChange={(e) => set('custom_record_id', e.target.value)}
                 placeholder="Paste record UUID"
@@ -402,7 +402,7 @@ function ActionConfigForm({
           {updates.map((u, i) => (
             <div key={i} className="flex items-center gap-1.5">
               <select
-                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
                 value={u.field_id}
                 onChange={(e) => updateField(i, 'field_id', e.target.value)}
               >
@@ -424,7 +424,7 @@ function ActionConfigForm({
             </div>
           ))}
           <button
-            className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+            className="flex items-center gap-1 text-2xs text-primary hover:text-[#1a5fd4] transition-colors"
             onClick={addUpdate}
           >
             <Plus size={11} /> Add field
@@ -452,7 +452,7 @@ function ActionConfigForm({
           {pairs.map((pair, i) => (
             <div key={i} className="flex items-center gap-1.5">
               <select
-                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
                 value={pair.field_id}
                 onChange={(e) => updatePair(i, 'field_id', e.target.value)}
               >
@@ -474,7 +474,7 @@ function ActionConfigForm({
             </div>
           ))}
           <button
-            className="flex items-center gap-1 text-2xs text-[#2D7FF9] hover:text-[#1a5fd4] transition-colors"
+            className="flex items-center gap-1 text-2xs text-primary hover:text-[#1a5fd4] transition-colors"
             onClick={addPair}
           >
             <Plus size={11} /> Add field
@@ -513,7 +513,7 @@ function ActionConfigForm({
                       type="checkbox"
                       checked={recipientIds.includes(p.id)}
                       onChange={() => toggleRecipient(p.id)}
-                      className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,25%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
+                      className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,25%)] text-primary focus:ring-primary h-3.5 w-3.5"
                     />
                     <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] truncate">{p.full_name}</span>
                   </label>
@@ -545,12 +545,12 @@ function ActionConfigForm({
               <input
                 type="number"
                 min={1}
-                className="w-20 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                className="w-20 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
                 value={c.amount ?? 5}
                 onChange={(e) => set('amount', Math.max(1, parseInt(e.target.value) || 1))}
               />
               <select
-                className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
                 value={c.unit ?? 'minutes'}
                 onChange={(e) => set('unit', e.target.value)}
               >
@@ -589,7 +589,7 @@ function ActionConfigForm({
           <div>
             <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Log level</label>
             <select
-              className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+              className="px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
               value={c.level ?? 'info'}
               onChange={(e) => set('level', e.target.value)}
             >
@@ -614,7 +614,7 @@ function ActionConfigForm({
             {conditions.map((cond, ci) => (
               <div key={ci} className="flex items-center gap-2 mb-1.5">
                 <select
-                  className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                  className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary"
                   value={cond.field_id}
                   onChange={(e) => {
                     const next = [...conditions];
@@ -626,7 +626,7 @@ function ActionConfigForm({
                   {fields?.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 <select
-                  className="w-32 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                  className="w-32 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary"
                   value={cond.operator}
                   onChange={(e) => {
                     const next = [...conditions];
@@ -638,7 +638,7 @@ function ActionConfigForm({
                 </select>
                 {CONDITION_OPERATORS.find((op) => op.value === cond.operator)?.needsValue !== false && (
                   <input
-                    className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                    className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Value"
                     value={String(cond.value ?? '')}
                     onChange={(e) => {
@@ -657,7 +657,7 @@ function ActionConfigForm({
               </div>
             ))}
             <button
-              className="text-2xs text-[#2D7FF9] hover:underline"
+              className="text-2xs text-primary hover:underline"
               onClick={() => onChange({ ...c, conditions: [...conditions, { field_id: '', operator: 'equals' as AutomationConditionOp, value: '' }] })}
             >
               + Add condition
@@ -667,7 +667,7 @@ function ActionConfigForm({
             <div className="flex items-center gap-2">
               <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Match</label>
               <select
-                className="px-2 py-1 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                className="px-2 py-1 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus bg-white dark:bg-[hsl(220,25%,13%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary"
                 value={c.logic ?? 'AND'}
                 onChange={(e) => onChange({ ...c, logic: e.target.value })}
               >
@@ -785,7 +785,7 @@ function _InputRow({ label, value, onChange, placeholder }: { label: string; val
     <div>
       <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">{label}</label>
       <input
-        className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+        className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -940,7 +940,7 @@ function VariablePicker({ fields, onInsert }: {
       <button
         ref={btnRef}
         type="button"
-        className="group flex items-center gap-1.5 text-2xs font-medium transition-all duration-150 px-2 py-1 rounded-md bg-[#2D7FF9]/8 hover:bg-[#2D7FF9]/15 text-[#2D7FF9] dark:bg-[#2D7FF9]/12 dark:hover:bg-[#2D7FF9]/20 border border-[#2D7FF9]/15 hover:border-[#2D7FF9]/30"
+        className="group flex items-center gap-1.5 text-2xs font-medium transition-all duration-150 px-2 py-1 rounded-md bg-primary/8 hover:bg-primary/15 text-primary dark:bg-primary/12 dark:hover:bg-primary/20 border border-primary/15 hover:border-primary/30"
         onClick={() => setOpen(!open)}
         title="Insert dynamic variable"
       >
@@ -961,7 +961,7 @@ function VariablePicker({ fields, onInsert }: {
               <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" />
               <input
                 ref={searchRef}
-                className="w-full pl-7 pr-2.5 py-1.5 rounded-lg bg-[#F4F4F5] dark:bg-[hsl(220,25%,14%)] border border-transparent focus:border-[#2D7FF9]/30 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)] transition-colors"
+                className="w-full pl-7 pr-2.5 py-1.5 rounded-lg bg-[#F4F4F5] dark:bg-[hsl(220,25%,14%)] border border-transparent focus:border-primary/30 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)] transition-colors"
                 placeholder="Search variables..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -985,14 +985,14 @@ function VariablePicker({ fields, onInsert }: {
                       data-active={idx === focusIdx}
                       className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2.5 transition-colors ${
                         idx === focusIdx
-                          ? 'bg-[#2D7FF9]/10 dark:bg-[#2D7FF9]/15'
+                          ? 'bg-primary/10 dark:bg-primary/15'
                           : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]'
                       }`}
                       onClick={() => handleSelect(item)}
                       onMouseEnter={() => setFocusIdx(idx)}
                     >
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-[#EBF0FF] dark:bg-[#2D7FF9]/15">
-                        <Icon size={12} className="text-[#2D7FF9]" />
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-[#EBF0FF] dark:bg-primary/15">
+                        <Icon size={12} className="text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] block truncate">{item.label}</span>
@@ -1017,7 +1017,7 @@ function VariablePicker({ fields, onInsert }: {
                       data-active={idx === focusIdx}
                       className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2.5 transition-colors ${
                         idx === focusIdx
-                          ? 'bg-[#2D7FF9]/10 dark:bg-[#2D7FF9]/15'
+                          ? 'bg-primary/10 dark:bg-primary/15'
                           : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]'
                       }`}
                       onClick={() => handleSelect(item)}
@@ -1052,7 +1052,7 @@ function VariableChip({ text }: { text: string }) {
   return (
     <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-3xs font-medium ${
       isSystem
-        ? 'bg-[#EBF0FF] text-[#2D7FF9] dark:bg-[#2D7FF9]/15 dark:text-[#60A5FA]'
+        ? 'bg-[#EBF0FF] text-primary dark:bg-primary/15 dark:text-[#60A5FA]'
         : 'bg-[#F0FDF4] text-[#15803D] dark:bg-[#16A34A]/15 dark:text-[#4ADE80]'
     }`}>
       <Braces size={8} className="opacity-60" />
@@ -1092,7 +1092,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
     }
   }, [value, onChange]);
 
-  const cls = "w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]";
+  const cls = "w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]";
 
   return (
     <div>
@@ -1125,7 +1125,7 @@ function InputWithPlaceholders({ label, value, onChange, placeholder, fields, mu
 function HelpTip({ text }: { text: string }) {
   return (
     <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-md text-2xs text-[#6A7184] dark:text-[hsl(220,20%,55%)] bg-[#F9FAFB] dark:bg-[hsl(220,25%,12%)] leading-relaxed">
-      <Info size={11} className="shrink-0 mt-0.5 text-[#2D7FF9]" />
+      <Info size={11} className="shrink-0 mt-0.5 text-primary" />
       <span>{text}</span>
     </div>
   );
@@ -1428,12 +1428,12 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
           <div className="w-[260px] border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col shrink-0 bg-white dark:bg-[hsl(220,30%,8%)]">
             <div className="px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center justify-between">
               <span className="text-xs-plus font-semibold flex items-center gap-1.5 text-[#374151] dark:text-[hsl(220,25%,88%)]">
-                <Zap size={14} className="text-[#2D7FF9]" /> Automations
+                <Zap size={14} className="text-primary" /> Automations
               </span>
               <Button
                 size="sm"
                 className="h-6 w-6 p-0"
-                style={{ backgroundColor: '#2D7FF9' }}
+                style={{ backgroundColor: 'hsl(var(--primary))' }}
                 onClick={handleCreate}
                 title="New automation"
               >
@@ -1506,7 +1506,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       backgroundColor: isSelected
                         ? (isDark ? 'hsl(217,40%,16%)' : '#EBF0FF')
                         : 'transparent',
-                      borderLeft: isSelected ? '2px solid #2D7FF9' : '2px solid transparent',
+                      borderLeft: isSelected ? '2px solid hsl(var(--primary))' : '2px solid transparent',
                       opacity: a.enabled ? 1 : 0.55,
                     }}
                     onClick={() => selectAutomation(a)}
@@ -1536,7 +1536,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       </div>
                       <button
                         className="shrink-0 w-7 h-4 rounded-full relative transition-colors"
-                        style={{ backgroundColor: a.enabled ? '#2D7FF9' : (isDark ? 'hsl(220,25%,25%)' : '#D1D5DB') }}
+                        style={{ backgroundColor: a.enabled ? 'hsl(var(--primary))' : (isDark ? 'hsl(220,25%,25%)' : '#D1D5DB') }}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggle(a);
@@ -1581,7 +1581,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center px-8">
                   <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: isDark ? 'hsl(220,25%,15%)' : '#EBF5FF' }}>
-                    <Zap size={22} className="text-[#2D7FF9]" />
+                    <Zap size={22} className="text-primary" />
                   </div>
                   <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] mb-1">No automation selected</p>
                   <p className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Select an automation from the list or create a new one to get started.</p>
@@ -1596,7 +1596,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   </div>
                   <div className="flex-1 min-w-0">
                     <input
-                      className="w-full px-1 py-0.5 -ml-1 rounded text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] bg-transparent border border-transparent hover:border-[#E5E5E5] dark:hover:border-[hsl(220,25%,25%)] focus:border-[#2D7FF9] outline-none transition-colors"
+                      className="w-full px-1 py-0.5 -ml-1 rounded text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] bg-transparent border border-transparent hover:border-[#E5E5E5] dark:hover:border-[hsl(220,25%,25%)] focus:border-primary outline-none transition-colors"
                       value={draft.name}
                       onChange={(e) => updateDraft({ name: e.target.value })}
                       placeholder="Automation name..."
@@ -1643,7 +1643,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     <span>You have unsaved changes</span>
                     <button
                       className="ml-auto px-2.5 py-0.5 rounded text-2xs font-medium transition-colors"
-                      style={{ backgroundColor: '#2D7FF9', color: '#fff' }}
+                      style={{ backgroundColor: 'hsl(var(--primary))', color: '#fff' }}
                       onClick={handleSave}
                     >
                       Save now
@@ -1655,7 +1655,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                 <div>
                   <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Trigger</label>
                   <select
-                    className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+                    className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-[hsl(220,25%,13%)]"
                     value={draft.trigger_type}
                     onChange={(e) => updateDraft({ trigger_type: e.target.value as Automation['trigger_type'], trigger_config: {} })}
                   >
@@ -1679,7 +1679,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   <div>
                     <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Watch field</label>
                     <select
-                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-[#2D7FF9] bg-white dark:bg-[hsl(220,25%,13%)]"
+                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-[hsl(220,25%,13%)]"
                       value={(draft.trigger_config as any).field_id ?? ''}
                       onChange={(e) => updateDraft({ trigger_config: { ...draft.trigger_config, field_id: e.target.value } })}
                     >
@@ -1695,7 +1695,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   <div className="space-y-2">
                     <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Cron expression</label>
                     <input
-                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] font-mono outline-none focus:ring-1 focus:ring-[#2D7FF9] placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+                      className="w-full px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] font-mono outline-none focus:ring-1 focus:ring-primary placeholder:text-[#9CA3AF] dark:placeholder:text-[hsl(220,20%,40%)]"
                       value={(draft.trigger_config as any).cron ?? ''}
                       onChange={(e) => updateDraft({ trigger_config: { ...draft.trigger_config, cron: e.target.value } })}
                       placeholder="0 * * * *"
@@ -1728,7 +1728,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                           onClick={(e) => (e.target as HTMLInputElement).select()}
                         />
                         <button
-                          className="shrink-0 px-2.5 py-1.5 rounded-md text-2xs font-medium bg-[#2D7FF9] text-white hover:bg-[#1a5fd4] transition-colors"
+                          className="shrink-0 px-2.5 py-1.5 rounded-md text-2xs font-medium bg-primary text-white hover:bg-[#1a5fd4] transition-colors"
                           onClick={() => {
                             const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-inflow?automation_id=${draft.id}`;
                             navigator.clipboard.writeText(url);
@@ -1747,7 +1747,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       <label className="text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,55%)] block mb-1">Secret (required)</label>
                       <div className="flex items-center gap-2">
                         <input
-                          className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-[#2D7FF9]"
+                          className="flex-1 px-2.5 py-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-xs font-mono text-[#374151] dark:text-[hsl(220,25%,88%)] bg-white dark:bg-[hsl(220,25%,13%)] outline-none focus:ring-1 focus:ring-primary"
                           value={(draft.trigger_config as any).secret ?? ''}
                           onChange={(e) => updateDraft({ trigger_config: { ...draft.trigger_config, secret: e.target.value } })}
                           placeholder="Shared secret for HMAC verification"
@@ -1779,7 +1779,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                       <Button
                         size="sm"
                         className="h-6 px-2 text-2xs gap-1"
-                        style={{ backgroundColor: '#2D7FF9' }}
+                        style={{ backgroundColor: 'hsl(var(--primary))' }}
                         onClick={() => setShowActionPicker(!showActionPicker)}
                       >
                         <Plus size={11} /> Add action <ChevronDown size={10} />
@@ -1847,14 +1847,14 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                             }}
                             onDragEnd={() => setDragActionId(null)}
                           >
-                            <div className={`ml-10 rounded-lg border bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden transition-all ${dragActionId === action.id ? 'opacity-40 border-[#2D7FF9] scale-[0.98]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]'}`}>
+                            <div className={`ml-10 rounded-lg border bg-white dark:bg-[hsl(220,25%,13%)] overflow-hidden transition-all ${dragActionId === action.id ? 'opacity-40 border-primary scale-[0.98]' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]'}`}>
                               {/* Step number circle on the connecting line */}
                               <div
                                 className="absolute left-[12px] top-3 w-[15px] h-[15px] rounded-full flex items-center justify-center text-3xs font-bold z-10 border-2"
                                 style={{
                                   backgroundColor: isDark ? 'hsl(220,30%,10%)' : '#fff',
-                                  borderColor: '#2D7FF9',
-                                  color: '#2D7FF9',
+                                  borderColor: 'hsl(var(--primary))',
+                                  color: 'hsl(var(--primary))',
                                 }}
                               >
                                 {idx + 1}
@@ -1871,7 +1871,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                                 <GripVertical size={12} className="text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 cursor-grab active:cursor-grabbing" />
                                 <ChevronRight size={12} className={`text-[#9CA3AF] dark:text-[hsl(220,20%,40%)] shrink-0 transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
                                 <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'hsl(217,40%,18%)' : '#EBF5FF' }}>
-                                  <Icon size={12} className="text-[#2D7FF9]" />
+                                  <Icon size={12} className="text-primary" />
                                 </div>
                                 <span className="text-xs font-medium text-[#374151] dark:text-[hsl(220,25%,88%)] flex-1 truncate">
                                   {meta?.label ?? action.type}
@@ -1919,7 +1919,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                   <Button
                     size="sm"
                     className="h-8 px-4 text-xs gap-1.5 shadow-sm"
-                    style={{ backgroundColor: dirty ? '#2D7FF9' : (isDark ? 'hsl(220,25%,20%)' : '#E5E7EB'), color: dirty ? '#fff' : (isDark ? 'hsl(220,20%,55%)' : '#6B7280') }}
+                    style={{ backgroundColor: dirty ? 'hsl(var(--primary))' : (isDark ? 'hsl(220,25%,20%)' : '#E5E7EB'), color: dirty ? '#fff' : (isDark ? 'hsl(220,20%,55%)' : '#6B7280') }}
                     onClick={handleSave}
                     disabled={saving}
                   >
@@ -1929,7 +1929,7 @@ export function AutomationsDialog({ open, onOpenChange, tableId, baseId }: Autom
                     variant="outline"
                     size="sm"
                     className="h-8 px-3 text-xs gap-1.5"
-                    style={{ color: '#2D7FF9', borderColor: isDark ? 'hsl(220,25%,25%)' : '#DBEAFE' }}
+                    style={{ color: 'hsl(var(--primary))', borderColor: isDark ? 'hsl(220,25%,25%)' : '#DBEAFE' }}
                     onClick={handleTestRun}
                     disabled={testRunning}
                   >

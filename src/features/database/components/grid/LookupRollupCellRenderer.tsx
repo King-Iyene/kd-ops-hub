@@ -3,26 +3,7 @@ import type { FieldMeta, RecordRow } from '@/features/database/types';
 import { useLookupValue, useRollupValue } from '../../hooks/useLookupRollup';
 import { useGridColors } from '../../hooks/useGridColors';
 
-const SYMBOL_TO_ISO: Record<string, string> = {
-  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
-  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
-  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
-};
-
-const _fmtCache = new Map<string, Intl.NumberFormat>();
-function getCurrencyFmt(code: string, precision: number, narrow: boolean): Intl.NumberFormat {
-  const key = `${code}:${precision}:${narrow ? 1 : 0}`;
-  let fmt = _fmtCache.get(key);
-  if (!fmt) {
-    fmt = new Intl.NumberFormat('en-US', {
-      style: 'currency', currency: code,
-      minimumFractionDigits: precision, maximumFractionDigits: precision,
-      ...(narrow ? { currencyDisplay: 'narrowSymbol' } : {}),
-    });
-    _fmtCache.set(key, fmt);
-  }
-  return fmt;
-}
+import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 
 interface LookupRollupCellRendererProps {
   value: any;
@@ -91,28 +72,21 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 
   const isNumeric = typeof result === 'number';
 
-  // Format currency if the rollup result type is currency
+  // Money and percentages use the same formatter as every other cell.
   let displayValue: string;
-  if (isNumeric) {
+  if (typeof result === 'boolean') {
+    displayValue = result ? 'Yes' : 'No';
+  } else if (isNumeric) {
     const resultType = field.options?.result?.type;
     if (resultType === 'currency') {
-      const sym = field.options?.result?.options?.symbol ?? '$';
-      const trimmed = (sym as string).trim();
-      const code = /^[A-Z]{3}$/.test(trimmed) ? trimmed : (SYMBOL_TO_ISO[trimmed] ?? 'USD');
-      const precision = field.options?.result?.options?.precision ?? 0;
-      try {
-        displayValue = getCurrencyFmt(code, precision, true).format(result);
-      } catch {
-        try {
-          displayValue = getCurrencyFmt(code, precision, false).format(result);
-        } catch {
-          displayValue = `${sym}${result.toLocaleString()}`;
-        }
-      }
+      displayValue = formatCurrency(result, {
+        currencyCode: field.options?.result?.options?.currencyCode ?? field.options?.result?.options?.symbol ?? '$',
+        precision: field.options?.result?.options?.precision ?? 0,
+      });
     } else if (resultType === 'percent') {
-      displayValue = `${(result * 100).toFixed(1)}%`;
+      displayValue = formatPercent(result * 100, { precision: 1 });
     } else {
-      displayValue = result.toLocaleString();
+      displayValue = formatNumber(result);
     }
   } else {
     displayValue = String(result);

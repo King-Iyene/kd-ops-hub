@@ -8,6 +8,8 @@ const EMPTY_LOOKUP: Record<string, string> = {};
 export function useLinkDisplayLookup(
   baseId: string | null | undefined,
   fields: FieldMeta[] | undefined,
+  /** Wait for this (for example "the first page of rows has arrived") so it does not compete with the data the screen needs first. */
+  ready = true,
 ) {
   const linkFields = useMemo(
     () => (fields ?? []).filter((f) => f.ui_type === 'Links' && (
@@ -46,7 +48,7 @@ export function useLinkDisplayLookup(
 
   const { data: lookupMap } = useQuery({
     queryKey: ['nc', 'link-display-lookup', baseId, cacheKey],
-    enabled: !!baseId && (relatedTableIds.length > 0 || linkedTableNames.length > 0 || linkedTableAirtableIds.length > 0),
+    enabled: ready && !!baseId && (relatedTableIds.length > 0 || linkedTableNames.length > 0 || linkedTableAirtableIds.length > 0),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,

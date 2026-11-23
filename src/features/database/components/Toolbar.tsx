@@ -145,7 +145,7 @@ function FilterRuleRow({
 
   return (
     <div
-      className={`flex items-center gap-2 mb-2 px-1 py-0.5 rounded ${isFocused ? 'ring-1 ring-[#2D7FF9] bg-[#2D7FF9]/5' : ''}`}
+      className={`flex items-center gap-2 mb-2 px-1 py-0.5 rounded ${isFocused ? 'ring-1 ring-primary bg-primary/5' : ''}`}
     >
       {index > 0 ? (
         <select
@@ -266,7 +266,7 @@ function FilterGroupBlock({
       style={{ marginLeft: depth > 0 ? 16 : 0 }}
     >
       {depth > 0 && (
-        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#2D7FF9]/30 rounded" style={{ left: -8 }} />
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary/30 rounded" style={{ left: -8 }} />
       )}
       {depth > 0 && (
         <div className="flex items-center justify-between mb-1.5">
@@ -310,11 +310,11 @@ function FilterGroupBlock({
         />
       ))}
       <div className="flex items-center gap-2 mt-1">
-        <button className="text-2xs text-[#2D7FF9] hover:underline" onClick={addFilter}>
+        <button className="text-2xs text-primary hover:underline" onClick={addFilter}>
           + Add filter
         </button>
         {depth < 2 && (
-          <button className="text-2xs text-[#2D7FF9] hover:underline" onClick={addSubGroup}>
+          <button className="text-2xs text-primary hover:underline" onClick={addSubGroup}>
             + Add filter group
           </button>
         )}
@@ -426,10 +426,10 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
       ))}
 
       <div className="flex items-center gap-3 mt-1">
-        <button className="text-2xs text-[#2D7FF9] hover:underline" onClick={addFilter}>
+        <button className="text-2xs text-primary hover:underline" onClick={addFilter}>
           + Add filter
         </button>
-        <button className="text-2xs text-[#2D7FF9] hover:underline" onClick={addFilterGroup}>
+        <button className="text-2xs text-primary hover:underline" onClick={addFilterGroup}>
           + Add filter group
         </button>
       </div>
@@ -438,7 +438,7 @@ function FilterPanel({ onClose, onSaveAsView }: { onClose: () => void; onSaveAsV
       {totalFilterCount > 0 && (
         <div className="mt-3 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
           <button
-            className="flex items-center gap-1.5 text-2xs text-[#2D7FF9] hover:underline"
+            className="flex items-center gap-1.5 text-2xs text-primary hover:underline"
             onClick={onSaveAsView}
           >
             <FolderPlus size={12} /> Save as new view
@@ -485,8 +485,8 @@ function QuickFilterBar() {
           key={filter.id}
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-medium border shrink-0 transition-colors ${
             focusedFilterId === filter.id
-              ? 'bg-[#2D7FF9]/10 border-[#2D7FF9]/30 text-[#2D7FF9]'
-              : 'bg-white dark:bg-[hsl(220,20%,12%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#374151] dark:text-[hsl(220,20%,88%)] hover:border-[#2D7FF9]/40'
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'bg-white dark:bg-[hsl(220,20%,12%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] text-[#374151] dark:text-[hsl(220,20%,88%)] hover:border-primary/40'
           }`}
           onClick={() => setFocusedFilterId(focusedFilterId === filter.id ? null : filter.id)}
           title={formatPill(filter)}
@@ -505,7 +505,7 @@ function QuickFilterBar() {
         </button>
       ))}
       {filterGroups.length > 0 && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-medium bg-[#2D7FF9]/10 border border-[#2D7FF9]/20 text-[#2D7FF9] shrink-0">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-medium bg-primary/10 border border-primary/20 text-primary shrink-0">
           +{filterGroups.length} group{filterGroups.length > 1 ? 's' : ''}
         </span>
       )}
@@ -548,7 +548,7 @@ function SaveFilterAsViewDialog({
           type="text"
           autoFocus
           placeholder="View name"
-          className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9] mb-3"
+          className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary mb-3"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
@@ -564,7 +564,7 @@ function SaveFilterAsViewDialog({
             Cancel
           </button>
           <button
-            className="px-3 py-1 text-2xs rounded bg-[#2D7FF9] text-white hover:bg-[#2952CC] disabled:opacity-40"
+            className="px-3 py-1 text-2xs rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-40"
             disabled={!name.trim()}
             onClick={handleSave}
           >
@@ -632,7 +632,7 @@ function SortPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       ))}
-      <button className="text-2xs text-[#2D7FF9] hover:underline" onClick={addSort}>
+      <button className="text-2xs text-primary hover:underline" onClick={addSort}>
         + Add sort
       </button>
     </div>
@@ -718,7 +718,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
               </div>
             ) : (
               <button
-                className="text-2xs text-[#2D7FF9] hover:underline"
+                className="text-2xs text-primary hover:underline"
                 onClick={() => addLevel(availableFields[0].id)}
               >
                 + Add sub-group
@@ -728,7 +728,7 @@ function GroupPanel({ onClose }: { onClose: () => void }) {
           {groupByLevels.length > 0 && (
             <div className="mt-2 pt-2 border-t border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">
               <button
-                className="text-2xs text-[#2D7FF9] hover:underline"
+                className="text-2xs text-primary hover:underline"
                 onClick={() => setGroupByLevels([])}
               >
                 Clear grouping
@@ -813,11 +813,11 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         placeholder="Search fields..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full px-2 py-1 mb-2 text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
+        className="w-full px-2 py-1 mb-2 text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary"
       />
       <div className="flex items-center gap-2 mb-2">
         <button
-          className="text-3xs text-[#2D7FF9] hover:underline disabled:opacity-40"
+          className="text-3xs text-primary hover:underline disabled:opacity-40"
           onClick={showAll}
           disabled={noneHidden}
         >
@@ -825,7 +825,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
         </button>
         <span className="text-3xs text-[#E5E5E5] dark:text-[hsl(220,20%,18%)]">|</span>
         <button
-          className="text-3xs text-[#2D7FF9] hover:underline disabled:opacity-40"
+          className="text-3xs text-primary hover:underline disabled:opacity-40"
           onClick={hideAll}
           disabled={allHidden}
         >
@@ -838,7 +838,7 @@ function HideFieldsPanel({ onClose }: { onClose: () => void }) {
             <GripVertical size={12} className="text-[#9AA2AF] dark:text-[hsl(220,15%,55%)] shrink-0 cursor-grab" />
             <input
               type="checkbox"
-              className="w-3.5 h-3.5 accent-[#2D7FF9] shrink-0"
+              className="w-3.5 h-3.5 accent-primary shrink-0"
               checked={!hiddenFieldIds.has(f.id)}
               onChange={() => toggleHiddenField(f.id)}
             />
@@ -968,7 +968,7 @@ function ColorPanel({ onClose }: { onClose: () => void }) {
         );
       })}
       <button
-        className="text-2xs text-[#2D7FF9] hover:underline"
+        className="text-2xs text-primary hover:underline"
         onClick={addRule}
       >
         + Add color rule

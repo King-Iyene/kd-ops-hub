@@ -85,7 +85,7 @@ function SortableViewTab({
       <div ref={setNodeRef} style={style} className="flex items-center gap-1">
         <input
           ref={renameRef}
-          className="h-6 w-28 px-1.5 text-xs border border-[#2D7FF9] rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground"
+          className="h-6 w-28 px-1.5 text-xs border border-primary rounded outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground"
           value={renameText}
           onChange={(e) => setRenameText(e.target.value)}
           onBlur={() => onRename(view.id)}
@@ -106,7 +106,7 @@ function SortableViewTab({
       onClick={onSelect}
       onDoubleClick={() => { setRenameText(view.name); setRenamingId(view.id); }}
       onContextMenu={onContextMenu}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isActive ? 'text-[#2D7FF9] border-b-2 border-b-[#2D7FF9]' : 'text-[#6A7184] dark:text-[hsl(220,25%,55%)] border-b-2 border-b-transparent'}`}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${isActive ? 'text-primary border-b-2 border-b-[#2D7FF9]' : 'text-[#6A7184] dark:text-[hsl(220,25%,55%)] border-b-2 border-b-transparent'}`}
       style={style}
     >
       <Icon size={13} />

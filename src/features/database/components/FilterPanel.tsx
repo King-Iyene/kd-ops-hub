@@ -178,7 +178,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
           <FilterIcon size={14} />
           Filter
           {activeCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-[#2D7FF9] text-white text-3xs font-medium">
+            <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-primary text-white text-3xs font-medium">
               {activeCount}
             </span>
           )}
@@ -287,7 +287,7 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-[#2D7FF9] gap-1 font-medium"
+            className="h-7 text-xs text-primary gap-1 font-medium"
             onClick={addFilter}
           >
             <Plus size={14} /> Add filter

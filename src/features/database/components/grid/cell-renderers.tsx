@@ -1,12 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
+import { Check, ExternalLink, Copy, Plus, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
-import { formatDate, formatDateTime, formatDateWithOptions } from '@/lib/format';
+import { formatDateWithOptions, getTimezone } from '@/lib/format';
+import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
+import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
+import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
+import { formatDuration, normalizeDurationFormat } from '../../lib/duration';
+import { hasInlineMarks, parseInline } from '../../lib/inlineMarkdown';
+import { RatingGlyph } from './RatingGlyph';
 
 interface CellRendererProps {
   value: any;
@@ -50,21 +56,6 @@ function getSelectColor(colorName: string) {
 }
 
 const EMAIL_VALID_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const _fmtCache = new Map<string, Intl.NumberFormat>();
-function getCurrencyFormatter(code: string, precision: number, narrow: boolean): Intl.NumberFormat {
-  const key = `${code}:${precision}:${narrow ? 1 : 0}`;
-  let fmt = _fmtCache.get(key);
-  if (!fmt) {
-    fmt = new Intl.NumberFormat('en-US', {
-      style: 'currency', currency: code,
-      minimumFractionDigits: precision, maximumFractionDigits: precision,
-      ...(narrow ? { currencyDisplay: 'narrowSymbol' } : {}),
-    });
-    _fmtCache.set(key, fmt);
-  }
-  return fmt;
-}
 
 export const TextCellRenderer = React.memo(function TextCellRenderer({
   value,
@@ -179,19 +170,37 @@ const LIST_BULLET_RE = /^[•\-*]\s/;
 const LIST_NUM_RE = /^\d+\.\s/;
 const LIST_ALPHA_RE = /^[a-z]\.\s/;
 
+/** Long text with the toolbar's marks (**bold**, *italic*, ~~strike~~, `code`) shown as formatting, never as raw HTML. */
+function InlineText({ text }: { text: string }) {
+  if (!hasInlineMarks(text)) return <>{text}</>;
+  return (
+    <>
+      {parseInline(text).map((piece, i) => {
+        switch (piece.kind) {
+          case 'bold': return <strong key={i}>{piece.text}</strong>;
+          case 'italic': return <em key={i}>{piece.text}</em>;
+          case 'strike': return <s key={i}>{piece.text}</s>;
+          case 'code': return <code key={i} className="rounded bg-muted px-1" style={{ fontSize: 12 }}>{piece.text}</code>;
+          default: return <React.Fragment key={i}>{piece.text}</React.Fragment>;
+        }
+      })}
+    </>
+  );
+}
+
 function renderLongTextLine(line: string, idx: number) {
   if (LIST_BULLET_RE.test(line)) {
-    return <div key={idx} style={{ paddingLeft: 12, textIndent: -10 }}>{'• '}{line.replace(LIST_BULLET_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 12, textIndent: -10 }}>{'• '}<InlineText text={line.replace(LIST_BULLET_RE, '')} /></div>;
   }
   if (LIST_NUM_RE.test(line)) {
     const match = line.match(/^(\d+\.)\s/);
-    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_NUM_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}<InlineText text={line.replace(LIST_NUM_RE, '')} /></div>;
   }
   if (LIST_ALPHA_RE.test(line)) {
     const match = line.match(/^([a-z]\.)\s/);
-    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_ALPHA_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}<InlineText text={line.replace(LIST_ALPHA_RE, '')} /></div>;
   }
-  return <div key={idx}>{line || ' '}</div>;
+  return <div key={idx}>{line ? <InlineText text={line} /> : ' '}</div>;
 }
 
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
@@ -216,7 +225,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
     }
   }
   if (rowHeight === 'short') {
-    return <span className="truncate" title={text} style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
+    return <span className="truncate" title={text} style={{ fontSize: 13, lineHeight: '18px' }}><InlineText text={text} /></span>;
   }
   const maxLines = rowHeight === 'tall' ? 3 : rowHeight === 'extra-tall' ? 5 : 2;
   const lines = text.split('\n');
@@ -251,48 +260,59 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
         overflow: 'hidden',
       }}
     >
-      {text}
+      <InlineText text={text} />
     </span>
   );
 });
 
+function numberStyle(negative: boolean): React.CSSProperties {
+  return {
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '-0.01em',
+    fontSize: 13,
+    color: negative ? '#EF4444' : undefined,
+  };
+}
+
+function displayOptions(field: FieldMeta) {
+  const o = field.options ?? {};
+  return {
+    precision: o.precision,
+    thousands: o.thousands,
+    negativeStyle: o.negativeStyle,
+    abbreviate: o.abbreviate,
+    prefix: o.prefix,
+    suffix: o.suffix,
+  };
+}
+
 export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
-      {num.toLocaleString()}
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+      {formatNumber(num, displayOptions(field))}
     </span>
   );
 });
 
 export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
-      {num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+      {formatNumber(num, { ...displayOptions(field), defaultPrecision: 2 })}
     </span>
   );
 });
-
-const SYMBOL_TO_ISO: Record<string, string> = {
-  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
-  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
-  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
-};
-
-function resolveISO(raw: string): string {
-  const trimmed = raw.trim();
-  if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
-  return SYMBOL_TO_ISO[trimmed] ?? 'USD';
-}
 
 export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   value,
@@ -301,29 +321,12 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return null;
-  const rawCode = field.options?.currencyCode || field.options?.symbol || 'USD';
-  const code = resolveISO(rawCode);
-  const precision = field.options?.precision ?? 2;
-  let formatted: string;
-  try {
-    formatted = getCurrencyFormatter(code, precision, true).format(num);
-  } catch {
-    try {
-      formatted = getCurrencyFormatter(code, precision, false).format(num);
-    } catch {
-      formatted = `${rawCode}${num.toLocaleString()}`;
-    }
-  }
+  const formatted = formatCurrency(num, {
+    ...displayOptions(field),
+    currencyCode: field.options?.currencyCode || field.options?.symbol,
+  });
   return (
-    <span
-      className="truncate block text-right w-full"
-      style={{
-        fontVariantNumeric: 'tabular-nums',
-        color: num < 0 ? '#EF4444' : undefined,
-        fontSize: 13,
-        letterSpacing: '-0.01em',
-      }}
-    >
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
       {formatted}
     </span>
   );
@@ -341,18 +344,25 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
         return formatDateWithOptions(value, {
           dateFormat: opts.dateFormat,
           includeTime: opts.includeTime ?? field.ui_type === 'DateTime',
+          use12h: opts.use12h,
           displayTimezone: opts.displayTimezone,
         });
       }
-      if (field.ui_type === 'DateTime') return formatDateTime(value);
-      return formatDate(value);
+      // No format chosen on the field: use the module standard ("6 Sep 2026, 2:15 pm").
+      const tz = getTimezone();
+      if (field.ui_type === 'DateTime') return formatDbDateTime(value, tz, opts?.use12h !== false) || null;
+      return formatDbDate(value, tz) || null;
     } catch {
       return String(value);
     }
   }, [value, field.ui_type, field.options]);
   if (formatted == null) return null;
   return (
-    <span className="truncate text-foreground" style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
+    <span
+      className="truncate text-foreground"
+      title={formatDbTooltip(value, getTimezone())}
+      style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}
+    >
       {formatted}
     </span>
   );
@@ -599,7 +609,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   }
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
-    const formatted = formatDateTime(value);
+    const formatted = formatDbDateTime(value, getTimezone()) || '—';
     return (
       <span className="truncate" style={{ fontSize: 12, color: colors.systemText, fontVariantNumeric: 'tabular-nums' }}>
         {formatted}
@@ -662,19 +672,14 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
   value,
   field,
 }: CellRendererProps) {
-  const max = field.options?.max ?? 5;
-  const rating = typeof value === 'number' ? value : 0;
+  const max = ratingMaxOf(field.options?.max);
+  const icon = ratingIconOf(field.options?.icon);
+  const hex = ratingHexOf(field.options?.color);
+  const rating = typeof value === 'number' ? value : Number(value) || 0;
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5" title={`${rating} of ${max}`}>
       {Array.from({ length: max }, (_, i) => (
-        <Star
-          key={i}
-          size={14}
-          fill={i < rating ? '#F59E0B' : 'none'}
-          stroke={i < rating ? '#F59E0B' : undefined}
-          className={i < rating ? '' : 'stroke-[#D1D5DB] dark:stroke-[hsl(220,15%,35%)]'}
-          strokeWidth={1.5}
-        />
+        <RatingGlyph key={i} icon={icon} filled={i < rating} hex={hex} />
       ))}
     </div>
   );
@@ -682,10 +687,18 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
 
 export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  if (field.options?.percentDisplay === 'text') {
+    return (
+      <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+        {formatPercent(num, displayOptions(field))}
+      </span>
+    );
+  }
   const barColor = num >= 75 ? '#22C55E' : num >= 50 ? '#2563EB' : num >= 25 ? '#F59E0B' : '#EF4444';
   return (
     <div className="flex items-center gap-2.5 w-full">
@@ -695,7 +708,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs shrink-0 tabular-nums" style={{ fontSize: 12, letterSpacing: '-0.01em', color: barColor, fontWeight: 500 }}>{num}%</span>
+      <span className="text-xs shrink-0 tabular-nums" style={{ fontSize: 12, letterSpacing: '-0.01em', color: barColor, fontWeight: 500 }}>{formatPercent(num, displayOptions(field))}</span>
     </div>
   );
 });
@@ -708,25 +721,7 @@ export const DurationCellRenderer = React.memo(function DurationCellRenderer({
   if (value == null || value === '') return null;
   const seconds = Number(value);
   if (isNaN(seconds)) return <span className="truncate">{String(value)}</span>;
-  const format = field.options?.format || 'h:mm';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const rawS = seconds % 3600 % 60;
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  let display: string;
-  if (format === 'h:mm') {
-    display = `${h}:${pad2(m)}`;
-  } else if (format === 'h:mm:ss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}`;
-  } else if (format === 'h:mm:ss.s') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${Math.floor((rawS % 1) * 10)}`;
-  } else if (format === 'h:mm:ss.ss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 100)).padStart(2, '0')}`;
-  } else if (format === 'h:mm:ss.sss') {
-    display = `${h}:${pad2(m)}:${pad2(Math.floor(rawS))}.${String(Math.floor((rawS % 1) * 1000)).padStart(3, '0')}`;
-  } else {
-    display = `${h}:${pad2(m)}`;
-  }
+  const display = formatDuration(seconds, normalizeDurationFormat(field.options?.format));
   return (
     <span className="flex items-center gap-1.5 truncate" style={{ color: colors.muted, fontVariantNumeric: 'tabular-nums', fontSize: 13, letterSpacing: '-0.01em' }}>
       <Clock size={12} className="shrink-0" style={{ color: colors.systemText }} />
@@ -771,26 +766,18 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
 
 
 function formatFormulaNumber(val: number, field: FieldMeta): string {
-  const resultType = field.options?.result?.type;
+  const result = field.options?.result;
+  const resultType = result?.type;
   if (resultType === 'currency') {
-    const sym = field.options?.result?.options?.symbol ?? '$';
-    const code = resolveISO((sym as string).trim());
-    const precision = field.options?.result?.options?.precision ?? 0;
-    try {
-      return getCurrencyFormatter(code, precision, true).format(val);
-    } catch {
-      try {
-        return getCurrencyFormatter(code, precision, false).format(val);
-      } catch {
-        return `${sym}${val.toLocaleString()}`;
-      }
-    }
+    return formatCurrency(val, {
+      currencyCode: result?.options?.currencyCode ?? result?.options?.symbol ?? '$',
+      precision: result?.options?.precision ?? 0,
+    });
   }
   if (resultType === 'percent') {
-    const precision = field.options?.result?.options?.precision ?? 1;
-    return `${(val * 100).toFixed(precision)}%`;
+    return formatPercent(val * 100, { precision: result?.options?.precision ?? 1 });
   }
-  return val.toLocaleString();
+  return formatNumber(val);
 }
 
 export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
@@ -832,7 +819,7 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     const d = new Date(value);
     if (!isNaN(d.getTime())) {
-      return <span className="truncate">{formatDate(value)}</span>;
+      return <span className="truncate">{formatDbDate(value, getTimezone())}</span>;
     }
   }
   let displayText = String(value);
@@ -1007,7 +994,7 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
       className="inline-flex items-center px-3 rounded text-xs font-medium hover:opacity-90 active:scale-[0.97]"
       style={{
         height: 24,
-        backgroundColor: '#2D7FF9',
+        backgroundColor: 'hsl(var(--primary))',
         color: '#FFFFFF',
         cursor: urlTemplate ? 'pointer' : 'default',
         transition: 'opacity 120ms ease, transform 80ms ease',

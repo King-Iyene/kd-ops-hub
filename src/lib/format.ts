@@ -119,7 +119,7 @@ export type DateFormatOption = 'local' | 'friendly' | 'us' | 'european' | 'iso';
 
 export function formatDateWithOptions(
   date: string | Date | null | undefined,
-  opts?: { dateFormat?: DateFormatOption; includeTime?: boolean; displayTimezone?: boolean },
+  opts?: { dateFormat?: DateFormatOption; includeTime?: boolean; displayTimezone?: boolean; use12h?: boolean },
 ): string {
   if (!date) return '—';
   try {
@@ -164,7 +164,7 @@ export function formatDateWithOptions(
     const timePart = new Intl.DateTimeFormat('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
+      hour12: opts?.use12h !== false,
       timeZone: tz,
     }).format(d);
 

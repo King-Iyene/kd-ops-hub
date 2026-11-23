@@ -12,6 +12,7 @@ import {
   EyeOff,
   Eye,
 } from 'lucide-react';
+import { AllTablesPopover } from './AllTablesPopover';
 import { EmojiPicker } from './EmojiPicker';
 import {
   DndContext,
@@ -47,6 +48,14 @@ import {
   useDuplicateTable,
   useRecordCount,
 } from '../hooks';
+import { usePrefetchTable } from '../hooks/usePrefetchTable';
+import {
+  useManualHiddenTables,
+  usePinnedTables,
+  useRecentTableIds,
+  useShowHiddenTables,
+} from '../hooks/useNavPrefs';
+import { countHiddenTables, filterVisibleTables, pickTabTables } from '../lib/tableVisibility';
 import { CreateTableDialog } from './CreateTableDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { ImportAirtableDialog } from './ImportAirtableDialog';
@@ -77,7 +86,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(220,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-24 outline-none text-[#374151] dark:text-[hsl(220,25%,88%)]"
+      className="bg-white dark:bg-[hsl(220,30%,12%)] border border-primary rounded px-1.5 py-0.5 text-xs-plus w-24 outline-none text-[#374151] dark:text-[hsl(220,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -127,10 +136,41 @@ function darkenColor(hex: string, amount: number): string {
   return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
 }
 
-export function TableTabBar() {
+// Rough widths used to decide how many tabs fit: one tab (icon, name up to 120px, count, menu), and the fixed controls.
+const TAB_SLOT_WIDTH = 150;
+const RESERVED_WIDTH = 190;
+const MAX_TABS = 6;
+const FALLBACK_TABS = 4;
+
+/** Width of an element, kept current as the window or sidebar is resized. 0 until first measured. */
+function useElementWidth(ref: React.RefObject<HTMLElement>): number {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0]?.contentRect.width ?? 0);
+      setWidth((prev) => (prev === w ? prev : w));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
+
+interface TableTabBarProps {
+  /** Controlled open state of the "All tables" popover (Ctrl+J). Falls back to its own state when omitted. */
+  tablesOpen?: boolean;
+  onTablesOpenChange?: (open: boolean) => void;
+}
+
+export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps = {}) {
   const { activeBaseId, activeTableId } = useDatabaseUI();
   const { navigateToTable } = useDatabaseNavigate();
   const { data: tables, isFetching: isTablesFetching } = useTables(activeBaseId);
+  const prefetch = usePrefetchTable();
   const { data: bases } = useBases();
   const activeBase = bases?.find((b: any) => b.id === activeBaseId);
   const baseColor = activeBase?.color || '#2D7FF9';
@@ -143,39 +183,38 @@ export function TableTabBar() {
   const [createTableOpen, setCreateTableOpen] = useState(false);
   const [importCsvOpen, setImportCsvOpen] = useState(false);
   const [importAirtableOpen, setImportAirtableOpen] = useState(false);
-  const [showHiddenMenu, setShowHiddenMenu] = useState(false);
+  const { hiddenIds: manualHidden, toggleHidden: toggleHideTable } = useManualHiddenTables(activeBaseId);
+  const [showHidden, setShowHidden] = useShowHiddenTables();
+  const { pinnedIds } = usePinnedTables(activeBaseId);
+  const recentTableIds = useRecentTableIds(activeBaseId);
 
-  const HIDDEN_KEY = `kd-ops:hidden-tables:${activeBaseId || ''}`;
-  const [hiddenTableIds, setHiddenTableIds] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')); } catch { return new Set(); }
-  });
-  useEffect(() => {
-    if (!activeBaseId) return;
-    const key = `kd-ops:hidden-tables:${activeBaseId}`;
-    try { setHiddenTableIds(new Set(JSON.parse(localStorage.getItem(key) || '[]'))); } catch { setHiddenTableIds(new Set()); }
-  }, [activeBaseId]);
-
-  const toggleHideTable = useCallback((tableId: string) => {
-    setHiddenTableIds(prev => {
-      const next = new Set(prev);
-      if (next.has(tableId)) next.delete(tableId); else next.add(tableId);
-      try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...next])); } catch { /* localStorage unavailable */ }
-      return next;
-    });
-  }, [HIDDEN_KEY]);
-
+  // The query can briefly still hold the previous base's tables while the next one loads.
   const sortedTables = useMemo(
-    () => (tables ?? []).slice().sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
-    [tables],
+    () => (tables ?? []).filter((t) => t.base_id === activeBaseId).sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+    [tables, activeBaseId],
   );
-  const visibleTables = useMemo(
-    () => sortedTables.filter((t: any) => !hiddenTableIds.has(t.id)),
-    [sortedTables, hiddenTableIds],
+  // Copies, outdated and WIP tables (and any hidden by hand) stay out of the strip unless the user asks for them.
+  const selectableTables = useMemo(
+    () => filterVisibleTables(sortedTables, { showHidden, activeTableId, manualHidden }),
+    [sortedTables, showHidden, activeTableId, manualHidden],
   );
-  const hiddenTables = useMemo(
-    () => sortedTables.filter((t: any) => hiddenTableIds.has(t.id)),
-    [sortedTables, hiddenTableIds],
+  const hiddenCount = useMemo(
+    () => countHiddenTables(sortedTables, { activeTableId, manualHidden }),
+    [sortedTables, activeTableId, manualHidden],
   );
+
+  // Only as many tabs as fit: the open table plus the ones used most recently. Everything else is one click away in All tables.
+  const barRef = useRef<HTMLDivElement>(null);
+  const barWidth = useElementWidth(barRef);
+  const maxTabs = barWidth > 0 ? Math.min(MAX_TABS, Math.floor((barWidth - RESERVED_WIDTH) / TAB_SLOT_WIDTH)) : FALLBACK_TABS;
+  const tabTables = useMemo(
+    () => pickTabTables(selectableTables, { activeId: activeTableId, recentIds: recentTableIds, max: maxTabs }),
+    [selectableTables, activeTableId, recentTableIds, maxTabs],
+  );
+
+  const [tablesOpenLocal, setTablesOpenLocal] = useState(false);
+  const tablesPopoverOpen = tablesOpen ?? tablesOpenLocal;
+  const setTablesPopoverOpen = onTablesOpenChange ?? setTablesOpenLocal;
 
   const tableSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -251,27 +290,46 @@ export function TableTabBar() {
     // Don't auto-navigate while tables are refetching (cache invalidation)
     if (isTablesFetching) return;
     if (activeTableId && tables.some((t: any) => t.id === activeTableId)) return;
-    navigateToTable(tables[0].id);
-  }, [tables, activeBaseId, activeTableId, navigateToTable, isTablesFetching]);
+    // Open the first table that is not a hidden copy, if there is one.
+    const first = filterVisibleTables(sortedTables, { showHidden: false, manualHidden })[0] ?? tables[0];
+    navigateToTable(first.id);
+  }, [tables, sortedTables, manualHidden, activeBaseId, activeTableId, navigateToTable, isTablesFetching]);
 
   if (!activeBaseId) return null;
 
   return (
-    <div className="flex items-center h-[38px] px-1 gap-0 overflow-x-auto shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
+    <div ref={barRef} className="flex items-center h-[38px] px-1 gap-0 overflow-hidden shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
+      <AllTablesPopover
+        open={tablesPopoverOpen}
+        onOpenChange={setTablesPopoverOpen}
+        tables={sortedTables}
+        activeTableId={activeTableId}
+        pinnedIds={pinnedIds}
+        manualHidden={manualHidden}
+        hiddenCount={hiddenCount}
+        showHidden={showHidden}
+        onShowHiddenChange={setShowHidden}
+        onSelect={(tableId) => {
+          setTablesPopoverOpen(false);
+          if (tableId !== activeTableId) navigateToTable(tableId);
+        }}
+        onUnhide={toggleHideTable}
+      />
       <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
-        <SortableContext items={visibleTables.map((t: any) => t.id)} strategy={horizontalListSortingStrategy}>
-      {visibleTables.map((table: any) => (
+        <SortableContext items={tabTables.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+      {tabTables.map((table: any) => (
         <SortableTableTabWrapper key={table.id} id={table.id}>
           {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
-        <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full">
+        <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full min-w-0 shrink">
           <a
             href={activeBaseId ? `/data/${toShort(activeBaseId)}/${toShort(table.id)}` : '#'}
             className={cn(
-              'relative flex items-center gap-1.5 h-full px-3 text-xs-plus cursor-pointer transition-colors no-underline',
+              'relative flex items-center gap-1.5 h-full min-w-0 px-3 text-xs-plus cursor-pointer transition-colors no-underline',
               table.id === activeTableId
                 ? 'bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] font-medium rounded-t-md -mb-px'
                 : 'text-white/70 hover:text-white',
             )}
+            {...(activeBaseId ? prefetch.handlersFor(activeBaseId, table.id) : {})}
             onClick={(e) => { e.preventDefault(); navigateToTable(table.id); }}
             onDoubleClick={() => setRenamingId(table.id)}
           >
@@ -289,7 +347,8 @@ export function TableTabBar() {
             ) : (
               <span className="truncate max-w-[120px]">{table.name}</span>
             )}
-            {renamingId !== table.id && activeBaseId && (
+            {/* Only the open table is counted: counting every tab fired one request per table (43 on KDS Finances). */}
+            {renamingId !== table.id && activeBaseId && table.id === activeTableId && (
               <TabRecordCount baseId={activeBaseId} tableId={table.id} />
             )}
             <DropdownMenu>
@@ -340,14 +399,16 @@ export function TableTabBar() {
                 <DropdownMenuItem
                   className="text-xs gap-2"
                   onClick={() => {
+                    const wasHidden = manualHidden.has(table.id);
                     toggleHideTable(table.id);
-                    if (table.id === activeTableId) {
-                      const next = visibleTables.find((t: any) => t.id !== table.id);
+                    if (!wasHidden && table.id === activeTableId) {
+                      const next = selectableTables.find((t) => t.id !== table.id && !manualHidden.has(t.id));
                       if (next) navigateToTable(next.id);
                     }
                   }}
                 >
-                  <EyeOff size={12} /> Hide table
+                  {manualHidden.has(table.id) ? <Eye size={12} /> : <EyeOff size={12} />}
+                  {manualHidden.has(table.id) ? 'Unhide table' : 'Hide table'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -387,39 +448,6 @@ export function TableTabBar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {hiddenTables.length > 0 && (
-        <DropdownMenu open={showHiddenMenu} onOpenChange={setShowHiddenMenu}>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center gap-1 h-7 px-2 ml-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors shrink-0 text-2xs"
-              title={`${hiddenTables.length} hidden table${hiddenTables.length > 1 ? 's' : ''}`}
-            >
-              <EyeOff size={12} />
-              <span>{hiddenTables.length}</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <div className="px-2 py-1 text-3xs font-medium text-[#9AA2AF] uppercase tracking-wider">
-              Hidden tables
-            </div>
-            {hiddenTables.map((table: any) => (
-              <DropdownMenuItem
-                key={table.id}
-                className="text-xs gap-2"
-                onClick={() => {
-                  toggleHideTable(table.id);
-                  navigateToTable(table.id);
-                }}
-              >
-                <Eye size={12} />
-                {table.icon && <span className="text-xs">{table.icon}</span>}
-                <span className="truncate">{table.name}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
 
       <CreateTableDialog
         open={createTableOpen}

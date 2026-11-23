@@ -24,6 +24,21 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
 import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
+import { NumberFormatPanel } from './NumberFormatPanel';
+import { FieldDefaultPanel } from './FieldDefaultPanel';
+import { FieldValidationPanel } from './FieldValidationPanel';
+import { AttachmentOptionsPanel } from './AttachmentOptionsPanel';
+import {
+  DEFAULT_ATTACHMENT_SETTINGS,
+  applyAttachmentSettings,
+  attachmentSettingsFromOptions,
+  type AttachmentSettings,
+} from '../lib/attachmentRules';
+import { DEFAULT_VALIDATION_SETTINGS, allowedRules, rulesFromSettings, settingsFromRules, type ValidationRule, type ValidationSettings } from '../lib/validation';
+import { normalizeDefault, supportsDefault } from '../lib/fieldDefaults';
+import { RatingOptionsPanel } from './RatingOptionsPanel';
+import { ratingIconOf, ratingMaxOf, type RatingIcon } from '../lib/ratingStyle';
+import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, settingsFromOptions, type NumberFormatSettings } from '../lib/numberFormat';
 
 
 interface EditFieldDialogProps {
@@ -80,7 +95,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       {isEditing ? (
         <input
           autoFocus
-          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
+          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-primary outline-none bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={(e) => {
@@ -190,6 +205,16 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [richText, setRichText] = useState(false);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
+  const [ratingMax, setRatingMax] = useState(5);
+  const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
+  const [ratingColor, setRatingColor] = useState('amber');
+  const [use12h, setUse12h] = useState(true);
+  const [linkAllowMultiple, setLinkAllowMultiple] = useState(true);
+  const [defaultValue, setDefaultValue] = useState('');
+  const [validation, setValidation] = useState<ValidationSettings>(DEFAULT_VALIDATION_SETTINGS);
+  const [attachment, setAttachment] = useState<AttachmentSettings>(DEFAULT_ATTACHMENT_SETTINGS);
+  const [allowNewOptions, setAllowNewOptions] = useState(true);
+  const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
@@ -231,6 +256,16 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRichText((field.options as any)?.richText ?? false);
       setCurrencyCode((field.options as any)?.currencyCode ?? (field.options as any)?.symbol ?? 'USD');
       setPrecision((field.options as any)?.precision ?? 2);
+      setNumFmt(settingsFromOptions(field.options as any));
+      setRatingMax(ratingMaxOf((field.options as any)?.max));
+      setRatingIcon(ratingIconOf((field.options as any)?.icon));
+      setRatingColor((field.options as any)?.color ?? 'amber');
+      setUse12h((field.options as any)?.use12h !== false);
+      setLinkAllowMultiple((field.options as any)?.allowMultiple !== false);
+      setDefaultValue(field.default_value ?? '');
+      setValidation(settingsFromRules((field.options as any)?.validations));
+      setAttachment(attachmentSettingsFromOptions(field.options as any));
+      setAllowNewOptions((field.options as any)?.allowNewOptions !== false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
       setButtonUrl((field.options as any)?.url ?? '');
@@ -242,6 +277,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
     }
   }, [field]);
 
+  const isNumberLike = field?.ui_type === 'Number' || field?.ui_type === 'Decimal' || field?.ui_type === 'Percent';
   const isSelectType = field?.ui_type === 'SingleSelect' || field?.ui_type === 'MultiSelect';
   const isLongText = field?.ui_type === 'LongText';
   const isFormula = field?.ui_type === 'Formula';
@@ -347,7 +383,13 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       const newDesc = description.trim() || null;
       if (newDesc !== (field.description ?? null)) updates.description = newDesc;
       if (isSelectType) {
-        updates.options = { ...(field.options as any), choices };
+        const next: Record<string, unknown> = { ...(field.options as any), choices };
+        if (allowNewOptions) delete next.allowNewOptions; else next.allowNewOptions = false;
+        updates.options = next;
+      }
+      if (supportsDefault(field.ui_type)) {
+        const nextDefault = normalizeDefault(field.ui_type, defaultValue);
+        if (nextDefault !== (field.default_value ?? null)) updates.default_value = nextDefault;
       }
       if (isFormula) {
         updates.options = { ...(field.options as any), expression: formulaExpression };
@@ -356,13 +398,36 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         updates.options = { ...(field.options as any), linkFieldId, lookupFieldId };
       }
       if (isCurrency) {
-        updates.options = { ...(field.options as any), currencyCode, precision };
+        updates.options = applyNumberSettings({ ...(field.options as any), currencyCode, precision }, numFmt, { precision: false, affixes: false });
+      }
+      if (isNumberLike) {
+        updates.options = applyNumberSettings(field.options as any, numFmt, {
+          precision: true,
+          affixes: field.ui_type === 'Number' || field.ui_type === 'Decimal',
+          percent: field.ui_type === 'Percent',
+        });
       }
       if (isLongText) {
         updates.options = { ...(field.options as any), richText };
       }
       if (isDateType) {
-        updates.options = { ...(field.options as any), dateFormat, includeTime, displayTimezone, defaultToCurrentDate };
+        const next: Record<string, unknown> = { ...(field.options as any), dateFormat, includeTime, displayTimezone, defaultToCurrentDate };
+        if (includeTime && !use12h) next.use12h = false; else delete next.use12h;
+        updates.options = next;
+      }
+      if (field.ui_type === 'Attachment') {
+        updates.options = applyAttachmentSettings(field.options as any, attachment);
+      }
+      if (field.ui_type === 'Links') {
+        const next: Record<string, unknown> = { ...(field.options as any) };
+        if (linkAllowMultiple) delete next.allowMultiple; else next.allowMultiple = false;
+        updates.options = next;
+      }
+      if (field.ui_type === 'Rating') {
+        const next: Record<string, unknown> = { ...(field.options as any), max: ratingMax };
+        if (ratingIcon === 'star') delete next.icon; else next.icon = ratingIcon;
+        if (ratingColor === 'amber') delete next.color; else next.color = ratingColor;
+        updates.options = next;
       }
       if (isRollup) {
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
@@ -378,6 +443,15 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isUser) {
         updates.options = { ...(field.options as any), allowMultiple };
+      }
+      if (allowedRules(field.ui_type).length > 0) {
+        const baseOptions: Record<string, unknown> = { ...((updates.options ?? field.options) as any) };
+        const nextRules = rulesFromSettings(validation, field.ui_type, (baseOptions.validations as ValidationRule[] | undefined) ?? []);
+        const before = JSON.stringify((baseOptions.validations as unknown[] | undefined) ?? []);
+        if (before !== JSON.stringify(nextRules)) {
+          if (nextRules.length > 0) baseOptions.validations = nextRules; else delete baseOptions.validations;
+          updates.options = baseOptions;
+        }
       }
       if (Object.keys(updates).length > 0) {
         try {
@@ -434,6 +508,21 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             />
           </div>
 
+          {field?.ui_type === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
+
+          {field && <FieldValidationPanel uiType={field.ui_type} value={validation} onChange={setValidation} />}
+
+          {field && (
+            <FieldDefaultPanel
+              uiType={field.ui_type}
+              choices={choices}
+              value={defaultValue}
+              onChange={setDefaultValue}
+              allowNewOptions={allowNewOptions}
+              onAllowNewOptionsChange={setAllowNewOptions}
+            />
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>
             <textarea
@@ -443,7 +532,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 if (e.target.value.length <= 500) setDescription(e.target.value);
               }}
               placeholder="Add a description for this field..."
-              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
+              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               rows={3}
               maxLength={500}
             />
@@ -469,7 +558,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     className={cn(
                       'flex items-center gap-2 px-3 py-2 border rounded-lg w-full text-left transition-colors',
                       canConvert
-                        ? 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-[#2D7FF9] cursor-pointer'
+                        ? 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-primary cursor-pointer'
                         : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] cursor-default',
                     )}
                     onClick={() => canConvert && setShowTypeSelector(!showTypeSelector)}
@@ -480,7 +569,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       {FIELD_TYPE_LABELS[activeType] ?? activeType}
                     </span>
                     {selectedNewType && selectedNewType !== field.ui_type && (
-                      <span className="text-2xs text-[#2D7FF9] ml-1">(changing)</span>
+                      <span className="text-2xs text-primary ml-1">(changing)</span>
                     )}
                     {!canConvert && (
                       <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] ml-auto">
@@ -556,7 +645,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
-                              className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                              className="w-3.5 h-3.5 accent-primary"
                               checked={typeChangeConfirmed}
                               onChange={(e) => setTypeChangeConfirmed(e.target.checked)}
                             />
@@ -577,7 +666,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                className="w-3.5 h-3.5 accent-primary"
                 checked={richText}
                 onChange={(e) => setRichText(e.target.checked)}
               />
@@ -632,7 +721,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-xs text-[#2D7FF9] hover:text-[#2952CC] gap-1"
+                  className="h-8 px-2 text-xs text-primary hover:text-primary/80 gap-1"
                   onClick={addChoice}
                   disabled={!newChoiceText.trim()}
                 >
@@ -657,8 +746,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isLookup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Lookup.
                   </p>
@@ -670,7 +759,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={linkFieldId}
                       onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       <option value="">Select a link field...</option>
                       {linkFields.map((f: FieldMeta) => (
@@ -684,7 +773,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       <select
                         value={lookupFieldId}
                         onChange={(e) => setLookupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="">Select a field...</option>
                         {targetFields.map((f: FieldMeta) => (
@@ -701,8 +790,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isRollup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Rollup.
                   </p>
@@ -714,7 +803,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={linkFieldId}
                       onChange={(e) => { setLinkFieldId(e.target.value); setRollupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       <option value="">Select a link field...</option>
                       {linkFields.map((f: FieldMeta) => (
@@ -728,7 +817,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       <select
                         value={rollupFieldId}
                         onChange={(e) => setRollupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="">Select a field...</option>
                         {targetFields.map((f: FieldMeta) => (
@@ -742,7 +831,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={rollupFunction}
                       onChange={(e) => setRollupFunction(e.target.value as RollupFunction)}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       {ROLLUP_FUNCTIONS.map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
@@ -757,8 +846,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isCount && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Count.
                   </p>
@@ -769,7 +858,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   <select
                     value={linkFieldId}
                     onChange={(e) => setLinkFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   >
                     <option value="">Select a link field...</option>
                     {linkFields.map((f: FieldMeta) => (
@@ -788,7 +877,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={currencyCode}
                   onChange={(e) => setCurrencyCode(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   {[
                     { code: 'USD', label: 'US Dollar ($)' },
@@ -821,7 +910,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={precision}
                   onChange={(e) => setPrecision(Number(e.target.value))}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   <option value={0}>0 (1,000)</option>
                   <option value={1}>1 (1,000.0)</option>
@@ -833,13 +922,47 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
+          {(isCurrency || isNumberLike) && field && (
+            <NumberFormatPanel
+              uiType={field.ui_type as 'Number' | 'Decimal' | 'Currency' | 'Percent'}
+              currencyCode={currencyCode}
+              value={numFmt}
+              onChange={setNumFmt}
+              showPrecision={!isCurrency}
+            />
+          )}
+
+          {field?.ui_type === 'Links' && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-primary"
+                  checked={linkAllowMultiple}
+                  onChange={(e) => setLinkAllowMultiple(e.target.checked)}
+                />
+                <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Allow linking more than one record in a cell</span>
+              </label>
+              <p className="text-xs text-[#9AA2AF]">Turning this off does not remove links that already exist; it limits new ones.</p>
+            </div>
+          )}
+
+          {field?.ui_type === 'Rating' && (
+            <RatingOptionsPanel
+              max={ratingMax}
+              icon={ratingIcon}
+              color={ratingColor}
+              onChange={(n) => { setRatingMax(n.max); setRatingIcon(n.icon); setRatingColor(n.color); }}
+            />
+          )}
+
           {field?.ui_type === 'Duration' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Duration Format</Label>
               <select
                 value={durationFormat}
                 onChange={(e) => setDurationFormat(e.target.value)}
-                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               >
                 <option value="h:mm">h:mm (e.g., 1:30)</option>
                 <option value="h:mm:ss">h:mm:ss (e.g., 1:30:00)</option>
@@ -871,7 +994,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={dateFormat}
                   onChange={(e) => setDateFormat(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   <option value="friendly">Friendly (September 20, 2026)</option>
                   <option value="local">Local (20/09/2026)</option>
@@ -883,7 +1006,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  className="w-3.5 h-3.5 accent-primary"
                   checked={includeTime}
                   onChange={(e) => {
                     setIncludeTime(e.target.checked);
@@ -896,18 +1019,29 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <label className="flex items-center gap-2 cursor-pointer ml-5">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    className="w-3.5 h-3.5 accent-primary"
                     checked={displayTimezone}
                     onChange={(e) => setDisplayTimezone(e.target.checked)}
                   />
                   <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Display time zone</span>
                 </label>
               )}
+              {includeTime && (
+                <label className="flex items-center gap-2 cursor-pointer ml-5">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-primary"
+                    checked={!use12h}
+                    onChange={(e) => setUse12h(!e.target.checked)}
+                  />
+                  <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Use a 24 hour clock</span>
+                </label>
+              )}
               <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    className="w-3.5 h-3.5 accent-primary"
                     checked={defaultToCurrentDate}
                     onChange={(e) => setDefaultToCurrentDate(e.target.checked)}
                   />
@@ -984,7 +1118,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           </Button>
           <Button
             size="sm"
-            style={{ backgroundColor: '#2D7FF9' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
             className="hover:opacity-90 text-white"
             onClick={handleSave}
             disabled={updateField.isPending || changeFieldType.isPending || (!!selectedNewType && selectedNewType !== field?.ui_type && !typeChangeConfirmed)}

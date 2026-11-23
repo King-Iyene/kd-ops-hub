@@ -90,7 +90,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
               key={cat.label}
               className={`px-1.5 py-0.5 text-3xs rounded transition-colors ${
                 i === activeCategory
-                  ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
+                  ? 'bg-primary/10 text-primary font-medium'
                   : 'text-[#9AA2AF] hover:text-[#374151] dark:hover:text-[hsl(220,25%,88%)]'
               }`}
               onClick={() => setActiveCategory(i)}
