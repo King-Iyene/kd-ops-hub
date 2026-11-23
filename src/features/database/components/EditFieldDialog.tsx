@@ -26,6 +26,15 @@ import { FormulaEditor } from './FormulaEditor';
 import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
 import { NumberFormatPanel } from './NumberFormatPanel';
 import { FieldDefaultPanel } from './FieldDefaultPanel';
+import { FieldValidationPanel } from './FieldValidationPanel';
+import { AttachmentOptionsPanel } from './AttachmentOptionsPanel';
+import {
+  DEFAULT_ATTACHMENT_SETTINGS,
+  applyAttachmentSettings,
+  attachmentSettingsFromOptions,
+  type AttachmentSettings,
+} from '../lib/attachmentRules';
+import { DEFAULT_VALIDATION_SETTINGS, allowedRules, rulesFromSettings, settingsFromRules, type ValidationRule, type ValidationSettings } from '../lib/validation';
 import { normalizeDefault, supportsDefault } from '../lib/fieldDefaults';
 import { RatingOptionsPanel } from './RatingOptionsPanel';
 import { ratingIconOf, ratingMaxOf, type RatingIcon } from '../lib/ratingStyle';
@@ -202,6 +211,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [use12h, setUse12h] = useState(true);
   const [linkAllowMultiple, setLinkAllowMultiple] = useState(true);
   const [defaultValue, setDefaultValue] = useState('');
+  const [validation, setValidation] = useState<ValidationSettings>(DEFAULT_VALIDATION_SETTINGS);
+  const [attachment, setAttachment] = useState<AttachmentSettings>(DEFAULT_ATTACHMENT_SETTINGS);
   const [allowNewOptions, setAllowNewOptions] = useState(true);
   const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
   const [durationFormat, setDurationFormat] = useState('h:mm');
@@ -252,6 +263,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setUse12h((field.options as any)?.use12h !== false);
       setLinkAllowMultiple((field.options as any)?.allowMultiple !== false);
       setDefaultValue(field.default_value ?? '');
+      setValidation(settingsFromRules((field.options as any)?.validations));
+      setAttachment(attachmentSettingsFromOptions(field.options as any));
       setAllowNewOptions((field.options as any)?.allowNewOptions !== false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
@@ -402,6 +415,9 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         if (includeTime && !use12h) next.use12h = false; else delete next.use12h;
         updates.options = next;
       }
+      if (field.ui_type === 'Attachment') {
+        updates.options = applyAttachmentSettings(field.options as any, attachment);
+      }
       if (field.ui_type === 'Links') {
         const next: Record<string, unknown> = { ...(field.options as any) };
         if (linkAllowMultiple) delete next.allowMultiple; else next.allowMultiple = false;
@@ -427,6 +443,15 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       }
       if (isUser) {
         updates.options = { ...(field.options as any), allowMultiple };
+      }
+      if (allowedRules(field.ui_type).length > 0) {
+        const baseOptions: Record<string, unknown> = { ...((updates.options ?? field.options) as any) };
+        const nextRules = rulesFromSettings(validation, field.ui_type, (baseOptions.validations as ValidationRule[] | undefined) ?? []);
+        const before = JSON.stringify((baseOptions.validations as unknown[] | undefined) ?? []);
+        if (before !== JSON.stringify(nextRules)) {
+          if (nextRules.length > 0) baseOptions.validations = nextRules; else delete baseOptions.validations;
+          updates.options = baseOptions;
+        }
       }
       if (Object.keys(updates).length > 0) {
         try {
@@ -482,6 +507,10 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleSave()}
             />
           </div>
+
+          {field?.ui_type === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
+
+          {field && <FieldValidationPanel uiType={field.ui_type} value={validation} onChange={setValidation} />}
 
           {field && (
             <FieldDefaultPanel

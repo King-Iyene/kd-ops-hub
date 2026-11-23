@@ -4,6 +4,7 @@ import { useDatabaseUI } from '../../lib/store';
 import { getCellRenderer } from './cell-renderer-map';
 import { getCellEditor } from './cell-editor-map';
 import { sameCellValue } from '../../lib/cellValue';
+import { validateField, type ValidationRule } from '../../lib/validation';
 import type { GridColorTokens } from '../../hooks/useGridColors';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -160,11 +161,21 @@ export const GridCell = React.memo(function GridCell({
         setTimeout(() => setValidationError(null), 2500);
         return;
       }
+      // Rules set on the field (required, range, length, pattern).
+      const rules = (field.options as { validations?: ValidationRule[] } | undefined)?.validations ?? [];
+      if (rules.length > 0) {
+        const outcome = validateField(newValue, field, rules);
+        if (!outcome.valid) {
+          setValidationError(outcome.errors[0]);
+          setTimeout(() => setValidationError(null), 3500);
+          return;
+        }
+      }
       setValidationError(null);
       onCellUpdate(record.id, field.id, newValue);
       setEditingCell(null);
     },
-    [value, record.id, field.id, field.ui_type, onCellUpdate, setEditingCell],
+    [value, record.id, field, onCellUpdate, setEditingCell],
   );
 
   const handleCancel = useCallback(() => {

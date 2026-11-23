@@ -13,6 +13,7 @@ import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf } from '../lib/ratin
 import { currencySymbol, parseNumberInput } from '../lib/numberFormat';
 import { formatDuration, normalizeDurationFormat, parseDuration } from '../lib/duration';
 import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
+import type { AttachmentLimits } from '../lib/attachmentRules';
 import { toLocalDateString, utcIsoToOrgWallClock, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
@@ -507,10 +508,12 @@ function InlineRatingEditor({
 function InlineAttachmentEditor({
   value,
   fieldId,
+  limits,
   onCommit,
 }: {
   value: AttachmentMeta[];
   fieldId: string;
+  limits?: AttachmentLimits;
   onCommit: (v: AttachmentMeta[]) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -552,6 +555,7 @@ function InlineAttachmentEditor({
         value={attachments}
         onCommit={onCommit}
         storagePath={fieldId}
+        limits={limits}
       />
     </div>
   );
@@ -1038,7 +1042,7 @@ export function ExpandedRowModal({
       case 'DateTime':
         return <InlineDateEditor value={val as string | null} onCommit={(v) => handleUpdate(field.id, v)} showTime />;
       case 'Attachment':
-        return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} onCommit={(v) => handleUpdate(field.id, v)} />;
+        return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} limits={field.options as AttachmentLimits} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'LongText':
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Barcode':

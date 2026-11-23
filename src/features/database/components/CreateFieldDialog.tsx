@@ -17,6 +17,14 @@ import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
 import { NumberFormatPanel } from './NumberFormatPanel';
 import { FieldDefaultPanel } from './FieldDefaultPanel';
+import { FieldValidationPanel } from './FieldValidationPanel';
+import { AttachmentOptionsPanel } from './AttachmentOptionsPanel';
+import {
+  DEFAULT_ATTACHMENT_SETTINGS,
+  applyAttachmentSettings,
+  type AttachmentSettings,
+} from '../lib/attachmentRules';
+import { DEFAULT_VALIDATION_SETTINGS, rulesFromSettings, type ValidationSettings } from '../lib/validation';
 import { normalizeDefault, supportsDefault } from '../lib/fieldDefaults';
 import { RatingOptionsPanel } from './RatingOptionsPanel';
 import type { RatingIcon } from '../lib/ratingStyle';
@@ -223,6 +231,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [ratingColor, setRatingColor] = useState('amber');
   const [use12h, setUse12h] = useState(true);
   const [defaultValue, setDefaultValue] = useState('');
+  const [validation, setValidation] = useState<ValidationSettings>(DEFAULT_VALIDATION_SETTINGS);
+  const [attachment, setAttachment] = useState<AttachmentSettings>(DEFAULT_ATTACHMENT_SETTINGS);
   const [allowNewOptions, setAllowNewOptions] = useState(true);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
@@ -353,6 +363,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setIncludeTime(false);
     setDisplayTimezone(false);
     setDefaultToCurrentDate(false);
+    setValidation(DEFAULT_VALIDATION_SETTINGS);
+    setAttachment(DEFAULT_ATTACHMENT_SETTINGS);
   }, []);
 
   const handleTypeChange = (type: UIType) => {
@@ -416,6 +428,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       opts.defaultToCurrentDate = defaultToCurrentDate;
       if (includeTime && !use12h) opts.use12h = false;
     }
+    const rules = rulesFromSettings(validation, uiType);
+    if (rules.length > 0) opts.validations = rules;
+    if (uiType === 'Attachment') return applyAttachmentSettings(opts as Record<string, unknown>, attachment) as FieldOptions;
     if (uiType === 'Number' || uiType === 'Decimal' || uiType === 'Percent' || uiType === 'Currency') {
       return applyNumberSettings(opts as Record<string, unknown>, numFmt, {
         precision: uiType !== 'Currency',
@@ -560,6 +575,10 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
               onKeyDown={(e) => e.key === 'Enter' && !isSelectType && handleCreate()}
             />
           </div>
+
+          {uiType === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
+
+          <FieldValidationPanel uiType={uiType} value={validation} onChange={setValidation} />
 
           <FieldDefaultPanel
             uiType={uiType}

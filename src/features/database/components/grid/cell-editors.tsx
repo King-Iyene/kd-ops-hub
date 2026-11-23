@@ -12,6 +12,7 @@ import { formatDuration, normalizeDurationFormat, parseDuration } from '../../li
 import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
 import { RatingGlyph } from './RatingGlyph';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
+import type { AttachmentLimits } from '../../lib/attachmentRules';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
@@ -922,6 +923,7 @@ export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellE
           onCommit(updated);
         }}
         storagePath={field.id}
+        limits={field.options as AttachmentLimits}
       />
     </>
   );

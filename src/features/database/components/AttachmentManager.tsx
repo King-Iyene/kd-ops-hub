@@ -3,6 +3,7 @@ import { X, Upload, Trash2, FileText, File, Image as ImageIcon, Paperclip, FileS
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
 import AttachmentLightbox from './AttachmentLightbox';
+import { acceptAttribute, checkFiles, type AttachmentLimits, type Rejection } from '../lib/attachmentRules';
 
 export interface AttachmentMeta {
   name: string;
@@ -18,6 +19,8 @@ interface AttachmentManagerProps {
   value: AttachmentMeta[];
   onCommit: (attachments: AttachmentMeta[]) => void;
   storagePath: string; // e.g. "base_id/table_id/record_id/field_id"
+  /** The field's limits: how many files, how big, which kinds. */
+  limits?: AttachmentLimits;
 }
 
 const ACCEPT = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.pptx,.ppt,.zip,.json';
@@ -48,6 +51,7 @@ export function AttachmentManager({
   value,
   onCommit,
   storagePath,
+  limits,
 }: AttachmentManagerProps) {
   const normalizeAttachments = (raw: any[]): AttachmentMeta[] =>
     (raw ?? []).map((f: any) => ({
@@ -62,6 +66,7 @@ export function AttachmentManager({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [refused, setRefused] = useState<Rejection[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -70,14 +75,14 @@ export function AttachmentManager({
 
   const uploadFiles = useCallback(
     async (files: FileList | File[]) => {
+      // Apply the field's limits first; say plainly what was left out and why.
+      const { accepted, rejected } = checkFiles(Array.from(files), attachments.length, limits);
+      setRefused(rejected);
+      for (const r of rejected) logWarn(`[Database] "${r.name}" not uploaded: ${r.reason}`);
+      if (accepted.length === 0) return;
       setUploading(true);
       const newAttachments: AttachmentMeta[] = [];
-      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-      for (const file of Array.from(files)) {
-        if (file.size > MAX_FILE_SIZE) {
-          logWarn(`[Database] File "${file.name}" exceeds 50MB limit`);
-          continue;
-        }
+      for (const file of accepted) {
         const ts = Date.now();
         const path = `${storagePath}/${ts}_${file.name}`;
         const { error } = await supabase.storage
@@ -105,7 +110,7 @@ export function AttachmentManager({
       });
       setUploading(false);
     },
-    [onCommit, storagePath],
+    [onCommit, storagePath, limits, attachments.length],
   );
 
   const handleDelete = useCallback(
@@ -160,7 +165,7 @@ export function AttachmentManager({
                 Attachments
               </h2>
               {attachments.length > 0 && (
-                <span className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">({attachments.length})</span>
+                <span className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">({attachments.length}{limits?.maxCount ? ` of ${limits.maxCount}` : ''})</span>
               )}
             </div>
             <button
@@ -193,7 +198,7 @@ export function AttachmentManager({
               ref={fileRef}
               type="file"
               multiple
-              accept={ACCEPT}
+              accept={acceptAttribute(limits, ACCEPT)}
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
@@ -202,6 +207,14 @@ export function AttachmentManager({
                 }
               }}
             />
+
+            {refused.length > 0 && (
+              <div role="alert" className="rounded-lg border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 text-xs text-[#92400E] dark:text-[#FCD34D] space-y-0.5">
+                {refused.map((r, i) => (
+                  <p key={i}><span className="font-medium">{r.name}</span> was not added: {r.reason}.</p>
+                ))}
+              </div>
+            )}
 
             {/* Attachment grid */}
             {attachments.length > 0 && (
