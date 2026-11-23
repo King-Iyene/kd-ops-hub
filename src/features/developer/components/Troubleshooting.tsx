@@ -368,7 +368,7 @@ const SECTIONS: TroubleshootingSection[] = [
         question: 'Fuel request payment not processing',
         answer: (
           <div className="space-y-2">
-            <div className="p-3 rounded-lg bg-destructive/10/40 border border-destructive/20/60">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <p className="text-sm font-semibold text-destructive flex items-center gap-2"><AlertTriangle size={14} /> CRITICAL: Bank details required</p>
               <p className="text-sm text-destructive mt-1">Fuel request disbursements ONLY work if the requesting employee has valid bank details on file (<code className="text-xs font-mono">bank_name</code>, <code className="text-xs font-mono">account_number</code>, <code className="text-xs font-mono">account_name</code>). Without bank details, the request will be created but payment cannot be processed.</p>
             </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
@@ -290,6 +291,21 @@ export default function ApiKeysManager() {
         </Button>
       </div>
 
+      <div
+        role="note"
+        className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300"
+      >
+        <Shield size={14} className="mt-0.5 shrink-0 text-primary" />
+        <p>
+          <strong>This is the home for API keys.</strong> Keys listed here are platform-wide. The{' '}
+          <Link to="/data" className="font-medium text-primary underline underline-offset-2">
+            Database
+          </Link>{' '}
+          module also has an API tokens dialog; keys made there are stored for that one base and are not listed
+          below. Use this page for anything you want to manage, review or revoke in one place.
+        </p>
+      </div>
+
       {/* Keys table */}
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardContent className="p-0">
@@ -489,7 +505,7 @@ export default function ApiKeysManager() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="p-4 rounded-lg bg-warning/10/30 border border-warning/20">
+            <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
               <div className="flex items-start gap-2 mb-3">
                 <AlertTriangle size={16} className="text-warning mt-0.5 shrink-0" />
                 <p className="text-xs text-warning">
