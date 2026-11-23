@@ -27,6 +27,7 @@ import { FormulaEditor } from './FormulaEditor';
 import { RollupSetup } from './RollupSetup';
 import { useTables } from '../hooks/useTables';
 import { useDatabaseUI } from '../lib/store';
+import { countOptionUsage, describeOptionRemoval } from '../lib/optionUsage';
 import { keepDialogOpenWhileSuggesting } from './formula/escape';
 import type { RollupFunction } from '../lib/computations';
 import { NumberFormatPanel } from './NumberFormatPanel';
@@ -338,9 +339,14 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
     setNewChoiceText('');
   }, [choices]);
 
-  const removeChoice = useCallback((title: string) => {
-    setChoices(choices.filter((c) => c.title !== title));
-  }, [choices]);
+  const removeChoice = useCallback(async (title: string) => {
+    // Say how many records use an option before it goes, so it is not removed by accident.
+    if (field && activeBaseId && field.pg_column_name) {
+      const used = await countOptionUsage(activeBaseId, field.table_id, field.pg_column_name, field.ui_type, title);
+      if (used && used > 0 && !window.confirm(describeOptionRemoval(title, used))) return;
+    }
+    setChoices((current) => current.filter((c) => c.title !== title));
+  }, [field, activeBaseId]);
 
   const updateChoiceColor = useCallback((title: string, color: string) => {
     setChoices(choices.map((c) => c.title === title ? { ...c, color } : c));
