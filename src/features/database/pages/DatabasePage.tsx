@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { DatabaseShell } from '../components/DatabaseShell';
 import { useDatabaseUI } from '../lib/store';
 import { useSlugResolver } from '../hooks/useSlugResolver';
+import { prefetchTable } from '../hooks/usePrefetchTable';
 
 export default function DatabasePage() {
   const { baseId: rawBase, tableId: rawTable, viewId: rawView } = useParams<{
@@ -18,12 +20,23 @@ export default function DatabasePage() {
   const activeTableId = useDatabaseUI((s) => s.activeTableId);
 
   const { data: resolved, isLoading } = useSlugResolver(rawBase, rawTable, rawView);
+  const qc = useQueryClient();
 
   const baseId = resolved?.baseId;
   const tableId = resolved?.tableId;
   const viewId = resolved?.viewId;
 
-  useEffect(() => {
+  // The moment the table is known, start loading its context, columns, views and first page of rows.
+  // This runs before the table screen has even mounted, so those requests are already on their way
+  // (and shared) when its hooks ask for them. A layout effect so it is not held back by a paint.
+  useLayoutEffect(() => {
+    if (isLoading || !baseId || !tableId) return;
+    void prefetchTable(qc, baseId, tableId, { viewId });
+  }, [qc, isLoading, baseId, tableId, viewId]);
+
+  // The next three effects copy the address into the store. As layout effects the store is up to date
+  // before the first paint, so a deep link never flashes the empty state for a frame.
+  useLayoutEffect(() => {
     if (isLoading) return;
     if (baseId && baseId !== activeBaseId) {
       setActiveBase(baseId);
@@ -32,14 +45,14 @@ export default function DatabasePage() {
     }
   }, [baseId, rawBase, isLoading, activeBaseId, setActiveBase]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isLoading) return;
     if (tableId && tableId !== activeTableId) {
       setActiveTable(tableId);
     }
   }, [tableId, isLoading, activeTableId, setActiveTable]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isLoading) return;
     if (viewId) {
       setActiveView(viewId);

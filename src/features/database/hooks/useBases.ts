@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Base } from '../types';
+import { primeBaseSchema } from './tableBootstrap';
 
 export function useBases(workspaceId?: string) {
   return useQuery({
@@ -20,6 +21,8 @@ export function useBases(workspaceId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
+      // The schema names are right here; hand them over so opening a table does not ask for them again.
+      for (const b of data ?? []) primeBaseSchema(b.id, b.schema_name);
       return data as Base[];
     },
   });

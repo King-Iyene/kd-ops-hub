@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { FieldMeta, UIType } from '../types';
 import { VIRTUAL_TYPES, UI_TYPE_TO_PG_TYPE } from '../types';
+import { fetchFields, peekBootstrapInFlight } from './tableBootstrap';
 
 function toSnakeCase(name: string): string {
   let result = name
@@ -23,14 +24,17 @@ export function useFields(tableId: string | null | undefined) {
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('fields')
-        .select('*')
-        .eq('table_id', tableId)
-        .order('position');
-      if (error) throw error;
-      return data as FieldMeta[];
+      // If the combined table request (table, fields and views in one) is already on its way, take
+      // the fields from it instead of sending a second request for the same rows.
+      const inFlight = peekBootstrapInFlight(tableId);
+      if (inFlight) {
+        try {
+          return (await inFlight).fields;
+        } catch {
+          /* fall through to the plain request, which reports a real failure */
+        }
+      }
+      return fetchFields(tableId as string);
     },
   });
 }

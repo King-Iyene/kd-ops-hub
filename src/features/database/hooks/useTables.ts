@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { TableMeta, FieldMeta } from '../types';
-import { primeTableName } from './useRecords';
+import { primeTableName } from './tableBootstrap';
 
 function toSnakeCase(name: string): string {
   return name
