@@ -296,6 +296,8 @@ class Parser {
 
     if (t.type === 'BOOLEAN') {
       this.advance();
+      // Airtable also writes these as TRUE() and FALSE().
+      if (this.peek().type === 'LPAREN' && this.tokens[this.pos + 1]?.type === 'RPAREN') this.pos += 2;
       return { type: 'BooleanLiteral', value: t.value === 'TRUE' };
     }
 
@@ -511,7 +513,166 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
   SUM: (args) => args.reduce((acc: number, v: any) => acc + toNumber(v), 0),
   COUNTA: (args) => args.filter((a) => !isBlank(a)).length,
   COUNTBLANK: (args) => args.filter((a) => isBlank(a)).length,
+
+  // Math, more
+  AVERAGE: (args) => {
+    const nums = args.filter((a) => !isBlank(a)).map(toNumber);
+    return nums.length === 0 ? null : nums.reduce((x: number, y: number) => x + y, 0) / nums.length;
+  },
+  ROUNDUP: ([a, d]) => {
+    const f = Math.pow(10, d != null ? toNumber(d) : 0);
+    const n = toNumber(a);
+    return (n < 0 ? Math.floor(n * f) : Math.ceil(n * f)) / f;
+  },
+  ROUNDDOWN: ([a, d]) => {
+    const f = Math.pow(10, d != null ? toNumber(d) : 0);
+    const n = toNumber(a);
+    return (n < 0 ? Math.ceil(n * f) : Math.floor(n * f)) / f;
+  },
+  INT: ([a]) => Math.floor(toNumber(a)),
+  SIGN: ([a]) => Math.sign(toNumber(a)),
+  VALUE: ([s]) => {
+    const t = toString(s).replace(/[,\s%$₦€£]/g, '');
+    const n = Number(t);
+    return t === '' || isNaN(n) ? null : n;
+  },
+
+  // Text, more
+  FIND: ([find, s, startPos]) => {
+    const from = startPos != null ? toNumber(startPos) - 1 : 0;
+    const idx = toString(s).indexOf(toString(find), Math.max(0, from));
+    return idx === -1 ? 0 : idx + 1;
+  },
+  T: ([a]) => (typeof a === 'string' ? a : ''),
+  REGEX_MATCH: ([s, re]) => {
+    const r = safeRegex(re);
+    return r ? r.test(toString(s)) : false;
+  },
+  REGEX_EXTRACT: ([s, re]) => {
+    const r = safeRegex(re);
+    if (!r) return null;
+    const m = r.exec(toString(s));
+    return m ? (m[1] ?? m[0]) : null;
+  },
+  REGEX_REPLACE: ([s, re, rep]) => {
+    const r = safeRegex(re, 'g');
+    return r ? toString(s).replace(r, toString(rep)) : toString(s);
+  },
+  ENCODE_URL_COMPONENT: ([s]) => encodeURIComponent(toString(s)),
+  // Linked or list values reach a formula already joined with ", ".
+  ARRAYJOIN: ([a, sep]) => (sep != null ? toString(a).split(', ').join(toString(sep)) : toString(a)),
+
+  // Logic, more
+  XOR: (args) => args.filter(toBoolean).length % 2 === 1,
+  TRUE: () => true,
+  FALSE: () => false,
+
+  // Dates, more
+  IS_AFTER: ([a, b]) => {
+    const x = toTime(a);
+    const y = toTime(b);
+    return x == null || y == null ? null : x > y;
+  },
+  IS_BEFORE: ([a, b]) => {
+    const x = toTime(a);
+    const y = toTime(b);
+    return x == null || y == null ? null : x < y;
+  },
+  IS_SAME: ([a, b, unit]) => {
+    const x = parseDay(a);
+    const y = parseDay(b);
+    if (isNaN(x.getTime()) || isNaN(y.getTime())) return null;
+    const u = toString(unit).toLowerCase();
+    if (u === 'year' || u === 'years') return x.getFullYear() === y.getFullYear();
+    if (u === 'month' || u === 'months') return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth();
+    const sameDay = x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+    if (u === 'day' || u === 'days') return sameDay;
+    if (u === 'hour' || u === 'hours') return sameDay && x.getHours() === y.getHours();
+    if (u === 'minute' || u === 'minutes') return sameDay && x.getHours() === y.getHours() && x.getMinutes() === y.getMinutes();
+    return x.getTime() === y.getTime();
+  },
+  // Airtable order: the first date minus the second.
+  DATETIME_DIFF: ([a, b, unit]) => BUILTIN_FUNCTIONS.DATEDIFF([b, a, unit]),
+  HOUR: ([d]) => { const dt = parseDay(d); return isNaN(dt.getTime()) ? null : dt.getHours(); },
+  MINUTE: ([d]) => { const dt = parseDay(d); return isNaN(dt.getTime()) ? null : dt.getMinutes(); },
+  SECOND: ([d]) => { const dt = parseDay(d); return isNaN(dt.getTime()) ? null : dt.getSeconds(); },
+  DATESTR: ([d]) => {
+    const dt = parseDay(d);
+    if (isNaN(dt.getTime())) return null;
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  },
+  TIMESTR: ([d]) => {
+    const dt = parseDay(d);
+    if (isNaN(dt.getTime())) return null;
+    return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}:${String(dt.getSeconds()).padStart(2, '0')}`;
+  },
+  // ISO 8601 week number (weeks start on Monday, week 1 holds the first Thursday).
+  WEEKNUM: ([d]) => {
+    const dt = parseDay(d);
+    if (isNaN(dt.getTime())) return null;
+    const t = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  },
+  // The date that many working days (Monday to Friday) after the start date.
+  WORKDAY: ([d, n]) => {
+    const dt = parseDay(d);
+    if (isNaN(dt.getTime())) return null;
+    let left = Math.trunc(toNumber(n));
+    const step = left < 0 ? -1 : 1;
+    const cur = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    while (left !== 0) {
+      cur.setDate(cur.getDate() + step);
+      const wd = cur.getDay();
+      if (wd !== 0 && wd !== 6) left -= step;
+    }
+    return `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+  },
+  // Working days from the first date to the second, both included; negative when reversed.
+  WORKDAY_DIFF: ([a, b]) => {
+    const x = parseDay(a);
+    const y = parseDay(b);
+    if (isNaN(x.getTime()) || isNaN(y.getTime())) return null;
+    const from = new Date(x.getFullYear(), x.getMonth(), x.getDate());
+    const to = new Date(y.getFullYear(), y.getMonth(), y.getDate());
+    const sign = from <= to ? 1 : -1;
+    const lo = sign === 1 ? from : to;
+    const hi = sign === 1 ? to : from;
+    let count = 0;
+    for (const cur = new Date(lo); cur <= hi; cur.setDate(cur.getDate() + 1)) {
+      const wd = cur.getDay();
+      if (wd !== 0 && wd !== 6) count++;
+    }
+    return sign * count;
+  },
 };
+
+/** A regular expression from formula text, or null when it is not valid (never throws). */
+function safeRegex(source: any, flags = ''): RegExp | null {
+  const text = toString(source);
+  if (!text || text.length > 200) return null;
+  try {
+    return new RegExp(text, flags);
+  } catch {
+    return null;
+  }
+}
+
+/** A date for the date functions: "2026-11-22" is that calendar day wherever the browser is. */
+function parseDay(v: any): Date {
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const [y, m, d] = v.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(v);
+}
+
+function toTime(v: any): number | null {
+  const t = parseDay(v).getTime();
+  return isNaN(t) ? null : t;
+}
 
 function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap): any {
   switch (node.type) {
