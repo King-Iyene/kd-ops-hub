@@ -1563,3 +1563,26 @@ input[type=number] {
   }
 
 }
+
+/*
+ * Grid cell editors.
+ * The cell already draws its own selection outline. The app-wide focus styles
+ * above (a rounded outline plus a soft glow on every focused input) landed
+ * inside the cell as a second rounded box, so editing a currency or number
+ * cell looked like a circle inside a box. This rule is outside every @layer on
+ * purpose, so it wins over the global focus styles without !important.
+ */
+[data-cell-id] input,
+[data-cell-id] textarea,
+[data-cell-id] input:focus,
+[data-cell-id] input:focus-visible,
+[data-cell-id] textarea:focus,
+[data-cell-id] textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+[data-cell-id] input:focus,
+[data-cell-id] textarea:focus {
+  border-color: transparent;
+}

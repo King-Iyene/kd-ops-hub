@@ -247,3 +247,15 @@ Effort: S = under a day, M = a few days, L = a week or more.
 - Not found in any official source: Airtable's grid cell chip-count rule, Airtable's table-switcher internals, Baserow's and NocoDB's grid page sizes, whether Teable's grid is canvas or DOM, Rows.com's grid architecture. Do not treat the sections that rely on these as proven.
 - Numbers I do cite: AG Grid `rowBuffer` default 10 and 500 rendered-row cap and 200px column buffer; Notion 250,000 rows, 500 properties, 20 percent navigation improvement (28/31/33 percent in Australia/China/India); Retool over 100,000 rows. Everything else is described without invented figures.
 - Postgres virtual generated columns are a PG18 feature and the stored variety works on all versions; confirm the Supabase project's Postgres version before choosing.
+
+---
+
+## Addendum (2026-11-22): the "circle inside the cell" when editing
+
+**What the owner saw:** editing a Currency cell (for example `₦ 482539.27`) shows the cell's blue outline and, inside it, a second rounded box around the number.
+
+**Cause (found in code):** `src/index.css` has app-wide focus rules for form inputs: `:focus-visible { outline; border-radius: var(--radius); box-shadow: 0 0 0 4px … }` and `input:focus { box-shadow: 0 0 0 3px … }`. Every cell editor is a plain `<input>`, so the moment it is focused it gets that rounded glow, drawn inside the cell next to the cell's own selection outline. The currency editor also lacked `border-none` (the number editor had it).
+
+**Fix on branch `feature/database-revamp`:** one rule scoped to `[data-cell-id]` (placed outside every `@layer` so it wins) removes the outline, glow and radius from inputs inside grid cells, and the currency input gets `border-none`. Select and date editors open in portaled popovers, so they keep their normal styling.
+
+**Rule for every editor from now on:** one outline (the cell's), no inner wrapper, same padding and font as the renderer so nothing shifts on entering edit mode. The full per-editor audit is in `database-field-types-research.md`.

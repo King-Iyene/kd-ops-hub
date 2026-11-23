@@ -139,7 +139,7 @@ export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEdi
         }}
         onBlur={() => onCommit(num === '' ? null : Number(num))}
         placeholder="0.00"
-        className="w-full h-full px-2 outline-none bg-transparent text-right"
+        className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
         style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}
       />
     </div>
