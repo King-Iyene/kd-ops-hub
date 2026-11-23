@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateFormula, parseFormula, FORMULA_FUNCTIONS } from '../lib/formula';
+import { evaluateFormula, parseFormula, validateFormula, FORMULA_FUNCTIONS } from '../lib/formula';
 
 const run = (expr: string, record: Record<string, any> = {}, fieldMap: Record<string, string> = {}) =>
   evaluateFormula(parseFormula(expr), record, fieldMap);
@@ -188,6 +188,21 @@ describe('list functions', () => {
   it('a field that is not a list still works as a list of one', () => {
     expect(run('ARRAYJOIN({Tags}, "-")', { tags: 'solo' }, fm)).toBe('solo');
     expect(run('ARRAYUNIQUE({Tags})', { tags: null }, fm)).toBe('');
+  });
+});
+
+describe('validateFormula', () => {
+  it('a function the engine does not have is invalid, wherever it is in the formula', () => {
+    expect(validateFormula('NOSUCHFUNCTION(1)')).toEqual({ valid: false, error: 'Unknown function: NOSUCHFUNCTION' });
+    expect(validateFormula('IF(TRUE, 1, NOSUCHFUNCTION())').valid).toBe(false);
+    expect(validateFormula('1 + NOSUCHFUNCTION()').valid).toBe(false);
+    expect(validateFormula('-NOSUCHFUNCTION()').valid).toBe(false);
+  });
+
+  it('known functions in any letter case stay valid, and so does a plain formula', () => {
+    expect(validateFormula('round({A}, 2)').valid).toBe(true);
+    expect(validateFormula('IF({A} > 1 && !{B}, "x", "y")').valid).toBe(true);
+    expect(validateFormula('').valid).toBe(false);
   });
 });
 

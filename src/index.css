@@ -1611,3 +1611,36 @@ input[type=number] {
 .kd-grid-row:hover:not([data-row-selected="true"]) {
   background-color: var(--kd-row-hover) !important;
 }
+
+/*
+ * Formula editor colours. Function names green, fields purple, numbers orange, text teal, as in Airtable;
+ * a field written as a chip uses the purple scale, an unknown field the red scale. Light and dark.
+ */
+:root {
+  --fx-function: #166534;
+  --fx-field: #6b21a8;
+  --fx-number: #9a3412;
+  --fx-string: #0f766e;
+  --fx-error: #b42318;
+  --fx-warning: #b45309;
+  --fx-pill-bg: #f7edfe;
+  --fx-pill-border: #d1afec;
+  --fx-pill-text: #402060;
+  --fx-pill-unknown-bg: #feebec;
+  --fx-pill-unknown-border: #f4a9aa;
+  --fx-pill-unknown-text: #641723;
+}
+.dark {
+  --fx-function: #86efac;
+  --fx-field: #d8b4fe;
+  --fx-number: #fdba74;
+  --fx-string: #5eead4;
+  --fx-error: #f97066;
+  --fx-warning: #fbbf24;
+  --fx-pill-bg: #301c3b;
+  --fx-pill-border: #664282;
+  --fx-pill-text: #ecd9fa;
+  --fx-pill-unknown-bg: #3b1219;
+  --fx-pill-unknown-border: #8c333a;
+  --fx-pill-unknown-text: #ffd1d9;
+}

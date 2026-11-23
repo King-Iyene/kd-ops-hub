@@ -932,12 +932,34 @@ export function evaluateFormula(
   return evaluate(ast, record, fieldMap);
 }
 
+/** The name of the first function in the formula that the engine does not have, or null. */
+function firstUnknownFunction(node: ASTNode): string | null {
+  switch (node.type) {
+    case 'FunctionCall': {
+      if (!BUILTIN_FUNCTIONS[node.name]) return node.name;
+      for (const arg of node.args) {
+        const found = firstUnknownFunction(arg);
+        if (found) return found;
+      }
+      return null;
+    }
+    case 'BinaryOp':
+      return firstUnknownFunction(node.left) ?? firstUnknownFunction(node.right);
+    case 'UnaryOp':
+      return firstUnknownFunction(node.operand);
+    default:
+      return null;
+  }
+}
+
 export function validateFormula(expression: string): { valid: boolean; error?: string } {
   if (!expression || !expression.trim()) {
     return { valid: false, error: 'Formula expression is empty' };
   }
   try {
-    parseFormula(expression);
+    const bad = firstUnknownFunction(parseFormula(expression));
+    // A function the engine does not have would fail for every row, so it counts as invalid, not just odd.
+    if (bad) return { valid: false, error: `Unknown function: ${bad}` };
     return { valid: true };
   } catch (e: any) {
     return { valid: false, error: e?.message ?? 'Invalid formula' };
