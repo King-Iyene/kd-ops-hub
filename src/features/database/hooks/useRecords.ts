@@ -547,6 +547,8 @@ export function useRecords(params: UseRecordsParams) {
       } else if (!sorts || sorts.length === 0) {
         query = query.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
+      // A last, unique sort key: without it rows with equal values can swap places between pages.
+      query = query.order('id', { ascending: true });
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -716,6 +718,8 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
       } else if (!sorts || sorts.length === 0) {
         q = q.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
+      // A last, unique sort key: without it rows with equal values can swap places between pages.
+      q = q.order('id', { ascending: true });
 
       const { data, error, count } = await q;
       if (error) throw error;
