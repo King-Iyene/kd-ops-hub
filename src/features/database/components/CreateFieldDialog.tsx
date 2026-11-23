@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils';
 import { validateFormula } from '../lib/formula';
 import { FormulaEditor } from './FormulaEditor';
 import { RollupSetup } from './RollupSetup';
+import { LinkSetup } from './LinkSetup';
+import { deriveRelation, reciprocalNameOrDefault } from '../lib/linkSetup';
 import { keepDialogOpenWhileSuggesting } from './formula/escape';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -93,7 +95,6 @@ const FIELD_TYPE_OPTIONS: FieldTypeOption[] = [
 
 const GROUPS = ['Text', 'Numeric', 'Date & Time', 'Selection', 'Relations', 'Computed', 'Other', 'System'];
 
-type RelationType = 'one_to_one' | 'one_to_many' | 'many_to_many';
 
 interface SortableOptionProps {
   choice: SelectChoice;
@@ -222,8 +223,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [formulaExpression, setFormulaExpression] = useState('');
   const [formulaError, setFormulaError] = useState('');
   const [targetTableId, setTargetTableId] = useState('');
-  const [relationType, setRelationType] = useState<RelationType>('many_to_many');
-  const [linkAllowMultiple, setLinkAllowMultiple] = useState(true);
+  const [linksToMany, setLinksToMany] = useState(true);
+  const [linkedFromMany, setLinkedFromMany] = useState(true);
+  const [reciprocalName, setReciprocalName] = useState('');
   const [linkFieldId, setLinkFieldId] = useState('');
   const [lookupFieldId, setLookupFieldId] = useState('');
   const [rollupFieldId, setRollupFieldId] = useState('');
@@ -254,6 +256,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const createField = useCreateField();
   const createLink = useCreateLink();
   const { data: tables = [] } = useTables(activeBaseId);
+  const thisTableName = tables.find((t) => t.id === activeTableId)?.name ?? '';
 
   const { data: currentTableFields = [] } = useFields(activeTableId);
   const linkFields = currentTableFields.filter((f: FieldMeta) => f.ui_type === 'Links');
@@ -351,8 +354,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setRollupFn('COUNT');
     setTypeSearch('');
     setTargetTableId('');
-    setRelationType('many_to_many');
-    setLinkAllowMultiple(true);
+    setLinksToMany(true);
+    setLinkedFromMany(true);
+    setReciprocalName('');
     setFormulaExpression('');
     setFormulaError('');
     setButtonLabel('Click');
@@ -474,15 +478,19 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           setError('No base selected');
           return;
         }
+        const choice = deriveRelation(linksToMany, linkedFromMany);
         await createLink.mutateAsync({
           base_id: activeBaseId,
           table_id: activeTableId,
           field_name: name.trim(),
           target_table_id: targetTableId,
-          relation_type: relationType,
-          allow_multiple: linkAllowMultiple,
+          relation_type: choice.relationType,
+          allow_multiple: choice.allowMultiple,
+          reciprocal_name: reciprocalNameOrDefault(reciprocalName, thisTableName),
         });
-        setLinkAllowMultiple(true);
+        setLinksToMany(true);
+        setLinkedFromMany(true);
+        setReciprocalName('');
         setName('');
         setUiType('SingleLineText');
         setDescription('');
@@ -490,7 +498,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
         setChoices([]);
         setNewChoiceText('');
         setTargetTableId('');
-        setRelationType('many_to_many');
         setFormulaExpression('');
         setFormulaError('');
         onOpenChange(false);
@@ -729,56 +736,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           )}
 
           {isLinksType && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Target Table</Label>
-                <select
-                  value={targetTableId}
-                  onChange={(e) => setTargetTableId(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                >
-                  <option value="">Select a table...</option>
-                  {tables
-                    .filter((t) => t.id !== activeTableId)
-                    .map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Relation Type</Label>
-                <div className="flex gap-1">
-                  {([
-                    { value: 'one_to_one' as const, label: 'One-to-One' },
-                    { value: 'one_to_many' as const, label: 'One-to-Many' },
-                    { value: 'many_to_many' as const, label: 'Many-to-Many' },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      className={cn(
-                        'flex-1 px-2 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                        relationType === opt.value
-                          ? 'bg-primary/10 text-primary border-primary/30'
-                          : 'text-[#6A7184] dark:text-[hsl(220,20%,55%)] border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,14%)]',
-                      )}
-                      onClick={() => setRelationType(opt.value)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 accent-primary"
-                  checked={linkAllowMultiple}
-                  onChange={(e) => setLinkAllowMultiple(e.target.checked)}
-                />
-                <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Allow linking more than one record in a cell</span>
-              </label>
-            </div>
+            <LinkSetup
+              thisTableName={thisTableName}
+              tables={tables.filter((t) => t.id !== activeTableId)}
+              targetTableId={targetTableId}
+              onTarget={setTargetTableId}
+              linksToMany={linksToMany}
+              onLinksToMany={setLinksToMany}
+              linkedFromMany={linkedFromMany}
+              onLinkedFromMany={setLinkedFromMany}
+              reciprocalName={reciprocalName}
+              onReciprocalName={setReciprocalName}
+            />
           )}
 
           {isFormula && (
