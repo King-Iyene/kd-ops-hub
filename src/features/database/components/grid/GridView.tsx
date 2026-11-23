@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, ChevronRight, Loader2, Expand, MoreHorizontal, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
+import { Plus, ChevronRight, Loader2, Sigma, Lock, ChevronsUpDown, ChevronsDownUp, Rows3 } from 'lucide-react';
 import type { FieldMeta, RecordRow, RowColorRule, UIType } from '@/features/database/types';
 import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
@@ -10,7 +10,8 @@ import { formatDbDate } from '../../lib/dates';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
-import { GridCell } from './GridCell';
+import { GridRow } from './GridRow';
+import { formatCellAriaValue } from './cellAria';
 import { LinksCellRenderer } from './cell-renderers';
 import { getCellRenderer } from './cell-renderer-map';
 import { EditFieldDialog } from '../EditFieldDialog';
@@ -19,17 +20,7 @@ import { GridSkeleton } from './GridSkeleton';
 import { RowContextMenu } from './RowContextMenu';
 import { useGridColors, type GridColorTokens } from '../../hooks/useGridColors';
 import { useUpdateField } from '../../hooks/useFields';
-import { formatDate, formatDateTime, getTimezone } from '@/lib/format';
-
-const _ariaFmtMap = new Map<string, Intl.NumberFormat>();
-function _ariaFmtCache(code: string): Intl.NumberFormat {
-  let fmt = _ariaFmtMap.get(code);
-  if (!fmt) {
-    fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
-    _ariaFmtMap.set(code, fmt);
-  }
-  return fmt;
-}
+import { getTimezone } from '@/lib/format';
 
 export interface GridViewProps {
   fields: FieldMeta[];
@@ -51,6 +42,8 @@ export interface GridViewProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onReorderRows?: (rows: Array<{ id: string; nc_order: number }>) => void;
+  /** False while `fields` still belong to the previous table; the loading skeleton then does not draw their names. */
+  fieldsAreCurrent?: boolean;
 }
 
 
@@ -68,66 +61,8 @@ const ROW_HEIGHTS: Record<string, number> = {
 
 const ROW_NUMBER_WIDTH = 48;
 const HEADER_HEIGHT = 36;
-
-/** Best-effort plain-text rendering of a cell's value for aria-label purposes. */
-function extractDisplayValue(val: any): string {
-  if (typeof val === 'object' && val !== null) {
-    return val.value ?? val.title ?? val.name ?? val.label ?? val.display_name ?? val.email ?? val.primary ?? '';
-  }
-  // Handle JSON strings stored as text (e.g. from Airtable migration)
-  if (typeof val === 'string' && val.startsWith('{') && val.includes('"')) {
-    try {
-      const parsed = JSON.parse(val);
-      if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.value ?? parsed.title ?? parsed.name ?? parsed.label ?? parsed.display_name ?? parsed.email ?? parsed.primary ?? val;
-      }
-    } catch { /* not valid JSON, use as-is */ }
-  }
-  return String(val);
-}
-
-function formatCellAriaValue(record: RecordRow, field: FieldMeta): string {
-  const val = record[field.pg_column_name];
-  if (val == null || val === '') return '';
-  const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
-  if (Array.isArray(val)) {
-    return val
-      .map((v) => {
-        if (typeof v === 'object' && v !== null) return extractDisplayValue(v);
-        const id = String(v);
-        return (lookup && lookup[id]) || id;
-      })
-      .filter(Boolean)
-      .join(', ');
-  }
-  if (typeof val === 'object') {
-    return extractDisplayValue(val);
-  }
-  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-  // Try extracting display value from JSON strings
-  if (typeof val === 'string' && val.startsWith('{') && val.includes('"')) {
-    const extracted = extractDisplayValue(val);
-    if (extracted !== val) return extracted;
-  }
-  if (field.ui_type === 'Date' || field.ui_type === 'DateTime' || field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) {
-      return (field.ui_type === 'DateTime' || field.ui_type === 'LastModifiedTime')
-        ? formatDateTime(String(val))
-        : formatDate(String(val));
-    }
-  }
-  if (field.ui_type === 'Currency') {
-    const n = Number(val);
-    if (!isNaN(n)) {
-      const sym = field.options?.currencySymbol || '₦';
-      const code = sym === '₦' ? 'NGN' : sym === '$' ? 'USD' : sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : 'NGN';
-      try { return _ariaFmtCache(code).format(n); } catch { /* fall through */ }
-    }
-  }
-  if (field.ui_type === 'Checkbox') return val ? 'Yes' : 'No';
-  return String(val);
-}
+/** One shared empty set, so rows see an unchanged prop while no cell is flashing. */
+const EMPTY_FLASH: ReadonlySet<string> = new Set<string>();
 
 const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
@@ -403,13 +338,14 @@ function GridViewInner({
   hasMore,
   isLoadingMore,
   onReorderRows,
+  fieldsAreCurrent = true,
 }: GridViewProps) {
   const GRID_COLORS = useGridColors();
   const mobileCardHoverStyle = useMemo(() => ({ '--grid-hover': `${GRID_COLORS.primary}08` }), [GRID_COLORS.primary]);
   const rowHeight = useDatabaseUI((s) => s.rowHeight);
-  const selectedCellId = useDatabaseUI((s) => s.selectedCellId);
+  // The selected and editing cell are deliberately NOT subscribed to here: each row and cell watches only
+  // whether it is the one selected, so moving the selection re-renders two rows, not the whole grid.
   const setSelectedCell = useDatabaseUI((s) => s.setSelectedCell);
-  const editingCellId = useDatabaseUI((s) => s.editingCellId);
   const setEditingCell = useDatabaseUI((s) => s.setEditingCell);
   const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
   const conditionalFormats = useDatabaseUI((s) => s.conditionalFormats);
@@ -514,15 +450,23 @@ function GridViewInner({
     requestAnimationFrame(() => document.body.removeChild(preview));
   }, []);
 
+  const dragRowIdRef = useRef(dragRowId);
+  dragRowIdRef.current = dragRowId;
+  const onReorderRowsRef = useRef(onReorderRows);
+  onReorderRowsRef.current = onReorderRows;
+
   const handleRowDragOver = useCallback((e: React.DragEvent, idx: number) => {
-    if (dragRowId === null) return;
+    if (dragRowIdRef.current === null) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDropTargetIdx(idx);
-  }, [dragRowId]);
+  }, []);
 
   const handleRowDrop = useCallback((e: React.DragEvent, targetIdx: number) => {
     e.preventDefault();
+    const dragRowId = dragRowIdRef.current;
+    const records = recordsRef.current;
+    const onReorderRows = onReorderRowsRef.current;
     if (!dragRowId) return;
     const sourceIdx = records.findIndex((r) => r.id === dragRowId);
     if (sourceIdx === -1 || sourceIdx === targetIdx) {
@@ -569,7 +513,7 @@ function GridViewInner({
 
     setDragRowId(null);
     setDropTargetIdx(null);
-  }, [dragRowId, records, onReorderRows]);
+  }, []);
 
   const handleRowDragEnd = useCallback(() => {
     setDragRowId(null);
@@ -841,7 +785,9 @@ function GridViewInner({
       if (flatItems && flatItems[index].type === 'header') return GROUP_HEADER_HEIGHT;
       return rowHeightPx;
     },
-    overscan: 10,
+    // Rows are cheap now (memoised), so a smaller buffer keeps the DOM, and the work to mount rows while
+    // scrolling, down without showing blank rows at normal scroll speeds.
+    overscan: 6,
   });
 
   const mobileCardHeight = Math.min(fieldsWithWidths.length, 6) * 24 + 24;
@@ -852,23 +798,31 @@ function GridViewInner({
     overscan: 8,
   });
 
-  // Infinite scroll: load more when scrolled within 5 rows of the bottom
+  // Infinite scroll: start loading the next page when the bottom is within about two screens, so the rows
+  // are usually there before the user reaches them. Asked for once per page (a scroll fires many events
+  // before the loading flag flips, and a repeated request restarts the one in flight).
+  const loadMoreRequestedAtRef = useRef(-1);
   useEffect(() => {
     const scrollEl = parentRef.current;
     if (!scrollEl || !onLoadMore) return;
 
     const handleScroll = () => {
       if (!hasMore || isLoadingMore) return;
-      const threshold = 5 * rowHeightPx;
       const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+      const threshold = Math.max(clientHeight * 2, 5 * rowHeightPx);
       if (scrollHeight - scrollTop - clientHeight < threshold) {
+        const loaded = recordsRef.current.length;
+        if (loadMoreRequestedAtRef.current === loaded) return;
+        loadMoreRequestedAtRef.current = loaded;
         onLoadMore();
       }
     };
 
     scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    // The first page can be shorter than two screens, in which case no scroll will ever fire.
+    handleScroll();
     return () => scrollEl.removeEventListener('scroll', handleScroll);
-  }, [onLoadMore, hasMore, isLoadingMore, rowHeightPx]);
+  }, [onLoadMore, hasMore, isLoadingMore, rowHeightPx, records.length]);
 
   const resizeRaf = useRef(0);
   const handleResize = useCallback((fieldId: string, width: number) => {
@@ -922,8 +876,6 @@ function GridViewInner({
   // below can be created once (stable identity) instead of being rebuilt —
   // and the window listener re-attached — on nearly every state change.
   const keyboardStateRef = useRef({
-    selectedCellId,
-    editingCellId,
     records,
     fieldsWithWidths,
     selectedRowIds,
@@ -931,8 +883,6 @@ function GridViewInner({
     selectionAnchor,
   });
   keyboardStateRef.current = {
-    selectedCellId,
-    editingCellId,
     records,
     fieldsWithWidths,
     selectedRowIds,
@@ -940,10 +890,45 @@ function GridViewInner({
     selectionAnchor,
   };
 
+  // Callbacks handed to every row keep one identity (they read the latest props through refs), so a row
+  // re-renders only when its own data changes.
+  const onCellUpdateRef = useRef(onCellUpdate);
+  onCellUpdateRef.current = onCellUpdate;
+  const stableCellUpdate = useCallback(
+    (recordId: string, fieldId: string, value: any) => onCellUpdateRef.current(recordId, fieldId, value),
+    [],
+  );
+  const onExpandRowRef = useRef(onExpandRow);
+  onExpandRowRef.current = onExpandRow;
+  const stableExpandRow = useCallback((record: RecordRow) => onExpandRowRef.current?.(record), []);
+  const openRowMenu = useCallback((x: number, y: number, record: RecordRow) => setRowMenu({ x, y, record }), []);
+
+  // Shift+click extends the selection from the selected cell to the clicked one; a plain click clears it.
+  const handleCellRangeClick = useCallback((e: React.MouseEvent, rowIndex: number, colIndex: number) => {
+    const selectedCellId = useDatabaseUI.getState().selectedCellId;
+    if (e.shiftKey && selectedCellId) {
+      const { records, fieldsWithWidths } = keyboardStateRef.current;
+      const [rowId, anchorFid] = selectedCellId.split(':');
+      const anchorRowIdx = records.findIndex((r) => r.id === rowId);
+      const anchorColIdx = fieldsWithWidths.findIndex((f) => f.id === anchorFid);
+      if (anchorRowIdx !== -1 && anchorColIdx !== -1) {
+        setSelectionAnchor({ row: anchorRowIdx, col: anchorColIdx });
+        setSelectionRange({
+          startRow: anchorRowIdx,
+          startCol: anchorColIdx,
+          endRow: rowIndex,
+          endCol: colIndex,
+        });
+      }
+    } else {
+      setSelectionRange(null);
+      setSelectionAnchor(null);
+    }
+  }, []);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+      const { selectedCellId, editingCellId } = useDatabaseUI.getState();
       const {
-        selectedCellId,
-        editingCellId,
         records,
         fieldsWithWidths,
         selectedRowIds,
@@ -1371,7 +1356,7 @@ function GridViewInner({
   }, [selectionRange, fieldsWithWidths, records]);
 
   if (isLoading) {
-    return <GridSkeleton rowHeight={rowHeightPx} />;
+    return <GridSkeleton rowHeight={rowHeightPx} fields={fieldsAreCurrent ? fieldsWithWidths : undefined} />;
   }
 
   if (records.length === 0 && !isLoading) {
@@ -1402,6 +1387,53 @@ function GridViewInner({
       </div>
     );
   }
+
+  // Columns of the dragged selection, worked out once per render; each row gets just its own two numbers.
+  const rangeBounds = selectionRange
+    ? {
+        r1: Math.min(selectionRange.startRow, selectionRange.endRow),
+        r2: Math.max(selectionRange.startRow, selectionRange.endRow),
+        c1: Math.min(selectionRange.startCol, selectionRange.endCol),
+        c2: Math.max(selectionRange.startCol, selectionRange.endCol),
+      }
+    : null;
+  const flashForRows = flashCells.size === 0 ? EMPTY_FLASH : flashCells;
+
+  const renderRow = (record: RecordRow, rowNum: number, index: number, top: number, grouped: boolean) => {
+    const inRange = !grouped && rangeBounds !== null && index >= rangeBounds.r1 && index <= rangeBounds.r2;
+    return (
+      <GridRow
+        key={record.id}
+        record={record}
+        index={index}
+        rowNum={rowNum}
+        top={top}
+        rowHeightPx={rowHeightPx}
+        grouped={grouped}
+        fields={fieldsWithWidths}
+        frozenCount={frozenCount}
+        frozenLeftOffsets={frozenLeftOffsets}
+        colors={GRID_COLORS}
+        isChecked={selectedRowIds.has(record.id)}
+        isDropTarget={!grouped && dropTargetIdx === index}
+        rowColor={getRowColor(record)}
+        rangeStartCol={inRange ? rangeBounds.c1 : -1}
+        rangeEndCol={inRange ? rangeBounds.c2 : -1}
+        flashCells={flashForRows}
+        getCellColor={getCellColor}
+        onCellUpdate={stableCellUpdate}
+        onFieldUpdate={handleFieldUpdate}
+        onExpandRow={onExpandRow ? stableExpandRow : undefined}
+        onToggleRowSelection={toggleRowSelection}
+        onOpenRowMenu={openRowMenu}
+        onRowDragStart={handleRowDragStart}
+        onRowDragEnd={handleRowDragEnd}
+        onRowDragOver={handleRowDragOver}
+        onRowDrop={handleRowDrop}
+        onCellRangeClick={handleCellRangeClick}
+      />
+    );
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -1703,333 +1735,11 @@ function GridViewInner({
                   );
                 }
                 // item.type === 'row'
-                const record = item.record;
-                const rowNum = item.rowNum;
-                const isRowSelected = selectedCellId?.startsWith(record.id + ':');
-                const rowColor = getRowColor(record);
-                const altBgGrouped = virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.bg;
-                const rowBg = isRowSelected ? GRID_COLORS.selectedRowBg : undefined;
-                return (
-                  <div
-                    key={record.id}
-                    className="absolute left-0 w-full flex group/row"
-                    role="row"
-                    aria-rowindex={rowNum}
-                    aria-selected={selectedRowIds.has(record.id)}
-                    style={{
-                      height: rowHeightPx,
-                      top: virtualRow.start,
-                      backgroundColor: rowBg,
-                      transition: 'background-color 150ms ease',
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setRowMenu({ x: e.clientX, y: e.clientY, record });
-                    }}
-                    onMouseEnter={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.hoverRow; }}
-                    onMouseLeave={(e) => { if (!isRowSelected) (e.currentTarget as HTMLElement).style.backgroundColor = rowColor ?? altBgGrouped; }}
-                  >
-                    {rowColor && (
-                      <div
-                        className="absolute left-0 top-0 h-full z-20 pointer-events-none"
-                        style={{ width: 3, backgroundColor: rowColor }}
-                      />
-                    )}
-                    <div
-                      className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
-                      style={{
-                        width: ROW_NUMBER_WIDTH,
-                        minWidth: ROW_NUMBER_WIDTH,
-                        backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : GRID_COLORS.headerBg,
-                        borderRight: `1px solid ${GRID_COLORS.border}`,
-                        borderBottom: `1px solid ${GRID_COLORS.border}`,
-                        fontSize: 11,
-                        color: GRID_COLORS.muted,
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => toggleRowSelection(record.id)}
-                    >
-                      {selectedRowIds.has(record.id) ? (
-                        <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ accentColor: GRID_COLORS.primary, outlineColor: GRID_COLORS.primary }} checked onChange={() => toggleRowSelection(record.id)} aria-label={`Deselect row ${rowNum}`} />
-                      ) : (
-                        <>
-                          <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
-                          <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
-                            <input type="checkbox" className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1" style={{ outlineColor: GRID_COLORS.primary }} checked={false} onChange={() => toggleRowSelection(record.id)} aria-label={`Select row ${rowNum}`} />
-                            {onExpandRow && (
-                              <button className="p-0.5 rounded hover:bg-accent" onClick={(e) => { e.stopPropagation(); onExpandRow(record); }} aria-label={`Expand row ${rowNum}`}>
-                                <Expand size={12} />
-                              </button>
-                            )}
-                            <button
-                              className="p-0.5 rounded hover:bg-accent"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRowMenu({ x: e.clientX, y: e.clientY, record });
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                                  e.preventDefault();
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setRowMenu({ x: rect.left, y: rect.bottom, record });
-                                }
-                              }}
-                              aria-label={`Row ${rowNum} options`}
-                              aria-haspopup="menu"
-                            >
-                              <MoreHorizontal size={12} />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {fieldsWithWidths.map((field, colIdx) => {
-                      const isFroz = colIdx < frozenCount;
-                      const isLastFroz = colIdx === frozenCount - 1;
-                      const cellLeft = frozenLeftOffsets[colIdx];
-                      return (
-                        <div
-                          key={field.id}
-                          className="shrink-0"
-                          role="gridcell"
-                          aria-colindex={colIdx + 1}
-                          aria-rowindex={rowNum}
-                          aria-label={`Row ${rowNum}, ${field.name}: ${formatCellAriaValue(record, field)}`}
-                          style={{
-                            height: '100%',
-                            width: field.width || 180,
-                            minWidth: field.width || 180,
-                            ...(isFroz ? {
-                              position: 'sticky' as const,
-                              left: cellLeft,
-                              zIndex: 5,
-                              borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                              boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined,
-                            } : {}),
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: '100%',
-                              ...(flashCells.has(`${record.id}:${field.id}`) ? {
-                                boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                                transition: 'box-shadow 0.3s ease-out',
-                              } : {}),
-                            }}
-                          >
-                            <GridCell field={field} record={record} onCellUpdate={onCellUpdate} onFieldUpdate={handleFieldUpdate} backgroundColor={getCellColor(record, field.id)} colors={GRID_COLORS} frozen={isFroz} frozenLeft={cellLeft} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
+                return renderRow(item.record, item.rowNum, virtualRow.index, virtualRow.start, true);
               }
 
               // --- Default (ungrouped) rendering ---
-              const record = records[virtualRow.index];
-              const rowNum = virtualRow.index + 1;
-              const isRowSelected = selectedCellId?.startsWith(record.id + ':');
-              const rowColorUngrouped = getRowColor(record);
-              const altBg = virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.bg;
-              const rowBgUngrouped = isRowSelected ? GRID_COLORS.selectedRowBg : (rowColorUngrouped || altBg);
-
-              return (
-                <div
-                  key={record.id}
-                  className="absolute left-0 w-full flex group/row"
-                  role="row"
-                  aria-rowindex={rowNum}
-                  aria-selected={selectedRowIds.has(record.id)}
-                  style={{
-                    height: rowHeightPx,
-                    top: virtualRow.start,
-                    backgroundColor: rowBgUngrouped,
-                    transition: 'background-color 150ms ease',
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setRowMenu({ x: e.clientX, y: e.clientY, record });
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = GRID_COLORS.hoverRow;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isRowSelected) {
-                      (e.currentTarget as HTMLElement).style.backgroundColor = rowColorUngrouped ?? altBg;
-                    }
-                  }}
-                >
-                  {rowColorUngrouped && (
-                    <div
-                      className="absolute left-0 top-0 h-full z-20 pointer-events-none"
-                      style={{ width: 3, backgroundColor: rowColorUngrouped }}
-                    />
-                  )}
-                  {/* Row number gutter */}
-                  <div
-                    className="sticky left-0 z-10 flex items-center justify-center shrink-0 group/num"
-                    style={{
-                      width: ROW_NUMBER_WIDTH,
-                      minWidth: ROW_NUMBER_WIDTH,
-                      backgroundColor: selectedRowIds.has(record.id) ? GRID_COLORS.selectedRowBg : isRowSelected ? GRID_COLORS.selectedRowBg : (virtualRow.index % 2 === 1 ? GRID_COLORS.altRowBg : GRID_COLORS.headerBg),
-                      borderRight: `1px solid ${GRID_COLORS.border}`,
-                      borderBottom: `1px solid ${GRID_COLORS.border}`,
-                      borderTop: dropTargetIdx === virtualRow.index ? `2px solid ${GRID_COLORS.primary}` : undefined,
-                      fontSize: 11,
-                      color: GRID_COLORS.muted,
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => toggleRowSelection(record.id)}
-                    onDragOver={(e) => handleRowDragOver(e, virtualRow.index)}
-                    onDrop={(e) => handleRowDrop(e, virtualRow.index)}
-                  >
-                    {selectedRowIds.has(record.id) ? (
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
-                        style={{ accentColor: GRID_COLORS.primary, outlineColor: GRID_COLORS.primary }}
-                        checked
-                        onChange={() => toggleRowSelection(record.id)}
-                        aria-label={`Deselect row ${rowNum}`}
-                      />
-                    ) : (
-                      <>
-                        <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
-                        <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
-                          <span
-                            draggable
-                            className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
-                            onDragStart={(e) => handleRowDragStart(e, record.id)}
-                            onDragEnd={handleRowDragEnd}
-                            style={{ fontSize: 13 }}
-                            role="button"
-                            aria-label={`Drag to reorder row ${rowNum}`}
-                          >
-                            &#8801;
-                          </span>
-                          <input
-                            type="checkbox"
-                            className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
-                            style={{ outlineColor: GRID_COLORS.primary }}
-                            checked={false}
-                            onChange={() => toggleRowSelection(record.id)}
-                            aria-label={`Select row ${rowNum}`}
-                          />
-                          {onExpandRow && (
-                            <button
-                              className="p-0.5 rounded hover:bg-accent"
-                              onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
-                              aria-label={`Expand row ${rowNum}`}
-                            >
-                              <Expand size={12} />
-                            </button>
-                          )}
-                          <button
-                            className="p-0.5 rounded hover:bg-accent"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRowMenu({ x: e.clientX, y: e.clientY, record });
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                                e.preventDefault();
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setRowMenu({ x: rect.left, y: rect.bottom, record });
-                              }
-                            }}
-                            aria-label={`Row ${rowNum} options`}
-                            aria-haspopup="menu"
-                          >
-                            <MoreHorizontal size={12} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {fieldsWithWidths.map((field, colIdx) => {
-                    const isFroz = colIdx < frozenCount;
-                    const isLastFroz = colIdx === frozenCount - 1;
-                    const cellLeft = isFroz ? frozenLeftOffsets[colIdx] : ROW_NUMBER_WIDTH;
-                    const isFlash = flashCells.has(`${record.id}:${field.id}`);
-                    let isInRange = false;
-                    if (selectionRange) {
-                      const r1 = Math.min(selectionRange.startRow, selectionRange.endRow);
-                      const r2 = Math.max(selectionRange.startRow, selectionRange.endRow);
-                      const c1 = Math.min(selectionRange.startCol, selectionRange.endCol);
-                      const c2 = Math.max(selectionRange.startCol, selectionRange.endCol);
-                      isInRange = virtualRow.index >= r1 && virtualRow.index <= r2 && colIdx >= c1 && colIdx <= c2;
-                    }
-                    return (
-                      <div
-                        key={field.id}
-                        className="shrink-0"
-                        role="gridcell"
-                        aria-colindex={colIdx + 1}
-                        aria-rowindex={rowNum}
-                        aria-label={`Row ${rowNum}, ${field.name}: ${formatCellAriaValue(record, field)}`}
-                        style={{
-                          height: '100%',
-                          width: field.width || 180,
-                          minWidth: field.width || 180,
-                          ...(isFroz ? {
-                            position: 'sticky' as const,
-                            left: cellLeft,
-                            zIndex: 5,
-                            borderRight: isLastFroz ? `1px solid ${GRID_COLORS.border}` : undefined,
-                            boxShadow: isLastFroz ? GRID_COLORS.frozenShadow : undefined,
-                          } : {}),
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '100%',
-                            ...(isFlash ? {
-                              boxShadow: `inset 0 0 0 2px ${GRID_COLORS.primary}`,
-                              transition: 'box-shadow 0.3s ease-out',
-                            } : {}),
-                            ...(isInRange ? { backgroundColor: `${GRID_COLORS.primary}14` } : {}),
-                          }}
-                          onClick={(e) => {
-                            if (e.shiftKey && selectedCellId) {
-                              const [, anchorFid] = selectedCellId.split(':');
-                              const anchorRowIdx = records.findIndex((r) => r.id === selectedCellId.split(':')[0]);
-                              const anchorColIdx = fieldsWithWidths.findIndex((f) => f.id === anchorFid);
-                              if (anchorRowIdx !== -1 && anchorColIdx !== -1) {
-                                setSelectionAnchor({ row: anchorRowIdx, col: anchorColIdx });
-                                setSelectionRange({
-                                  startRow: anchorRowIdx,
-                                  startCol: anchorColIdx,
-                                  endRow: virtualRow.index,
-                                  endCol: colIdx,
-                                });
-                              }
-                            } else {
-                              setSelectionRange(null);
-                              setSelectionAnchor(null);
-                            }
-                          }}
-                        >
-                          <GridCell
-                            field={field}
-                            record={record}
-                            onCellUpdate={onCellUpdate}
-                            onFieldUpdate={handleFieldUpdate}
-                            backgroundColor={getCellColor(record, field.id)}
-                            frozen={isFroz}
-                            frozenLeft={cellLeft}
-                            rowBg={rowBgUngrouped}
-                            colors={GRID_COLORS}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
+              return renderRow(records[virtualRow.index], virtualRow.index + 1, virtualRow.index, virtualRow.start, false);
             })}
           </div>
 
