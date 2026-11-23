@@ -10,7 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Plus, X, AlertTriangle, GripVertical, Info, Trash2 } from 'lucide-react';
+import { Plus, X, AlertTriangle, GripVertical, Trash2 } from 'lucide-react';
 import { useUpdateField, useChangeFieldType, useDeleteField } from '../hooks';
 import { useFields } from '../hooks/useFields';
 import type { FieldMeta, SelectChoice, UIType } from '../types';
@@ -23,8 +23,11 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
+import { RollupSetup } from './RollupSetup';
+import { useTables } from '../hooks/useTables';
+import { useDatabaseUI } from '../lib/store';
 import { keepDialogOpenWhileSuggesting } from './formula/escape';
-import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
+import type { RollupFunction } from '../lib/computations';
 import { NumberFormatPanel } from './NumberFormatPanel';
 import { FieldDefaultPanel } from './FieldDefaultPanel';
 import { FieldValidationPanel } from './FieldValidationPanel';
@@ -234,6 +237,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const selectedLinkField = linkFields.find((f: FieldMeta) => f.id === linkFieldId);
   const targetTableIdFromLink = selectedLinkField?.options?.relatedTableId ?? null;
   const { data: targetFields = [] } = useFields(targetTableIdFromLink);
+  const { activeBaseId } = useDatabaseUI();
+  const { data: tables = [] } = useTables(activeBaseId);
 
   // Populate form when field changes
   useEffect(() => {
@@ -512,21 +517,6 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             />
           </div>
 
-          {field?.ui_type === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
-
-          {field && <FieldValidationPanel uiType={field.ui_type} value={validation} onChange={setValidation} />}
-
-          {field && (
-            <FieldDefaultPanel
-              uiType={field.ui_type}
-              choices={choices}
-              value={defaultValue}
-              onChange={setDefaultValue}
-              allowNewOptions={allowNewOptions}
-              onAllowNewOptionsChange={setAllowNewOptions}
-            />
-          )}
-
           <div className="space-y-1.5">
             <Label htmlFor="edit-field-desc" className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Description <span className="text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">(optional)</span></Label>
             <textarea
@@ -747,131 +737,19 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
-          {isLookup && (
-            <div className="space-y-3">
-              {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
-                    This table has no Link fields yet. Create a Link to Another Record field first, then set up your Lookup.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Link Field</Label>
-                    <select
-                      value={linkFieldId}
-                      onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    >
-                      <option value="">Select a link field...</option>
-                      {linkFields.map((f: FieldMeta) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {linkFieldId && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Lookup Field</Label>
-                      <select
-                        value={lookupFieldId}
-                        onChange={(e) => setLookupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                      >
-                        <option value="">Select a field...</option>
-                        {targetFields.map((f: FieldMeta) => (
-                          <option key={f.id} value={f.id}>{f.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {isRollup && (
-            <div className="space-y-3">
-              {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
-                    This table has no Link fields yet. Create a Link to Another Record field first, then set up your Rollup.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Link Field</Label>
-                    <select
-                      value={linkFieldId}
-                      onChange={(e) => { setLinkFieldId(e.target.value); setRollupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    >
-                      <option value="">Select a link field...</option>
-                      {linkFields.map((f: FieldMeta) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {linkFieldId && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Rollup Field</Label>
-                      <select
-                        value={rollupFieldId}
-                        onChange={(e) => setRollupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                      >
-                        <option value="">Select a field...</option>
-                        {targetFields.map((f: FieldMeta) => (
-                          <option key={f.id} value={f.id}>{f.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Rollup Function</Label>
-                    <select
-                      value={rollupFunction}
-                      onChange={(e) => setRollupFunction(e.target.value as RollupFunction)}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    >
-                      {ROLLUP_FUNCTIONS.map((fn) => (
-                        <option key={fn} value={fn}>{fn}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {isCount && (
-            <div className="space-y-3">
-              {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
-                    This table has no Link fields yet. Create a Link to Another Record field first, then set up your Count.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Link Field</Label>
-                  <select
-                    value={linkFieldId}
-                    onChange={(e) => setLinkFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  >
-                    <option value="">Select a link field...</option>
-                    {linkFields.map((f: FieldMeta) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+          {(isLookup || isRollup || isCount) && (
+            <RollupSetup
+              kind={isLookup ? 'Lookup' : isCount ? 'Count' : 'Rollup'}
+              linkFields={linkFields}
+              tables={tables}
+              linkFieldId={linkFieldId}
+              onLinkField={(id) => { setLinkFieldId(id); setLookupFieldId(''); setRollupFieldId(''); if (isRollup) setRollupFunction('COUNT'); }}
+              targetFields={targetFields}
+              targetFieldId={isLookup ? lookupFieldId : rollupFieldId}
+              onTargetField={isLookup ? setLookupFieldId : setRollupFieldId}
+              fn={rollupFunction}
+              onFn={(f) => setRollupFunction(f as RollupFunction)}
+            />
           )}
 
           {isCurrency && (
@@ -1084,6 +962,21 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 </p>
               </div>
             </div>
+          )}
+
+          {field?.ui_type === 'Attachment' && <AttachmentOptionsPanel value={attachment} onChange={setAttachment} />}
+
+          {field && <FieldValidationPanel uiType={field.ui_type} value={validation} onChange={setValidation} />}
+
+          {field && (
+            <FieldDefaultPanel
+              uiType={field.ui_type}
+              choices={choices}
+              value={defaultValue}
+              onChange={setDefaultValue}
+              allowNewOptions={allowNewOptions}
+              onAllowNewOptionsChange={setAllowNewOptions}
+            />
           )}
 
           {error && <p className="text-xs text-destructive">{error}</p>}

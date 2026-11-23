@@ -441,6 +441,8 @@ export function useCreateLink() {
       relation_type: 'one_to_one' | 'one_to_many' | 'many_to_many';
       /** false limits each cell to one linked record. */
       allow_multiple?: boolean;
+      /** Name of the matching field added to the other table. Defaults to this table's name. */
+      reciprocal_name?: string;
     }) => {
       const shortType = input.relation_type === 'one_to_one'
         ? 'oo'
@@ -573,7 +575,7 @@ export function useCreateLink() {
 
       // 2. Create reciprocal field on target table
       const reciprocalType = shortType === 'hm' ? 'bt' : shortType === 'bt' ? 'hm' : 'mm';
-      const reciprocalName = srcTable.name;
+      const reciprocalName = input.reciprocal_name?.trim() || srcTable.name;
 
       const { data: reciprocalField, error: recipError } = await supabase
         .schema('nc_meta')
