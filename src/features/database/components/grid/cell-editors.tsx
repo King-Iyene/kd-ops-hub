@@ -4,13 +4,13 @@ import { Paperclip, Star, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
 import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateEditor } from './DateEditor';
+import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { usePlatformTasks } from '../../hooks/usePlatformTasks';
 import { normalizeLinkedTasks, type LinkedTaskValue } from './cell-renderer-map';
-import { toLocalDateString, getTimezone, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
 function sanitizeNumeric(raw: string): string {
@@ -32,6 +32,87 @@ function sanitizeNumeric(raw: string): string {
   return result;
 }
 
+/**
+ * Enter then blur (or Tab then blur) used to commit twice. The first exit wins;
+ * the guard releases after a moment so a rejected value can be corrected and saved.
+ */
+function useEditorExit(onCommit: (value: any) => void, onCancel: () => void) {
+  const busy = useRef(false);
+  const release = () => { setTimeout(() => { busy.current = false; }, 80); };
+  const commit = useCallback((value: any) => {
+    if (busy.current) return;
+    busy.current = true;
+    onCommit(value);
+    release();
+  }, [onCommit]);
+  const cancel = useCallback(() => {
+    if (busy.current) return;
+    busy.current = true;
+    onCancel();
+    release();
+  }, [onCancel]);
+  return { commit, cancel };
+}
+
+/**
+ * Number-like editor: one borderless input that sits exactly where the cell's
+ * text sits (the cell owns the outline and the padding), with an optional
+ * symbol before or after the number.
+ */
+function NumericEditor({
+  value, onCommit, onCancel, prefix, suffix, placeholder,
+}: {
+  value: any;
+  onCommit: (value: any) => void;
+  onCancel: () => void;
+  prefix?: string;
+  suffix?: string;
+  placeholder?: string;
+}) {
+  const [num, setNum] = useState(value == null ? '' : String(value));
+  const ref = useRef<HTMLInputElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  const finish = () => exit.commit(num === '' ? null : Number(num));
+
+  return (
+    <div className="flex items-center gap-1 w-full h-full min-w-0">
+      {prefix && <span className="shrink-0 text-muted-foreground tabular-nums" style={{ fontSize: 13 }}>{prefix}</span>}
+      <input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        value={num}
+        placeholder={placeholder}
+        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
+        onPaste={(e) => {
+          // Pasting "₦1,234.50" or "(500)" keeps the number instead of dropping characters.
+          const parsed = parseNumberInput(e.clipboardData.getData('text'));
+          if (parsed != null) {
+            e.preventDefault();
+            setNum(String(parsed));
+          }
+        }}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') finish();
+          else if (e.key === 'Escape') exit.cancel();
+          else if (e.key === 'Tab') { e.preventDefault(); finish(); }
+        }}
+        onBlur={finish}
+        className="flex-1 min-w-0 h-full px-0 bg-transparent border-0 rounded-none shadow-none outline-none text-right tabular-nums"
+        style={{ fontSize: 13, lineHeight: '18px', letterSpacing: '-0.01em', color: 'inherit' }}
+      />
+      {suffix && <span className="shrink-0 text-muted-foreground tabular-nums" style={{ fontSize: 13 }}>{suffix}</span>}
+    </div>
+  );
+}
+
 interface CellEditorProps {
   value: any;
   field: FieldMeta;
@@ -40,9 +121,10 @@ interface CellEditorProps {
   onFieldUpdate?: (fieldId: string, tableId: string, updates: Partial<FieldMeta['options']>) => void;
 }
 
-export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
+export function TextCellEditor({ value, onCommit: commitValue, onCancel: cancelValue }: CellEditorProps) {
   const [text, setText] = useState(value ?? '');
   const ref = useRef<HTMLInputElement>(null);
+  const { commit: onCommit, cancel: onCancel } = useEditorExit(commitValue, cancelValue);
 
   useEffect(() => {
     ref.current?.focus();
@@ -72,149 +154,32 @@ export function TextCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         e.stopPropagation();
       }}
       onBlur={() => onCommit(text)}
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit', borderRadius: 0 }}
     />
   );
 }
 
 export function NumberCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} placeholder="0" />;
+}
 
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
+export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const symbol = currencySymbol(field.options?.currencyCode || field.options?.symbol);
+  const places = field.options?.precision ?? 2;
   return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      value={num}
-      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      placeholder="0"
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-      style={{ fontSize: 13, color: 'inherit' }}
+    <NumericEditor
+      value={value}
+      onCommit={onCommit}
+      onCancel={onCancel}
+      prefix={symbol}
+      placeholder={places > 0 ? `0.${'0'.repeat(places)}` : '0'}
     />
   );
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩',
-  INR: '₹', BRL: 'R$', CAD: 'CA$', AUD: 'A$', CHF: 'CHF', NGN: '₦',
-};
-
-export function CurrencyCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-  const code = field.options?.currencyCode || 'USD';
-  const symbol = CURRENCY_SYMBOLS[code] || code;
-
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
-  return (
-    <div className="flex items-center w-full h-full bg-transparent">
-      <span className="pl-2 text-xs-plus text-[#94A3B8] dark:text-[hsl(215,12%,45%)] shrink-0 font-medium">{symbol}</span>
-      <input
-        ref={ref}
-        type="text"
-        inputMode="decimal"
-        value={num}
-        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-          if (e.key === 'Escape') onCancel();
-          if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-        }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        placeholder="0.00"
-        className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-        style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}
-      />
-    </div>
-  );
-}
-
 export function DateCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initial = value ? new Date(value) : undefined;
-  const [selected, setSelected] = useState<Date | undefined>(initial);
-  const colors = useGridColors();
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
-        e.preventDefault();
-        onCommit(toLocalDateString(new Date()));
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCommit]);
-
-  return (
-    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <PopoverTrigger asChild>
-        <div className="w-full h-full" />
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={1}
-        className="!w-auto !border-none !p-0 !shadow-none"
-        style={{
-          backgroundColor: colors.cellEditorBg,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        }}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <Calendar
-          mode="single"
-          selected={selected}
-          onSelect={(day) => {
-            setSelected(day);
-            if (day) {
-              onCommit(toLocalDateString(day));
-            }
-          }}
-          defaultMonth={selected || new Date()}
-        />
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center justify-between px-3 py-2">
-          <button
-            className="text-xs transition-colors hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
-            style={{ color: colors.muted }}
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-          <button
-            className="text-xs px-3 py-1 rounded transition-opacity hover:opacity-90 active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={{ backgroundColor: colors.primary, color: '#fff' }}
-            onClick={() => {
-              const today = new Date();
-              setSelected(today);
-              onCommit(toLocalDateString(today));
-            }}
-          >
-            Today
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
+  return <DateEditor value={value} mode="date" onCommit={onCommit} onCancel={onCancel} />;
 }
 
 export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
@@ -248,7 +213,7 @@ export function YearCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
       }}
       onBlur={commit}
       placeholder="YYYY"
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );
@@ -288,7 +253,7 @@ export function DurationCellEditor({ value, onCommit, onCancel }: CellEditorProp
         if (e.key === 'Tab') { e.preventDefault(); const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }
       }}
       onBlur={() => { const d = parseDuration(text); if (d === null) { onCancel(); } else { onCommit(d); } }}
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent text-right tabular-nums"
       style={{ fontSize: 13, color: 'inherit', fontVariantNumeric: 'tabular-nums' }}
     />
   );
@@ -330,7 +295,7 @@ export function EmailCellEditor({ value, onCommit, onCancel }: CellEditorProps) 
         }}
         onBlur={commit}
         placeholder="name@example.com"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -385,7 +350,7 @@ export function URLCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         }}
         onBlur={commit}
         placeholder="https://example.com"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -427,7 +392,7 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
         }}
         onBlur={() => onCommit(text)}
         placeholder="(555) 555-5555"
-        className="w-full h-full px-2 outline-none border-none bg-transparent"
+        className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
         style={{
           fontSize: 13,
           color: 'inherit',
@@ -875,20 +840,7 @@ export function MultiSelectCellEditor({ value, field, onCommit, onCancel, onFiel
 
 
 export function PercentCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
-  return (
-    <div className="flex items-center w-full h-full">
-      <input ref={ref} type="text" inputMode="decimal" value={num} onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-        onKeyDown={(e) => { if (e.key === 'Enter') onCommit(num === '' ? null : Number(num)); if (e.key === 'Escape') onCancel(); if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); } }}
-        onBlur={() => onCommit(num === '' ? null : Number(num))}
-        placeholder="0"
-        className="w-full h-full px-2 outline-none border-none bg-transparent text-right" style={{ fontSize: 13, color: 'inherit' }}
-      />
-      <span className="pr-2 text-xs text-[#9AA2AF]">%</span>
-    </div>
-  );
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} suffix="%" placeholder="0" />;
 }
 
 export function AttachmentCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
@@ -1066,198 +1018,20 @@ export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProp
   );
 }
 
-export function DecimalCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const [num, setNum] = useState(value ?? '');
-  const ref = useRef<HTMLInputElement>(null);
+export function DecimalCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
+  const places = field.options?.precision ?? 2;
+  return <NumericEditor value={value} onCommit={onCommit} onCancel={onCancel} placeholder={places > 0 ? `0.${'0'.repeat(places)}` : '0'} />;
+}
 
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-
+export function DateTimeCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
   return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="decimal"
-      value={num}
-      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') { e.preventDefault(); onCommit(num === '' ? null : Number(num)); }
-      }}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      placeholder="0.00"
-      className="w-full h-full px-2 outline-none border-none bg-transparent text-right"
-      style={{ fontSize: 13, color: 'inherit' }}
+    <DateEditor
+      value={value}
+      mode="datetime"
+      use12h={field.options?.use12h !== false}
+      onCommit={onCommit}
+      onCancel={onCancel}
     />
-  );
-}
-
-function getOrgTimeParts(d: Date): { hour24: number; minute: number } {
-  const tz = getTimezone();
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    hour: '2-digit', minute: '2-digit',
-  }).formatToParts(d);
-  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? '0', 10);
-  return { hour24: get('hour') % 24, minute: get('minute') };
-}
-
-function to12h(h24: number): { display: number; period: 'AM' | 'PM' } {
-  const period: 'AM' | 'PM' = h24 >= 12 ? 'PM' : 'AM';
-  let display = h24 % 12;
-  if (display === 0) display = 12;
-  return { display, period };
-}
-
-function to24h(display12: number, period: 'AM' | 'PM'): number {
-  let h = display12 % 12;
-  if (period === 'PM') h += 12;
-  return h;
-}
-
-export function DateTimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
-  const initialDate = value ? new Date(value) : undefined;
-  const orgTime = initialDate ? getOrgTimeParts(initialDate) : { hour24: 12, minute: 0 };
-  const init12 = to12h(orgTime.hour24);
-  const [selected, setSelected] = useState<Date | undefined>(initialDate);
-  const [hour, setHour] = useState(String(init12.display));
-  const [minute, setMinute] = useState(String(orgTime.minute).padStart(2, '0'));
-  const [period, setPeriod] = useState<'AM' | 'PM'>(init12.period);
-  const colors = useGridColors();
-
-  const commitDateTime = useCallback((day: Date | undefined, h: string, m: string, p: 'AM' | 'PM') => {
-    if (!day) { onCommit(null); return; }
-    const h24 = to24h(parseInt(h, 10) || 12, p);
-    const wallClock = `${toLocalDateString(day)}T${String(h24).padStart(2, '0')}:${m.padStart(2, '0')}`;
-    onCommit(orgWallClockToUtcIso(wallClock));
-  }, [onCommit]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === ';') {
-        e.preventDefault();
-        onCommit(new Date().toISOString());
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onCommit]);
-
-  return (
-    <Popover open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <PopoverTrigger asChild>
-        <div className="w-full h-full" />
-      </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={1}
-        className="!w-auto !border-none !p-0 !shadow-none"
-        style={{
-          backgroundColor: colors.cellEditorBg,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        }}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <Calendar
-          mode="single"
-          selected={selected}
-          onSelect={(day) => setSelected(day)}
-          defaultMonth={selected || new Date()}
-        />
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center gap-2 px-3 py-2">
-          <span className="text-xs" style={{ color: colors.muted }}>Time</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={hour}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9]/g, '');
-              if (v === '' || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 12)) setHour(v);
-            }}
-            className="w-10 text-center text-xs rounded outline-none bg-transparent"
-            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
-          />
-          <span style={{ color: colors.muted }}>:</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={minute}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9]/g, '');
-              if (v === '' || parseInt(v, 10) <= 59) setMinute(v);
-            }}
-            className="w-10 text-center text-xs rounded outline-none bg-transparent"
-            style={{ border: `1px solid ${colors.border}`, color: colors.text, padding: '2px 4px' }}
-          />
-          <button
-            type="button"
-            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
-            style={{
-              backgroundColor: period === 'AM' ? colors.primary : 'transparent',
-              color: period === 'AM' ? '#fff' : colors.muted,
-              border: `1px solid ${period === 'AM' ? colors.primary : colors.border}`,
-            }}
-            onClick={() => setPeriod('AM')}
-          >
-            AM
-          </button>
-          <button
-            type="button"
-            className="text-xs px-2 py-0.5 rounded font-medium transition-colors"
-            style={{
-              backgroundColor: period === 'PM' ? colors.primary : 'transparent',
-              color: period === 'PM' ? '#fff' : colors.muted,
-              border: `1px solid ${period === 'PM' ? colors.primary : colors.border}`,
-            }}
-            onClick={() => setPeriod('PM')}
-          >
-            PM
-          </button>
-        </div>
-        <div style={{ height: 1, backgroundColor: colors.border }} />
-        <div className="flex items-center justify-between px-3 py-2">
-          <button
-            className="text-xs transition-colors"
-            style={{ color: colors.muted }}
-            onClick={() => onCommit(null)}
-          >
-            Clear
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              className="text-xs px-2 py-1 rounded transition-colors"
-              style={{ color: colors.muted }}
-              onClick={() => {
-                const now = new Date();
-                const nowOrg = getOrgTimeParts(now);
-                const now12 = to12h(nowOrg.hour24);
-                setSelected(now);
-                setHour(String(now12.display));
-                setMinute(String(nowOrg.minute).padStart(2, '0'));
-                setPeriod(now12.period);
-                commitDateTime(now, String(now12.display), String(nowOrg.minute).padStart(2, '0'), now12.period);
-              }}
-            >
-              Now
-            </button>
-            <button
-              className="text-xs px-3 py-1 rounded"
-              style={{ backgroundColor: colors.primary, color: '#fff' }}
-              onClick={() => commitDateTime(selected, hour, minute, period)}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -1282,7 +1056,7 @@ export function TimeCellEditor({ value, onCommit, onCancel }: CellEditorProps) {
         if (e.key === 'Tab') { e.preventDefault(); onCommit(time || null); }
       }}
       onBlur={() => onCommit(time || null)}
-      className="w-full h-full px-2 outline-none border-none bg-transparent"
+      className="w-full h-full min-w-0 px-0 outline-none border-0 rounded-none shadow-none bg-transparent"
       style={{ fontSize: 13, color: 'inherit' }}
     />
   );

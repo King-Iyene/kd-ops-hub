@@ -1586,3 +1586,17 @@ input[type=number] {
 [data-cell-id] textarea:focus {
   border-color: transparent;
 }
+
+/*
+ * Small inputs inside popovers (date typing box, time boxes) draw their own border,
+ * so the app-wide focus glow would stack a second ring on top. Keep the border
+ * colour change, drop the glow.
+ */
+.kd-flat-input:focus,
+.kd-flat-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.kd-flat-input:focus {
+  border-color: hsl(var(--primary));
+}

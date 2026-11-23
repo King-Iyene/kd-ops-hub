@@ -4,6 +4,7 @@ import { Plus, ChevronRight, Loader2, Expand, MoreHorizontal, Sigma, Lock, Chevr
 import type { FieldMeta, RecordRow, RowColorRule, UIType } from '@/features/database/types';
 import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
+import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
 import { ColumnHeader } from './ColumnHeader';
@@ -149,15 +150,21 @@ const SUMMARY_LABELS: Record<SummaryFunction, string> = {
 
 function formatSummaryNum(num: number, field?: FieldMeta): string {
   const uiType = field?.ui_type;
-  const resultType = field?.options?.result?.type;
+  const result = field?.options?.result;
+  const resultType = result?.type;
+  const o = field?.options ?? {};
+  const shared = { thousands: o.thousands, negativeStyle: o.negativeStyle };
   if (uiType === 'Currency' || resultType === 'currency') {
-    const sym = field?.options?.currencyCode || field?.options?.symbol || field?.options?.result?.options?.symbol || '₦';
-    return `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatCurrency(num, {
+      ...shared,
+      currencyCode: o.currencyCode ?? o.symbol ?? result?.options?.currencyCode ?? result?.options?.symbol,
+      precision: o.precision ?? result?.options?.precision,
+    });
   }
   if (uiType === 'Percent' || resultType === 'percent') {
-    return `${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+    return formatPercent(num, { ...shared, precision: o.precision ?? null });
   }
-  return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return formatNumber(num, { ...shared, precision: o.precision, abbreviate: o.abbreviate });
 }
 
 function computeSummary(

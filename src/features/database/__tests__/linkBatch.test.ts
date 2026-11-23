@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chipWidth, chipsThatFit, chunk, idsKey, linkLabel, mapJunctionRows } from '../lib/linkBatch';
+import { chipWidth, chipsThatFit, chunk, idsKey, linkLabel, looksLikeId, mapJunctionRows } from '../lib/linkBatch';
 
 describe('chunk', () => {
   it('splits into groups no larger than the size', () => {
@@ -109,5 +109,18 @@ describe('idsKey', () => {
     expect(idsKey(['a', 'b', 'c'])).not.toBe(idsKey(['a', 'b']));
     expect(idsKey(['a', 'b', 'c'])).not.toBe(idsKey(['x', 'b', 'c']));
     expect(idsKey([])).toBe('0');
+  });
+});
+
+describe('looksLikeId', () => {
+  it('flags Airtable record ids and UUIDs', () => {
+    expect(looksLikeId('recNcX7aB9dEfGh12')).toBe(true);
+    expect(looksLikeId('3380f8c1-6a83-4ff1-a98f-6cd6a510598d')).toBe(true);
+  });
+  it('leaves real names alone', () => {
+    expect(looksLikeId('October 2026')).toBe(false);
+    expect(looksLikeId('Record keeping')).toBe(false);
+    expect(looksLikeId('recruitment')).toBe(false);
+    expect(looksLikeId('')).toBe(false);
   });
 });

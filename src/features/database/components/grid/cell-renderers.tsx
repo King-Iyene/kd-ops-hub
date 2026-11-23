@@ -8,6 +8,7 @@ import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { formatDateWithOptions, getTimezone } from '@/lib/format';
 import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
+import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 
 interface CellRendererProps {
   value: any;
@@ -51,21 +52,6 @@ function getSelectColor(colorName: string) {
 }
 
 const EMAIL_VALID_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const _fmtCache = new Map<string, Intl.NumberFormat>();
-function getCurrencyFormatter(code: string, precision: number, narrow: boolean): Intl.NumberFormat {
-  const key = `${code}:${precision}:${narrow ? 1 : 0}`;
-  let fmt = _fmtCache.get(key);
-  if (!fmt) {
-    fmt = new Intl.NumberFormat('en-US', {
-      style: 'currency', currency: code,
-      minimumFractionDigits: precision, maximumFractionDigits: precision,
-      ...(narrow ? { currencyDisplay: 'narrowSymbol' } : {}),
-    });
-    _fmtCache.set(key, fmt);
-  }
-  return fmt;
-}
 
 export const TextCellRenderer = React.memo(function TextCellRenderer({
   value,
@@ -257,43 +243,54 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
   );
 });
 
+function numberStyle(negative: boolean): React.CSSProperties {
+  return {
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '-0.01em',
+    fontSize: 13,
+    color: negative ? '#EF4444' : undefined,
+  };
+}
+
+function displayOptions(field: FieldMeta) {
+  const o = field.options ?? {};
+  return {
+    precision: o.precision,
+    thousands: o.thousands,
+    negativeStyle: o.negativeStyle,
+    abbreviate: o.abbreviate,
+    prefix: o.prefix,
+    suffix: o.suffix,
+  };
+}
+
 export const NumberCellRenderer = React.memo(function NumberCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
-      {num.toLocaleString()}
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+      {formatNumber(num, displayOptions(field))}
     </span>
   );
 });
 
 export const DecimalCellRenderer = React.memo(function DecimalCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
   return (
-    <span className="truncate block text-right w-full" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', fontSize: 13, color: num < 0 ? '#EF4444' : undefined }}>
-      {num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+      {formatNumber(num, { ...displayOptions(field), defaultPrecision: 2 })}
     </span>
   );
 });
-
-const SYMBOL_TO_ISO: Record<string, string> = {
-  '₦': 'NGN', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', '₹': 'INR',
-  '₩': 'KRW', '₽': 'RUB', '₺': 'TRY', '₴': 'UAH', '₸': 'KZT', '₫': 'VND',
-  '₵': 'GHS', 'R': 'ZAR', 'Fr': 'CHF', 'kr': 'SEK', 'zł': 'PLN', 'Kč': 'CZK',
-};
-
-function resolveISO(raw: string): string {
-  const trimmed = raw.trim();
-  if (/^[A-Z]{3}$/.test(trimmed)) return trimmed;
-  return SYMBOL_TO_ISO[trimmed] ?? 'USD';
-}
 
 export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   value,
@@ -302,29 +299,12 @@ export const CurrencyCellRenderer = React.memo(function CurrencyCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return null;
-  const rawCode = field.options?.currencyCode || field.options?.symbol || 'USD';
-  const code = resolveISO(rawCode);
-  const precision = field.options?.precision ?? 2;
-  let formatted: string;
-  try {
-    formatted = getCurrencyFormatter(code, precision, true).format(num);
-  } catch {
-    try {
-      formatted = getCurrencyFormatter(code, precision, false).format(num);
-    } catch {
-      formatted = `${rawCode}${num.toLocaleString()}`;
-    }
-  }
+  const formatted = formatCurrency(num, {
+    ...displayOptions(field),
+    currencyCode: field.options?.currencyCode || field.options?.symbol,
+  });
   return (
-    <span
-      className="truncate block text-right w-full"
-      style={{
-        fontVariantNumeric: 'tabular-nums',
-        color: num < 0 ? '#EF4444' : undefined,
-        fontSize: 13,
-        letterSpacing: '-0.01em',
-      }}
-    >
+    <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
       {formatted}
     </span>
   );
@@ -689,6 +669,7 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
 
 export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   value,
+  field,
 }: CellRendererProps) {
   if (value == null || value === '') return null;
   const num = Number(value);
@@ -702,7 +683,7 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
           style={{ width: `${Math.min(100, Math.max(0, num))}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs shrink-0 tabular-nums" style={{ fontSize: 12, letterSpacing: '-0.01em', color: barColor, fontWeight: 500 }}>{num}%</span>
+      <span className="text-xs shrink-0 tabular-nums" style={{ fontSize: 12, letterSpacing: '-0.01em', color: barColor, fontWeight: 500 }}>{formatPercent(num, displayOptions(field))}</span>
     </div>
   );
 });
@@ -778,26 +759,18 @@ export const YearCellRenderer = React.memo(function YearCellRenderer({
 
 
 function formatFormulaNumber(val: number, field: FieldMeta): string {
-  const resultType = field.options?.result?.type;
+  const result = field.options?.result;
+  const resultType = result?.type;
   if (resultType === 'currency') {
-    const sym = field.options?.result?.options?.symbol ?? '$';
-    const code = resolveISO((sym as string).trim());
-    const precision = field.options?.result?.options?.precision ?? 0;
-    try {
-      return getCurrencyFormatter(code, precision, true).format(val);
-    } catch {
-      try {
-        return getCurrencyFormatter(code, precision, false).format(val);
-      } catch {
-        return `${sym}${val.toLocaleString()}`;
-      }
-    }
+    return formatCurrency(val, {
+      currencyCode: result?.options?.currencyCode ?? result?.options?.symbol ?? '$',
+      precision: result?.options?.precision ?? 0,
+    });
   }
   if (resultType === 'percent') {
-    const precision = field.options?.result?.options?.precision ?? 1;
-    return `${(val * 100).toFixed(precision)}%`;
+    return formatPercent(val * 100, { precision: result?.options?.precision ?? 1 });
   }
-  return val.toLocaleString();
+  return formatNumber(val);
 }
 
 export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({

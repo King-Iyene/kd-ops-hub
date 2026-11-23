@@ -106,6 +106,14 @@ export interface FieldOptions {
   maxSizeMB?: number;
   allowedTypes?: string[];
   prefix?: string;
+  /** Text shown after a number, for example " kg". */
+  suffix?: string;
+  /** Group thousands (default true). */
+  thousands?: boolean;
+  /** How a negative number is written: -1,234 or (1,234). */
+  negativeStyle?: 'minus' | 'parentheses';
+  /** Show 1.2M instead of 1,200,000 (display only). */
+  abbreviate?: boolean;
   label?: string;
   url?: string;
   validations?: ValidationRule[];

@@ -47,6 +47,12 @@ export function mapJunctionRows(
   return out;
 }
 
+/** True for text that is really an internal id (Airtable "recXXXXXXXXXXXXXX" or a UUID), never a name. */
+export function looksLikeId(text: string): boolean {
+  const t = text.trim();
+  return /^rec[A-Za-z0-9]{12,}$/.test(t) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t);
+}
+
 /** Readable text for a primary-field value (text, or a JSON value from an import). */
 export function linkLabel(value: unknown): string {
   if (value == null) return '';

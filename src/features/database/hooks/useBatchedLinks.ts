@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo } from 'react';
 import { useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { FieldMeta } from '../types';
-import { chunk, linkLabel, mapJunctionRows, type JunctionRow } from '../lib/linkBatch';
+import { chunk, linkLabel, looksLikeId, mapJunctionRows, type JunctionRow } from '../lib/linkBatch';
 
 /**
  * Loads the linked records for a whole column at once.
@@ -179,7 +179,8 @@ async function fetchLabels(meta: FieldLinkMeta, targetIds: string[]): Promise<Ma
       .in('id', part);
     for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
       const text = column ? linkLabel(row[column]) : '';
-      labels.set(String(row.id), text || 'Unnamed record');
+      // A label that is really an id is shown as an unnamed record, never as the id.
+      labels.set(String(row.id), text && !looksLikeId(text) ? text : 'Unnamed record');
     }
   }
   return labels;
