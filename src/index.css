@@ -1600,3 +1600,14 @@ input[type=number] {
 .kd-flat-input:focus {
   border-color: hsl(var(--primary));
 }
+
+/* ===== Database grid speed: row hover without JavaScript ===== */
+/*
+ * The grid row's hover colour used to be set from JavaScript (onMouseEnter/onMouseLeave writing the inline
+ * style of every row). It is now a CSS rule: the row carries its hover colour in --kd-row-hover and the
+ * browser does the rest. A row that holds the selected cell (data-row-selected) keeps its selected colour.
+ * !important is needed only to beat the row's own inline background-colour.
+ */
+.kd-grid-row:hover:not([data-row-selected="true"]) {
+  background-color: var(--kd-row-hover) !important;
+}

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { ViewMeta } from '../types';
 import { useDatabaseUI } from '../lib/store';
+import { fetchViews, peekBootstrapInFlight } from './tableBootstrap';
 
 export function useViews(tableId: string | null | undefined) {
   return useQuery({
@@ -13,14 +14,16 @@ export function useViews(tableId: string | null | undefined) {
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('views')
-        .select('*')
-        .eq('table_id', tableId)
-        .order('position');
-      if (error) throw error;
-      return data as ViewMeta[];
+      // Same as useFields: share the combined table request when it is already running.
+      const inFlight = peekBootstrapInFlight(tableId);
+      if (inFlight) {
+        try {
+          return (await inFlight).views;
+        } catch {
+          /* fall through to the plain request */
+        }
+      }
+      return fetchViews(tableId as string);
     },
   });
 }
@@ -123,7 +126,7 @@ export function useDeleteView() {
   });
 }
 
-function viewConfigFromMeta(view: ViewMeta) {
+export function viewConfigFromMeta(view: ViewMeta) {
   const hiddenFieldIds = new Set<string>();
   if (view.field_visibility) {
     for (const [fid, visible] of Object.entries(view.field_visibility)) {
