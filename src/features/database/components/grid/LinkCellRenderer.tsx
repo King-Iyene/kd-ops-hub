@@ -15,6 +15,7 @@ import {
   useLinkMutations,
   getRecordDisplayValue,
 } from '../../hooks/useLinks';
+import { useCreateRecord } from '../../hooks/useRecords';
 import { useLinkData, type LinkedItem } from '../../hooks/useBatchedLinks';
 import { LinkChips } from './LinkChips';
 import { linesForRowHeight } from '../../lib/linkBatch';
@@ -39,7 +40,9 @@ function RecordCard({
   action,
   onAction,
   onOpen,
+  active = false,
 }: {
+  active?: boolean;
   rec: RecordRow;
   primaryField: FieldMeta | null | undefined;
   visibleFields: FieldMeta[];
@@ -60,7 +63,11 @@ function RecordCard({
 
   return (
     <div
-      className="flex items-start justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-muted group/item cursor-pointer transition-colors"
+      role="option"
+      aria-selected={active}
+      id={`link-option-${rec.id}`}
+      ref={(el) => { if (active && el) el.scrollIntoView?.({ block: 'nearest' }); }}
+      className={`flex items-start justify-between gap-2 px-2.5 py-2 rounded-md hover:bg-muted group/item cursor-pointer transition-colors${active ? ' bg-muted' : ''}`}
       onClick={() => {
         if (action === 'link') onAction(rec.id);
       }}
@@ -163,6 +170,9 @@ function LinkPickerContent({
     recordId: record.id,
   });
 
+  const createRecord = useCreateRecord();
+  const [creating, setCreating] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const limitToOne = field.options?.allowMultiple === false;
   // In a "one record only" field, picking a record replaces whatever was linked and closes the list.
   const pickRecord = async (id: string) => {
@@ -177,11 +187,52 @@ function LinkPickerContent({
     await linkRecord(id);
   };
 
+  // Create a record in the other table (named after what was typed) and link it at once.
+  const createAndLink = async () => {
+    if (!relatedTableId || !activeBaseId || !primaryField || creating) return;
+    const name = searchTerm.trim();
+    setCreating(true);
+    try {
+      const row = await createRecord.mutateAsync({
+        baseId: activeBaseId,
+        tableId: relatedTableId,
+        record: name ? { [primaryField.pg_column_name]: name } : {},
+      });
+      await pickRecord(row.id);
+      setSearchTerm('');
+    } catch {
+      // useCreateRecord already tells the user it failed.
+    } finally {
+      setCreating(false);
+    }
+  };
+  const canCreate = !!relatedTableId && !!primaryField;
+  const exactMatch = searchTerm.trim() !== '' && [...linkedRecords, ...searchResults].some(
+    (r) => getRecordDisplayValue(r, primaryField).trim().toLowerCase() === searchTerm.trim().toLowerCase(),
+  );
+
   const linkedIds = useMemo(() => new Set(linkedRecords.map((r) => r.id)), [linkedRecords]);
   const suggestions = useMemo(
     () => searchResults.filter((r) => !linkedIds.has(r.id)),
     [searchResults, linkedIds],
   );
+
+  const activeSuggestion = suggestions.length > 0 ? suggestions[Math.min(activeIndex, suggestions.length - 1)] : undefined;
+  const onSearchKeyDown = (e: React.KeyboardEvent) => {
+    // The grid listens for arrows and Enter; while this list is open they belong to the list.
+    e.stopPropagation();
+    if (e.key === 'ArrowDown' && suggestions.length > 0) {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp' && suggestions.length > 0) {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeSuggestion) void pickRecord(activeSuggestion.id);
+      else if (canCreate && !exactMatch && searchTerm.trim()) void createAndLink();
+    }
+  };
 
   return (
     <>
@@ -191,10 +242,15 @@ function LinkPickerContent({
           <Input
             placeholder="Find a record..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setActiveIndex(0); }}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="link-suggestions"
+            aria-activedescendant={activeSuggestion ? `link-option-${activeSuggestion.id}` : undefined}
+            aria-label="Find a record"
             className="h-full text-xs border-0 shadow-none focus-visible:ring-0 p-0 bg-transparent"
             autoFocus
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={onSearchKeyDown}
           />
         </div>
       </div>
@@ -225,12 +281,13 @@ function LinkPickerContent({
         )}
 
         {suggestions.length > 0 && (
-          <div className="p-1.5 border-t border-border">
+          <div className="p-1.5 border-t border-border" role="listbox" id="link-suggestions" aria-label={searchTerm ? 'Search results' : 'Suggestions'}>
             <p className="px-2 py-1.5 text-3xs font-semibold text-muted-foreground uppercase tracking-widest">
               {searchTerm ? 'Search results' : 'Suggestions'}
             </p>
-            {suggestions.map((rec) => (
+            {suggestions.map((rec, i) => (
               <RecordCard
+                active={i === Math.min(activeIndex, suggestions.length - 1)}
                 key={rec.id}
                 rec={rec}
                 primaryField={primaryField}
@@ -252,6 +309,21 @@ function LinkPickerContent({
           <div className="p-4 text-center text-xs text-muted-foreground">No records available</div>
         )}
       </div>
+
+      {canCreate && !exactMatch && (
+        <div className="p-1.5 border-t border-border">
+          <button
+            type="button"
+            disabled={creating}
+            onClick={createAndLink}
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-xs-plus font-medium text-primary hover:bg-primary/10 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-create-linked-record
+          >
+            <Plus size={14} aria-hidden="true" />
+            <span className="truncate">{searchTerm.trim() ? `Create "${searchTerm.trim()}" and link it` : 'Create a new record and link it'}</span>
+          </button>
+        </div>
+      )}
     </>
   );
 }
