@@ -23,6 +23,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
+import { keepDialogOpenWhileSuggesting } from './formula/escape';
 import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
 import { NumberFormatPanel } from './NumberFormatPanel';
 import { FieldDefaultPanel } from './FieldDefaultPanel';
@@ -355,7 +356,10 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setError('Formula expression is required');
       return;
     }
-    if (isFormula && formulaExpression.trim()) {
+    // Only check the formula when it was changed, so an imported formula that uses a function this app does not
+    // have can still be renamed or reformatted without having to be rewritten first.
+    const savedFormula = String((field?.options as any)?.expression ?? (field?.options as any)?.formula ?? '');
+    if (isFormula && formulaExpression.trim() && formulaExpression !== savedFormula) {
       const validation = validateFormula(formulaExpression);
       if (!validation.valid) {
         setError(validation.error ?? 'Invalid formula');
@@ -490,7 +494,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto" onEscapeKeyDown={keepDialogOpenWhileSuggesting}>
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">Edit Field</DialogTitle>
         </DialogHeader>

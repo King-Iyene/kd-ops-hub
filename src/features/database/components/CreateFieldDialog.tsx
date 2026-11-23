@@ -36,6 +36,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { validateFormula } from '../lib/formula';
 import { FormulaEditor } from './FormulaEditor';
+import { keepDialogOpenWhileSuggesting } from './formula/escape';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -558,7 +559,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) resetForm(); onOpenChange(isOpen); }}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto" onEscapeKeyDown={keepDialogOpenWhileSuggesting}>
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">Add Field</DialogTitle>
         </DialogHeader>

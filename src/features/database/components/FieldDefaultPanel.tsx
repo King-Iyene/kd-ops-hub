@@ -1,5 +1,6 @@
-import { Label } from '@/components/ui/label';
+import { useId } from 'react';
 import { supportsDefault } from '../lib/fieldDefaults';
+import { SETTINGS_INPUT, SettingsSection, ToggleRow } from './SettingsParts';
 
 interface FieldDefaultPanelProps {
   uiType: string;
@@ -12,10 +13,6 @@ interface FieldDefaultPanelProps {
   onAllowNewOptionsChange?: (next: boolean) => void;
 }
 
-const FIELD_CLASS =
-  'w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary';
-const LABEL_CLASS = 'text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]';
-
 /** "Default value" for new rows, plus the select-only "allow new options" switch. */
 export function FieldDefaultPanel({
   uiType,
@@ -25,57 +22,63 @@ export function FieldDefaultPanel({
   allowNewOptions = true,
   onAllowNewOptionsChange,
 }: FieldDefaultPanelProps) {
+  const inputId = useId();
   if (!supportsDefault(uiType)) return null;
   const isSelect = uiType === 'SingleSelect' || uiType === 'MultiSelect';
   const isNumber = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating'].includes(uiType);
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label className={LABEL_CLASS}>
-          Default value <span className="text-[#9AA2AF]">(optional, used by new rows)</span>
-        </Label>
-        {uiType === 'Checkbox' ? (
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-3.5 h-3.5 accent-primary"
-              checked={value === 'true'}
-              onChange={(e) => onChange(e.target.checked ? 'true' : '')}
-            />
-            <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Checked by default</span>
-          </label>
-        ) : isSelect ? (
-          <select value={value} onChange={(e) => onChange(e.target.value)} className={FIELD_CLASS}>
+    <SettingsSection title="Default value" hint="Filled in when a new row is added. Rows that already exist are not changed.">
+      {uiType === 'Checkbox' ? (
+        <ToggleRow
+          label="Checked by default"
+          description="New rows start with this box ticked."
+          checked={value === 'true'}
+          onChange={(on) => onChange(on ? 'true' : '')}
+        />
+      ) : isSelect ? (
+        <div className="space-y-1.5">
+          <label htmlFor={inputId} className="block text-xs-plus font-medium text-foreground">Start new rows with</label>
+          <select id={inputId} value={value} onChange={(e) => onChange(e.target.value)} className={SETTINGS_INPUT}>
             <option value="">No default</option>
             {choices.map((c) => (
               <option key={c.title} value={c.title}>{c.title}</option>
             ))}
           </select>
-        ) : (
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor={inputId} className="block text-xs-plus font-medium text-foreground">Start new rows with</label>
+            {value !== '' && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className="text-2xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 rounded"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <input
+            id={inputId}
             value={value}
             inputMode={isNumber ? 'decimal' : undefined}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={isNumber ? 'No default' : 'Leave empty for no default'}
-            className={FIELD_CLASS}
+            placeholder="No default"
+            className={SETTINGS_INPUT}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {isSelect && onAllowNewOptionsChange && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            className="w-3.5 h-3.5 accent-primary"
-            checked={allowNewOptions}
-            onChange={(e) => onAllowNewOptionsChange(e.target.checked)}
-          />
-          <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">
-            Let people add new options while editing a cell
-          </span>
-        </label>
+        <ToggleRow
+          label="Let people add new options"
+          description="Anyone editing a cell can type a new option instead of choosing from the list."
+          checked={allowNewOptions}
+          onChange={onAllowNewOptionsChange}
+        />
       )}
-    </div>
+    </SettingsSection>
   );
 }

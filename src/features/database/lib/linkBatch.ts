@@ -70,21 +70,45 @@ const BADGE_WIDTH = 30;
 const CHAR_WIDTH = 6.1; // average width of one character at the chip font size
 const CHIP_MAX = 200;
 
-export function chipWidth(label: string): number {
-  return Math.min(CHIP_MAX, Math.ceil(label.length * CHAR_WIDTH) + CHIP_PADDING);
+/**
+ * The names behind a list of linked values stored in the row itself (a list of ids, or of objects with a name):
+ * ids are resolved through the record's lookup when there is one. Every item gets a distinct key.
+ */
+export function legacyLinkItems(value: unknown, lookup?: Record<string, string>): Array<{ id: string; label: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.map((item: any, i: number) => {
+    if (typeof item === 'object' && item !== null) {
+      const label = String(item.title || item.name || item.primary || item.id || '');
+      return { id: String(item.id ?? `${i}-${label}`), label };
+    }
+    const id = String(item);
+    return { id: `${i}-${id}`, label: (lookup && lookup[id]) || id };
+  });
+}
+
+/** Width in pixels of a piece of text in the chip font, when the browser can measure it. */
+export type TextMeasurer = (text: string) => number;
+
+/**
+ * The width a chip will really take. With a measurer (the browser's own font metrics) this is exact; without
+ * one it falls back to an average character width, which is why chips used to come out wider than planned.
+ */
+export function chipWidth(label: string, measure?: TextMeasurer): number {
+  const text = measure ? measure(label) : label.length * CHAR_WIDTH;
+  return Math.min(CHIP_MAX, Math.ceil(text) + CHIP_PADDING);
 }
 
 /**
  * How many chips fit in `available` pixels, leaving room for a "+N" badge when
  * some are hidden. Always at least one, so a narrow cell still shows something.
  */
-export function chipsThatFit(labels: readonly string[], available: number): number {
+export function chipsThatFit(labels: readonly string[], available: number, measure?: TextMeasurer): number {
   if (labels.length === 0) return 0;
   if (available <= 0) return 1;
   let used = 0;
   let fit = 0;
   for (let i = 0; i < labels.length; i++) {
-    const w = chipWidth(labels[i]) + (i > 0 ? CHIP_GAP : 0);
+    const w = chipWidth(labels[i], measure) + (i > 0 ? CHIP_GAP : 0);
     const isLast = i === labels.length - 1;
     const reserve = isLast ? 0 : BADGE_WIDTH + CHIP_GAP;
     if (used + w + reserve > available) break;

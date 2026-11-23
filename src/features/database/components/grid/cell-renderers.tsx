@@ -13,6 +13,8 @@ import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
 import { formatDuration, normalizeDurationFormat } from '../../lib/duration';
 import { hasInlineMarks, parseInline } from '../../lib/inlineMarkdown';
 import { RatingGlyph } from './RatingGlyph';
+import { LinkChips } from './LinkChips';
+import { legacyLinkItems } from '../../lib/linkBatch';
 
 interface CellRendererProps {
   value: any;
@@ -884,12 +886,15 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 export const LinksCellRenderer = React.memo(function LinksCellRenderer({
   value,
   record,
+  rowHeight,
 }: CellRendererProps) {
   const colors = useGridColors();
   const expandRow = React.useCallback(() => {
     window.dispatchEvent(new CustomEvent('grid:expand-row', { detail: record }));
   }, [record]);
-  if (!Array.isArray(value) || value.length === 0) {
+  const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
+  const items = useMemo(() => legacyLinkItems(value, lookup), [value, lookup]);
+  if (items.length === 0) {
     return (
       <button
         type="button"
@@ -902,48 +907,10 @@ export const LinksCellRenderer = React.memo(function LinksCellRenderer({
       </button>
     );
   }
-  const lookup = (record as any)?.__linkLookup as Record<string, string> | undefined;
+  // The same chips as every other link cell: whole names that fit, then "+N", never squeezed.
   return (
-    <div className="flex items-center gap-1 overflow-hidden">
-      {value.slice(0, 3).map((item: any, i: number) => {
-        let label: string;
-        if (typeof item === 'object' && item !== null) {
-          label = item.title || item.name || item.primary || item.id;
-        } else {
-          const id = String(item);
-          label = (lookup && lookup[id]) || id;
-        }
-        return (
-          <span
-            key={i}
-            className="inline-flex items-center px-2 rounded-full text-xs font-medium truncate cursor-pointer hover:opacity-80 transition-opacity"
-            title={label}
-            onClick={(e) => { e.stopPropagation(); expandRow(); }}
-            style={{
-              height: 22,
-              lineHeight: '22px',
-              backgroundColor: colors.linkPillBg,
-              color: colors.linkPillText,
-              maxWidth: 140,
-            }}
-          >
-            {label}
-          </span>
-        );
-      })}
-      {value.length > 3 && (
-        <span
-          className="text-xs shrink-0"
-          style={{ color: colors.muted }}
-          title={value.slice(3).map((item: any) => {
-            if (typeof item === 'object' && item !== null) return item.title || item.name || item.id;
-            const id = String(item);
-            return (lookup && lookup[id]) || id;
-          }).join(', ')}
-        >
-          +{value.length - 3}
-        </span>
-      )}
+    <div className="flex items-center gap-1 overflow-hidden w-full">
+      <LinkChips items={items} wrap={rowHeight !== 'short'} onChipClick={expandRow} />
       <button
         type="button"
         className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity ml-0.5"

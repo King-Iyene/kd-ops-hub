@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Maximize2, Plus, Search, X } from 'lucide-react';
 import {
   Popover,
@@ -16,7 +16,7 @@ import {
   getRecordDisplayValue,
 } from '../../hooks/useLinks';
 import { useLinkData, type LinkedItem } from '../../hooks/useBatchedLinks';
-import { chipsThatFit } from '../../lib/linkBatch';
+import { LinkChips } from './LinkChips';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 
@@ -294,56 +294,6 @@ function LinkPopover({
         {isOpen && <LinkPickerContent field={field} record={record} onClose={() => setIsOpen(false)} />}
       </PopoverContent>
     </Popover>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Chips: as many as fit the cell, then a "+N" badge. Nothing can spill over.
-// ---------------------------------------------------------------------------
-
-function LinkChips({ items, wrap }: { items: LinkedItem[]; wrap: boolean }) {
-  const colors = useGridColors();
-  const boxRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-    setWidth(el.clientWidth);
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const labels = useMemo(() => items.map((i) => i.label), [items]);
-  const visibleCount = wrap ? Math.min(items.length, 12) : chipsThatFit(labels, width);
-  const hidden = items.length - visibleCount;
-
-  return (
-    <div
-      ref={boxRef}
-      className={`flex gap-1 flex-1 min-w-0 overflow-hidden ${wrap ? 'flex-wrap items-start content-start py-1' : 'items-center'}`}
-      title={items.map((i) => i.label).join(', ')}
-    >
-      {items.slice(0, visibleCount).map((item) => (
-        <span
-          key={item.id}
-          className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium shrink min-w-0 max-w-[200px] leading-tight"
-          style={{ backgroundColor: colors.linkPillBg, color: colors.linkPillText, letterSpacing: '-0.01em' }}
-        >
-          <span className="truncate">{item.label}</span>
-        </span>
-      ))}
-      {hidden > 0 && (
-        <span
-          className="shrink-0 rounded px-1.5 py-0.5 text-2xs font-medium"
-          style={{ backgroundColor: colors.linkPillBg, color: colors.linkPillText }}
-        >
-          +{hidden}
-        </span>
-      )}
-    </div>
   );
 }
 

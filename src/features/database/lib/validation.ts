@@ -179,6 +179,35 @@ export function settingsFromRules(rules: ValidationRule[] | null | undefined): V
   return out;
 }
 
+/** A usable number from a settings box: empty or not a number means "not set". */
+function limitOf(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Says in words what a smallest/largest pair allows, so the person sees the effect of what they typed. */
+export function describeRange(min: string, max: string, unit = ''): string {
+  const lo = limitOf(min);
+  const hi = limitOf(max);
+  const u = unit ? ` ${unit}` : '';
+  if (lo !== null && hi !== null) return `Allowed: ${lo} to ${hi}${u}`;
+  if (lo !== null) return `Allowed: ${lo}${u} or more`;
+  if (hi !== null) return `Allowed: ${hi}${u} or less`;
+  return 'Any value is allowed';
+}
+
+/** What is wrong with a smallest/largest pair, or an empty string when it is fine. */
+export function rangeProblem(min: string, max: string): string {
+  const lo = limitOf(min);
+  const hi = limitOf(max);
+  if (lo !== null && hi !== null && lo > hi) {
+    return `The smallest (${lo}) is larger than the largest (${hi}), so nothing could be saved.`;
+  }
+  return '';
+}
+
 /** Whether a pattern can be used (empty is fine: it means no pattern). */
 export function isValidPattern(pattern: string): boolean {
   if (!pattern) return true;

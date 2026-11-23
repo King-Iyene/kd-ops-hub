@@ -8,6 +8,8 @@ type TokenType =
   | 'IDENT'
   | 'OP'
   | 'COMP'
+  | 'LOGIC'
+  | 'NOT'
   | 'LPAREN'
   | 'RPAREN'
   | 'COMMA'
@@ -94,10 +96,23 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
+    // logical operators && and || (must check before the single "&" of concatenation)
+    if ((ch === '&' || ch === '|') && i + 1 < len && expr[i + 1] === ch) {
+      tokens.push({ type: 'LOGIC', value: ch + ch, pos: i });
+      i += 2;
+      continue;
+    }
+
     // comparison operators (must check before single-char ops)
     if (ch === '!' && i + 1 < len && expr[i + 1] === '=') {
       tokens.push({ type: 'COMP', value: '!=', pos: i });
       i += 2;
+      continue;
+    }
+    // "!" on its own is "not"
+    if (ch === '!') {
+      tokens.push({ type: 'NOT', value: '!', pos: i });
+      i++;
       continue;
     }
     if (ch === '<' && i + 1 < len && expr[i + 1] === '=') {
@@ -210,9 +225,31 @@ class Parser {
     return node;
   }
 
-  // expression → comparison
+  // expression → or
   private parseExpression(): ASTNode {
-    return this.parseComparison();
+    return this.parseOr();
+  }
+
+  // or → and ( '||' and )*
+  private parseOr(): ASTNode {
+    let left = this.parseAnd();
+    while (this.peek().type === 'LOGIC' && this.peek().value === '||') {
+      this.advance();
+      const right = this.parseAnd();
+      left = { type: 'BinaryOp', op: '||', left, right };
+    }
+    return left;
+  }
+
+  // and → comparison ( '&&' comparison )*
+  private parseAnd(): ASTNode {
+    let left = this.parseComparison();
+    while (this.peek().type === 'LOGIC' && this.peek().value === '&&') {
+      this.advance();
+      const right = this.parseComparison();
+      left = { type: 'BinaryOp', op: '&&', left, right };
+    }
+    return left;
   }
 
   // comparison → concat (( '=' | '!=' | '<' | '>' | '<=' | '>=' ) concat)*
@@ -270,12 +307,17 @@ class Parser {
     return left;
   }
 
-  // unary → '-' unary | primary
+  // unary → ('-' | '!') unary | primary
   private parseUnary(): ASTNode {
     if (this.peek().type === 'OP' && this.peek().value === '-') {
       this.advance();
       const operand = this.parseUnary();
       return { type: 'UnaryOp', op: '-', operand };
+    }
+    if (this.peek().type === 'NOT') {
+      this.advance();
+      const operand = this.parseUnary();
+      return { type: 'UnaryOp', op: '!', operand };
     }
     return this.parsePrimary();
   }
@@ -358,6 +400,14 @@ function toBoolean(v: any): boolean {
 
 function isBlank(v: any): boolean {
   return v == null || v === '' || (typeof v === 'string' && v.trim() === '');
+}
+
+/** A value as a list: a list stays one, comma-separated text is split, a single value is a list of one, blank is empty. */
+function asList(v: any): any[] {
+  if (Array.isArray(v)) return v;
+  if (v == null || v === '') return [];
+  if (typeof v === 'string' && v.includes(', ')) return v.split(', ');
+  return [v];
 }
 
 const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
@@ -560,7 +610,37 @@ const BUILTIN_FUNCTIONS: Record<string, (args: any[]) => any> = {
   },
   ENCODE_URL_COMPONENT: ([s]) => encodeURIComponent(toString(s)),
   // Linked or list values reach a formula already joined with ", ".
-  ARRAYJOIN: ([a, sep]) => (sep != null ? toString(a).split(', ').join(toString(sep)) : toString(a)),
+  // The list functions receive their field arguments as real lists (see ARRAY_FUNCTIONS in evaluate). Text
+  // that already holds a comma-separated list (an older value) is split first.
+  ARRAYJOIN: ([a, sep]) => asList(a).map(toString).join(sep != null ? toString(sep) : ', '),
+  ARRAYUNIQUE: (lists) => [...new Set(lists.flatMap(asList))],
+  ARRAYCOMPACT: (lists) => lists.flatMap(asList).filter((v) => !isBlank(v)),
+  // One level of nesting removed: [[1, 2], 3] becomes [1, 2, 3].
+  ARRAYFLATTEN: (lists) => lists.flatMap((l) => (Array.isArray(l) ? l.flat() : asList(l))),
+  // Zero-based, the end is not included, negative numbers count from the end (like slice in JavaScript).
+  ARRAYSLICE: ([list, start, end]) => asList(list).slice(toNumber(start), end != null ? toNumber(end) : undefined),
+
+  // Counting
+  COUNT: (args) => args.filter((a) => comparableNumber(a) !== null && !isBlank(a)).length,
+  COUNTALL: (args) => args.length,
+
+  // More numbers and text
+  CEILING: ([a, sig]) => {
+    const step = sig != null && toNumber(sig) !== 0 ? Math.abs(toNumber(sig)) : 1;
+    return Math.ceil(toNumber(a) / step) * step + 0; // "+ 0" turns -0 into 0
+  },
+  // The smallest even (odd) whole number that is not less than the value.
+  EVEN: ([a]) => Math.ceil(toNumber(a) / 2) * 2 + 0,
+  ODD: ([a]) => Math.ceil((toNumber(a) - 1) / 2) * 2 + 1,
+  REPT: ([s, n]) => toString(s).repeat(Math.max(0, Math.floor(toNumber(n)))),
+
+  // An error you raise yourself; ISERROR sees it.
+  ERROR: ([message]) => (message != null && message !== '' ? `#ERROR! ${toString(message)}` : '#ERROR!'),
+
+  // About the record: answered in evaluate, from the row itself.
+  RECORD_ID: () => '',
+  CREATED_TIME: () => null,
+  LAST_MODIFIED_TIME: () => null,
 
   // Logic, more
   XOR: (args) => args.filter(toBoolean).length % 2 === 1,
@@ -674,7 +754,59 @@ function toTime(v: any): number | null {
   return isNaN(t) ? null : t;
 }
 
-function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap): any {
+/** A number for comparing, or null when the value is not number-like (text, objects). Booleans count as 1 and 0. */
+function comparableNumber(v: any): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+/**
+ * Order two values: numbers (and number-like text) numerically, anything else as text, so "apple" < "banana"
+ * and ISO dates sort correctly. A blank counts as 0 against a number, as before. Returns <0, 0 or >0.
+ */
+function compareValues(l: any, r: any): number {
+  const ln = comparableNumber(l);
+  const rn = comparableNumber(r);
+  if (ln !== null && rn !== null) return ln - rn;
+  const lBlank = l == null || l === '';
+  const rBlank = r == null || r === '';
+  if (lBlank && rn !== null) return 0 - rn;
+  if (ln !== null && rBlank) return ln - 0;
+  if (lBlank && rBlank) return 0;
+  const ls = toString(l);
+  const rs = toString(r);
+  return ls < rs ? -1 : ls > rs ? 1 : 0;
+}
+
+/** True for what a formula calls an error: the text "#ERROR!", or a number that is not finite. */
+function isErrorValue(v: any): boolean {
+  if (typeof v === 'number') return Number.isNaN(v) || !Number.isFinite(v);
+  return typeof v === 'string' && v.startsWith('#ERROR');
+}
+
+/** SWITCH matches loosely, but two different words must not match just because both are "0" as numbers. */
+function sameValue(a: any, b: any): boolean {
+  // A blank matches a blank, and (as it always did) the number 0: `SWITCH({Qty}, 0, "none")` on an empty cell.
+  const aBlank = a == null || a === '';
+  const bBlank = b == null || b === '';
+  if (aBlank && bBlank) return true;
+  if (aBlank) return comparableNumber(b) === 0;
+  if (bBlank) return comparableNumber(a) === 0;
+  if (a == b) return true;
+  const an = comparableNumber(a);
+  const bn = comparableNumber(b);
+  return an !== null && bn !== null && an === bn;
+}
+
+/** Functions that work on whole lists rather than text: their field arguments stay lists. */
+const ARRAY_FUNCTIONS = new Set(['ARRAYUNIQUE', 'ARRAYCOMPACT', 'ARRAYFLATTEN', 'ARRAYSLICE', 'ARRAYJOIN']);
+
+function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap, raw = false): any {
   switch (node.type) {
     case 'NumberLiteral':
       return node.value;
@@ -687,6 +819,13 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
       if (col == null) return null;
       const val = record[col] ?? null;
       const lookup = (record as any).__linkLookup as Record<string, string> | undefined;
+      if (raw) {
+        // For the list functions: keep the items apart, with link ids turned into names.
+        if (val == null || val === '') return [];
+        // A text value that holds a comma-separated list (an older or imported value) is split, as it always was.
+        const items: any[] = Array.isArray(val) ? val : asList(val);
+        return items.map((item) => (lookup && typeof item === 'string' && item in lookup ? lookup[item] : item));
+      }
       if (Array.isArray(val)) {
         if (lookup) {
           return val.map((id: string) => lookup[id] ?? id).join(', ');
@@ -700,9 +839,13 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
     }
     case 'UnaryOp':
       if (node.op === '-') return -toNumber(evaluate(node.operand, record, fieldMap));
+      if (node.op === '!') return !toBoolean(evaluate(node.operand, record, fieldMap));
       return evaluate(node.operand, record, fieldMap);
     case 'BinaryOp': {
       const left = evaluate(node.left, record, fieldMap);
+      // && and || stop as soon as the answer is known, so the right side is not evaluated needlessly.
+      if (node.op === '&&') return toBoolean(left) && toBoolean(evaluate(node.right, record, fieldMap));
+      if (node.op === '||') return toBoolean(left) || toBoolean(evaluate(node.right, record, fieldMap));
       const right = evaluate(node.right, record, fieldMap);
       switch (node.op) {
         case '+': return toNumber(left) + toNumber(right);
@@ -717,16 +860,61 @@ function evaluate(node: ASTNode, record: Record<string, any>, fieldMap: FieldMap
         case '&': return toString(left) + toString(right);
         case '=': return left == right;
         case '!=': return left !== right;
-        case '<': return toNumber(left) < toNumber(right);
-        case '>': return toNumber(left) > toNumber(right);
-        case '<=': return toNumber(left) <= toNumber(right);
-        case '>=': return toNumber(left) >= toNumber(right);
+        case '<': return compareValues(left, right) < 0;
+        case '>': return compareValues(left, right) > 0;
+        case '<=': return compareValues(left, right) <= 0;
+        case '>=': return compareValues(left, right) >= 0;
         default: return null;
       }
     }
     case 'FunctionCall': {
       const fn = BUILTIN_FUNCTIONS[node.name];
       if (!fn) throw new Error(`Unknown function: ${node.name}`);
+
+      // Functions that decide which of their arguments to evaluate (so the unused branch is never run).
+      switch (node.name) {
+        case 'IF': {
+          const cond = evaluate(node.args[0] ?? { type: 'BooleanLiteral', value: false }, record, fieldMap);
+          if (toBoolean(cond)) return node.args[1] ? evaluate(node.args[1], record, fieldMap) : '';
+          return node.args[2] ? (evaluate(node.args[2], record, fieldMap) ?? '') : '';
+        }
+        case 'SWITCH': {
+          if (node.args.length < 2) return '';
+          const expr = evaluate(node.args[0], record, fieldMap);
+          for (let i = 1; i + 1 < node.args.length; i += 2) {
+            if (sameValue(expr, evaluate(node.args[i], record, fieldMap))) {
+              return evaluate(node.args[i + 1], record, fieldMap);
+            }
+          }
+          // A trailing value without a partner is the default.
+          return node.args.length % 2 === 0 ? evaluate(node.args[node.args.length - 1], record, fieldMap) : '';
+        }
+        case 'ISERROR': {
+          // A formula that throws (an unknown function, say) is an error too, not just a bad number.
+          try {
+            return isErrorValue(evaluate(node.args[0] ?? { type: 'StringLiteral', value: '' }, record, fieldMap));
+          } catch {
+            return true;
+          }
+        }
+        // About the record itself, from its system columns.
+        case 'RECORD_ID':
+          return record.id ?? '';
+        case 'CREATED_TIME':
+          return record.created_at ?? null;
+        case 'LAST_MODIFIED_TIME':
+          return record.updated_at ?? null;
+        default:
+          break;
+      }
+
+      if (ARRAY_FUNCTIONS.has(node.name)) {
+        const lists = node.args.map((a) => evaluate(a, record, fieldMap, true));
+        const result = fn(lists);
+        // A list is shown as comma-separated text, unless another list function is about to use it.
+        return Array.isArray(result) && !raw ? result.join(', ') : result;
+      }
+
       const args = node.args.map((a) => evaluate(a, record, fieldMap));
       return fn(args);
     }
@@ -751,12 +939,34 @@ export function evaluateFormula(
   return evaluate(ast, record, fieldMap);
 }
 
+/** The name of the first function in the formula that the engine does not have, or null. */
+function firstUnknownFunction(node: ASTNode): string | null {
+  switch (node.type) {
+    case 'FunctionCall': {
+      if (!BUILTIN_FUNCTIONS[node.name]) return node.name;
+      for (const arg of node.args) {
+        const found = firstUnknownFunction(arg);
+        if (found) return found;
+      }
+      return null;
+    }
+    case 'BinaryOp':
+      return firstUnknownFunction(node.left) ?? firstUnknownFunction(node.right);
+    case 'UnaryOp':
+      return firstUnknownFunction(node.operand);
+    default:
+      return null;
+  }
+}
+
 export function validateFormula(expression: string): { valid: boolean; error?: string } {
   if (!expression || !expression.trim()) {
     return { valid: false, error: 'Formula expression is empty' };
   }
   try {
-    parseFormula(expression);
+    const bad = firstUnknownFunction(parseFormula(expression));
+    // A function the engine does not have would fail for every row, so it counts as invalid, not just odd.
+    if (bad) return { valid: false, error: `Unknown function: ${bad}` };
     return { valid: true };
   } catch (e: any) {
     return { valid: false, error: e?.message ?? 'Invalid formula' };

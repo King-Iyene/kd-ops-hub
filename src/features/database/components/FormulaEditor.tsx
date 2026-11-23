@@ -1,9 +1,16 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { FORMULA_FUNCTIONS, parseFormula, evaluateFormula } from '../lib/formula';
+import { AlertTriangle, BookOpen, CircleAlert, Check, Rows3 } from 'lucide-react';
+import { parseFormula, evaluateFormula } from '../lib/formula';
 import type { ASTNode } from '../lib/formula';
+import { diagnoseFormula, hasBlockingError, type FieldChoice, type FormulaDiagnostic } from '../lib/formulaEditorSupport';
 import type { FieldMeta } from '../types';
 import { useDatabaseUI } from '../lib/store';
+import { FunctionReference } from './formula/FunctionReference';
+import type { FormulaCodeEditorHandle } from './formula/FormulaCodeEditor';
+
+// The editor library is loaded only when a formula is opened, so it costs nothing anywhere else.
+const FormulaCodeEditor = lazy(() => import('./formula/FormulaCodeEditor'));
 
 interface FormulaEditorProps {
   value: string;
@@ -14,14 +21,27 @@ interface FormulaEditorProps {
   sampleRecords?: Record<string, any>[];
 }
 
-interface Suggestion {
-  label: string;
-  type: 'field' | 'function';
-  insert: string;
+/** Field types a formula cannot read (they are worked out elsewhere), so they are not suggested. */
+const NOT_READABLE = ['Formula', 'Lookup', 'Rollup', 'AutoNumber', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy'];
+
+const PILLS_KEY = 'kd.formula.pills';
+
+/** Chips by default with a mouse; coloured text on touch screens, where editing beside a chip is less reliable. */
+function readPillsPreference(): boolean {
+  try {
+    const stored = window.localStorage.getItem(PILLS_KEY);
+    if (stored !== null) return stored === '1';
+  } catch {
+    /* storage unavailable: fall through to the default */
+  }
+  return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 }
 
 export function FormulaEditor({ value, onChange, fields, error, sampleRecords: sampleRecordsProp }: FormulaEditorProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const editorRef = useRef<FormulaCodeEditorHandle>(null);
+  const [pills, setPills] = useState(readPillsPreference);
+  const [showReference, setShowReference] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<FormulaDiagnostic[]>([]);
 
   // Pull sample records from query cache if not provided via props
   const qc = useQueryClient();
@@ -40,130 +60,29 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
     }
     return [];
   }, [sampleRecordsProp, activeBaseId, activeTableId, qc]);
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const allSuggestions = useMemo(() => {
-    const fieldSugs: Suggestion[] = fields
-      .filter((f) => !['Formula', 'Lookup', 'Rollup', 'AutoNumber', 'CreatedTime', 'LastModifiedTime', 'CreatedBy', 'LastModifiedBy'].includes(f.ui_type))
-      .map((f) => ({
-        label: f.name,
-        type: 'field' as const,
-        insert: `{${f.name}}`,
-      }));
-    const fnSugs: Suggestion[] = FORMULA_FUNCTIONS.map((fn) => ({
-      label: fn,
-      type: 'function' as const,
-      insert: `${fn}(`,
-    }));
-    return [...fieldSugs, ...fnSugs];
-  }, [fields]);
+  // Every field counts as existing; only the readable ones are suggested. Kept stable so the editor is not reconfigured on every render.
+  const allFields = useMemo<FieldChoice[]>(() => fields.map((f) => ({ name: f.name, type: f.ui_type })), [fields]);
+  const suggestable = useMemo<FieldChoice[]>(
+    () => fields.filter((f) => !NOT_READABLE.includes(f.ui_type)).map((f) => ({ name: f.name, type: f.ui_type })),
+    [fields],
+  );
 
-  const getContext = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return { token: '', start: 0, end: 0, mode: 'none' as const };
-    const pos = ta.selectionStart;
-    const before = value.slice(0, pos);
-
-    const braceMatch = before.match(/\{([^}]*)$/);
-    if (braceMatch) {
-      return {
-        token: braceMatch[1].toLowerCase(),
-        start: pos - braceMatch[1].length - 1,
-        end: pos,
-        mode: 'field' as const,
-      };
-    }
-
-    const identMatch = before.match(/([A-Za-z_]\w*)$/);
-    if (identMatch) {
-      return {
-        token: identMatch[1].toLowerCase(),
-        start: pos - identMatch[1].length,
-        end: pos,
-        mode: 'function' as const,
-      };
-    }
-
-    return { token: '', start: pos, end: pos, mode: 'none' as const };
-  }, [value]);
-
-  const updateSuggestions = useCallback(() => {
-    const ctx = getContext();
-    if (ctx.mode === 'none' || ctx.token.length === 0) {
-      setShowSuggestions(false);
-      return;
-    }
-
-    const filtered = allSuggestions.filter((s) => {
-      if (ctx.mode === 'field') return s.type === 'field' && s.label.toLowerCase().includes(ctx.token);
-      return s.type === 'function' && s.label.toLowerCase().startsWith(ctx.token);
-    }).slice(0, 8);
-
-    if (filtered.length > 0) {
-      setSuggestions(filtered);
-      setSelectedIdx(0);
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
-    }
-  }, [getContext, allSuggestions]);
-
-  const applySuggestion = useCallback((sug: Suggestion) => {
-    const ctx = getContext();
-    const ta = textareaRef.current;
-    if (!ta) return;
-
-    const insert = sug.insert;
-    let newCursorPos: number;
-
-    if (ctx.mode === 'field') {
-      const afterCursor = value.slice(ctx.end);
-      const closingBrace = afterCursor.startsWith('}') ? 1 : 0;
-      const newValue = value.slice(0, ctx.start) + insert + value.slice(ctx.end + closingBrace);
-      newCursorPos = ctx.start + insert.length;
-      onChange(newValue);
-    } else {
-      const newValue = value.slice(0, ctx.start) + insert + value.slice(ctx.end);
-      newCursorPos = ctx.start + insert.length;
-      onChange(newValue);
-    }
-
-    setShowSuggestions(false);
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  }, [getContext, value, onChange]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!showSuggestions) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (suggestions[selectedIdx]) {
-        e.preventDefault();
-        applySuggestion(suggestions[selectedIdx]);
+  const togglePills = useCallback(() => {
+    setPills((p) => {
+      const next = !p;
+      try {
+        window.localStorage.setItem(PILLS_KEY, next ? '1' : '0');
+      } catch {
+        /* storage unavailable: the choice lasts for this session only */
       }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-  }, [showSuggestions, suggestions, selectedIdx, applySuggestion]);
+      return next;
+    });
+  }, []);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
-  }, [onChange]);
-
-  useEffect(() => {
-    updateSuggestions();
-  }, [value, updateSuggestions]);
+  const pickFunction = useCallback((name: string) => {
+    editorRef.current?.insert(`${name}(`);
+  }, []);
 
   // ── Live preview with debounce ──────────────────────────────────────
   const [preview, setPreview] = useState<
@@ -180,6 +99,7 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
     const trimmed = value.trim();
     if (!trimmed) {
       setPreview({ status: 'idle' });
+      setDiagnostics([]);
       return;
     }
 
@@ -210,96 +130,127 @@ export function FormulaEditor({ value, onChange, fields, error, sampleRecords: s
         });
 
         setPreview({ status: 'ok', rows });
-      } catch (e: any) {
-        setPreview({ status: 'error', message: e?.message ?? 'Invalid formula' });
+      } catch {
+        // The reason, in plain words and with a place, is in the issue list; the preview just says there is nothing to show.
+        const first = diagnoseFormula(trimmed).find((d) => d.blocking);
+        setPreview({ status: 'error', message: first?.message ?? 'This formula cannot be worked out yet.' });
       }
     }, 300);
 
     return () => clearTimeout(previewTimerRef.current);
   }, [value, fields, sampleRecords]);
 
-  const isValid = !error && value.trim();
+  const issues = diagnostics.filter((d) => d.message);
+  const blocking = hasBlockingError(issues);
+  // The dialog's own message ("Unexpected token...") says the same as the editor's plain-words list, so it is shown
+  // only while the editor has nothing to say (before its first check, or for an error the editor cannot see).
+  const showError = error && issues.length === 0 ? error : '';
+  const isValid = !error && !blocking && value.trim() !== '' && issues.length === 0;
 
   return (
-    <div className="relative">
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-        placeholder='e.g. IF({Status} = "Done", 1, 0)'
-        className="w-full h-24 px-3 py-2 border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg text-xs-plus font-mono resize-y focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
-        spellCheck={false}
-      />
-      {isValid && (
-        <div className="absolute bottom-2 right-2 flex items-center gap-1">
-          <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-3xs">✓</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-2xs text-muted-foreground leading-snug min-w-0">
+          Type <kbd className="rounded border border-border bg-muted px-1 font-mono text-3xs">{'{'}</kbd> to pick a field, or start a
+          function name. <kbd className="rounded border border-border bg-muted px-1 font-mono text-3xs">Ctrl</kbd>+
+          <kbd className="rounded border border-border bg-muted px-1 font-mono text-3xs">Space</kbd> opens suggestions.
+        </p>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            aria-pressed={pills}
+            onClick={togglePills}
+            title={pills ? 'Show fields as plain coloured text' : 'Show fields as chips'}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 h-7 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+              pills ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Rows3 size={12} aria-hidden="true" /> Chips
+          </button>
+          <button
+            type="button"
+            aria-expanded={showReference}
+            onClick={() => setShowReference((s) => !s)}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 h-7 text-2xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+              showReference ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <BookOpen size={12} aria-hidden="true" /> Functions
+          </button>
         </div>
-      )}
-
-      {showSuggestions && suggestions.length > 0 && (
-        <div
-          ref={suggestionsRef}
-          className="absolute left-0 right-0 z-50 mt-1 bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg shadow-lg overflow-hidden"
-        >
-          {suggestions.map((sug, idx) => (
-            <button
-              key={`${sug.type}-${sug.label}`}
-              type="button"
-              className={`w-full text-left px-3 py-1.5 flex items-center gap-2 transition-colors ${idx === selectedIdx ? 'bg-[#F4F4F5] dark:bg-[hsl(220,40%,15%)]' : ''}`}
-              onMouseEnter={() => setSelectedIdx(idx)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                applySuggestion(sug);
-              }}
-            >
-              <span className={`text-3xs font-mono px-1.5 py-0.5 rounded ${
-                sug.type === 'field'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                  : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
-              }`}>
-                {sug.type === 'field' ? 'field' : 'fn'}
-              </span>
-              <span className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">
-                {sug.type === 'field' ? `{${sug.label}}` : `${sug.label}()`}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-      {!error && value.trim() && <p className="text-xs text-success mt-1">Formula is valid</p>}
-      <div className="text-3xs text-[#9AA2AF] leading-relaxed mt-1">
-        <span className="font-medium">Reference fields:</span> {'{FieldName}'} &middot;{' '}
-        <span className="font-medium">Functions:</span>{' '}
-        {FORMULA_FUNCTIONS.slice(0, 12).join(', ')}...
       </div>
 
-      {/* Live preview panel */}
-      {preview.status === 'error' && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-destructive/10/20 border border-destructive/20/40">
-          <p className="text-xs text-destructive font-mono">{preview.message}</p>
-        </div>
+      <Suspense
+        fallback={
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            aria-label="Formula"
+            spellCheck={false}
+            className="w-full h-28 px-3 py-2 border border-input rounded-lg text-xs-plus font-mono resize-y bg-background text-foreground"
+          />
+        }
+      >
+        <FormulaCodeEditor
+          ref={editorRef}
+          value={value}
+          onChange={onChange}
+          fields={allFields}
+          suggestable={suggestable}
+          pills={pills}
+          onDiagnostics={setDiagnostics}
+        />
+      </Suspense>
+
+      {(issues.length > 0 || showError) && (
+        <ul className="space-y-1" aria-label="Problems in this formula">
+          {showError && (
+            <li className="flex items-start gap-1.5 text-xs text-destructive">
+              <CircleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span>{showError}</span>
+            </li>
+          )}
+          {issues.map((d, i) => (
+            <li key={`${d.from}-${i}`} className={`flex items-start gap-1.5 text-xs ${d.blocking ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>
+              {d.blocking ? (
+                <CircleAlert size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              )}
+              <span>
+                <span className="sr-only">{d.blocking ? 'Error: ' : 'Warning: '}</span>
+                {d.message}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
+      {isValid && (
+        <p className="flex items-center gap-1.5 text-xs text-success">
+          <Check size={13} aria-hidden="true" /> Formula is valid
+        </p>
+      )}
+
+      {showReference && <FunctionReference onPick={pickFunction} />}
+
+      {/* Live preview panel */}
       {preview.status === 'ok' && preview.rows.length > 0 && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-800/40">
+        <div className="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-800/40">
           <p className="text-3xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
             Preview
           </p>
           <div className="space-y-0.5">
             {preview.rows.map((r) => (
-              <p key={r.index} className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] font-mono">
-                <span className="text-[#9AA2AF] mr-1.5">Row {r.index}:</span>
-                {r.value == null ? <span className="text-[#9AA2AF] italic">empty</span> : String(r.value)}
+              <p key={r.index} className="text-xs text-foreground font-mono">
+                <span className="text-muted-foreground mr-1.5">Row {r.index}:</span>
+                {r.value == null ? <span className="text-muted-foreground italic">empty</span> : String(r.value)}
               </p>
             ))}
           </div>
         </div>
       )}
       {preview.status === 'ok' && preview.rows.length === 0 && value.trim() && (
-        <div className="mt-2 px-3 py-2 rounded-lg bg-success/10/15 border border-success/20/40">
+        <div className="px-3 py-2 rounded-lg bg-success/10 border border-success/20">
           <p className="text-xs text-success">Formula parses successfully. Add records to see preview values.</p>
         </div>
       )}

@@ -27,25 +27,54 @@ function formatDisplayValue(v: any): string {
   return String(v);
 }
 
+/**
+ * Several values from linked records, shown as small chips so they read as separate items. One value is plain
+ * text: a chip around a single word is clutter. The cell clips what does not fit; the full list is in the tooltip.
+ */
+function ValueList({ items }: { items: string[] }) {
+  const colors = useGridColors();
+  if (items.length === 1) {
+    return (
+      <span className="truncate" style={{ color: colors.text }}>
+        {items[0]}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 min-w-0 overflow-hidden" title={items.join(', ')} data-value-list>
+      {items.map((text, i) => (
+        <span
+          key={`${i}-${text}`}
+          className="shrink-0 truncate rounded leading-5 px-1.5"
+          style={{
+            maxWidth: 160,
+            fontSize: 12,
+            color: colors.text,
+            backgroundColor: colors.headerBg,
+            border: `1px solid ${colors.border}`,
+          }}
+        >
+          {text}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export const LookupCellRenderer = React.memo(function LookupCellRenderer({
   field,
   record,
 }: LookupRollupCellRendererProps) {
   const { values, isConfigured, isLoading } = useLookupValue(field, record);
-  const colors = useGridColors();
 
   if (!isConfigured) return <NotConfigured />;
   if (isLoading) return null;
   if (values.length === 0) return null;
 
-  const display = values.map(formatDisplayValue).filter(Boolean).join(', ');
-  if (!display) return null;
+  const items = values.map(formatDisplayValue).filter(Boolean);
+  if (items.length === 0) return null;
 
-  return (
-    <span className="truncate" style={{ color: colors.text }}>
-      {display}
-    </span>
-  );
+  return <ValueList items={items} />;
 });
 
 export const RollupCellRenderer = React.memo(function RollupCellRenderer({
@@ -61,13 +90,9 @@ export const RollupCellRenderer = React.memo(function RollupCellRenderer({
 
   if (Array.isArray(result)) {
     if (result.length === 0) return null;
-    const display = result.map(formatDisplayValue).filter(Boolean).join(', ');
-    if (!display) return null;
-    return (
-      <span className="truncate" style={{ color: colors.text }}>
-        {display}
-      </span>
-    );
+    const items = result.map(formatDisplayValue).filter(Boolean);
+    if (items.length === 0) return null;
+    return <ValueList items={items} />;
   }
 
   const isNumeric = typeof result === 'number';
