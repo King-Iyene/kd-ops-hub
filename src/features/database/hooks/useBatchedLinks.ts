@@ -3,6 +3,8 @@ import { useQueries, useQueryClient, type QueryClient } from '@tanstack/react-qu
 import { supabase } from '@/lib/supabase';
 import type { FieldMeta } from '../types';
 import { chunk, linkLabel, looksLikeId, mapJunctionRows, type JunctionRow } from '../lib/linkBatch';
+import { getFieldColumn, getLinkJunctionTableId, getTableMeta } from './metaLookups';
+import { resolveBaseSchema } from './tableBootstrap';
 
 /**
  * Loads the linked records for a whole column at once.
@@ -63,30 +65,24 @@ async function resolveFieldLinkMeta(
     staleTime: Infinity,
     gcTime: 10 * 60_000,
     queryFn: async (): Promise<FieldLinkMeta | null> => {
-      const meta = supabase.schema('nc_meta');
-      const [baseRes, linkRes, srcRes, tgtRes] = await Promise.all([
-        meta.from('bases').select('schema_name').eq('id', baseId).single(),
-        meta.from('links').select('junction_table_id').eq('field_id', field.id).maybeSingle(),
-        meta.from('tables').select('pg_table_name').eq('id', field.table_id).single(),
-        meta.from('tables').select('pg_table_name, primary_field_id').eq('id', relatedTableId).single(),
+      // Every link column asks the same few questions (the base's schema, the table names, the junction
+      // table, the primary column). These helpers fold them into one request each for the whole screen.
+      // A failed request throws, so TanStack Query retries it instead of caching "no links" for good.
+      const [schema, junctionId, src, tgt] = await Promise.all([
+        resolveBaseSchema(baseId),
+        getLinkJunctionTableId(field.id),
+        getTableMeta(field.table_id),
+        getTableMeta(relatedTableId),
       ]);
-      if (!baseRes.data || !srcRes.data || !tgtRes.data) return null;
+      if (!schema || !src || !tgt) return null;
 
-      let junctionTable: string | null = null;
-      const junctionId = (linkRes.data as { junction_table_id?: string | null } | null)?.junction_table_id;
-      if (junctionId) {
-        const { data } = await meta.from('tables').select('pg_table_name').eq('id', junctionId).single();
-        junctionTable = (data as { pg_table_name: string } | null)?.pg_table_name ?? null;
-      }
+      const junction = junctionId ? await getTableMeta(junctionId) : null;
+      const junctionTable = junction?.pg_table_name ?? null;
 
-      let primaryColumn: string | null = null;
-      const primaryId = (tgtRes.data as { primary_field_id?: string | null }).primary_field_id;
-      if (primaryId) {
-        const { data } = await meta.from('fields').select('pg_column_name').eq('id', primaryId).single();
-        primaryColumn = (data as { pg_column_name: string } | null)?.pg_column_name ?? null;
-      }
+      let primaryColumn: string | null = tgt.primary_field_id ? await getFieldColumn(tgt.primary_field_id) : null;
       if (!primaryColumn) {
-        const { data } = await meta
+        const { data } = await supabase
+          .schema('nc_meta')
           .from('fields')
           .select('pg_column_name')
           .eq('table_id', relatedTableId)
@@ -96,10 +92,10 @@ async function resolveFieldLinkMeta(
       }
 
       return {
-        schema: (baseRes.data as { schema_name: string }).schema_name,
+        schema,
         junctionTable,
-        srcTable: (srcRes.data as { pg_table_name: string }).pg_table_name,
-        tgtTable: (tgtRes.data as { pg_table_name: string }).pg_table_name,
+        srcTable: src.pg_table_name,
+        tgtTable: tgt.pg_table_name,
         primaryColumn,
         linkType: field.options?.type as string | undefined,
         fkColumn: field.options?.fkColumnName as string | undefined,
