@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { STATUS_CODES, type StatusCodeEntry } from '@/features/developer-hub/data/statusCodes';
 
 /* ─── Helpers ─── */
 
@@ -50,28 +51,6 @@ function CodeBlock({ label, code, language }: { label: string; code: string; lan
     </div>
   );
 }
-
-/* ─── Status Code Data ─── */
-
-interface StatusCodeEntry {
-  code: number;
-  meaning: string;
-  action: string;
-  color: 'green' | 'red' | 'amber' | 'blue';
-}
-
-const STATUS_CODES: StatusCodeEntry[] = [
-  { code: 200, meaning: 'Success', action: 'Request completed. Parse the response body.', color: 'green' },
-  { code: 201, meaning: 'Created', action: 'Resource was created successfully.', color: 'green' },
-  { code: 400, meaning: 'Bad Request', action: 'Check your request body — a required field is missing or has the wrong type. The error message tells you which field.', color: 'red' },
-  { code: 401, meaning: 'Unauthorized', action: "Your API key is missing, invalid, revoked, or expired. Go to API Keys → create a new one.", color: 'red' },
-  { code: 403, meaning: 'Forbidden', action: "Your key doesn't have the required scope. E.g., you need employees:write to create employees. Create a new key with the right scopes.", color: 'red' },
-  { code: 404, meaning: 'Not Found', action: "The base, table, record, or field doesn't exist. Check the ID or slug in your URL — use the short ID, not the raw UUID.", color: 'amber' },
-  { code: 405, meaning: 'Method Not Allowed', action: "That HTTP method isn't supported on this route (e.g. DELETE on /bases). Check the method against the endpoint's documented verbs.", color: 'amber' },
-  { code: 422, meaning: 'Unprocessable', action: 'Validation failed — including a duplicate value on a unique column. The error message lists what\'s wrong, e.g. "A unique constraint was violated — duplicate value".', color: 'amber' },
-  { code: 429, meaning: 'Too Many Requests', action: 'Rate limited. Wait 60 seconds and retry. Consider adding delays between batch requests.', color: 'red' },
-  { code: 500, meaning: 'Server Error', action: 'Something went wrong on our end. Retry after a few seconds. If persistent, check the KDOps status.', color: 'red' },
-];
 
 function statusBadgeClasses(color: StatusCodeEntry['color']) {
   switch (color) {
@@ -368,7 +347,7 @@ const SECTIONS: TroubleshootingSection[] = [
         question: 'Fuel request payment not processing',
         answer: (
           <div className="space-y-2">
-            <div className="p-3 rounded-lg bg-destructive/10/40 border border-destructive/20/60">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <p className="text-sm font-semibold text-destructive flex items-center gap-2"><AlertTriangle size={14} /> CRITICAL: Bank details required</p>
               <p className="text-sm text-destructive mt-1">Fuel request disbursements ONLY work if the requesting employee has valid bank details on file (<code className="text-xs font-mono">bank_name</code>, <code className="text-xs font-mono">account_number</code>, <code className="text-xs font-mono">account_name</code>). Without bank details, the request will be created but payment cannot be processed.</p>
             </div>

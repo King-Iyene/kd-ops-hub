@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { LucideIcon } from "lucide-react";
+import { highlightJson } from "@/features/developer-hub/lib/highlightJson";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -160,36 +161,6 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: "bg-red-500/15 text-red-400 border-red-500/30",
 };
 
-// ---------------------------------------------------------------------------
-// JSON syntax highlighter
-// ---------------------------------------------------------------------------
-
-function highlightJson(json: string): string {
-  return json
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(
-      /("(?:\\.|[^"\\])*")\s*:/g,
-      '<span class="text-slate-200">$1</span>:',
-    )
-    .replace(
-      /:\s*("(?:\\.|[^"\\])*")/g,
-      ': <span class="text-emerald-400">$1</span>',
-    )
-    .replace(
-      /:\s*(\d+(?:\.\d+)?)/g,
-      ': <span class="text-blue-400">$1</span>',
-    )
-    .replace(
-      /:\s*(true|false)/g,
-      ': <span class="text-orange-400">$1</span>',
-    )
-    .replace(
-      /:\s*(null)/g,
-      ': <span class="text-slate-500">$1</span>',
-    );
-}
 
 // ---------------------------------------------------------------------------
 // Sub-components

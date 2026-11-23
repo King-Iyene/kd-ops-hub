@@ -26,7 +26,6 @@ import {
   Layers,
   Radio,
   Clock,
-  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -135,7 +134,7 @@ const quickStartSteps = [
     icon: Key,
     title: 'Create an API Key',
     description:
-      'Go to the API Keys tab, name your key, and pick scopes. Your key is shown once — copy it immediately.',
+      'Open the Keys area, name your key, and pick scopes. Your key is shown once — copy it immediately.',
     action: 'keys',
     actionLabel: 'Create Key',
   },
@@ -146,6 +145,8 @@ const quickStartSteps = [
     description: 'Use your key in the Authorization header to call any endpoint.',
     code: `curl -H "Authorization: Bearer kdops_xxx" \\
   https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1/bases`,
+    action: 'quickstart',
+    actionLabel: 'Get snippets for your own tables',
   },
   {
     step: 3,
@@ -278,19 +279,6 @@ export default function ApiOverview({
           ))}
         </div>
       </section>
-
-      {/* Bank Details Warning */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-warning/30 dark:border-warning/20 bg-warning/10/10">
-        <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
-        <div>
-          <h3 className="text-sm font-semibold text-warning dark:text-warning mb-1">Bank Details Required for Disbursements</h3>
-          <p className="text-sm text-warning dark:text-warning/80 leading-relaxed">
-            Any payment disbursement — payroll, fuel requests, payment batches, expense reimbursements — requires the recipient to have valid bank details on file
-            (<strong>bank_name</strong>, <strong>account_number</strong>, <strong>account_name</strong>). Without these, the payment will be created but <strong>cannot be processed</strong>.
-            This applies regardless of whether the disbursement is created in the KDOps UI or triggered downstream of a webhook — always ensure employees and contractors have their bank details set first.
-          </p>
-        </div>
-      </div>
 
       {/* Available Modules */}
       <section>
