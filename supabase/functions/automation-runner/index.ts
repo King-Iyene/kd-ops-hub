@@ -13,6 +13,10 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { assertSafeUrl } from '../_shared/ssrf-guard.ts';
+
+/** An automation that triggers another (through a webhook to this app or a record it writes) stops after this many hops. */
+const MAX_AUTOMATION_DEPTH = 3;
 
 function json(body: Record<string, unknown>, status = 200, req?: Request): Response {
   const cors = req ? getCorsHeaders(req) : { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
@@ -139,6 +143,7 @@ async function executeAction(
     fieldMap: Map<string, string>;
     reverseFieldMap: Map<string, string>;
     tableMeta?: { name?: string };
+    depth?: number;
   },
 ): Promise<{ success: boolean; error?: string; durationMs: number }> {
   const start = Date.now();
@@ -148,9 +153,14 @@ async function executeAction(
         const { url, method = 'POST', headers = {} } = action.config;
         if (!url) return { success: false, error: 'No webhook URL configured', durationMs: Date.now() - start };
 
+        // Never let a step reach this server's own network (localhost, private ranges, the cloud metadata address).
+        const unsafe = await assertSafeUrl(String(url));
+        if (unsafe) return { success: false, error: unsafe, durationMs: Date.now() - start };
+
         const response = await fetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json', ...headers },
+          redirect: 'error',
+          headers: { 'Content-Type': 'application/json', ...headers, 'X-KDOps-Depth': String((context.depth ?? 0) + 1) },
           body: JSON.stringify({
             event: 'automation_trigger',
             record: context.record,
@@ -333,8 +343,9 @@ async function executeAction(
 
         const resendKey = Deno.env.get('RESEND_API_KEY');
         if (!resendKey) {
-          console.log(`[Automation Email - no RESEND_API_KEY] To: ${to}, Subject: ${subject}, Body: ${body}`);
-          return { success: true, durationMs: Date.now() - start };
+          // Reporting success here would tell people an email went out when nothing was sent.
+          console.warn('[Automation Email] RESEND_API_KEY is not set; nothing was sent');
+          return { success: false, error: 'Email is not set up on this server, so nothing was sent', durationMs: Date.now() - start };
         }
 
         const resp = await fetch('https://api.resend.com/emails', {
@@ -492,6 +503,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (authError || !userData?.user) {
       return json({ success: false, error: 'Invalid or expired session' }, 401, req);
     }
+
+    // Automations belong to the Database module, which only Super Admins can open. Anyone else with a valid
+    // login is refused, so a forged record or a test run of someone else's automation cannot get through.
+    const adminCheck = createClient(supabaseUrl, serviceRoleKey);
+    const { data: profile } = await adminCheck.from('profiles').select('role').eq('id', userData.user.id).maybeSingle();
+    if (profile?.role !== 'super_admin') {
+      return json({ success: false, error: 'Only Super Admins can run automations' }, 403, req);
+    }
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -501,6 +520,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const body = await req.json();
     const { event, baseId, tableId, record, oldRecord, _testAutomationId } = body;
+    const depth = Number.isFinite(Number(body.depth)) ? Math.max(0, Number(body.depth)) : 0;
+    if (depth >= MAX_AUTOMATION_DEPTH) {
+      // Stops a chain of automations that keep triggering each other.
+      return json({ success: true, executed: 0, skipped: 'Stopped: too many automations triggered one another', depth }, 200, req);
+    }
 
     if (!event || !baseId || !tableId) {
       return json({ success: false, error: 'Missing required fields: event, baseId, tableId' }, 400, req);
@@ -626,6 +650,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           fieldMap,
           reverseFieldMap,
           tableMeta: { name: tableMeta2?.name ?? table.pg_table_name },
+          depth,
         };
 
         if (action.type === 'conditional') {
@@ -651,8 +676,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const errorMsg = actionResults.filter(r => !r.success).map(r => r.error).join('; ') || undefined;
 
-      // Log run asynchronously — don't block the response
-      logRun(
+      // Wait for the log to be written; the edge runtime may stop as soon as the response is sent.
+      await logRun(
         supabase,
         automation.id,
         event,
