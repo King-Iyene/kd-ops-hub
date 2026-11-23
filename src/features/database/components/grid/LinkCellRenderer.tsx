@@ -328,14 +328,17 @@ function LinkPickerContent({
   );
 }
 
-function LinkPopover({
+export function LinkPopover({
   field,
   record,
   children,
+  bubbleClick = false,
 }: {
   field: FieldMeta;
   record: RecordRow;
   children: React.ReactNode;
+  /** In the grid the click must also reach the cell, so it gets selected as well as opening the list. */
+  bubbleClick?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
@@ -346,7 +349,7 @@ function LinkPopover({
           tabIndex={-1}
           aria-label={`Edit ${field.name}`}
           className="flex items-center gap-1 w-full h-full cursor-pointer min-h-[28px]"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => { if (!bubbleClick) e.stopPropagation(); }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();

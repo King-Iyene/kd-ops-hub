@@ -209,3 +209,39 @@ describe('links stored as a list of ids or objects (the older link cell)', () =>
     expect(container.querySelector('[aria-label="Add linked record"]')).not.toBeNull();
   });
 });
+
+describe('a link to a known table opens the picker in the cell', () => {
+  afterEach(cleanup);
+
+  it('wraps the chips in the picker trigger instead of opening the whole record', () => {
+    const opened = vi.fn();
+    window.addEventListener('grid:expand-row', opened);
+    const { container } = render(
+      <LinksCellRenderer
+        value={['Project Alpha']}
+        field={{ id: 'f', name: 'Projects', options: { relatedTableId: 't2' } } as never}
+        record={{ id: 'r' } as never}
+        rowHeight="short"
+      />,
+    );
+    const trigger = container.querySelector('[aria-label="Edit Projects"]');
+    expect(trigger).not.toBeNull();
+    expect(trigger!.querySelector('[data-link-chip]')).not.toBeNull();
+    // The trigger is the picker's, so a click opens the list rather than the record panel.
+    expect(trigger!.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(opened).not.toHaveBeenCalled();
+    window.removeEventListener('grid:expand-row', opened);
+  });
+
+  it('an empty cell still offers the picker', () => {
+    const { container } = render(
+      <LinksCellRenderer
+        value={[]}
+        field={{ id: 'f', name: 'Projects', options: { relatedTableId: 't2' } } as never}
+        record={{ id: 'r' } as never}
+        rowHeight="short"
+      />,
+    );
+    expect(container.querySelector('[aria-label="Edit Projects"]')).not.toBeNull();
+  });
+});
