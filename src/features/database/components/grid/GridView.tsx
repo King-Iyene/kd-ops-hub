@@ -360,9 +360,14 @@ function GridViewInner({
   const updateFieldMutation = useUpdateField();
   const updateFieldRef = useRef(updateFieldMutation.mutate);
   updateFieldRef.current = updateFieldMutation.mutate;
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
   const handleFieldUpdate = useCallback(
     (fieldId: string, tableId: string, updates: any) => {
-      updateFieldRef.current({ id: fieldId, table_id: tableId, updates: { options: updates } });
+      // Merge into the field's current options: callers pass only what changed (for example the choices),
+      // and replacing the whole object would wipe rules, number formats and other settings.
+      const current = (fieldsRef.current.find((f) => f.id === fieldId)?.options ?? {}) as Record<string, unknown>;
+      updateFieldRef.current({ id: fieldId, table_id: tableId, updates: { options: { ...current, ...updates } } });
     },
     [],
   );
@@ -373,8 +378,6 @@ function GridViewInner({
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; record: RecordRow; fieldId?: string } | null>(null);
   const recordsRef = useRef(records);
   recordsRef.current = records;
-  const fieldsRef = useRef(fields);
-  fieldsRef.current = fields;
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [dragRowId, setDragRowId] = useState<string | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
@@ -802,6 +805,11 @@ function GridViewInner({
   // are usually there before the user reaches them. Asked for once per page (a scroll fires many events
   // before the loading flag flips, and a repeated request restarts the one in flight).
   const loadMoreRequestedAtRef = useRef(-1);
+  // A different table, a filter that changes the total, or more rows becoming available all start a new round.
+  const loadMoreResetKey = `${fields[0]?.table_id ?? ''}:${totalCount}:${hasMore}`;
+  useEffect(() => {
+    loadMoreRequestedAtRef.current = -1;
+  }, [loadMoreResetKey]);
   useEffect(() => {
     const scrollEl = parentRef.current;
     if (!scrollEl || !onLoadMore) return;
@@ -809,6 +817,8 @@ function GridViewInner({
     const handleScroll = () => {
       if (!hasMore || isLoadingMore) return;
       const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+      // Hidden (the phone layout shows a different list): every size reads 0 and would look "at the bottom".
+      if (clientHeight === 0) return;
       const threshold = Math.max(clientHeight * 2, 5 * rowHeightPx);
       if (scrollHeight - scrollTop - clientHeight < threshold) {
         const loaded = recordsRef.current.length;
@@ -955,6 +965,11 @@ function GridViewInner({
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         redo();
+        return;
+      }
+      // Arrows, Enter, Space, Delete and letters belong to the grid only while focus is in it (or nowhere).
+      // A focused sidebar row or tab uses them itself.
+      if (target !== document.body && target !== document.documentElement && !parentRef.current?.contains(target)) {
         return;
       }
 

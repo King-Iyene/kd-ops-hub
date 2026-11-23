@@ -526,9 +526,10 @@ export function TableView() {
 
   const handleUpdateFieldOptions = useCallback(
     (fieldId: string, options: any) => {
-      updateField.mutate({ id: fieldId, options });
+      if (!activeTableId) return;
+      updateField.mutate({ id: fieldId, table_id: activeTableId, updates: { options } });
     },
-    [updateField],
+    [updateField, activeTableId],
   );
 
   const handleDuplicateRow = useCallback(

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { ViewMeta } from '../types';
@@ -148,13 +148,27 @@ export function useActiveView(tableId: string | null | undefined) {
   const { data: views } = useViews(tableId);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
   const setActiveView = useDatabaseUI((s) => s.setActiveView);
+  // The view whose saved settings are already in the screen's store, as "table:view".
+  const appliedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!views || views.length === 0) return;
-    if (activeViewId && views.some((v) => v.id === activeViewId)) return;
-    const defaultView = views.find((v) => v.is_default) ?? views[0];
-    setActiveView(defaultView.id, viewConfigFromMeta(defaultView));
-  }, [views, activeViewId, setActiveView]);
+    const current = activeViewId ? views.find((v) => v.id === activeViewId) : undefined;
+    if (!current) {
+      const defaultView = views.find((v) => v.is_default) ?? views[0];
+      appliedRef.current = `${tableId}:${defaultView.id}`;
+      setActiveView(defaultView.id, viewConfigFromMeta(defaultView));
+      return;
+    }
+    // The address (a deep link, or the command palette) can name a view without its settings.
+    // Without this the previous view's filters, sorts and hidden fields stay in force and a
+    // later change would be saved into the wrong view.
+    const key = `${tableId}:${current.id}`;
+    if (appliedRef.current !== key) {
+      appliedRef.current = key;
+      setActiveView(current.id, viewConfigFromMeta(current));
+    }
+  }, [views, activeViewId, tableId, setActiveView]);
 }
 
 export function useLoadViewConfig() {

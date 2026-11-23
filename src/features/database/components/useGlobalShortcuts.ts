@@ -31,8 +31,18 @@ export function useGlobalShortcuts({
         target.tagName === 'SELECT' ||
         target.isContentEditable;
 
-      // Ctrl/Cmd+K opens (or closes) the command palette, even while typing in a cell.
+      // A cell being edited commits when it loses focus, so opening a panel from inside it would save a
+      // half-typed value. Leave Ctrl+K and Ctrl+J alone there. Another dialog that is already open also
+      // keeps them (the palette itself may still close with Ctrl+K).
+      const inCellEditor = typeof target.closest === 'function' && !!target.closest('[data-cell-id]');
+      const inOtherDialog =
+        typeof target.closest === 'function' &&
+        !!target.closest('[role="dialog"]') &&
+        !target.closest('[data-command-palette]');
+
+      // Ctrl/Cmd+K opens (or closes) the command palette.
       if (isModShortcut(e, 'k')) {
+        if (inCellEditor || inOtherDialog) return;
         e.preventDefault();
         onTogglePalette?.();
         return;
@@ -40,6 +50,7 @@ export function useGlobalShortcuts({
 
       // Ctrl/Cmd+J opens (or closes) the table switcher.
       if (isModShortcut(e, 'j')) {
+        if (inCellEditor || inOtherDialog) return;
         e.preventDefault();
         onToggleTables?.();
         return;

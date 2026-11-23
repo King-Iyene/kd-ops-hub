@@ -7,7 +7,7 @@
  */
 
 /** Names that mark a table as clutter: copies, outdated, WIP, grid views. */
-export const HIDDEN_TABLE_PATTERN = /copy|outdated|\bwip\b|grid view/i;
+export const HIDDEN_TABLE_PATTERN = /\bcopy\b|outdated|\bwip\b|grid view/i;
 
 export function isHiddenByRule(name: string | null | undefined): boolean {
   return !!name && HIDDEN_TABLE_PATTERN.test(name);

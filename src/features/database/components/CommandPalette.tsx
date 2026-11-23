@@ -332,6 +332,7 @@ export function CommandPalette({ open, onOpenChange, onSearchRecords, onBrowseTa
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           hideClose
+          data-command-palette=""
           aria-describedby={undefined}
           className="p-0 gap-0 overflow-hidden sm:max-w-xl md:max-w-xl md:top-[16%] md:translate-y-0"
           onCloseAutoFocus={(e) => {

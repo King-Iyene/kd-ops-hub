@@ -169,3 +169,11 @@ describe('isModShortcut', () => {
     expect(isModShortcut(ev({ ctrlKey: true }), 'k', { shift: true })).toBe(false);
   });
 });
+
+describe('hidden rule does not catch ordinary names', () => {
+  it('keeps tables whose names merely contain the letters', () => {
+    for (const name of ['Copywriting', 'Copyright log', 'Content copywriters', 'Swiper', 'Wiper stock']) {
+      expect(isHiddenByRule(name), name).toBe(false);
+    }
+  });
+});
