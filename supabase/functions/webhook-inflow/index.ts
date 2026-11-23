@@ -93,9 +93,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ success: false, error: 'Invalid JSON body' }, 400);
   }
 
+  // A webhook sent by one of our own automations carries how many hops it has made; pass that on so a chain
+  // of automations calling each other stops instead of running forever.
+  const depth = Math.max(0, Math.floor(Number(req.headers.get('x-kdops-depth')) || 0));
+
   // Forward to the automation-runner with the incoming data as the record
   const { data, error } = await supabase.functions.invoke('automation-runner', {
     body: {
+      depth,
       event: 'record.created',
       baseId: automation.base_id,
       tableId: automation.table_id,
