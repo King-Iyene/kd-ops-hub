@@ -121,7 +121,7 @@ describe('number format settings', () => {
   it('reads stored values', () => {
     expect(
       settingsFromOptions({ precision: 3, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'kg' }),
-    ).toEqual({ precision: 3, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'kg' });
+    ).toEqual({ precision: 3, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'kg', percentBar: true });
   });
   it('stores nothing for default settings and keeps unrelated keys', () => {
     expect(applyNumberSettings({ currencyCode: 'NGN' }, DEFAULT_NUMBER_SETTINGS, { precision: true, affixes: true })).toEqual({ currencyCode: 'NGN' });
@@ -141,5 +141,18 @@ describe('number format settings', () => {
   it('leaves precision and affixes alone when the caller does not manage them', () => {
     const out = applyNumberSettings({ precision: 4, prefix: '#' }, { ...DEFAULT_NUMBER_SETTINGS, abbreviate: true }, { precision: false, affixes: false });
     expect(out).toEqual({ precision: 4, prefix: '#', abbreviate: true });
+  });
+});
+
+describe('percent display setting', () => {
+  it('shows the bar unless the field says text', () => {
+    expect(settingsFromOptions({}).percentBar).toBe(true);
+    expect(settingsFromOptions({ percentDisplay: 'text' }).percentBar).toBe(false);
+  });
+  it('stores text mode only when the bar is off, and only for percent fields', () => {
+    const off = { ...DEFAULT_NUMBER_SETTINGS, percentBar: false };
+    expect(applyNumberSettings({}, off, { precision: true, affixes: false, percent: true })).toEqual({ percentDisplay: 'text' });
+    expect(applyNumberSettings({ percentDisplay: 'text' }, DEFAULT_NUMBER_SETTINGS, { precision: true, affixes: false, percent: true })).toEqual({});
+    expect(applyNumberSettings({}, off, { precision: true, affixes: false })).toEqual({});
   });
 });

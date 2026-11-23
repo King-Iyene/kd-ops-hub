@@ -200,6 +200,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
   const [ratingColor, setRatingColor] = useState('amber');
   const [use12h, setUse12h] = useState(true);
+  const [linkAllowMultiple, setLinkAllowMultiple] = useState(true);
   const [defaultValue, setDefaultValue] = useState('');
   const [allowNewOptions, setAllowNewOptions] = useState(true);
   const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
@@ -249,6 +250,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRatingIcon(ratingIconOf((field.options as any)?.icon));
       setRatingColor((field.options as any)?.color ?? 'amber');
       setUse12h((field.options as any)?.use12h !== false);
+      setLinkAllowMultiple((field.options as any)?.allowMultiple !== false);
       setDefaultValue(field.default_value ?? '');
       setAllowNewOptions((field.options as any)?.allowNewOptions !== false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
@@ -389,6 +391,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         updates.options = applyNumberSettings(field.options as any, numFmt, {
           precision: true,
           affixes: field.ui_type === 'Number' || field.ui_type === 'Decimal',
+          percent: field.ui_type === 'Percent',
         });
       }
       if (isLongText) {
@@ -397,6 +400,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       if (isDateType) {
         const next: Record<string, unknown> = { ...(field.options as any), dateFormat, includeTime, displayTimezone, defaultToCurrentDate };
         if (includeTime && !use12h) next.use12h = false; else delete next.use12h;
+        updates.options = next;
+      }
+      if (field.ui_type === 'Links') {
+        const next: Record<string, unknown> = { ...(field.options as any) };
+        if (linkAllowMultiple) delete next.allowMultiple; else next.allowMultiple = false;
         updates.options = next;
       }
       if (field.ui_type === 'Rating') {
@@ -893,6 +901,21 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               onChange={setNumFmt}
               showPrecision={!isCurrency}
             />
+          )}
+
+          {field?.ui_type === 'Links' && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  checked={linkAllowMultiple}
+                  onChange={(e) => setLinkAllowMultiple(e.target.checked)}
+                />
+                <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Allow linking more than one record in a cell</span>
+              </label>
+              <p className="text-xs text-[#9AA2AF]">Turning this off does not remove links that already exist; it limits new ones.</p>
+            </div>
           )}
 
           {field?.ui_type === 'Rating' && (

@@ -11,6 +11,7 @@ import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
 import { formatDuration, normalizeDurationFormat } from '../../lib/duration';
+import { hasInlineMarks, parseInline } from '../../lib/inlineMarkdown';
 import { RatingGlyph } from './RatingGlyph';
 
 interface CellRendererProps {
@@ -169,19 +170,37 @@ const LIST_BULLET_RE = /^[•\-*]\s/;
 const LIST_NUM_RE = /^\d+\.\s/;
 const LIST_ALPHA_RE = /^[a-z]\.\s/;
 
+/** Long text with the toolbar's marks (**bold**, *italic*, ~~strike~~, `code`) shown as formatting, never as raw HTML. */
+function InlineText({ text }: { text: string }) {
+  if (!hasInlineMarks(text)) return <>{text}</>;
+  return (
+    <>
+      {parseInline(text).map((piece, i) => {
+        switch (piece.kind) {
+          case 'bold': return <strong key={i}>{piece.text}</strong>;
+          case 'italic': return <em key={i}>{piece.text}</em>;
+          case 'strike': return <s key={i}>{piece.text}</s>;
+          case 'code': return <code key={i} className="rounded bg-muted px-1" style={{ fontSize: 12 }}>{piece.text}</code>;
+          default: return <React.Fragment key={i}>{piece.text}</React.Fragment>;
+        }
+      })}
+    </>
+  );
+}
+
 function renderLongTextLine(line: string, idx: number) {
   if (LIST_BULLET_RE.test(line)) {
-    return <div key={idx} style={{ paddingLeft: 12, textIndent: -10 }}>{'• '}{line.replace(LIST_BULLET_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 12, textIndent: -10 }}>{'• '}<InlineText text={line.replace(LIST_BULLET_RE, '')} /></div>;
   }
   if (LIST_NUM_RE.test(line)) {
     const match = line.match(/^(\d+\.)\s/);
-    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_NUM_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}<InlineText text={line.replace(LIST_NUM_RE, '')} /></div>;
   }
   if (LIST_ALPHA_RE.test(line)) {
     const match = line.match(/^([a-z]\.)\s/);
-    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}{line.replace(LIST_ALPHA_RE, '')}</div>;
+    return <div key={idx} style={{ paddingLeft: 16, textIndent: -14 }}><span style={{ fontWeight: 500 }}>{match?.[1]}</span>{' '}<InlineText text={line.replace(LIST_ALPHA_RE, '')} /></div>;
   }
-  return <div key={idx}>{line || ' '}</div>;
+  return <div key={idx}>{line ? <InlineText text={line} /> : ' '}</div>;
 }
 
 export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
@@ -206,7 +225,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
     }
   }
   if (rowHeight === 'short') {
-    return <span className="truncate" title={text} style={{ fontSize: 13, lineHeight: '18px' }}>{text}</span>;
+    return <span className="truncate" title={text} style={{ fontSize: 13, lineHeight: '18px' }}><InlineText text={text} /></span>;
   }
   const maxLines = rowHeight === 'tall' ? 3 : rowHeight === 'extra-tall' ? 5 : 2;
   const lines = text.split('\n');
@@ -241,7 +260,7 @@ export const LongTextCellRenderer = React.memo(function LongTextCellRenderer({
         overflow: 'hidden',
       }}
     >
-      {text}
+      <InlineText text={text} />
     </span>
   );
 });
@@ -673,6 +692,13 @@ export const PercentCellRenderer = React.memo(function PercentCellRenderer({
   if (value == null || value === '') return null;
   const num = Number(value);
   if (isNaN(num)) return <span className="truncate">{String(value)}</span>;
+  if (field.options?.percentDisplay === 'text') {
+    return (
+      <span className="truncate block text-right w-full" style={numberStyle(num < 0)}>
+        {formatPercent(num, displayOptions(field))}
+      </span>
+    );
+  }
   const barColor = num >= 75 ? '#22C55E' : num >= 50 ? '#2563EB' : num >= 25 ? '#F59E0B' : '#EF4444';
   return (
     <div className="flex items-center gap-2.5 w-full">

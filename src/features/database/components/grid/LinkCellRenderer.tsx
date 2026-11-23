@@ -162,6 +162,20 @@ function LinkPickerContent({
     recordId: record.id,
   });
 
+  const limitToOne = field.options?.allowMultiple === false;
+  // In a "one record only" field, picking a record replaces whatever was linked and closes the list.
+  const pickRecord = async (id: string) => {
+    if (limitToOne) {
+      for (const existing of linkedRecords) {
+        if (existing.id !== id) await unlinkRecord(existing.id);
+      }
+      if (!linkedRecords.some((r) => r.id === id)) await linkRecord(id);
+      onClose();
+      return;
+    }
+    await linkRecord(id);
+  };
+
   const linkedIds = useMemo(() => new Set(linkedRecords.map((r) => r.id)), [linkedRecords]);
   const suggestions = useMemo(
     () => searchResults.filter((r) => !linkedIds.has(r.id)),
@@ -221,7 +235,7 @@ function LinkPickerContent({
                 primaryField={primaryField}
                 visibleFields={visibleFields}
                 action="link"
-                onAction={linkRecord}
+                onAction={pickRecord}
               />
             ))}
           </div>

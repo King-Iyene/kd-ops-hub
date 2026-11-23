@@ -130,6 +130,18 @@ export function NumberFormatPanel({ uiType, currencyCode, value, onChange, showP
         </span>
       </label>
 
+      {uiType === 'Percent' && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className="w-3.5 h-3.5 accent-[#2D7FF9]"
+            checked={value.percentBar}
+            onChange={(e) => set({ percentBar: e.target.checked })}
+          />
+          <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Show a progress bar next to the number</span>
+        </label>
+      )}
+
       <div className="rounded-lg border border-dashed border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] px-3 py-2">
         <p className="text-3xs font-semibold uppercase tracking-widest text-[#9AA2AF]">Preview</p>
         <div className="mt-1 flex items-baseline justify-between gap-3 tabular-nums text-sm text-[#374151] dark:text-[hsl(220,25%,88%)]">

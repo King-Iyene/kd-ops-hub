@@ -116,6 +116,8 @@ export interface FieldOptions {
   abbreviate?: boolean;
   /** Select fields: false stops people creating new options from a cell. */
   allowNewOptions?: boolean;
+  /** Percent fields: 'text' hides the progress bar. */
+  percentDisplay?: 'bar' | 'text';
   /** Rating colour name (amber, red, pink, green, blue, purple). */
   color?: string;
   label?: string;

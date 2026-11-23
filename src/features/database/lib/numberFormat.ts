@@ -187,6 +187,8 @@ export interface NumberFormatSettings {
   abbreviate: boolean;
   prefix: string;
   suffix: string;
+  /** Percent fields: draw a progress bar next to the number (default) or show only the number. */
+  percentBar: boolean;
 }
 
 export const DEFAULT_NUMBER_SETTINGS: NumberFormatSettings = {
@@ -196,6 +198,7 @@ export const DEFAULT_NUMBER_SETTINGS: NumberFormatSettings = {
   abbreviate: false,
   prefix: '',
   suffix: '',
+  percentBar: true,
 };
 
 type LooseOptions = Record<string, unknown>;
@@ -209,6 +212,7 @@ export function settingsFromOptions(options: LooseOptions | null | undefined): N
     abbreviate: o.abbreviate === true,
     prefix: typeof o.prefix === 'string' ? o.prefix : '',
     suffix: typeof o.suffix === 'string' ? o.suffix : '',
+    percentBar: o.percentDisplay !== 'text',
   };
 }
 
@@ -220,7 +224,7 @@ export function settingsFromOptions(options: LooseOptions | null | undefined): N
 export function applyNumberSettings(
   options: LooseOptions | null | undefined,
   settings: NumberFormatSettings,
-  parts: { precision: boolean; affixes: boolean },
+  parts: { precision: boolean; affixes: boolean; percent?: boolean },
 ): LooseOptions {
   const next: LooseOptions = { ...(options ?? {}) };
   delete next.thousands;
@@ -230,6 +234,7 @@ export function applyNumberSettings(
     delete next.prefix;
     delete next.suffix;
   }
+  if (parts.percent) delete next.percentDisplay;
   if (parts.precision) {
     if (settings.precision == null) delete next.precision;
     else next.precision = clampPrecision(settings.precision, 0);
@@ -237,6 +242,7 @@ export function applyNumberSettings(
   if (!settings.thousands) next.thousands = false;
   if (settings.negativeStyle === 'parentheses') next.negativeStyle = 'parentheses';
   if (settings.abbreviate) next.abbreviate = true;
+  if (parts.percent && !settings.percentBar) next.percentDisplay = 'text';
   if (parts.affixes) {
     if (settings.prefix) next.prefix = settings.prefix;
     if (settings.suffix) next.suffix = settings.suffix;

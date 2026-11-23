@@ -213,6 +213,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [formulaError, setFormulaError] = useState('');
   const [targetTableId, setTargetTableId] = useState('');
   const [relationType, setRelationType] = useState<RelationType>('many_to_many');
+  const [linkAllowMultiple, setLinkAllowMultiple] = useState(true);
   const [linkFieldId, setLinkFieldId] = useState('');
   const [lookupFieldId, setLookupFieldId] = useState('');
   const [rollupFieldId, setRollupFieldId] = useState('');
@@ -342,6 +343,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setTypeSearch('');
     setTargetTableId('');
     setRelationType('many_to_many');
+    setLinkAllowMultiple(true);
     setFormulaExpression('');
     setFormulaError('');
     setButtonLabel('Click');
@@ -418,6 +420,7 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       return applyNumberSettings(opts as Record<string, unknown>, numFmt, {
         precision: uiType !== 'Currency',
         affixes: uiType === 'Number' || uiType === 'Decimal',
+        percent: uiType === 'Percent',
       }) as FieldOptions;
     }
     return opts;
@@ -463,7 +466,9 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
           field_name: name.trim(),
           target_table_id: targetTableId,
           relation_type: relationType,
+          allow_multiple: linkAllowMultiple,
         });
+        setLinkAllowMultiple(true);
         setName('');
         setUiType('SingleLineText');
         setDescription('');
@@ -759,6 +764,15 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   ))}
                 </div>
               </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  checked={linkAllowMultiple}
+                  onChange={(e) => setLinkAllowMultiple(e.target.checked)}
+                />
+                <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Allow linking more than one record in a cell</span>
+              </label>
             </div>
           )}
 
