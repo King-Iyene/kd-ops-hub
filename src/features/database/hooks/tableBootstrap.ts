@@ -93,7 +93,7 @@ export function resetBootstrapCaches() {
 
 // A base's schema_name is the same for every one of its tables; concurrent
 // callers asking for the same base share one request.
-async function resolveBaseSchema(baseId: string): Promise<string> {
+export async function resolveBaseSchema(baseId: string): Promise<string> {
   const cached = baseSchemaCache.get(baseId);
   if (cached && fresh(cached.ts)) return cached.schemaName;
 

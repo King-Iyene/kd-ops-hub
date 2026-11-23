@@ -6,6 +6,7 @@ import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { countChecked, dateExtremes, median, toNumbers, uniqueCount } from '../../lib/summaries';
+import { NUMERIC_TYPES, defaultSummary as getDefaultSummary } from '../../lib/footerColumns';
 import { formatDbDate } from '../../lib/dates';
 import { useUndoStore } from '../../lib/undo';
 import { coerceValue } from '../../lib/csv';
@@ -44,6 +45,10 @@ export interface GridViewProps {
   onReorderRows?: (rows: Array<{ id: string; nc_order: number }>) => void;
   /** False while `fields` still belong to the previous table; the loading skeleton then does not draw their names. */
   fieldsAreCurrent?: boolean;
+  /** Every row of the filtered table with just the summarised columns, once read; makes the footer totals exact. */
+  footerRows?: RecordRow[];
+  /** The fields `footerRows` can total exactly. */
+  footerFieldIds?: ReadonlySet<string>;
 }
 
 
@@ -63,8 +68,6 @@ const ROW_NUMBER_WIDTH = 48;
 const HEADER_HEIGHT = 36;
 /** One shared empty set, so rows see an unchanged prop while no cell is flashing. */
 const EMPTY_FLASH: ReadonlySet<string> = new Set<string>();
-
-const NUMERIC_TYPES: UIType[] = ['Number', 'Decimal', 'Currency', 'Percent', 'Rating', 'Duration'];
 
 const DATE_TYPES: UIType[] = ['Date', 'DateTime', 'CreatedTime', 'LastModifiedTime'];
 
@@ -164,13 +167,6 @@ function computeSummary(
 }
 
 
-function getDefaultSummary(uiType: UIType): SummaryFunction {
-  if (NUMERIC_TYPES.includes(uiType)) return 'sum';
-  if (uiType === 'Checkbox') return 'percentFilled';
-  if (uiType === 'SingleSelect' || uiType === 'MultiSelect') return 'countFilled';
-  return 'none';
-}
-
 const SummaryRow = React.memo(function SummaryRow({
   fields,
   records,
@@ -184,11 +180,16 @@ const SummaryRow = React.memo(function SummaryRow({
   frozenLeftOffsets,
   totalWidth,
   totalCount,
+  exactRows,
+  exactFieldIds,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
   /** Rows in the whole table; when larger than `records`, summaries only cover the loaded rows. */
   totalCount?: number;
+  /** Every row of the filtered table (summarised columns only), once read; the fields it covers are totalled exactly. */
+  exactRows?: RecordRow[];
+  exactFieldIds?: ReadonlySet<string>;
   summaryFunctions: Record<string, SummaryFunction>;
   setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
   summaryDropdown: string | null;
@@ -203,15 +204,21 @@ const SummaryRow = React.memo(function SummaryRow({
   const partialNote = partial
     ? `Calculated from the ${records.length.toLocaleString()} loaded rows of ${totalCount!.toLocaleString()}. Load more rows to include the rest.`
     : '';
-  const summaryValues = useMemo(() => {
-    const map: Record<string, string> = {};
+  // A field is totalled from the whole table when its rows have been read ("count" needs no column, only the rows);
+  // otherwise from the loaded rows, and marked as partial when those are not the whole table.
+  const { summaryValues, partialFields } = useMemo(() => {
+    const values: Record<string, string> = {};
+    const partials: Record<string, boolean> = {};
+    const loadedIsPartial = typeof totalCount === 'number' && totalCount > records.length;
     for (const field of fields) {
       const explicit = summaryFunctions[field.id];
       const fn = explicit ?? getDefaultSummary(field.ui_type);
-      map[field.id] = computeSummary(fn, records, field.pg_column_name, field);
+      const exact = !!exactRows && (fn === 'count' || !!exactFieldIds?.has(field.id));
+      values[field.id] = computeSummary(fn, exact ? exactRows! : records, field.pg_column_name, field);
+      partials[field.id] = !exact && loadedIsPartial;
     }
-    return map;
-  }, [fields, records, summaryFunctions]);
+    return { summaryValues: values, partialFields: partials };
+  }, [fields, records, summaryFunctions, totalCount, exactRows, exactFieldIds]);
 
   return (
     <div
@@ -244,6 +251,7 @@ const SummaryRow = React.memo(function SummaryRow({
         const fn = explicit ?? getDefaultSummary(field.ui_type);
         const isNumeric = NUMERIC_TYPES.includes(field.ui_type);
         const value = summaryValues[field.id] ?? '';
+        const fieldPartial = !!partialFields[field.id];
         const label = SUMMARY_LABELS[fn];
         const isOpen = summaryDropdown === field.id;
         const isFroz = colIdx < frozenCount;
@@ -267,14 +275,14 @@ const SummaryRow = React.memo(function SummaryRow({
               aria-label={`Summary for ${field.name}`}
               className="w-full h-full flex items-baseline justify-end gap-1.5 px-2 text-right overflow-hidden whitespace-nowrap"
               style={{ minHeight: 32, alignItems: 'center' }}
-              title={fn !== 'none' ? `${label}: ${value}${partialNote ? ' — ' + partialNote : ''}` : 'Choose a summary'}
+              title={fn !== 'none' ? `${label}: ${value}${fieldPartial ? ' — ' + partialNote : ''}` : 'Choose a summary'}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               {fn !== 'none' ? (
                 <>
-                  <span className="shrink-0" style={{ fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}{partial ? '*' : ''}</span>
+                  <span className="shrink-0" style={{ fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}{fieldPartial ? '*' : ''}</span>
                   <span className="min-w-0 truncate" style={{ fontSize: 12, fontWeight: 600, color: colors.text, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
                 </>
               ) : (
@@ -346,6 +354,8 @@ function GridViewInner({
   isLoadingMore,
   onReorderRows,
   fieldsAreCurrent = true,
+  footerRows,
+  footerFieldIds,
 }: GridViewProps) {
   const GRID_COLORS = useGridColors();
   const mobileCardHoverStyle = useMemo(() => ({ '--grid-hover': `${GRID_COLORS.primary}08` }), [GRID_COLORS.primary]);
@@ -1372,9 +1382,19 @@ function GridViewInner({
         else if (typeof v === 'string' && v !== '' && !isNaN(Number(v))) nums.push(Number(v));
       }
     }
-    if (nums.length === 0) return { cellCount, nums: [] as number[], sum: 0, avg: 0 };
-    const sum = nums.reduce((a, b) => a + b, 0);
-    return { cellCount, nums, sum, avg: sum / nums.length };
+    // A selection inside one column is shown in that column's own format (₦, %, decimals); a mixed one stays plain.
+    const field = c1 === c2 ? fieldsWithWidths[c1] : undefined;
+    if (nums.length === 0) return { cellCount, count: 0, sum: 0, avg: 0, min: 0, max: 0, field };
+    let sum = 0;
+    let min = nums[0];
+    let max = nums[0];
+    // A loop, not Math.min(...nums): spreading a very large selection into arguments throws.
+    for (const n of nums) {
+      sum += n;
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    return { cellCount, count: nums.length, sum, avg: sum / nums.length, min, max, field };
   }, [selectionRange, fieldsWithWidths, records]);
 
   if (isLoading) {
@@ -1817,6 +1837,8 @@ function GridViewInner({
             frozenLeftOffsets={frozenLeftOffsets}
             totalWidth={totalWidth}
             totalCount={totalCount}
+            exactRows={footerRows}
+            exactFieldIds={footerFieldIds}
           />
         </div>
       </div>
@@ -1895,14 +1917,25 @@ function GridViewInner({
         </div>
         <div className="flex items-center gap-3">
           {selectionStats && (
-            selectionStats.nums.length === 0
+            selectionStats.count === 0
               ? <span style={{ color: GRID_COLORS.primary }}>{selectionStats.cellCount} cells</span>
               : <span className="flex items-center gap-3 font-medium" style={{ color: GRID_COLORS.primary }}>
-                  <span>Sum: {selectionStats.sum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                  <span>Avg: {selectionStats.avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                  <span>Min: {Math.min(...selectionStats.nums).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                  <span>Max: {Math.max(...selectionStats.nums).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                  <span>Count: {selectionStats.nums.length}</span>
+                  {(() => {
+                    const f = selectionStats.field;
+                    const fmt = (n: number) =>
+                      f && NUMERIC_TYPES.includes(f.ui_type)
+                        ? formatSummaryNum(n, f)
+                        : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                    return (
+                      <>
+                        <span>Sum: {fmt(selectionStats.sum)}</span>
+                        <span>Avg: {fmt(selectionStats.avg)}</span>
+                        <span>Min: {fmt(selectionStats.min)}</span>
+                        <span>Max: {fmt(selectionStats.max)}</span>
+                        <span>Count: {selectionStats.count}</span>
+                      </>
+                    );
+                  })()}
                 </span>
           )}
           {isLoadingMore && (

@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
-import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
+import type { RecordRow, Filter, FilterGroup, Sort, FieldMeta } from '../types';
 import { toast } from '../components/toast-store';
 import { useUndoStore } from '../lib/undo';
 import { resolveTableContext, resolveTableSchema } from './tableBootstrap';
@@ -579,7 +579,195 @@ interface InfiniteRecordsPage {
   page: number;
 }
 
-const infiniteLinkCache = new Map<string, { includeIds: string[] | null; excludeIds: string[] | null; nonLinkFilters: Filter[]; sortIds: string[] | null; nonLinkSorts: Sort[]; ts: number }>();
+interface LinkQueryState {
+  includeIds: string[] | null;
+  excludeIds: string[] | null;
+  nonLinkFilters: Filter[];
+  sortIds: string[] | null;
+  nonLinkSorts: Sort[];
+}
+
+type LinkFilterState = Pick<LinkQueryState, 'includeIds' | 'excludeIds' | 'nonLinkFilters'>;
+type LinkSortState = Pick<LinkQueryState, 'sortIds' | 'nonLinkSorts'>;
+
+// Filters and sorts are cached apart, so the footer (which has filters but no sort) shares the grid's answer
+// and a change of sort does not ask the server about the filters again.
+const linkFilterCache = new Map<string, { state: LinkFilterState; ts: number }>();
+const linkSortCache = new Map<string, { state: LinkSortState; ts: number }>();
+const LINK_STATE_TTL_MS = 30_000;
+
+/**
+ * Link filters ("contains record X") and link sorts are answered by a server
+ * function; every other filter and sort goes straight onto the query. The answers
+ * are kept for 30 seconds so paging does not repeat them.
+ */
+async function resolveLinkQueryState(
+  tableId: string,
+  filters: Filter[] | undefined,
+  sorts: Sort[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkQueryState> {
+  const [filterState, sortState] = await Promise.all([
+    resolveLinkFilterState(tableId, filters, fieldMap),
+    resolveLinkSortState(tableId, sorts, fieldMap),
+  ]);
+  return { ...filterState, ...sortState };
+}
+
+async function resolveLinkFilterState(
+  tableId: string,
+  filters: Filter[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkFilterState> {
+  const key = JSON.stringify({ tableId, filters });
+  const cached = linkFilterCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
+
+  let infLinkIncludeIds: string[] | null = null;
+  let infLinkExcludeIds: string[] | null = null;
+  const infNonLinkFilters: Filter[] = [];
+
+  if (filters && filters.length > 0) {
+    for (const filter of filters) {
+      const field = fieldMap.get(filter.field_id);
+      if (!field) continue;
+      if (filter.operator === 'linkContains' && filter.value) {
+        const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+        });
+        infLinkIncludeIds = lqData?.ids ?? [];
+      } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
+        const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+        });
+        infLinkExcludeIds = lqData?.ids ?? [];
+      } else {
+        infNonLinkFilters.push(filter);
+      }
+    }
+  }
+
+  const state: LinkFilterState = {
+    includeIds: infLinkIncludeIds,
+    excludeIds: infLinkExcludeIds,
+    nonLinkFilters: infNonLinkFilters,
+  };
+  linkFilterCache.set(key, { state, ts: Date.now() });
+  return state;
+}
+
+async function resolveLinkSortState(
+  tableId: string,
+  sorts: Sort[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkSortState> {
+  if (!sorts || sorts.length === 0) return { sortIds: null, nonLinkSorts: [] };
+  const key = JSON.stringify({ tableId, sorts });
+  const cached = linkSortCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
+
+  let infLinkSortIds: string[] | null = null;
+  const infNonLinkSorts: Sort[] = [];
+  for (const sort of sorts) {
+    const field = fieldMap.get(sort.field_id);
+    if (field?.ui_type === 'Links') {
+      const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+      });
+      infLinkSortIds = lqData?.ids ?? [];
+    } else {
+      infNonLinkSorts.push(sort);
+    }
+  }
+
+  const state: LinkSortState = { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts };
+  linkSortCache.set(key, { state, ts: Date.now() });
+  return state;
+}
+
+/**
+ * Narrow a rows query by the view's filters, filter groups and the search box.
+ * Returns null when the link filters already rule out every row, so the caller
+ * can skip the request.
+ */
+function applyRecordFilters(
+  query: any,
+  state: LinkQueryState,
+  filterGroups: FilterGroup[] | undefined,
+  search: string | undefined,
+  fieldMap: Map<string, FieldMeta>,
+  fieldsMeta: FieldMeta[],
+): any | null {
+  let q = query;
+  if (state.includeIds !== null) {
+    if (state.includeIds.length === 0) return null;
+    q = q.in('id', state.includeIds);
+  }
+  if (state.excludeIds !== null && state.excludeIds.length > 0) {
+    for (const exId of state.excludeIds) {
+      q = q.neq('id', exId);
+    }
+  }
+
+  for (const filter of state.nonLinkFilters) {
+    const field = fieldMap.get(filter.field_id);
+    if (!field) continue;
+    q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+  }
+
+  if (filterGroups && filterGroups.length > 0) {
+    for (const group of filterGroups) {
+      q = applyFilterGroup(q, group, fieldMap);
+    }
+  }
+
+  if (search) {
+    const textCols = (fieldsMeta ?? [])
+      .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+      .map((f: any) => f.pg_column_name);
+    if (textCols.length > 0) {
+      const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+      q = q.or(orClause);
+    }
+  }
+  return q;
+}
+
+/** Most rows the footer will read to total a column; beyond this it falls back to the loaded rows and says so. */
+export const FOOTER_ROW_CAP = 20_000;
+const FOOTER_PAGE = 1000;
+
+/**
+ * Only the named columns of every row that matches the view's filters, read in
+ * pages of 1,000, so the footer can total the whole filtered table instead of
+ * just the rows that are on screen. Sorting does not change a total, so there
+ * is none beyond a stable order for paging. Stops at `cap` rows and reports it.
+ */
+export async function fetchColumnValues(
+  client: QueryClient,
+  params: { baseId: string; tableId: string; filters?: Filter[]; filterGroups?: FilterGroup[]; search?: string },
+  columns: string[],
+  cap: number = FOOTER_ROW_CAP,
+): Promise<{ rows: RecordRow[]; truncated: boolean }> {
+  const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, params.baseId, params.tableId);
+  const state = await resolveLinkQueryState(params.tableId, params.filters, undefined, fieldMap);
+  const select = ['id', ...new Set(columns.filter((c) => c !== 'id'))].join(', ');
+
+  const rows: RecordRow[] = [];
+  for (let from = 0; from < cap; from += FOOTER_PAGE) {
+    const base = supabase.schema(ctx.schemaName).from(ctx.tableName).select(select);
+    const filtered = applyRecordFilters(base, state, params.filterGroups, params.search, fieldMap, fieldsMeta);
+    if (!filtered) return { rows: [], truncated: false };
+    const { data, error } = await filtered
+      .order('id', { ascending: true })
+      .range(from, from + FOOTER_PAGE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as RecordRow[];
+    rows.push(...page);
+    if (page.length < FOOTER_PAGE) return { rows, truncated: false };
+  }
+  return { rows, truncated: true };
+}
 
 export const DEFAULT_RECORDS_PAGE_SIZE = 100;
 
@@ -603,92 +791,20 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
       const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, baseId, tableId);
 
       // Pre-resolve linked record filters (cached across pages)
-      const linkCacheKey = JSON.stringify({ tableId, filters, sorts });
-      let linkResolved = infiniteLinkCache.get(linkCacheKey);
-      if (!linkResolved || Date.now() - linkResolved.ts > 30_000) {
-        let infLinkIncludeIds: string[] | null = null;
-        let infLinkExcludeIds: string[] | null = null;
-        const infNonLinkFilters: Filter[] = [];
+      const linkState = await resolveLinkQueryState(tableId, filters, sorts, fieldMap);
+      const { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkState;
 
-        if (filters && filters.length > 0) {
-          for (const filter of filters) {
-            const field = fieldMap.get(filter.field_id);
-            if (!field) continue;
-            if (filter.operator === 'linkContains' && filter.value) {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-              });
-              infLinkIncludeIds = lqData?.ids ?? [];
-            } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-              });
-              infLinkExcludeIds = lqData?.ids ?? [];
-            } else {
-              infNonLinkFilters.push(filter);
-            }
-          }
-        }
-
-        let infLinkSortIds: string[] | null = null;
-        const infNonLinkSorts: Sort[] = [];
-        if (sorts && sorts.length > 0) {
-          for (const sort of sorts) {
-            const field = fieldMap.get(sort.field_id);
-            if (field?.ui_type === 'Links') {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
-              });
-              infLinkSortIds = lqData?.ids ?? [];
-            } else {
-              infNonLinkSorts.push(sort);
-            }
-          }
-        }
-
-        linkResolved = { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts, ts: Date.now() };
-        infiniteLinkCache.set(linkCacheKey, linkResolved);
-      }
-      const { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkResolved;
-
-      let q = supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .select('*', { count: 'estimated' });
-
-      if (infLinkIncludeIds !== null) {
-        if (infLinkIncludeIds.length === 0) {
-          return { records: [], totalCount: 0, page: currentPage };
-        }
-        q = q.in('id', infLinkIncludeIds);
-      }
-      if (infLinkExcludeIds !== null && infLinkExcludeIds.length > 0) {
-        for (const exId of infLinkExcludeIds) {
-          q = q.neq('id', exId);
-        }
-      }
-
-      for (const filter of infNonLinkFilters) {
-        const field = fieldMap.get(filter.field_id);
-        if (!field) continue;
-        q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
-      }
-
-      if (filterGroups && filterGroups.length > 0) {
-        for (const group of filterGroups) {
-          q = applyFilterGroup(q, group, fieldMap);
-        }
-      }
-
-      if (search) {
-        const textCols = (fieldsMeta ?? [])
-          .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
-          .map((f: any) => f.pg_column_name);
-        if (textCols.length > 0) {
-          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
-          q = q.or(orClause);
-        }
-      }
+      const filtered = applyRecordFilters(
+        supabase.schema(ctx.schemaName).from(ctx.tableName).select('*', { count: 'estimated' }),
+        linkState,
+        filterGroups,
+        search,
+        fieldMap,
+        fieldsMeta,
+      );
+      // The link filters already rule out every row.
+      if (!filtered) return { records: [], totalCount: 0, page: currentPage };
+      let q = filtered;
 
       if (infLinkSortIds !== null) {
         const { data: allData, error: allError, count: allCount } = await q.limit(5000);
@@ -811,11 +927,33 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   });
 }
 
+/**
+ * The rows one cached records query holds, whatever its shape: a single page
+ * (`{ records }`) or the grid's infinite list (`{ pages: [{ records }] }`).
+ */
+function cachedRows(data: unknown): RecordRow[] {
+  const d = data as { records?: RecordRow[]; pages?: Array<{ records?: RecordRow[] }> } | null | undefined;
+  if (Array.isArray(d?.records)) return d.records;
+  if (Array.isArray(d?.pages)) return d.pages.flatMap((p) => p.records ?? []);
+  return [];
+}
+
+/** Find a row by id in any of the cached records queries (every loaded page of each). */
+function findCachedRecord(entries: ReadonlyArray<readonly [unknown, unknown]>, recordId: string): RecordRow | undefined {
+  for (const [, data] of entries) {
+    const rec = cachedRows(data).find((r) => r.id === recordId);
+    if (rec) return rec;
+  }
+  return undefined;
+}
+
 function updateInfiniteCache<_T>(
   qc: ReturnType<typeof useQueryClient>,
   queryKeyPrefix: string[],
   updater: (records: RecordRow[]) => RecordRow[],
   countDelta = 0,
+  /** For adding rows: in the grid's list of pages only the last page is changed, so a new row shows up once, at the end. */
+  lastPageOnly = false,
 ) {
   qc.setQueriesData({ queryKey: queryKeyPrefix }, (old: any) => {
     if (!old) return old;
@@ -823,11 +961,12 @@ function updateInfiniteCache<_T>(
       return { ...old, records: updater(old.records), totalCount: old.totalCount + countDelta };
     }
     if (old.pages && Array.isArray(old.pages)) {
+      const lastIndex = old.pages.length - 1;
       return {
         ...old,
         pages: old.pages.map((page: any, i: number) => ({
           ...page,
-          records: updater(page.records ?? []),
+          records: lastPageOnly && i !== lastIndex ? (page.records ?? []) : updater(page.records ?? []),
           totalCount: (page.totalCount ?? 0) + (i === 0 ? countDelta : 0),
         })),
       };
@@ -863,7 +1002,7 @@ export function useCreateRecord() {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData({ queryKey });
       const optimisticRow = { id: `temp-${Date.now()}`, ...variables.record } as RecordRow;
-      updateInfiniteCache(qc, queryKey, (records) => [...records, optimisticRow], 1);
+      updateInfiniteCache(qc, queryKey, (records) => [...records, optimisticRow], 1, true);
       return { previous };
     },
     onError: (_err, variables, context) => {
@@ -930,14 +1069,11 @@ export function useUpdateRecord() {
       // Capture the record's prior values (for the fields being changed) so we
       // can push an undo entry that restores them.
       let oldValues: Record<string, any> | null = null;
-      for (const [, data] of previous) {
-        const rec = data?.records.find((r) => r.id === variables.recordId);
-        if (rec) {
-          oldValues = {};
-          for (const key of Object.keys(updates)) {
-            oldValues[key] = (rec as any)[key];
-          }
-          break;
+      const cachedRecord = findCachedRecord(previous, variables.recordId);
+      if (cachedRecord) {
+        oldValues = {};
+        for (const key of Object.keys(updates)) {
+          oldValues[key] = (cachedRecord as any)[key];
         }
       }
 
@@ -967,12 +1103,8 @@ export function useUpdateRecord() {
       );
 
       // Capture full old record for automation condition evaluation
-      let oldRecord: Record<string, any> | undefined;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) { oldRecord = { ...rec }; break; }
-      }
+      const foundRecord = findCachedRecord(previous, variables.recordId);
+      const oldRecord: Record<string, any> | undefined = foundRecord ? { ...foundRecord } : undefined;
 
       return { previous, oldRecord };
     },
@@ -1049,15 +1181,7 @@ export function useDeleteRecord() {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
 
-      let deletedRecord: RecordRow | null = null;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) {
-          deletedRecord = rec;
-          break;
-        }
-      }
+      const deletedRecord: RecordRow | null = findCachedRecord(previous, variables.recordId) ?? null;
 
       if (deletedRecord) {
         const record = deletedRecord;
@@ -1152,7 +1276,7 @@ export function useBulkCreateRecords() {
         id: `temp-${Date.now()}-${i}`,
         ...rec,
       })) as RecordRow[];
-      updateInfiniteCache(qc, queryKey, (records) => [...records, ...optimisticRows], optimisticRows.length);
+      updateInfiniteCache(qc, queryKey, (records) => [...records, ...optimisticRows], optimisticRows.length, true);
       return { previous };
     },
     onSuccess: (data, variables) => {
