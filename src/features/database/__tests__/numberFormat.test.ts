@@ -110,3 +110,36 @@ describe('parseNumberInput', () => {
     expect(parseNumberInput('--5')).toBeNull();
   });
 });
+
+import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, settingsFromOptions } from '../lib/numberFormat';
+
+describe('number format settings', () => {
+  it('reads defaults from empty options', () => {
+    expect(settingsFromOptions({})).toEqual(DEFAULT_NUMBER_SETTINGS);
+    expect(settingsFromOptions(null)).toEqual(DEFAULT_NUMBER_SETTINGS);
+  });
+  it('reads stored values', () => {
+    expect(
+      settingsFromOptions({ precision: 3, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'kg' }),
+    ).toEqual({ precision: 3, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'kg' });
+  });
+  it('stores nothing for default settings and keeps unrelated keys', () => {
+    expect(applyNumberSettings({ currencyCode: 'NGN' }, DEFAULT_NUMBER_SETTINGS, { precision: true, affixes: true })).toEqual({ currencyCode: 'NGN' });
+  });
+  it('stores only what differs from the defaults', () => {
+    const out = applyNumberSettings({}, { ...DEFAULT_NUMBER_SETTINGS, precision: 1, thousands: false, negativeStyle: 'parentheses' }, { precision: true, affixes: true });
+    expect(out).toEqual({ precision: 1, thousands: false, negativeStyle: 'parentheses' });
+  });
+  it('removes keys that were switched back to the default', () => {
+    const out = applyNumberSettings(
+      { precision: 4, thousands: false, negativeStyle: 'parentheses', abbreviate: true, prefix: '#', suffix: 'x' },
+      DEFAULT_NUMBER_SETTINGS,
+      { precision: true, affixes: true },
+    );
+    expect(out).toEqual({});
+  });
+  it('leaves precision and affixes alone when the caller does not manage them', () => {
+    const out = applyNumberSettings({ precision: 4, prefix: '#' }, { ...DEFAULT_NUMBER_SETTINGS, abbreviate: true }, { precision: false, affixes: false });
+    expect(out).toEqual({ precision: 4, prefix: '#', abbreviate: true });
+  });
+});

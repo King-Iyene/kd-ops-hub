@@ -15,6 +15,10 @@ import { useCreateLink } from '../hooks/useLinks';
 import { useTables } from '../hooks/useTables';
 import { useFields } from '../hooks/useFields';
 import { useDatabaseUI } from '../lib/store';
+import { NumberFormatPanel } from './NumberFormatPanel';
+import { RatingOptionsPanel } from './RatingOptionsPanel';
+import type { RatingIcon } from '../lib/ratingStyle';
+import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, type NumberFormatSettings } from '../lib/numberFormat';
 import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
 import { SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
 import { getFieldTypeIcon } from './grid/field-icons';
@@ -212,8 +216,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const [rollupFieldId, setRollupFieldId] = useState('');
   const [rollupFn, setRollupFn] = useState('COUNT');
   const [ratingMax, setRatingMax] = useState(5);
+  const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
+  const [ratingColor, setRatingColor] = useState('amber');
+  const [use12h, setUse12h] = useState(true);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
+  const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [richText, setRichText] = useState(false);
   const [buttonLabel, setButtonLabel] = useState('Click');
@@ -313,8 +321,12 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     setChoices([]);
     setNewChoiceText('');
     setRatingMax(5);
+    setRatingIcon('star');
+    setRatingColor('amber');
+    setUse12h(true);
     setCurrencyCode('USD');
     setPrecision(2);
+    setNumFmt(DEFAULT_NUMBER_SETTINGS);
     setDurationFormat('h:mm');
     setRichText(false);
     setLinkFieldId('');
@@ -359,6 +371,8 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
     if (uiType === 'Rating') {
       opts.max = ratingMax;
+      if (ratingIcon !== 'star') opts.icon = ratingIcon;
+      if (ratingColor !== 'amber') opts.color = ratingColor;
     }
     if (uiType === 'Currency') {
       opts.currencyCode = currencyCode;
@@ -366,9 +380,6 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
     }
     if (uiType === 'LongText') {
       opts.richText = richText;
-    }
-    if (uiType === 'Decimal') {
-      opts.precision = precision;
     }
     if (uiType === 'Duration') {
       opts.format = durationFormat;
@@ -394,6 +405,13 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
       opts.includeTime = includeTime;
       opts.displayTimezone = displayTimezone;
       opts.defaultToCurrentDate = defaultToCurrentDate;
+      if (includeTime && !use12h) opts.use12h = false;
+    }
+    if (uiType === 'Number' || uiType === 'Decimal' || uiType === 'Percent' || uiType === 'Currency') {
+      return applyNumberSettings(opts as Record<string, unknown>, numFmt, {
+        precision: uiType !== 'Currency',
+        affixes: uiType === 'Number' || uiType === 'Decimal',
+      }) as FieldOptions;
     }
     return opts;
   };
@@ -871,6 +889,25 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
             </div>
           )}
 
+          {(uiType === 'Number' || uiType === 'Decimal' || uiType === 'Percent' || uiType === 'Currency') && (
+            <NumberFormatPanel
+              uiType={uiType}
+              currencyCode={currencyCode}
+              value={numFmt}
+              onChange={setNumFmt}
+              showPrecision={uiType !== 'Currency'}
+            />
+          )}
+
+          {uiType === 'Rating' && (
+            <RatingOptionsPanel
+              max={ratingMax}
+              icon={ratingIcon}
+              color={ratingColor}
+              onChange={(n) => { setRatingMax(n.max); setRatingIcon(n.icon); setRatingColor(n.color); }}
+            />
+          )}
+
           {uiType === 'Duration' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Duration Format</Label>
@@ -925,6 +962,17 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                     onChange={(e) => setDisplayTimezone(e.target.checked)}
                   />
                   <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Display time zone</span>
+                </label>
+              )}
+              {includeTime && (
+                <label className="flex items-center gap-2 cursor-pointer ml-5">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    checked={!use12h}
+                    onChange={(e) => setUse12h(!e.target.checked)}
+                  />
+                  <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Use a 24 hour clock</span>
                 </label>
               )}
               <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-2.5">

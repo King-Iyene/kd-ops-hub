@@ -172,3 +172,72 @@ export function parseNumberInput(raw: string): number | null {
   if (!Number.isFinite(n)) return null;
   return negative ? -n : n;
 }
+
+// ---------------------------------------------------------------------------
+// Field settings <-> options (used by the field dialogs)
+// ---------------------------------------------------------------------------
+
+export interface NumberFormatSettings {
+  /** null means "the field type's default" (none for Number, 2 for Decimal and Currency). */
+  precision: number | null;
+  thousands: boolean;
+  negativeStyle: 'minus' | 'parentheses';
+  abbreviate: boolean;
+  prefix: string;
+  suffix: string;
+}
+
+export const DEFAULT_NUMBER_SETTINGS: NumberFormatSettings = {
+  precision: null,
+  thousands: true,
+  negativeStyle: 'minus',
+  abbreviate: false,
+  prefix: '',
+  suffix: '',
+};
+
+type LooseOptions = Record<string, unknown>;
+
+export function settingsFromOptions(options: LooseOptions | null | undefined): NumberFormatSettings {
+  const o = options ?? {};
+  return {
+    precision: typeof o.precision === 'number' ? o.precision : null,
+    thousands: o.thousands !== false,
+    negativeStyle: o.negativeStyle === 'parentheses' ? 'parentheses' : 'minus',
+    abbreviate: o.abbreviate === true,
+    prefix: typeof o.prefix === 'string' ? o.prefix : '',
+    suffix: typeof o.suffix === 'string' ? o.suffix : '',
+  };
+}
+
+/**
+ * Returns a copy of `options` with the number display settings written in.
+ * Only non-default values are stored, so a field left on defaults stays clean
+ * and switching a setting back removes its key.
+ */
+export function applyNumberSettings(
+  options: LooseOptions | null | undefined,
+  settings: NumberFormatSettings,
+  parts: { precision: boolean; affixes: boolean },
+): LooseOptions {
+  const next: LooseOptions = { ...(options ?? {}) };
+  delete next.thousands;
+  delete next.negativeStyle;
+  delete next.abbreviate;
+  if (parts.affixes) {
+    delete next.prefix;
+    delete next.suffix;
+  }
+  if (parts.precision) {
+    if (settings.precision == null) delete next.precision;
+    else next.precision = clampPrecision(settings.precision, 0);
+  }
+  if (!settings.thousands) next.thousands = false;
+  if (settings.negativeStyle === 'parentheses') next.negativeStyle = 'parentheses';
+  if (settings.abbreviate) next.abbreviate = true;
+  if (parts.affixes) {
+    if (settings.prefix) next.prefix = settings.prefix;
+    if (settings.suffix) next.suffix = settings.suffix;
+  }
+  return next;
+}

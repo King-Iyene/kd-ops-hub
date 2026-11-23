@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ExternalLink, Copy, Plus, Star, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
+import { Check, ExternalLink, Copy, Plus, Clock, AlertTriangle, Barcode, FileText, FileSpreadsheet, FileCode, FileArchive, FileVideo, FileAudio, File, FileImage, Presentation } from 'lucide-react';
 import AttachmentLightbox from '../AttachmentLightbox';
 import type { FieldMeta, SelectChoice, RecordRow } from '@/features/database/types';
 import { SELECT_COLORS } from '@/features/database/types';
@@ -9,6 +9,8 @@ import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
 import { formatDateWithOptions, getTimezone } from '@/lib/format';
 import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
+import { ratingHexOf, ratingIconOf, ratingMaxOf } from '../../lib/ratingStyle';
+import { RatingGlyph } from './RatingGlyph';
 
 interface CellRendererProps {
   value: any;
@@ -322,12 +324,13 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
         return formatDateWithOptions(value, {
           dateFormat: opts.dateFormat,
           includeTime: opts.includeTime ?? field.ui_type === 'DateTime',
+          use12h: opts.use12h,
           displayTimezone: opts.displayTimezone,
         });
       }
       // No format chosen on the field: use the module standard ("6 Sep 2026, 2:15 pm").
       const tz = getTimezone();
-      if (field.ui_type === 'DateTime') return formatDbDateTime(value, tz) || null;
+      if (field.ui_type === 'DateTime') return formatDbDateTime(value, tz, opts?.use12h !== false) || null;
       return formatDbDate(value, tz) || null;
     } catch {
       return String(value);
@@ -649,19 +652,14 @@ export const RatingCellRenderer = React.memo(function RatingCellRenderer({
   value,
   field,
 }: CellRendererProps) {
-  const max = field.options?.max ?? 5;
-  const rating = typeof value === 'number' ? value : 0;
+  const max = ratingMaxOf(field.options?.max);
+  const icon = ratingIconOf(field.options?.icon);
+  const hex = ratingHexOf(field.options?.color);
+  const rating = typeof value === 'number' ? value : Number(value) || 0;
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5" title={`${rating} of ${max}`}>
       {Array.from({ length: max }, (_, i) => (
-        <Star
-          key={i}
-          size={14}
-          fill={i < rating ? '#F59E0B' : 'none'}
-          stroke={i < rating ? '#F59E0B' : undefined}
-          className={i < rating ? '' : 'stroke-[#D1D5DB] dark:stroke-[hsl(220,15%,35%)]'}
-          strokeWidth={1.5}
-        />
+        <RatingGlyph key={i} icon={icon} filled={i < rating} hex={hex} />
       ))}
     </div>
   );

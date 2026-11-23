@@ -85,3 +85,11 @@ describe('formatDbTooltip', () => {
     expect(formatDbTooltip('2026-09-06', LAGOS)).toBe('Sunday 6 Sep 2026');
   });
 });
+
+describe('24 hour clock', () => {
+  it('writes the time without am or pm', () => {
+    expect(formatDbTime('2026-09-06T14:15:00Z', 'UTC', false)).toBe('14:15');
+    expect(formatDbTime('2026-09-06T00:05:00Z', 'UTC', false)).toBe('00:05');
+    expect(formatDbDateTime('2026-09-06T13:15:00Z', LAGOS, false)).toBe('6 Sep 2026, 14:15');
+  });
+});

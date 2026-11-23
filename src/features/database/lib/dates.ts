@@ -51,22 +51,23 @@ export function formatDbDate(value: string | Date | null | undefined, timeZone =
   return `${p.day} ${MONTHS[p.month - 1]} ${p.year}`;
 }
 
-/** "2:15 pm" */
-export function formatDbTime(value: string | Date | null | undefined, timeZone = 'Africa/Lagos'): string {
+/** "2:15 pm", or "14:15" with use12h false. */
+export function formatDbTime(value: string | Date | null | undefined, timeZone = 'Africa/Lagos', use12h = true): string {
   const d = toDate(value);
   if (!d) return '';
   const p = parts(d, timeZone);
+  if (!use12h) return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
   const suffix = p.hour >= 12 ? 'pm' : 'am';
   const hour12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
   return `${hour12}:${String(p.minute).padStart(2, '0')} ${suffix}`;
 }
 
 /** "6 Sep 2026, 2:15 pm" (a date-only value drops the time). */
-export function formatDbDateTime(value: string | Date | null | undefined, timeZone = 'Africa/Lagos'): string {
+export function formatDbDateTime(value: string | Date | null | undefined, timeZone = 'Africa/Lagos', use12h = true): string {
   const d = toDate(value);
   if (!d) return '';
   if (typeof value === 'string' && DATE_ONLY.test(value)) return formatDbDate(value, timeZone);
-  return `${formatDbDate(d, timeZone)}, ${formatDbTime(d, timeZone)}`;
+  return `${formatDbDate(d, timeZone)}, ${formatDbTime(d, timeZone, use12h)}`;
 }
 
 /** Calendar-day difference between two moments in the given timezone (later minus earlier). */

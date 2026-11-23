@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Paperclip, Star, Check, X } from 'lucide-react';
+import { Paperclip, Check, X } from 'lucide-react';
 import type { FieldMeta, SelectChoice } from '@/features/database/types';
-import { SELECT_COLOR_NAMES, SELECT_COLORS } from '@/features/database/types';
+import { SELECT_COLOR_NAMES } from '@/features/database/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DateEditor } from './DateEditor';
 import { currencySymbol, parseNumberInput } from '../../lib/numberFormat';
+import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf, stepRating } from '../../lib/ratingStyle';
+import { RatingGlyph } from './RatingGlyph';
 import { AttachmentManager, type AttachmentMeta } from '../AttachmentManager';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
@@ -409,53 +411,60 @@ export function PhoneNumberCellEditor({ value, onCommit, onCancel }: CellEditorP
 }
 
 export function RatingCellEditor({ value, field, onCommit, onCancel }: CellEditorProps) {
-  const max = field.options?.max || 5;
-  const rating = Number(value) || 0;
+  const max = ratingMaxOf(field.options?.max);
+  const icon = ratingIconOf(field.options?.icon);
+  const hex = ratingHexOf(field.options?.color);
+  const [draft, setDraft] = useState(Number(value) || 0);
+  const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const exit = useEditorExit(onCommit, onCancel);
 
   useEffect(() => {
     ref.current?.focus();
   }, []);
 
+  const shown = hover ?? draft;
+
   return (
     <div
       ref={ref}
       tabIndex={0}
-      className="flex items-center gap-0.5 px-2 h-full bg-transparent outline-none"
+      role="slider"
+      aria-label={field.name}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={draft}
+      className="flex items-center gap-0.5 h-full bg-transparent outline-none rounded-none shadow-none focus-visible:shadow-none"
+      onMouseLeave={() => setHover(null)}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onCancel();
-        if (e.key === 'Tab') onCommit(rating);
-        if (e.key === 'Enter') onCommit(rating);
-        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); onCommit(Math.min(rating + 1, max)); }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); onCommit(Math.max(rating - 1, 0)); }
+        e.stopPropagation();
+        if (e.key === 'Escape') exit.cancel();
+        else if (e.key === 'Enter' || e.key === 'Tab') exit.commit(draft);
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setDraft((d) => stepRating(d, 1, max)); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setDraft((d) => stepRating(d, -1, max)); }
+        else if (/^[0-9]$/.test(e.key)) { e.preventDefault(); setDraft(Math.min(Number(e.key), max)); }
+        else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); setDraft(0); }
       }}
-      onBlur={() => onCommit(rating)}
+      onBlur={() => exit.commit(draft)}
     >
       {Array.from({ length: max }, (_, i) => (
         <button
           key={i}
           type="button"
           tabIndex={-1}
-          className="p-0 border-none bg-transparent cursor-pointer"
-          onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
-          aria-label={`Rate ${i + 1} of ${max} stars`}
-          aria-pressed={i < rating}
+          className="p-0 border-0 bg-transparent cursor-pointer rounded-none shadow-none"
+          onMouseEnter={() => setHover(i + 1)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => exit.commit(nextRating(draft, i + 1, max))}
+          aria-label={`Rate ${i + 1} of ${max}`}
         >
-          <Star
-            size={16}
-            fill={i < rating ? '#F59E0B' : 'none'}
-            color={i < rating ? '#F59E0B' : '#9CA3AF'}
-            strokeWidth={1.5}
-          />
+          <span style={{ opacity: hover != null && i >= draft && i < hover ? 0.55 : 1 }}>
+            <RatingGlyph icon={icon} filled={i < shown} hex={hex} />
+          </span>
         </button>
       ))}
     </div>
   );
-}
-
-function getSelectColorStyle(colorName: string) {
-  const sc = SELECT_COLORS[colorName] || SELECT_COLORS.grayLight2;
-  return sc;
 }
 
 export function SelectCellEditor({ value, field, onCommit, onCancel, onFieldUpdate }: CellEditorProps) {

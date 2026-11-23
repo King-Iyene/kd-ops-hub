@@ -24,6 +24,10 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { FormulaEditor } from './FormulaEditor';
 import { ROLLUP_FUNCTIONS, type RollupFunction } from '../lib/computations';
+import { NumberFormatPanel } from './NumberFormatPanel';
+import { RatingOptionsPanel } from './RatingOptionsPanel';
+import { ratingIconOf, ratingMaxOf, type RatingIcon } from '../lib/ratingStyle';
+import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, settingsFromOptions, type NumberFormatSettings } from '../lib/numberFormat';
 
 
 interface EditFieldDialogProps {
@@ -190,6 +194,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
   const [richText, setRichText] = useState(false);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [precision, setPrecision] = useState(2);
+  const [ratingMax, setRatingMax] = useState(5);
+  const [ratingIcon, setRatingIcon] = useState<RatingIcon>('star');
+  const [ratingColor, setRatingColor] = useState('amber');
+  const [use12h, setUse12h] = useState(true);
+  const [numFmt, setNumFmt] = useState<NumberFormatSettings>(DEFAULT_NUMBER_SETTINGS);
   const [durationFormat, setDurationFormat] = useState('h:mm');
   const [buttonLabel, setButtonLabel] = useState('Click');
   const [buttonUrl, setButtonUrl] = useState('');
@@ -231,6 +240,11 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
       setRichText((field.options as any)?.richText ?? false);
       setCurrencyCode((field.options as any)?.currencyCode ?? (field.options as any)?.symbol ?? 'USD');
       setPrecision((field.options as any)?.precision ?? 2);
+      setNumFmt(settingsFromOptions(field.options as any));
+      setRatingMax(ratingMaxOf((field.options as any)?.max));
+      setRatingIcon(ratingIconOf((field.options as any)?.icon));
+      setRatingColor((field.options as any)?.color ?? 'amber');
+      setUse12h((field.options as any)?.use12h !== false);
       setDurationFormat((field.options as any)?.format ?? 'h:mm');
       setButtonLabel((field.options as any)?.label ?? 'Click');
       setButtonUrl((field.options as any)?.url ?? '');
@@ -242,6 +256,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
     }
   }, [field]);
 
+  const isNumberLike = field?.ui_type === 'Number' || field?.ui_type === 'Decimal' || field?.ui_type === 'Percent';
   const isSelectType = field?.ui_type === 'SingleSelect' || field?.ui_type === 'MultiSelect';
   const isLongText = field?.ui_type === 'LongText';
   const isFormula = field?.ui_type === 'Formula';
@@ -356,13 +371,27 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
         updates.options = { ...(field.options as any), linkFieldId, lookupFieldId };
       }
       if (isCurrency) {
-        updates.options = { ...(field.options as any), currencyCode, precision };
+        updates.options = applyNumberSettings({ ...(field.options as any), currencyCode, precision }, numFmt, { precision: false, affixes: false });
+      }
+      if (isNumberLike) {
+        updates.options = applyNumberSettings(field.options as any, numFmt, {
+          precision: true,
+          affixes: field.ui_type === 'Number' || field.ui_type === 'Decimal',
+        });
       }
       if (isLongText) {
         updates.options = { ...(field.options as any), richText };
       }
       if (isDateType) {
-        updates.options = { ...(field.options as any), dateFormat, includeTime, displayTimezone, defaultToCurrentDate };
+        const next: Record<string, unknown> = { ...(field.options as any), dateFormat, includeTime, displayTimezone, defaultToCurrentDate };
+        if (includeTime && !use12h) next.use12h = false; else delete next.use12h;
+        updates.options = next;
+      }
+      if (field.ui_type === 'Rating') {
+        const next: Record<string, unknown> = { ...(field.options as any), max: ratingMax };
+        if (ratingIcon === 'star') delete next.icon; else next.icon = ratingIcon;
+        if (ratingColor === 'amber') delete next.color; else next.color = ratingColor;
+        updates.options = next;
       }
       if (isRollup) {
         updates.options = { ...(field.options as any), linkFieldId, rollupFieldId, fn: rollupFunction };
@@ -833,6 +862,25 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             </div>
           )}
 
+          {(isCurrency || isNumberLike) && field && (
+            <NumberFormatPanel
+              uiType={field.ui_type as 'Number' | 'Decimal' | 'Currency' | 'Percent'}
+              currencyCode={currencyCode}
+              value={numFmt}
+              onChange={setNumFmt}
+              showPrecision={!isCurrency}
+            />
+          )}
+
+          {field?.ui_type === 'Rating' && (
+            <RatingOptionsPanel
+              max={ratingMax}
+              icon={ratingIcon}
+              color={ratingColor}
+              onChange={(n) => { setRatingMax(n.max); setRatingIcon(n.icon); setRatingColor(n.color); }}
+            />
+          )}
+
           {field?.ui_type === 'Duration' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]">Duration Format</Label>
@@ -901,6 +949,17 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     onChange={(e) => setDisplayTimezone(e.target.checked)}
                   />
                   <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Display time zone</span>
+                </label>
+              )}
+              {includeTime && (
+                <label className="flex items-center gap-2 cursor-pointer ml-5">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    checked={!use12h}
+                    onChange={(e) => setUse12h(!e.target.checked)}
+                  />
+                  <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">Use a 24 hour clock</span>
                 </label>
               )}
               <div className="border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] pt-2.5">
