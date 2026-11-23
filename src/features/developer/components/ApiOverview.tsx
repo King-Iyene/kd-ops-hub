@@ -134,7 +134,7 @@ const quickStartSteps = [
     icon: Key,
     title: 'Create an API Key',
     description:
-      'Go to the API Keys tab, name your key, and pick scopes. Your key is shown once — copy it immediately.',
+      'Open the Keys area, name your key, and pick scopes. Your key is shown once — copy it immediately.',
     action: 'keys',
     actionLabel: 'Create Key',
   },
@@ -145,6 +145,8 @@ const quickStartSteps = [
     description: 'Use your key in the Authorization header to call any endpoint.',
     code: `curl -H "Authorization: Bearer kdops_xxx" \\
   https://mseeurrvdcfxdmvqjjki.supabase.co/functions/v1/rest-api/v1/bases`,
+    action: 'quickstart',
+    actionLabel: 'Get snippets for your own tables',
   },
   {
     step: 3,
