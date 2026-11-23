@@ -585,15 +585,21 @@ interface LinkQueryState {
   nonLinkFilters: Filter[];
   sortIds: string[] | null;
   nonLinkSorts: Sort[];
-  ts: number;
 }
 
-const infiniteLinkCache = new Map<string, LinkQueryState>();
+type LinkFilterState = Pick<LinkQueryState, 'includeIds' | 'excludeIds' | 'nonLinkFilters'>;
+type LinkSortState = Pick<LinkQueryState, 'sortIds' | 'nonLinkSorts'>;
+
+// Filters and sorts are cached apart, so the footer (which has filters but no sort) shares the grid's answer
+// and a change of sort does not ask the server about the filters again.
+const linkFilterCache = new Map<string, { state: LinkFilterState; ts: number }>();
+const linkSortCache = new Map<string, { state: LinkSortState; ts: number }>();
+const LINK_STATE_TTL_MS = 30_000;
 
 /**
  * Link filters ("contains record X") and link sorts are answered by a server
- * function; every other filter and sort goes straight onto the query. The answer
- * is kept for 30 seconds so paging does not repeat it.
+ * function; every other filter and sort goes straight onto the query. The answers
+ * are kept for 30 seconds so paging does not repeat them.
  */
 async function resolveLinkQueryState(
   tableId: string,
@@ -601,9 +607,21 @@ async function resolveLinkQueryState(
   sorts: Sort[] | undefined,
   fieldMap: Map<string, FieldMeta>,
 ): Promise<LinkQueryState> {
-  const linkCacheKey = JSON.stringify({ tableId, filters, sorts });
-  const cached = infiniteLinkCache.get(linkCacheKey);
-  if (cached && Date.now() - cached.ts <= 30_000) return cached;
+  const [filterState, sortState] = await Promise.all([
+    resolveLinkFilterState(tableId, filters, fieldMap),
+    resolveLinkSortState(tableId, sorts, fieldMap),
+  ]);
+  return { ...filterState, ...sortState };
+}
+
+async function resolveLinkFilterState(
+  tableId: string,
+  filters: Filter[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkFilterState> {
+  const key = JSON.stringify({ tableId, filters });
+  const cached = linkFilterCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
 
   let infLinkIncludeIds: string[] | null = null;
   let infLinkExcludeIds: string[] | null = null;
@@ -629,31 +647,41 @@ async function resolveLinkQueryState(
     }
   }
 
-  let infLinkSortIds: string[] | null = null;
-  const infNonLinkSorts: Sort[] = [];
-  if (sorts && sorts.length > 0) {
-    for (const sort of sorts) {
-      const field = fieldMap.get(sort.field_id);
-      if (field?.ui_type === 'Links') {
-        const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-          body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
-        });
-        infLinkSortIds = lqData?.ids ?? [];
-      } else {
-        infNonLinkSorts.push(sort);
-      }
-    }
-  }
-
-  const state: LinkQueryState = {
+  const state: LinkFilterState = {
     includeIds: infLinkIncludeIds,
     excludeIds: infLinkExcludeIds,
     nonLinkFilters: infNonLinkFilters,
-    sortIds: infLinkSortIds,
-    nonLinkSorts: infNonLinkSorts,
-    ts: Date.now(),
   };
-  infiniteLinkCache.set(linkCacheKey, state);
+  linkFilterCache.set(key, { state, ts: Date.now() });
+  return state;
+}
+
+async function resolveLinkSortState(
+  tableId: string,
+  sorts: Sort[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkSortState> {
+  if (!sorts || sorts.length === 0) return { sortIds: null, nonLinkSorts: [] };
+  const key = JSON.stringify({ tableId, sorts });
+  const cached = linkSortCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
+
+  let infLinkSortIds: string[] | null = null;
+  const infNonLinkSorts: Sort[] = [];
+  for (const sort of sorts) {
+    const field = fieldMap.get(sort.field_id);
+    if (field?.ui_type === 'Links') {
+      const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+      });
+      infLinkSortIds = lqData?.ids ?? [];
+    } else {
+      infNonLinkSorts.push(sort);
+    }
+  }
+
+  const state: LinkSortState = { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts };
+  linkSortCache.set(key, { state, ts: Date.now() });
   return state;
 }
 

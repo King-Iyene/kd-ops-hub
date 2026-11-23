@@ -49,15 +49,54 @@ export function footerPlan(
   fields: ReadonlyArray<Pick<FieldMeta, 'id' | 'ui_type' | 'pg_column_name'>>,
   summaryFunctions: Record<string, SummaryFunction>,
 ): FooterPlan {
-  let needed = false;
+  let wantsCount = false;
   const columns = new Set<string>();
   const fieldIds = new Set<string>();
   for (const field of fields) {
-    if (summaryFor(field, summaryFunctions) === 'none') continue;
-    needed = true;
+    const fn = summaryFor(field, summaryFunctions);
+    if (fn === 'none') continue;
+    if (fn === 'count') wantsCount = true;
     if (COMPUTED_TYPES.has(field.ui_type) || !field.pg_column_name) continue;
     columns.add(field.pg_column_name);
     fieldIds.add(field.id);
   }
-  return { needed, columns: [...columns].sort(), fieldIds };
+  // Reading the whole table only pays off when it can total a stored column, or count the rows. A sum on a
+  // formula column alone cannot be made exact this way, so it does not trigger the read.
+  return { needed: columns.size > 0 || wantsCount, columns: [...columns].sort(), fieldIds };
+}
+
+/**
+ * Apply a just-saved change to the footer's copy of the rows, so the totals move at once instead of after
+ * the next read. Understands the variables of the record mutations: edit (one field or several), bulk edit,
+ * delete and bulk delete. Anything else (a create has no id yet) leaves the rows as they are; the refresh
+ * that follows every save picks those up.
+ */
+export function patchFooterRows<R extends { id: string }>(rows: readonly R[], variables: unknown): R[] {
+  const v = (variables ?? {}) as {
+    recordId?: unknown;
+    recordIds?: unknown;
+    updates?: unknown;
+    field?: unknown;
+    value?: unknown;
+    fields?: unknown;
+  };
+  if (Array.isArray(v.updates)) {
+    const byId = new Map((v.updates as Array<{ id: string; fields: Record<string, unknown> }>).map((u) => [u.id, u.fields]));
+    return rows.map((r) => (byId.has(r.id) ? { ...r, ...byId.get(r.id) } : r));
+  }
+  if (Array.isArray(v.recordIds)) {
+    const ids = new Set(v.recordIds as string[]);
+    return rows.filter((r) => !ids.has(r.id));
+  }
+  if (typeof v.recordId === 'string') {
+    const id = v.recordId;
+    const changes =
+      v.fields && typeof v.fields === 'object'
+        ? (v.fields as Record<string, unknown>)
+        : typeof v.field === 'string'
+          ? { [v.field]: v.value }
+          : null;
+    return changes ? rows.map((r) => (r.id === id ? { ...r, ...changes } : r)) : rows.filter((r) => r.id !== id);
+  }
+  return rows.slice();
 }

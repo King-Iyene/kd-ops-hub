@@ -46,7 +46,7 @@ vi.mock('../hooks/tableBootstrap', async (importOriginal) => {
 
 import { QueryClient } from '@tanstack/react-query';
 import { fetchColumnValues } from '../hooks/useRecords';
-import { defaultSummary, footerPlan, summaryFor } from '../lib/footerColumns';
+import { defaultSummary, footerPlan, patchFooterRows, summaryFor } from '../lib/footerColumns';
 
 const rows = (n: number, offset = 0) => Array.from({ length: n }, (_, i) => ({ id: `r${offset + i}` }));
 
@@ -122,9 +122,49 @@ describe('footerPlan', () => {
     expect(plan.fieldIds.size).toBe(0);
   });
 
+  it('is not needed when only a computed column has a sum: the read could not make it exact', () => {
+    const plan = footerPlan([f('1', 'Formula', 'calc'), f('2', 'SingleLineText')], { '1': 'sum' });
+    expect(plan.needed).toBe(false);
+  });
+
   it('is not needed when every footer cell is none', () => {
     const plan = footerPlan([f('1', 'Currency'), f('2', 'SingleLineText')], { '1': 'none' });
     expect(plan.needed).toBe(false);
     expect(plan.columns).toEqual([]);
+  });
+});
+
+describe('patchFooterRows', () => {
+  const base = [
+    { id: 'a', cost: 1 },
+    { id: 'b', cost: 2 },
+    { id: 'c', cost: 3 },
+  ];
+
+  it('applies a single-field edit', () => {
+    expect(patchFooterRows(base, { recordId: 'b', field: 'cost', value: 20 })).toEqual([
+      { id: 'a', cost: 1 }, { id: 'b', cost: 20 }, { id: 'c', cost: 3 },
+    ]);
+  });
+
+  it('applies a multi-field edit', () => {
+    expect(patchFooterRows(base, { recordId: 'a', fields: { cost: 9, qty: 4 } })[0]).toEqual({ id: 'a', cost: 9, qty: 4 });
+  });
+
+  it('applies a bulk edit', () => {
+    const out = patchFooterRows(base, { updates: [{ id: 'a', fields: { cost: 10 } }, { id: 'c', fields: { cost: 30 } }] });
+    expect(out.map((r) => r.cost)).toEqual([10, 2, 30]);
+  });
+
+  it('removes a deleted row, and several deleted rows', () => {
+    expect(patchFooterRows(base, { recordId: 'b' }).map((r) => r.id)).toEqual(['a', 'c']);
+    expect(patchFooterRows(base, { recordIds: ['a', 'c'] }).map((r) => r.id)).toEqual(['b']);
+  });
+
+  it('leaves the rows alone for a create (no id yet) or anything unknown, and never changes the input', () => {
+    expect(patchFooterRows(base, { record: { cost: 5 } })).toEqual(base);
+    expect(patchFooterRows(base, undefined)).toEqual(base);
+    patchFooterRows(base, { recordId: 'a', field: 'cost', value: 99 });
+    expect(base[0].cost).toBe(1);
   });
 });

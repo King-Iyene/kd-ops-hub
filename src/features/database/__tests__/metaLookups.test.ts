@@ -84,7 +84,19 @@ describe('metaLookups', () => {
 
     respond = (req) => ({ data: req.inVals.map((id) => tableRow(id)), error: null });
     expect((await getTableMeta('a'))?.pg_table_name).toBe('tbl_a');
-    expect(requests).toHaveLength(2);
+    // The failed batch, then each key alone, then the retry that worked.
+    expect(requests).toHaveLength(4);
+  });
+
+  it('one bad key fails alone: the others in its batch still get their answers', async () => {
+    respond = (req) =>
+      req.inVals.includes('bad')
+        ? { data: null, error: new Error('invalid input syntax for type uuid') }
+        : { data: req.inVals.map((id) => tableRow(id)), error: null };
+    const results = await Promise.allSettled([getTableMeta('good1'), getTableMeta('bad'), getTableMeta('good2')]);
+    expect(results.map((r) => r.status)).toEqual(['fulfilled', 'rejected', 'fulfilled']);
+    expect((results[0] as PromiseFulfilledResult<{ pg_table_name: string }>).value.pg_table_name).toBe('tbl_good1');
+    expect((results[2] as PromiseFulfilledResult<{ pg_table_name: string }>).value.pg_table_name).toBe('tbl_good2');
   });
 
   it('looks up field columns and link junctions in their own batches', async () => {

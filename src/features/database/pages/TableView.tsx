@@ -319,7 +319,9 @@ export function TableView() {
     summaryFunctions,
     loadedCount: infiniteRecords.length,
     totalCount: infiniteTotalCount,
-    enabled: !isLoading && !recordsArePlaceholder,
+    // Not held back while old rows show during a re-sort: the totals do not depend on the sort, and the
+    // query is keyed by filters and search, so it can never show another filter's numbers.
+    enabled: !isLoading,
   });
 
   // Link fields get a stable column key even when they have no physical column,

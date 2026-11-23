@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FieldMeta, Filter, FilterGroup, RecordRow } from '../types';
 import type { SummaryFunction } from '../lib/store';
-import { footerPlan } from '../lib/footerColumns';
+import { footerPlan, patchFooterRows } from '../lib/footerColumns';
 import { FOOTER_ROW_CAP, fetchColumnValues } from './useRecords';
 
 /**
@@ -46,7 +46,7 @@ export function useFooterTotals(params: {
   /** Rows loaded so far, and rows in the whole filtered table. */
   loadedCount: number;
   totalCount: number;
-  /** False until the first rows have arrived. */
+  /** False until the first rows have arrived. (Not tied to a sort change: the totals do not depend on the sort.) */
   enabled: boolean;
 }): FooterTotals {
   const { baseId, tableId, filters, filterGroups, search, fields, summaryFunctions, loadedCount, totalCount, enabled } = params;
@@ -75,22 +75,48 @@ export function useFooterTotals(params: {
     },
   });
 
-  // Re-read after the rows are invalidated (an edit, a delete, a realtime change), once things settle.
+  // Keep the totals current:
+  //  - when a record save starts, apply it to the footer's rows at once, so the total moves with the cell;
+  //  - when a save finishes (or fails), and when the rows are invalidated by anything else (a teammate's
+  //    change, a link edit), read again once things settle. Every save re-arms the same timer, so a burst of
+  //    edits makes one read, and the read always starts after the last save has landed.
   useEffect(() => {
     if (!baseId || !tableId) return undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const unsubscribe = qc.getQueryCache().subscribe((event) => {
-      if (event.type !== 'updated' || event.action.type !== 'invalidate') return;
-      const key = event.query.queryKey;
-      if (key[0] !== 'nc' || key[1] !== 'records' || key[2] !== baseId || key[3] !== tableId) return;
+    const scheduleRefresh = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
         void qc.invalidateQueries({ queryKey: footerKey(baseId, tableId) });
       }, REFRESH_DELAY_MS);
+    };
+
+    const unsubscribeRows = qc.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated' || event.action.type !== 'invalidate') return;
+      const key = event.query.queryKey;
+      if (key[0] !== 'nc' || key[1] !== 'records' || key[2] !== baseId || key[3] !== tableId) return;
+      scheduleRefresh();
     });
+
+    const unsubscribeSaves = qc.getMutationCache().subscribe((event) => {
+      if (event.type !== 'updated') return;
+      const key = event.mutation.options.mutationKey;
+      if (!key || key[0] !== 'nc' || key[1] !== 'user-save') return;
+      const variables = event.mutation.state.variables as { baseId?: string; tableId?: string } | undefined;
+      if (variables?.baseId !== baseId || variables?.tableId !== tableId) return;
+
+      if (event.action.type === 'pending') {
+        qc.setQueriesData<RecordRow[] | null>({ queryKey: footerKey(baseId, tableId) }, (old) =>
+          Array.isArray(old) ? patchFooterRows(old, variables) : old,
+        );
+      } else if (event.action.type === 'success' || event.action.type === 'error') {
+        scheduleRefresh();
+      }
+    });
+
     return () => {
-      unsubscribe();
+      unsubscribeRows();
+      unsubscribeSaves();
       if (timer) clearTimeout(timer);
     };
   }, [qc, baseId, tableId]);

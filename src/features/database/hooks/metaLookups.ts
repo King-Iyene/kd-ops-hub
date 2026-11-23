@@ -14,7 +14,13 @@ import { primeTableName } from './tableBootstrap';
  * for that answer instead of sending its own.
  */
 
-const TTL_MS = 300_000;
+/**
+ * How long an answer is remembered. Short, because these are about structure that can change (a table's
+ * primary field, a new link); a "not found" is remembered for even less, so a row created just after
+ * it was first asked for is picked up quickly.
+ */
+const TTL_MS = 30_000;
+const MISSING_TTL_MS = 10_000;
 /** Callers that arrive within this many milliseconds share one request. */
 const WINDOW_MS = 4;
 /** Keys per request, to keep the address of the request short. */
@@ -43,16 +49,28 @@ export function createBatcher<V>(load: (keys: string[]) => Promise<Map<string, V
     const batch = new Map(waiting);
     waiting.clear();
     const keys = [...batch.keys()];
+    const settle = (key: string, value: V | null) => {
+      cache.set(key, { value, ts: Date.now() });
+      for (const w of batch.get(key) ?? []) w.resolve(value);
+    };
     for (const part of chunk(keys, KEYS_PER_REQUEST)) {
       try {
         const found = await load(part);
-        for (const key of part) {
-          const value = found.get(key) ?? null;
-          cache.set(key, { value, ts: Date.now() });
-          for (const w of batch.get(key) ?? []) w.resolve(value);
-        }
+        for (const key of part) settle(key, found.get(key) ?? null);
       } catch (error) {
-        for (const key of part) for (const w of batch.get(key) ?? []) w.reject(error);
+        if (part.length === 1) {
+          for (const w of batch.get(part[0]) ?? []) w.reject(error);
+          continue;
+        }
+        // One bad key (a value the server cannot read) fails the whole request, so ask again one key at
+        // a time: the bad one fails alone and the good ones still get their answers.
+        for (const key of part) {
+          try {
+            settle(key, (await load([key])).get(key) ?? null);
+          } catch (single) {
+            for (const w of batch.get(key) ?? []) w.reject(single);
+          }
+        }
       }
     }
   }
@@ -60,7 +78,7 @@ export function createBatcher<V>(load: (keys: string[]) => Promise<Map<string, V
   return {
     get(key) {
       const hit = cache.get(key);
-      if (hit && Date.now() - hit.ts < TTL_MS) return Promise.resolve(hit.value);
+      if (hit && Date.now() - hit.ts < (hit.value === null ? MISSING_TTL_MS : TTL_MS)) return Promise.resolve(hit.value);
 
       const pending = inFlight.get(key);
       if (pending) return pending;
