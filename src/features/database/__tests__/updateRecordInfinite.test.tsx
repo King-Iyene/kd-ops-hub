@@ -39,7 +39,15 @@ vi.mock('../hooks/tableBootstrap', async (importOriginal) => {
   return { ...real, resolveTableContext: async () => ({ schemaName: 's', tableName: 't' }) };
 });
 
-import { useDeleteRecord, useUpdateRecord } from '../hooks/useRecords';
+import {
+  useBulkCreateRecords,
+  useBulkDeleteRecords,
+  useBulkUpdateRecords,
+  useCreateRecord,
+  useDeleteRecord,
+  useDuplicateRecord,
+  useUpdateRecord,
+} from '../hooks/useRecords';
 import { useUndoStore } from '../lib/undo';
 
 const INFINITE_KEY = ['nc', 'records', 'b', 't', 'infinite', 100, undefined, undefined, undefined, undefined];
@@ -106,5 +114,65 @@ describe('editing and deleting with the grid\'s infinite list in the cache', () 
     expect(result.current.error).toBeNull();
     expect(cachedIds(qc)).toEqual(['r1', 'r2']);
     expect(useUndoStore.getState().stack).toHaveLength(1);
+  });
+
+  it('adds a new row to the list straight away', async () => {
+    const { result, qc } = setup(() => useCreateRecord());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', record: { cost: 3 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    // One new row, at the end: not one per loaded page.
+    const ids = cachedIds(qc);
+    expect(ids).toHaveLength(4);
+    expect(ids.filter((id) => id.startsWith('temp-'))).toHaveLength(1);
+    expect(ids[ids.length - 1].startsWith('temp-')).toBe(true);
+  });
+
+  it('adds several new rows once each', async () => {
+    const { result, qc } = setup(() => useBulkCreateRecords());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', records: [{ cost: 1 }, { cost: 2 }] });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(cachedIds(qc).filter((id) => id.startsWith('temp-'))).toHaveLength(2);
+  });
+
+  it('bulk edits rows on both pages', async () => {
+    const { result, qc } = setup(() => useBulkUpdateRecords());
+    act(() => {
+      result.current.mutate({
+        baseId: 'b',
+        tableId: 't',
+        updates: [{ id: 'r1', fields: { cost: 10 } }, { id: 'r9', fields: { cost: 90 } }],
+      });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    const rows = (qc.getQueryData(INFINITE_KEY) as ReturnType<typeof infiniteData>).pages.flatMap((p) => p.records);
+    expect(rows.find((r) => r.id === 'r1')?.cost).toBe(10);
+    expect(rows.find((r) => r.id === 'r9')?.cost).toBe(90);
+  });
+
+  it('bulk deletes rows from both pages', async () => {
+    const { result, qc } = setup(() => useBulkDeleteRecords());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordIds: ['r2', 'r9'] });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(cachedIds(qc)).toEqual(['r1']);
+  });
+
+  it('duplicates a row', async () => {
+    const { result } = setup(() => useDuplicateRecord());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', record: { id: 'r1', cost: 1 } as never });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(calls).toContain('insert');
   });
 });

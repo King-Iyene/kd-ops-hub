@@ -29,6 +29,7 @@ import { useRealtimeRecords } from '../hooks/useRealtime';
 import { LinkDataContext, useBatchedLinks, type LinkDataValue } from '../hooks/useBatchedLinks';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
+import { useFooterTotals } from '../hooks/useFooterTotals';
 import { orgToday, orgNowIso } from '@/lib/format';
 import { defaultForNewRow } from '../lib/fieldDefaults';
 import { isUuid } from '../lib/shortId';
@@ -305,6 +306,21 @@ export function TableView() {
         .sort((a, b) => a.position - b.position),
     [patchedFields, hiddenFieldIds],
   );
+
+  // Footer totals over the whole filtered table, not just the loaded rows. Read after the first rows show.
+  const summaryFunctions = useDatabaseUI((s) => s.summaryFunctions);
+  const footerTotals = useFooterTotals({
+    baseId: activeBaseId,
+    tableId: activeTableId,
+    filters: filters.length > 0 ? filters : undefined,
+    filterGroups: filterGroups.length > 0 ? filterGroups : undefined,
+    search: deferredSearch || undefined,
+    fields: visibleFields,
+    summaryFunctions,
+    loadedCount: infiniteRecords.length,
+    totalCount: infiniteTotalCount,
+    enabled: !isLoading && !recordsArePlaceholder,
+  });
 
   // Link fields get a stable column key even when they have no physical column,
   // so formulas such as {Month} & " — " & {Category} can read them.
@@ -723,6 +739,8 @@ export function TableView() {
             fieldsAreCurrent={!fieldsArePlaceholder}
             isLoadingMore={isFetchingNextPage}
             onReorderRows={handleReorderRows}
+            footerRows={footerTotals.rows}
+            footerFieldIds={footerTotals.fieldIds}
           />
         );
     }
