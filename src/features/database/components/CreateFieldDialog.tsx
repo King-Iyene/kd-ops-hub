@@ -31,6 +31,7 @@ import type { RatingIcon } from '../lib/ratingStyle';
 import { DEFAULT_NUMBER_SETTINGS, applyNumberSettings, type NumberFormatSettings } from '../lib/numberFormat';
 import type { UIType, SelectChoice, FieldMeta, FieldOptions } from '../types';
 import { SELECT_COLORS, SELECT_COLOR_NAMES } from '../types';
+import { addChoicesFromText, nextUnusedColor, sortChoicesAZ, splitSelectTokens } from '../lib/selectOptions';
 import { getFieldTypeIcon } from './grid/field-icons';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -300,10 +301,18 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
   const addChoice = useCallback(() => {
     const title = newChoiceText.trim();
     if (!title || choices.some((c) => c.title === title)) return;
-    const colorIdx = choices.length % SELECT_COLOR_NAMES.length;
-    setChoices([...choices, { title, color: SELECT_COLOR_NAMES[colorIdx] }]);
+    setChoices([...choices, { title, color: nextUnusedColor(choices, SELECT_COLOR_NAMES) }]);
     setNewChoiceText('');
   }, [newChoiceText, choices]);
+
+  // Pasting a list (commas, semicolons or one per line) adds every option at once.
+  const pasteChoices = useCallback((e: React.ClipboardEvent) => {
+    const text = e.clipboardData.getData('text');
+    if (splitSelectTokens(text).length < 2) return;
+    e.preventDefault();
+    setChoices(addChoicesFromText(choices, text, SELECT_COLOR_NAMES));
+    setNewChoiceText('');
+  }, [choices]);
 
   const removeChoice = useCallback((title: string) => {
     setChoices(choices.filter((c) => c.title !== title));
@@ -708,11 +717,21 @@ export function CreateFieldDialog({ open, onOpenChange }: CreateFieldDialogProps
                   </div>
                 </SortableContext>
               </DndContext>
+              {choices.length > 2 && (
+                <button
+                  type="button"
+                  className="text-2xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  onClick={() => setChoices(sortChoicesAZ(choices))}
+                >
+                  Sort A to Z
+                </button>
+              )}
               <div className="flex gap-2">
                 <Input
                   value={newChoiceText}
                   onChange={(e) => setNewChoiceText(e.target.value)}
-                  placeholder="Add an option..."
+                  placeholder="Add an option, or paste a list"
+                  onPaste={pasteChoices}
                   className="h-8 text-xs flex-1"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

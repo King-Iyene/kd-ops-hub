@@ -233,10 +233,12 @@ export function useRelatedTableSearch(opts: {
   searchTerm: string;
   primaryField: FieldMeta | null | undefined;
   enabled?: boolean;
+  /** How many candidates to fetch; the picker raises it with its "Show more" button. */
+  limit?: number;
 }) {
-  const { baseId, targetTableId, searchTerm, primaryField, enabled = true } = opts;
+  const { baseId, targetTableId, searchTerm, primaryField, enabled = true, limit = 20 } = opts;
   return useQuery({
-    queryKey: ['nc', 'link-search', targetTableId, searchTerm],
+    queryKey: ['nc', 'link-search', targetTableId, searchTerm, limit],
     enabled: !!targetTableId && !!baseId && enabled,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<RecordRow[]> => {
@@ -260,10 +262,11 @@ export function useRelatedTableSearch(opts: {
         .schema(base.schema_name)
         .from(table.pg_table_name)
         .select('*')
-        .limit(20);
+        .limit(limit);
 
       if (searchTerm && primaryField?.pg_column_name) {
-        query = query.ilike(primaryField.pg_column_name, `%${searchTerm}%`);
+        // % and _ typed by a person mean themselves, not "anything".
+        query = query.ilike(primaryField.pg_column_name, `%${searchTerm.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
       }
 
       const { data, error } = await query;

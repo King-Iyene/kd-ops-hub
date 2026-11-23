@@ -37,6 +37,7 @@ import { createRecordDecorator } from '../lib/recordDecorator';
 import { viewGateOpen } from '../lib/prefetch';
 import { useEnsureTableBootstrap } from '../hooks/usePrefetchTable';
 import { DEFAULT_RECORDS_PAGE_SIZE } from '../hooks/useRecords';
+import { describeViewLoad, shouldLoadMoreForView } from '../lib/viewPaging';
 
 const KanbanView = lazy(() => import('../components/views/KanbanView'));
 const GalleryView = lazy(() => import('../components/views/GalleryView'));
@@ -640,6 +641,14 @@ export function TableView() {
 
   const activeViewType = useDatabaseUI((s) => s.activeViewType);
   const viewType = activeView?.type ?? activeViewType ?? 'grid';
+
+  // Board, calendar, timeline and gantt need every row, so keep loading pages until they have them.
+  useEffect(() => {
+    if (shouldLoadMoreForView({ viewType, loaded: infiniteRecords.length, hasNextPage: !!hasNextPage && !recordsArePlaceholder, isFetching: isFetchingNextPage || isLoading })) {
+      void fetchNextPage();
+    }
+  }, [viewType, infiniteRecords.length, hasNextPage, recordsArePlaceholder, isFetchingNextPage, isLoading, fetchNextPage]);
+  const viewLoad = describeViewLoad({ viewType, loaded: infiniteRecords.length, total: infiniteTotalCount, hasNextPage: !!hasNextPage });
   const handleAddField = useCallback(() => setFieldDialogOpen(true), [setFieldDialogOpen]);
 
   const renderView = () => {
@@ -770,6 +779,11 @@ export function TableView() {
               style={recordsArePlaceholder ? { opacity: 0.6, transition: 'opacity 150ms' } : undefined}
               aria-busy={recordsArePlaceholder || undefined}
             >
+              {viewLoad && (
+                <div role="status" className="shrink-0 px-3 py-1 text-xs text-muted-foreground bg-muted/50 border-b border-border">
+                  {viewLoad.text}
+                </div>
+              )}
               <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>
             </div>
           </LinkDataContext.Provider>
