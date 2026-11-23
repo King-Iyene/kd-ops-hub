@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DatabaseShell } from '../components/DatabaseShell';
@@ -29,10 +29,13 @@ export default function DatabasePage() {
   // The moment the table is known, start loading its context, columns, views and first page of rows.
   // This runs before the table screen has even mounted, so those requests are already on their way
   // (and shared) when its hooks ask for them. A layout effect so it is not held back by a paint.
+  // Only when the table changes: switching views inside a table must not request another first page.
+  const viewIdRef = useRef(viewId);
+  viewIdRef.current = viewId;
   useLayoutEffect(() => {
     if (isLoading || !baseId || !tableId) return;
-    void prefetchTable(qc, baseId, tableId, { viewId });
-  }, [qc, isLoading, baseId, tableId, viewId]);
+    void prefetchTable(qc, baseId, tableId, { viewId: viewIdRef.current });
+  }, [qc, isLoading, baseId, tableId]);
 
   // The next three effects copy the address into the store. As layout effects the store is up to date
   // before the first paint, so a deep link never flashes the empty state for a frame.
