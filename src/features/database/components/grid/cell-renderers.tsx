@@ -6,7 +6,8 @@ import { SELECT_COLORS } from '@/features/database/types';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 import { useWorkspaceUsers } from '../../hooks/useWorkspaceUsers';
-import { formatDate, formatDateTime, formatDateWithOptions } from '@/lib/format';
+import { formatDateWithOptions, getTimezone } from '@/lib/format';
+import { formatDbDate, formatDbDateTime, formatDbTooltip } from '../../lib/dates';
 
 interface CellRendererProps {
   value: any;
@@ -344,15 +345,21 @@ export const DateCellRenderer = React.memo(function DateCellRenderer({
           displayTimezone: opts.displayTimezone,
         });
       }
-      if (field.ui_type === 'DateTime') return formatDateTime(value);
-      return formatDate(value);
+      // No format chosen on the field: use the module standard ("6 Sep 2026, 2:15 pm").
+      const tz = getTimezone();
+      if (field.ui_type === 'DateTime') return formatDbDateTime(value, tz) || null;
+      return formatDbDate(value, tz) || null;
     } catch {
       return String(value);
     }
   }, [value, field.ui_type, field.options]);
   if (formatted == null) return null;
   return (
-    <span className="truncate text-foreground" style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
+    <span
+      className="truncate text-foreground"
+      title={formatDbTooltip(value, getTimezone())}
+      style={{ fontSize: 13, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}
+    >
       {formatted}
     </span>
   );
@@ -599,7 +606,7 @@ export const SystemCellRenderer = React.memo(function SystemCellRenderer({
   }
 
   if (field.ui_type === 'CreatedTime' || field.ui_type === 'LastModifiedTime') {
-    const formatted = formatDateTime(value);
+    const formatted = formatDbDateTime(value, getTimezone()) || '—';
     return (
       <span className="truncate" style={{ fontSize: 12, color: colors.systemText, fontVariantNumeric: 'tabular-nums' }}>
         {formatted}
@@ -832,7 +839,7 @@ export const FormulaCellRenderer = React.memo(function FormulaCellRenderer({
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     const d = new Date(value);
     if (!isNaN(d.getTime())) {
-      return <span className="truncate">{formatDate(value)}</span>;
+      return <span className="truncate">{formatDbDate(value, getTimezone())}</span>;
     }
   }
   let displayText = String(value);

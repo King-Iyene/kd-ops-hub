@@ -23,8 +23,9 @@ import {
   useUpdateField,
 } from '../hooks';
 import GridView from '../components/grid/GridView';
-import type { RecordRow } from '../types';
+import type { FieldMeta, RecordRow } from '../types';
 import { useRealtimeRecords } from '../hooks/useRealtime';
+import { LinkDataContext, useBatchedLinks, type LinkDataValue } from '../hooks/useBatchedLinks';
 import { parseFormula, evaluateFormula } from '../lib/formula';
 import { useLinkDisplayLookup } from '../hooks/useLinkDisplayLookup';
 import { orgToday, orgNowIso } from '@/lib/format';
@@ -98,7 +99,6 @@ export function TableView() {
   useRealtimeRecords(activeBaseId ?? undefined, activeTableId ?? undefined);
   const { data: fields } = useFields(activeTableId);
   const { data: views } = useViews(activeTableId);
-  const linkLookup = useLinkDisplayLookup(activeBaseId, fields);
   const pageSize = 100;
   const [galleryPage, setGalleryPage] = useState(0);
   const [fieldDialogOpen, setFieldDialogOpenRaw] = useState(false);
@@ -141,40 +141,64 @@ export function TableView() {
 
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const initializedRef = useRef(false);
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
+
+  // Saving the view's settings must only happen when a person changed something.
+  // The old effect saved once for every page load (the saved settings arriving in
+  // the store looked like an edit), which is a needless database write each time.
+  const hydrateUntilRef = useRef(0);
+  const baselineSigRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // A new view: give its saved settings a moment to land in the store.
+    hydrateUntilRef.current = Date.now() + 1500;
+    baselineSigRef.current = null;
+  }, [activeViewId]);
 
   useEffect(() => {
     if (!activeViewId || !activeTableId) return;
-    // Skip the first render (view just loaded its config from server)
-    if (!initializedRef.current) {
-      initializedRef.current = true;
+    const fieldVisibility: Record<string, boolean> = {};
+    for (const fid of hiddenFieldIds) fieldVisibility[fid] = false;
+    const updates = {
+      filters,
+      sorts,
+      groups: groupByLevels,
+      field_visibility: fieldVisibility,
+      field_widths: fieldWidths,
+      field_order: fieldOrder,
+    };
+    const sig = JSON.stringify(updates);
+
+    // Same as what is already saved on the server: nothing to write.
+    if (activeView) {
+      const saved = activeView as unknown as Record<string, unknown>;
+      const savedSig = JSON.stringify({
+        filters: saved.filters ?? [],
+        sorts: saved.sorts ?? [],
+        groups: saved.groups ?? [],
+        field_visibility: saved.field_visibility ?? {},
+        field_widths: saved.field_widths ?? {},
+        field_order: saved.field_order ?? [],
+      });
+      if (sig === savedSig) {
+        baselineSigRef.current = sig;
+        return;
+      }
+    }
+    // Still loading the view's settings into the screen: remember them, do not save them back.
+    if (Date.now() < hydrateUntilRef.current || baselineSigRef.current === null) {
+      baselineSigRef.current = sig;
       return;
     }
+    if (sig === baselineSigRef.current) return;
+
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      const fieldVisibility: Record<string, boolean> = {};
-      for (const fid of hiddenFieldIds) fieldVisibility[fid] = false;
-      updateView.mutate({
-        id: activeViewId,
-        table_id: activeTableId,
-        updates: {
-          filters,
-          sorts,
-          groups: groupByLevels,
-          field_visibility: fieldVisibility,
-          field_widths: fieldWidths,
-          field_order: fieldOrder,
-        },
-      });
+      baselineSigRef.current = sig;
+      updateView.mutate({ id: activeViewId, table_id: activeTableId, updates });
     }, 2000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView]);
-
-  // Reset initialized flag when view changes
-  useEffect(() => {
-    initializedRef.current = false;
-  }, [activeViewId]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView, activeView]);
 
   const {
     records: infiniteRecords,
@@ -194,6 +218,9 @@ export function TableView() {
     sorts: sorts.length > 0 ? sorts : undefined,
     search: deferredSearch || undefined,
   });
+
+  // Names for old Airtable-style link ids. Loaded after the first rows so it never delays them.
+  const linkLookup = useLinkDisplayLookup(activeBaseId, fields, !isLoading);
 
   const createRecord = useCreateRecord();
   const updateRecord = useUpdateRecord();
@@ -239,6 +266,57 @@ export function TableView() {
     [patchedFields, hiddenFieldIds],
   );
 
+  // Link fields get a stable column key even when they have no physical column,
+  // so formulas such as {Month} & " — " & {Category} can read them.
+  const linkColumnOf = useCallback(
+    (f: FieldMeta) => f.pg_column_name || `__link_${f.id}`,
+    [],
+  );
+
+  // Which link columns to load in bulk: the ones on screen, the ones a formula
+  // reads, and (for views that show every field) all of them.
+  const storedViewType = useDatabaseUI((s) => s.activeViewType);
+  const linkFieldsToLoad = useMemo(() => {
+    const all = patchedFields.filter((f) => f.ui_type === 'Links' && !!f.options?.relatedTableId);
+    if (all.length === 0) return all;
+    const kind = activeView?.type ?? storedViewType ?? 'grid';
+    if (kind !== 'grid' && kind !== 'kanban' && kind !== 'gallery') return all;
+    const formulaText = patchedFields
+      .filter((f) => f.ui_type === 'Formula')
+      .map((f) => String(f.options?.expression || f.options?.formula || ''))
+      .join('\n');
+    const visibleIds = new Set(visibleFields.map((f) => f.id));
+    return all.filter((f) => visibleIds.has(f.id) || formulaText.includes(`{${f.name}}`));
+  }, [patchedFields, visibleFields, activeView?.type, storedViewType]);
+
+  const recordIds = useMemo(() => infiniteRecords.map((r) => r.id), [infiniteRecords]);
+  const { links: batchedLinks, isLoading: linksLoading } = useBatchedLinks(
+    activeBaseId,
+    linkFieldsToLoad,
+    recordIds,
+  );
+
+  const linkData = useMemo<LinkDataValue>(
+    () => ({
+      links: batchedLinks,
+      isLoading: linksLoading,
+      fieldIds: new Set(linkFieldsToLoad.map((f) => f.id)),
+    }),
+    [batchedLinks, linksLoading, linkFieldsToLoad],
+  );
+
+  // id -> readable name for every record the formulas might touch.
+  const mergedLookup = useMemo(() => {
+    if (batchedLinks.size === 0) return linkLookup;
+    const merged: Record<string, string> = { ...linkLookup };
+    for (const perRecord of batchedLinks.values()) {
+      for (const items of perRecord.values()) {
+        for (const item of items) merged[item.id] = item.label;
+      }
+    }
+    return merged;
+  }, [linkLookup, batchedLinks]);
+
   const formulaParsed = useMemo(() => {
     if (!patchedFields || patchedFields.length === 0) return null;
     const formulaFields = patchedFields.filter(
@@ -247,7 +325,8 @@ export function TableView() {
     if (formulaFields.length === 0) return null;
     const fieldMap: Record<string, string> = {};
     for (const f of patchedFields) {
-      if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
+      if (f.ui_type === 'Links') fieldMap[f.name] = linkColumnOf(f);
+      else if (f.pg_column_name) fieldMap[f.name] = f.pg_column_name;
     }
     const parsed = formulaFields.map((f) => {
       try {
@@ -257,22 +336,28 @@ export function TableView() {
       }
     });
     return { parsed, fieldMap };
-  }, [patchedFields]);
+  }, [patchedFields, linkColumnOf]);
 
   const records = useMemo(() => {
     const raw = infiniteRecords;
     if (!patchedFields || patchedFields.length === 0) return raw;
 
-    const hasLookup = linkLookup && Object.keys(linkLookup).length > 0;
+    const hasLookup = mergedLookup && Object.keys(mergedLookup).length > 0;
 
     if (!formulaParsed) {
       if (!hasLookup) return raw;
-      return raw.map((r) => ({ ...r, __linkLookup: linkLookup }) as RecordRow);
+      return raw.map((r) => ({ ...r, __linkLookup: mergedLookup }) as RecordRow);
     }
 
     const { parsed, fieldMap } = formulaParsed;
+    const loadedLinkFields = linkFieldsToLoad.filter((f) => batchedLinks.has(f.id));
     return raw.map((record) => {
-      const patched = { ...record, __linkLookup: linkLookup } as any;
+      const patched = { ...record, __linkLookup: mergedLookup } as any;
+      // The links table is the source of truth, so use it once it has loaded.
+      for (const f of loadedLinkFields) {
+        const items = batchedLinks.get(f.id)?.get(record.id);
+        if (items) patched[linkColumnOf(f)] = items.map((i) => i.id);
+      }
       for (const { col, ast } of parsed) {
         if (!ast) {
           patched[col] = '#ERROR';
@@ -286,7 +371,7 @@ export function TableView() {
       }
       return patched as RecordRow;
     });
-  }, [infiniteRecords, patchedFields, linkLookup, formulaParsed]);
+  }, [infiniteRecords, patchedFields, mergedLookup, formulaParsed, linkFieldsToLoad, batchedLinks, linkColumnOf]);
 
   // Auto-expand record from URL deep link (?rowId=...)
   const deepLinkedRef = useRef(false);
@@ -607,7 +692,11 @@ export function TableView() {
               Retry
             </button>
           </div>
-        ) : <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>}
+        ) : (
+          <LinkDataContext.Provider value={linkData}>
+            <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>
+          </LinkDataContext.Provider>
+        )}
       </div>
       <Suspense fallback={null}>
         {!!expandedRecord && (

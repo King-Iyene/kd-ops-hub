@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { Fragment, useState, useRef, useEffect, useCallback } from 'react';
 import {
+  Search,
+  Table2,
+  X,
   Plus,
   MoreHorizontal,
   Trash2,
@@ -26,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { useDatabaseUI } from '../lib/store';
 import { EmojiPicker } from './EmojiPicker';
 import { useBases, useDeleteBase, useUpdateBase, useDuplicateBase } from '../hooks';
+import { useTables } from '../hooks/useTables';
 import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { CreateBaseDialog } from './CreateBaseDialog';
 import type { Base } from '../types';
@@ -80,6 +84,61 @@ function InlineRenameInput({
   );
 }
 
+/** The tables of the open base, listed under it in the sidebar with their own search when the list is long. */
+function BaseTableList({ baseId }: { baseId: string }) {
+  const { data: tables } = useTables(baseId);
+  const activeTableId = useDatabaseUI((s) => s.activeTableId);
+  const { navigateToTable } = useDatabaseNavigate();
+  const [query, setQuery] = useState('');
+
+  const list = tables ?? [];
+  const needle = query.trim().toLowerCase();
+  const shown = needle ? list.filter((t) => t.name.toLowerCase().includes(needle)) : list;
+
+  if (list.length === 0) return null;
+
+  return (
+    <div className="mx-1.5 mb-1.5 ml-5 pl-2 border-l border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
+      {list.length > 8 && (
+        <div className="flex items-center gap-1.5 h-6 px-1.5 my-1 rounded bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-[#2D7FF9]">
+          <Search size={11} className="text-[#9AA2AF] shrink-0" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Escape') setQuery('');
+            }}
+            placeholder={`Find in ${list.length} tables`}
+            aria-label="Find a table"
+            className="flex-1 min-w-0 bg-transparent outline-none text-2xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF]"
+          />
+        </div>
+      )}
+      <div className="max-h-[40vh] overflow-y-auto">
+        {shown.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            title={t.name}
+            onClick={() => navigateToTable(t.id)}
+            className={cn(
+              'flex items-center gap-1.5 w-full px-1.5 py-1 rounded text-left text-xs transition-colors',
+              t.id === activeTableId
+                ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] font-medium'
+                : 'text-[#4B5563] dark:text-[hsl(220,20%,70%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
+            )}
+          >
+            {t.icon ? <span className="text-xs shrink-0">{t.icon}</span> : <Table2 size={12} className="shrink-0 opacity-60" />}
+            <span className="truncate">{t.name}</span>
+          </button>
+        ))}
+        {shown.length === 0 && <p className="px-1.5 py-2 text-2xs text-[#9AA2AF]">No table matches</p>}
+      </div>
+    </div>
+  );
+}
+
 export function DatabaseSidebar() {
   const { activeBaseId, sidebarOpen, sidebarCollapsed, sidebarWidth, toggleSidebarCollapsed, setSidebarWidth } = useDatabaseUI();
   const { navigateToBase } = useDatabaseNavigate();
@@ -89,6 +148,7 @@ export function DatabaseSidebar() {
   const duplicateBase = useDuplicateBase();
 
   const [createBaseOpen, setCreateBaseOpen] = useState(false);
+  const [baseQuery, setBaseQuery] = useState('');
   const [renamingBaseId, setRenamingBaseId] = useState<string | null>(null);
   const [colorPickerBaseId, setColorPickerBaseId] = useState<string | null>(null);
   const [iconPickerBaseId, setIconPickerBaseId] = useState<string | null>(null);
@@ -174,6 +234,18 @@ export function DatabaseSidebar() {
     [deleteBase, activeBaseId, navigateToBase],
   );
 
+  // Starred bases first, then the rest in saved order; the search box narrows both.
+  const orderedBases = [...(bases || [])].sort((a: Base, b: Base) => {
+    const aStarred = starredIds.has(a.id) ? 0 : 1;
+    const bStarred = starredIds.has(b.id) ? 0 : 1;
+    return aStarred - bStarred || (a.position ?? 0) - (b.position ?? 0);
+  });
+  const needle = baseQuery.trim().toLowerCase();
+  const visibleBases = needle
+    ? orderedBases.filter((b: Base) => (b.name ?? '').toLowerCase().includes(needle))
+    : orderedBases;
+  const starredCount = orderedBases.filter((b: Base) => starredIds.has(b.id)).length;
+
   if (!sidebarOpen) return null;
 
   const effectiveWidth = sidebarCollapsed ? COLLAPSED_WIDTH : sidebarWidth;
@@ -224,15 +296,41 @@ export function DatabaseSidebar() {
         </div>
       </div>
 
+      {/* Find a base: shown once the list is long enough to need it */}
+      {!sidebarCollapsed && (bases?.length ?? 0) > 4 && (
+        <div className="px-2 pt-2 pb-1">
+          <div className="flex items-center gap-1.5 h-7 px-2 rounded-md bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-[#2D7FF9] transition-colors">
+            <Search size={12} className="text-[#9AA2AF] shrink-0" />
+            <input
+              value={baseQuery}
+              onChange={(e) => setBaseQuery(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') setBaseQuery('');
+              }}
+              placeholder="Find a base"
+              aria-label="Find a base"
+              className="flex-1 min-w-0 bg-transparent outline-none text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF]"
+            />
+            {baseQuery && (
+              <button type="button" aria-label="Clear search" className="text-[#9AA2AF] hover:text-[#374151]" onClick={() => setBaseQuery('')}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Base list */}
       <div className="flex-1 overflow-y-auto py-1.5">
-        {[...(bases || [])].sort((a: any, b: any) => {
-          const aStarred = starredIds.has(a.id) ? 0 : 1;
-          const bStarred = starredIds.has(b.id) ? 0 : 1;
-          return aStarred - bStarred || (a.position ?? 0) - (b.position ?? 0);
-        }).map((base: any) => (
+        {visibleBases.map((base: any, index: number) => (
+          <Fragment key={base.id}>
+          {!sidebarCollapsed && !baseQuery && starredCount > 0 && (index === 0 || index === starredCount) && (
+            <p className="px-3.5 pt-1.5 pb-1 text-3xs font-semibold uppercase tracking-widest text-[#9AA2AF]">
+              {index === 0 ? 'Starred' : 'All bases'}
+            </p>
+          )}
           <div
-            key={base.id}
             role="link"
             tabIndex={renamingBaseId === base.id ? undefined : 0}
             className={cn(
@@ -391,7 +489,13 @@ export function DatabaseSidebar() {
               </>
             )}
           </div>
+          {base.id === activeBaseId && !sidebarCollapsed && <BaseTableList baseId={base.id} />}
+          </Fragment>
         ))}
+
+        {baseQuery && visibleBases.length === 0 && !sidebarCollapsed && (
+          <p className="px-4 py-6 text-center text-xs text-[#9AA2AF]">No base matches "{baseQuery}"</p>
+        )}
 
         {(!bases || bases.length === 0) && !sidebarCollapsed && (
           <div className="px-4 py-8 text-center">

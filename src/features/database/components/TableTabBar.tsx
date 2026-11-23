@@ -289,7 +289,8 @@ export function TableTabBar() {
             ) : (
               <span className="truncate max-w-[120px]">{table.name}</span>
             )}
-            {renamingId !== table.id && activeBaseId && (
+            {/* Only the open table is counted: counting every tab fired one request per table (43 on KDS Finances). */}
+            {renamingId !== table.id && activeBaseId && table.id === activeTableId && (
               <TabRecordCount baseId={activeBaseId} tableId={table.id} />
             )}
             <DropdownMenu>

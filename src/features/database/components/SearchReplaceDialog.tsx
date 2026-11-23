@@ -36,6 +36,8 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
     tableId: activeTableId!,
     page: 0,
     pageSize: 1000,
+    // The dialog is mounted all the time; only fetch rows once someone opens it.
+    enabled: open,
   });
   const updateRecord = useUpdateRecord();
 

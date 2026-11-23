@@ -8,6 +8,8 @@ import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useBases } from '../hooks/useBases';
 import { useTables } from '../hooks/useTables';
 import type { Base } from '../types';
+import { formatDbTooltip, formatRelative } from '../lib/dates';
+import { getTimezone } from '@/lib/format';
 
 const DEFAULT_COLORS = [
   '#2D7FF9', '#0D9488', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981',
@@ -20,15 +22,7 @@ function pickColor(name: string): string {
 }
 
 function getTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
+  return formatRelative(dateStr, new Date(), getTimezone()) || '—';
 }
 
 function BaseCardTableCount({ baseId }: { baseId: string }) {
@@ -70,7 +64,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
       </div>
       <div className="flex items-center gap-3 mt-auto text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
         <BaseCardTableCount baseId={base.id} />
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1" title={`Base last edited: ${formatDbTooltip(base.updated_at, getTimezone())}`}>
           <Clock size={12} />
           {timeAgo}
         </span>

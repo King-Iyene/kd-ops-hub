@@ -210,6 +210,7 @@ const SummaryRow = React.memo(function SummaryRow({
   frozenCount = 0,
   colors,
   frozenLeftOffsets,
+  totalWidth,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
@@ -221,6 +222,7 @@ const SummaryRow = React.memo(function SummaryRow({
   frozenCount?: number;
   colors: GridColorTokens;
   frozenLeftOffsets: number[];
+  totalWidth: number;
 }) {
   const summaryValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -234,11 +236,14 @@ const SummaryRow = React.memo(function SummaryRow({
 
   return (
     <div
-      className="flex shrink-0 overflow-x-hidden"
+      className="sticky bottom-0 z-20 flex shrink-0"
+      role="row"
       style={{
         backgroundColor: colors.headerBg,
         borderTop: `1px solid ${colors.borderStrong}`,
-        minHeight: 32,
+        height: 33,
+        minWidth: totalWidth,
+        marginTop: 'auto',
       }}
     >
       {/* Sigma icon cell */}
@@ -281,16 +286,17 @@ const SummaryRow = React.memo(function SummaryRow({
             <button
               data-summary-field={field.id}
               aria-label={`Summary for ${field.name}`}
-              className="w-full h-full flex flex-col justify-center px-2 text-left"
-              style={{ minHeight: 32 }}
+              className="w-full h-full flex items-baseline justify-end gap-1.5 px-2 text-right overflow-hidden whitespace-nowrap"
+              style={{ minHeight: 32, alignItems: 'center' }}
+              title={fn !== 'none' ? `${label}: ${value}` : 'Choose a summary'}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               {fn !== 'none' ? (
                 <>
-                  <span style={{ fontSize: 10, lineHeight: '14px', color: colors.muted }}>{label}</span>
-                  <span style={{ fontSize: 12, lineHeight: '16px', fontWeight: 500, color: colors.text }}>{value}</span>
+                  <span className="shrink-0" style={{ fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</span>
+                  <span className="min-w-0 truncate" style={{ fontSize: 12, fontWeight: 600, color: colors.text, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
                 </>
               ) : (
                 <span style={{ fontSize: 11, color: colors.muted }}>&#8211;</span>
@@ -1408,11 +1414,11 @@ function GridViewInner({
         </div>
       </div>
       <div ref={parentRef} className="hidden sm:block flex-1 overflow-auto">
-        <div style={{ minWidth: totalWidth }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
+        <div className="flex flex-col" style={{ minWidth: totalWidth, minHeight: '100%' }} role="grid" aria-colcount={fieldsWithWidths.length} aria-rowcount={records.length}>
           {/* Group collapse/expand bar */}
           {groupByLevels.length > 0 && (
             <div
-              className="sticky top-0 z-30 flex items-center gap-2 px-3"
+              className="sticky top-0 z-30 flex items-center gap-2 px-3 shrink-0"
               style={{
                 height: 28,
                 backgroundColor: GRID_COLORS.headerBg,
@@ -1443,7 +1449,7 @@ function GridViewInner({
           )}
           {/* Header */}
           <div
-            className="sticky z-20 flex"
+            className="sticky z-20 flex shrink-0"
             role="row"
             style={{
               top: groupByLevels.length > 0 ? 28 : 0,
@@ -1544,6 +1550,7 @@ function GridViewInner({
             style={{
               height: virtualizer.getTotalSize(),
               position: 'relative',
+              flexShrink: 0,
             }}
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -2022,6 +2029,22 @@ function GridViewInner({
               <Plus size={14} /> New row
             </span>
           </button>
+
+          {/* Summary footer: lives inside the scroll area so it moves sideways with the
+              columns it describes, and stays pinned to the bottom edge when scrolling down. */}
+          <SummaryRow
+            fields={fieldsWithWidths}
+            records={records}
+            summaryFunctions={summaryFunctions}
+            setSummaryFunction={setSummaryFunction}
+            summaryDropdown={summaryDropdown}
+            setSummaryDropdown={setSummaryDropdown}
+            rowNumberWidth={ROW_NUMBER_WIDTH}
+            frozenCount={frozenCount}
+            colors={GRID_COLORS}
+            frozenLeftOffsets={frozenLeftOffsets}
+            totalWidth={totalWidth}
+          />
         </div>
       </div>
 
@@ -2065,20 +2088,6 @@ function GridViewInner({
           onCellUpdate={onCellUpdate}
         />
       )}
-
-      {/* Summary footer row — Airtable-style: summaries above the status bar */}
-      <SummaryRow
-        fields={fieldsWithWidths}
-        records={records}
-        summaryFunctions={summaryFunctions}
-        setSummaryFunction={setSummaryFunction}
-        summaryDropdown={summaryDropdown}
-        setSummaryDropdown={setSummaryDropdown}
-        rowNumberWidth={ROW_NUMBER_WIDTH}
-        frozenCount={frozenCount}
-        colors={GRID_COLORS}
-        frozenLeftOffsets={frozenLeftOffsets}
-      />
 
       {/* Footer status bar */}
       <div
