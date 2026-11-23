@@ -183,9 +183,12 @@ const SummaryRow = React.memo(function SummaryRow({
   colors,
   frozenLeftOffsets,
   totalWidth,
+  totalCount,
 }: {
   fields: (FieldMeta & { width: number })[];
   records: RecordRow[];
+  /** Rows in the whole table; when larger than `records`, summaries only cover the loaded rows. */
+  totalCount?: number;
   summaryFunctions: Record<string, SummaryFunction>;
   setSummaryFunction: (fieldId: string, fn: SummaryFunction) => void;
   summaryDropdown: string | null;
@@ -196,6 +199,10 @@ const SummaryRow = React.memo(function SummaryRow({
   frozenLeftOffsets: number[];
   totalWidth: number;
 }) {
+  const partial = typeof totalCount === 'number' && totalCount > records.length;
+  const partialNote = partial
+    ? `Calculated from the ${records.length.toLocaleString()} loaded rows of ${totalCount!.toLocaleString()}. Load more rows to include the rest.`
+    : '';
   const summaryValues = useMemo(() => {
     const map: Record<string, string> = {};
     for (const field of fields) {
@@ -260,14 +267,14 @@ const SummaryRow = React.memo(function SummaryRow({
               aria-label={`Summary for ${field.name}`}
               className="w-full h-full flex items-baseline justify-end gap-1.5 px-2 text-right overflow-hidden whitespace-nowrap"
               style={{ minHeight: 32, alignItems: 'center' }}
-              title={fn !== 'none' ? `${label}: ${value}` : 'Choose a summary'}
+              title={fn !== 'none' ? `${label}: ${value}${partialNote ? ' — ' + partialNote : ''}` : 'Choose a summary'}
               onClick={() => setSummaryDropdown(isOpen ? null : field.id)}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.hoverRow)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               {fn !== 'none' ? (
                 <>
-                  <span className="shrink-0" style={{ fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</span>
+                  <span className="shrink-0" style={{ fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}{partial ? '*' : ''}</span>
                   <span className="min-w-0 truncate" style={{ fontSize: 12, fontWeight: 600, color: colors.text, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
                 </>
               ) : (
@@ -1809,6 +1816,7 @@ function GridViewInner({
             colors={GRID_COLORS}
             frozenLeftOffsets={frozenLeftOffsets}
             totalWidth={totalWidth}
+            totalCount={totalCount}
           />
         </div>
       </div>
