@@ -5,7 +5,7 @@ import { logWarn } from '@/lib/logger';
 import type { RecordRow, Filter, FilterGroup, Sort, FieldMeta } from '../types';
 import { toast } from '../components/toast-store';
 import { useUndoStore } from '../lib/undo';
-import { resolveTableContext, resolveTableSchema } from './tableBootstrap';
+import { fieldsKey, resolveTableContext, resolveTableSchema } from './tableBootstrap';
 
 /**
  * Run async batch jobs with a bounded concurrency instead of fully serial
@@ -42,6 +42,11 @@ export function fireWebhooks(event: string, baseId: string, tableId: string, rec
   }).catch((err) => {
     logWarn('Webhooks', 'Webhook dispatch failed:', err?.message ?? err);
   });
+}
+
+/** True when the table's fields include the `updated_by` column (the "Last Modified By" system field). */
+export function tableHasUpdatedBy(fields: ReadonlyArray<{ pg_column_name?: string | null }> | undefined): boolean {
+  return !!fields?.some((f) => f.pg_column_name === 'updated_by');
 }
 
 let _cachedUser: { id: string; email: string } | null = null;
@@ -1041,10 +1046,14 @@ export function useUpdateRecord() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
 
-      // Stamp the current user as the last modifier
-      const cachedUser = await getCachedUser();
-      if (cachedUser?.id) {
-        (updates as Record<string, any>).updated_by = cachedUser.id;
+      // Stamp the current user as the last modifier, but only on tables that have that column. Tables that
+      // came from an import or an older version have no `updated_by`, and the database rejects an update
+      // that names a column the table does not have, which made every edit in those tables fail.
+      if (tableHasUpdatedBy(qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId)))) {
+        const cachedUser = await getCachedUser();
+        if (cachedUser?.id) {
+          (updates as Record<string, any>).updated_by = cachedUser.id;
+        }
       }
 
       const { data, error } = await supabase

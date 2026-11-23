@@ -7,6 +7,8 @@ vi.setConfig({ testTimeout: 30000 });
 
 // Methods called on the stand-in query builder, so the tests can see that a save really went out.
 const calls: string[] = [];
+// What each update sent to the database, so the tests can see which columns it named.
+const updatePayloads: Array<Record<string, unknown>> = [];
 
 // Every call on the stand-in query builder returns the builder, and awaiting it gives one row back.
 function chain(): any {
@@ -14,6 +16,13 @@ function chain(): any {
     get(_t, prop) {
       if (prop === 'then') {
         return (resolve: (v: unknown) => unknown) => resolve({ data: { id: 'r1', cost: 2 }, error: null });
+      }
+      if (prop === 'update') {
+        return (payload: unknown) => {
+          calls.push('update');
+          updatePayloads.push(payload);
+          return c;
+        };
       }
       calls.push(String(prop));
       return () => c;
@@ -76,9 +85,41 @@ const cachedIds = (qc: QueryClient) =>
 describe('editing and deleting with the grid\'s infinite list in the cache', () => {
   beforeEach(() => {
     calls.length = 0;
+    updatePayloads.length = 0;
     useUndoStore.getState().clear();
   });
   afterEach(cleanup);
+
+  it('does not name updated_by on a table that has no such column (the database would reject the edit)', async () => {
+    const { result, qc } = setup(() => useUpdateRecord());
+    qc.setQueryData(['nc', 'fields', 't'], [{ id: 'f1', pg_column_name: 'cost' }]);
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(updatePayloads).toHaveLength(1);
+    expect(updatePayloads[0]).toEqual({ cost: 2 });
+  });
+
+  it('does not name updated_by when the table\'s fields are not known yet', async () => {
+    const { result } = setup(() => useUpdateRecord());
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(updatePayloads[0]).toEqual({ cost: 2 });
+  });
+
+  it('stamps the current user on a table that has the Last Modified By column', async () => {
+    const { result, qc } = setup(() => useUpdateRecord());
+    qc.setQueryData(['nc', 'fields', 't'], [{ id: 'f1', pg_column_name: 'cost' }, { id: 'f2', pg_column_name: 'updated_by' }]);
+    act(() => {
+      result.current.mutate({ baseId: 'b', tableId: 't', recordId: 'r1', fields: { cost: 2 } });
+    });
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
+    expect(updatePayloads[0]).toEqual({ cost: 2, updated_by: 'u1' });
+  });
 
   it('saves a cell edit, shows it straight away and records an undo step', async () => {
     const { result, qc } = setup(() => useUpdateRecord());
