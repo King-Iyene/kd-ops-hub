@@ -174,8 +174,8 @@ export const BulkActionsBar = React.memo(function BulkActionsBar({
           --bulk-bar-text: #374151;
           --bulk-bar-muted: #6A7184;
           --bulk-bar-hover: #F4F4F5;
-          --bulk-bar-accent: #2D7FF9;
-          --bulk-bar-accent-hover: #2952CC;
+          $1: hsl(var(--primary));
+          $1: hsl(var(--primary) / 0.85);
           --bulk-bar-danger: #EF4444;
           --bulk-bar-danger-hover: #DC2626;
           --bulk-bar-dropdown-bg: #fff;

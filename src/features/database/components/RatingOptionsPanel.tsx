@@ -28,7 +28,7 @@ export function RatingOptionsPanel({ max, icon, color, onChange }: RatingOptions
         <select
           value={max}
           onChange={(e) => onChange({ max: Number(e.target.value), icon, color })}
-          className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+          className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
         >
           {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
             <option key={n} value={n}>{n}</option>
@@ -51,7 +51,7 @@ export function RatingOptionsPanel({ max, icon, color, onChange }: RatingOptions
               className={cn(
                 'h-9 w-9 inline-flex items-center justify-center rounded-lg border transition-colors',
                 icon === i.value
-                  ? 'border-[#2D7FF9] bg-[#2D7FF9]/10'
+                  ? 'border-primary bg-primary/10'
                   : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
               )}
             >

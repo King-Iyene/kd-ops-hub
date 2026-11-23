@@ -438,7 +438,7 @@ function GridViewInner({
       left: '-1000px',
       padding: '4px 10px',
       borderRadius: '6px',
-      background: '#2D7FF9',
+      background: 'hsl(var(--primary))',
       color: '#fff',
       fontSize: '12px',
       fontWeight: '500',

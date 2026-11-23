@@ -67,7 +67,7 @@ export default function DatabasePage() {
       <div className="flex flex-1 items-center justify-center h-full w-full" role="status" aria-live="polite">
         <div className="flex flex-col items-center gap-3">
           <div
-            className="w-6 h-6 rounded-full border-2 border-current border-t-transparent animate-spin text-[#2D7FF9]"
+            className="w-6 h-6 rounded-full border-2 border-current border-t-transparent animate-spin text-primary"
             aria-hidden="true"
           />
           <span className="text-sm text-[#6A7184] dark:text-[#9AA2AF]">Loading…</span>

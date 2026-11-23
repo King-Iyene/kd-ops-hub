@@ -128,7 +128,7 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
                         if (e.key === 'Escape') setEditingId(null);
                       }}
                       autoFocus
-                      className="flex-1 px-2 py-0.5 text-sm rounded border border-[#2D7FF9] bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none"
+                      className="flex-1 px-2 py-0.5 text-sm rounded border border-primary bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none"
                     />
                     <button
                       onClick={() => { updateComment.mutate({ commentId: c.id, tableId, recordId, comment: editText.trim() }); setEditingId(null); }}
@@ -164,12 +164,12 @@ export function RecordComments({ baseId, tableId, recordId, userEmail }: RecordC
             }
           }}
           placeholder="Write a comment..."
-          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-[#2D7FF9] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,40%)]"
+          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,12%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-primary placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,40%)]"
         />
         <button
           onClick={handleSubmit}
           disabled={!text.trim() || createComment.isPending}
-          className="p-2 rounded-lg bg-[#2D7FF9] text-white hover:bg-[#2952cc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg bg-primary text-white hover:bg-[#2952cc] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <Send size={14} />
         </button>

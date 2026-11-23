@@ -130,7 +130,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Upload size={16} className="text-[#2D7FF9]" />
+            <Upload size={16} className="text-primary" />
             Import data
           </DialogTitle>
         </DialogHeader>
@@ -138,7 +138,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {step === 'upload' && (
           <div className="space-y-4 pt-2">
             <div
-              className="border-2 border-dashed border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg p-8 text-center cursor-pointer hover:border-[#2D7FF9] transition-colors"
+              className="border-2 border-dashed border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
@@ -221,7 +221,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
               </Button>
               <Button
                 size="sm"
-                style={{ backgroundColor: '#2D7FF9' }}
+                style={{ backgroundColor: 'hsl(var(--primary))' }}
                 className="text-white"
                 onClick={handleImport}
                 disabled={mapping.size === 0}
@@ -237,7 +237,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
             <div className="w-full bg-[#E5E5E5] dark:bg-[hsl(220,25%,18%)] rounded-full h-2">
               <div
                 className="h-2 rounded-full transition-all"
-                style={{ width: `${progress}%`, backgroundColor: '#2D7FF9' }}
+                style={{ width: `${progress}%`, backgroundColor: 'hsl(var(--primary))' }}
               />
             </div>
             <p className="text-xs-plus text-[#374151] dark:text-[hsl(220,25%,88%)]">
@@ -262,7 +262,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
             </p>
             <Button
               size="sm"
-              style={{ backgroundColor: '#2D7FF9' }}
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
               className="text-white"
               onClick={() => {
                 reset();

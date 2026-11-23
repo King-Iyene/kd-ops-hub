@@ -98,7 +98,7 @@ export function LinkedRecordPicker({
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] flex items-center gap-2">
-            <Link2 size={16} className="text-[#2D7FF9]" />
+            <Link2 size={16} className="text-primary" />
             Link Records
           </DialogTitle>
         </DialogHeader>
@@ -139,7 +139,7 @@ export function LinkedRecordPicker({
         {search.trim() && primaryField && (
           <button
             type="button"
-            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 text-xs text-[#2D7FF9] hover:bg-[#2D7FF9]/5 rounded-md transition-colors"
+            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 text-xs text-primary hover:bg-primary/5 rounded-md transition-colors"
             onClick={handleCreateAndLink}
             disabled={isCreating}
           >
@@ -182,13 +182,13 @@ export function LinkedRecordPicker({
                       <span
                         className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
                         style={{
-                          borderColor: isChecked ? '#2D7FF9' : '#9AA2AF',
+                          borderColor: isChecked ? 'hsl(var(--primary))' : '#9AA2AF',
                         }}
                       >
                         {isChecked && (
                           <span
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: '#2D7FF9' }}
+                            style={{ backgroundColor: 'hsl(var(--primary))' }}
                           />
                         )}
                       </span>
@@ -196,8 +196,8 @@ export function LinkedRecordPicker({
                       <span
                         className="w-4 h-4 rounded border-2 flex items-center justify-center text-3xs shrink-0"
                         style={{
-                          borderColor: isChecked ? '#2D7FF9' : '#9AA2AF',
-                          backgroundColor: isChecked ? '#2D7FF9' : 'transparent',
+                          borderColor: isChecked ? 'hsl(var(--primary))' : '#9AA2AF',
+                          backgroundColor: isChecked ? 'hsl(var(--primary))' : 'transparent',
                           color: isChecked ? '#fff' : 'transparent',
                         }}
                       >
@@ -215,7 +215,7 @@ export function LinkedRecordPicker({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-xs text-[#2D7FF9] hover:text-[#2855CC] h-7"
+                    className="text-xs text-primary hover:text-[#2855CC] h-7"
                     disabled={isLoadingMore}
                     onClick={loadMore}
                   >
@@ -240,7 +240,7 @@ export function LinkedRecordPicker({
           </Button>
           <Button
             size="sm"
-            style={{ backgroundColor: '#2D7FF9' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
             className="hover:opacity-90 text-white gap-1.5"
             onClick={handleConfirm}
           >

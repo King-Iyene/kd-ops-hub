@@ -68,8 +68,8 @@ const ganttStyles = `
   --g-text: #374151;
   --g-text-muted: #6A7184;
   --g-text-faint: #9AA2AF;
-  --g-primary: #2D7FF9;
-  --g-primary-hover: #2952CC;
+  $1: hsl(var(--primary));
+  $1: hsl(var(--primary) / 0.85);
   --g-cell-hover: #F3F4F6;
   --g-tooltip-bg: #1F2937;
   --g-tooltip-text: #F9FAFB;

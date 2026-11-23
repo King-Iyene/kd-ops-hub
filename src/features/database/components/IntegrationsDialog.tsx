@@ -223,7 +223,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
         <SectionHeader icon={Sparkles} title="Smart Features" subtitle="What makes KDOps special" />
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { title: 'Auto-Create Fields', desc: 'Send unknown field names and they\'re created automatically with the right type.', color: '#2D7FF9' },
+            { title: 'Auto-Create Fields', desc: 'Send unknown field names and they\'re created automatically with the right type.', color: 'hsl(var(--primary))' },
             { title: 'Type Detection', desc: 'Email, URL, Date, Number, Checkbox, JSON — all detected from your data.', color: '#10B981' },
             { title: 'Airtable Compatible', desc: 'Same records/fields structure — migrate from Airtable with zero changes.', color: '#8B5CF6' },
             { title: 'HMAC Webhooks', desc: 'Signed webhook payloads so you can verify they came from KDOps.', color: '#F59E0B' },
@@ -242,7 +242,7 @@ function OverviewTab({ baseId, onSubDialog, onSwitchTab }: { baseId: string | nu
         <SectionHeader icon={Key} title="Manage" subtitle="API Keys, Webhooks, and Automations" />
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { id: 'api-keys' as SubDialog, icon: Key, title: 'API Keys', desc: 'Create & revoke keys', color: '#2D7FF9' },
+            { id: 'api-keys' as SubDialog, icon: Key, title: 'API Keys', desc: 'Create & revoke keys', color: 'hsl(var(--primary))' },
             { id: 'webhooks' as SubDialog, icon: Webhook, title: 'Webhooks', desc: 'Push events externally', color: '#10B981' },
             { id: 'automations' as SubDialog, icon: Zap, title: 'Automations', desc: 'Auto-run on triggers', color: '#F59E0B' },
           ].map((card) => (

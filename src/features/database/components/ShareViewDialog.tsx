@@ -93,7 +93,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Share2 size={16} className="text-[#2D7FF9]" />
+            <Share2 size={16} className="text-primary" />
             Share View
           </DialogTitle>
         </DialogHeader>
@@ -112,7 +112,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
             <button
               onClick={isEnabled ? handleDisableSharing : handleEnableSharing}
               disabled={isLoading || createShared.isPending || updateShared.isPending}
-              className="text-[#2D7FF9]"
+              className="text-primary"
             >
               {isEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-[#6A7184] dark:text-[hsl(220,20%,55%)]" />}
             </button>
@@ -133,7 +133,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                   <Button
                     size="sm"
                     className="h-8 px-3 text-xs gap-1.5"
-                    style={{ backgroundColor: '#2D7FF9' }}
+                    style={{ backgroundColor: 'hsl(var(--primary))' }}
                     onClick={handleCopy}
                   >
                     {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -191,7 +191,7 @@ export function ShareViewDialog({ open, onOpenChange, viewId, tableId }: ShareVi
                 <button
                   onClick={handleToggleCsv}
                   disabled={updateShared.isPending}
-                  className="text-[#2D7FF9]"
+                  className="text-primary"
                 >
                   {sharedView.allow_csv_download
                     ? <ToggleRight size={28} />

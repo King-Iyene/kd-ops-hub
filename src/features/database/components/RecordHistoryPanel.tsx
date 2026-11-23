@@ -125,7 +125,7 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="w-5 h-5 border-2 border-[#2D7FF9] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -158,7 +158,7 @@ export function RecordHistoryPanel({ baseId, tableId, recordId, fields }: Record
           className={`relative pl-6 pb-4 ${i < entries.length - 1 ? 'border-l-2 border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] ml-2' : 'ml-2'}`}
         >
           {/* Timeline dot */}
-          <div className="absolute -left-[5px] top-0.5 w-2.5 h-2.5 rounded-full bg-[#2D7FF9] border-2 border-white dark:border-[hsl(220,30%,10%)]" />
+          <div className="absolute -left-[5px] top-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-white dark:border-[hsl(220,30%,10%)]" />
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">

@@ -994,7 +994,7 @@ export const ButtonCellRenderer = React.memo(function ButtonCellRenderer({
       className="inline-flex items-center px-3 rounded text-xs font-medium hover:opacity-90 active:scale-[0.97]"
       style={{
         height: 24,
-        backgroundColor: '#2D7FF9',
+        backgroundColor: 'hsl(var(--primary))',
         color: '#FFFFFF',
         cursor: urlTemplate ? 'pointer' : 'default',
         transition: 'opacity 120ms ease, transform 80ms ease',

@@ -7,7 +7,7 @@ interface AttachmentOptionsPanelProps {
 }
 
 const FIELD_CLASS =
-  'w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]';
+  'w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary';
 const LABEL_CLASS = 'text-xs text-[#6A7184] dark:text-[hsl(220,20%,55%)]';
 
 /** Limits for an attachment field: how many files, how big, which kinds. */
@@ -39,7 +39,7 @@ export function AttachmentOptionsPanel({ value, onChange }: AttachmentOptionsPan
             <label key={k.value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                className="w-3.5 h-3.5 accent-primary"
                 checked={value.allowedTypes.includes(k.value)}
                 onChange={() => toggle(k.value)}
               />

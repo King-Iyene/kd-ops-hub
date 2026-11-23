@@ -89,7 +89,7 @@ function InlineTextEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9] kd-flat-input"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
     />
   );
 }
@@ -114,14 +114,14 @@ function InlineUrlEditor({
         onBlur={() => onCommit(text)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
         placeholder="https://example.com"
-        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9] kd-flat-input"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
       />
       {hasValue && (
         <a
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-primary"
           title="Open URL"
         >
           <ExternalLink size={14} />
@@ -150,12 +150,12 @@ function InlineEmailEditor({
         onBlur={() => onCommit(text)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
         placeholder="name@example.com"
-        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9] kd-flat-input"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
       />
       {hasValue && (
         <a
           href={`mailto:${text}`}
-          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-primary"
           title="Send email"
         >
           <Mail size={14} />
@@ -180,7 +180,7 @@ function InlineLongTextEditor({
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onCommit(text)}
       rows={4}
-      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9] kd-flat-input"
+      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
     />
   );
 }
@@ -204,7 +204,7 @@ function InlineNumberEditor({
     if (next !== (value ?? null)) onCommit(next);
   };
   return (
-    <div className="flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded border bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus-within:border-[#2D7FF9]">
+    <div className="flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded border bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus-within:border-primary">
       {prefix && <span className="shrink-0 text-[#9AA2AF] tabular-nums">{prefix}</span>}
       <input
         type="text"
@@ -295,7 +295,7 @@ function InlineDateEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') commit(date);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground border-border focus:border-[#2D7FF9] kd-flat-input"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground border-border focus:border-primary kd-flat-input"
     />
   );
 }
@@ -312,7 +312,7 @@ function InlineCheckboxEditor({
       type="checkbox"
       checked={!!value}
       onChange={(e) => onCommit(e.target.checked)}
-      className="w-4 h-4 accent-[#2D7FF9] cursor-pointer"
+      className="w-4 h-4 accent-primary cursor-pointer"
     />
   );
 }
@@ -367,7 +367,7 @@ function InlineSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9] kd-flat-input"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary kd-flat-input"
               />
             </div>
             {filtered.map((c) => {
@@ -382,7 +382,7 @@ function InlineSelectEditor({
                   <span className="inline-flex items-center px-2 rounded-full text-xs font-medium" style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
                   </span>
-                  {value === c.title && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                  {value === c.title && <Check size={14} className="ml-auto text-primary" />}
                 </button>
               );
             })}
@@ -446,7 +446,7 @@ function InlineMultiSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9] kd-flat-input"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary kd-flat-input"
               />
             </div>
             {filtered.map((c) => {
@@ -462,7 +462,7 @@ function InlineMultiSelectEditor({
                   <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${!isSelected ? 'opacity-50' : ''}`} style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
                   </span>
-                  {isSelected && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                  {isSelected && <Check size={14} className="ml-auto text-primary" />}
                 </button>
               );
             })}
@@ -524,7 +524,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:border-[hsl(220,20%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-primary hover:text-primary dark:border-[hsl(220,20%,18%)] dark:text-[#9AA2AF] dark:hover:border-primary dark:hover:text-primary"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -791,7 +791,7 @@ function RightSidebar({
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium rounded-t transition-colors ${
               activeTab === tab.id
-                ? 'text-[#2D7FF9] border-b-2 border-[#2D7FF9] -mb-px'
+                ? 'text-primary border-b-2 border-primary -mb-px'
                 : 'text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)]'
             }`}
           >
@@ -1091,7 +1091,7 @@ export function ExpandedRowModal({
           <button
             type="button"
             onClick={handleBtnClick}
-            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90 bg-[#2D7FF9] text-white"
+            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90 bg-primary text-white"
             style={{ cursor: urlTemplate ? 'pointer' : 'default' }}
           >
             {btnLabel}
@@ -1127,7 +1127,7 @@ export function ExpandedRowModal({
       >
         {/* Drop indicator line */}
         {isDropTarget && dropPosition === 'before' && (
-          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
 
         <div className="flex items-start gap-2">
@@ -1159,7 +1159,7 @@ export function ExpandedRowModal({
 
         {/* Drop indicator line (after) */}
         {isDropTarget && dropPosition === 'after' && (
-          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
       </div>
     );

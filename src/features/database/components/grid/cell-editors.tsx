@@ -1021,7 +1021,7 @@ export function LongTextCellEditor({ value, onCommit, onCancel }: CellEditorProp
   const editor = pos ? createPortal(
     <div
       className="fixed z-[9999] shadow-xl rounded-md bg-white dark:bg-[hsl(220,20%,10%)]"
-      style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid #2D7FF9' }}
+      style={{ top: pos.top, left: pos.left, width: pos.width, border: '2px solid hsl(var(--primary))' }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-[#E5E5E5] dark:border-[hsl(220,20%,18%)]">

@@ -77,7 +77,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Key size={16} className="text-[#2D7FF9]" />
+            <Key size={16} className="text-primary" />
             API Keys
           </DialogTitle>
         </DialogHeader>
@@ -98,7 +98,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs gap-1.5 shrink-0"
-                  style={{ backgroundColor: '#2D7FF9' }}
+                  style={{ backgroundColor: 'hsl(var(--primary))' }}
                   onClick={() => handleCopy(revealedKey)}
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -197,7 +197,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                         type="checkbox"
                         checked={scopes.has(s)}
                         onChange={() => toggleScope(s)}
-                        className="rounded border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#2D7FF9]"
+                        className="rounded border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-primary"
                       />
                       {s}
                     </label>
@@ -218,7 +218,7 @@ export function ApiTokensDialog({ open, onOpenChange, baseId }: ApiTokensDialogP
                 <Button
                   size="sm"
                   className="h-8 px-3 text-xs"
-                  style={{ backgroundColor: '#2D7FF9' }}
+                  style={{ backgroundColor: 'hsl(var(--primary))' }}
                   onClick={handleCreate}
                   disabled={!name.trim() || scopes.size === 0 || createKey.isPending}
                 >

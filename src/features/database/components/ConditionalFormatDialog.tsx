@@ -134,7 +134,7 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
                   {CF_COLOR_PALETTE.map((p) => (
                     <button
                       key={p.color}
-                      className={`w-5 h-5 rounded ${rule.color === p.color ? 'ring-2 ring-[#2D7FF9] ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]'}`}
+                      className={`w-5 h-5 rounded ${rule.color === p.color ? 'ring-2 ring-primary ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]'}`}
                       style={{
                         backgroundColor: p.color,
                       }}
@@ -156,13 +156,13 @@ export function ConditionalFormatDialog({ open, onOpenChange }: ConditionalForma
 
         <div className="px-4 py-3 border-t border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex items-center justify-between">
           <button
-            className="text-xs text-[#2D7FF9] hover:underline font-medium"
+            className="text-xs text-primary hover:underline font-medium"
             onClick={addRule}
           >
             + Add rule
           </button>
           <button
-            className="px-3 py-1.5 text-xs bg-[#2D7FF9] text-white rounded hover:bg-[#2952CC] font-medium"
+            className="px-3 py-1.5 text-xs bg-primary text-white rounded hover:bg-primary/80 font-medium"
             onClick={() => onOpenChange(false)}
           >
             Done

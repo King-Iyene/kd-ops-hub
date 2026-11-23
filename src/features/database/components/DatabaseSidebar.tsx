@@ -79,7 +79,7 @@ function InlineRenameInput({
   return (
     <input
       ref={ref}
-      className="bg-white dark:bg-[hsl(220,30%,12%)] border border-[#2D7FF9] rounded px-1.5 py-0.5 text-xs-plus w-full outline-none text-[#374151] dark:text-[hsl(220,25%,88%)]"
+      className="bg-white dark:bg-[hsl(220,30%,12%)] border border-primary rounded px-1.5 py-0.5 text-xs-plus w-full outline-none text-[#374151] dark:text-[hsl(220,25%,88%)]"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -160,7 +160,7 @@ function BaseTableList({ baseId }: { baseId: string }) {
         role="listitem"
         className={cn(
           'group/row flex items-center gap-0.5 rounded transition-colors',
-          isActive ? 'bg-[#2D7FF9]/10' : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
+          isActive ? 'bg-primary/10' : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
         )}
       >
         <button
@@ -180,8 +180,8 @@ function BaseTableList({ baseId }: { baseId: string }) {
             }
           }}
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9]/60',
-            isActive ? 'font-medium text-[#2D7FF9]' : 'text-[#4B5563] dark:text-[hsl(220,20%,70%)]',
+            'flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+            isActive ? 'font-medium text-primary' : 'text-[#4B5563] dark:text-[hsl(220,20%,70%)]',
           )}
         >
           {t.icon ? <span className="text-xs shrink-0">{t.icon}</span> : <Table2 size={12} className="shrink-0 opacity-60" />}
@@ -213,7 +213,7 @@ function BaseTableList({ baseId }: { baseId: string }) {
   return (
     <div ref={rootRef} onKeyDown={handleRowsKeyDown} className="mb-1.5 ml-5 mr-1.5 min-w-0 border-l border-[#E5E5E5] pl-2 dark:border-[hsl(220,25%,18%)]">
       {list.length > 8 && (
-        <div className="flex items-center gap-1.5 h-6 px-1.5 my-1 rounded bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-[#2D7FF9]">
+        <div className="flex items-center gap-1.5 h-6 px-1.5 my-1 rounded bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-primary">
           <Search size={11} className="text-[#9AA2AF] shrink-0" />
           <input
             ref={searchRef}
@@ -258,7 +258,7 @@ function BaseTableList({ baseId }: { baseId: string }) {
           type="button"
           aria-pressed={showHidden}
           onClick={() => setShowHidden(!showHidden)}
-          className="mt-0.5 flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-2xs text-[#9AA2AF] hover:bg-[#F4F4F5] hover:text-[#4B5563] dark:hover:bg-[hsl(220,25%,12%)] dark:hover:text-[hsl(220,20%,80%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9]/60"
+          className="mt-0.5 flex w-full min-w-0 items-center gap-1.5 rounded px-1.5 py-1 text-left text-2xs text-[#9AA2AF] hover:bg-[#F4F4F5] hover:text-[#4B5563] dark:hover:bg-[hsl(220,25%,12%)] dark:hover:text-[hsl(220,20%,80%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           {showHidden ? <EyeOff size={11} className="shrink-0" /> : <Eye size={11} className="shrink-0" />}
           <span className="truncate">{showHidden ? 'Hide' : 'Show'} hidden tables ({hiddenCount})</span>
@@ -393,7 +393,7 @@ export function DatabaseSidebar() {
         {!sidebarCollapsed && (
           <a
             href="/data"
-            className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] hover:text-[#2D7FF9] transition-colors"
+            className="flex items-center gap-1.5 text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] hover:text-primary transition-colors"
             onClick={(e) => { e.preventDefault(); navigateToBase(null); }}
             title="Go to home"
           >
@@ -443,7 +443,7 @@ export function DatabaseSidebar() {
       {/* Find a base: shown once the list is long enough to need it */}
       {!sidebarCollapsed && (bases?.length ?? 0) > 4 && (
         <div className="px-2 pt-2 pb-1">
-          <div className="flex items-center gap-1.5 h-7 px-2 rounded-md bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-[#2D7FF9] transition-colors">
+          <div className="flex items-center gap-1.5 h-7 px-2 rounded-md bg-white dark:bg-[hsl(220,30%,10%)] border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] focus-within:border-primary transition-colors">
             <Search size={12} className="text-[#9AA2AF] shrink-0" />
             <input
               value={baseQuery}
@@ -481,7 +481,7 @@ export function DatabaseSidebar() {
               'group flex items-center gap-2 mx-1.5 px-2 py-[7px] rounded-md cursor-pointer transition-colors no-underline',
               sidebarCollapsed && 'justify-center mx-0.5 px-0',
               base.id === activeBaseId
-                ? 'bg-[#2D7FF9]/10 dark:bg-[hsl(220,50%,14%)]'
+                ? 'bg-primary/10 dark:bg-[hsl(220,50%,14%)]'
                 : 'hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,25%,12%)]',
             )}
             onClick={(_e) => {
@@ -524,7 +524,7 @@ export function DatabaseSidebar() {
                     className={cn(
                       'text-xs-plus font-medium truncate flex-1',
                       base.id === activeBaseId
-                        ? 'text-[#2D7FF9]'
+                        ? 'text-primary'
                         : 'text-[#374151] dark:text-[hsl(220,25%,88%)]',
                     )}
                   >
@@ -589,7 +589,7 @@ export function DatabaseSidebar() {
                           <button
                             key={c}
                             type="button"
-                            className={`w-5 h-5 rounded-full transition-all hover:scale-110 ${base.color === c ? 'ring-2 ring-[#2D7FF9] ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border-2 border-transparent'}`}
+                            className={`w-5 h-5 rounded-full transition-all hover:scale-110 ${base.color === c ? 'ring-2 ring-primary ring-offset-1 ring-offset-white dark:ring-offset-[hsl(220,30%,12%)]' : 'border-2 border-transparent'}`}
                             style={{
                               backgroundColor: c,
                             }}
@@ -646,14 +646,14 @@ export function DatabaseSidebar() {
 
         {(!bases || bases.length === 0) && !sidebarCollapsed && (
           <div className="px-4 py-8 text-center">
-            <div className="mx-auto w-10 h-10 rounded-xl bg-[#2D7FF9]/10 flex items-center justify-center mb-3">
-              <Database size={20} className="text-[#2D7FF9]" />
+            <div className="mx-auto w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+              <Database size={20} className="text-primary" />
             </div>
             <p className="text-xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mb-2">No bases yet</p>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-[#2D7FF9] hover:text-[#2952CC]"
+              className="text-xs text-primary hover:text-primary/80"
               onClick={() => setCreateBaseOpen(true)}
             >
               <Plus size={12} className="mr-1" /> Create base
@@ -665,7 +665,7 @@ export function DatabaseSidebar() {
       {/* Resize drag handle */}
       {!sidebarCollapsed && (
         <div
-          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#2D7FF9]/30 active:bg-[#2D7FF9]/50 transition-colors z-20"
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-20"
           onMouseDown={handleResizeMouseDown}
         />
       )}

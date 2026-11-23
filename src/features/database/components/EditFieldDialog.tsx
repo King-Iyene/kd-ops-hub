@@ -95,7 +95,7 @@ function SortableOption({ choice, onRemove, onColorChange, isEditing, editValue,
       {isEditing ? (
         <input
           autoFocus
-          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-[#2D7FF9] outline-none bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
+          className="flex-1 min-w-0 px-2.5 py-0.5 rounded-full text-xs font-medium border border-primary outline-none bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)]"
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           onKeyDown={(e) => {
@@ -532,7 +532,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 if (e.target.value.length <= 500) setDescription(e.target.value);
               }}
               placeholder="Add a description for this field..."
-              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9] focus:border-transparent resize-none"
+              className="w-full rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] px-3 py-2 text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] dark:placeholder:text-[hsl(220,20%,45%)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               rows={3}
               maxLength={500}
             />
@@ -558,7 +558,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     className={cn(
                       'flex items-center gap-2 px-3 py-2 border rounded-lg w-full text-left transition-colors',
                       canConvert
-                        ? 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-[#2D7FF9] cursor-pointer'
+                        ? 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-primary cursor-pointer'
                         : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-[#F9F9FA] dark:bg-[hsl(220,25%,13%)] cursor-default',
                     )}
                     onClick={() => canConvert && setShowTypeSelector(!showTypeSelector)}
@@ -569,7 +569,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       {FIELD_TYPE_LABELS[activeType] ?? activeType}
                     </span>
                     {selectedNewType && selectedNewType !== field.ui_type && (
-                      <span className="text-2xs text-[#2D7FF9] ml-1">(changing)</span>
+                      <span className="text-2xs text-primary ml-1">(changing)</span>
                     )}
                     {!canConvert && (
                       <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] ml-auto">
@@ -645,7 +645,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
-                              className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                              className="w-3.5 h-3.5 accent-primary"
                               checked={typeChangeConfirmed}
                               onChange={(e) => setTypeChangeConfirmed(e.target.checked)}
                             />
@@ -666,7 +666,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                className="w-3.5 h-3.5 accent-primary"
                 checked={richText}
                 onChange={(e) => setRichText(e.target.checked)}
               />
@@ -721,7 +721,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-xs text-[#2D7FF9] hover:text-[#2952CC] gap-1"
+                  className="h-8 px-2 text-xs text-primary hover:text-primary/80 gap-1"
                   onClick={addChoice}
                   disabled={!newChoiceText.trim()}
                 >
@@ -746,8 +746,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isLookup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Lookup.
                   </p>
@@ -759,7 +759,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={linkFieldId}
                       onChange={(e) => { setLinkFieldId(e.target.value); setLookupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       <option value="">Select a link field...</option>
                       {linkFields.map((f: FieldMeta) => (
@@ -773,7 +773,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       <select
                         value={lookupFieldId}
                         onChange={(e) => setLookupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="">Select a field...</option>
                         {targetFields.map((f: FieldMeta) => (
@@ -790,8 +790,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isRollup && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Rollup.
                   </p>
@@ -803,7 +803,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={linkFieldId}
                       onChange={(e) => { setLinkFieldId(e.target.value); setRollupFieldId(''); }}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       <option value="">Select a link field...</option>
                       {linkFields.map((f: FieldMeta) => (
@@ -817,7 +817,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                       <select
                         value={rollupFieldId}
                         onChange={(e) => setRollupFieldId(e.target.value)}
-                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                        className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       >
                         <option value="">Select a field...</option>
                         {targetFields.map((f: FieldMeta) => (
@@ -831,7 +831,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                     <select
                       value={rollupFunction}
                       onChange={(e) => setRollupFunction(e.target.value as RollupFunction)}
-                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                      className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                     >
                       {ROLLUP_FUNCTIONS.map((fn) => (
                         <option key={fn} value={fn}>{fn}</option>
@@ -846,8 +846,8 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           {isCount && (
             <div className="space-y-3">
               {linkFields.length === 0 ? (
-                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-[#2D7FF9] rounded-r-md p-3 flex items-start gap-2.5">
-                  <Info size={16} className="text-[#2D7FF9] shrink-0 mt-0.5" />
+                <div className="bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-md p-3 flex items-start gap-2.5">
+                  <Info size={16} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)] leading-relaxed">
                     This table has no Link fields yet. Create a Link to Another Record field first, then set up your Count.
                   </p>
@@ -858,7 +858,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                   <select
                     value={linkFieldId}
                     onChange={(e) => setLinkFieldId(e.target.value)}
-                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                    className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   >
                     <option value="">Select a link field...</option>
                     {linkFields.map((f: FieldMeta) => (
@@ -877,7 +877,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={currencyCode}
                   onChange={(e) => setCurrencyCode(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   {[
                     { code: 'USD', label: 'US Dollar ($)' },
@@ -910,7 +910,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={precision}
                   onChange={(e) => setPrecision(Number(e.target.value))}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   <option value={0}>0 (1,000)</option>
                   <option value={1}>1 (1,000.0)</option>
@@ -937,7 +937,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  className="w-3.5 h-3.5 accent-primary"
                   checked={linkAllowMultiple}
                   onChange={(e) => setLinkAllowMultiple(e.target.checked)}
                 />
@@ -962,7 +962,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               <select
                 value={durationFormat}
                 onChange={(e) => setDurationFormat(e.target.value)}
-                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               >
                 <option value="h:mm">h:mm (e.g., 1:30)</option>
                 <option value="h:mm:ss">h:mm:ss (e.g., 1:30:00)</option>
@@ -994,7 +994,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <select
                   value={dateFormat}
                   onChange={(e) => setDateFormat(e.target.value)}
-                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/30 focus:border-[#2D7FF9]"
+                  className="w-full h-9 px-2 border border-[#E5E5E5] rounded-lg text-xs-plus bg-white dark:bg-[hsl(220,30%,10%)] dark:border-[hsl(220,25%,18%)] dark:text-[hsl(220,25%,88%)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 >
                   <option value="friendly">Friendly (September 20, 2026)</option>
                   <option value="local">Local (20/09/2026)</option>
@@ -1006,7 +1006,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                  className="w-3.5 h-3.5 accent-primary"
                   checked={includeTime}
                   onChange={(e) => {
                     setIncludeTime(e.target.checked);
@@ -1019,7 +1019,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <label className="flex items-center gap-2 cursor-pointer ml-5">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    className="w-3.5 h-3.5 accent-primary"
                     checked={displayTimezone}
                     onChange={(e) => setDisplayTimezone(e.target.checked)}
                   />
@@ -1030,7 +1030,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <label className="flex items-center gap-2 cursor-pointer ml-5">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    className="w-3.5 h-3.5 accent-primary"
                     checked={!use12h}
                     onChange={(e) => setUse12h(!e.target.checked)}
                   />
@@ -1041,7 +1041,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-3.5 h-3.5 accent-[#2D7FF9]"
+                    className="w-3.5 h-3.5 accent-primary"
                     checked={defaultToCurrentDate}
                     onChange={(e) => setDefaultToCurrentDate(e.target.checked)}
                   />
@@ -1118,7 +1118,7 @@ export function EditFieldDialog({ open, onOpenChange, field }: EditFieldDialogPr
           </Button>
           <Button
             size="sm"
-            style={{ backgroundColor: '#2D7FF9' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
             className="hover:opacity-90 text-white"
             onClick={handleSave}
             disabled={updateField.isPending || changeFieldType.isPending || (!!selectedNewType && selectedNewType !== field?.ui_type && !typeChangeConfirmed)}
