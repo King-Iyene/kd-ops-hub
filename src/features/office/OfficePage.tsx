@@ -65,6 +65,7 @@ import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
+import { ClientHoursDialog, ClientHoursStrip } from './ClientHours';
 import { cleanZones } from './world/clock';
 import { skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { AvatarStyle, Item, TileEdits, Zone } from './world/types';
@@ -627,6 +628,7 @@ function OfficeRoom() {
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
   const teamMap = map;
   const [query, setQuery] = useState('');
+  const [clientHoursOpen, setClientHoursOpen] = useState(false);
   const [presence, setPresence] = useState<'all' | 'free' | 'busy'>('all');
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
@@ -1395,6 +1397,7 @@ function OfficeRoom() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          <ClientHoursStrip onOpen={() => setClientHoursOpen(true)} />
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -1899,6 +1902,7 @@ function OfficeRoom() {
         canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)}
         onSave={(d) => { if (panel) void savePanel({ boards: { ...boardsAll, [panel.id]: d } }); }}
       />
+      <ClientHoursDialog open={clientHoursOpen} onClose={() => setClientHoursOpen(false)} />
       <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
       <ManageDialog
         open={manageOpen} onClose={() => { setManageOpen(false); setManageTab('places'); }} startTab={manageTab} spaceName={space.name}

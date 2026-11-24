@@ -4720,17 +4720,25 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
 
   // a soft ring under me, and the ground shadow
   if (p.isMe) {
-    ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.2 * Math.sin(t / 400)})`;
+    // my own marker: a gold ring that breathes slowly
+    ctx.strokeStyle = `rgba(214,172,80,${0.7 + 0.2 * Math.sin(t / 400)})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 14, 6, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
   if (p.speaking) {
-    ctx.strokeStyle = `rgba(52,211,153,${0.65 + 0.3 * Math.sin(t / 110)})`;
+    // talking: a cyan ring, and a second one that spreads outwards and fades (cheap strokes, no blur)
+    ctx.strokeStyle = `rgba(0,236,255,${0.7 + 0.25 * Math.sin(t / 110)})`;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.ellipse(px, py + 11, 15 + Math.sin(t / 110) * 1.5, 6.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const wave = (t % 1100) / 1100;
+    ctx.strokeStyle = `rgba(0,236,255,${0.5 * (1 - wave)})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(px, py + 11, 16 + wave * 14, 6.5 + wave * 6, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
   ellipse(ctx, px, py + 11, 11 - bob * 0.4, 4.5 + bob * 0.25, 'rgba(15,23,42,0.24)');
@@ -5274,9 +5282,13 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 7, w, 14, 7);
   ctx.fill();
-  ctx.fillStyle = theme.dark ? 'rgba(15,23,42,0.88)' : 'rgba(15,23,42,0.82)';
+  // name tag: deep teal glass with a thin neon edge (cyan; gold for me; bright while talking)
+  ctx.fillStyle = theme.dark ? 'rgba(3,26,38,0.92)' : 'rgba(4,38,53,0.88)';
   rr(ctx, px - w / 2, ty - 7.5, w, 14, 7);
   ctx.fill();
+  ctx.strokeStyle = p.speaking ? '#00ECFF' : p.isMe ? 'rgba(214,172,80,0.95)' : 'rgba(0,236,255,0.38)';
+  ctx.lineWidth = p.speaking ? 1.4 : 1;
+  ctx.stroke();
   if (p.dot) disc(ctx, px - w / 2 + 7, ty, 2.1, p.dot);
   ctx.fillStyle = '#fff';
   ctx.fillText(label, px + dotW / 2, ty + 0.5);
@@ -5311,10 +5323,10 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
       ctx.drawImage(v, sx, sy, sw, sh, bx, by, bw, bh);
     }
     ctx.restore();
-    const edge = p.speaking ? '#34d399' : p.isMe ? '#3b82f6' : '#ffffff';
+    const edge = p.speaking ? '#00ECFF' : p.isMe ? '#D6AC50' : '#ffffff';
     if (p.speaking) {
       ctx.save();
-      ctx.shadowColor = 'rgba(52,211,153,0.9)';
+      ctx.shadowColor = 'rgba(0,236,255,0.9)';
       ctx.shadowBlur = 12 + Math.sin(t / 110) * 4;
       ctx.strokeStyle = edge;
       ctx.lineWidth = 3;
