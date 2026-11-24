@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button';
 import { tally, type CardRow, type PollRow, type VoteRow } from './useBoards';
 
 /** Live polls: ask the office a question, vote once (you can change your mind), watch the bars move. */
-export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, onCreate, onVote, onClosePoll }: {
+export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, canCreate = true, onCreate, onVote, onClosePoll }: {
   open: boolean;
   onClose: () => void;
   polls: PollRow[];
   votes: VoteRow[];
   me: string;
   isAdmin: boolean;
+  /** an admin can limit who asks polls (Office permissions) */
+  canCreate?: boolean;
   onCreate: (question: string, options: string[]) => Promise<string | null>;
   onVote: (poll: string, option: number) => void;
   onClosePoll: (poll: string) => void;
@@ -75,7 +77,7 @@ export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, onCreate
           </div>
         ) : (
           <>
-            <Button onClick={() => setAsking(true)}><Plus className="mr-1 h-4 w-4" />Ask the office</Button>
+            {canCreate ? <Button onClick={() => setAsking(true)}><Plus className="mr-1 h-4 w-4" />Ask the office</Button> : <p className="text-xs text-muted-foreground">Only some people can ask polls here.</p>}
             {open_.length === 0 && done.length === 0 && <p className="text-sm text-muted-foreground">No polls yet. Ask the first question.</p>}
             <div className="space-y-3">{open_.map(card)}</div>
             {done.length > 0 && <><p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ended</p><div className="space-y-3">{done.map(card)}</div></>}
