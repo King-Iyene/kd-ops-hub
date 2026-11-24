@@ -3,7 +3,7 @@ import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Ha
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
-import { desktopDownload, inDesktopApp } from './desktopApp';
+import { desktopDownload } from './desktopApp';
 import type { AvatarStyle } from './world/types';
 import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
@@ -77,13 +77,10 @@ export function ProfileMenu(p: Props) {
   const act = (fn: () => void) => () => { setOpen(false); fn(); };
 
   const tile = (key: string, icon: JSX.Element, title: string, text: string, run: () => void, tone: 'normal' | 'danger' = 'normal') => (
-    <button key={key} type="button" onClick={act(run)}
-      className={`group flex min-w-0 items-start gap-2.5 rounded-xl p-3 text-left ring-1 transition ${tone === 'danger' ? 'bg-red-500/[0.05] ring-red-500/20 hover:bg-red-500/10' : 'bg-white/[0.04] ring-white/[0.07] hover:bg-white/[0.08] hover:ring-white/15'}`}>
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone === 'danger' ? 'bg-red-500/15 text-red-400' : 'bg-primary/15 text-primary'}`}>{icon}</span>
-      <span className="min-w-0">
-        <span className="block truncate text-[13px] font-bold tracking-tight">{title}</span>
-        <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-foreground">{text}</span>
-      </span>
+    <button key={key} type="button" onClick={act(run)} title={text} aria-label={`${title}. ${text}`}
+      className={`group flex min-w-0 flex-col items-center justify-center gap-2.5 rounded-2xl px-3 py-4 text-center ring-1 transition duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 ${tone === 'danger' ? 'bg-red-500/[0.06] ring-red-500/25 hover:bg-red-500/[0.12]' : 'bg-white/[0.05] ring-white/[0.08] hover:bg-white/[0.09] hover:ring-white/20'}`}>
+      <span className={`flex h-12 w-12 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6 ${tone === 'danger' ? 'bg-red-500/15 text-red-400' : 'bg-primary/15 text-primary'}`}>{icon}</span>
+      <span className="block max-w-full truncate text-[14px] font-bold tracking-tight">{title}</span>
     </button>
   );
 
@@ -112,7 +109,7 @@ export function ProfileMenu(p: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
-              {!inDesktopApp() && <button type="button" title={`Download the desktop app for ${desktopDownload().label}`} aria-label="Download the desktop app" onClick={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
+              {<button type="button" title={`Download the KD Ops desktop app for ${desktopDownload().label}`} aria-label="Download the desktop app" onClick={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
             </div>
             <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? st.label : 'Available'}</p>
           </div>
@@ -176,7 +173,7 @@ export function ProfileMenu(p: Props) {
                 <p className={`${LABEL} mb-1.5`}>Weather where you are</p>
                 <WeatherCard weather={p.myWeather} place={p.myPlace} onPlace={p.onMyPlace} />
               </div>
-              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title="Water, fire, piano, pets, footsteps, rain and wind. Only for you.">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[13px] font-semibold">{p.sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}Office sounds</span>
                   <button type="button" role="switch" aria-checked={p.sound} onClick={p.onToggleSound} className={`relative h-5 w-9 rounded-full transition-colors ${p.sound ? 'bg-primary' : 'bg-white/15'}`}>
@@ -184,16 +181,12 @@ export function ProfileMenu(p: Props) {
                   </button>
                 </div>
                 <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} disabled={!p.sound} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="mt-2.5 h-1 w-full cursor-pointer accent-primary disabled:opacity-40" />
-                <p className="mt-1.5 text-[11.5px] text-muted-foreground">Water, fire, piano, pets, footsteps, rain and wind. Only for you.</p>
               </div>
               {p.notify.supported && (
-                <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+                <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title={p.notify.denied ? 'Blocked in your browser. Allow notifications for this site, then turn this on.' : p.notify.desktop ? 'Rings, waves and messages pop up on your desktop.' : 'Get a pop-up when someone rings, waves or messages you while this window is behind others.'}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0">
-                      <span className="flex items-center gap-2 text-[13px] font-semibold"><Bell className="h-4 w-4" />Notifications</span>
-                      <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-foreground">
-                        {p.notify.denied ? 'Blocked in your browser. Allow notifications for this site, then turn this on.' : p.notify.desktop ? 'Rings, waves and messages pop up on your desktop.' : 'Get a pop-up when someone rings, waves or messages you while this window is behind others.'}
-                      </span>
+                      <span className="flex items-center gap-2 text-[13px] font-semibold"><Bell className="h-4 w-4" />Notifications{p.notify.denied ? <span className="text-[11px] font-medium text-red-400">Blocked</span> : null}</span>
                     </span>
                     <button type="button" role="switch" aria-checked={p.notify.on} onClick={p.notify.toggle} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${p.notify.on ? 'bg-primary' : 'bg-white/15'}`}>
                       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.notify.on ? 'left-[1.15rem]' : 'left-0.5'}`} />
@@ -217,7 +210,7 @@ export function ProfileMenu(p: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('guests', <UserPlus className="h-4 w-4" />, p.guestsWaiting ? `Guests (${p.guestsWaiting})` : 'Guests', p.guestsWaiting ? `${p.guestsWaiting} waiting at the door` : 'Invite visitors by email', p.onGuests)}
-                {!inDesktopApp() && tile('download', <Download className="h-4 w-4" />, 'Get the KD Ops desktop app', `For ${desktopDownload().label}: KD Ops and the Office in one app`, () => { window.open(desktopDownload().url, '_blank', 'noopener'); })}
+                {tile('download', <Download className="h-4 w-4" />, 'Get the desktop app', `For ${desktopDownload().label}: KD Ops and the Office in one app`, () => { window.open(desktopDownload().url, '_blank', 'noopener'); })}
                 {p.canManage && tile('manage', <Settings className="h-4 w-4" />, 'Manage space', 'Offices, seats, people', p.onManage)}
                 {p.canEdit && !p.editing && tile('edit', <Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors', p.onEdit)}
                 {p.canSettings && tile('settings', <Settings className="h-4 w-4" />, 'Permissions', 'Builders and recorders', p.onSettings)}
