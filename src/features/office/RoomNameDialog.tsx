@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AvatarFace } from './AvatarFace';
@@ -25,19 +26,24 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
   const isOffice = zone?.kind === 'office';
   const owner = current?.uid ? directory.find((p) => p.id === current.uid) : undefined;
   const status = current?.free ? 'Free office (nobody assigned)' : owner ? `Assigned to ${owner.name}` : current?.label ? `Custom name: ${current.label}` : 'Free office (nobody has claimed it)';
+  const picked = uid ? directory.find((p) => p.id === uid) : undefined;
   const people = directory.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
   return (
     <Dialog open={!!zone} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] md:max-w-md overflow-y-auto">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] overflow-y-auto overflow-x-hidden md:max-w-md">
         <DialogHeader><DialogTitle>{isOffice ? 'Who sits in this office?' : 'Rename this room'}</DialogTitle></DialogHeader>
         {isOffice && <p className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs">Now: <strong>{status}</strong></p>}
+        {isOffice && picked && (
+          <p className="flex items-center gap-2 rounded-xl bg-primary/15 px-3 py-2 text-sm font-semibold text-primary ring-1 ring-primary/40"><Check className="h-4 w-4 shrink-0" /><span className="min-w-0 truncate">You picked {picked.name}. Press Assign to confirm.</span></p>
+        )}
         {isOffice && (
           <div className="space-y-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the team…" aria-label="Search the team" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
             <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-border p-1">
               {people.map((p) => (
-                <button key={p.id} type="button" onClick={() => { setUid(p.id); setLabel(''); }} className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted ${uid === p.id ? 'bg-primary/10 font-medium' : ''}`}>
-                  <AvatarFace avatar={p.avatar} size={26} /><span className="truncate">{p.name}</span>
+                <button key={p.id} type="button" onClick={() => { setUid(p.id); setLabel(''); }} aria-pressed={uid === p.id} className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition ${uid === p.id ? 'bg-primary/20 font-semibold text-foreground ring-2 ring-primary' : 'hover:bg-muted'}`}>
+                  <AvatarFace avatar={p.avatar} size={30} /><span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  {uid === p.id && <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-3.5 w-3.5" /></span>}
                 </button>
               ))}
               {people.length === 0 && <p className="p-2 text-xs text-muted-foreground">Nobody matches.</p>}
@@ -48,14 +54,14 @@ export function RoomNameDialog({ zone, directory, current, onClose, onSave }: {
           <p className="mb-1 text-xs font-medium text-muted-foreground">{isOffice ? 'Or a custom name on the plate (for example CEO or Finance)' : 'Name'}</p>
           <input value={label} onChange={(e) => { setLabel(e.target.value.slice(0, 28)); if (isOffice) setUid(''); }} placeholder={zone?.name} aria-label="Name" className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" />
         </div>
-        <DialogFooter className="gap-2 sm:justify-between">
-          <div className="flex gap-2">
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:items-stretch sm:space-x-0">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => onSave(null)}>Back to automatic</Button>
             {isOffice && <Button variant="outline" onClick={() => onSave({ free: true })}>Unassign (free office)</Button>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => onSave(uid ? { uid } : label.trim() ? { label: label.trim() } : null)}>{uid ? 'Assign' : 'Save'}</Button>
+            <Button onClick={() => onSave(uid ? { uid } : label.trim() ? { label: label.trim() } : null)}>{picked ? `Assign to ${picked.name.split(' ')[0]}` : uid ? 'Assign' : 'Save'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
