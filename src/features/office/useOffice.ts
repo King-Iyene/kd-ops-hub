@@ -120,6 +120,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const lastMeta = useRef('');
   /** emoji reactions on show, by person id */
   const emotes = useRef(new Map<string, { e: string; until: number }>());
+  /** pet messages from other people (commands, and positions from whoever runs the pets) waiting for the canvas to read them */
+  const petInbox = useRef<unknown[]>([]);
   /** people we were told are talking, with the time that stops counting */
   const peerTalking = useRef(new Map<string, number>());
   const doorHandler = useRef<((raw: unknown) => void) | null>(null);
@@ -301,6 +303,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       if (p.on === true) peerTalking.current.set(p.i, Date.now() + 4000);
       else peerTalking.current.delete(p.i);
     });
+    // the office pets: commands from anyone, and the positions from whoever runs them (see world/pets.ts); the canvas reads this inbox
+    ch.on('broadcast', { event: 'pet' }, ({ payload }) => { if (payload && typeof payload === 'object') { petInbox.current.push(payload); if (petInbox.current.length > 300) petInbox.current.splice(0, petInbox.current.length - 300); } });
     ch.on('broadcast', { event: 'rtc' }, ({ payload }) => { rtcHandler.current?.(payload); });
     // knocking on a locked door, letting someone in, unlocking (see calls/locks.ts)
     ch.on('broadcast', { event: 'door' }, ({ payload }) => { doorHandler.current?.(payload); });
@@ -357,6 +361,10 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const s = selfRef.current;
     if (ch && roomReady.current && s && !supersededRef.current) void ch.send({ type: 'broadcast', event: 'sp', payload: { i: connId, on } });
   }, []);
+  const sendPet = useCallback((payload: unknown) => {
+    const ch = room.current;
+    if (ch && roomReady.current && !supersededRef.current) void ch.send({ type: 'broadcast', event: 'pet', payload });
+  }, []);
   const sendDoor = useCallback((payload: DoorMsg) => {
     const ch = room.current;
     if (ch && roomReady.current) void ch.send({ type: 'broadcast', event: 'door', payload });
@@ -364,5 +372,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes };
+  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox };
 }
