@@ -40,6 +40,8 @@ import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
+import { seenAgo } from './lastSeen';
+import { useKeepSeen, useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
@@ -119,6 +121,8 @@ function OfficeRoom() {
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
   const { data: directory } = useDirectory();
+  const { data: lastSeen } = useLastSeen();
+  useKeepSeen(profile?.id);
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
 
@@ -1398,7 +1402,7 @@ function OfficeRoom() {
                   <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.label} · ` : ''}{nameOfSpace(r.spaceId)}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.label} · ` : 'Active now · '}{nameOfSpace(r.spaceId)}</span></span>
                     </button>
                     {!isMe && (
                       <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
@@ -1426,10 +1430,13 @@ function OfficeRoom() {
               <SecHead id="offline" shut={shut} flip={flip}>Offline ({(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id)).length})</SecHead>
             {!shut('offline') && (<>
               <div className="space-y-0.5">
-                {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).map((p) => (
+                {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query))
+                  // the people who were here most recently come first
+                  .sort((a, b) => (Date.parse(lastSeen?.get(b.id) ?? '') || 0) - (Date.parse(lastSeen?.get(a.id) ?? '') || 0))
+                  .map((p) => (
                   <button key={p.id} type="button" onClick={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                     <AvatarFace avatar={p.avatar} size={26} dim />
-                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    <span className="min-w-0 flex-1"><span className="block truncate">{p.name}</span><span className="block truncate text-[11px] opacity-70">{lastSeen?.get(p.id) ? `Last seen ${seenAgo(lastSeen.get(p.id)).toLowerCase()}` : 'Not seen yet'}</span></span>
                   </button>
                 ))}
               </div>
