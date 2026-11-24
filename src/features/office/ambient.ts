@@ -49,8 +49,8 @@ export const ROOM_TONES: Record<string, { murmur: number; murmurHz: number; pad:
   auditorium: { murmur: 0.014, murmurHz: 380, pad: 0, blips: false },
 };
 
-/** Switched off at the owner's request: the three-knock sound and the background sounds of the rooms (hum, bleeps) were heard as typing. */
-const KNOCK_SOUND = false;
+/** The rooms' background sounds (hum, pad, arcade bleeps) are switched off at the owner's request. The door knock stays. */
+const KNOCK_SOUND = true;
 const ROOM_SOUNDS = false;
 
 class Ambient {
@@ -138,7 +138,7 @@ class Ambient {
     }
   }
 
-  /** three knocks on a door: switched off (they were heard as someone typing); the knock still shows on screen as a message */
+  /** three knocks on a door */
   knock() {
     if (!KNOCK_SOUND) return;
     const c = this.ctx;
@@ -754,29 +754,35 @@ class Ambient {
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
     const sf = SURFACES[this.surface] ?? SURFACES.wood;
-    lp.frequency.value = sf.lp * (0.92 + Math.random() * 0.16);
+    // small speakers cannot play anything below about 150 Hz, and the old steps lived down there (and were very quiet), so you heard nothing:
+    // the noise now sits in the middle of the range, with a cut below 160 Hz
+    lp.frequency.value = Math.max(900, sf.lp * 2.6) * (0.92 + Math.random() * 0.16);
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 160;
     const e = c.createGain();
     const p = c.createStereoPanner();
     p.pan.value = side * 0.12;
     const t = c.currentTime;
     // white noise through a low filter keeps only a few percent of its strength, so the old steps were too faint to hear at all:
     // the noise is boosted to make up for it, and a short low "thud" (a sine that falls in pitch) gives each step some body
-    const boost = 5;
+    const boost = 9;
     e.gain.setValueAtTime(0.0001, t);
     e.gain.exponentialRampToValueAtTime(sf.peak * boost, t + 0.008);
     e.gain.exponentialRampToValueAtTime(0.0001, t + sf.len);
     n.connect(lp);
-    lp.connect(e);
+    lp.connect(hp);
+    hp.connect(e);
     e.connect(p);
     p.connect(this.master);
     n.start(t, Math.random() * 1.5, 0.12);
     const thud = c.createOscillator();
     const tg = c.createGain();
     thud.type = 'sine';
-    thud.frequency.setValueAtTime(150 * (0.9 + Math.random() * 0.2), t);
-    thud.frequency.exponentialRampToValueAtTime(70, t + 0.07);
+    thud.frequency.setValueAtTime(260 * (0.9 + Math.random() * 0.2), t);
+    thud.frequency.exponentialRampToValueAtTime(130, t + 0.07);
     tg.gain.setValueAtTime(0.0001, t);
-    tg.gain.exponentialRampToValueAtTime(sf.peak * 1.6, t + 0.006);
+    tg.gain.exponentialRampToValueAtTime(Math.min(0.5, sf.peak * 3.2), t + 0.006);
     tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
     thud.connect(tg);
     tg.connect(p);
