@@ -780,9 +780,11 @@ const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
 /** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
-const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall']);
+const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall',
+  // plants, flowers and trees stand still now (they swayed before, which cost a redraw of every plant on every frame)
+  'plant', 'flowers', 'tree', 'bamboo', 'palm', 'grass', 'sunflowers', 'orchid', 'lavender', 'tulips', 'monstera', 'pinetree', 'flowerbed']);
 /** Plants, flowers and trees only sway (nothing else moves), so they are drawn in 8 sway poses and each frame picks the nearest one. */
-const SWAY_PIECES = new Set<string>(['plant', 'flowers', 'tree', 'balloons', 'bamboo', 'palm', 'grass']);
+const SWAY_PIECES = new Set<string>(['balloons']);
 const SWAY_POSES = 8;
 const SPRITE_SCALE = 3;
 const SPRITE_PAD = 10;
