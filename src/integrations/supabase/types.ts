@@ -11141,6 +11141,57 @@ export type Database = {
           },
         ]
       }
+      office_last_seen: {
+        Row: {
+          profile_id: string
+          seen_at: string
+        }
+        Insert: {
+          profile_id: string
+          seen_at?: string
+        }
+        Update: {
+          profile_id?: string
+          seen_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_last_seen_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "office_last_seen_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_last_seen_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "office_last_seen_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_last_seen_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_messages: {
         Row: {
           body: string
