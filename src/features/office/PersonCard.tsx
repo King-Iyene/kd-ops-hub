@@ -35,18 +35,18 @@ export function PersonCard({ x, y, name, avatar, online, status, sub, hint, acti
   return createPortal(
     <div className="ko fixed z-[65]" style={{ left, ...pos, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave} title={hint ?? undefined}>
       <div className="relative pt-7">
-        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 drop-shadow-lg">{avatar ? <AvatarFace avatar={avatar} size={56} dim={!online} /> : <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-white/30 bg-[#262b4d] text-2xl text-white/50">+</span>}</div>
-        <div className="animate-in fade-in zoom-in-95 rounded-2xl bg-[#262b4d]/95 px-3 pb-3 pt-9 text-center text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md duration-100">
+        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 drop-shadow-lg">{avatar ? <AvatarFace avatar={avatar} size={56} dim={!online} /> : <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[#00ECFF]/40 bg-[#052d3f] text-2xl text-[#9ff6ff]/60">+</span>}</div>
+        <div className="animate-in fade-in zoom-in-95 kd-card relative overflow-hidden rounded-2xl px-3 pb-3 pt-9 text-center text-white duration-100">
           <p className="truncate text-[14px] font-bold leading-tight">
-            {name}{avatar && <span className={`ml-1.5 inline-block h-2 w-2 rounded-full align-middle ${online ? 'bg-emerald-400' : 'bg-slate-400'}`} aria-label={online ? 'Online' : 'Offline'} />}
+            {name}{avatar && <span className={`ml-1.5 inline-block h-2 w-2 rounded-full align-middle ${online ? 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,.22)]' : 'bg-slate-400'}`} aria-label={online ? 'Online' : 'Offline'} />}
           </p>
-          <p className="mt-0.5 truncate text-[12px] leading-tight text-white/60">{sub ?? (online ? status ?? 'Available' : 'Offline')}</p>
+          <p className="mt-0.5 truncate text-[12px] leading-tight text-[#9fc9d8]">{sub ?? (online ? status ?? 'Available' : 'Offline')}</p>
           {actions.length > 0 && (
             <div className="mt-3 flex items-center justify-center gap-2">
               {actions.map((a) => (
                 <button
                   key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} aria-label={a.label} onClick={a.run}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'bg-white/90 text-slate-900 hover:bg-white' : 'bg-white/[0.08] text-white hover:bg-white/[0.18]'}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl hover:-translate-y-px transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'kd-gold hover:brightness-110' : 'bg-[#00ECFF]/10 text-[#d8fbff] ring-1 ring-inset ring-[#00ECFF]/15 hover:bg-[#00ECFF]/20'}`}
                 >{a.icon}</button>
               ))}
             </div>

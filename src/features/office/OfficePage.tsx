@@ -92,11 +92,14 @@ function SlotAside({ slot, children }: { slot: HTMLElement | null; children: Rea
   );
 }
 
+/** True when someone can be reached right now: no status, or Available. */
+const isFreeStatus = (id: unknown) => !id || id === 'available';
+
 /** A sidebar section title you can click to fold the list away (so there is room for other things). */
 function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) => boolean; flip: (id: string) => void; children: ReactNode }) {
   const closed = shut(id);
   return (
-    <button type="button" onClick={() => flip(id)} aria-expanded={!closed} className="mb-1.5 flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
+    <button type="button" onClick={() => flip(id)} aria-expanded={!closed} className="mb-1.5 flex w-full items-center gap-1.5 border-b border-primary/15 pb-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-primary/80 transition-colors hover:text-primary">
       <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${closed ? '-rotate-90' : ''}`} />
       <span className="flex items-center gap-1.5">{children}</span>
     </button>
@@ -623,6 +626,7 @@ function OfficeRoom() {
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
   const teamMap = map;
   const [query, setQuery] = useState('');
+  const [presence, setPresence] = useState<'all' | 'free' | 'busy'>('all');
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
   const [followOnce, setFollowOnce] = useState(false);
@@ -1334,7 +1338,7 @@ function OfficeRoom() {
       <div className="flex min-h-0 flex-1 gap-3">
         <SlotAside slot={slot}>
           <div className="flex gap-1.5">
-            <button type="button" className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5 shrink-0" /><span className="truncate">Invite</span></button>
+            <button type="button" className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#0089b8] px-2 py-2 text-xs font-bold text-white shadow-[0_8px_20px_-10px_hsl(var(--primary))] transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5 shrink-0" /><span className="truncate">Invite</span></button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
@@ -1353,7 +1357,7 @@ function OfficeRoom() {
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person or room…" aria-label="Find a person or room"
-              className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm"
+              className="h-9 w-full rounded-xl border border-input bg-background pl-8 pr-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -1401,14 +1405,21 @@ function OfficeRoom() {
           <section>
             <SecHead id="online" shut={shut} flip={flip}><Users className="h-3.5 w-3.5" />Online ({roster.length})</SecHead>
             {!shut('online') && (<>
+            {roster.length > 1 && (
+              <div className="mb-1.5 flex gap-1" role="group" aria-label="Show people">
+                {([['all', `All ${roster.length}`], ['free', `Free ${roster.filter((r) => isFreeStatus(r.status)).length}`], ['busy', `Busy ${roster.filter((r) => !isFreeStatus(r.status)).length}`]] as const).map(([k, label]) => (
+                  <button key={k} type="button" aria-pressed={presence === k} onClick={() => setPresence(k)} className={`flex-1 rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums transition ${presence === k ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{label}</button>
+                ))}
+              </div>
+            )}
             <div className="space-y-1">
-              {roster.filter((r) => matches(r.name, query)).map((r) => {
+              {roster.filter((r) => matches(r.name, query) && (presence === 'all' || (presence === 'free') === isFreeStatus(r.status))).map((r) => {
                 const isMe = r.id === connId;
                 const act = 'flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
                 return (
-                  <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-muted/80">
+                  <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-[#D6AC50] before:opacity-0 before:transition-opacity hover:bg-primary/[0.07] hover:before:opacity-100">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
-                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
+                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-[0_0_0_2px_rgba(0,236,255,.0)] transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
                     <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {nameOfSpace(r.spaceId)}</span></span></span>
                     </button>
                     {!isMe && (
@@ -1418,6 +1429,7 @@ function OfficeRoom() {
                             {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3 w-3 text-red-500" /> : <Volume2 className="h-3 w-3" />}
                           </button>
                         )}
+                        <button type="button" className={act} title={`View ${r.name}'s profile`} aria-label={`View ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}><UserCircle className="h-3 w-3" /></button>
                         <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3 w-3" /></button>
                         <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3 w-3" /></button>
                         <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3 w-3" /></button>

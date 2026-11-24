@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Check, KanbanSquare, Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { tally, type CardRow, type PollRow, type VoteRow } from './useBoards';
@@ -37,8 +37,9 @@ export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, canCreat
   const done = polls.filter((p) => p.closed).slice(0, 6);
   const card = (p: PollRow) => {
     const t = tally(p, votes, me);
+    const top = Math.max(0, ...t.counts);
     return (
-      <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
+      <div key={p.id} className="kd-rise rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold">{p.question}</p>
           {!p.closed && (p.created_by === me || isAdmin) && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onClosePoll(p.id)}>End poll</Button>}
@@ -47,9 +48,9 @@ export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, canCreat
           {p.options.map((o, i) => {
             const pct = t.total ? Math.round((t.counts[i] / t.total) * 100) : 0;
             return (
-              <button key={i} type="button" disabled={p.closed} onClick={() => onVote(p.id, i)} className={`relative block w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-sm transition ${t.mine === i ? 'border-primary' : 'border-border'} ${p.closed ? 'cursor-default' : 'hover:border-primary'}`}>
-                <span className="absolute inset-y-0 left-0 bg-primary/15 transition-all duration-500" style={{ width: pct + '%' }} />
-                <span className="relative flex items-center justify-between gap-2"><span>{t.mine === i ? '✓ ' : ''}{o}</span><span className="text-xs font-semibold text-muted-foreground">{t.counts[i]} · {pct}%</span></span>
+              <button key={i} type="button" disabled={p.closed} onClick={() => onVote(p.id, i)} className={`relative block w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-sm transition ${t.mine === i ? 'border-primary/70' : 'border-white/10'} ${p.closed ? 'cursor-default' : 'hover:border-primary/60'}`}>
+                <span className={`absolute inset-y-0 left-0 transition-all duration-500 ${top > 0 && t.counts[i] === top ? 'bg-gradient-to-r from-[#006994]/70 to-[#00ECFF]/35' : 'bg-white/[0.07]'}`} style={{ width: pct + '%' }} />
+                <span className="relative flex items-center justify-between gap-2"><span className="flex items-center gap-1.5">{t.mine === i && <Check className="h-3.5 w-3.5 text-primary" />}{o}{top > 0 && t.counts[i] === top && t.total > 1 && <span className="rounded-full bg-[#D6AC50]/20 px-1.5 text-[10px] font-bold text-[#E6C275]">{p.closed ? 'Winner' : 'Leading'}</span>}</span><span className="text-xs font-semibold tabular-nums text-muted-foreground">{t.counts[i]} · {pct}%</span></span>
               </button>
             );
           })}
@@ -61,13 +62,13 @@ export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, canCreat
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[88vh] max-w-xl overflow-y-auto">
-        <DialogHeader><DialogTitle>📊 Poll board</DialogTitle></DialogHeader>
+        <DialogHeader className="space-y-1.5 pr-6"><p className="inline-flex w-fit items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#D6AC50]"><BarChart3 className="h-3 w-3" />Ask the office</p><DialogTitle className="text-2xl font-extrabold tracking-tight">Poll board</DialogTitle></DialogHeader>
         {asking ? (
           <div className="space-y-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={200} placeholder="Your question" aria-label="Poll question" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={200} placeholder="Your question" aria-label="Poll question" className="h-9 w-full rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/25" />
             {opts.map((o, i) => (
               <div key={i} className="flex gap-1">
-                <input value={o} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? e.target.value : x)))} maxLength={80} placeholder={`Choice ${i + 1}`} aria-label={`Choice ${i + 1}`} className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm" />
+                <input value={o} onChange={(e) => setOpts(opts.map((x, j) => (j === i ? e.target.value : x)))} maxLength={80} placeholder={`Choice ${i + 1}`} aria-label={`Choice ${i + 1}`} className="h-9 flex-1 rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/25" />
                 {opts.length > 2 && <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => setOpts(opts.filter((_, j) => j !== i))} aria-label="Remove choice"><X className="h-4 w-4" /></Button>}
               </div>
             ))}
@@ -89,7 +90,8 @@ export function PollsDialog({ open, onClose, polls, votes, me, isAdmin, canCreat
 }
 
 const COLS = ['To do', 'Doing', 'Done'];
-const COL_STYLE = ['bg-slate-500/10', 'bg-blue-500/10', 'bg-emerald-500/10'];
+const COL_STYLE = ['bg-white/[0.04]', 'bg-[#00ECFF]/[0.06]', 'bg-[#D6AC50]/[0.07]'];
+const COL_DOT = ['#8fb3c4', '#00ECFF', '#D6AC50'];
 
 /** A shared task board: three columns, anyone in the office can add a card and move it along. */
 export function TaskBoardDialog({ open, onClose, cards, me, isAdmin, onAdd, onMove, onDelete }: {
@@ -104,6 +106,7 @@ export function TaskBoardDialog({ open, onClose, cards, me, isAdmin, onAdd, onMo
 }) {
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [over, setOver] = useState<number | null>(null);
   const add = async () => {
     if (!draft.trim()) return;
     const e = await onAdd(0, draft);
@@ -113,20 +116,20 @@ export function TaskBoardDialog({ open, onClose, cards, me, isAdmin, onAdd, onMo
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[88vh] max-w-4xl overflow-y-auto">
-        <DialogHeader><DialogTitle>🗂️ Task board</DialogTitle></DialogHeader>
+        <DialogHeader className="space-y-1.5 pr-6"><p className="inline-flex w-fit items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#D6AC50]"><KanbanSquare className="h-3 w-3" />Shared by everyone</p><DialogTitle className="text-2xl font-extrabold tracking-tight">Task board</DialogTitle></DialogHeader>
         <div className="flex gap-2">
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void add(); }} maxLength={200} placeholder="Add a task and press Enter" aria-label="New task" className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm" />
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void add(); }} maxLength={200} placeholder="Add a task and press Enter" aria-label="New task" className="h-9 flex-1 rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/25" />
           <Button onClick={() => void add()}><Plus className="mr-1 h-4 w-4" />Add</Button>
         </div>
         {err && <p className="text-xs text-destructive">{err}</p>}
         <div className="grid gap-3 md:grid-cols-3">
           {COLS.map((name, col) => (
-            <div key={name} className={`rounded-2xl p-3 ${COL_STYLE[col]}`}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{name} · {cards.filter((c) => c.col === col).length}</p>
+            <div key={name} onDragOver={(e) => { e.preventDefault(); if (over !== col) setOver(col); }} onDragLeave={() => setOver((o) => (o === col ? null : o))} onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); setOver(null); const c = cards.find((x) => x.id === id); if (c && c.col !== col) onMove(id, col); }} className={`rounded-2xl border p-3 transition ${COL_STYLE[col]} ${over === col ? 'border-[#00ECFF]/60 ring-2 ring-[#00ECFF]/20' : 'border-white/[0.06]'}`}>
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground"><span className="h-2 w-2 rounded-full" style={{ background: COL_DOT[col] }} />{name}<span className="ml-auto rounded-full bg-white/10 px-1.5 text-[10px] tabular-nums text-foreground">{cards.filter((c) => c.col === col).length}</span></p>
               <div className="space-y-2">
                 {cards.filter((c) => c.col === col).map((c) => (
-                  <div key={c.id} className="rounded-xl border border-border bg-card p-2.5 text-sm shadow-sm">
-                    <p className="break-words">{c.body}</p>
+                  <div key={c.id} draggable onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; }} className="cursor-grab rounded-xl border border-white/[0.09] bg-card/80 p-2.5 text-sm shadow-sm transition hover:border-[#00ECFF]/30 active:cursor-grabbing">
+                    <p className={`break-words ${col === 2 ? 'text-muted-foreground line-through decoration-[#D6AC50]/60' : ''}`}>{c.body}</p>
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex gap-1">
                         {col > 0 && <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMove(c.id, col - 1)} aria-label={`Move to ${COLS[col - 1]}`}><ArrowLeft className="h-3.5 w-3.5" /></Button>}
@@ -136,7 +139,7 @@ export function TaskBoardDialog({ open, onClose, cards, me, isAdmin, onAdd, onMo
                     </div>
                   </div>
                 ))}
-                {cards.filter((c) => c.col === col).length === 0 && <p className="text-xs text-muted-foreground">Nothing here.</p>}
+                {cards.filter((c) => c.col === col).length === 0 && <p className="rounded-xl border border-dashed border-white/10 py-3 text-center text-xs text-muted-foreground">{over === col ? 'Drop it here' : 'Nothing here. Drag a card in.'}</p>}
               </div>
             </div>
           ))}

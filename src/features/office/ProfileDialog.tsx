@@ -34,17 +34,17 @@ export function ProfileDialog({ x, y, onClose, name, avatar, online, status, whe
     <>
       <div className="fixed inset-0 z-[66]" onMouseDown={onClose} />
       <div className="ko fixed z-[67]" style={{ left, ...pos, width: w }} role="dialog" aria-label={`${name} profile`}>
-        <div className="animate-in fade-in zoom-in-95 rounded-2xl bg-[#262b4d]/95 p-3 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md duration-100">
+        <div className="animate-in fade-in zoom-in-95 kd-card relative overflow-hidden rounded-2xl p-3 text-white duration-100">
           <button type="button" onClick={onClose} aria-label="Close" className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"><X className="h-3.5 w-3.5" /></button>
           <div className="flex items-center gap-3 pr-5">
             <div className="relative shrink-0">
               {avatar && <AvatarFace avatar={avatar} size={48} dim={!online} />}
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#262b4d] ${online ? 'bg-emerald-400' : 'bg-slate-400'}`} aria-label={online ? 'Online' : 'Offline'} />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#052d3f] ${online ? 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,.22)]' : 'bg-slate-400'}`} aria-label={online ? 'Online' : 'Offline'} />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[14px] font-bold leading-tight">{name}</p>
-              <p className="mt-0.5 truncate text-[12px] leading-tight text-white/60">{online ? status ?? 'Available' : 'Offline'}</p>
-              {online && where && <p className="truncate text-[11px] leading-tight text-white/45">{where}</p>}
+              <p className="mt-0.5 truncate text-[12px] leading-tight text-[#9fc9d8]">{online ? status ?? 'Available' : 'Offline'}</p>
+              {online && where && <p className="truncate text-[11px] leading-tight text-[#7fa9b9]">{where}</p>}
             </div>
           </div>
           {actions.length > 0 && (
@@ -52,12 +52,12 @@ export function ProfileDialog({ x, y, onClose, name, avatar, online, status, whe
               {actions.map((a) => (
                 <button
                   key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} onClick={a.run}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'bg-white/90 text-slate-900 hover:bg-white' : 'bg-white/[0.08] hover:bg-white/[0.16]'}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'kd-gold hover:brightness-110' : 'bg-[#00ECFF]/10 text-[#d8fbff] ring-1 ring-inset ring-[#00ECFF]/15 hover:bg-[#00ECFF]/20'}`}
                 >{a.icon}{a.label}</button>
               ))}
             </div>
           )}
-          {!online && <p className="mt-2.5 text-[11px] leading-snug text-white/50">Not in the office right now. Messages are saved and they will see them when they are back.</p>}
+          {!online && <p className="mt-2.5 text-[11px] leading-snug text-[#7fa9b9]">Not in the office right now. Messages are saved and they will see them when they are back.</p>}
         </div>
       </div>
     </>,
