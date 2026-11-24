@@ -138,3 +138,110 @@ export const RULE_LABELS: Record<ValidationRule['type'], string> = {
 export function ruleNeedsValue(type: ValidationRule['type']): boolean {
   return ['min', 'max', 'minLength', 'maxLength', 'regex'].includes(type);
 }
+
+// ---------------------------------------------------------------------------
+// Field settings <-> rules (used by the field dialogs)
+// ---------------------------------------------------------------------------
+
+export interface ValidationSettings {
+  required: boolean;
+  min: string;
+  max: string;
+  minLength: string;
+  maxLength: string;
+  pattern: string;
+}
+
+export const DEFAULT_VALIDATION_SETTINGS: ValidationSettings = {
+  required: false,
+  min: '',
+  max: '',
+  minLength: '',
+  maxLength: '',
+  pattern: '',
+};
+
+/** The rule types a field of this type can have (empty for types that cannot be validated). */
+export function allowedRules(uiType: string): ValidationRule['type'][] {
+  return DEFAULT_VALIDATIONS[uiType as UIType] ?? [];
+}
+
+export function settingsFromRules(rules: ValidationRule[] | null | undefined): ValidationSettings {
+  const out: ValidationSettings = { ...DEFAULT_VALIDATION_SETTINGS };
+  for (const rule of rules ?? []) {
+    if (rule.type === 'required') out.required = true;
+    else if (rule.type === 'min') out.min = String(rule.value ?? '');
+    else if (rule.type === 'max') out.max = String(rule.value ?? '');
+    else if (rule.type === 'minLength') out.minLength = String(rule.value ?? '');
+    else if (rule.type === 'maxLength') out.maxLength = String(rule.value ?? '');
+    else if (rule.type === 'regex') out.pattern = String(rule.value ?? '');
+  }
+  return out;
+}
+
+/** A usable number from a settings box: empty or not a number means "not set". */
+function limitOf(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Says in words what a smallest/largest pair allows, so the person sees the effect of what they typed. */
+export function describeRange(min: string, max: string, unit = ''): string {
+  const lo = limitOf(min);
+  const hi = limitOf(max);
+  const u = unit ? ` ${unit}` : '';
+  if (lo !== null && hi !== null) return `Allowed: ${lo} to ${hi}${u}`;
+  if (lo !== null) return `Allowed: ${lo}${u} or more`;
+  if (hi !== null) return `Allowed: ${hi}${u} or less`;
+  return 'Any value is allowed';
+}
+
+/** What is wrong with a smallest/largest pair, or an empty string when it is fine. */
+export function rangeProblem(min: string, max: string): string {
+  const lo = limitOf(min);
+  const hi = limitOf(max);
+  if (lo !== null && hi !== null && lo > hi) {
+    return `The smallest (${lo}) is larger than the largest (${hi}), so nothing could be saved.`;
+  }
+  return '';
+}
+
+/** Whether a pattern can be used (empty is fine: it means no pattern). */
+export function isValidPattern(pattern: string): boolean {
+  if (!pattern) return true;
+  try {
+    new RegExp(pattern);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The rules to store: only those that apply to the field type and have a usable
+ * value. Other rules already stored on the field (email, url, unique) are kept
+ * so saving the dialog never silently drops them.
+ */
+export function rulesFromSettings(
+  settings: ValidationSettings,
+  uiType: string,
+  existing: ValidationRule[] | null | undefined = [],
+): ValidationRule[] {
+  const allowed = new Set(allowedRules(uiType));
+  const kept = (existing ?? []).filter((r) => !['required', 'min', 'max', 'minLength', 'maxLength', 'regex'].includes(r.type));
+  const rules: ValidationRule[] = [];
+  const num = (text: string) => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : null);
+  if (allowed.has('required') && settings.required) rules.push({ type: 'required' });
+  if (allowed.has('min') && num(settings.min) !== null) rules.push({ type: 'min', value: num(settings.min) });
+  if (allowed.has('max') && num(settings.max) !== null) rules.push({ type: 'max', value: num(settings.max) });
+  const minLen = num(settings.minLength);
+  const maxLen = num(settings.maxLength);
+  if (allowed.has('minLength') && minLen !== null && minLen > 0) rules.push({ type: 'minLength', value: Math.floor(minLen) });
+  if (allowed.has('maxLength') && maxLen !== null && maxLen > 0) rules.push({ type: 'maxLength', value: Math.floor(maxLen) });
+  if (allowed.has('regex') && settings.pattern.trim() !== '' && isValidPattern(settings.pattern)) {
+    rules.push({ type: 'regex', value: settings.pattern });
+  }
+  return [...rules, ...kept];
+}

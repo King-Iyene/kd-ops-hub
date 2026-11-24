@@ -28,9 +28,14 @@ export function datePresets(now = new Date()) {
  * boxes right beside it. Used by every Time Tracking page that has a from/to range.
  */
 export function DateRangeSelect({
-  start, end, setStart, setEnd, className,
-}: { start: string; end: string; setStart: (v: string) => void; setEnd: (v: string) => void; className?: string }) {
-  const presets = datePresets();
+  start, end, setStart, setEnd, className, only,
+}: {
+  start: string; end: string; setStart: (v: string) => void; setEnd: (v: string) => void; className?: string;
+  /** Offer only these quick ranges, in this order (keys from datePresets, for example ['month', 'lastmonth']). "Custom range" is always there. */
+  only?: string[];
+}) {
+  const all = datePresets();
+  const presets = only ? only.map((k) => all.find((p) => p.key === k)).filter((p): p is (typeof all)[number] => !!p) : all;
   const match = presets.find((p) => p.start === start && p.end === end)?.key;
   const [customOpen, setCustomOpen] = useState(false);
   const value = customOpen || !match ? 'custom' : match;

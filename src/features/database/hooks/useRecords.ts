@@ -1,9 +1,12 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
-import type { RecordRow, Filter, FilterGroup, Sort } from '../types';
+import type { RecordRow, Filter, FilterGroup, Sort, FieldMeta } from '../types';
 import { toast } from '../components/toast-store';
 import { useUndoStore } from '../lib/undo';
+import { fieldsKey, resolveTableContext, resolveTableSchema } from './tableBootstrap';
+import { isIncompleteFilter, isTextColumn, pgQuote } from '../lib/filterRules';
 
 /**
  * Run async batch jobs with a bounded concurrency instead of fully serial
@@ -40,6 +43,27 @@ export function fireWebhooks(event: string, baseId: string, tableId: string, rec
   }).catch((err) => {
     logWarn('Webhooks', 'Webhook dispatch failed:', err?.message ?? err);
   });
+}
+
+/** True when the table's fields include the `updated_by` column (the "Last Modified By" system field). */
+export function tableHasUpdatedBy(fields: ReadonlyArray<{ pg_column_name?: string | null }> | undefined): boolean {
+  return !!fields?.some((f) => f.pg_column_name === 'updated_by');
+}
+
+/** Tables the database has told us have no `updated_by` column, so later edits do not try to stamp it. */
+const tablesWithoutUpdatedBy = new Set<string>();
+
+/** Test helper: forget which tables lack the column. */
+export function resetUpdatedByMemory() {
+  tablesWithoutUpdatedBy.clear();
+}
+
+/** True when a database error says the named column does not exist on the table. */
+export function isMissingColumnError(error: unknown, column: string): boolean {
+  const e = error as { code?: string; message?: string } | null;
+  const message = e?.message ?? '';
+  if (!message.includes(column)) return false;
+  return e?.code === 'PGRST204' || e?.code === '42703' || /could not find|does not exist/i.test(message);
 }
 
 let _cachedUser: { id: string; email: string } | null = null;
@@ -85,109 +109,13 @@ interface RecordsResult {
   totalCount: number;
 }
 
-const contextCache = new Map<string, { schemaName: string; tableName: string; ts: number }>();
+// Schema / table-name lookups, the combined table request and the caches behind
+// them live in tableBootstrap.ts so every caller (records, record count,
+// realtime channel, field list, view list) shares one set of requests.
+export { primeTableName, primeBaseSchema } from './tableBootstrap';
 
 export async function resolveTableContextShared(baseId: string, tableId: string) {
   return resolveTableContext(baseId, tableId);
-}
-
-// A base's schema_name is the same for every one of its tables, but this
-// function used to be called once per (baseId, tableId) pair with no way
-// for those calls to share work. Opening a large base (TableTabBar renders
-// one useRecordCount per tab) fired N nearly-simultaneous requests all
-// asking nc_meta.bases the exact same question — a 53-table base meant 53
-// redundant "what's this base's schema_name" round trips alongside the 53
-// legitimately-distinct per-table lookups. Coalesced here: concurrent
-// callers for the same baseId now share one in-flight request instead of
-// each starting their own.
-const baseSchemaCache = new Map<string, { schemaName: string; ts: number }>();
-const baseSchemaInFlight = new Map<string, Promise<string>>();
-
-async function resolveBaseSchema(baseId: string): Promise<string> {
-  const cached = baseSchemaCache.get(baseId);
-  if (cached && Date.now() - cached.ts < 300_000) {
-    return cached.schemaName;
-  }
-
-  const inFlight = baseSchemaInFlight.get(baseId);
-  if (inFlight) return inFlight;
-
-  const promise = (async () => {
-    const { data, error } = await supabase
-      .schema('nc_meta')
-      .from('bases')
-      .select('schema_name')
-      .eq('id', baseId)
-      .single();
-    if (error) throw error;
-    const schemaName = data.schema_name as string;
-    baseSchemaCache.set(baseId, { schemaName, ts: Date.now() });
-    return schemaName;
-  })();
-  baseSchemaInFlight.set(baseId, promise);
-  try {
-    return await promise;
-  } finally {
-    baseSchemaInFlight.delete(baseId);
-  }
-}
-
-// Separately-keyed (by tableId only) so whatever already fetched a table's
-// full metadata — most commonly useTables(baseId), which pulls every
-// table's pg_table_name for a base in one query to render the tab bar —
-// can hand that name over directly via primeTableName(). That turns what
-// would otherwise be one more per-table nc_meta.tables round trip (on top
-// of the coalesced base-schema lookup above) into a synchronous cache hit.
-const tableNameCache = new Map<string, { tableName: string; ts: number }>();
-
-export function primeTableName(tableId: string, pgTableName: string) {
-  tableNameCache.set(tableId, { tableName: pgTableName, ts: Date.now() });
-}
-
-async function resolveTableContext(baseId: string, tableId: string) {
-  const key = `${baseId}:${tableId}`;
-  const cached = contextCache.get(key);
-  if (cached && Date.now() - cached.ts < 300_000) {
-    return { schemaName: cached.schemaName, tableName: cached.tableName };
-  }
-
-  const primedTableName = tableNameCache.get(tableId);
-  const usePrimed = primedTableName && Date.now() - primedTableName.ts < 300_000;
-
-  const [schemaName, tableName] = await Promise.all([
-    resolveBaseSchema(baseId),
-    usePrimed
-      ? Promise.resolve(primedTableName.tableName)
-      : supabase.schema('nc_meta').from('tables').select('pg_table_name').eq('id', tableId).single()
-          .then(({ data, error }) => {
-            if (error) throw error;
-            return data.pg_table_name as string;
-          }),
-  ]);
-
-  const result = { schemaName, tableName };
-  contextCache.set(key, { ...result, ts: Date.now() });
-  return result;
-}
-
-const fieldsMetaCache = new Map<string, { fields: any[]; fieldMap: Map<string, any>; ts: number }>();
-
-async function resolveFieldsMeta(tableId: string) {
-  const cached = fieldsMetaCache.get(tableId);
-  if (cached && Date.now() - cached.ts < 300_000) {
-    return { fieldsMeta: cached.fields, fieldMap: cached.fieldMap };
-  }
-
-  const { data: fieldsMeta } = await supabase
-    .schema('nc_meta')
-    .from('fields')
-    .select('id, pg_column_name, pg_type, ui_type')
-    .eq('table_id', tableId);
-
-  const fields = fieldsMeta ?? [];
-  const fieldMap = new Map(fields.map((f: any) => [f.id, f]));
-  fieldsMetaCache.set(tableId, { fields, fieldMap, ts: Date.now() });
-  return { fieldsMeta: fields, fieldMap };
 }
 
 function daysAgo(n: number): string {
@@ -196,7 +124,7 @@ function daysAgo(n: number): string {
   return d.toISOString();
 }
 
-function applyFilter(
+export function applyFilter(
   query: any,
   col: string,
   operator: string,
@@ -209,7 +137,8 @@ function applyFilter(
       return query.eq(col, value);
     case 'isNot':
     case 'neq':
-      return query.neq(col, value);
+      // "is not X" includes the rows where the cell is empty; a plain != would silently drop them.
+      return query.or(`${col}.is.null,${col}.neq.${pgQuote(value)}`);
     case 'isExactly':
       // For multi-select (TEXT[]) exact array match; otherwise plain eq
       if (pgType === 'TEXT[]') {
@@ -221,8 +150,8 @@ function applyFilter(
       if (pgType === 'TEXT[]') return query.contains(col, [value]);
       return query.ilike(col, `%${value}%`);
     case 'doesNotContain':
-      if (pgType === 'TEXT[]') return query.not(col, 'cs', `{${value}}`);
-      return query.not(col, 'ilike', `%${value}%`);
+      if (pgType === 'TEXT[]') return query.or(`${col}.is.null,${col}.not.cs.{${value}}`);
+      return query.or(`${col}.is.null,${col}.not.ilike.${pgQuote(`%${value}%`)}`);
     case 'containsAnyOf': {
       const items = Array.isArray(value) ? value : String(value).split(',').map((s: string) => s.trim());
       if (pgType === 'TEXT[]') {
@@ -254,12 +183,13 @@ function applyFilter(
       if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.or(`${col}.is.null,${col}.eq.{},${col}.eq.[]`);
       }
-      return query.or(`${col}.is.null,${col}.eq.`);
+      // An empty string only exists in text columns; asking a number or date column for one is an error.
+      return isTextColumn(pgType) ? query.or(`${col}.is.null,${col}.eq.`) : query.is(col, null);
     case 'isNotEmpty':
       if (pgType === 'TEXT[]' || pgType === 'JSONB' || pgType.startsWith('JSONB')) {
         return query.not(col, 'is', null).not(col, 'eq', '{}').not(col, 'eq', '[]');
       }
-      return query.not(col, 'is', null).neq(col, '');
+      return isTextColumn(pgType) ? query.not(col, 'is', null).neq(col, '') : query.not(col, 'is', null);
     case 'gt':
     case 'isAfter':
       return query.gt(col, value);
@@ -322,7 +252,7 @@ function applyFilter(
     case 'isAnyOf':
       return query.in(col, Array.isArray(value) ? value : [value]);
     case 'isNoneOf':
-      return query.not(col, 'in', `(${(Array.isArray(value) ? value : [value]).map((v: string) => `"${v}"`).join(',')})`);
+      return query.or(`${col}.is.null,${col}.not.in.(${(Array.isArray(value) ? value : [value]).map((v: string) => pgQuote(v)).join(',')})`);
     case 'isChecked':
       return query.eq(col, true);
     case 'isNotChecked':
@@ -350,7 +280,7 @@ function applyFilter(
  * Each filter becomes a PostgREST filter expression fragment.
  * Returns null when the list is empty or all filters are unresolvable.
  */
-function buildOrClauseFromFilters(
+export function buildOrClauseFromFilters(
   filters: Filter[],
   fieldMap: Map<string, any>,
 ): string | null {
@@ -358,6 +288,7 @@ function buildOrClauseFromFilters(
   for (const filter of filters) {
     const field = fieldMap.get(filter.field_id);
     if (!field) continue;
+    if (isIncompleteFilter(filter.operator, filter.value)) continue;
     const col = field.pg_column_name;
     const val = filter.value;
     const pgType: string = field.pg_type;
@@ -365,54 +296,54 @@ function buildOrClauseFromFilters(
     switch (filter.operator) {
       case 'is':
       case 'eq':
-        parts.push(`${col}.eq.${val}`);
+        parts.push(`${col}.eq.${pgQuote(val)}`);
         break;
       case 'isNot':
       case 'neq':
-        parts.push(`${col}.neq.${val}`);
+        parts.push(`${col}.is.null,${col}.neq.${pgQuote(val)}`);
         break;
       case 'isExactly':
-        parts.push(`${col}.eq.${val}`);
+        parts.push(`${col}.eq.${pgQuote(val)}`);
         break;
       case 'contains':
         if (pgType === 'TEXT[]') parts.push(`${col}.cs.{${val}}`);
-        else parts.push(`${col}.ilike.%${val}%`);
+        else parts.push(`${col}.ilike.${pgQuote(`%${val}%`)}`);
         break;
       case 'doesNotContain':
         if (pgType === 'TEXT[]') parts.push(`${col}.not.cs.{${val}}`);
-        else parts.push(`${col}.not.ilike.%${val}%`);
+        else parts.push(`${col}.is.null,${col}.not.ilike.${pgQuote(`%${val}%`)}`);
         break;
       case 'startsWith':
-        parts.push(`${col}.ilike.${val}%`);
+        parts.push(`${col}.ilike.${pgQuote(`${val}%`)}`);
         break;
       case 'endsWith':
-        parts.push(`${col}.ilike.%${val}`);
+        parts.push(`${col}.ilike.${pgQuote(`%${val}`)}`);
         break;
       case 'isEmpty':
-        parts.push(`${col}.is.null`);
+        parts.push(isTextColumn(pgType) ? `${col}.is.null,${col}.eq.""` : `${col}.is.null`);
         break;
       case 'isNotEmpty':
-        parts.push(`${col}.not.is.null`);
+        parts.push(isTextColumn(pgType) ? `and(${col}.not.is.null,${col}.neq."")` : `${col}.not.is.null`);
         break;
       case 'gt':
       case 'isAfter':
-        parts.push(`${col}.gt.${val}`);
+        parts.push(`${col}.gt.${pgQuote(val)}`);
         break;
       case 'gte':
       case 'isOnOrAfter':
-        parts.push(`${col}.gte.${val}`);
+        parts.push(`${col}.gte.${pgQuote(val)}`);
         break;
       case 'lt':
       case 'isBefore':
-        parts.push(`${col}.lt.${val}`);
+        parts.push(`${col}.lt.${pgQuote(val)}`);
         break;
       case 'lte':
       case 'isOnOrBefore':
-        parts.push(`${col}.lte.${val}`);
+        parts.push(`${col}.lte.${pgQuote(val)}`);
         break;
       case 'isAnyOf': {
         const arr = Array.isArray(val) ? val : [val];
-        parts.push(`${col}.in.(${arr.map((v: string) => `"${v}"`).join(',')})`);
+        parts.push(`${col}.in.(${arr.map((v: string) => pgQuote(v)).join(',')})`);
         break;
       }
       case 'isChecked':
@@ -481,7 +412,7 @@ function applyFilterGroup(
     // require a server-side function).
     for (const filter of group.filters) {
       const field = fieldMap.get(filter.field_id);
-      if (!field) continue;
+      if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
       const op = filter.operator;
       if (['isBetween', 'isWithin', 'containsAnyOf', 'doesNotContainAnyOf',
            'linkCountIs', 'linkCountGt', 'linkCountLt'].includes(op)) {
@@ -492,7 +423,7 @@ function applyFilterGroup(
     // AND conjunction — chain each filter sequentially
     for (const filter of group.filters) {
       const field = fieldMap.get(filter.field_id);
-      if (!field) continue;
+      if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
       query = applyFilter(query, field.pg_column_name, filter.operator, filter.value, field.pg_type);
     }
 
@@ -513,11 +444,8 @@ export function useRecords(params: UseRecordsParams) {
     enabled: (enabled ?? true) && !!baseId && !!tableId,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
-    queryFn: async (): Promise<RecordsResult> => {
-      const [ctx, { fieldsMeta, fieldMap }] = await Promise.all([
-        resolveTableContext(baseId, tableId),
-        resolveFieldsMeta(tableId),
-      ]);
+    queryFn: async ({ client }): Promise<RecordsResult> => {
+      const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, baseId, tableId);
 
       // Pre-resolve linked record filters (linkContains/linkDoesNotContain)
       let linkFilterIncludeIds: string[] | null = null;
@@ -600,7 +528,8 @@ export function useRecords(params: UseRecordsParams) {
           .filter((f: any) => searchableTypes.has(f.pg_type) && !f.pg_column_name?.startsWith('nc_'))
           .map((f: any) => f.pg_column_name);
         if (textCols.length > 0) {
-          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+          // Quoted, so a comma or bracket typed into the search box cannot break the request.
+      const orClause = textCols.map((c: string) => `${c}.ilike.${pgQuote(`%${search}%`)}`).join(',');
           query = query.or(orClause);
         }
       }
@@ -644,6 +573,8 @@ export function useRecords(params: UseRecordsParams) {
       } else if (!sorts || sorts.length === 0) {
         query = query.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
+      // A last, unique sort key: without it rows with equal values can swap places between pages.
+      query = query.order('id', { ascending: true });
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -656,7 +587,7 @@ export function useRecords(params: UseRecordsParams) {
   });
 }
 
-interface UseInfiniteRecordsParams {
+export interface UseInfiniteRecordsParams {
   baseId: string;
   tableId: string;
   pageSize?: number;
@@ -664,6 +595,8 @@ interface UseInfiniteRecordsParams {
   filterGroups?: FilterGroup[];
   sorts?: Sort[];
   search?: string;
+  /** Hold the request back (for example until the open view's saved filters are known). */
+  enabled?: boolean;
 }
 
 interface InfiniteRecordsPage {
@@ -672,112 +605,233 @@ interface InfiniteRecordsPage {
   page: number;
 }
 
-const infiniteLinkCache = new Map<string, { includeIds: string[] | null; excludeIds: string[] | null; nonLinkFilters: Filter[]; sortIds: string[] | null; nonLinkSorts: Sort[]; ts: number }>();
+interface LinkQueryState {
+  includeIds: string[] | null;
+  excludeIds: string[] | null;
+  nonLinkFilters: Filter[];
+  sortIds: string[] | null;
+  nonLinkSorts: Sort[];
+}
 
-export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
-  const { baseId, tableId, pageSize = 100, filters, filterGroups, sorts, search } = params;
+type LinkFilterState = Pick<LinkQueryState, 'includeIds' | 'excludeIds' | 'nonLinkFilters'>;
+type LinkSortState = Pick<LinkQueryState, 'sortIds' | 'nonLinkSorts'>;
 
-  const query = useInfiniteQuery<InfiniteRecordsPage, Error>({
-    queryKey: ['nc', 'records', baseId, tableId, 'infinite', pageSize, filters, filterGroups, sorts, search],
-    enabled: !!baseId && !!tableId,
+// Filters and sorts are cached apart, so the footer (which has filters but no sort) shares the grid's answer
+// and a change of sort does not ask the server about the filters again.
+const linkFilterCache = new Map<string, { state: LinkFilterState; ts: number }>();
+const linkSortCache = new Map<string, { state: LinkSortState; ts: number }>();
+const LINK_STATE_TTL_MS = 30_000;
+
+/**
+ * Link filters ("contains record X") and link sorts are answered by a server
+ * function; every other filter and sort goes straight onto the query. The answers
+ * are kept for 30 seconds so paging does not repeat them.
+ */
+async function resolveLinkQueryState(
+  tableId: string,
+  filters: Filter[] | undefined,
+  sorts: Sort[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkQueryState> {
+  const [filterState, sortState] = await Promise.all([
+    resolveLinkFilterState(tableId, filters, fieldMap),
+    resolveLinkSortState(tableId, sorts, fieldMap),
+  ]);
+  return { ...filterState, ...sortState };
+}
+
+async function resolveLinkFilterState(
+  tableId: string,
+  filters: Filter[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkFilterState> {
+  const key = JSON.stringify({ tableId, filters });
+  const cached = linkFilterCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
+
+  let infLinkIncludeIds: string[] | null = null;
+  let infLinkExcludeIds: string[] | null = null;
+  const infNonLinkFilters: Filter[] = [];
+
+  if (filters && filters.length > 0) {
+    for (const filter of filters) {
+      const field = fieldMap.get(filter.field_id);
+      if (!field) continue;
+      if (filter.operator === 'linkContains' && filter.value) {
+        const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+        });
+        infLinkIncludeIds = lqData?.ids ?? [];
+      } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
+        const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+          body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
+        });
+        infLinkExcludeIds = lqData?.ids ?? [];
+      } else {
+        infNonLinkFilters.push(filter);
+      }
+    }
+  }
+
+  const state: LinkFilterState = {
+    includeIds: infLinkIncludeIds,
+    excludeIds: infLinkExcludeIds,
+    nonLinkFilters: infNonLinkFilters,
+  };
+  linkFilterCache.set(key, { state, ts: Date.now() });
+  return state;
+}
+
+async function resolveLinkSortState(
+  tableId: string,
+  sorts: Sort[] | undefined,
+  fieldMap: Map<string, FieldMeta>,
+): Promise<LinkSortState> {
+  if (!sorts || sorts.length === 0) return { sortIds: null, nonLinkSorts: [] };
+  const key = JSON.stringify({ tableId, sorts });
+  const cached = linkSortCache.get(key);
+  if (cached && Date.now() - cached.ts <= LINK_STATE_TTL_MS) return cached.state;
+
+  let infLinkSortIds: string[] | null = null;
+  const infNonLinkSorts: Sort[] = [];
+  for (const sort of sorts) {
+    const field = fieldMap.get(sort.field_id);
+    if (field?.ui_type === 'Links') {
+      const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
+        body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
+      });
+      infLinkSortIds = lqData?.ids ?? [];
+    } else {
+      infNonLinkSorts.push(sort);
+    }
+  }
+
+  const state: LinkSortState = { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts };
+  linkSortCache.set(key, { state, ts: Date.now() });
+  return state;
+}
+
+/**
+ * Narrow a rows query by the view's filters, filter groups and the search box.
+ * Returns null when the link filters already rule out every row, so the caller
+ * can skip the request.
+ */
+function applyRecordFilters(
+  query: any,
+  state: LinkQueryState,
+  filterGroups: FilterGroup[] | undefined,
+  search: string | undefined,
+  fieldMap: Map<string, FieldMeta>,
+  fieldsMeta: FieldMeta[],
+): any | null {
+  let q = query;
+  if (state.includeIds !== null) {
+    if (state.includeIds.length === 0) return null;
+    q = q.in('id', state.includeIds);
+  }
+  if (state.excludeIds !== null && state.excludeIds.length > 0) {
+    for (const exId of state.excludeIds) {
+      q = q.neq('id', exId);
+    }
+  }
+
+  for (const filter of state.nonLinkFilters) {
+    const field = fieldMap.get(filter.field_id);
+    // A filter that has been added but not finished (no value yet) narrows nothing.
+    if (!field || isIncompleteFilter(filter.operator, filter.value)) continue;
+    q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
+  }
+
+  if (filterGroups && filterGroups.length > 0) {
+    for (const group of filterGroups) {
+      q = applyFilterGroup(q, group, fieldMap);
+    }
+  }
+
+  if (search) {
+    const textCols = (fieldsMeta ?? [])
+      .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
+      .map((f: any) => f.pg_column_name);
+    if (textCols.length > 0) {
+      const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
+      q = q.or(orClause);
+    }
+  }
+  return q;
+}
+
+/** Most rows the footer will read to total a column; beyond this it falls back to the loaded rows and says so. */
+export const FOOTER_ROW_CAP = 20_000;
+const FOOTER_PAGE = 1000;
+
+/**
+ * Only the named columns of every row that matches the view's filters, read in
+ * pages of 1,000, so the footer can total the whole filtered table instead of
+ * just the rows that are on screen. Sorting does not change a total, so there
+ * is none beyond a stable order for paging. Stops at `cap` rows and reports it.
+ */
+export async function fetchColumnValues(
+  client: QueryClient,
+  params: { baseId: string; tableId: string; filters?: Filter[]; filterGroups?: FilterGroup[]; search?: string },
+  columns: string[],
+  cap: number = FOOTER_ROW_CAP,
+): Promise<{ rows: RecordRow[]; truncated: boolean }> {
+  const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, params.baseId, params.tableId);
+  const state = await resolveLinkQueryState(params.tableId, params.filters, undefined, fieldMap);
+  const select = ['id', ...new Set(columns.filter((c) => c !== 'id'))].join(', ');
+
+  const rows: RecordRow[] = [];
+  for (let from = 0; from < cap; from += FOOTER_PAGE) {
+    const base = supabase.schema(ctx.schemaName).from(ctx.tableName).select(select);
+    const filtered = applyRecordFilters(base, state, params.filterGroups, params.search, fieldMap, fieldsMeta);
+    if (!filtered) return { rows: [], truncated: false };
+    const { data, error } = await filtered
+      .order('id', { ascending: true })
+      .range(from, from + FOOTER_PAGE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as RecordRow[];
+    rows.push(...page);
+    if (page.length < FOOTER_PAGE) return { rows, truncated: false };
+  }
+  return { rows, truncated: true };
+}
+
+export const DEFAULT_RECORDS_PAGE_SIZE = 100;
+
+/**
+ * The query definition for a table's rows. The grid and the prefetchers
+ * (table hover, route entry) both build their query from this one function, so
+ * a prefetched first page lands under exactly the key the grid later asks for.
+ */
+export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
+  const { baseId, tableId, pageSize = DEFAULT_RECORDS_PAGE_SIZE, filters, filterGroups, sorts, search, enabled } = params;
+
+  return infiniteQueryOptions({
+    queryKey: ['nc', 'records', baseId, tableId, 'infinite', pageSize, filters, filterGroups, sorts, search] as const,
+    enabled: (enabled ?? true) && !!baseId && !!tableId,
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnWindowFocus: false,
     initialPageParam: 0,
-    queryFn: async ({ pageParam }): Promise<InfiniteRecordsPage> => {
+    queryFn: async ({ pageParam, client }): Promise<InfiniteRecordsPage> => {
       const currentPage = pageParam as number;
-      const [ctx, { fieldsMeta, fieldMap }] = await Promise.all([
-        resolveTableContext(baseId, tableId),
-        resolveFieldsMeta(tableId),
-      ]);
+      const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, baseId, tableId);
 
       // Pre-resolve linked record filters (cached across pages)
-      const linkCacheKey = JSON.stringify({ tableId, filters, sorts });
-      let linkResolved = infiniteLinkCache.get(linkCacheKey);
-      if (!linkResolved || Date.now() - linkResolved.ts > 30_000) {
-        let infLinkIncludeIds: string[] | null = null;
-        let infLinkExcludeIds: string[] | null = null;
-        const infNonLinkFilters: Filter[] = [];
+      const linkState = await resolveLinkQueryState(tableId, filters, sorts, fieldMap);
+      const { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkState;
 
-        if (filters && filters.length > 0) {
-          for (const filter of filters) {
-            const field = fieldMap.get(filter.field_id);
-            if (!field) continue;
-            if (filter.operator === 'linkContains' && filter.value) {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-              });
-              infLinkIncludeIds = lqData?.ids ?? [];
-            } else if (filter.operator === 'linkDoesNotContain' && filter.value) {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'filter', searchTerm: filter.value },
-              });
-              infLinkExcludeIds = lqData?.ids ?? [];
-            } else {
-              infNonLinkFilters.push(filter);
-            }
-          }
-        }
-
-        let infLinkSortIds: string[] | null = null;
-        const infNonLinkSorts: Sort[] = [];
-        if (sorts && sorts.length > 0) {
-          for (const sort of sorts) {
-            const field = fieldMap.get(sort.field_id);
-            if (field?.ui_type === 'Links') {
-              const { data: lqData } = await supabase.functions.invoke('ddl-executor', {
-                body: { action: 'linkedQuery', fieldId: field.id, mode: 'sort', direction: sort.direction },
-              });
-              infLinkSortIds = lqData?.ids ?? [];
-            } else {
-              infNonLinkSorts.push(sort);
-            }
-          }
-        }
-
-        linkResolved = { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts, ts: Date.now() };
-        infiniteLinkCache.set(linkCacheKey, linkResolved);
-      }
-      const { includeIds: infLinkIncludeIds, excludeIds: infLinkExcludeIds, nonLinkFilters: infNonLinkFilters, sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkResolved;
-
-      let q = supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .select('*', { count: 'estimated' });
-
-      if (infLinkIncludeIds !== null) {
-        if (infLinkIncludeIds.length === 0) {
-          return { records: [], totalCount: 0, page: currentPage };
-        }
-        q = q.in('id', infLinkIncludeIds);
-      }
-      if (infLinkExcludeIds !== null && infLinkExcludeIds.length > 0) {
-        for (const exId of infLinkExcludeIds) {
-          q = q.neq('id', exId);
-        }
-      }
-
-      for (const filter of infNonLinkFilters) {
-        const field = fieldMap.get(filter.field_id);
-        if (!field) continue;
-        q = applyFilter(q, field.pg_column_name, filter.operator, filter.value, field.pg_type);
-      }
-
-      if (filterGroups && filterGroups.length > 0) {
-        for (const group of filterGroups) {
-          q = applyFilterGroup(q, group, fieldMap);
-        }
-      }
-
-      if (search) {
-        const textCols = (fieldsMeta ?? [])
-          .filter((f: any) => ['TEXT', 'VARCHAR'].includes(f.pg_type) && !f.pg_column_name.startsWith('nc_'))
-          .map((f: any) => f.pg_column_name);
-        if (textCols.length > 0) {
-          const orClause = textCols.map((c: string) => `${c}.ilike.%${search}%`).join(',');
-          q = q.or(orClause);
-        }
-      }
+      const filtered = applyRecordFilters(
+        supabase.schema(ctx.schemaName).from(ctx.tableName).select('*', { count: 'estimated' }),
+        linkState,
+        filterGroups,
+        search,
+        fieldMap,
+        fieldsMeta,
+      );
+      // The link filters already rule out every row.
+      if (!filtered) return { records: [], totalCount: 0, page: currentPage };
+      let q = filtered;
 
       if (infLinkSortIds !== null) {
         const { data: allData, error: allError, count: allCount } = await q.limit(5000);
@@ -807,6 +861,8 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
       } else if (!sorts || sorts.length === 0) {
         q = q.order('nc_order', { ascending: true }).order('created_at', { ascending: true });
       }
+      // A last, unique sort key: without it rows with equal values can swap places between pages.
+      q = q.order('id', { ascending: true });
 
       const { data, error, count } = await q;
       if (error) throw error;
@@ -825,8 +881,27 @@ export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
       return undefined;
     },
   });
+}
 
-  const allRecords = query.data?.pages.flatMap((p) => p.records) ?? [];
+const NO_RECORDS: RecordRow[] = [];
+
+export function useInfiniteRecords(params: UseInfiniteRecordsParams) {
+  const { tableId } = params;
+
+  const query = useInfiniteQuery({
+    ...infiniteRecordsOptions(params),
+    // Changing a filter, sort or search keeps showing the rows already on screen until the new ones
+    // arrive (no flash of skeleton). Never carried across tables: those rows belong to another table.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === tableId ? previous : undefined,
+  });
+
+  // Memoised so the list keeps its identity between renders; a fresh array every render made every
+  // consumer (formula evaluation, the grid) redo its work on every unrelated render.
+  const allRecords = useMemo(
+    () => (query.data ? query.data.pages.flatMap((p) => p.records) : NO_RECORDS),
+    [query.data],
+  );
   const totalCount = query.data?.pages[0]?.totalCount ?? 0;
 
   return {
@@ -879,11 +954,33 @@ export function useRecordCount(baseId: string | null | undefined, tableId: strin
   });
 }
 
+/**
+ * The rows one cached records query holds, whatever its shape: a single page
+ * (`{ records }`) or the grid's infinite list (`{ pages: [{ records }] }`).
+ */
+function cachedRows(data: unknown): RecordRow[] {
+  const d = data as { records?: RecordRow[]; pages?: Array<{ records?: RecordRow[] }> } | null | undefined;
+  if (Array.isArray(d?.records)) return d.records;
+  if (Array.isArray(d?.pages)) return d.pages.flatMap((p) => p.records ?? []);
+  return [];
+}
+
+/** Find a row by id in any of the cached records queries (every loaded page of each). */
+function findCachedRecord(entries: ReadonlyArray<readonly [unknown, unknown]>, recordId: string): RecordRow | undefined {
+  for (const [, data] of entries) {
+    const rec = cachedRows(data).find((r) => r.id === recordId);
+    if (rec) return rec;
+  }
+  return undefined;
+}
+
 function updateInfiniteCache<_T>(
   qc: ReturnType<typeof useQueryClient>,
   queryKeyPrefix: string[],
   updater: (records: RecordRow[]) => RecordRow[],
   countDelta = 0,
+  /** For adding rows: in the grid's list of pages only the last page is changed, so a new row shows up once, at the end. */
+  lastPageOnly = false,
 ) {
   qc.setQueriesData({ queryKey: queryKeyPrefix }, (old: any) => {
     if (!old) return old;
@@ -891,11 +988,12 @@ function updateInfiniteCache<_T>(
       return { ...old, records: updater(old.records), totalCount: old.totalCount + countDelta };
     }
     if (old.pages && Array.isArray(old.pages)) {
+      const lastIndex = old.pages.length - 1;
       return {
         ...old,
         pages: old.pages.map((page: any, i: number) => ({
           ...page,
-          records: updater(page.records ?? []),
+          records: lastPageOnly && i !== lastIndex ? (page.records ?? []) : updater(page.records ?? []),
           totalCount: (page.totalCount ?? 0) + (i === 0 ? countDelta : 0),
         })),
       };
@@ -931,7 +1029,7 @@ export function useCreateRecord() {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData({ queryKey });
       const optimisticRow = { id: `temp-${Date.now()}`, ...variables.record } as RecordRow;
-      updateInfiniteCache(qc, queryKey, (records) => [...records, optimisticRow], 1);
+      updateInfiniteCache(qc, queryKey, (records) => [...records, optimisticRow], 1, true);
       return { previous };
     },
     onError: (_err, variables, context) => {
@@ -970,19 +1068,30 @@ export function useUpdateRecord() {
       const ctx = await resolveTableContext(input.baseId, input.tableId);
       const updates = input.fields ?? (input.field ? { [input.field]: input.value } : {});
 
-      // Stamp the current user as the last modifier
-      const cachedUser = await getCachedUser();
-      if (cachedUser?.id) {
-        (updates as Record<string, any>).updated_by = cachedUser.id;
-      }
+      // Stamp the current user as the last modifier, but only where the table can take it. Tables from an
+      // import or an older version have no `updated_by` column (the import even lists a "Last Modified By"
+      // field for it), and the database rejects an update that names a column the table does not have,
+      // which made every edit in those tables fail. So: skip the stamp when the table is known to lack the
+      // column, and if the database says so, send the edit again without it and remember that.
+      // If the table's fields are not loaded yet the stamp is tried anyway, as it always was; the resend below covers a missing column.
+      const knownFields = qc.getQueryData<FieldMeta[]>(fieldsKey(input.tableId));
+      const mayStamp = (knownFields === undefined || tableHasUpdatedBy(knownFields)) && !tablesWithoutUpdatedBy.has(input.tableId);
+      const stampUser = mayStamp ? (await getCachedUser())?.id : undefined;
 
-      const { data, error } = await supabase
-        .schema(ctx.schemaName)
-        .from(ctx.tableName)
-        .update(updates)
-        .eq('id', input.recordId)
-        .select()
-        .single();
+      const send = (payload: Record<string, any>) =>
+        supabase
+          .schema(ctx.schemaName)
+          .from(ctx.tableName)
+          .update(payload)
+          .eq('id', input.recordId)
+          .select()
+          .single();
+
+      let { data, error } = await send(stampUser ? { ...updates, updated_by: stampUser } : updates);
+      if (error && stampUser && isMissingColumnError(error, 'updated_by')) {
+        tablesWithoutUpdatedBy.add(input.tableId);
+        ({ data, error } = await send(updates));
+      }
 
       if (error) throw error;
       return data as RecordRow;
@@ -998,14 +1107,11 @@ export function useUpdateRecord() {
       // Capture the record's prior values (for the fields being changed) so we
       // can push an undo entry that restores them.
       let oldValues: Record<string, any> | null = null;
-      for (const [, data] of previous) {
-        const rec = data?.records.find((r) => r.id === variables.recordId);
-        if (rec) {
-          oldValues = {};
-          for (const key of Object.keys(updates)) {
-            oldValues[key] = (rec as any)[key];
-          }
-          break;
+      const cachedRecord = findCachedRecord(previous, variables.recordId);
+      if (cachedRecord) {
+        oldValues = {};
+        for (const key of Object.keys(updates)) {
+          oldValues[key] = (cachedRecord as any)[key];
         }
       }
 
@@ -1035,12 +1141,8 @@ export function useUpdateRecord() {
       );
 
       // Capture full old record for automation condition evaluation
-      let oldRecord: Record<string, any> | undefined;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) { oldRecord = { ...rec }; break; }
-      }
+      const foundRecord = findCachedRecord(previous, variables.recordId);
+      const oldRecord: Record<string, any> | undefined = foundRecord ? { ...foundRecord } : undefined;
 
       return { previous, oldRecord };
     },
@@ -1117,15 +1219,7 @@ export function useDeleteRecord() {
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueriesData<RecordsResult>({ queryKey });
 
-      let deletedRecord: RecordRow | null = null;
-      for (const [, data] of previous) {
-        const recs = (data as any)?.records ?? (data as any)?.pages?.[0]?.records;
-        const rec = recs?.find((r: any) => r.id === variables.recordId);
-        if (rec) {
-          deletedRecord = rec;
-          break;
-        }
-      }
+      const deletedRecord: RecordRow | null = findCachedRecord(previous, variables.recordId) ?? null;
 
       if (deletedRecord) {
         const record = deletedRecord;
@@ -1220,7 +1314,7 @@ export function useBulkCreateRecords() {
         id: `temp-${Date.now()}-${i}`,
         ...rec,
       })) as RecordRow[];
-      updateInfiniteCache(qc, queryKey, (records) => [...records, ...optimisticRows], optimisticRows.length);
+      updateInfiniteCache(qc, queryKey, (records) => [...records, ...optimisticRows], optimisticRows.length, true);
       return { previous };
     },
     onSuccess: (data, variables) => {

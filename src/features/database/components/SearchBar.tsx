@@ -56,7 +56,7 @@ export function SearchBar() {
   return (
     <div
       className="flex items-center h-7 rounded border px-2 gap-1.5"
-      style={{ borderColor: '#2D7FF9', width: 240 }}
+      style={{ borderColor: 'hsl(var(--primary))', width: 240 }}
     >
       <Search size={13} className="shrink-0 text-[#9CA3AF] dark:text-[hsl(220,20%,40%)]" />
       <input

@@ -66,6 +66,8 @@ const SECTIONS: ShortcutSection[] = [
   {
     title: 'General',
     shortcuts: [
+      { keys: ['Ctrl', 'K'], description: 'Jump to a base, table, view or action' },
+      { keys: ['Ctrl', 'J'], description: 'Switch table (all tables list)' },
       { keys: ['Ctrl', 'N'], description: 'Add new record' },
       { keys: ['Ctrl', 'F'], description: 'Find / search' },
       { keys: ['Ctrl', 'H'], description: 'Search & replace' },
@@ -96,7 +98,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
       <DialogContent className="sm:max-w-xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Keyboard size={16} className="text-[#2D7FF9]" />
+            <Keyboard size={16} className="text-primary" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>

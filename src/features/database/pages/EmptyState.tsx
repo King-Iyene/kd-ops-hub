@@ -8,6 +8,8 @@ import { useDatabaseNavigate } from '../hooks/useNavigate';
 import { useBases } from '../hooks/useBases';
 import { useTables } from '../hooks/useTables';
 import type { Base } from '../types';
+import { formatDbTooltip, formatRelative } from '../lib/dates';
+import { getTimezone } from '@/lib/format';
 
 const DEFAULT_COLORS = [
   '#2D7FF9', '#0D9488', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981',
@@ -20,15 +22,7 @@ function pickColor(name: string): string {
 }
 
 function getTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
+  return formatRelative(dateStr, new Date(), getTimezone()) || '—';
 }
 
 function BaseCardTableCount({ baseId }: { baseId: string }) {
@@ -49,7 +43,7 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col p-4 rounded-xl border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] hover:shadow-md transition-all text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9] focus-visible:ring-offset-2"
+      className="flex flex-col p-4 rounded-xl border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] hover:border-primary dark:hover:border-primary hover:shadow-md transition-all text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       <div className="flex items-start gap-3 mb-3">
         <div
@@ -63,14 +57,14 @@ function BaseCard({ base, onSelect }: { base: Base; onSelect: () => void }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] group-hover:text-[#2D7FF9] truncate transition-colors">
+          <p className="text-sm font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)] group-hover:text-primary truncate transition-colors">
             {base.name}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-3 mt-auto text-2xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]">
         <BaseCardTableCount baseId={base.id} />
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1" title={`Base last edited: ${formatDbTooltip(base.updated_at, getTimezone())}`}>
           <Clock size={12} />
           {timeAgo}
         </span>
@@ -106,7 +100,7 @@ export function EmptyState() {
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-[hsl(220,30%,8%)]">
         <div className="text-center space-y-4 max-w-sm">
           <div className="mx-auto w-14 h-14 rounded-xl bg-[#F0F3FF] dark:bg-[hsl(220,30%,14%)] flex items-center justify-center">
-            <Table2 size={28} className="text-[#2D7FF9]" />
+            <Table2 size={28} className="text-primary" />
           </div>
           <div>
             <p className="text-base font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">
@@ -137,7 +131,7 @@ export function EmptyState() {
                 placeholder="Filter bases..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs-plus rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-[#2D7FF9] w-48"
+                className="pl-8 pr-3 py-1.5 text-xs-plus rounded-lg border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] placeholder:text-[#9AA2AF] focus:outline-none focus:border-primary w-48"
               />
             </div>
             <Button
@@ -156,12 +150,12 @@ export function EmptyState() {
           {/* Create Base card */}
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(220,25%,22%)] hover:border-[#2D7FF9] dark:hover:border-[#2D7FF9] bg-white/50 dark:bg-[hsl(220,30%,12%)] transition-all min-h-[120px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D7FF9] focus-visible:ring-offset-2"
+            className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-[#D1D5DB] dark:border-[hsl(220,25%,22%)] hover:border-primary dark:hover:border-primary bg-white/50 dark:bg-[hsl(220,30%,12%)] transition-all min-h-[120px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <div className="w-10 h-10 rounded-full bg-[#2D7FF9]/10 flex items-center justify-center mb-2 group-hover:bg-[#2D7FF9]/20 transition-colors">
-              <Plus size={20} className="text-[#2D7FF9]" />
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
+              <Plus size={20} className="text-primary" />
             </div>
-            <span className="text-xs-plus font-medium text-[#6A7184] dark:text-[hsl(220,20%,60%)] group-hover:text-[#2D7FF9] transition-colors">
+            <span className="text-xs-plus font-medium text-[#6A7184] dark:text-[hsl(220,20%,60%)] group-hover:text-primary transition-colors">
               Create Base
             </span>
           </button>

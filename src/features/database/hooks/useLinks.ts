@@ -233,10 +233,12 @@ export function useRelatedTableSearch(opts: {
   searchTerm: string;
   primaryField: FieldMeta | null | undefined;
   enabled?: boolean;
+  /** How many candidates to fetch; the picker raises it with its "Show more" button. */
+  limit?: number;
 }) {
-  const { baseId, targetTableId, searchTerm, primaryField, enabled = true } = opts;
+  const { baseId, targetTableId, searchTerm, primaryField, enabled = true, limit = 20 } = opts;
   return useQuery({
-    queryKey: ['nc', 'link-search', targetTableId, searchTerm],
+    queryKey: ['nc', 'link-search', targetTableId, searchTerm, limit],
     enabled: !!targetTableId && !!baseId && enabled,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<RecordRow[]> => {
@@ -260,10 +262,11 @@ export function useRelatedTableSearch(opts: {
         .schema(base.schema_name)
         .from(table.pg_table_name)
         .select('*')
-        .limit(20);
+        .limit(limit);
 
       if (searchTerm && primaryField?.pg_column_name) {
-        query = query.ilike(primaryField.pg_column_name, `%${searchTerm}%`);
+        // % and _ typed by a person mean themselves, not "anything".
+        query = query.ilike(primaryField.pg_column_name, `%${searchTerm.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
       }
 
       const { data, error } = await query;
@@ -439,6 +442,10 @@ export function useCreateLink() {
       field_name: string;
       target_table_id: string;
       relation_type: 'one_to_one' | 'one_to_many' | 'many_to_many';
+      /** false limits each cell to one linked record. */
+      allow_multiple?: boolean;
+      /** Name of the matching field added to the other table. Defaults to this table's name. */
+      reciprocal_name?: string;
     }) => {
       const shortType = input.relation_type === 'one_to_one'
         ? 'oo'
@@ -552,6 +559,7 @@ export function useCreateLink() {
             relatedTableId: input.target_table_id,
             type: shortType,
             fkColumnName: fkColumnName,
+            ...(input.allow_multiple === false ? { allowMultiple: false } : {}),
           },
           position: 999,
           width: 180,
@@ -570,7 +578,7 @@ export function useCreateLink() {
 
       // 2. Create reciprocal field on target table
       const reciprocalType = shortType === 'hm' ? 'bt' : shortType === 'bt' ? 'hm' : 'mm';
-      const reciprocalName = srcTable.name;
+      const reciprocalName = input.reciprocal_name?.trim() || srcTable.name;
 
       const { data: reciprocalField, error: recipError } = await supabase
         .schema('nc_meta')

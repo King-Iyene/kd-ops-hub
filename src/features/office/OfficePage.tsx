@@ -1309,8 +1309,8 @@ function OfficeRoom() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[480px] flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className={inDesktopApp() ? 'flex h-screen min-h-[480px] flex-col gap-0' : 'flex h-[calc(100vh-7rem)] min-h-[480px] flex-col gap-3'}>
+      <div className={inDesktopApp() ? 'hidden' : 'flex flex-wrap items-center justify-between gap-2'}>
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight"><Building2 className="h-5 w-5" />Virtual Office</h1>
           <p className="text-sm text-muted-foreground">

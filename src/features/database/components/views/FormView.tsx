@@ -121,7 +121,7 @@ function PeopleInput({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search people..."
-        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-primary/25 mb-2"
       />
       <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
         {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading people...</div>}
@@ -144,7 +144,7 @@ function PeopleInput({
                 <span className="text-xs font-medium text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate">{u.full_name}</span>
                 <span className="text-2xs text-[#94A3B8] truncate">{u.email}</span>
               </span>
-              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+              {active && <Check size={14} className="text-primary shrink-0" />}
             </button>
           );
         })}
@@ -199,7 +199,7 @@ function LinkedTasksInput({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search tasks..."
-        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 mb-2"
+        className="w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3 py-2 text-sm bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-primary/25 mb-2"
       />
       <div className="max-h-44 overflow-y-auto rounded-lg border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] divide-y divide-[#F1F5F9] dark:divide-[hsl(220,15%,15%)]">
         {isLoading && <div className="px-3 py-2 text-xs text-[#94A3B8]">Loading tasks...</div>}
@@ -217,7 +217,7 @@ function LinkedTasksInput({
             >
               <span className="text-xs text-[#1E293B] dark:text-[hsl(210,20%,88%)] truncate flex-1">{t.title}</span>
               {t.status && <span className="text-3xs text-[#94A3B8] shrink-0">{t.status}</span>}
-              {active && <Check size={14} className="text-[#2D7FF9] shrink-0" />}
+              {active && <Check size={14} className="text-primary shrink-0" />}
             </button>
           );
         })}
@@ -306,11 +306,11 @@ function AttachmentInput({
         onClick={() => fileRef.current?.click()}
         className="flex flex-col items-center justify-center gap-1.5 py-6 rounded-lg cursor-pointer transition-colors"
         style={{
-          border: `2px dashed ${dragOver ? '#2D7FF9' : '#E2E8F0'}`,
+          border: `2px dashed ${dragOver ? 'hsl(var(--primary))' : '#E2E8F0'}`,
           backgroundColor: dragOver ? 'rgba(45,127,249,0.04)' : 'transparent',
         }}
       >
-        <Upload size={20} className={dragOver ? 'text-[#2D7FF9]' : 'text-[#94A3B8]'} />
+        <Upload size={20} className={dragOver ? 'text-primary' : 'text-[#94A3B8]'} />
         <span className="text-xs text-[#64748B]">
           {uploading ? 'Uploading...' : 'Drop files or click to upload'}
         </span>
@@ -535,7 +535,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
   };
 
   const inputClass =
-    'w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3.5 py-2.5 text-sm text-[#1E293B] dark:text-[hsl(210,20%,90%)] bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-[#2D7FF9]/25 focus:border-[#2D7FF9] placeholder:text-[#94A3B8] dark:placeholder:text-[hsl(215,12%,40%)] transition-all';
+    'w-full border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] rounded-lg px-3.5 py-2.5 text-sm text-[#1E293B] dark:text-[hsl(210,20%,90%)] bg-white dark:bg-[hsl(220,20%,10%)] focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary placeholder:text-[#94A3B8] dark:placeholder:text-[hsl(215,12%,40%)] transition-all';
 
   const renderInput = (f: FieldMeta) => {
     const req = isFieldRequired(f);
@@ -563,7 +563,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               checked={!!values[f.id]}
               onChange={(e) => setValues((v) => ({ ...v, [f.id]: e.target.checked }))}
             />
-            <div className="w-10 h-[22px] bg-[#E2E8F0] dark:bg-[hsl(220,15%,22%)] rounded-full peer peer-checked:bg-[#2D7FF9] transition-colors after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:after:translate-x-[18px]" />
+            <div className="w-10 h-[22px] bg-[#E2E8F0] dark:bg-[hsl(220,15%,22%)] rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm peer-checked:after:translate-x-[18px]" />
           </label>
         );
       case 'Number':
@@ -715,7 +715,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               <button
                 type="button"
                 onClick={handleSubmitAnother}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium text-white bg-[#2D7FF9] hover:bg-[#1D6FE9] transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium text-white bg-primary hover:bg-[#1D6FE9] transition-colors shadow-sm"
               >
                 <RotateCcw size={14} />
                 Submit another response
@@ -740,7 +740,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
           <span className="text-xs font-semibold text-[#64748B] dark:text-[hsl(215,12%,50%)] uppercase tracking-wider">Form Builder</span>
           <button
             onClick={handleShareForm}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[#2D7FF9] hover:bg-[#2D7FF9]/10 transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
           >
             {copiedLink ? <Check size={12} /> : <Share2 size={12} />}
             {copiedLink ? 'Copied!' : 'Share'}
@@ -758,7 +758,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                   className="h-6 rounded-md transition-all hover:scale-105"
                   style={{
                     background: c.value,
-                    outline: coverColor === c.value ? '2px solid #2D7FF9' : 'none',
+                    outline: coverColor === c.value ? '2px solid hsl(var(--primary))' : 'none',
                     outlineOffset: 1,
                   }}
                   onClick={() => saveConfig({ cover_color: c.value })}
@@ -776,7 +776,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               value={formConfig.submit_label ?? ''}
               onChange={(e) => saveConfig({ submit_label: e.target.value })}
               placeholder="Submit"
-              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
             />
           </div>
 
@@ -788,7 +788,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               onChange={(e) => saveConfig({ success_message: e.target.value })}
               placeholder="Your response has been recorded."
               rows={2}
-              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] resize-none text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary resize-none text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
             />
           </div>
 
@@ -800,7 +800,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               value={formConfig.redirect_url ?? ''}
               onChange={(e) => saveConfig({ redirect_url: e.target.value })}
               placeholder="https://example.com/thank-you"
-              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)] placeholder:text-[#CBD5E1]"
+              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary text-[#1E293B] dark:text-[hsl(210,20%,85%)] placeholder:text-[#CBD5E1]"
             />
             <p className="text-3xs text-[#94A3B8] mt-1">Leave empty to show success message</p>
           </div>
@@ -818,7 +818,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                 return (
                   <div
                     key={f.id}
-                    className={`group/field flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-[#2D7FF9]/10' : 'hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,15%,14%)]'}`}
+                    className={`group/field flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-primary/10' : 'hover:bg-[#F1F5F9] dark:hover:bg-[hsl(220,15%,14%)]'}`}
                     onClick={() => setSelectedFieldId(isSelected ? null : f.id)}
                   >
                     <GripVertical size={12} className="text-[#CBD5E1] dark:text-[hsl(215,12%,30%)] shrink-0" />
@@ -851,7 +851,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                     type="checkbox"
                     checked={fieldConfigs[selectedField.id]?.required ?? selectedField.is_required}
                     onChange={(e) => updateFieldConfig(selectedField.id, { required: e.target.checked })}
-                    className="w-3.5 h-3.5 rounded border-[#CBD5E1] text-[#2D7FF9] focus:ring-[#2D7FF9]/25"
+                    className="w-3.5 h-3.5 rounded border-[#CBD5E1] text-primary focus:ring-primary/25"
                   />
                   <span className="text-xs text-[#475569] dark:text-[hsl(215,15%,60%)]">Required</span>
                 </label>
@@ -862,7 +862,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                     value={fieldConfigs[selectedField.id]?.description ?? ''}
                     onChange={(e) => updateFieldConfig(selectedField.id, { description: e.target.value })}
                     placeholder="Add help text..."
-                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
                   />
                 </div>
                 <div>
@@ -876,7 +876,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                         : null;
                       updateFieldConfig(selectedField.id, { condition: next });
                     }}
-                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                    className="w-full text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
                   >
                     <option value="">Always show</option>
                     {allEditableFields
@@ -900,7 +900,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                           })
                         }
                         placeholder="value"
-                        className="flex-1 text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-[#2D7FF9] text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
+                        className="flex-1 text-xs px-2 py-1.5 rounded border border-[#E2E8F0] dark:border-[hsl(220,15%,22%)] bg-transparent focus:outline-none focus:border-primary text-[#1E293B] dark:text-[hsl(210,20%,85%)]"
                       />
                     </div>
                   )}
@@ -930,7 +930,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                     >
                       <Icon size={12} className="text-[#94A3B8] shrink-0" />
                       <span className="text-xs text-[#64748B] dark:text-[hsl(215,15%,55%)] truncate flex-1">{f.name}</span>
-                      <Eye size={11} className="text-[#2D7FF9] opacity-0 group-hover/hidden:opacity-100 transition-opacity shrink-0" />
+                      <Eye size={11} className="text-primary opacity-0 group-hover/hidden:opacity-100 transition-opacity shrink-0" />
                     </div>
                   );
                 })}
@@ -1003,7 +1003,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
                 return (
                   <div
                     key={f.id}
-                    className={`bg-white dark:bg-[hsl(220,20%,10%)] border-x border-b border-[#E2E8F0] dark:border-[hsl(220,15%,18%)] px-8 py-5 transition-all ${isSelected && !isPublic ? 'ring-2 ring-inset ring-[#2D7FF9]/20' : ''}`}
+                    className={`bg-white dark:bg-[hsl(220,20%,10%)] border-x border-b border-[#E2E8F0] dark:border-[hsl(220,15%,18%)] px-8 py-5 transition-all ${isSelected && !isPublic ? 'ring-2 ring-inset ring-primary/20' : ''}`}
                     onClick={() => !isPublic && setSelectedFieldId(f.id)}
                   >
                     <div className="flex items-start gap-3">
@@ -1039,7 +1039,7 @@ export default function FormView({ fields, onAddRow, isLoading, view, isPublic, 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="px-8 py-2.5 rounded-lg text-white text-sm font-medium bg-[#2D7FF9] hover:bg-[#1D6FE9] transition-colors disabled:opacity-50 shadow-sm"
+                className="px-8 py-2.5 rounded-lg text-white text-sm font-medium bg-primary hover:bg-[#1D6FE9] transition-colors disabled:opacity-50 shadow-sm"
               >
                 {isLoading ? 'Submitting...' : submitLabel}
               </button>

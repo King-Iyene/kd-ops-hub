@@ -284,8 +284,8 @@ export default function KanbanView({
           --kanban-text: #374151;
           --kanban-muted: #6A7184;
           --kanban-subtle: #9AA2AF;
-          --kanban-primary: #2D7FF9;
-          --kanban-primary-hover: #2952CC;
+          $1: hsl(var(--primary));
+          $1: hsl(var(--primary) / 0.85);
           --kanban-empty-border: #D1D5DB;
           --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.06);
           --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.1);
@@ -300,7 +300,7 @@ export default function KanbanView({
             --kanban-muted: hsl(220,20%,60%);
             --kanban-subtle: hsl(220,15%,50%);
             --kanban-primary: #5588FF;
-            --kanban-primary-hover: #2D7FF9;
+            $1: hsl(var(--primary));
             --kanban-empty-border: hsl(220,20%,25%);
             --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
             --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
@@ -315,7 +315,7 @@ export default function KanbanView({
           --kanban-muted: hsl(220,20%,60%);
           --kanban-subtle: hsl(220,15%,50%);
           --kanban-primary: #5588FF;
-          --kanban-primary-hover: #2D7FF9;
+          $1: hsl(var(--primary));
           --kanban-empty-border: hsl(220,20%,25%);
           --kanban-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
           --kanban-card-shadow-hover: 0 4px 12px rgba(0,0,0,0.4);

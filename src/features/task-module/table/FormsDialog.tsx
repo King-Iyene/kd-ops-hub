@@ -19,6 +19,7 @@ import { FieldLabel } from './cells';
 import { formLink } from './tableActions';
 import { RuleEditor } from './FormLogicEditor';
 import { cleanLogic, describeRule, firstIncomplete } from './formLogic';
+import { useDeleteConfirm } from '../DeleteConfirm';
 
 // Forms built from a table. Everyone can see and copy the links; admins
 // create and edit them.
@@ -35,6 +36,7 @@ export function FormsDialog({
   const { toast } = useToast();
   const { data: forms, isLoading } = useTableForms(tableId);
   const del = useDeleteForm(tableId);
+  const { ask, dialog } = useDeleteConfirm();
   const [editing, setEditing] = useState<TaskForm | 'new' | null>(null);
 
   const copy = async (token: string) => {
@@ -82,11 +84,10 @@ export function FormsDialog({
                           type="button"
                           className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-muted"
                           aria-label={`Delete ${f.title}`}
-                          onClick={() => {
-                            if (window.confirm(`Delete the form "${f.title}"? Its link stops working. Rows it already added stay in the table.`)) {
-                              del.mutate(f.id, { onError: (e) => toast({ title: 'Could not delete the form', description: errorMessage(e), variant: 'destructive' }) });
-                            }
-                          }}
+                          onClick={() => ask({
+                            what: 'form', name: f.title, consequence: 'Its link stops working for everyone who has it. Rows it already added stay in the table.',
+                            onConfirm: () => del.mutate(f.id, { onError: (e) => toast({ title: 'Could not delete the form', description: errorMessage(e), variant: 'destructive' }) }),
+                          })}
                         ><Trash2 className="h-3.5 w-3.5" /></button>
                       </>
                     )}
@@ -103,6 +104,7 @@ export function FormsDialog({
             )}
           </>
         )}
+        {dialog}
       </DialogContent>
     </Dialog>
   );

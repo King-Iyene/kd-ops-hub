@@ -12,6 +12,7 @@ import {
   type PersonOption, type TaskActivity, type TaskComment, type TaskPriority, type TaskStatus,
 } from '@/queries/useTaskModule';
 import { PersonAvatar } from './pickers';
+import { useDeleteConfirm } from './DeleteConfirm';
 
 function ago(iso: string) {
   return formatDistanceToNow(new Date(iso), { addSuffix: true });
@@ -46,6 +47,7 @@ export function TaskTimeline({ taskId, people }: { taskId: string; people: Perso
   const { data: activity } = useTaskActivity(taskId);
   const { data: comments } = useTaskComments(taskId);
   const deleteComment = useDeleteComment(taskId);
+  const { ask, dialog } = useDeleteConfirm();
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const name = (id: unknown) => (typeof id === 'string' && peopleById.get(id)?.full_name) || 'someone';
   const endRef = useRef<HTMLDivElement>(null);
@@ -92,8 +94,11 @@ export function TaskTimeline({ taskId, people }: { taskId: string; people: Perso
                     type="button"
                     aria-label="Delete comment"
                     className="ml-auto opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-destructive"
-                    onClick={() => deleteComment.mutate(c.id, {
-                      onError: (err) => toast({ title: 'Could not delete comment', description: errorMessage(err), variant: 'destructive' }),
+                    onClick={() => ask({
+                      what: 'comment', consequence: `${author?.full_name ? `${author.full_name}'s` : 'This'} comment is removed from the task for everyone.`,
+                      onConfirm: () => deleteComment.mutate(c.id, {
+                        onError: (err) => toast({ title: 'Could not delete comment', description: errorMessage(err), variant: 'destructive' }),
+                      }),
                     })}
                   >
                     <X className="h-3 w-3" />
@@ -107,6 +112,7 @@ export function TaskTimeline({ taskId, people }: { taskId: string; people: Perso
         <div ref={endRef} />
       </div>
       <CommentComposer taskId={taskId} people={people} />
+      {dialog}
     </div>
   );
 }

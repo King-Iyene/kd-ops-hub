@@ -43,5 +43,18 @@ export function useDatabaseNavigate() {
     [navigate, activeBaseId, activeTableId],
   );
 
-  return { navigateToBase, navigateToTable, navigateToView };
+  /** Jump straight to any base, table or view, including ones outside the open base (command palette, recents). */
+  const navigateTo = useCallback(
+    (target: { baseId: string; tableId?: string | null; viewId?: string | null }) => {
+      let path = `/data/${toShort(target.baseId)}`;
+      if (target.tableId) {
+        path += `/${toShort(target.tableId)}`;
+        if (target.viewId) path += `/${toShort(target.viewId)}`;
+      }
+      navigate(path);
+    },
+    [navigate],
+  );
+
+  return { navigateToBase, navigateToTable, navigateToView, navigateTo };
 }

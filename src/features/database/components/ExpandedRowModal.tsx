@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Star, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check, ExternalLink, Mail } from 'lucide-react';
+import { fromShownPercent, storedAsFraction, toShownPercent } from '../lib/percent';
+import { X, ChevronLeft, ChevronRight, MessageSquare, ChevronDown, Paperclip, Link2, Trash2, Clock, Activity, Copy, GripVertical, Check, ExternalLink, Mail } from 'lucide-react';
 import { RecordComments } from './RecordComments';
 import { RecordHistoryPanel } from './RecordHistoryPanel';
 import { LinkCellRenderer } from './grid/LinkCellRenderer';
@@ -8,7 +9,12 @@ import type { FieldMeta, RecordRow, SelectChoice } from '../types';
 import { PILL_COLORS } from '../types';
 import { getCellRenderer } from './grid/cell-renderer-map';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { RatingGlyph } from './grid/RatingGlyph';
+import { nextRating, ratingHexOf, ratingIconOf, ratingMaxOf } from '../lib/ratingStyle';
+import { currencySymbol, parseNumberInput } from '../lib/numberFormat';
+import { formatDuration, normalizeDurationFormat, parseDuration } from '../lib/duration';
 import { AttachmentManager, type AttachmentMeta } from './AttachmentManager';
+import type { AttachmentLimits } from '../lib/attachmentRules';
 import { toLocalDateString, utcIsoToOrgWallClock, orgWallClockToUtcIso } from '@/lib/format';
 
 /** Strip non-numeric chars, keeping at most one minus (leading) and one dot. */
@@ -84,7 +90,7 @@ function InlineTextEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') onCommit(text);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
     />
   );
 }
@@ -109,14 +115,14 @@ function InlineUrlEditor({
         onBlur={() => onCommit(text)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
         placeholder="https://example.com"
-        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
       />
       {hasValue && (
         <a
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-primary"
           title="Open URL"
         >
           <ExternalLink size={14} />
@@ -145,12 +151,12 @@ function InlineEmailEditor({
         onBlur={() => onCommit(text)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCommit(text); }}
         placeholder="name@example.com"
-        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+        className="flex-1 px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
       />
       {hasValue && (
         <a
           href={`mailto:${text}`}
-          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-[#2D7FF9]"
+          className="shrink-0 p-1 rounded hover:bg-[#F4F4F5] dark:hover:bg-[hsl(220,20%,15%)] text-primary"
           title="Send email"
         >
           <Mail size={14} />
@@ -175,7 +181,7 @@ function InlineLongTextEditor({
       onChange={(e) => setText(e.target.value)}
       onBlur={() => onCommit(text)}
       rows={4}
-      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1.5 text-sm rounded border outline-none resize-y bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-primary kd-flat-input"
     />
   );
 }
@@ -183,23 +189,73 @@ function InlineLongTextEditor({
 function InlineNumberEditor({
   value,
   onCommit,
+  prefix,
+  suffix,
 }: {
   value: number | null;
   onCommit: (v: number | null) => void;
+  prefix?: string;
+  suffix?: string;
 }) {
   const [num, setNum] = useState(value != null ? String(value) : '');
   useEffect(() => { setNum(value != null ? String(value) : ''); }, [value]);
+  const finish = () => {
+    const next = num === '' ? null : Number(num);
+    if (next !== null && !Number.isFinite(next)) return;
+    if (next !== (value ?? null)) onCommit(next);
+  };
+  return (
+    <div className="flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded border bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus-within:border-primary">
+      {prefix && <span className="shrink-0 text-[#9AA2AF] tabular-nums">{prefix}</span>}
+      <input
+        type="text"
+        inputMode="decimal"
+        value={num}
+        onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
+        onPaste={(e) => {
+          const parsed = parseNumberInput(e.clipboardData.getData('text'));
+          if (parsed != null) { e.preventDefault(); setNum(String(parsed)); }
+        }}
+        onBlur={finish}
+        onKeyDown={(e) => { if (e.key === 'Enter') finish(); }}
+        className="kd-flat-input flex-1 min-w-0 bg-transparent border-0 rounded-none outline-none tabular-nums"
+      />
+      {suffix && <span className="shrink-0 text-[#9AA2AF] tabular-nums">{suffix}</span>}
+    </div>
+  );
+}
+
+function InlineDurationEditor({
+  value,
+  field,
+  onCommit,
+}: {
+  value: number | null;
+  field: FieldMeta;
+  onCommit: (v: number | null) => void;
+}) {
+  const format = normalizeDurationFormat(field.options?.format);
+  const shown = value != null && Number.isFinite(Number(value)) ? formatDuration(Number(value), format) : '';
+  const [text, setText] = useState(shown);
+  const [invalid, setInvalid] = useState(false);
+  useEffect(() => { setText(shown); setInvalid(false); }, [shown]);
+  const finish = () => {
+    if (text.trim() === '') { setInvalid(false); if (value != null) onCommit(null); return; }
+    const seconds = parseDuration(text, format);
+    if (seconds == null) { setInvalid(true); return; }
+    setInvalid(false);
+    if (seconds !== value) onCommit(seconds);
+  };
   return (
     <input
       type="text"
-      inputMode="decimal"
-      value={num}
-      onChange={(e) => setNum(sanitizeNumeric(e.target.value))}
-      onBlur={() => onCommit(num === '' ? null : Number(num))}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onCommit(num === '' ? null : Number(num));
-      }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-[#374151] dark:text-[hsl(220,20%,88%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] focus:border-[#2D7FF9]"
+      value={text}
+      aria-invalid={invalid}
+      placeholder={format === 'h:mm' ? 'e.g. 1:30 or 1h 30m' : 'e.g. 1:30:00'}
+      onChange={(e) => { setText(e.target.value); setInvalid(false); }}
+      onBlur={finish}
+      onKeyDown={(e) => { if (e.key === 'Enter') finish(); }}
+      className={'kd-flat-input w-full px-2 py-1 text-sm rounded border outline-none tabular-nums bg-white dark:bg-[hsl(220,20%,12%)] border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] ' + (invalid ? 'text-[#EF4444] border-[#EF4444]' : 'text-[#374151] dark:text-[hsl(220,20%,88%)]')}
     />
   );
 }
@@ -240,7 +296,7 @@ function InlineDateEditor({
       onKeyDown={(e) => {
         if (e.key === 'Enter') commit(date);
       }}
-      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground border-border focus:border-[#2D7FF9]"
+      className="w-full px-2 py-1 text-sm rounded border outline-none bg-white dark:bg-[hsl(220,20%,12%)] text-foreground border-border focus:border-primary kd-flat-input"
     />
   );
 }
@@ -257,7 +313,7 @@ function InlineCheckboxEditor({
       type="checkbox"
       checked={!!value}
       onChange={(e) => onCommit(e.target.checked)}
-      className="w-4 h-4 accent-[#2D7FF9] cursor-pointer"
+      className="w-4 h-4 accent-primary cursor-pointer"
     />
   );
 }
@@ -312,7 +368,7 @@ function InlineSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary kd-flat-input"
               />
             </div>
             {filtered.map((c) => {
@@ -327,7 +383,7 @@ function InlineSelectEditor({
                   <span className="inline-flex items-center px-2 rounded-full text-xs font-medium" style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
                   </span>
-                  {value === c.title && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                  {value === c.title && <Check size={14} className="ml-auto text-primary" />}
                 </button>
               );
             })}
@@ -391,7 +447,7 @@ function InlineMultiSelectEditor({
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
                 placeholder="Find an option..."
-                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-[#2D7FF9]"
+                className="w-full px-2 py-1 text-xs rounded border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] outline-none bg-transparent text-[#374151] dark:text-[hsl(220,20%,88%)] focus:border-primary kd-flat-input"
               />
             </div>
             {filtered.map((c) => {
@@ -407,7 +463,7 @@ function InlineMultiSelectEditor({
                   <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${!isSelected ? 'opacity-50' : ''}`} style={{ backgroundColor: color.bg, color: color.text, height: 22, lineHeight: '22px' }}>
                     {c.title}
                   </span>
-                  {isSelected && <Check size={14} className="ml-auto text-[#2D7FF9]" />}
+                  {isSelected && <Check size={14} className="ml-auto text-primary" />}
                 </button>
               );
             })}
@@ -421,31 +477,29 @@ function InlineMultiSelectEditor({
 
 function InlineRatingEditor({
   value,
-  max,
+  field,
   onCommit,
 }: {
   value: number;
-  max: number;
+  field: FieldMeta;
   onCommit: (v: number) => void;
 }) {
-  const rating = typeof value === 'number' ? value : 0;
+  const max = ratingMaxOf(field.options?.max);
+  const icon = ratingIconOf(field.options?.icon);
+  const hex = ratingHexOf(field.options?.color);
+  const rating = typeof value === 'number' ? value : Number(value) || 0;
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: max }, (_, i) => (
         <button
           key={i}
           type="button"
-          onClick={() => onCommit(i + 1 === rating ? 0 : i + 1)}
+          onClick={() => onCommit(nextRating(rating, i + 1, max))}
           className="p-0 hover:scale-110 transition-transform"
-          aria-label={`Rate ${i + 1} of ${max} stars`}
+          aria-label={`Rate ${i + 1} of ${max}`}
           aria-pressed={i < rating}
         >
-          <Star
-            size={20}
-            fill={i < rating ? '#F59E0B' : 'none'}
-            stroke={i < rating ? '#F59E0B' : '#D1D5DB'}
-            strokeWidth={1.5}
-          />
+          <RatingGlyph icon={icon} filled={i < rating} hex={hex} size={20} />
         </button>
       ))}
     </div>
@@ -455,10 +509,12 @@ function InlineRatingEditor({
 function InlineAttachmentEditor({
   value,
   fieldId,
+  limits,
   onCommit,
 }: {
   value: AttachmentMeta[];
   fieldId: string;
+  limits?: AttachmentLimits;
   onCommit: (v: AttachmentMeta[]) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -469,7 +525,7 @@ function InlineAttachmentEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:border-[hsl(220,20%,18%)] dark:text-[#9AA2AF] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm transition-colors border-[#E5E5E5] text-[#6A7184] hover:border-primary hover:text-primary dark:border-[hsl(220,20%,18%)] dark:text-[#9AA2AF] dark:hover:border-primary dark:hover:text-primary"
       >
         <Paperclip size={14} />
         {attachments.length > 0
@@ -500,6 +556,7 @@ function InlineAttachmentEditor({
         value={attachments}
         onCommit={onCommit}
         storagePath={fieldId}
+        limits={limits}
       />
     </div>
   );
@@ -735,7 +792,7 @@ function RightSidebar({
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 text-2xs font-medium rounded-t transition-colors ${
               activeTab === tab.id
-                ? 'text-[#2D7FF9] border-b-2 border-[#2D7FF9] -mb-px'
+                ? 'text-primary border-b-2 border-primary -mb-px'
                 : 'text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] hover:text-[#6A7184] dark:hover:text-[hsl(220,20%,70%)]'
             }`}
           >
@@ -966,18 +1023,27 @@ export function ExpandedRowModal({
       case 'MultiSelect':
         return <InlineMultiSelectEditor value={val as string[] ?? []} field={field} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Rating':
-        return <InlineRatingEditor value={val as number} max={field.options?.max ?? 5} onCommit={(v) => handleUpdate(field.id, v)} />;
+        return <InlineRatingEditor value={val as number} field={field} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Number':
       case 'Decimal':
       case 'Currency':
       case 'Percent':
-        return <InlineNumberEditor value={val as number | null} onCommit={(v) => handleUpdate(field.id, v)} />;
+        return (
+          <InlineNumberEditor
+            value={field.ui_type === 'Percent' && typeof val === 'number' ? toShownPercent(val, storedAsFraction(field)) : (val as number | null)}
+            prefix={field.ui_type === 'Currency' ? currencySymbol(field.options?.currencyCode || field.options?.symbol) : undefined}
+            suffix={field.ui_type === 'Percent' ? '%' : undefined}
+            onCommit={(v) => handleUpdate(field.id, field.ui_type === 'Percent' && typeof v === 'number' ? fromShownPercent(v, storedAsFraction(field)) : v)}
+          />
+        );
+      case 'Duration':
+        return <InlineDurationEditor value={val as number | null} field={field} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Date':
         return <InlineDateEditor value={val as string | null} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'DateTime':
         return <InlineDateEditor value={val as string | null} onCommit={(v) => handleUpdate(field.id, v)} showTime />;
       case 'Attachment':
-        return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} onCommit={(v) => handleUpdate(field.id, v)} />;
+        return <InlineAttachmentEditor value={val as AttachmentMeta[] ?? []} fieldId={field.id} limits={field.options as AttachmentLimits} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'LongText':
         return <InlineLongTextEditor value={val != null ? String(val) : ''} onCommit={(v) => handleUpdate(field.id, v)} />;
       case 'Barcode':
@@ -1026,7 +1092,7 @@ export function ExpandedRowModal({
           <button
             type="button"
             onClick={handleBtnClick}
-            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90 bg-[#2D7FF9] text-white"
+            className="inline-flex items-center px-4 py-1.5 rounded text-xs font-medium transition-colors hover:opacity-90 bg-primary text-white"
             style={{ cursor: urlTemplate ? 'pointer' : 'default' }}
           >
             {btnLabel}
@@ -1062,7 +1128,7 @@ export function ExpandedRowModal({
       >
         {/* Drop indicator line */}
         {isDropTarget && dropPosition === 'before' && (
-          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
 
         <div className="flex items-start gap-2">
@@ -1094,7 +1160,7 @@ export function ExpandedRowModal({
 
         {/* Drop indicator line (after) */}
         {isDropTarget && dropPosition === 'after' && (
-          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-[#2D7FF9] rounded-full z-10" />
+          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
       </div>
     );

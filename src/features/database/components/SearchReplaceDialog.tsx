@@ -36,6 +36,8 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
     tableId: activeTableId!,
     page: 0,
     pageSize: 1000,
+    // The dialog is mounted all the time; only fetch rows once someone opens it.
+    enabled: open,
   });
   const updateRecord = useUpdateRecord();
 
@@ -220,7 +222,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
       title={title}
       className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
         active
-          ? 'bg-[#2D7FF9]/10 text-[#2D7FF9] dark:bg-[#2D7FF9]/20'
+          ? 'bg-primary/10 text-primary dark:bg-primary/20'
           : 'text-[#9AA2AF] hover:text-[#6A7184] hover:bg-muted'
       }`}
     >
@@ -233,7 +235,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Replace size={16} className="text-[#2D7FF9]" />
+            <Replace size={16} className="text-primary" />
             Find & Replace
           </DialogTitle>
         </DialogHeader>
@@ -245,7 +247,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
               <Search size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
               <input
                 ref={searchInputRef}
-                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-md bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-[#2D7FF9]"
+                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-md bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-primary"
                 placeholder="Find..."
                 value={searchText}
                 onChange={(e) => { setSearchText(e.target.value); setCurrentMatchIndex(0); }}
@@ -279,7 +281,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             <div className="flex-1 relative">
               <Replace size={14} className="absolute left-2.5 top-2.5 text-[#9AA2AF] dark:text-[hsl(220,20%,55%)]" />
               <input
-                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-md bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-[#2D7FF9]"
+                className="w-full h-9 pl-8 pr-3 text-xs-plus border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] rounded-md bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-primary"
                 placeholder="Replace with..."
                 value={replaceText}
                 onChange={(e) => setReplaceText(e.target.value)}
@@ -298,7 +300,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
             </Button>
             <Button
               size="sm"
-              style={{ backgroundColor: '#2D7FF9' }}
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
               className="text-white h-9 text-xs shrink-0"
               onClick={handleReplaceAll}
               disabled={matches.length === 0 || !searchText}
@@ -358,7 +360,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                     onClick={() => setCurrentMatchIndex(i)}
                     className={`flex items-center justify-between px-3 py-1.5 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] last:border-0 cursor-pointer transition-colors ${
                       isActive
-                        ? 'bg-[#2D7FF9]/5 dark:bg-[#2D7FF9]/10'
+                        ? 'bg-primary/5 dark:bg-primary/10'
                         : 'hover:bg-[#F9F9FA] dark:hover:bg-[hsl(220,25%,15%)]'
                     }`}
                   >
@@ -366,7 +368,7 @@ export function SearchReplaceDialog({ open, onOpenChange }: SearchReplaceDialogP
                       <span className="text-3xs text-[#9AA2AF] dark:text-[hsl(220,20%,55%)] mr-2">{m.fieldName}</span>
                       <span className="text-xs text-[#374151] dark:text-[hsl(220,25%,88%)]">
                         {prefix}
-                        <mark className={`px-0.5 rounded ${isActive ? 'bg-[#2D7FF9]/20 dark:bg-[#2D7FF9]/30' : 'bg-yellow-200 dark:bg-yellow-700/50'} dark:text-[hsl(220,25%,88%)]`}>
+                        <mark className={`px-0.5 rounded ${isActive ? 'bg-primary/20 dark:bg-primary/30' : 'bg-yellow-200 dark:bg-yellow-700/50'} dark:text-[hsl(220,25%,88%)]`}>
                           {matched}
                         </mark>
                         {suffix}

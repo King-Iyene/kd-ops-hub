@@ -13,6 +13,7 @@
 import { useMemo } from 'react';
 import { useFields } from './useFields';
 import { useRecordLinks } from './useLinks';
+import { useBatchedLinkedRecords } from './useBatchedLinkedRecords';
 import { useDatabaseUI } from '../lib/store';
 import { computeLookupValues, computeRollupValue, resolveLinkField } from '../lib/computations';
 import type { FieldMeta, RecordRow } from '../types';
@@ -30,15 +31,26 @@ function useLookupRollupData(field: FieldMeta, record: RecordRow) {
   const relatedTableId = linkField?.options?.relatedTableId;
   const linkType = linkField?.options?.linkType ?? linkField?.options?.type;
 
-  const { data: linkedRecords, isLoading: linkedLoading } = useRecordLinks({
+  // A link with a known target table is loaded in batches shared by every cell of the column; the older
+  // one-record-at-a-time path stays for links without one.
+  const batchedEnabled = !!linkField && !!relatedTableId;
+  const batched = useBatchedLinkedRecords({
+    baseId: activeBaseId,
+    linkField,
+    recordId: record?.id,
+    enabled: batchedEnabled,
+  });
+  const single = useRecordLinks({
     baseId: activeBaseId,
     sourceTableId: field.table_id,
     targetTableId: relatedTableId,
     fieldId: linkField?.id ?? '',
-    recordId: record?.id ?? null,
+    recordId: batchedEnabled ? null : (record?.id ?? null),
     linkType,
     fkColumnName: linkField?.options?.fkColumnName as string | undefined,
   });
+  const linkedRecords = batchedEnabled ? batched.data : single.data;
+  const linkedLoading = batchedEnabled ? batched.isLoading : single.isLoading;
 
   const { data: relatedFields, isLoading: relatedLoading } = useFields(relatedTableId);
 
@@ -81,7 +93,7 @@ export function useLookupValue(field: FieldMeta, record: RecordRow): LookupResul
 }
 
 export interface RollupResult {
-  value: number | string | any[] | null;
+  value: number | string | boolean | any[] | null;
   isConfigured: boolean;
   isLoading: boolean;
 }

@@ -596,10 +596,20 @@ function logUpdate(...parts) {
 //  - the person has been away from the computer for 10 minutes, or locked the screen, or
 //  - the update was already downloaded earlier and the app has just been started (nothing is open yet).
 // The install is silent and the app opens again by itself. A guard stops it from trying the same version more than once every 30 minutes.
+// On some computers the silent install does not take (the old app is still locked): the app then opened again, tried again, and closed on every start.
+// So it tries a version at most twice by itself; after that only the person's own "Restart" click (or quitting the app) installs it.
 function allowAutoInstall(version) {
   const file = path.join(app.getPath('userData'), 'auto-install.json');
-  try { const j = JSON.parse(fs.readFileSync(file, 'utf8')); if (j.version === version && Date.now() - j.at < 30 * 60 * 1000) return false; } catch { /* never tried */ }
-  try { fs.writeFileSync(file, JSON.stringify({ version, at: Date.now() })); } catch { /* fine */ }
+  let tries = 0;
+  try {
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (j.version === version) {
+      if (Date.now() - j.at < 30 * 60 * 1000) return false;
+      tries = Number(j.tries) || 1;
+      if (tries >= 2) return false;
+    }
+  } catch { /* never tried */ }
+  try { fs.writeFileSync(file, JSON.stringify({ version, at: Date.now(), tries: tries + 1 })); } catch { /* fine */ }
   return true;
 }
 function installByItself(why) {
@@ -624,7 +634,7 @@ function initAutoUpdater() {
   autoUpdater.on('update-downloaded', (info) => {
     updateReadyVersion = info.version;
     logUpdate('update downloaded', info.version);
-    if (Date.now() - foundAt < 15000 && Date.now() - startedAt < 5 * 60 * 1000) setTimeout(() => installByItself('it was downloaded earlier and the app has just started'), 3000);
+    // (no install right at start-up any more: it closed the app the moment it opened. It installs when you are away, the screen locks, you press Restart, or you quit.)
     rebuildTray();
     tellPagesAboutUpdate();
     const n = new Notification({

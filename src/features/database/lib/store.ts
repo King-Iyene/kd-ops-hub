@@ -12,7 +12,14 @@ export type SummaryFunction =
   | 'countEmpty'
   | 'countFilled'
   | 'percentEmpty'
-  | 'percentFilled';
+  | 'percentFilled'
+  | 'median'
+  | 'range'
+  | 'unique'
+  | 'earliest'
+  | 'latest'
+  | 'checked'
+  | 'unchecked';
 
 interface DatabaseUIState {
   activeBaseId: string | null;

@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
-import type { FieldMeta, RecordRow } from '../types';
+import type { FieldMeta, RecordRow, SelectChoice } from '../types';
+import { normalizeSelectPaste } from './selectOptions';
+import { fromShownPercent, storedAsFraction } from './percent';
 
 export function exportToCsv(fields: FieldMeta[], records: RecordRow[], tableName: string) {
   const exportFields = fields
@@ -98,10 +100,14 @@ export function coerceValue(value: string, field: FieldMeta): any {
   if (!value || value.trim() === '') return null;
   const v = value.trim();
   switch (field.ui_type) {
+    case 'Percent': {
+      // "14.4%" or "14.4" is 14.4 percent; a field that keeps fractions stores 0.144.
+      const n = Number(v.replace(/%\s*$/, ''));
+      return isNaN(n) ? null : fromShownPercent(n, storedAsFraction(field));
+    }
     case 'Number':
     case 'Decimal':
     case 'Currency':
-    case 'Percent':
     case 'Rating':
     case 'Duration':
     case 'Year': {
@@ -110,8 +116,14 @@ export function coerceValue(value: string, field: FieldMeta): any {
     }
     case 'Checkbox':
       return ['true', '1', 'yes', 'y'].includes(v.toLowerCase());
-    case 'MultiSelect':
-      return v.split(',').map((s) => s.trim()).filter(Boolean);
+    case 'MultiSelect': {
+      const choices = (field.options?.choices ?? []) as SelectChoice[];
+      return normalizeSelectPaste(v, choices, true);
+    }
+    case 'SingleSelect': {
+      const choices = (field.options?.choices ?? []) as SelectChoice[];
+      return normalizeSelectPaste(v, choices, false);
+    }
     case 'JSON':
     case 'Attachment':
       try { return JSON.parse(v); } catch { return null; }

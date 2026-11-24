@@ -92,14 +92,14 @@ function Callout({ type, children }: { type: 'tip' | 'warning' | 'info'; childre
   const styles = {
     tip: {
       border: 'border-success/30 dark:border-success',
-      bg: 'bg-success/10/30',
+      bg: 'bg-success/10',
       icon: <Lightbulb size={14} className="text-success shrink-0 mt-0.5" />,
       label: 'Pro Tip',
       labelColor: 'text-emerald-700 dark:text-emerald-400',
     },
     warning: {
       border: 'border-warning/30 dark:border-warning',
-      bg: 'bg-warning/10/30',
+      bg: 'bg-warning/10',
       icon: <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />,
       label: 'Important',
       labelColor: 'text-amber-700 dark:text-amber-400',
@@ -148,13 +148,13 @@ const PLATFORMS: Platform[] = [
 ];
 
 const MODULES: ModuleDef[] = [
-  { id: 'employees', name: 'Employees', icon: Users, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Create, list, update, and remove employee records' },
-  { id: 'tasks', name: 'Tasks', icon: ListTodo, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Manage tasks, assign them, and track completion' },
-  { id: 'leave', name: 'Leave', icon: Calendar, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Submit leave requests and check balances' },
-  { id: 'expenses', name: 'Expenses', icon: Receipt, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Submit and approve expense claims' },
-  { id: 'fleet', name: 'Fleet / Fuel', icon: Car, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Request fuel disbursements for fleet vehicles' },
-  { id: 'invoices', name: 'Invoices', icon: FileText, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Generate, send, and track invoices' },
-  { id: 'clients', name: 'Clients', icon: Building2, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Manage your client directory' },
+  { id: 'employees', name: 'Employees', icon: Users, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for an employee-style table you create in Database' },
+  { id: 'tasks', name: 'Tasks', icon: ListTodo, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for a task-tracking table you create in Database' },
+  { id: 'leave', name: 'Leave', icon: Calendar, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for a leave-request table you create in Database' },
+  { id: 'expenses', name: 'Expenses', icon: Receipt, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for an expense-claims table you create in Database' },
+  { id: 'fleet', name: 'Fleet / Fuel', icon: Car, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for a fuel-log table you create in Database' },
+  { id: 'invoices', name: 'Invoices', icon: FileText, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for an invoice-log table you create in Database' },
+  { id: 'clients', name: 'Clients', icon: Building2, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Example layout for a client-list table you create in Database' },
   { id: 'database', name: 'Database', icon: Database, endpoint: '/bases/{baseId}/tables/{tableId}/records', description: 'Query any table via the generic records API' },
 ];
 
@@ -1070,8 +1070,16 @@ export default function IntegrationGuides() {
           Connect Your Tools
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Step-by-step guides for integrating external tools with the KDOps Platform API. Pick your platform and module below.
+          Step-by-step guides for integrating external tools with the KDOps Platform API. Pick your platform and an example table layout below.
         </p>
+        <div className="mt-3">
+          <Callout type="info">
+            <strong>There is no built-in Employees, Tasks, Leave, Expenses, Fleet, Invoices or Clients REST API.</strong>{' '}
+            The REST API only reads and writes the custom tables you build in <strong>Database</strong>. The layouts
+            below are example column sets for a table you create there yourself; they do not touch the KDOps modules of
+            the same name. To react to module activity, use webhooks.
+          </Callout>
+        </div>
       </div>
 
       {/* Always-visible reminders */}
@@ -1135,7 +1143,7 @@ export default function IntegrationGuides() {
       {/* Module Selector */}
       <div>
         <label className="text-2xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">
-          Choose Module
+          Choose an example table layout
         </label>
         <div className="flex flex-wrap gap-2">
           {MODULES.map((m) => (
@@ -1192,7 +1200,6 @@ export default function IntegrationGuides() {
           <Callout type="warning">
             Replace <code className="text-3xs font-mono px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50">kdops_YOUR_KEY</code> with your actual API key from the <strong>API Keys</strong> tab in this Developer Hub.
             {module === 'expenses' || module === 'invoices' ? ' All monetary amounts are in Naira (NGN). For example, 5000 means ₦5,000.' : ''}
-            {module === 'fleet' ? ' The employee MUST have bank details on file for fuel disbursement to work.' : ''}
           </Callout>
 
           {/* The actual guide */}

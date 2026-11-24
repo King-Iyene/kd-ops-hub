@@ -20507,8 +20507,108 @@ export type Database = {
           },
         ]
       }
+      time_project_members: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          employee_id: string
+          project_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id: string
+          project_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_project_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_members_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "time_project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "time_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_projects: {
         Row: {
+          assigned_only: boolean
           client_id: string | null
           created_at: string
           created_by: string | null
@@ -20519,6 +20619,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          assigned_only?: boolean
           client_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -20529,6 +20630,7 @@ export type Database = {
           name: string
         }
         Update: {
+          assigned_only?: boolean
           client_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -26629,6 +26731,7 @@ export type Database = {
         Args: { p_client_id: string; p_end_date: string; p_start_date: string }
         Returns: string
       }
+      time_can_track_project: { Args: { p_project: string }; Returns: boolean }
       time_dashboard_today: {
         Args: never
         Returns: {
@@ -26708,6 +26811,7 @@ export type Database = {
           used_days: number
         }[]
       }
+      time_my_project_ids: { Args: never; Returns: string[] }
       time_planner_vs_actual: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: {
@@ -26731,12 +26835,24 @@ export type Database = {
           used_hours: number
         }[]
       }
+      time_project_recent_trackers: {
+        Args: { p_days?: number; p_project: string }
+        Returns: string[]
+      }
       time_project_report: {
         Args: {
           p_employee_ids?: string[]
           p_end?: string
           p_project_id: string
           p_start?: string
+        }
+        Returns: Json
+      }
+      time_project_set_access: {
+        Args: {
+          p_assigned_only: boolean
+          p_employee_ids: string[]
+          p_project: string
         }
         Returns: Json
       }

@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { FieldMeta, UIType } from '../types';
 import { VIRTUAL_TYPES, UI_TYPE_TO_PG_TYPE } from '../types';
+import { fetchFields, peekBootstrapInFlight } from './tableBootstrap';
+import { logWarn } from '@/lib/logger';
+import { formulaRenameChanges } from '../lib/formulaEditorSupport';
 
 function toSnakeCase(name: string): string {
   let result = name
@@ -23,14 +26,17 @@ export function useFields(tableId: string | null | undefined) {
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('fields')
-        .select('*')
-        .eq('table_id', tableId)
-        .order('position');
-      if (error) throw error;
-      return data as FieldMeta[];
+      // If the combined table request (table, fields and views in one) is already on its way, take
+      // the fields from it instead of sending a second request for the same rows.
+      const inFlight = peekBootstrapInFlight(tableId);
+      if (inFlight) {
+        try {
+          return (await inFlight).fields;
+        } catch {
+          /* fall through to the plain request, which reports a real failure */
+        }
+      }
+      return fetchFields(tableId as string);
     },
   });
 }
@@ -216,6 +222,32 @@ export function useUpdateField() {
         .single();
 
       if (error) throw error;
+
+      // A renamed field is referred to by name in formulas, so those formulas would stop working. Rewrite the
+      // ones in this table that mention the old name. This runs after the rename has been saved, and a failure
+      // here must not undo the rename, so it is reported and left.
+      if (typeof input.updates.name === 'string') {
+        const siblings = qc.getQueryData<FieldMeta[]>(['nc', 'fields', input.table_id]);
+        const oldName = siblings?.find((f) => f.id === input.id)?.name;
+        if (siblings && oldName && oldName !== input.updates.name) {
+          // Read the formulas fresh from the database rather than from the cache, so a formula that was just edited
+          // elsewhere is never overwritten with an older copy.
+          const { data: formulaRows } = await supabase
+            .schema('nc_meta')
+            .from('fields')
+            .select('id, ui_type, options')
+            .eq('table_id', input.table_id)
+            .eq('ui_type', 'Formula');
+          for (const change of formulaRenameChanges((formulaRows ?? []) as FieldMeta[], oldName, input.updates.name)) {
+            const { error: formulaError } = await supabase
+              .schema('nc_meta')
+              .from('fields')
+              .update({ options: change.options })
+              .eq('id', change.id);
+            if (formulaError) logWarn('Database', 'Could not update a formula after a field was renamed:', formulaError.message);
+          }
+        }
+      }
 
       // Apply DDL constraint changes for non-virtual fields
       if (constraintChanging && currentField && !VIRTUAL_TYPES.includes(currentField.ui_type) && currentField.pg_column_name) {

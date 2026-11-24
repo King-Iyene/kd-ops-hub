@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban, Play, FileBarChart } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Loader2, Archive, Tag as TagIcon, FolderKanban, Play, FileBarChart, Users } from 'lucide-react';
 import { PageHeader } from '@/features/timetrack/ui/TrackerPageHeader';
 import { supabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/db-errors';
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { fetchActiveProjects, fetchTasksForProject, fetchAllTags } from '../lib/queries';
 import type { TimeClient, TimeCustomField, TimeProject, TimeTask } from '../lib/types';
+import { ProjectAccessDialog } from './ProjectAccessDialog';
 
 export default function ProjectsPage() {
   const { has } = useTimetrackCapabilities();
@@ -62,6 +63,8 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
       return data as TimeCustomField[];
     },
   });
+  const myId = useAuthStore((s) => s.profile?.id);
+  const [accessFor, setAccessFor] = useState<TimeProject | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TimeProject | null>(null);
@@ -92,9 +95,11 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
         const { error } = await supabase.from('time_projects').update(payload).eq('id', editing.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('time_projects').insert(payload).select('id').single();
+        const { data, error } = await supabase.from('time_projects').insert(payload).select('id, name, manager_id, client_id, is_billable, is_archived, created_at').single();
         if (error) throw error;
         projectId = data.id;
+        // A new project starts assigned-only, with nobody on it: ask who should see it right away.
+        setAccessFor({ ...(data as TimeProject), assigned_only: true });
       }
 
       if (projectId) {
@@ -147,8 +152,14 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
                   {p.manager_id && p.client_id && ' · '}
                   {p.client_id && <>Client: {clients?.find((c) => c.id === p.client_id)?.name ?? '—'}</>}
                 </p>
+                {p.assigned_only && <p className="text-2xs text-muted-foreground mt-0.5" data-testid={`assigned-only-${p.id}`}>Only assigned people see this project</p>}
               </div>
               <div className="flex gap-1 shrink-0">
+                {(canManage || (!!myId && p.manager_id === myId)) && (
+                  <Button variant="outline" size="sm" onClick={() => setAccessFor(p)} aria-label={`People on ${p.name}`}>
+                    <Users className="h-3.5 w-3.5 mr-1.5" /> People
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/timetrack/projects/${p.id}/report`)}>
                   <FileBarChart className="h-3.5 w-3.5 mr-1.5" /> Go to report
                 </Button>
@@ -164,6 +175,8 @@ function ProjectsTab({ canManage, canManageTasks }: { canManage: boolean; canMan
           </CardContent>
         </Card>
       ))}
+
+      <ProjectAccessDialog project={accessFor} open={!!accessFor} onOpenChange={(o) => { if (!o) setAccessFor(null); }} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

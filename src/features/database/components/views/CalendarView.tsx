@@ -233,8 +233,8 @@ const calendarStyles = `
   --cal-text: #374151;
   --cal-text-muted: #6A7184;
   --cal-text-faint: #9AA2AF;
-  --cal-primary: #2D7FF9;
-  --cal-primary-hover: #2952CC;
+  $1: hsl(var(--primary));
+  $1: hsl(var(--primary) / 0.85);
   --cal-primary-light: #EBF0FF;
   --cal-primary-light-hover: #D6E0FF;
   --cal-today-bg: #FAFBFF;

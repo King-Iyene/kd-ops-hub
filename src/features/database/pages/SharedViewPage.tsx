@@ -150,7 +150,7 @@ export default function SharedViewPage() {
   if (sharedViewQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#FAFAFA] dark:bg-[hsl(220,30%,6%)]">
-        <div className="animate-spin h-8 w-8 border-2 border-[#2D7FF9] border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function SharedViewPage() {
               type="submit"
               disabled={verifyPassword.isPending}
               className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-              style={{ backgroundColor: '#2D7FF9' }}
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
             >
               Submit
             </button>

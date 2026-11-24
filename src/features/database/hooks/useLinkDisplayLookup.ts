@@ -2,12 +2,16 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { FieldMeta } from '../types';
+import { getFieldColumn, getTableMeta } from './metaLookups';
+import { resolveBaseSchema } from './tableBootstrap';
 
 const EMPTY_LOOKUP: Record<string, string> = {};
 
 export function useLinkDisplayLookup(
   baseId: string | null | undefined,
   fields: FieldMeta[] | undefined,
+  /** Wait for this (for example "the first page of rows has arrived") so it does not compete with the data the screen needs first. */
+  ready = true,
 ) {
   const linkFields = useMemo(
     () => (fields ?? []).filter((f) => f.ui_type === 'Links' && (
@@ -46,20 +50,22 @@ export function useLinkDisplayLookup(
 
   const { data: lookupMap } = useQuery({
     queryKey: ['nc', 'link-display-lookup', baseId, cacheKey],
-    enabled: !!baseId && (relatedTableIds.length > 0 || linkedTableNames.length > 0 || linkedTableAirtableIds.length > 0),
+    enabled: ready && !!baseId && (relatedTableIds.length > 0 || linkedTableNames.length > 0 || linkedTableAirtableIds.length > 0),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const map: Record<string, string> = {};
 
-      const { data: baseMeta } = await supabase
-        .schema('nc_meta')
-        .from('bases')
-        .select('schema_name')
-        .eq('id', baseId)
-        .single();
-      if (!baseMeta?.schema_name) return map;
+      // Shared with the link columns, so the base's schema is asked for once for the whole screen.
+      let schemaName: string;
+      try {
+        schemaName = await resolveBaseSchema(baseId as string);
+      } catch {
+        return map;
+      }
+      if (!schemaName) return map;
+      const baseMeta = { schema_name: schemaName };
 
       const allTableIds = [...relatedTableIds];
 
@@ -81,38 +87,14 @@ export function useLinkDisplayLookup(
       // Resolve Airtable table IDs (tblXXX) by checking tables' airtable_id column
       if (linkedTableAirtableIds.length > 0) {
         try {
+          // The old Airtable table ids cannot be mapped to tables here, so every table of the base is
+          // included and the airtable_id matching further down picks out the right records.
           const { data: allBaseTables } = await supabase
             .schema('nc_meta')
             .from('tables')
             .select('id, pg_table_name')
             .eq('base_id', baseId);
           if (allBaseTables) {
-            for (const tbl of allBaseTables) {
-              try {
-                const { data: atMatch } = await supabase
-                  .schema('nc_meta')
-                  .from('fields')
-                  .select('id')
-                  .eq('table_id', tbl.id)
-                  .eq('pg_column_name', 'airtable_id')
-                  .limit(1);
-                if (!atMatch || atMatch.length === 0) continue;
-                // This table has airtable_id. Check if any record's airtable_id matches a linkedTableId
-                // Actually, linkedTableId is an Airtable TABLE id (tblXXX), not a record id.
-                // We need to find which nc_meta table corresponds to this Airtable table.
-                // Check if any field on this table references one of the linkedTableAirtableIds
-                const { data: fieldMatch } = await supabase
-                  .schema('nc_meta')
-                  .from('fields')
-                  .select('options')
-                  .eq('table_id', tbl.id)
-                  .eq('pg_column_name', 'airtable_id')
-                  .limit(1);
-                // We can't easily map tbl IDs from Airtable. Instead, just include ALL base tables
-                // in the lookup and let the airtable_id matching handle it.
-              } catch { /* skip */ }
-            }
-            // Simpler approach: include all tables from the base that aren't already included
             for (const tbl of allBaseTables) {
               if (!allTableIds.includes(tbl.id)) allTableIds.push(tbl.id);
             }
@@ -124,23 +106,14 @@ export function useLinkDisplayLookup(
       const tableResults = await Promise.all(
         allTableIds.map(async (tableId) => {
           try {
-            const { data: tableMeta } = await supabase
-              .schema('nc_meta')
-              .from('tables')
-              .select('pg_table_name, primary_field_id')
-              .eq('id', tableId)
-              .single();
+            // One shared request each for all the tables and for all the primary columns, not one per table.
+            const tableMeta = await getTableMeta(tableId);
             if (!tableMeta?.primary_field_id) return null;
 
-            const { data: primaryField } = await supabase
-              .schema('nc_meta')
-              .from('fields')
-              .select('pg_column_name')
-              .eq('id', tableMeta.primary_field_id)
-              .single();
-            if (!primaryField?.pg_column_name) return null;
+            const pgColumn = await getFieldColumn(tableMeta.primary_field_id);
+            if (!pgColumn) return null;
 
-            return { tableId, pgTable: tableMeta.pg_table_name, pgColumn: primaryField.pg_column_name };
+            return { tableId, pgTable: tableMeta.pg_table_name, pgColumn };
           } catch {
             return null;
           }

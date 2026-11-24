@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import type { ViewMeta } from '../types';
 import { useDatabaseUI } from '../lib/store';
+import { fetchViews, peekBootstrapInFlight } from './tableBootstrap';
 
 export function useViews(tableId: string | null | undefined) {
   return useQuery({
@@ -13,14 +14,16 @@ export function useViews(tableId: string | null | undefined) {
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .schema('nc_meta')
-        .from('views')
-        .select('*')
-        .eq('table_id', tableId)
-        .order('position');
-      if (error) throw error;
-      return data as ViewMeta[];
+      // Same as useFields: share the combined table request when it is already running.
+      const inFlight = peekBootstrapInFlight(tableId);
+      if (inFlight) {
+        try {
+          return (await inFlight).views;
+        } catch {
+          /* fall through to the plain request */
+        }
+      }
+      return fetchViews(tableId as string);
     },
   });
 }
@@ -123,7 +126,7 @@ export function useDeleteView() {
   });
 }
 
-function viewConfigFromMeta(view: ViewMeta) {
+export function viewConfigFromMeta(view: ViewMeta) {
   const hiddenFieldIds = new Set<string>();
   if (view.field_visibility) {
     for (const [fid, visible] of Object.entries(view.field_visibility)) {
@@ -145,13 +148,27 @@ export function useActiveView(tableId: string | null | undefined) {
   const { data: views } = useViews(tableId);
   const activeViewId = useDatabaseUI((s) => s.activeViewId);
   const setActiveView = useDatabaseUI((s) => s.setActiveView);
+  // The view whose saved settings are already in the screen's store, as "table:view".
+  const appliedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!views || views.length === 0) return;
-    if (activeViewId && views.some((v) => v.id === activeViewId)) return;
-    const defaultView = views.find((v) => v.is_default) ?? views[0];
-    setActiveView(defaultView.id, viewConfigFromMeta(defaultView));
-  }, [views, activeViewId, setActiveView]);
+    const current = activeViewId ? views.find((v) => v.id === activeViewId) : undefined;
+    if (!current) {
+      const defaultView = views.find((v) => v.is_default) ?? views[0];
+      appliedRef.current = `${tableId}:${defaultView.id}`;
+      setActiveView(defaultView.id, viewConfigFromMeta(defaultView));
+      return;
+    }
+    // The address (a deep link, or the command palette) can name a view without its settings.
+    // Without this the previous view's filters, sorts and hidden fields stay in force and a
+    // later change would be saved into the wrong view.
+    const key = `${tableId}:${current.id}`;
+    if (appliedRef.current !== key) {
+      appliedRef.current = key;
+      setActiveView(current.id, viewConfigFromMeta(current));
+    }
+  }, [views, activeViewId, tableId, setActiveView]);
 }
 
 export function useLoadViewConfig() {

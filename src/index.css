@@ -1563,3 +1563,84 @@ input[type=number] {
   }
 
 }
+
+/*
+ * Grid cell editors.
+ * The cell already draws its own selection outline. The app-wide focus styles
+ * above (a rounded outline plus a soft glow on every focused input) landed
+ * inside the cell as a second rounded box, so editing a currency or number
+ * cell looked like a circle inside a box. This rule is outside every @layer on
+ * purpose, so it wins over the global focus styles without !important.
+ */
+[data-cell-id] input,
+[data-cell-id] textarea,
+[data-cell-id] input:focus,
+[data-cell-id] input:focus-visible,
+[data-cell-id] textarea:focus,
+[data-cell-id] textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+[data-cell-id] input:focus,
+[data-cell-id] textarea:focus {
+  border-color: transparent;
+}
+
+/*
+ * Small inputs inside popovers (date typing box, time boxes) draw their own border,
+ * so the app-wide focus glow would stack a second ring on top. Keep the border
+ * colour change, drop the glow.
+ */
+.kd-flat-input:focus,
+.kd-flat-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.kd-flat-input:focus {
+  border-color: hsl(var(--primary));
+}
+
+/* ===== Database grid speed: row hover without JavaScript ===== */
+/*
+ * The grid row's hover colour used to be set from JavaScript (onMouseEnter/onMouseLeave writing the inline
+ * style of every row). It is now a CSS rule: the row carries its hover colour in --kd-row-hover and the
+ * browser does the rest. A row that holds the selected cell (data-row-selected) keeps its selected colour.
+ * !important is needed only to beat the row's own inline background-colour.
+ */
+.kd-grid-row:hover:not([data-row-selected="true"]) {
+  background-color: var(--kd-row-hover) !important;
+}
+
+/*
+ * Formula editor colours. Function names green, fields purple, numbers orange, text teal, as in Airtable;
+ * a field written as a chip uses the purple scale, an unknown field the red scale. Light and dark.
+ */
+:root {
+  --fx-function: #166534;
+  --fx-field: #6b21a8;
+  --fx-number: #9a3412;
+  --fx-string: #0f766e;
+  --fx-error: #b42318;
+  --fx-warning: #b45309;
+  --fx-pill-bg: #f7edfe;
+  --fx-pill-border: #d1afec;
+  --fx-pill-text: #402060;
+  --fx-pill-unknown-bg: #feebec;
+  --fx-pill-unknown-border: #f4a9aa;
+  --fx-pill-unknown-text: #641723;
+}
+.dark {
+  --fx-function: #86efac;
+  --fx-field: #d8b4fe;
+  --fx-number: #fdba74;
+  --fx-string: #5eead4;
+  --fx-error: #f97066;
+  --fx-warning: #fbbf24;
+  --fx-pill-bg: #301c3b;
+  --fx-pill-border: #664282;
+  --fx-pill-text: #ecd9fa;
+  --fx-pill-unknown-bg: #3b1219;
+  --fx-pill-unknown-border: #8c333a;
+  --fx-pill-unknown-text: #ffd1d9;
+}

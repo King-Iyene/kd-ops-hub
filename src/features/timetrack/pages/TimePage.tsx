@@ -39,7 +39,7 @@ import {
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { fetchActiveProjects, fetchTasksForProject, fetchAllTags, fetchAllActiveTasks } from '../lib/queries';
+import { fetchTrackableProjects, fetchTasksForProject, fetchAllTags, fetchTrackableTasks } from '../lib/queries';
 import { enqueue, flushQueue, queueLength } from '../lib/offlineQueue';
 import type { TimeEntry, TimeTag } from '../lib/types';
 import type { TablesUpdate } from '@/integrations/supabase/types';
@@ -88,8 +88,8 @@ export default function TimePage() {
   const effectiveEmployeeId = viewEmployeeId ?? profile?.id;
   const viewingSelf = effectiveEmployeeId === profile?.id;
 
-  const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
-  const { data: allTasks } = useQuery({ queryKey: ['timetrack', 'all-tasks'], queryFn: fetchAllActiveTasks });
+  const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects', 'mine'], queryFn: fetchTrackableProjects });
+  const { data: allTasks } = useQuery({ queryKey: ['timetrack', 'all-tasks', 'mine'], queryFn: fetchTrackableTasks });
   const [timerProjectId, setTimerProjectId] = useState<string>('');
   const [timerTaskId, setTimerTaskId] = useState<string>('');
   const [startNote, setStartNote] = useState('');
@@ -1031,7 +1031,7 @@ function ManualEntryDialog({ open, onOpenChange, entry, duplicateFrom, defaultDa
 }) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects'], queryFn: fetchActiveProjects });
+  const { data: projects } = useQuery({ queryKey: ['timetrack', 'projects', 'mine'], queryFn: fetchTrackableProjects });
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));

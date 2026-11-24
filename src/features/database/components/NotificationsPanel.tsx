@@ -82,7 +82,7 @@ export function NotificationsPanel() {
             </span>
             {notifications.length > 0 && (
               <button
-                className="text-2xs text-[#2D7FF9] hover:underline"
+                className="text-2xs text-primary hover:underline"
                 onClick={markAllRead}
               >
                 Mark all read
@@ -122,7 +122,7 @@ export function NotificationsPanel() {
                       </span>
                     </div>
                     {!n.read && (
-                      <span className="mt-1.5 h-2 w-2 rounded-full bg-[#2D7FF9] shrink-0" />
+                      <span className="mt-1.5 h-2 w-2 rounded-full bg-primary shrink-0" />
                     )}
                   </div>
                 );

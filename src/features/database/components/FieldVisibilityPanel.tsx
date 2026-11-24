@@ -42,7 +42,7 @@ export function FieldVisibilityPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-xs text-[#2D7FF9] font-medium"
+            className="h-6 text-xs text-primary font-medium"
             onClick={onShowAll}
           >
             Show All
@@ -50,7 +50,7 @@ export function FieldVisibilityPanel({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-xs text-[#2D7FF9] font-medium"
+            className="h-6 text-xs text-primary font-medium"
             onClick={onHideAll}
           >
             Hide All

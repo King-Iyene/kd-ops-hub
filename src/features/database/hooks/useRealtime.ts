@@ -27,19 +27,26 @@ export function useRealtimeRecords(baseId: string | undefined, tableId: string |
     if (!resolved) return;
 
     const channelName = `db-records-${resolved.schema}-${resolved.table}`;
+    // A burst of changes (an import, a bulk edit, an automation) arrives as many events. Refetch once
+    // after the burst settles instead of once per event.
+    let timer: ReturnType<typeof setTimeout> | undefined;
     channelRef.current = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: resolved.schema, table: resolved.table },
         () => {
-          qc.invalidateQueries({ queryKey: ['nc', 'records', baseId, tableId] });
-          qc.invalidateQueries({ queryKey: ['nc', 'recordCount', baseId, tableId] });
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            qc.invalidateQueries({ queryKey: ['nc', 'records', baseId, tableId] });
+            qc.invalidateQueries({ queryKey: ['nc', 'recordCount', baseId, tableId] });
+          }, 400);
         },
       )
       .subscribe();
 
     return () => {
+      clearTimeout(timer);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

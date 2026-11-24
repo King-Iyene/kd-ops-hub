@@ -125,7 +125,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
       <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onOpenChange(v); } }}>
         <DialogContent className="sm:max-w-sm">
           <div className="flex flex-col items-center gap-4 py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-[#2D7FF9]" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <div className="text-center">
               <p className="text-sm font-medium text-[#374151] dark:text-[hsl(220,25%,88%)]">
                 Setting up {template.baseName}
@@ -176,7 +176,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   type="button"
                   className={cn(
                     'w-8 h-8 rounded flex items-center justify-center text-base hover:bg-muted transition-colors',
-                    icon === emoji && 'ring-2 ring-[#2D7FF9] bg-[#2D7FF9]/5'
+                    icon === emoji && 'ring-2 ring-primary bg-primary/5'
                   )}
                   onClick={() => setIcon(emoji)}
                 >
@@ -195,7 +195,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
                   type="button"
                   className={cn(
                     'w-7 h-7 rounded-full transition-transform',
-                    color === c && 'ring-2 ring-offset-2 ring-[#2D7FF9] scale-110'
+                    color === c && 'ring-2 ring-offset-2 ring-primary scale-110'
                   )}
                   style={{ backgroundColor: c }}
                   onClick={() => setColor(c)}
@@ -219,7 +219,7 @@ export function CreateBaseDialog({ open, onOpenChange, template }: CreateBaseDia
           </Button>
           <Button
             size="sm"
-            className="bg-[#2D7FF9] hover:bg-[#2952CC]"
+            className="bg-primary hover:bg-primary/80"
             onClick={handleCreate}
             disabled={creating || !name.trim()}
           >

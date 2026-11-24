@@ -18,6 +18,10 @@ import {
 } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '../../types';
 import { PILL_COLORS } from '../../types';
+import { useDatabaseUI } from '../../lib/store';
+import { storedAsFraction, toShownPercent } from '../../lib/percent';
+import { describeNarrowing } from '../../lib/filterRules';
+import { NoMatches } from '../NoMatches';
 
 /* ------------------------------------------------------------------ */
 /*  Types & constants                                                 */
@@ -132,7 +136,7 @@ function Dropdown({
             <button
               key={opt.value}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F3F4F6] dark:hover:bg-[hsl(220,30%,16%)]
-                transition-colors ${opt.value === value ? 'text-[#2D7FF9] font-medium' : 'text-[#374151] dark:text-[hsl(220,25%,88%)]'}`}
+                transition-colors ${opt.value === value ? 'text-primary font-medium' : 'text-[#374151] dark:text-[hsl(220,25%,88%)]'}`}
               onClick={() => { onChange(opt.value); setOpen(false); }}
             >
               {opt.label}
@@ -158,7 +162,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   // Checkbox
   if (ui_type === 'Checkbox') {
     return value ? (
-      <Check size={14} className="text-[#2D7FF9]" />
+      <Check size={14} className="text-primary" />
     ) : (
       <div className="w-3.5 h-3.5 rounded border border-[#D1D5DB] dark:border-[hsl(220,25%,30%)]" />
     );
@@ -226,7 +230,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   if (ui_type === 'URL') {
     const str = String(value);
     return (
-      <span className="flex items-center gap-1 text-xs text-[#2D7FF9] truncate">
+      <span className="flex items-center gap-1 text-xs text-primary truncate">
         <Link2 size={11} className="shrink-0" />
         <span className="truncate">{str.replace(/^https?:\/\//, '').slice(0, 30)}</span>
       </span>
@@ -236,7 +240,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
   // Email
   if (ui_type === 'Email') {
     return (
-      <span className="flex items-center gap-1 text-xs text-[#2D7FF9] truncate">
+      <span className="flex items-center gap-1 text-xs text-primary truncate">
         <Mail size={11} className="shrink-0" />
         <span className="truncate">{String(value)}</span>
       </span>
@@ -269,7 +273,7 @@ function FieldValue({ field, value }: { field: FieldMeta; value: unknown }) {
     if (ui_type === 'Currency') {
       formatted = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     } else if (ui_type === 'Percent') {
-      formatted = `${value}%`;
+      formatted = `${toShownPercent(value, storedAsFraction(field))}%`;
     } else {
       formatted = value.toLocaleString();
     }
@@ -329,7 +333,7 @@ function GalleryCard({
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div className="h-1.5 bg-[#2D7FF9]/60" />
+        <div className="h-1.5 bg-primary/60" />
       )}
 
       {/* Hover action bar */}
@@ -341,7 +345,7 @@ function GalleryCard({
         <button
           title="Expand"
           className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(220,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
+            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-primary hover:border-primary/30 transition-colors shadow-sm"
           onClick={() => onExpand?.(record)}
         >
           <Expand size={13} />
@@ -349,7 +353,7 @@ function GalleryCard({
         <button
           title="Duplicate"
           className="p-1.5 rounded-md bg-white/90 dark:bg-[hsl(220,30%,15%)]/90 border border-[#E5E5E5] dark:border-[hsl(220,25%,22%)]
-            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-[#2D7FF9] hover:border-[#2D7FF9]/30 transition-colors shadow-sm"
+            text-[#6A7184] dark:text-[hsl(220,25%,70%)] hover:text-primary hover:border-primary/30 transition-colors shadow-sm"
           onClick={() => onDuplicate?.(record)}
         >
           <Copy size={13} />
@@ -433,6 +437,10 @@ export default function GalleryView({
   onPageChange,
 }: GalleryViewProps) {
   const [cardSize, setCardSize] = useState<CardSize>('medium');
+  const filters = useDatabaseUI((s) => s.filters);
+  const filterGroups = useDatabaseUI((s) => s.filterGroups);
+  const searchQuery = useDatabaseUI((s) => s.searchQuery);
+  const narrowing = describeNarrowing({ filters, groups: filterGroups, search: searchQuery });
   const [coverFieldId, setCoverFieldId] = useState<string | null>(() => {
     const attachmentField = fields.find((f) => f.ui_type === 'Attachment');
     return attachmentField?.id ?? null;
@@ -510,6 +518,13 @@ export default function GalleryView({
       <div className="flex-1 overflow-auto p-4">
         {isLoading && records.length === 0 ? (
           <GallerySkeleton />
+        ) : records.length === 0 && narrowing.active ? (
+          <NoMatches
+            narrowing={narrowing}
+            colors={{ bg: 'transparent', text: 'hsl(var(--foreground))', muted: 'hsl(var(--muted-foreground))', groupHeaderBg: 'hsl(var(--muted))', primary: 'hsl(var(--primary))' }}
+            onClearFilters={() => { const st = useDatabaseUI.getState(); st.setFilters([]); st.setFilterGroups([]); }}
+            onClearSearch={() => useDatabaseUI.getState().setSearchQuery('')}
+          />
         ) : records.length === 0 ? (
           /* Empty state */
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
@@ -525,7 +540,7 @@ export default function GalleryView({
               Add your first record to see it appear as a card in the gallery.
             </p>
             <button
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#2D7FF9] hover:bg-[#2952CC] text-white text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-white text-xs font-medium transition-colors"
               onClick={() => onAddRow()}
             >
               <Plus size={14} /> Add record
@@ -553,7 +568,7 @@ export default function GalleryView({
               className="flex items-center justify-center gap-1 rounded-lg border-2 border-dashed
                 border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] min-h-[140px]
                 text-[#9AA2AF] dark:text-[hsl(220,25%,45%)]
-                hover:border-[#2D7FF9] hover:text-[#2D7FF9] dark:hover:border-[#2D7FF9] dark:hover:text-[#2D7FF9]
+                hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary
                 transition-colors text-sm"
               onClick={() => onAddRow()}
             >

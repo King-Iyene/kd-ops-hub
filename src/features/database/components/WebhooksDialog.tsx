@@ -175,7 +175,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
           <div className="w-[240px] shrink-0 border-r border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] flex flex-col bg-[#FAFAFA] dark:bg-[hsl(220,30%,8%)]">
             <div className="flex items-center justify-between px-3 py-3 border-b border-[#E5E5E5] dark:border-[hsl(220,25%,18%)]">
               <div className="flex items-center gap-1.5">
-                <Webhook size={14} className="text-[#2D7FF9]" />
+                <Webhook size={14} className="text-primary" />
                 <span className="text-xs-plus font-semibold text-[#374151] dark:text-[hsl(220,25%,88%)]">Webhooks</span>
               </div>
               <button
@@ -218,7 +218,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                     </p>
                   </div>
                   <button
-                    className={`shrink-0 w-7 h-4 rounded-full relative transition-colors ${wh.is_active ? 'bg-[#2D7FF9]' : 'bg-[#D1D5DB] dark:bg-[hsl(220,20%,30%)]'}`}
+                    className={`shrink-0 w-7 h-4 rounded-full relative transition-colors ${wh.is_active ? 'bg-primary' : 'bg-[#D1D5DB] dark:bg-[hsl(220,20%,30%)]'}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggle(wh);
@@ -285,7 +285,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                           type="checkbox"
                           checked={events.includes(ev.value)}
                           onChange={() => handleToggleEvent(ev.value)}
-                          className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,30%)] text-[#2D7FF9] focus:ring-[#2D7FF9] h-3.5 w-3.5"
+                          className="rounded border-[#D1D5DB] dark:border-[hsl(220,25%,30%)] text-primary focus:ring-primary h-3.5 w-3.5"
                         />
                         {ev.label}
                       </label>
@@ -388,7 +388,7 @@ export function WebhooksDialog({ open, onOpenChange, tableId, baseId }: Webhooks
                   <Button
                     size="sm"
                     className="h-8 px-4 text-xs gap-1.5"
-                    style={{ backgroundColor: '#2D7FF9' }}
+                    style={{ backgroundColor: 'hsl(var(--primary))' }}
                     onClick={handleSave}
                     disabled={!name.trim() || !url.trim() || events.length === 0 || createWebhook.isPending || updateWebhook.isPending}
                   >

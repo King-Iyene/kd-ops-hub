@@ -37,6 +37,7 @@ import { rowMatches, rowSearch, sortRows, type RowFilter, type RowSort } from '@
 import { ColumnsButton, CreateTasksDialog, ImportDialog, TableFilterButton } from '@/features/task-module/table/TableTools';
 import { exportCsv } from '@/features/task-module/table/tableActions';
 import { FormsDialog } from '@/features/task-module/table/FormsDialog';
+import { useDeleteConfirm } from '@/features/task-module/DeleteConfirm';
 import { TableConnectionsButton } from '@/features/task-module/table/ConnectionsDialog';
 import { ROW_HEIGHTS, asRowHeight, autoWidth, clampWidth, effectiveWidth, MIN_COL, type RowHeight } from '@/features/task-module/table/columnWidths';
 import { RangeBar, ReportDatePicker, ReportInbox } from '@/features/task-module/table/ReportViews';
@@ -106,6 +107,7 @@ function TableScreen({ tableId }: { tableId: string }) {
   const deleteField = useDeleteTableField(tableId);
   const createRecord = useCreateTableRecord(tableId);
   const deleteRecords = useDeleteTableRecords(tableId);
+  const { ask: askDelete, dialog: deleteDialog } = useDeleteConfirm();
   const setCell = useSetRecordCell(tableId);
   const reorderFields = useReorderTableFields(tableId);
   const setReportDate = useSetReportDateField();
@@ -187,17 +189,21 @@ function TableScreen({ tableId }: { tableId: string }) {
     else createField.mutate({ ...draft, position: Math.max(0, ...fields.map((f) => f.position)) + 1 }, done);
   };
 
-  const removeField = (f: TableField) => {
-    if (!window.confirm(`Delete the field "${f.name}"? Its values are removed from every row, and it disappears from forms.`)) return;
-    deleteField.mutate(f.id, { onError: (e) => toast({ title: 'Could not delete the field', description: errorMessage(e), variant: 'destructive' }) });
-  };
+  const removeField = (f: TableField) => askDelete({
+    what: 'field', name: f.name, consequence: 'The column and the values saved in it are deleted from every row, and it disappears from forms.',
+    onConfirm: () => deleteField.mutate(f.id, { onError: (e) => toast({ title: 'Could not delete the field', description: errorMessage(e), variant: 'destructive' }) }),
+  });
 
   const removeSelected = () => {
     const ids = [...selected];
-    if (!ids.length || !window.confirm(`Delete ${ids.length} row${ids.length === 1 ? '' : 's'}? This can't be undone.`)) return;
-    deleteRecords.mutate(ids, {
-      onSuccess: () => setSelected(new Set()),
-      onError: (e) => toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' }),
+    if (!ids.length) return;
+    const many = ids.length !== 1;
+    askDelete({
+      what: many ? `${ids.length} rows` : 'row', consequence: many ? `These ${ids.length} rows and everything in them are deleted from "${table?.name ?? 'this table'}".` : `This row and everything in it is deleted from "${table?.name ?? 'this table'}".`,
+      onConfirm: () => deleteRecords.mutate(ids, {
+        onSuccess: () => setSelected(new Set()),
+        onError: (e) => toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' }),
+      }),
     });
   };
 
@@ -478,6 +484,7 @@ function TableScreen({ tableId }: { tableId: string }) {
           names={names}
         />
       )}
+      {deleteDialog}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export interface TimeProject {
   manager_id: string | null;
   is_billable: boolean;
   is_archived: boolean;
+  /** When true the project is offered for tracking only to the people assigned to it, its project manager and admins. */
+  assigned_only?: boolean;
   created_at: string;
 }
 
