@@ -6,7 +6,7 @@ import { advance, findPath } from './world';
  * each one is doing is on your screen only.) Pure logic, so it is unit tested.
  */
 export type PetKind = 'dog' | 'cat';
-export type PetMode = 'wander' | 'follow' | 'fetch' | 'return' | 'play';
+export type PetMode = 'wander' | 'follow' | 'fetch' | 'return' | 'play' | 'home';
 
 const DOG_NAMES = ['Suya', 'Biscuit', 'Ranger', 'Jollof'];
 const CAT_NAMES = ['Zobo', 'Mimi', 'Shadow', 'Pepper'];
@@ -31,6 +31,11 @@ export interface PetState {
   /** where it likes to hang about */
   hx: number;
   hy: number;
+  /** the spot it was put in the office: it walks back there when nobody is looking after it */
+  ox: number;
+  oy: number;
+  /** the connection (browser tab) of the person who called it, whose position it follows and returns the ball to */
+  ctl: string | null;
   face: 1 | -1;
   /** which way it is looking: sideways, towards you (down the screen) or away (up it) */
   view: 'side' | 'front' | 'back';
@@ -72,7 +77,7 @@ export type PetCmd =
 export const petBus: { queue: PetCmd[] } = { queue: [] };
 
 export function initPet(id: string, kind: PetKind, x: number, y: number): PetState {
-  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0, dashing: false };
+  return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, ox: x + 0.5, oy: y + 0.5, ctl: null, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0, dashing: false };
 }
 
 // a pet can outrun its owner (4.5 tiles a second) so it never lags behind
@@ -187,17 +192,24 @@ export function playTick(pets: Iterable<PetState>, now: number, dt: number, rand
   }
 }
 
-function endPlay(p: PetState, now: number): void {
-  p.mode = 'wander';
+/** Head back to the spot it was put in (and potter about there). */
+export function goHome(p: PetState): void {
+  p.mode = 'home';
+  p.ctl = null;
   p.partner = null;
-  p.hx = p.x;
-  p.hy = p.y;
-  p.tx = p.x;
-  p.ty = p.y;
-  p.wait = 2 + (now % 3);
-  p.moving = false;
-  p.v = 0;
+  p.ball = null;
+  p.carrying = false;
+  p.dashing = false;
+  p.route = [];
+  p.routeGoal = null;
   p.stuck = 0;
+  p.blockedFor = 0;
+  p.wait = 0;
+}
+
+function endPlay(p: PetState, now: number): void {
+  void now;
+  goHome(p);
 }
 
 export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }, solid: boolean[][], rand: () => number, others?: Map<string, PetState>): void {
@@ -264,11 +276,21 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
     if (walkTo(p, solid, me.x, me.y, sp.run, dt, 1.4) || p.stuck > 2) {
       p.carrying = false;
       p.happyUntil = now + 2600;
+      goHome(p);
+    }
+    return;
+  }
+  if (p.mode === 'home') {
+    if (walkTo(p, solid, p.ox, p.oy, sp.walk * 1.5, dt, 0.35) || p.stuck > 2.5) {
       p.mode = 'wander';
-      p.hx = p.x;
-      p.hy = p.y;
-      p.wait = 2;
+      p.hx = p.ox;
+      p.hy = p.oy;
+      p.tx = p.ox;
+      p.ty = p.oy;
+      p.wait = 1.5;
       p.stuck = 0;
+      p.moving = false;
+      p.v = 0;
     }
     return;
   }
@@ -286,7 +308,7 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
 }
 
 /** Apply a command from the menu. Returns what to show and say (hearts, sounds). */
-export function applyPetCmd(p: PetState, cmd: PetCmd, now: number, me: { x: number; y: number; dir: 0 | 1 | 2 | 3 }, solid: boolean[][]): { hearts: boolean; sound: 'bark' | 'meow' | 'happy' | null } {
+export function applyPetCmd(p: PetState, cmd: PetCmd, now: number, me: { x: number; y: number; dir: 0 | 1 | 2 | 3 }, solid: boolean[][], who: string): { hearts: boolean; sound: 'bark' | 'meow' | 'happy' | null } {
   const sound = p.kind === 'dog' ? 'bark' : 'meow';
   switch (cmd.kind) {
     case 'pet':
@@ -296,24 +318,68 @@ export function applyPetCmd(p: PetState, cmd: PetCmd, now: number, me: { x: numb
       p.happyUntil = now + 3200;
       return { hearts: true, sound: 'happy' };
     case 'call':
-      p.mode = p.mode === 'follow' ? 'wander' : 'follow';
-      if (p.mode === 'wander') { p.hx = p.x; p.hy = p.y; p.wait = 1; }
+      // anybody can call it, and call it away from someone else; calling it again while it is yours sends it home
+      if (p.mode === 'follow' && p.ctl === who) goHome(p);
+      else { p.mode = 'follow'; p.ctl = who; p.partner = null; p.ball = null; p.carrying = false; p.route = []; p.routeGoal = null; p.stuck = 0; }
       return { hearts: false, sound };
     case 'stay':
-      p.mode = 'wander';
-      p.hx = p.x;
-      p.hy = p.y;
-      p.tx = p.x;
-      p.ty = p.y;
-      p.wait = 4;
+      goHome(p);
       return { hearts: false, sound: null };
     case 'ball': {
       const land = ballLanding(solid, me.x, me.y, me.dir);
       p.ball = { x: land.x, y: land.y, fromX: me.x, fromY: me.y - 0.6, thrownAt: now };
       p.mode = 'fetch';
+      p.ctl = who;
+      p.partner = null;
       p.carrying = false;
       p.stuck = 0;
       return { hearts: false, sound };
     }
   }
+}
+
+/** The command a click or key on this pet should send: "stay" when it is already following me, otherwise "come" (also taking it from someone else). */
+export function petCmdFor(p: { mode: PetMode; ctl: string | null }, who: string): 'call' | 'stay' {
+  return p.mode === 'follow' && p.ctl === who ? 'stay' : 'call';
+}
+
+// ---- one live animal for everybody: one browser runs the pets and tells the others where they are ----
+
+/** Who runs the pets: the person with the lowest connection id among those in the office (so everyone agrees without asking). */
+export function petAuthority(present: string[], me: string): string {
+  let best = me;
+  for (const id of present) if (id < best) best = id;
+  return best;
+}
+
+export interface PetSnap {
+  id: string; x: number; y: number; face: 1 | -1; view: 'side' | 'front' | 'back'; moving: boolean; mode: PetMode; v: number;
+  ox: number; oy: number; ctl: string | null; carrying: boolean; ball: Ball | null; happy: number; dash: boolean; partner: string | null; play: number; wait: number;
+  /** when this computer received it (the "ms from now" times count from then); not sent */
+  at?: number;
+}
+
+/** What the others need to draw this pet (times are sent as "ms from now", because the computers' clocks differ). */
+export function petSnap(p: PetState, now: number): PetSnap {
+  const r = (n: number) => Math.round(n * 100) / 100;
+  return {
+    id: p.id, x: r(p.x), y: r(p.y), face: p.face, view: p.view, moving: p.moving, mode: p.mode, v: r(p.v), ox: p.ox, oy: p.oy, ctl: p.ctl,
+    carrying: p.carrying, ball: p.ball ? { ...p.ball, thrownAt: Math.round(p.ball.thrownAt - now) } : null,
+    happy: Math.max(0, Math.round(p.happyUntil - now)), dash: p.dashing, partner: p.partner, play: Math.max(0, Math.round(p.playUntil - now)), wait: r(p.wait),
+  };
+}
+
+/** Take a pet's state from the one that runs it. The position glides toward the sent one (snapping when far off). */
+export function applyPetSnap(p: PetState, s: PetSnap, now: number, dt: number): void {
+  const gap = Math.hypot(s.x - p.x, s.y - p.y);
+  if (gap > 4) { p.x = s.x; p.y = s.y; } else { const k = Math.min(1, dt * 12); p.x += (s.x - p.x) * k; p.y += (s.y - p.y) * k; }
+  p.face = s.face; p.view = s.view; p.moving = s.moving; p.mode = s.mode; p.v = s.v; p.ox = s.ox; p.oy = s.oy; p.ctl = s.ctl;
+  p.carrying = s.carrying; p.dashing = s.dash; p.partner = s.partner; p.wait = s.wait;
+  const base = s.at ?? now;
+  p.ball = s.ball ? { ...s.ball, thrownAt: base + s.ball.thrownAt } : null;
+  // only change these when they really changed, so a snapshot's rounding does not look like a new treat every time
+  const happy = s.happy > 0 ? base + s.happy : 0;
+  if (happy === 0 ? p.happyUntil !== 0 && p.happyUntil < now : Math.abs(happy - p.happyUntil) > 200) p.happyUntil = happy;
+  p.playUntil = s.play > 0 ? base + s.play : 0;
+  p.hx = s.ox; p.hy = s.oy;
 }

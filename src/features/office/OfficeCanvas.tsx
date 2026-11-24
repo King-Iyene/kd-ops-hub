@@ -9,7 +9,7 @@ import { dotColor } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
-import { applyPetCmd, initPet, petBus, petRegistry, playTick, stepPet, type PetState } from './world/pets';
+import { applyPetCmd, applyPetSnap, goHome, initPet, petAuthority, petBus, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
 export type { EditTool };
@@ -24,6 +24,9 @@ interface Props {
   showOwnTabs: boolean;
   roster: Who[];
   peers: React.MutableRefObject<Map<string, PeerMotion>>;
+  /** send a pet message to everyone in the office, and the messages that arrived from them */
+  sendPet: (payload: unknown) => void;
+  petInbox: React.MutableRefObject<unknown[]>;
   /** live cameras by person id, drawn as bubbles above their heads */
   bubbles: React.MutableRefObject<Map<string, HTMLVideoElement>>;
   /** ids of people talking now ('' is me) */
@@ -122,6 +125,8 @@ function cachedSolid(map: MapDef, items: Item[]): boolean[][] {
 
 /** when each following pet next makes a sound (ms) */
 const petVoiceAt = new Map<string, number>();
+/** the shared-pet bookkeeping of this window: when it started, when the pets' runner was last heard, when I last sent, and the newest state of each pet that arrived */
+const petSync: { current: { since: number; heardAt: number; sentAt: number; targets: Map<string, PetSnap> } } = { current: { since: 0, heardAt: 0, sentAt: 0, targets: new Map() } };
 /** each pet has its own voice: a steady pitch worked out from its id (big and deep, or small and high) */
 const petPitch = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return 0.82 + (h % 1000) / 1000 * 0.42; };
 
@@ -227,7 +232,7 @@ export function OfficeCanvas(props: Props) {
         const near = nearRef.current;
         if (!near && nearPetRef.current) {
           const pet = petRegistry.get(nearPetRef.current);
-          if (pet) { e.preventDefault(); petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+          if (pet) { e.preventDefault(); petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
         }
         if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
       }
@@ -421,7 +426,7 @@ export function OfficeCanvas(props: Props) {
       if (drag.moved || painting()) return;
       if (!propsRef.current.editing) {
         const pet = petAt(e);
-        if (pet) { petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+        if (pet) { petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
       }
       if (propsRef.current.editing) { propsRef.current.onTile(toTile(e)); return; }
       const ct = toTile(e);
@@ -484,7 +489,7 @@ export function OfficeCanvas(props: Props) {
       const tile = toTile(e);
       if (p.editing) { p.onTile(tile); return; }
       const pet = petAt(e);
-      if (pet) { petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }); return; }
+      if (pet) { petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
       const who = personAt(e);
       if (who) { p.onHoverPerson({ personId: who.id, isMe: who.isMe, cx, cy, near: who.near }); return; }
       p.onHoverPerson(null);
@@ -827,17 +832,50 @@ export function OfficeCanvas(props: Props) {
           if (!petRegistry.has(it.id)) petRegistry.set(it.id, initPet(it.id, it.t, it.x, it.y));
         }
         for (const id of [...petRegistry.keys()]) if (!living.has(id)) { petRegistry.delete(id); officePets.delete(id); }
+        // One live animal for everybody: the person with the lowest connection id runs the pets and tells the others where
+        // they are; everybody else just draws what they are told. Commands from anyone go to everyone, and the runner applies them.
+        const myId = p.me.id;
+        const sync = petSync.current;
+        if (!sync.since) sync.since = now;
+        const present = p.roster.filter((r) => r.spaceId === p.spaceId).map((r) => r.id);
+        const elected = petAuthority(present, myId);
+        const cmds: { cmd: PetCmd; who: string; at: { x: number; y: number; dir: 0 | 1 | 2 | 3 } }[] = [];
+        for (const raw of p.petInbox.current.splice(0)) {
+          const m = raw as { k?: unknown; c?: unknown; id?: unknown; w?: unknown; x?: unknown; y?: unknown; d?: unknown; a?: unknown; p?: unknown };
+          if (m.k === 'c' && typeof m.id === 'string' && typeof m.w === 'string' && typeof m.x === 'number' && typeof m.y === 'number' && (m.c === 'pet' || m.c === 'call' || m.c === 'stay' || m.c === 'ball' || m.c === 'treat')) {
+            cmds.push({ cmd: { kind: m.c, id: m.id }, who: m.w, at: { x: m.x, y: m.y, dir: (m.d === 1 || m.d === 2 || m.d === 3 ? m.d : 0) as 0 | 1 | 2 | 3 } });
+          } else if (m.k === 's' && typeof m.a === 'string' && m.a !== myId && Array.isArray(m.p) && (m.a === elected || m.a < myId)) {
+            // the lowest id wins: a runner who hears from a lower id hands the pets over
+            sync.heardAt = now;
+            for (const sn of m.p as PetSnap[]) if (sn && typeof sn.id === 'string') { sn.at = now; sync.targets.set(sn.id, sn); }
+          }
+        }
         for (const cmd of petBus.queue.splice(0)) {
-          const pet = petRegistry.get(cmd.id);
+          cmds.push({ cmd, who: myId, at: { x: me.x, y: me.y, dir: me.dir } });
+          p.sendPet({ k: 'c', c: cmd.kind, id: cmd.id, w: myId, x: Math.round(me.x * 100) / 100, y: Math.round(me.y * 100) / 100, d: me.dir });
+        }
+        // if the person who should run the pets has not been heard for a few seconds (a paused tab), this window runs them
+        const runner = elected === myId || now - Math.max(sync.heardAt, sync.since) > 3500;
+        for (const c of cmds) {
+          const pet = petRegistry.get(c.cmd.id);
           if (!pet) continue;
-          const res = applyPetCmd(pet, cmd, now, { x: me.x, y: me.y, dir: me.dir }, solid);
-          if (res.hearts) petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: cmd.kind === 'treat' ? '🦴' : '❤️' });
+          // the runner changes the pet; everyone else only shows the hearts and plays the sound (on a copy), then sees the result arrive
+          const res = applyPetCmd(runner ? pet : { ...pet }, c.cmd, now, c.at, solid, c.who);
+          if (res.hearts) petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: c.cmd.kind === 'treat' ? '🦴' : '❤️' });
           if (res.sound) ambient.pet(pet.kind, res.sound, 1, petPitch(pet.id));
         }
-        playTick(petRegistry.values(), now, dt, Math.random);
+        if (runner) playTick(petRegistry.values(), now, dt, Math.random);
         for (const pet of petRegistry.values()) {
           const was = pet.happyUntil;
-          stepPet(pet, dt, now, { x: me.x, y: me.y, dir: me.dir }, solid, Math.random, petRegistry);
+          if (runner) {
+            // it follows (and brings the ball back to) the person who called it, wherever that person is
+            const ctl = pet.ctl === myId ? { x: me.x, y: me.y, dir: me.dir } : pet.ctl ? p.peers.current.get(pet.ctl) : undefined;
+            if ((pet.mode === 'follow' || pet.mode === 'fetch' || pet.mode === 'return') && !ctl) goHome(pet); // they left
+            stepPet(pet, dt, now, ctl ? { x: ctl.x, y: ctl.y, dir: ctl.dir } : { x: pet.x, y: pet.y }, solid, Math.random, petRegistry);
+          } else {
+            const target = sync.targets.get(pet.id);
+            if (target) applyPetSnap(pet, target, now, dt);
+          }
           // a pet that is following me barks or meows now and then, louder the closer it is
           if (pet.mode === 'follow' && !p.editing) {
             const dme = Math.hypot(pet.x - me.x, pet.y - me.y);
@@ -854,8 +892,16 @@ export function OfficeCanvas(props: Props) {
             petFx.current.push({ x: pet.x, y: pet.y - 1.1, born: now, e: pet.kind === 'dog' ? '💨' : '😼' });
             if (Math.random() < 0.35) ambient.pet(pet.kind, pet.kind === 'dog' ? 'bark' : 'meow', 1, petPitch(pet.id));
           }
-          if (pet.happyUntil > was && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
+          if (pet.happyUntil > was + 500 && pet.mode === 'wander') petFx.current.push({ x: pet.x, y: pet.y - 1.2, born: now, e: '❤️' });
           officePets.set(pet.id, { x: pet.x, y: pet.y, face: pet.face, view: pet.view, moving: pet.moving, carrying: pet.carrying, awake: pet.kind === 'cat' ? pet.moving || pet.mode !== 'wander' || pet.happyUntil > now || pet.wait < 1.4 : true });
+        }
+        // the runner tells everyone where the pets are (often while something is going on, now and then when it is quiet)
+        if (runner && petRegistry.size > 0) {
+          const busy = [...petRegistry.values()].some((q) => q.moving || q.mode !== 'wander' || q.happyUntil > now);
+          if (now - sync.sentAt > (busy ? 180 : 1500)) {
+            sync.sentAt = now;
+            p.sendPet({ k: 's', a: myId, p: [...petRegistry.values()].map((q) => petSnap(q, now)) });
+          }
         }
       }
       const theme = { dark: p.dark };

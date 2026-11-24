@@ -6,7 +6,7 @@ const open = Array.from({ length: 60 }, () => Array<boolean>(60).fill(false));
 describe('pets keep up and look the right way', () => {
   it('a following dog keeps up with an owner walking at full speed', () => {
     const pet = initPet('d1', 'dog', 5, 5);
-    applyPetCmd(pet, { kind: 'call', id: 'd1' }, 0, { x: 5, y: 5, dir: 2 }, open);
+    applyPetCmd(pet, { kind: 'call', id: 'd1' }, 0, { x: 5, y: 5, dir: 2 }, open, 'me');
     const me = { x: 8, y: 5, dir: 2 as const };
     for (let i = 0; i < 180; i++) {
       me.x += 4.5 * 0.05; // the owner walks right at 4.5 tiles a second
