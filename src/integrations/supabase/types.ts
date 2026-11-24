@@ -11196,6 +11196,10 @@ export type Database = {
         Row: {
           body: string
           created_at: string
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          file_type: string | null
           id: string
           img: string | null
           kind: string
@@ -11207,6 +11211,10 @@ export type Database = {
         Insert: {
           body: string
           created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           img?: string | null
           kind?: string
@@ -11218,6 +11226,10 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           img?: string | null
           kind?: string
