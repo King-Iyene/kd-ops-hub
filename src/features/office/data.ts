@@ -234,7 +234,13 @@ export function useOfficeMutations() {
     /** Claim an office for myself, or (admin) assign it to someone. One office per person: the old one is released. */
     async claimDesk(spaceId: string, officeId: string, userId: string, asAdmin: boolean) {
       if (asAdmin) await supabase.from('office_desk_claims').delete().eq('space_id', spaceId).eq('office_id', officeId);
-      await supabase.from('office_desk_claims').delete().eq('space_id', spaceId).eq('user_id', userId);
+      if (!asAdmin) {
+        // one each: someone who already has an office or seat gives it up first (it used to be swapped silently)
+        const { data: mine } = await supabase.from('office_desk_claims').select('office_id').eq('space_id', spaceId).eq('user_id', userId).limit(1);
+        if (mine && mine.length > 0 && mine[0].office_id !== officeId) throw new Error('already_have_one');
+      } else {
+        await supabase.from('office_desk_claims').delete().eq('space_id', spaceId).eq('user_id', userId);
+      }
       const { error } = await supabase.from('office_desk_claims').insert({ space_id: spaceId, office_id: officeId, user_id: userId });
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ['office', 'claims', spaceId] });

@@ -718,8 +718,9 @@ function OfficeRoom() {
       await actions.claimDesk(space.id, officeId, uid ?? profile.id, !!uid && isAdmin);
       toast({ title: uid && uid !== profile.id ? 'Office assigned' : 'The office is yours', description: uid && uid !== profile.id ? 'Their name and face are on the door now.' : 'Your name and face are on the door now.' });
       setDeskZone(null);
-    } catch {
-      toast({ title: 'Could not claim that office', description: 'Someone just beat you to it. Pick another door.', variant: 'destructive' });
+    } catch (err) {
+      const have = err instanceof Error && err.message === 'already_have_one';
+      toast({ title: 'Could not claim that office', description: have ? 'You already have one. Give it up first, then claim this one.' : 'Someone just beat you to it. Pick another door.', variant: 'destructive' });
     } finally {
       setDeskBusy(false);
     }
@@ -1706,6 +1707,8 @@ function OfficeRoom() {
             pa.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: go(() => openChat(who.id)) });
           }
           pa.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-4 w-4" />, run: go(() => walkToOffice(z.id)) });
+          // give it up (yours) or free it (an admin), right on the card: no right-click needed
+          if (mine || isAdmin) pa.push({ key: 'unclaim', label: mine ? (z.seat ? 'Give up my seat' : 'Give up my office') : 'Unclaim (free it)', icon: <Minus className="h-4 w-4" />, run: go(() => void unclaimOffice(z.id)) });
           pa.push({ key: 'link', label: 'Copy link', icon: <LinkIcon className="h-4 w-4" />, run: go(() => void copyLink(`&room=${z.id}`, `It opens ${z.name}.`)) });
           return (
             <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={who.name + (mine ? ' (you)' : '')} avatar={who.avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} actions={pa} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
@@ -1714,7 +1717,9 @@ function OfficeRoom() {
         // nobody has it yet: the same card, with a plus for a face
         const free: CardAction[] = [];
         const gof = (fn: () => void) => () => { setZoneCard(null); fn(); };
-        if (!myClaim) free.push({ key: 'claim', label: z.seat ? 'Claim this seat' : 'Claim this office', icon: <Building2 className="h-4 w-4" />, primary: true, run: gof(() => void claimOffice(z.id)) });
+        // one seat each: with one already, Claim is greyed out and says why, and Give up is right beside it
+        free.push({ key: 'claim', label: z.seat ? 'Claim this seat' : 'Claim this office', icon: <Building2 className="h-4 w-4" />, primary: !myClaim, off: myClaim ? 'You already have one. Give yours up first.' : undefined, run: gof(() => void claimOffice(z.id)) });
+        if (myClaim) free.push({ key: 'giveup', label: 'Give up my current ' + (map.zones.find((q) => q.id === myClaim.office_id)?.seat ? 'seat' : 'office'), icon: <Minus className="h-4 w-4" />, run: gof(() => void unclaimOffice(myClaim.office_id)) });
         free.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-4 w-4" />, run: gof(() => walkToOffice(z.id)) });
         free.push({ key: 'link', label: 'Copy link', icon: <LinkIcon className="h-4 w-4" />, run: gof(() => void copyLink(`&room=${z.id}`, `It opens ${z.name}.`)) });
         if (isAdmin) free.push({ key: 'manage', label: 'Manage', icon: <Settings className="h-4 w-4" />, run: gof(() => setDeskZone(z)) });
