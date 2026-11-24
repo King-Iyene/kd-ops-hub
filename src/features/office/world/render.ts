@@ -782,11 +782,50 @@ const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 /** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
 const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall',
   // plants, flowers and trees stand still now (they swayed before, which cost a redraw of every plant on every frame)
-  'plant', 'flowers', 'tree', 'bamboo', 'palm', 'grass', 'sunflowers', 'orchid', 'lavender', 'tulips', 'monstera', 'pinetree', 'flowerbed']);
+  'plant', 'flowers', 'tree', 'bamboo', 'palm', 'grass', 'sunflowers', 'orchid', 'lavender', 'tulips', 'monstera', 'pinetree', 'flowerbed',
+  // measured: these were redrawn from scratch every frame (hundreds of canvas calls each) although they never change
+  'rug', 'bike', 'kart', 'cooler', 'log', 'stump', 'firewood', 'mushrooms', 'filecabinet']);
 /** Plants, flowers and trees only sway (nothing else moves), so they are drawn in 8 sway poses and each frame picks the nearest one. */
 const SWAY_PIECES = new Set<string>(['balloons']);
 const SWAY_POSES = 8;
 const SPRITE_SCALE = 3;
+/**
+ * Pieces with a little motion (screens, steam, water, fish) are drawn into their own picture a few times a second and that picture is shown
+ * on every frame in between: the same animation, at a fraction of the canvas work (measured: about 20,000 canvas calls a frame for the main building before this).
+ */
+const ANIMATED_FPS: Record<string, number> = {
+  computer: 8, dualmonitor: 8, ultrawide: 8, laptop: 8, mug: 8, tv: 8, printer: 8, noticeboard: 6, pollboard: 6, eventboard: 6, worldmap: 6, speaker: 10, vending: 8, coffee: 8, coffeebar: 8, globe: 10, podium: 6, gong: 8,
+  phonebooth: 6, arcade: 10, foosball: 8, gametable: 8, tabletennis: 8, fishtank: 10,
+  // (water, fountains, tents and the like are left alone on purpose: spray and reeds reach past the picture's edge)
+};
+const animCache = new Map<string, { pic: HTMLCanvasElement; bucket: number }>();
+function drawAnimatedPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, now: number, fps: number): boolean {
+  if (typeof document === 'undefined') return false;
+  const PAD = 14;
+  const key = `${item.t}|${item.id}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}`;
+  let e = animCache.get(key);
+  if (!e) {
+    const pic = document.createElement('canvas');
+    pic.width = (W + PAD * 2) * SPRITE_SCALE;
+    pic.height = (H + PAD * 2) * SPRITE_SCALE;
+    if (animCache.size > 300) animCache.clear();
+    e = { pic, bucket: -1 };
+    animCache.set(key, e);
+  }
+  const bucket = Math.floor(now / (1000 / fps));
+  if (e.bucket !== bucket) {
+    const pc = e.pic.getContext('2d');
+    if (!pc) return false;
+    pc.setTransform(1, 0, 0, 1, 0, 0);
+    pc.clearRect(0, 0, e.pic.width, e.pic.height);
+    pc.scale(SPRITE_SCALE, SPRITE_SCALE);
+    pc.translate(PAD, PAD);
+    drawItem(pc as unknown as Ctx, { ...item, x: 0, y: 0 }, dark, bucket * (1000 / fps), false);
+    e.bucket = bucket;
+  }
+  ctx.drawImage(e.pic, x - PAD, y - PAD, W + PAD * 2, H + PAD * 2);
+  return true;
+}
 const SPRITE_PAD = 10;
 const spriteCache = new Map<string, HTMLCanvasElement>();
 function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | undefined, x: number, y: number, W: number, H: number, seed: number, swayAt?: number): boolean {
@@ -829,6 +868,8 @@ function drawItem(ctx: Ctx, item: Item, dark: boolean, t: number, useCache = tru
   const col = item.c !== undefined ? ITEM_COLORS[item.c] : undefined;
   if (useCache && STATIC_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed)) return;
   if (useCache && SWAY_PIECES.has(item.t) && drawStaticPiece(ctx, item, dark, col, x, y, W, H, seed, t)) return;
+  const afps = useCache ? ANIMATED_FPS[item.t] : undefined;
+  if (afps && drawAnimatedPiece(ctx, item, dark, col, x, y, W, H, t, afps)) return;
   if (drawExtra(ctx, item, dark, t, col, x, y, W, H, seed)) return;
   switch (item.t) {
     case 'rug': {
