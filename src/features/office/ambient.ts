@@ -138,26 +138,27 @@ class Ambient {
     }
   }
 
-  /** three knocks on a door */
+  /**
+   * Someone is at the door. It used to be three quick knocks (short bursts of noise), which many people heard as keyboard typing,
+   * so it is now one soft two-note bell: no taps, nothing percussive.
+   */
   knock() {
     if (!KNOCK_SOUND) return;
     const c = this.ctx;
-    if (!this.enabled || !c || !this.noise || !this.master || c.state !== 'running') return;
-    for (let k = 0; k < 3; k++) {
-      const t = c.currentTime + k * 0.16 + (k === 2 ? 0.05 : 0);
-      const n = c.createBufferSource();
-      n.buffer = this.noise;
-      const lp = c.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 320;
+    if (!this.enabled || !c || !this.master || c.state !== 'running') return;
+    for (const [k, f] of [[0, 523.25], [1, 659.25]] as const) {
+      const t = c.currentTime + k * 0.28;
+      const o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t);
       const g = c.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.32, t + 0.006);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
-      n.connect(lp);
-      lp.connect(g);
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      o.connect(g);
       g.connect(this.master);
-      n.start(t, Math.random(), 0.14);
+      o.start(t);
+      o.stop(t + 0.95);
     }
   }
 

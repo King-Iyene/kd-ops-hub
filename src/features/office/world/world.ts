@@ -144,6 +144,24 @@ export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } 
   return (item.r ?? 0) % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
 
+/** Pieces that already use the turn for something else (a bike's direction), are alive, or carry writing that must never be back to front. */
+const NO_MIRROR: ReadonlySet<string> = new Set([
+  'bike', 'kart', 'dog', 'cat', 'dogball', 'whiteboard', 'tv', 'wallclock', 'valueswall', 'noticeboard', 'pollboard', 'eventboard',
+  'orgchart', 'barchart', 'worldmap', 'kanban', 'frame', 'mirror', 'gong',
+]);
+
+/**
+ * What turning a piece looks like. A piece that is longer than it is wide changes its footprint on every quarter turn (as it always did),
+ * and is also shown the other way round on the half turns. A square piece (a chair, a plant, a round table) has the same footprint
+ * whichever way it faces, so on its own a turn would show nothing: it is shown the other way round on every other press.
+ */
+export function isMirrored(item: Pick<Item, 't' | 'r'>): boolean {
+  if (NO_MIRROR.has(item.t)) return false;
+  const r = (item.r ?? 0) % 4;
+  const d = ITEM_DEFS[item.t];
+  return d.w === d.h ? r % 2 === 1 : r >= 2;
+}
+
 /** Things you can walk up to and press F on. */
 export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',

@@ -25,7 +25,7 @@ import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
 import { ALL, shouldNotify, useChat, type ChatMsg } from './chat';
-import { playChime } from './chime';
+import { playChime, playRecordingCue, playRing, playWave } from './chime';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
 import { MeetingView } from './calls/MeetingView';
@@ -506,6 +506,12 @@ function OfficeRoom() {
       ? 'You are recording this meeting. Everyone in the room can see this.'
       : `This room is being recorded by ${recorders.map((r) => r.name).join(', ')}.`
     : null;
+  // a sound for everyone in the room when a recording starts or stops, so nobody is recorded without knowing
+  const wasRecording = useRef(false);
+  useEffect(() => {
+    const now = recorders.length > 0;
+    if (now !== wasRecording.current) { wasRecording.current = now; playRecordingCue(now); }
+  }, [recorders.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   const [recordingsOpen, setRecordingsOpen] = useState(false);
   // like Gather: on arrival, offer to turn the camera and microphone on (once per visit)
   const [joinPrompt, setJoinPrompt] = useState(() => { try { return !localStorage.getItem('kd:office:prompted'); } catch { return true; } });
@@ -779,7 +785,7 @@ function OfficeRoom() {
     lastSent.current.set(`wave:${r.id}`, Date.now());
     sendPing({ k: 'wave', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     sendEmote('👋');
-    ambient.wave();
+    playWave(0.2);
     toast({ title: `You waved at ${r.name}`, description: 'If they are free they will come over.' });
   };
 
@@ -827,7 +833,7 @@ function OfficeRoom() {
     }
     if (m.k === 'wave') {
       if (dndNow()) return;
-      if (!quietNow()) { ambient.wave(); playChime(0.08); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
+      if (!quietNow()) { playWave(); notifyPing(`${m.n} is waving at you`, 'Want to go and say hi?', () => goToPerson(m.f, m.s), 'wave:' + m.f); }
       toast({
         title: `${m.n} is waving at you 👋`, description: 'Want to go and say hi?',
         action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
@@ -836,7 +842,7 @@ function OfficeRoom() {
     }
     if (m.k === 'ring') {
       if (dndNow()) return;
-      if (!quietNow()) { playChime(); notifyPing(`${m.n} wants a word`, 'Walk over and say hi.', () => goToPerson(m.f, m.s), 'ring:' + m.f); }
+      if (!quietNow()) { playRing(); notifyPing(`${m.n} wants a word`, 'Walk over and say hi.', () => goToPerson(m.f, m.s), 'ring:' + m.f); }
       toast({
         title: `${m.n} wants a word`, description: 'Walk over and say hi.',
         action: <ToastAction altText="Walk over" onClick={() => goToPerson(m.f, m.s)}>Walk over</ToastAction>,
@@ -1397,24 +1403,24 @@ function OfficeRoom() {
             <div className="space-y-1">
               {roster.filter((r) => matches(r.name, query)).map((r) => {
                 const isMe = r.id === connId;
-                const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
+                const act = 'flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
                 return (
                   <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-muted/80">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dotColor(r.status) }} /><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {nameOfSpace(r.spaceId)}</span></span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {nameOfSpace(r.spaceId)}</span></span></span>
                     </button>
                     {!isMe && (
-                      <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 gap-0.5 rounded-lg bg-popover p-0.5 opacity-0 shadow-md ring-1 ring-border transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-px rounded-full bg-popover/95 px-1 py-0.5 opacity-0 shadow-sm ring-1 ring-border/70 backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                         {calls.tiles.some((t) => t.id === r.id && !t.screen) && (
                           <button type="button" className={act} title={calls.tiles.find((t) => t.id === r.id)?.muted ? `Unmute ${r.name}` : `Mute ${r.name} (only for you)`} aria-label={`Mute ${r.name}`} onClick={() => calls.toggleMutePeer(r.id)}>
-                            {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3.5 w-3.5 text-red-500" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3 w-3 text-red-500" /> : <Volume2 className="h-3 w-3" />}
                           </button>
                         )}
-                        <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
-                        <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3.5 w-3.5" /></button>
-                        <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3.5 w-3.5" /></button>
-                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3.5 w-3.5" /></button>
+                        <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3 w-3" /></button>
+                        <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3 w-3" /></button>
+                        <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3 w-3" /></button>
+                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3 w-3" /></button>
                       </span>
                     )}
                   </div>

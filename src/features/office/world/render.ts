@@ -2,7 +2,7 @@
 // soft shadows, gentle animation). Everything is drawn from code, so there are no image files to license or load.
 import { DEFAULT_ZONES, to12h, zoneAbbr, zoneParts } from './clock';
 import type { AvatarStyle, Item, MapDef, Zone } from './types';
-import { TOP_ITEMS, itemSize } from './world';
+import { TOP_ITEMS, isMirrored, itemSize } from './world';
 
 export const TILE = 36;
 
@@ -4280,7 +4280,17 @@ export function drawBall(ctx: Ctx, b: { x: number; y: number; fromX: number; fro
 
 export function drawItems(ctx: Ctx, items: Item[], theme: Theme, t = 0) {
   const sorted = [...items].sort((a, b) => depth(a) - depth(b));
-  for (const it of sorted) drawItem(ctx, it, theme.dark, t);
+  for (const it of sorted) {
+    if (!isMirrored(it)) { drawItem(ctx, it, theme.dark, t); continue; }
+    // turned round: the same picture, flipped about the piece's own middle
+    const cx = (it.x + itemSize(it).w / 2) * TILE;
+    ctx.save();
+    ctx.translate(cx, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-cx, 0);
+    drawItem(ctx, it, theme.dark, t);
+    ctx.restore();
+  }
 }
 
 // ---------- light and atmosphere ----------
