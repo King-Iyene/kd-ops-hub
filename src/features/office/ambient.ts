@@ -49,6 +49,10 @@ export const ROOM_TONES: Record<string, { murmur: number; murmurHz: number; pad:
   auditorium: { murmur: 0.014, murmurHz: 380, pad: 0, blips: false },
 };
 
+/** Switched off at the owner's request: the three-knock sound and the background sounds of the rooms (hum, bleeps) were heard as typing. */
+const KNOCK_SOUND = false;
+const ROOM_SOUNDS = false;
+
 class Ambient {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -95,6 +99,7 @@ class Ambient {
   /** the room I am in: each has its own quiet background (a library is hushed, the game room bleeps) */
   setRoom(id: string | null) {
     this.room = id;
+    if (!ROOM_SOUNDS) return; // no murmur, no arcade bleeps, no pad: rooms are quiet
     const c = this.ctx;
     const tone = id ? ROOM_TONES[id] : undefined;
     if (c && this.roomMurmur) {
@@ -133,8 +138,9 @@ class Ambient {
     }
   }
 
-  /** three knocks on a door */
+  /** three knocks on a door: switched off (they were heard as someone typing); the knock still shows on screen as a message */
   knock() {
+    if (!KNOCK_SOUND) return;
     const c = this.ctx;
     if (!this.enabled || !c || !this.noise || !this.master || c.state !== 'running') return;
     for (let k = 0; k < 3; k++) {
@@ -560,7 +566,7 @@ class Ambient {
         for (const f of [196, 294.5]) { const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(pad); o.start(); }
         this.pad = pad;
         // the room I am already in
-        if (this.room && ROOM_TONES[this.room]) { gain.gain.value = ROOM_TONES[this.room].murmur; filter.frequency.value = ROOM_TONES[this.room].murmurHz; pad.gain.value = ROOM_TONES[this.room].pad; }
+        if (ROOM_SOUNDS && this.room && ROOM_TONES[this.room]) { gain.gain.value = ROOM_TONES[this.room].murmur; filter.frequency.value = ROOM_TONES[this.room].murmurHz; pad.gain.value = ROOM_TONES[this.room].pad; }
       }
       return c;
     } catch {
