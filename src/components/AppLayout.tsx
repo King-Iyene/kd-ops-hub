@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { DesktopAgentHeaderButton } from '@/features/timetrack/pages/activity/shared';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { inDesktopApp } from '@/features/office/desktopApp';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
@@ -106,6 +107,8 @@ export default function AppLayout() {
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const pageTitle = getRouteTitle(location.pathname);
+  // In the KD Ops desktop app the Office takes the whole window: no top bar (just the profile picture floats in the corner) and no padding
+  const officeFull = inDesktopApp() && location.pathname.startsWith('/office');
   useTimeOfDay();
   useIdleTimeout();
 
@@ -151,6 +154,9 @@ export default function AppLayout() {
           <ViewAsBanner />
           <MfaRequiredBanner />
           {/* ── Header ──────────────────────────────────────────────── */}
+          {officeFull ? (
+            <div className="fixed right-3 top-2 z-30 rounded-full bg-card/80 p-0.5 shadow-md backdrop-blur"><ProfileDropdown /></div>
+          ) : (
           <header
             role="banner"
             aria-label="Site header"
@@ -207,8 +213,9 @@ export default function AppLayout() {
               <ProfileDropdown />
             </div>
           </header>
+          )}
           {/* ── Main content ────────────────────────────────────────── */}
-          <main ref={mainRef} id="main-content" className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh">
+          <main ref={mainRef} id="main-content" className={officeFull ? 'flex-1 overflow-hidden p-0 kd-gradient-mesh' : 'flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh'}>
             <div key={location.pathname} className="kd-page-transition">
               {/* key={pathname} resets the boundary on navigation, so a
                   crash on one page doesn't permanently break the next. */}
