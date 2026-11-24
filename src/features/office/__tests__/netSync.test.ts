@@ -56,3 +56,18 @@ describe('wire format', () => {
     expect(unpack({ i: 'a', x: 1, y: 1, vx: 0, vy: 0, d: 9 })?.dir).toBe(0);
   });
 });
+
+import { replyWindowMs, rosterDebounceMs } from '../world/netSync';
+describe('crowd pacing', () => {
+  it('answers to an arrival are spread wider as the office fills, within 0.4 to 3 seconds', () => {
+    expect(replyWindowMs(3)).toBe(400);
+    expect(replyWindowMs(40)).toBe(1000);
+    expect(replyWindowMs(100)).toBe(2500);
+    expect(replyWindowMs(500)).toBe(3000);
+  });
+  it('roster refreshes stay quick in a small office and calmer in a crowd', () => {
+    expect(rosterDebounceMs(0)).toBe(150);
+    expect(rosterDebounceMs(100)).toBe(750);
+    expect(rosterDebounceMs(1000)).toBe(1000);
+  });
+});

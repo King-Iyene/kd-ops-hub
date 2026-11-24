@@ -16,6 +16,10 @@ interface Props {
   avatar: AvatarStyle;
   status: string;
   onStatus: (id: string) => void;
+  /** start a focus session of this many minutes (status goes to Focusing, and back by itself) */
+  onFocus?: (minutes: number) => void;
+  /** minutes left in the running focus session, or null */
+  focusLeft?: number | null;
   onAvatar: () => void;
   timeMode: TimeMode;
   seasonMode: SeasonMode;
@@ -141,6 +145,16 @@ export function ProfileMenu(p: Props) {
                   </button>
                   {statusOpen && (
                     <div className="mt-1 overflow-hidden rounded-xl bg-white/[0.04] p-1 ring-1 ring-white/[0.08]">
+                      {p.onFocus && (
+                        <div className="mb-1 rounded-lg bg-[#00ECFF]/[0.07] p-2 ring-1 ring-inset ring-[#00ECFF]/15">
+                          <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#9ff6ff]">{p.focusLeft ? `Focusing · ${p.focusLeft} min left` : 'Focus session'}</p>
+                          <div className="flex gap-1">
+                            {[25, 50, 90].map((m) => <button key={m} type="button" onClick={() => { p.onFocus?.(m); setStatusOpen(false); }} className="flex-1 rounded-md bg-white/[0.08] py-1 text-[12px] font-semibold transition hover:bg-[#00ECFF]/20">{m}m</button>)}
+                            {p.focusLeft ? <button type="button" onClick={() => { p.onFocus?.(0); setStatusOpen(false); }} className="rounded-md bg-white/[0.08] px-2 py-1 text-[12px] font-semibold transition hover:bg-red-500/25">End</button> : null}
+                          </div>
+                          <p className="mt-1.5 text-[10.5px] leading-snug text-muted-foreground">Rings and waves arrive silently, then you go back to Available on your own.</p>
+                        </div>
+                      )}
                       {STATUSES.map((s) => (
                         <button key={s.id} type="button" onClick={() => { p.onStatus(s.id); setStatusOpen(false); }} aria-pressed={p.status === s.id}
                           className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition ${p.status === s.id ? 'bg-primary/15 text-primary' : 'hover:bg-white/[0.08]'}`}>

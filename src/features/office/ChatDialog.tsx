@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Download, File as FileIcon, FileArchive, FileAudio, FileSpreadsheet, FileText, FileVideo, Megaphone, Paperclip, Presentation, Search, Send, Users, X } from 'lucide-react';
+import { ArrowLeft, Award, Download, Trash2, File as FileIcon, FileArchive, FileAudio, FileSpreadsheet, FileText, FileVideo, Megaphone, Paperclip, Presentation, Search, Send, Users, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
 import { AvatarFace } from './AvatarFace';
@@ -73,7 +73,7 @@ const dayLabel = (iso: string) => {
  * Chat: everyone in the space, and direct messages. Saved, so people who were away see what they missed.
  * Everyone-channel messages notify only for @mentions and announcements; direct messages always notify.
  */
-export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onConv, msgs, unread, isAdmin, loading, onRead, onSend }: {
+export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onConv, msgs, unread, isAdmin, loading, onRead, onSend, onDelete, lastRead }: {
   open: boolean;
   onClose: () => void;
   meId: string;
@@ -86,13 +86,21 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
   isAdmin: boolean;
   loading: boolean;
   onRead: (c: string) => void;
-  onSend: (p: { text: string; file: File | null; to: string | null; announce: boolean }) => Promise<boolean>;
+  onSend: (p: { text: string; file: File | null; to: string | null; announce: boolean; kudos?: string }) => Promise<boolean>;
+  /** delete one of my messages (admins: any) */
+  onDelete?: (id: string) => Promise<boolean>;
+  /** when I last read each conversation (to show where the new messages start) */
+  lastRead?: Record<string, number>;
 }) {
   const [q, setQ] = useState('');
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [drag, setDrag] = useState(false);
   const [sel, setSel] = useState(0);
+  const [kudosOpen, setKudosOpen] = useState(false);
+  const [kudosTo, setKudosTo] = useState('');
+  const [newFrom, setNewFrom] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [announce, setAnnounce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -126,6 +134,15 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
   const previews = useMemo(() => files.map((f) => (isPicture(f.type) ? URL.createObjectURL(f) : null)), [files]);
   useEffect(() => () => { previews.forEach((u) => { if (u) URL.revokeObjectURL(u); }); }, [previews]);
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ block: 'end' }); }, [open, thread.length, conv]);
+  // where the new messages start: the first one from someone else that is newer than when I last read this conversation
+  useEffect(() => {
+    if (!open) { setNewFrom(null); return; }
+    const since = lastRead?.[conv] ?? 0;
+    setNewFrom(thread.find((m) => m.sender_id !== meId && new Date(m.created_at).getTime() > since)?.id ?? null);
+    setKudosOpen(false); setConfirmDel(null);
+    // only when the conversation is opened: later messages arrive below the line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, conv]);
   useEffect(() => { if (open && thread.length) onRead(conv); }, [open, conv, thread.length, onRead]);
 
   const other = conv === ALL ? null : byId.get(conv) ?? null;
@@ -150,6 +167,13 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
       next.push(f);
     }
     setFiles(next);
+  };
+  const sendKudos = async () => {
+    if (busy || !kudosTo || text.trim().length < 3) return;
+    setBusy(true); setErr(null);
+    const ok = await onSend({ text, file: null, to: null, announce: false, kudos: kudosTo });
+    setBusy(false);
+    if (ok) { setText(''); setKudosOpen(false); setKudosTo(''); } else setErr('That did not send. Check your connection and try again.');
   };
   const send = async () => {
     if (busy || (!text.trim() && files.length === 0)) return;
@@ -234,8 +258,15 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
               const who = byId.get(m.sender_id);
               return (
                 <div key={m.id}>
+                  {m.id === newFrom && <p className="my-1.5 flex items-center gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-[#D6AC50]"><span className="h-px flex-1 bg-[#D6AC50]/40" />New<span className="h-px flex-1 bg-[#D6AC50]/40" /></p>}
                   {showDay && <p className="py-2.5 text-center"><span className="rounded-full bg-[#D6AC50]/15 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-[#E6C275]">{day}</span></p>}
-                  {m.kind === 'announcement' ? (
+                  {m.kind === 'kudos' ? (
+                    <div className="kd-rise my-2 rounded-2xl border border-[#D6AC50]/40 bg-gradient-to-br from-[#D6AC50]/20 via-[#D6AC50]/[0.07] to-transparent px-3.5 py-3">
+                      <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#E6C275]"><Award className="h-3.5 w-3.5" />Kudos · {clock(m.created_at)}</p>
+                      <p className="mt-1 text-[13.5px] font-bold">{who?.name ?? 'Someone'} <span className="font-medium text-muted-foreground">thanked</span> {(m.mentions[0] && byId.get(m.mentions[0])?.name) || (m.mentions[0] === meId ? 'you' : 'a teammate')}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.body}</p>
+                    </div>
+                  ) : m.kind === 'announcement' ? (
                     <div className="my-2 rounded-2xl border border-[#D6AC50]/35 bg-gradient-to-br from-[#D6AC50]/15 to-[#D6AC50]/[0.04] px-3.5 py-2.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#E6C275]"><Megaphone className="h-3.5 w-3.5" />Announcement · {mine ? 'You' : who?.name ?? 'Admin'} · {clock(m.created_at)}</p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-[13.5px] leading-relaxed"><Body text={m.body} /></p>
@@ -243,12 +274,17 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
                     </div>
                   ) : (
                     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} ${sameSender ? 'pt-0.5' : 'pt-2'}`}>
-                      <div className={`min-w-0 max-w-[80%] rounded-2xl px-3 py-2 ${!mine && m.mentions.includes(meId) ? 'ring-1 ring-[#D6AC50]/60 ' : ''}${mine ? 'rounded-br-md bg-gradient-to-br from-[#0a86b4] to-[#006994] text-white shadow-[0_8px_20px_-10px_rgba(0,160,220,.8)]' : 'rounded-bl-md border border-white/[0.06] bg-white/[0.06]'}`}>
+                      <div className={`group/msg min-w-0 max-w-[80%] rounded-2xl px-3 py-2 ${!mine && m.mentions.includes(meId) ? 'ring-1 ring-[#D6AC50]/60 ' : ''}${mine ? 'rounded-br-md bg-gradient-to-br from-[#0a86b4] to-[#006994] text-white shadow-[0_8px_20px_-10px_rgba(0,160,220,.8)]' : 'rounded-bl-md border border-white/[0.06] bg-white/[0.06]'}`}>
                         {!mine && conv === ALL && !sameSender && <p className="mb-0.5 truncate text-[11.5px] font-bold text-muted-foreground">{who?.name ?? 'Someone'}</p>}
                         {m.body && m.body !== '(picture)' && m.body !== '(file)' && <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed"><Body text={m.body} /></p>}
                         {m.img && <div className={m.body && m.body !== '(picture)' ? 'mt-1.5' : ''}><ChatImage path={m.img} /></div>}
                         {m.file_path && <div className={m.body && m.body !== '(file)' ? 'mt-1.5' : ''}><ChatFile m={m} /></div>}
-                        <p className="mt-0.5 text-right text-[10px] text-muted-foreground">{clock(m.created_at)}</p>
+                        <p className="mt-0.5 flex items-center justify-end gap-2 text-[10px] text-muted-foreground">
+                          {onDelete && (mine || isAdmin) && (confirmDel === m.id
+                            ? <><button type="button" onClick={() => { void onDelete(m.id); setConfirmDel(null); }} className="font-bold text-red-300 hover:underline">Delete for everyone?</button><button type="button" onClick={() => setConfirmDel(null)} className="hover:underline">No</button></>
+                            : <button type="button" aria-label="Delete message" title="Delete message" onClick={() => setConfirmDel(m.id)} className="opacity-0 transition hover:text-red-300 group-hover/msg:opacity-100 focus:opacity-100"><Trash2 className="h-3 w-3" /></button>)}
+                          {clock(m.created_at)}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -260,6 +296,17 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
 
           <footer className="border-t border-[#00ECFF]/10 p-3">
             {err && <p className="mb-2 text-xs text-red-400">{err}</p>}
+            {kudosOpen && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#D6AC50]/35 bg-[#D6AC50]/10 px-3 py-2 text-xs">
+                <Award className="h-4 w-4 text-[#E6C275]" /><span className="font-bold text-[#E6C275]">Kudos to</span>
+                <select value={kudosTo} onChange={(e) => setKudosTo(e.target.value)} aria-label="Who are you thanking" className="h-7 min-w-0 flex-1 rounded-md border border-[#D6AC50]/30 bg-background/60 px-2 text-xs outline-none focus:border-[#D6AC50]">
+                  <option value="">Choose a person</option>
+                  {people.filter((p) => p.id !== meId).sort((a, b) => a.name.localeCompare(b.name)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button type="button" onClick={() => setKudosOpen(false)} className="text-muted-foreground hover:text-foreground">Cancel</button>
+                <p className="basis-full text-[11px] text-muted-foreground">Write what they did, then press Send. Everyone in the office will see it.</p>
+              </div>
+            )}
             {files.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {files.map((f, i) => (
@@ -292,12 +339,13 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
                       if (e.key === 'ArrowUp') { e.preventDefault(); setSel((x) => x + suggestions.length - 1); return; }
                       if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); insertMention(suggestions[sel % suggestions.length].token); return; }
                     }
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void (kudosOpen ? sendKudos() : send()); }
                   }}
                   placeholder={other ? `Message ${other.name.split(' ')[0]}` : 'Message everyone'}
                   className="max-h-28 min-h-9 min-w-0 flex-1 resize-none rounded-xl bg-white/[0.06] px-3 py-2 text-[13.5px] outline-none ring-1 ring-white/[0.07] placeholder:text-muted-foreground focus:ring-primary/60" />
-                <button type="button" aria-label="Send" disabled={busy || (!text.trim() && files.length === 0)} onClick={() => void send()} className="kd-gold flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition hover:brightness-110 disabled:opacity-40"><Send className="h-4 w-4" /></button>
+                <button type="button" aria-label="Send" disabled={busy || (kudosOpen ? !kudosTo || text.trim().length < 3 : !text.trim() && files.length === 0)} onClick={() => void (kudosOpen ? sendKudos() : send())} className="kd-gold flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition hover:brightness-110 disabled:opacity-40"><Send className="h-4 w-4" /></button>
               </div>
+              {conv === ALL && !kudosOpen && <button type="button" onClick={() => setKudosOpen(true)} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#D6AC50]/12 px-2.5 py-1 text-[11.5px] font-bold text-[#E6C275] ring-1 ring-inset ring-[#D6AC50]/25 transition hover:bg-[#D6AC50]/20"><Award className="h-3.5 w-3.5" />Give kudos</button>}
               {isAdmin && conv === ALL && (
                 <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} className="accent-amber-400" />

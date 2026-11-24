@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { AvatarStyle } from './world/types';
-import { pack, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
+import { pack, replyWindowMs, rosterDebounceMs, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
 import { cleanAvatar } from './world/render';
 import type { RtcSignal } from './calls/rules';
 import type { DoorMsg } from './calls/locks';
@@ -118,6 +118,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const townMutedRef = useRef(false);
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMeta = useRef('');
+  /** how many people the lobby last showed (slows roster refreshes and answers in a crowd) */
+  const headCount = useRef(0);
   /** emoji reactions on show, by person id */
   const emotes = useRef(new Map<string, { e: string; until: number }>());
   /** pet messages from other people (commands, and positions from whoever runs the pets) waiting for the canvas to read them */
@@ -166,6 +168,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       // when nothing about anybody changed (a flicker of the connection), do not hand React a new list to redraw everything for
       const shown = all.filter((w) => !ghostIds.has(w.id));
       const rk = JSON.stringify(shown);
+      headCount.current = all.length;
       if (rk !== rosterKey.current) { rosterKey.current = rk; setRoster(shown); }
       // forget people who have left, and tabs that are no longer the one shown
       const here = new Set(all.map((w) => w.id));
@@ -175,7 +178,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });
     // a shaky connection sends a burst of presence events: handle them together, once
     let syncTimer: ReturnType<typeof setTimeout> | null = null;
-    const syncSoon = () => { if (syncTimer) return; syncTimer = setTimeout(() => { syncTimer = null; sync(); }, 150); };
+    const syncSoon = () => { if (syncTimer) return; syncTimer = setTimeout(() => { syncTimer = null; sync(); }, rosterDebounceMs(headCount.current)); };
     ch.on('presence', { event: 'sync' }, syncSoon).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true);
@@ -286,8 +289,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       peers.current.set(p.id, { x: p.x, y: p.y, vx: p.vx, vy: p.vy, dir: p.dir, at: Date.now() });
     });
     // someone just arrived and asks where everybody is: answer once, spread out a little so we do not all reply at once
+    // Several arrivals close together share one answer: while an answer is already waiting to go out (it will leave after
+    // their request, so they get it too) a further request adds nothing. In a crowd the answers are spread over a longer window.
+    let answering = false;
     ch.on('broadcast', { event: 'q' }, () => {
-      setTimeout(() => { if (roomReady.current) emit(); }, Math.random() * 400);
+      if (answering) return;
+      answering = true;
+      setTimeout(() => { answering = false; if (roomReady.current) emit(); }, Math.random() * replyWindowMs(headCount.current));
     });
     // call set-up messages (see calls/useCalls.ts); handled by whoever registered a handler
     // an emoji reaction (👍 👏 ❤️ ...): floats over the sender for a few seconds
