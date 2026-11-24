@@ -672,10 +672,10 @@ function OfficeRoom() {
     toast({ title: `${g.name} is at the door`, description: 'A guest is waiting to come in.', action: <ToastAction altText="Open guests" onClick={() => setVisitorsOpen(true)}>Let in</ToastAction> });
   });
   const chatPeople = useMemo(() => (directory ?? []).map((d) => ({ id: d.id, name: d.name, avatar: d.avatar, online: roster.some((r) => r.uid === d.id) })), [directory, roster]);
-  const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean }) => {
+  const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean; kudos?: string }) => {
     if (!me) return false;
     const people = chatPeople.map((x) => ({ id: x.id, name: x.name }));
-    if (!p.file) return chat.send({ text: p.text, to: p.to, announce: p.announce, everyone: isAdmin, people });
+    if (!p.file) return chat.send({ text: p.text, to: p.to, announce: p.announce, everyone: isAdmin, kudos: p.kudos, people });
     const id = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
     if (isPicture(p.file.type)) {
       const img = `${me.id}/${id}.${p.file.type.split('/')[1].replace('jpeg', 'jpg')}`;
@@ -1080,6 +1080,31 @@ function OfficeRoom() {
   useEffect(() => { if (!calls.joined) setMeeting(false); }, [calls.joined]);
   const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
+  // a focus session: Focusing now, Available again when the time is up (kept in the browser so a reload does not lose it)
+  const [focusEnd, setFocusEnd] = useState<number | null>(() => { try { const v = Number(localStorage.getItem('kd:office:focusEnd')); return v > Date.now() ? v : null; } catch { return null; } });
+  const [focusTick, setFocusTick] = useState(0);
+  const startFocus = (minutes: number) => {
+    if (minutes <= 0) { setFocusEnd(null); try { localStorage.removeItem('kd:office:focusEnd'); } catch { /* fine */ } chooseStatus(''); return; }
+    const end = Date.now() + minutes * 60_000;
+    setFocusEnd(end);
+    try { localStorage.setItem('kd:office:focusEnd', String(end)); } catch { /* fine */ }
+    chooseStatus('focus');
+  };
+  useEffect(() => {
+    if (!focusEnd) return;
+    const t = window.setInterval(() => {
+      if (Date.now() >= focusEnd) {
+        setFocusEnd(null);
+        try { localStorage.removeItem('kd:office:focusEnd'); } catch { /* fine */ }
+        // only go back if nothing else was chosen meanwhile
+        setStatusState((cur) => { if (cur !== 'focus') return cur; try { localStorage.setItem('kd:office:status', ''); } catch { /* fine */ } return ''; });
+        toast({ title: 'Focus session finished', description: 'You are Available again.' });
+      } else setFocusTick((x) => x + 1);
+    }, 15_000);
+    return () => window.clearInterval(t);
+  }, [focusEnd, toast]);
+  const focusLeft = focusEnd && status === 'focus' ? Math.max(1, Math.ceil((focusEnd - Date.now()) / 60_000)) : null;
+  void focusTick;
   useEffect(() => { setStatus(status); }, [status, setStatus, connected]);
   // while the Office is open nobody is signed out for being idle (the idle sign-out reads this heartbeat)
   useEffect(() => {
@@ -1560,7 +1585,7 @@ function OfficeRoom() {
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
                 <ProfileMenu
-                  name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onAvatar={() => setAvatarOpen(true)}
+                  name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onFocus={startFocus} focusLeft={focusLeft} onAvatar={() => setAvatarOpen(true)}
                   timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} notify={{ on: notify.on, denied: notify.denied, supported: notify.supported, toggle: () => void notify.toggle(), desktop: isDesktopApp() }} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)} onGuests={() => setVisitorsOpen(true)} guestsWaiting={guests.waitingCount}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
@@ -1917,7 +1942,7 @@ function OfficeRoom() {
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
         open={chatOpen} onClose={() => setChatOpen(false)} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
-        people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat}
+        people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat} onDelete={chat.remove} lastRead={chat.lastRead}
       />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 

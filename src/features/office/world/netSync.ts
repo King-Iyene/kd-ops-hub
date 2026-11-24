@@ -26,6 +26,18 @@ export function shouldSend(prev: SentMotion | null, cur: Motion, now: number): S
   return now - prev.at >= CORRECTION_MS ? 'correct' : null;
 }
 
+/**
+ * When someone arrives they ask "where is everybody?" and every window answers. With a crowd that is N answers, each
+ * delivered to N people, so the answers are spread over a window that grows with the crowd (never less than 0.4 s, never more than 3 s).
+ */
+export function replyWindowMs(people: number): number {
+  return Math.min(3000, Math.max(400, Math.round(people) * 25));
+}
+/** How long to wait before refreshing the roster after a burst of presence events: quick in a small office, calmer in a crowd. */
+export function rosterDebounceMs(people: number): number {
+  return Math.min(1000, 150 + Math.round(people) * 6);
+}
+
 /** Compact wire format: short keys, two decimals. */
 export function pack(id: string, m: Motion, dir: number) {
   const r = (n: number) => Math.round(n * 100) / 100;

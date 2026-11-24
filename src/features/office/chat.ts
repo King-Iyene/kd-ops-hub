@@ -20,7 +20,7 @@ export interface ChatMsg {
   file_name?: string | null;
   file_size?: number | null;
   file_type?: string | null;
-  kind: 'text' | 'announcement';
+  kind: 'text' | 'announcement' | 'kudos';
   mentions: string[];
   created_at: string;
 }
@@ -123,7 +123,7 @@ export function shouldNotify(m: ChatMsg, me: string, ctx: { quiet: boolean; open
   const conv = convOf(m, me);
   if (ctx.openConv === conv && ctx.focused) return 'none';
   const direct = m.to_id === me;
-  const important = m.kind === 'announcement' || m.mentions.includes(me);
+  const important = m.kind === 'announcement' || m.mentions.includes(me); // a kudos names its person in mentions
   if (direct || important) return ctx.quiet ? 'badge' : 'pop';
   return 'badge';
 }
@@ -168,6 +168,10 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
         setMsgs((cur) => (cur.some((x) => x.id === m.id) ? cur : [...cur.slice(-299), m]));
         incoming.current(m);
       })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'office_messages' }, (payload) => {
+        const id = (payload.old as { id?: string } | null)?.id;
+        if (id) setMsgs((cur) => cur.filter((x) => x.id !== id));
+      })
       .subscribe();
     return () => { live = false; void supabase.removeChannel(ch); };
   }, [meId, spaceId, relevant]);
@@ -180,19 +184,27 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
     });
   }, []);
 
-  const send = useCallback(async (p: { text: string; to: string | null; img?: string; file?: { path: string; name: string; size: number; type: string }; announce?: boolean; everyone?: boolean; people: Who[] }) => {
+  const send = useCallback(async (p: { text: string; to: string | null; img?: string; file?: { path: string; name: string; size: number; type: string }; announce?: boolean; everyone?: boolean; /** give kudos to this person (goes to everyone, names them) */ kudos?: string; people: Who[] }) => {
     if (!meId || !spaceId) return false;
     const body = p.text.replace(/\s+\n/g, '\n').trim().slice(0, MAX_BODY);
     if (!body && !p.img && !p.file) return false;
     const { error } = await sb.from('office_messages').insert({
       space_id: spaceId, sender_id: meId, to_id: p.to, body: body || (p.file ? '(file)' : '(picture)'), img: p.img ?? null,
       ...(p.file ? { file_path: p.file.path, file_name: p.file.name, file_size: p.file.size, file_type: p.file.type } : {}),
-      kind: p.announce && p.to === null ? 'announcement' : 'text', mentions: parseMentions(body, p.people, { everyone: p.everyone }),
+      kind: p.kudos && p.to === null ? 'kudos' : p.announce && p.to === null ? 'announcement' : 'text',
+      mentions: p.kudos && p.to === null ? [p.kudos] : parseMentions(body, p.people, { everyone: p.everyone }),
     });
     return !error;
   }, [meId, spaceId]);
 
+  /** delete one of my messages (an admin can delete any); it disappears for everyone */
+  const remove = useCallback(async (id: string) => {
+    const { error } = await sb.from('office_messages').delete().eq('id', id);
+    if (!error) setMsgs((cur) => cur.filter((x) => x.id !== id));
+    return !error;
+  }, []);
+
   const unread = useMemo(() => (meId ? unreadCounts(msgs, meId, lastRead) : {}), [msgs, meId, lastRead]);
   const totalUnread = useMemo(() => Object.values(unread).reduce((a, b) => a + b, 0), [unread]);
-  return { msgs, loading, send, markRead, unread, totalUnread };
+  return { msgs, loading, send, markRead, remove, lastRead, unread, totalUnread };
 }
