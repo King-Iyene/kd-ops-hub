@@ -36,21 +36,24 @@ export function distance(a: Spot, b: Spot): number {
 }
 
 /** Should these two people be connected? `connected` is true when they already are (uses the wider limit). */
-export function wantsConnection(me: Spot, other: Spot, connected: boolean): boolean {
+export function wantsConnection(me: Spot, other: Spot, connected: boolean, occluded = false): boolean {
   // a town hall reaches everyone who is listening, wherever they are in the office
   const th = townHall(me, other);
   if (th && hearsTownHall(th.listener, th.speaker)) return true;
   if (me.room || other.room) return me.room === other.room;
+  // out in the open, a wall between two people blocks the sound
+  if (occluded) return false;
   return distance(me, other) <= (connected ? FAR : NEAR);
 }
 
 /** How loud the other person is for me, 0 to 1. Full volume inside a meeting room or when close, fading with distance. */
-export function volumeFor(me: Spot, other: Spot): number {
+export function volumeFor(me: Spot, other: Spot, occluded = false): number {
   // the speaker hears nobody (no echo from the audience), and the audience hears the speaker at full volume
   if (me.live && !other.live) return 0;
   if (other.live && !me.live) return hearsTownHall(me, other) ? 1 : 0;
   if (me.room && me.room === other.room) return 1;
   if (me.room || other.room) return 0;
+  if (occluded) return 0;
   const d = distance(me, other);
   if (d <= 1.5) return 1;
   if (d >= FAR) return 0;

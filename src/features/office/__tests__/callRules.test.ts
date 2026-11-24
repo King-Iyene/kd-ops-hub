@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FAR, NEAR, isInitiator, parseSignal, volumeFor, wantsConnection, type Spot } from '../calls/rules';
+import { wallBetween } from '../world/world';
 
 const at = (x: number, y: number, room: string | null = null): Spot => ({ x, y, room });
 
@@ -93,5 +94,30 @@ describe('town hall: one person speaks to the whole office', () => {
   it('normal talking is unchanged when nobody is speaking', () => {
     expect(wantsConnection(at(0, 0), at(NEAR - 0.1, 0), false)).toBe(true);
     expect(wantsConnection(at(0, 0), at(NEAR + 3, 0), false)).toBe(false);
+  });
+});
+
+describe('walls block sound', () => {
+  const open = { x: 0, y: 0, room: null } as const;
+  it('a wall tile between two points is detected, open floor is not', () => {
+    const walls = Array.from({ length: 5 }, (_, y) => Array.from({ length: 10 }, (_, x) => x === 4 && y < 4));
+    expect(wallBetween(walls, 2.5, 1.5, 6.5, 1.5)).toBe(true); // straight through the wall
+    expect(wallBetween(walls, 2.5, 1.5, 3.5, 3.5)).toBe(false); // same side
+    expect(wallBetween(walls, 3.5, 4.5, 5.5, 4.5)).toBe(false); // through the gap (a doorway)
+    expect(wallBetween(walls, 3.5, 3.5, 5.5, 1.5)).toBe(true); // around the corner, line crosses the wall
+  });
+  it('out in the open a wall between two close people means no connection and no volume', () => {
+    const b = { x: 3, y: 0, room: null } as const;
+    expect(wantsConnection(open, b, false, false)).toBe(true);
+    expect(wantsConnection(open, b, false, true)).toBe(false);
+    expect(wantsConnection(open, b, true, true)).toBe(false);
+    expect(volumeFor(open, b, false)).toBeGreaterThan(0);
+    expect(volumeFor(open, b, true)).toBe(0);
+  });
+  it('inside one meeting room a wall in the way does not matter, and a town hall still reaches through', () => {
+    const a = { x: 0, y: 0, room: 'r1' }, b = { x: 3, y: 0, room: 'r1' };
+    expect(wantsConnection(a, b, false, true)).toBe(true);
+    expect(volumeFor(a, b, true)).toBe(1);
+    expect(volumeFor({ x: 0, y: 0, room: null }, { x: 20, y: 0, room: null, live: true }, true)).toBe(1);
   });
 });

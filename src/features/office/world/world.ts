@@ -369,6 +369,24 @@ export function applyTileEdits(map: MapDef, e: TileEdits | undefined): MapDef {
   return { ...map, walls, floorOverrides: e.floors ?? {} };
 }
 
+/**
+ * True when a solid wall tile lies on the straight line between two points (tile units). Sound does not go through walls,
+ * so someone walking past the outside of an office, or around its corner, cannot hear what is said inside.
+ * The tiles the two people stand on are ignored (standing against a wall is not behind it).
+ */
+export function wallBetween(walls: boolean[][], ax: number, ay: number, bx: number, by: number): boolean {
+  const dx = bx - ax, dy = by - ay;
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 0.2));
+  const ta = `${Math.floor(ax)},${Math.floor(ay)}`, tb = `${Math.floor(bx)},${Math.floor(by)}`;
+  for (let i = 1; i < steps; i++) {
+    const x = Math.floor(ax + (dx * i) / steps), y = Math.floor(ay + (dy * i) / steps);
+    const k = `${x},${y}`;
+    if (k === ta || k === tb) continue;
+    if (walls[y]?.[x]) return true;
+  }
+  return false;
+}
+
 /** A private room: a meeting room or someone's office (voice stays inside, it can be locked). */
 export function isRoom(z: Zone | null | undefined): boolean {
   return !!z && (z.kind === 'meeting' || z.kind === 'office') && !z.open;

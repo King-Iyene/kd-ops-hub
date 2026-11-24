@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
-import { isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
+import { FAR, isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
 
 /**
  * Voice and video between the people in the office, straight from browser to browser (WebRTC).
@@ -77,6 +77,8 @@ interface Opts {
   lookup: (id: string) => Spot | null;
   /** where I am standing */
   self: () => Spot;
+  /** true when a solid wall lies between the two (sound does not pass walls) */
+  occluded?: (a: Spot, b: Spot) => boolean;
   send: (s: RtcSignal) => void;
   setHandler: (h: ((raw: unknown) => void) | null) => void;
 }
@@ -266,11 +268,14 @@ export function useCalls(opts: Opts) {
         const other = lookup(id);
         if (!other) continue;
         const c = conns.current.get(id);
-        const want = wantsConnection(mine, other, !!c);
+        // the wall check only runs for people who are close enough to matter
+        const near = Math.hypot(mine.x - other.x, mine.y - other.y) <= FAR;
+        const occ = near && !!o.current.occluded?.(mine, other);
+        const want = wantsConnection(mine, other, !!c, occ);
         if (want && !c && isInitiator(meId, id)) create(id);
         else if (!want && c) close(id);
         const cur = conns.current.get(id);
-        if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other);
+        if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
       }
       for (const id of [...conns.current.keys()]) if (!here.has(id)) close(id);
     };

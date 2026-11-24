@@ -15,12 +15,58 @@ export interface ChatMsg {
   to_id: string | null;
   body: string;
   img: string | null;
+  /** a file that is not a picture (document, sheet, zip, audio...), kept in the office-files bucket */
+  file_path?: string | null;
+  file_name?: string | null;
+  file_size?: number | null;
+  file_type?: string | null;
   kind: 'text' | 'announcement';
   mentions: string[];
   created_at: string;
 }
 
 export interface Who { id: string; name: string }
+
+// ── attachments ────────────────────────────────────────────────────────────
+export const MAX_FILE_BYTES = 25 * 1024 * 1024;
+export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
+export const MAX_ATTACHMENTS = 5;
+const PICTURE = /^image\/(png|jpe?g|gif|webp)$/;
+/** Types the office-files bucket accepts (the same list the database enforces). */
+const FILE_TYPES = new Set([
+  'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain', 'text/csv', 'application/zip', 'application/x-zip-compressed',
+  'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'video/mp4', 'video/quicktime', 'video/webm',
+]);
+export const isPicture = (type: string) => PICTURE.test(type);
+/** null when the file can be sent, else the sentence to show. */
+export function checkAttachment(f: { name: string; type: string; size: number }): string | null {
+  if (isPicture(f.type)) return f.size > MAX_PICTURE_BYTES ? 'Pictures can be up to 5 MB.' : null;
+  if (!FILE_TYPES.has(f.type)) return `${f.name || 'That file'} is not a type we can send here. Use a picture, PDF, Word, Excel, PowerPoint, text, CSV, zip, audio or video file.`;
+  if (f.size > MAX_FILE_BYTES) return `${f.name} is over 25 MB.`;
+  if (f.size === 0) return `${f.name} is empty.`;
+  return null;
+}
+export function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+/** A safe name for the storage path: letters, digits, dot, dash. */
+export const safeFileName = (name: string) => (name.replace(/[^\w.-]+/g, '_').replace(/^[._]+/, '').slice(-80) || 'file');
+export const fileKind = (type: string, name: string): 'pdf' | 'doc' | 'sheet' | 'slides' | 'zip' | 'audio' | 'video' | 'text' => {
+  if (type === 'application/pdf') return 'pdf';
+  if (/word/.test(type) || /\.docx?$/i.test(name)) return 'doc';
+  if (/excel|spreadsheet|csv/.test(type) || /\.(xlsx?|csv)$/i.test(name)) return 'sheet';
+  if (/powerpoint|presentation/.test(type)) return 'slides';
+  if (/zip/.test(type)) return 'zip';
+  if (type.startsWith('audio/')) return 'audio';
+  if (type.startsWith('video/')) return 'video';
+  return 'text';
+};
 
 /** Which conversation a message belongs to, from my point of view: "all", or the other person. */
 export function convOf(m: Pick<ChatMsg, 'to_id' | 'sender_id'>, me: string): string {
@@ -29,8 +75,10 @@ export function convOf(m: Pick<ChatMsg, 'to_id' | 'sender_id'>, me: string): str
 }
 
 /** People named with @ in the text: "@Kelvin", "@Kelvin Sampson". Longest matching name wins. */
-export function parseMentions(text: string, people: Who[]): string[] {
+export function parseMentions(text: string, people: Who[], opts: { everyone?: boolean } = {}): string[] {
   const out = new Set<string>();
+  // @everyone / @all / @channel tags the whole team, but only where the sender is allowed to (admins)
+  if (opts.everyone && /(^|[^\w])@(everyone|all|channel)(?![\w])/i.test(text)) for (const p of people) out.add(p.id);
   // longest names first; a name that matched is used up, so a shorter one cannot match the same words again
   let rest = text.toLowerCase();
   const sorted = [...people].sort((a, b) => b.name.length - a.name.length);
@@ -132,13 +180,14 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
     });
   }, []);
 
-  const send = useCallback(async (p: { text: string; to: string | null; img?: string; announce?: boolean; people: Who[] }) => {
+  const send = useCallback(async (p: { text: string; to: string | null; img?: string; file?: { path: string; name: string; size: number; type: string }; announce?: boolean; everyone?: boolean; people: Who[] }) => {
     if (!meId || !spaceId) return false;
     const body = p.text.replace(/\s+\n/g, '\n').trim().slice(0, MAX_BODY);
-    if (!body && !p.img) return false;
+    if (!body && !p.img && !p.file) return false;
     const { error } = await sb.from('office_messages').insert({
-      space_id: spaceId, sender_id: meId, to_id: p.to, body: body || '(picture)', img: p.img ?? null,
-      kind: p.announce && p.to === null ? 'announcement' : 'text', mentions: parseMentions(body, p.people),
+      space_id: spaceId, sender_id: meId, to_id: p.to, body: body || (p.file ? '(file)' : '(picture)'), img: p.img ?? null,
+      ...(p.file ? { file_path: p.file.path, file_name: p.file.name, file_size: p.file.size, file_type: p.file.type } : {}),
+      kind: p.announce && p.to === null ? 'announcement' : 'text', mentions: parseMentions(body, p.people, { everyone: p.everyone }),
     });
     return !error;
   }, [meId, spaceId]);

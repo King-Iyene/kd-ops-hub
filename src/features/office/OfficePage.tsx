@@ -24,7 +24,7 @@ import { isHeld, useVehicles } from './useVehicles';
 import { ProfileDialog, type ProfileAction } from './ProfileDialog';
 import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
-import { ALL, shouldNotify, useChat, type ChatMsg } from './chat';
+import { ALL, isPicture, safeFileName, shouldNotify, useChat, type ChatMsg } from './chat';
 import { playChime, playRecordingCue, playRing, playWave } from './chime';
 import { canSendTo, cleanText, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
@@ -62,7 +62,7 @@ import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
-import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
+import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
 import { cleanZones } from './world/clock';
@@ -239,6 +239,7 @@ function OfficeRoom() {
       const r = rosterRef.current.find((q) => q.id === id);
       return { x, y, room: z && isRoom(z) ? z.id : null, live: !!r?.live, townMuted: !!r?.townMuted };
     },
+    occluded: (a, b) => wallBetween(map.walls, a.x, a.y, b.x, b.y),
     self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current, live: myLiveRef.current, townMuted: townMutedRef2.current }),
     send: sendRtc,
     setHandler: setRtcHandler,
@@ -673,13 +674,20 @@ function OfficeRoom() {
   const chatPeople = useMemo(() => (directory ?? []).map((d) => ({ id: d.id, name: d.name, avatar: d.avatar, online: roster.some((r) => r.uid === d.id) })), [directory, roster]);
   const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean }) => {
     if (!me) return false;
-    let img: string | undefined;
-    if (p.file) {
-      img = `${me.id}/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${p.file.type.split('/')[1].replace('jpeg', 'jpg')}`;
+    const people = chatPeople.map((x) => ({ id: x.id, name: x.name }));
+    if (!p.file) return chat.send({ text: p.text, to: p.to, announce: p.announce, everyone: isAdmin, people });
+    const id = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+    if (isPicture(p.file.type)) {
+      const img = `${me.id}/${id}.${p.file.type.split('/')[1].replace('jpeg', 'jpg')}`;
       const up = await supabase.storage.from('office-shared').upload(img, p.file, { contentType: p.file.type });
       if (up.error) return false;
+      return chat.send({ text: p.text, to: p.to, img, announce: p.announce, everyone: isAdmin, people });
     }
-    return chat.send({ text: p.text, to: p.to, img, announce: p.announce, people: chatPeople.map((x) => ({ id: x.id, name: x.name })) });
+    // any other file: kept in its own private bucket, shown as a download card
+    const path = `${me.id}/${id}-${safeFileName(p.file.name)}`;
+    const up = await supabase.storage.from('office-files').upload(path, p.file, { contentType: p.file.type });
+    if (up.error) return false;
+    return chat.send({ text: p.text, to: p.to, file: { path, name: p.file.name.slice(0, 200), size: p.file.size, type: p.file.type }, announce: p.announce, everyone: isAdmin, people });
   };
 
   // a shared link (?space=…&room=… or &at=x,y): go to that space, then walk to that spot
@@ -1312,6 +1320,15 @@ function OfficeRoom() {
   }, [calls.tiles, calls.selfCam, me]);
 
   const nameOfSpace = (id: string | null) => spaces?.find((s) => s.id === id)?.name ?? 'an office';
+  /** Where someone is right now, in words: the room they stand in, or the open floor, or another office. */
+  const whereIs = (r: { id: string; spaceId: string | null }): string => {
+    if (r.spaceId && r.spaceId !== space?.id) return `In ${nameOfSpace(r.spaceId)}`;
+    const pm = peers.current.get(r.id);
+    if (!pm) return space ? `In ${space.name}` : 'In the office';
+    const z = zoneAt(map, pm.x, pm.y);
+    if (!z || z.kind === 'portal') return 'In the open office';
+    return z.kind === 'meeting' ? `In ${z.name}` : z.kind === 'office' ? `In ${z.name}` : `At ${z.name}`;
+  };
   const here = roster.filter((r) => r.spaceId === space?.id);
   const roomPeople = (zid: string) => roster.filter((r) => r.spaceId === roomSpaceId && r.zone === zid);
   const otherOffices = (spaces ?? []).filter((s) => s.kind === 'personal' && s.owner_id !== profile?.id);
@@ -1420,7 +1437,7 @@ function OfficeRoom() {
                   <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-[#D6AC50] before:opacity-0 before:transition-opacity hover:bg-primary/[0.07] hover:before:opacity-100">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-[0_0_0_2px_rgba(0,236,255,.0)] transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {nameOfSpace(r.spaceId)}</span></span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {whereIs(r)}</span></span></span>
                     </button>
                     {!isMe && (
                       <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-px rounded-full bg-popover/95 px-1 py-0.5 opacity-0 shadow-sm ring-1 ring-border/70 backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100">
@@ -1430,7 +1447,7 @@ function OfficeRoom() {
                           </button>
                         )}
                         <button type="button" className={act} title={`View ${r.name}'s profile`} aria-label={`View ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}><UserCircle className="h-3 w-3" /></button>
-                        <button type="button" className={act} title={`Go to ${r.name}`} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3 w-3" /></button>
+                        <button type="button" className={act} title={`Go to ${r.name}`} onMouseEnter={(e) => { e.currentTarget.title = `Go to ${r.name} · ${whereIs(r)}`; }} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3 w-3" /></button>
                         <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3 w-3" /></button>
                         <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3 w-3" /></button>
                         <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3 w-3" /></button>
