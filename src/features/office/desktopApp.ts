@@ -1,5 +1,5 @@
 /** Where to get the KD Ops desktop app (the ops site and the Office in one window), and whether we are already inside it. */
-export const DESKTOP_VERSION = '0.3.3';
+export const DESKTOP_VERSION = '0.3.8';
 const REPO = 'https://github.com/King-Iyene/kd-ops-hub/releases';
 export const DESKTOP_RELEASE_PAGE = `${REPO}/tag/office-desktop-v${DESKTOP_VERSION}`;
 
