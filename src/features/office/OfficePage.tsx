@@ -39,7 +39,7 @@ import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
-import { petBus, petName, petRegistry } from './world/pets';
+import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
 import { seenAgo } from './lastSeen';
 import { useKeepSeen, useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
@@ -209,7 +209,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -1462,7 +1462,7 @@ function OfficeRoom() {
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
-            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} bubbles={bubbles} speaking={talking} update={update}
+            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
@@ -1764,7 +1764,7 @@ function OfficeRoom() {
           const pn = petName(pet.id, pet.kind);
           title = pn + ' the ' + pet.kind;
           item('pp', <Hand className={ic} />, 'Pet ' + pn, () => petBus.queue.push({ kind: 'pet', id: pet.id }));
-          item('pf', <Footprints className={ic} />, pet.mode === 'follow' ? 'Stay here' : 'Follow me', () => petBus.queue.push({ kind: pet.mode === 'follow' ? 'stay' : 'call', id: pet.id }));
+          item('pf', <Footprints className={ic} />, petCmdFor(pet, connId) === 'stay' ? 'Send back to its place' : 'Follow me', () => petBus.queue.push({ kind: petCmdFor(pet, connId), id: pet.id }));
           if (pet.kind === 'dog') item('pb', <LocateFixed className={ic} />, 'Throw a ball', () => petBus.queue.push({ kind: 'ball', id: pet.id }));
           item('pt', <Users className={ic} />, pet.kind === 'dog' ? 'Give a treat' : 'Give a treat', () => petBus.queue.push({ kind: 'treat', id: pet.id }));
         } else if (person) {
