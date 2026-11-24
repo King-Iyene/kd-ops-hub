@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { nextOffset, rangeFor } from '../lib/recordPaging';
 import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
@@ -602,7 +603,8 @@ export interface UseInfiniteRecordsParams {
 interface InfiniteRecordsPage {
   records: RecordRow[];
   totalCount: number;
-  page: number;
+  /** Where this page starts in the full list (pages after the first are larger, so an index would not say). */
+  offset: number;
 }
 
 interface LinkQueryState {
@@ -814,7 +816,7 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
     refetchOnWindowFocus: false,
     initialPageParam: 0,
     queryFn: async ({ pageParam, client }): Promise<InfiniteRecordsPage> => {
-      const currentPage = pageParam as number;
+      const offset = pageParam as number;
       const { fieldsMeta, fieldMap, ...ctx } = await resolveTableSchema(client, baseId, tableId);
 
       // Pre-resolve linked record filters (cached across pages)
@@ -830,7 +832,7 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
         fieldsMeta,
       );
       // The link filters already rule out every row.
-      if (!filtered) return { records: [], totalCount: 0, page: currentPage };
+      if (!filtered) return { records: [], totalCount: 0, offset };
       let q = filtered;
 
       if (infLinkSortIds !== null) {
@@ -839,16 +841,15 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
         const sorted = (allData ?? []) as RecordRow[];
         const orderMap = new Map(infLinkSortIds.map((id, idx) => [id, idx]));
         sorted.sort((a, b) => (orderMap.get(a.id) ?? Infinity) - (orderMap.get(b.id) ?? Infinity));
-        const from = currentPage * pageSize;
+        const { from, to } = rangeFor(offset, pageSize);
         return {
-          records: sorted.slice(from, from + pageSize),
+          records: sorted.slice(from, to + 1),
           totalCount: allCount ?? sorted.length,
-          page: currentPage,
+          offset,
         };
       }
 
-      const from = currentPage * pageSize;
-      const to = from + pageSize - 1;
+      const { from, to } = rangeFor(offset, pageSize);
       q = q.range(from, to);
 
       if (infNonLinkSorts.length > 0) {
@@ -870,16 +871,10 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
       return {
         records: (data ?? []) as RecordRow[],
         totalCount: count ?? 0,
-        page: currentPage,
+        offset,
       };
     },
-    getNextPageParam: (lastPage) => {
-      const fetched = (lastPage.page + 1) * pageSize;
-      if (fetched < lastPage.totalCount) {
-        return lastPage.page + 1;
-      }
-      return undefined;
-    },
+    getNextPageParam: (lastPage) => nextOffset(lastPage.offset, pageSize, lastPage.totalCount),
   });
 }
 
