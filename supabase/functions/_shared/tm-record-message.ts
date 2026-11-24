@@ -3,6 +3,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import type { Outgoing } from './agent-deliver-core.ts';
 import { ccFor, mentionFor } from './agent-mention.ts';
+import { reportActivityLine, reportDay } from './tm-day-activity.ts';
 import { buildEntryText, easternTime, findPersonId, type FieldDef, type Names } from './tm-record-message-core.ts';
 
 export interface RecordRule { id: string; table_id: string; connection_id: string; name: string; template: string | null; channel: string | null; tag_person: boolean; cc_manager: boolean }
@@ -22,7 +23,7 @@ export async function buildRecordMessage(db: SupabaseClient, ruleId: string, rec
   if (!rec) return { ok: false, error: recordId ? 'The entry no longer exists.' : 'This table has no entries yet to send as a test.' };
 
   const [{ data: table }, { data: fieldRows }] = await Promise.all([
-    db.from('tm_tables').select('name').eq('id', r.table_id).maybeSingle(),
+    db.from('tm_tables').select('name, report_date_field').eq('id', r.table_id).maybeSingle(),
     db.from('tm_table_fields').select('id, name, type').eq('table_id', r.table_id).order('position', { ascending: true }),
   ]);
   const fields = (fieldRows ?? []) as FieldDef[];
@@ -40,7 +41,7 @@ export async function buildRecordMessage(db: SupabaseClient, ruleId: string, rec
   if (taskIds.size) for (const t of (await db.from('tm_tasks').select('id, title').in('id', [...taskIds])).data ?? []) names.tasks[t.id as string] = (t.title as string) ?? '';
 
   const link = `${appUrl}/task/table/${r.table_id}`;
-  const text = buildEntryText({ table: (table?.name as string) ?? 'the table', template: r.template, fields, data, names, link, submittedAt: easternTime(rec.created_at), test });
+  let text = buildEntryText({ table: (table?.name as string) ?? 'the table', template: r.template, fields, data, names, link, submittedAt: easternTime(rec.created_at), test });
 
   // Who it is about: the first person in the entry, otherwise whoever submitted it. Their manager is tagged as a CC.
   let mention: Outgoing['mention'];
@@ -51,6 +52,17 @@ export async function buildRecordMessage(db: SupabaseClient, ruleId: string, rec
     personName = names.people[personId] ?? ((await db.from('profiles').select('full_name').eq('id', personId).maybeSingle()).data?.full_name as string | undefined) ?? '';
     if (r.tag_person) mention = await mentionFor(db, kind, personId);
     if (r.cc_manager) cc = await ccFor(db, kind, personId, personId);
+  }
+  // The daily report also carries the hours the person tracked that day and how productive they were, looked up when it is sent.
+  if (personId) {
+    const { data: st } = await db.from('agent_settings').select('report_table_id, timezone').eq('id', true).maybeSingle();
+    if (st && (st as { report_table_id: string | null }).report_table_id === r.table_id) {
+      const tz = ((st as { timezone?: string }).timezone) || 'America/New_York';
+      const dateField = (table as { report_date_field?: string | null } | null)?.report_date_field;
+      const day = reportDay(dateField && dateField !== 'created_at' ? data[dateField] : null, rec.created_at, tz);
+      const line = await reportActivityLine(db, personId, day, tz);
+      if (line && !text.text.includes('Hours Worked:')) text = { ...text, text: `${text.text}\n${line}` };
+    }
   }
   return {
     ok: true, rule: r,
