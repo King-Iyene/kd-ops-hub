@@ -16,7 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
-import { allowed } from './OfficeSettingsDialog';
+import { allowed, canDo } from './OfficeSettingsDialog';
 import { desktopDownload, inDesktopApp } from './desktopApp';
 import { useDesktopMini } from './useDesktopMini';
 import { markOfficeAlive, setOfficeHere } from '@/lib/officeAlive';
@@ -1118,7 +1118,7 @@ function OfficeRoom() {
   const [townMuted, setTownMutedState] = useState(false);
   const townSpeaker = roster.find((r) => r.live && r.spaceId === space?.id) ?? null;
   const someoneLive = !!townSpeaker || myLive;
-  const canSpeakToAll = isAdmin || space?.layout?.settings?.townHallAll === true;
+  const canSpeakToAll = canDo(space?.layout?.settings, 'speak', profile?.id, isAdmin);
   const goLive = async (title: string) => {
     if (townSpeaker && !myLive) { toast({ title: 'Someone is already speaking to the office', variant: 'destructive' }); return; }
     if (!calls.joined) await calls.join();
@@ -1521,7 +1521,7 @@ function OfficeRoom() {
                   timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} notify={{ on: notify.on, denied: notify.denied, supported: notify.supported, toggle: () => void notify.toggle(), desktop: isDesktopApp() }} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)} onGuests={() => setVisitorsOpen(true)} guestsWaiting={guests.waitingCount}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
-                  canCustomiseMine={!!myClaim && !canEdit && !editing} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
+                  canCustomiseMine={!!myClaim && !canEdit && !editing && canDo(space?.layout?.settings, 'customise', profile?.id, isAdmin)} onCustomiseMine={() => { const z = map.zones.find((q) => q.id === myClaim?.office_id); if (z) startEdit(z); }}
                   onClaimOffice={claimFree} onUnclaimOffice={() => { if (myClaim) void unclaimOffice(myClaim.office_id); }} onWalkToOffice={() => walkToOffice()}
                   isMyOffice={isMyOffice} officeLocked={myOfficeLocked} onOfficeLock={toggleOfficeLock}
                 />
@@ -1626,8 +1626,8 @@ function OfficeRoom() {
       </Dialog>
       {someoneLive && <TownHallBanner speaker={townSpeaker?.name ?? ''} title={myLive ? '' : townSpeaker?.townTitle ?? ''} mine={myLive} listening={!townMuted} joined={calls.joined} onMute={muteTown} onEnd={endTownHall} onJoinVoice={() => { void calls.join(); }} />}
       <TownHallDialog open={townOpen} onClose={() => setTownOpen(false)} canSpeak={canSpeakToAll} live={someoneLive} mine={myLive} speaker={townSpeaker?.name ?? ''} title={townSpeaker?.townTitle ?? ''} audience={Math.max(0, roster.filter((r) => r.spaceId === space?.id).length - 1)} micOn={calls.micOn} onGoLive={goLive} onEnd={endTownHall} onToggleMic={() => { void calls.toggleMic(); }} />
-      <EventsDialog open={eventsOpen} onClose={() => setEventsOpen(false)} events={life.events} rooms={map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => ({ id: z.id, name: z.name }))} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={life.createEvent} onDelete={(id) => void life.deleteEvent(id)} onWalk={(zid) => { const z = map.zones.find((q) => q.id === zid); if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 }); }} />
-      <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
+      <EventsDialog open={eventsOpen} onClose={() => setEventsOpen(false)} events={life.events} rooms={map.zones.filter((z) => z.kind === 'meeting' || z.kind === 'lounge').map((z) => ({ id: z.id, name: z.name }))} me={profile?.id ?? ''} isAdmin={isAdmin} canCreate={canDo(space?.layout?.settings, 'events', profile?.id, isAdmin)} onCreate={life.createEvent} onDelete={(id) => void life.deleteEvent(id)} onWalk={(zid) => { const z = map.zones.find((q) => q.id === zid); if (z) setJump({ key: Date.now(), x: z.x + z.w / 2, y: z.y + z.h / 2 }); }} />
+      <PollsDialog open={pollsOpen} onClose={() => setPollsOpen(false)} polls={boards.polls} votes={boards.votes} me={profile?.id ?? ''} isAdmin={isAdmin} canCreate={canDo(space?.layout?.settings, 'polls', profile?.id, isAdmin)} onCreate={boards.createPoll} onVote={(p, o) => { if (profile?.id) void boards.vote(p, o, profile.id); }} onClosePoll={(p) => void boards.closePoll(p)} />
       <TaskBoardDialog open={!!taskBoardId} onClose={() => setTaskBoardId(null)} cards={taskBoardId ? boards.boardCards(taskBoardId) : []} me={profile?.id ?? ''} isAdmin={isAdmin} onAdd={(c, b) => boards.addCard(taskBoardId ?? '', c, b)} onMove={(c, col) => void boards.moveCard(c, col)} onDelete={(c) => void boards.deleteCard(c)} />
       <MiniGamesDialog game={gamesOn(space?.layout?.settings) ? mini?.game ?? null : null} roomKey={(space?.id ?? "") + ":" + (mini?.key ?? "")} playerId={profile?.id ?? ""} onClose={() => setMini(null)} />
       <ReactionWheel open={wheelOpen && !editing} onClose={() => setWheelOpen(false)} onPick={(e) => { sendEmote(e); setWheelOpen(false); }} />
@@ -1844,7 +1844,7 @@ function OfficeRoom() {
         onInvite={() => setInviteOpen(true)} onSettings={() => setSettingsOpen(true)} onEdit={() => startEdit()} onRecordings={() => setRecordingsOpen(true)}
         onRenameSpace={() => { setRenaming(space); setRenameValue(space.name); }} onDeleteSpace={() => void removeSpace(space)} onNewSpace={() => setNewSpaceOpen(true)}
       />
-      <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={isAdmin} meId={me.id} />
+      <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} link={spaceLink(zone && isRoom(zone) ? `&room=${zone.id}` : '')} canInvite={canDo(space?.layout?.settings, 'invite', profile?.id, isAdmin)} meId={me.id} />
       {(() => {
         if (!profileCardUid) return null;
         const live = roster.find((r) => r.uid === profileCardUid) ?? null;

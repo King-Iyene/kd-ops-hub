@@ -13,13 +13,15 @@ function soon(): string {
 }
 
 /** The office calendar: office hours, all-hands, workshops. Anyone can add one, pick a room, and walk straight there. */
-export function EventsDialog({ open, onClose, events, rooms, me, isAdmin, onCreate, onDelete, onWalk }: {
+export function EventsDialog({ open, onClose, events, rooms, me, isAdmin, canCreate = true, onCreate, onDelete, onWalk }: {
   open: boolean;
   onClose: () => void;
   events: EventRow[];
   rooms: { id: string; name: string }[];
   me: string;
   isAdmin: boolean;
+  /** an admin can limit who adds events (Office permissions) */
+  canCreate?: boolean;
   onCreate: (title: string, details: string, startsAt: Date, minutes: number, zone: string | null) => Promise<string | null>;
   onDelete: (id: string) => void;
   onWalk: (zoneId: string) => void;
@@ -67,7 +69,7 @@ export function EventsDialog({ open, onClose, events, rooms, me, isAdmin, onCrea
           </div>
         ) : (
           <>
-            <Button onClick={() => setAdding(true)}><Plus className="mr-1 h-4 w-4" />Add an event</Button>
+            {canCreate ? <Button onClick={() => setAdding(true)}><Plus className="mr-1 h-4 w-4" />Add an event</Button> : <p className="text-xs text-muted-foreground">Only some people can add events here.</p>}
             {list.length === 0 && <p className="text-sm text-muted-foreground">Nothing planned yet. Add office hours, a stand-up or a workshop so people know where to be.</p>}
             <div className="space-y-2">
               {list.map((e) => (

@@ -13,7 +13,32 @@ export function allowed(mode: Mode | undefined, list: string[] | undefined, id: 
   return m === 'selected' && !!id && (list ?? []).includes(id);
 }
 
-export interface OfficeSettings { buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; townHallAll?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
+/** What an admin can hand out, one person-picker each (Everyone / Selected people / Only admins), on top of the builders and recorders lists. */
+export type PermKey = 'customise' | 'events' | 'polls' | 'speak' | 'invite';
+export const PERMS: { key: PermKey; title: string; hint: string }[] = [
+  { key: 'customise', title: 'Customise their own office', hint: 'People who have claimed an office or desk can decorate it.' },
+  { key: 'events', title: 'Create events', hint: 'Can add events to the office calendar.' },
+  { key: 'polls', title: 'Ask polls', hint: 'Can post a poll to the whole office.' },
+  { key: 'speak', title: 'Speak to the whole office', hint: 'Can go live to everyone from the podium.' },
+  { key: 'invite', title: 'Invite guests and people', hint: 'Can send guest links and invite colleagues.' },
+];
+export interface PermSetting { mode: Mode; people?: string[] }
+/** Who may do each thing when an admin has not chosen yet (speaking and inviting were admins-only before this existed). */
+export function permMode(s: { perms?: Partial<Record<PermKey, PermSetting>>; townHallAll?: boolean }, key: PermKey): Mode {
+  const set = s.perms?.[key]?.mode;
+  if (set) return set;
+  if (key === 'speak') return s.townHallAll === true ? 'all' : 'admins';
+  if (key === 'invite') return 'admins';
+  return 'all';
+}
+/** True when this person may do it (admins always may). */
+export function canDo(s: { perms?: Partial<Record<PermKey, PermSetting>>; townHallAll?: boolean } | undefined, key: PermKey, id: string | undefined, isAdmin: boolean): boolean {
+  if (isAdmin) return true;
+  const st = s ?? {};
+  return allowed(permMode(st, key), st.perms?.[key]?.people, id);
+}
+
+export interface OfficeSettings { perms?: Partial<Record<PermKey, PermSetting>>; buildersMode?: Mode; recordersMode?: Mode; builders?: string[]; recorders?: string[]; maxItems?: number; games?: boolean; townHallAll?: boolean; boards?: Record<string, { title: string; cards: { h: string; t: string }[] }>; clock?: string[]; sky?: { time: string; season: string; place: string } }
 
 function PeopleList({ title, hint, ids, directory, mode, onMode, onChange }: { title: string; hint: string; ids: string[]; directory: Person[]; mode: Mode; onMode: (m: Mode) => void; onChange: (ids: string[]) => void }) {
   const [q, setQ] = useState('');
@@ -67,7 +92,7 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader><DialogTitle>Office settings</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Office permissions</DialogTitle></DialogHeader>
         <PeopleList title="Builders" hint="Can edit any space: furniture, colours, flowers, name plates. Admins always can." mode={draft.buildersMode ?? 'all'} onMode={(buildersMode) => setDraft({ ...draft, buildersMode })} ids={draft.builders ?? []} directory={directory} onChange={(builders) => setDraft({ ...draft, builders })} />
         <PeopleList title="Recorders" hint="Can record meetings (everyone in the room is told). Turn it down to save storage." mode={draft.recordersMode ?? 'all'} onMode={(recordersMode) => setDraft({ ...draft, recordersMode })} ids={draft.recorders ?? []} directory={directory} onChange={(recorders) => setDraft({ ...draft, recorders })} />
         <section className="space-y-1">
@@ -84,15 +109,10 @@ export function OfficeSettingsDialog({ open, onClose, settings, directory, savin
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draft.games !== false ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         </section>
-        <section className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
-          <div>
-            <p className="text-sm font-medium">Anyone can speak to the whole office</p>
-            <p className="text-xs text-muted-foreground">At the podium, a person can speak live to everyone in the office. Off means only admins can.</p>
-          </div>
-          <button type="button" role="switch" aria-checked={draft.townHallAll === true} aria-label="Anyone can speak to the whole office" onClick={() => setDraft({ ...draft, townHallAll: draft.townHallAll !== true })} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${draft.townHallAll === true ? 'bg-primary' : 'bg-muted'}`}>
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draft.townHallAll === true ? 'left-[22px]' : 'left-0.5'}`} />
-          </button>
-        </section>
+        <p className="pt-1 text-sm font-semibold">Who can do what</p>
+        {PERMS.map((p) => (
+          <PeopleList key={p.key} title={p.title} hint={p.hint} mode={permMode(draft, p.key)} onMode={(mode) => setDraft({ ...draft, perms: { ...draft.perms, [p.key]: { ...draft.perms?.[p.key], mode } } })} ids={draft.perms?.[p.key]?.people ?? []} directory={directory} onChange={(people) => setDraft({ ...draft, perms: { ...draft.perms, [p.key]: { mode: permMode(draft, p.key), people } } })} />
+        ))}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={() => onSave(draft)} disabled={saving}>{saving ? 'Saving…' : 'Save settings'}</Button>
