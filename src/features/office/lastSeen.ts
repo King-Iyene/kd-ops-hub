@@ -13,3 +13,12 @@ export function seenAgo(seenAt: string | number | null | undefined, now: number 
   if (days < 30) return `${days} days ago`;
   return 'Over a month ago';
 }
+
+/** "Active 3 hours ago" for the last day, then "Last seen 3 days ago". */
+export function seenLabel(seenAt: string | number | null | undefined, now: number = Date.now()): string {
+  const ago = seenAgo(seenAt, now);
+  if (ago === 'Not seen yet') return ago;
+  const t = typeof seenAt === 'number' ? seenAt : Date.parse(seenAt as string);
+  const recent = Number.isFinite(t) && now - t < 24 * 60 * 60_000;
+  return (recent ? 'Active ' : 'Last seen ') + (ago === 'Just now' ? 'just now' : ago === 'Yesterday' ? 'yesterday' : ago);
+}

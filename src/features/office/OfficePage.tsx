@@ -40,7 +40,7 @@ import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
-import { seenAgo } from './lastSeen';
+import { seenLabel } from './lastSeen';
 import { useKeepSeen, useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
@@ -1333,7 +1333,7 @@ function OfficeRoom() {
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                {!inDesktopApp() && <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>}
+                <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setVisitorsOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Guests{guests.waitingCount ? ` (${guests.waitingCount} waiting)` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
                 {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
@@ -1399,13 +1399,13 @@ function OfficeRoom() {
                 const isMe = r.id === connId;
                 const act = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground';
                 return (
-                  <div key={r.id} className="group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted">
+                  <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-muted/80">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
-                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={30} /><span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate">{r.name}{isMe ? ' (you)' : ''}</span><span className="block truncate text-xs text-muted-foreground">{statusOf(r.status) ? `${statusOf(r.status)?.label} · ` : 'Active now · '}{nameOfSpace(r.spaceId)}</span></span>
+                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dotColor(r.status) }} /><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {nameOfSpace(r.spaceId)}</span></span></span>
                     </button>
                     {!isMe && (
-                      <span className="flex shrink-0 gap-0.5 opacity-60 group-hover:opacity-100">
+                      <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 gap-0.5 rounded-lg bg-popover p-0.5 opacity-0 shadow-md ring-1 ring-border transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                         {calls.tiles.some((t) => t.id === r.id && !t.screen) && (
                           <button type="button" className={act} title={calls.tiles.find((t) => t.id === r.id)?.muted ? `Unmute ${r.name}` : `Mute ${r.name} (only for you)`} aria-label={`Mute ${r.name}`} onClick={() => calls.toggleMutePeer(r.id)}>
                             {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3.5 w-3.5 text-red-500" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -1434,9 +1434,9 @@ function OfficeRoom() {
                   // the people who were here most recently come first
                   .sort((a, b) => (Date.parse(lastSeen?.get(b.id) ?? '') || 0) - (Date.parse(lastSeen?.get(a.id) ?? '') || 0))
                   .map((p) => (
-                  <button key={p.id} type="button" onClick={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                    <AvatarFace avatar={p.avatar} size={26} dim />
-                    <span className="min-w-0 flex-1"><span className="block truncate">{p.name}</span><span className="block truncate text-[11px] opacity-70">{lastSeen?.get(p.id) ? `Last seen ${seenAgo(lastSeen.get(p.id)).toLowerCase()}` : 'Not seen yet'}</span></span>
+                  <button key={p.id} type="button" onClick={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground">
+                    <AvatarFace avatar={p.avatar} size={32} dim />
+                    <span className="min-w-0 flex-1"><span className="block truncate">{p.name}</span><span className="flex items-center gap-1.5 text-[11px] opacity-80"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" /><span className="truncate">{lastSeen?.get(p.id) ? seenLabel(lastSeen.get(p.id)) : 'Not seen yet'}</span></span></span>
                   </button>
                 ))}
               </div>

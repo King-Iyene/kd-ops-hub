@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seenAgo } from '../lastSeen';
+import { seenAgo, seenLabel } from '../lastSeen';
 
 const now = Date.parse('2026-11-24T12:00:00Z');
 const ago = (ms: number) => new Date(now - ms).toISOString();
@@ -18,5 +18,12 @@ describe('last seen', () => {
   it('copes with nothing recorded', () => {
     expect(seenAgo(null, now)).toBe('Not seen yet');
     expect(seenAgo('nonsense', now)).toBe('Not seen yet');
+  });
+  it('says Active for the last day and Last seen after that', () => {
+    expect(seenLabel(ago(30_000), now)).toBe('Active just now');
+    expect(seenLabel(ago(3 * 60 * MIN), now)).toBe('Active 3 hours ago');
+    expect(seenLabel(ago(26 * 60 * MIN), now)).toBe('Last seen yesterday');
+    expect(seenLabel(ago(5 * 24 * 60 * MIN), now)).toBe('Last seen 5 days ago');
+    expect(seenLabel(null, now)).toBe('Not seen yet');
   });
 });
