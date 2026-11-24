@@ -753,14 +753,29 @@ class Ambient {
     const p = c.createStereoPanner();
     p.pan.value = side * 0.12;
     const t = c.currentTime;
+    // white noise through a low filter keeps only a few percent of its strength, so the old steps were too faint to hear at all:
+    // the noise is boosted to make up for it, and a short low "thud" (a sine that falls in pitch) gives each step some body
+    const boost = 5;
     e.gain.setValueAtTime(0.0001, t);
-    e.gain.exponentialRampToValueAtTime(sf.peak, t + 0.008);
+    e.gain.exponentialRampToValueAtTime(sf.peak * boost, t + 0.008);
     e.gain.exponentialRampToValueAtTime(0.0001, t + sf.len);
     n.connect(lp);
     lp.connect(e);
     e.connect(p);
     p.connect(this.master);
     n.start(t, Math.random() * 1.5, 0.12);
+    const thud = c.createOscillator();
+    const tg = c.createGain();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(150 * (0.9 + Math.random() * 0.2), t);
+    thud.frequency.exponentialRampToValueAtTime(70, t + 0.07);
+    tg.gain.setValueAtTime(0.0001, t);
+    tg.gain.exponentialRampToValueAtTime(sf.peak * 1.6, t + 0.006);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    thud.connect(tg);
+    tg.connect(p);
+    thud.start(t);
+    thud.stop(t + 0.1);
   }
 }
 
