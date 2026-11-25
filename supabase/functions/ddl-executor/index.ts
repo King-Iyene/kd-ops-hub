@@ -410,6 +410,20 @@ async function handleAddColumn(
   } finally {
     conn.release();
   }
+
+  // Every link lookup filters a junction table by source_id or target_id, so index them as they are created.
+  // Best effort: a failure here must never stop the link from being created.
+  if (body.tableName.endsWith('_jn') && (body.columnName === 'source_id' || body.columnName === 'target_id')) {
+    const idxConn = await pool.connect();
+    try {
+      const idxName = sanitizeIdentifier(`${body.tableName}_${body.columnName}_idx`.slice(0, 63));
+      await idxConn.queryObject(`CREATE INDEX IF NOT EXISTS ${idxName} ON ${schema}.${table} (${column})`);
+    } catch (err) {
+      console.warn('[ddl-executor] could not index junction column:', (err as Error).message);
+    } finally {
+      idxConn.release();
+    }
+  }
 }
 
 async function handleBulkAddColumns(
