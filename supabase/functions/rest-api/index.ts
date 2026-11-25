@@ -17,6 +17,7 @@
 import { Pool } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
 import { crypto } from 'https://deno.land/std@0.224.0/crypto/mod.ts';
 import { encodeHex } from 'https://deno.land/std@0.224.0/encoding/hex.ts';
+import { classifyRef, normalizeLinkInput, planLinkChange } from '../_shared/rest-links.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -270,6 +271,8 @@ function parseRoute(pathname: string): Route | null {
 // ---------- Helpers ----------
 
 interface FieldMeta {
+  id: string;
+  options: Record<string, unknown> | null;
   name: string;
   pg_column_name: string;
   ui_type: string;
@@ -327,7 +330,7 @@ async function getFields(pool: Pool, tableId: string): Promise<FieldMeta[]> {
   const conn = await pool.connect();
   try {
     const { rows } = await conn.queryObject<FieldMeta>(
-      `SELECT name, pg_column_name, ui_type, pg_type, position, is_system, is_hidden
+      `SELECT id, options, name, pg_column_name, ui_type, pg_type, position, is_system, is_hidden
        FROM nc_meta.fields WHERE table_id = $1 ORDER BY position`,
       [tableId],
     );
@@ -360,6 +363,178 @@ function fieldsToRow(input: Record<string, unknown>, fields: FieldMeta[]): Recor
     if (col) row[col] = value;
   }
   return row;
+}
+
+// ---------- Link fields ----------
+// A link field holds records of another table. The app keeps each link as ONE row in a junction table
+// (source_id, target_id) and reads it from either side, so the API writes and reads links the same way.
+
+class LinkInputError extends Error {}
+
+function splitLinkInputs(input: Record<string, unknown>, fields: FieldMeta[]) {
+  const linkNames = new Set(fields.filter(f => f.ui_type === 'Links').map(f => f.name));
+  const plain: Record<string, unknown> = {};
+  const links: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(input)) {
+    if (linkNames.has(name)) links[name] = value;
+    else plain[name] = value;
+  }
+  return { plain, links };
+}
+
+async function loadLinkMeta(conn: any, fieldId: string): Promise<{ junction_table: string | null; related_table: string | null } | null> {
+  const { rows } = await conn.queryObject(
+    `SELECT jt.pg_table_name AS junction_table, rt.pg_table_name AS related_table
+     FROM nc_meta.links l
+     LEFT JOIN nc_meta.tables jt ON jt.id = l.junction_table_id
+     LEFT JOIN nc_meta.tables rt ON rt.id = l.related_table_id
+     WHERE l.field_id = $1 LIMIT 1`,
+    [fieldId],
+  );
+  return (rows[0] as any) ?? null;
+}
+
+/** Turns what the caller named (short ids, UUIDs or old Airtable ids) into the UUIDs of real records. */
+async function resolveLinkTargets(conn: any, schemaName: string, relatedTable: string, refs: string[], fieldName: string): Promise<string[]> {
+  const fqn = `${safeId(schemaName)}.${safeId(relatedTable)}`;
+  const candidates = new Map<string, string>();
+  const airtable: string[] = [];
+  const bad: string[] = [];
+  for (const ref of refs) {
+    const kind = classifyRef(ref);
+    if (kind === 'uuid') candidates.set(ref, ref.toLowerCase());
+    else if (kind === 'airtable') airtable.push(ref);
+    else if (kind === 'short') {
+      const decoded = decodeShortId(ref);
+      if (decoded) candidates.set(ref, decoded.toLowerCase());
+      else bad.push(ref);
+    } else bad.push(ref);
+  }
+
+  const out: string[] = [];
+  if (candidates.size) {
+    const { rows } = await conn.queryObject(
+      `SELECT id::text AS id FROM ${fqn} WHERE id = ANY(string_to_array($1, ',')::uuid[])`,
+      [[...candidates.values()].join(',')],
+    );
+    const found = new Set((rows as any[]).map(r => r.id));
+    for (const [ref, uuid] of candidates) {
+      if (found.has(uuid)) out.push(uuid);
+      else bad.push(ref);
+    }
+  }
+  if (airtable.length) {
+    const col = await conn.queryObject(
+      `SELECT 1 FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 AND column_name = 'airtable_id'`,
+      [schemaName, relatedTable],
+    );
+    if (!col.rows.length) {
+      bad.push(...airtable);
+    } else {
+      const { rows } = await conn.queryObject(
+        `SELECT id::text AS id, airtable_id FROM ${fqn} WHERE airtable_id = ANY(string_to_array($1, ',')::text[])`,
+        [airtable.join(',')],
+      );
+      const byAirtable = new Map((rows as any[]).map(r => [r.airtable_id as string, r.id as string]));
+      for (const ref of airtable) {
+        const id = byAirtable.get(ref);
+        if (id) out.push(id);
+        else bad.push(ref);
+      }
+    }
+  }
+  if (bad.length) throw new LinkInputError(`${fieldName}: unknown linked record(s): ${bad.slice(0, 5).join(', ')}`);
+  return [...new Set(out)];
+}
+
+/** Sets each named link field of one record to exactly the records given (Airtable behaviour). Runs inside the caller's transaction. */
+async function applyLinkInputs(conn: any, base: { schema_name: string }, fields: FieldMeta[], recordId: string, links: Record<string, unknown>) {
+  for (const [name, value] of Object.entries(links)) {
+    const field = fields.find(f => f.name === name && f.ui_type === 'Links');
+    if (!field) continue;
+    const { refs, error } = normalizeLinkInput(value);
+    if (error) throw new LinkInputError(`${name}: ${error}`);
+    const meta = await loadLinkMeta(conn, field.id);
+    if (!meta || !meta.junction_table || !meta.related_table) {
+      throw new LinkInputError(`${name}: this link cannot be written through the API`);
+    }
+    const jn = `${safeId(base.schema_name)}.${safeId(meta.junction_table)}`;
+    const desired = await resolveLinkTargets(conn, base.schema_name, meta.related_table, refs, name);
+    const { rows } = await conn.queryObject(
+      `SELECT DISTINCT CASE WHEN source_id = $1 THEN target_id ELSE source_id END::text AS other
+       FROM ${jn} WHERE source_id = $1 OR target_id = $1`,
+      [recordId],
+    );
+    const { toAdd, toRemove } = planLinkChange((rows as any[]).map(r => r.other), desired);
+    if (toRemove.length) {
+      await conn.queryObject(
+        `DELETE FROM ${jn} WHERE (source_id = $1 AND target_id = ANY(string_to_array($2, ',')::uuid[]))
+                              OR (target_id = $1 AND source_id = ANY(string_to_array($2, ',')::uuid[]))`,
+        [recordId, toRemove.join(',')],
+      );
+    }
+    for (const id of toAdd) {
+      await conn.queryObject(`INSERT INTO ${jn} (source_id, target_id) VALUES ($1, $2)`, [recordId, id]);
+    }
+  }
+}
+
+/** Adds each link field (as a list of short ids, like Airtable) to the records about to be returned. */
+async function attachLinkValues(conn: any, base: { schema_name: string }, fields: FieldMeta[], rowIds: string[], records: any[]) {
+  const linkFields = fields.filter(f => f.ui_type === 'Links');
+  if (!linkFields.length || !rowIds.length) return;
+  const wanted = new Set(rowIds);
+  const idList = rowIds.join(',');
+  for (const field of linkFields) {
+    const meta = await loadLinkMeta(conn, field.id);
+    if (!meta || !meta.junction_table) continue;
+    const jn = `${safeId(base.schema_name)}.${safeId(meta.junction_table)}`;
+    const { rows } = await conn.queryObject(
+      `SELECT source_id::text AS s, target_id::text AS t FROM ${jn}
+       WHERE source_id = ANY(string_to_array($1, ',')::uuid[]) OR target_id = ANY(string_to_array($1, ',')::uuid[])`,
+      [idList],
+    );
+    const byRecord = new Map<string, Set<string>>();
+    const add = (record: string, other: string) => {
+      const set = byRecord.get(record) ?? new Set<string>();
+      set.add(other);
+      byRecord.set(record, set);
+    };
+    for (const { s: a, t: b } of rows as any[]) {
+      if (a === b) continue;
+      if (wanted.has(a)) add(a, b);
+      if (wanted.has(b)) add(b, a);
+    }
+    records.forEach((rec, i) => {
+      const set = byRecord.get(rowIds[i]);
+      if (set && set.size) rec.fields[field.name] = [...set].map(uuidToShort);
+    });
+  }
+}
+
+/**
+ * Runs the base's automations for rows written through the API, as the app does for rows written on screen.
+ * Best effort: a failure here never fails the write.
+ */
+function fireAutomations(baseId: string, tableId: string, event: string, records: any[], oldRecords?: any[]) {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key || !records.length) return;
+  const run = Promise.allSettled(
+    records.slice(0, 10).map((rec, i) =>
+      fetch(`${url}/functions/v1/automation-runner`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event, baseId, tableId, depth: 0,
+          record: sanitizeRow(rec),
+          oldRecord: oldRecords?.[i] ? sanitizeRow(oldRecords[i]) : undefined,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      })
+    ),
+  );
+  (globalThis as any).EdgeRuntime?.waitUntil?.(run);
 }
 
 function toSnakeCase(name: string): string {
@@ -581,6 +756,7 @@ async function handleListRecords(
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
     }));
+    await attachLinkValues(conn, base, fields, returnRows.map((r: any) => r.id), records);
 
     const result: Record<string, unknown> = { records };
     if (hasMore) {
@@ -613,11 +789,13 @@ async function handleGetRecord(
     const { rows } = await conn.queryObject(`SELECT * FROM ${fqn} WHERE "id" = $1`, [decodedRecordId]);
     if (!rows.length) return err('Record not found', 404);
     const row: any = rows[0];
-    return json({
+    const record = {
       id: uuidToShort(row.id),
       createdTime: row.created_at,
       fields: pgRowToFields(row, fields),
-    });
+    };
+    await attachLinkValues(conn, base, fields, [row.id], [record]);
+    return json(record);
   } finally {
     conn.release();
   }
@@ -653,11 +831,13 @@ async function handleCreateRecords(
     await conn.queryObject('BEGIN');
     const created: any[] = [];
     for (const rec of inputRecords) {
-      const row = fieldsToRow(rec.fields || {}, fields);
+      const { plain, links } = splitLinkInputs(rec.fields || {}, fields);
+      const row = fieldsToRow(plain, fields);
       const keys = Object.keys(row);
       if (!keys.length) {
         const r = await conn.queryObject(`INSERT INTO ${fqn} DEFAULT VALUES RETURNING *`);
         created.push(r.rows[0]);
+        if (Object.keys(links).length) await applyLinkInputs(conn, base, fields, (r.rows[0] as any).id, links);
         continue;
       }
       const cols = keys.map(k => safeId(k)).join(', ');
@@ -667,6 +847,7 @@ async function handleCreateRecords(
         `INSERT INTO ${fqn} (${cols}) VALUES (${placeholders}) RETURNING *`, vals,
       );
       created.push(r.rows[0]);
+      if (Object.keys(links).length) await applyLinkInputs(conn, base, fields, (r.rows[0] as any).id, links);
     }
     await conn.queryObject('COMMIT');
 
@@ -676,12 +857,15 @@ async function handleCreateRecords(
       fields: pgRowToFields(row, fields),
     }));
 
+    await attachLinkValues(conn, base, fields, created.map((r: any) => r.id), result);
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.created', { records: result });
+    fireAutomations(base.id, table.id, 'record.created', created);
     logAudit(pool, base.id, table.id, 'INSERT', result);
 
     return json({ records: result }, 201);
   } catch (e) {
     await conn.queryObject('ROLLBACK').catch(() => {});
+    if (e instanceof LinkInputError) return err(e.message, 422);
     throw e;
   } finally {
     conn.release();
@@ -715,20 +899,31 @@ async function handleUpdateRecords(
   try {
     await conn.queryObject('BEGIN');
     const updated: any[] = [];
+    const oldRows = new Map<string, any>();
     for (const rec of inputRecords) {
       if (!rec.id) return err('Each record must include an "id" field for updates', 422);
       const decodedId = decodeShortId(rec.id);
       if (!decodedId) return err(`Invalid record ID format: ${rec.id} — use short IDs, not UUIDs`, 422);
-      const row = fieldsToRow(rec.fields || {}, fields);
+      const { plain, links } = splitLinkInputs(rec.fields || {}, fields);
+      const row = fieldsToRow(plain, fields);
       const keys = Object.keys(row);
-      if (!keys.length) continue;
-      const setClauses = keys.map((k, i) => `${safeId(k)} = $${i + 1}`).join(', ');
-      const vals = keys.map(k => row[k]);
-      vals.push(decodedId);
-      const r = await conn.queryObject(
-        `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`, vals,
-      );
-      if (r.rows.length) updated.push(r.rows[0]);
+      const hasLinks = Object.keys(links).length > 0;
+      if (!keys.length && !hasLinks) continue;
+      const before = await conn.queryObject(`SELECT * FROM ${fqn} WHERE "id" = $1`, [decodedId]);
+      if (!before.rows.length) continue;
+      oldRows.set(decodedId, before.rows[0]);
+      let after: any = before.rows[0];
+      if (keys.length) {
+        const setClauses = keys.map((k, i) => `${safeId(k)} = $${i + 1}`).join(', ');
+        const vals = keys.map(k => row[k]);
+        vals.push(decodedId);
+        const r = await conn.queryObject(
+          `UPDATE ${fqn} SET ${setClauses} WHERE "id" = $${vals.length} RETURNING *`, vals,
+        );
+        if (r.rows.length) after = r.rows[0];
+      }
+      if (hasLinks) await applyLinkInputs(conn, base, fields, decodedId, links);
+      updated.push(after);
     }
     await conn.queryObject('COMMIT');
 
@@ -738,12 +933,15 @@ async function handleUpdateRecords(
       fields: pgRowToFields(row, fields),
     }));
 
+    await attachLinkValues(conn, base, fields, updated.map((r: any) => r.id), result);
     dispatchWebhooks(pool, base.id, table.id, table.name, 'record.updated', { records: result });
+    fireAutomations(base.id, table.id, 'record.updated', updated, updated.map((r: any) => oldRows.get(r.id)));
     logAudit(pool, base.id, table.id, 'UPDATE', result);
 
     return json({ records: result });
   } catch (e) {
     await conn.queryObject('ROLLBACK').catch(() => {});
+    if (e instanceof LinkInputError) return err(e.message, 422);
     throw e;
   } finally {
     conn.release();
