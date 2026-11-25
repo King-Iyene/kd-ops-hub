@@ -40,13 +40,37 @@ export default function ScreenshotsPage() {
   const [employeeId, setEmployeeId] = useState('');
   const [day, setDay] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [urls, setUrls] = useState<Record<string, string>>({});
+  // pictures that would not load even after a fresh link (deleted, or never finished uploading)
+  const [failed, setFailed] = useState<Set<string>>(new Set());
+  const triedAgain = useRef<Set<string>>(new Set());
+  const signedAt = useRef<Record<string, number>>({});
+  /** A new private link for one screenshot (links last an hour; an old page tab may hold one that has expired). */
+  const resign = async (r: ScreenshotRow): Promise<string> => {
+    const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 3600);
+    const url = data?.signedUrl ?? '';
+    if (url) { signedAt.current[r.id] = Date.now(); setUrls((prev) => ({ ...prev, [r.id]: url })); }
+    return url;
+  };
+  const onImageError = async (r: ScreenshotRow) => {
+    if (!triedAgain.current.has(r.id)) { triedAgain.current.add(r.id); if (await resign(r)) return; }
+    setFailed((f) => new Set(f).add(r.id));
+  };
+  const retry = async (r: ScreenshotRow) => {
+    setFailed((f) => { const n = new Set(f); n.delete(r.id); return n; });
+    triedAgain.current.delete(r.id);
+    if (!(await resign(r))) setFailed((f) => new Set(f).add(r.id));
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ScreenshotRow | null>(null);
   const [zoom, setZoom] = useState(1);
   const [layout, setLayout] = useState<'stacked' | 'wide'>('stacked');
   // which screen is shown on its own (null = all of them)
   const [only, setOnly] = useState<number | null>(null);
-  const openViewer = (r: ScreenshotRow) => { setZoom(1); setOnly(null); setViewing(r); };
+  const openViewer = (r: ScreenshotRow) => {
+    setZoom(1); setOnly(null); setViewing(r);
+    // a link signed a while ago may have expired: get a fresh one before showing it large
+    if (Date.now() - (signedAt.current[r.id] ?? 0) > 10 * 60_000) void resign(r);
+  };
   const clampZoom = (z: number) => Math.min(8, Math.max(0.4, Number(z.toFixed(2))));
   const viewerUrl = viewing ? urls[viewing.id] : undefined;
   const screenCount = estimateScreens(useImageDims(viewerUrl));
@@ -109,7 +133,8 @@ export default function ScreenshotsPage() {
       const pending = (rows ?? []).filter((r) => !urls[r.id]);
       if (pending.length === 0) return;
       const entries = await Promise.all(pending.map(async (r) => {
-        const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 900);
+        const { data } = await supabase.storage.from('timetrack-screenshots').createSignedUrl(r.storage_path, 3600);
+        if (data?.signedUrl) signedAt.current[r.id] = Date.now();
         return [r.id, data?.signedUrl ?? ''] as const;
       }));
       if (!cancelled) setUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
@@ -245,9 +270,14 @@ export default function ScreenshotsPage() {
                   )}
                 </div>
               </div>
-              {urls[r.id] ? (
-                <button type="button" onClick={() => openViewer(r)} className="block w-full cursor-zoom-in bg-black" aria-label="View full-size screenshot">
-                  <img src={urls[r.id]} alt="" className="block h-auto w-full" loading="lazy" />
+              {failed.has(r.id) ? (
+                <div className="flex w-full flex-col items-center justify-center gap-2 bg-muted px-4 py-6 text-center text-sm text-muted-foreground" data-testid="screenshot-failed">
+                  <p>This screenshot could not be loaded. The file may have been deleted, or it never finished uploading from the desktop app.</p>
+                  <Button variant="outline" size="sm" className="h-8" onClick={() => void retry(r)}>Try again</Button>
+                </div>
+              ) : urls[r.id] ? (
+                <button type="button" onClick={() => openViewer(r)} className="block min-h-[3rem] w-full cursor-zoom-in bg-black" aria-label="View full-size screenshot">
+                  <img src={urls[r.id]} alt="" className="block h-auto w-full" loading="lazy" onError={() => void onImageError(r)} />
                 </button>
               ) : (
                 <div className="flex aspect-[16/3] w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
