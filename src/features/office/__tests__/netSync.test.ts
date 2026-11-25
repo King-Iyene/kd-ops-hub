@@ -71,3 +71,19 @@ describe('crowd pacing', () => {
     expect(rosterDebounceMs(1000)).toBe(1000);
   });
 });
+
+import { peerVisible } from '../world/netSync';
+describe('who is drawn', () => {
+  it('someone just heard moving here is shown even if the online list is behind or still lists them elsewhere', () => {
+    expect(peerVisible({ known: false, otherOffice: false, ownWindow: false, ageMs: 500 })).toBe(true);
+    expect(peerVisible({ known: true, otherOffice: true, ownWindow: false, ageMs: 5000 })).toBe(true);
+  });
+  it('a stale position of someone the list puts elsewhere, or does not know, is not shown', () => {
+    expect(peerVisible({ known: true, otherOffice: true, ownWindow: false, ageMs: 60_000 })).toBe(false);
+    expect(peerVisible({ known: false, otherOffice: false, ownWindow: false, ageMs: 60_000 })).toBe(false);
+  });
+  it('people the list knows in this office are always shown, and never another window of me', () => {
+    expect(peerVisible({ known: true, otherOffice: false, ownWindow: false, ageMs: 10 * 60_000 })).toBe(true);
+    expect(peerVisible({ known: true, otherOffice: false, ownWindow: true, ageMs: 10 })).toBe(false);
+  });
+});

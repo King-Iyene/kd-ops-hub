@@ -36,6 +36,8 @@ export interface Who {
   riding: boolean;
   /** dancing (X) */
   dancing?: boolean;
+  /** in ghost mode (G): faded, and walking through things */
+  phantom?: boolean;
   /** which parked bike they took (an item id), so it is gone from its spot while they ride */
   bike?: string;
   /** speaking to the whole office (a town hall), and what it is about */
@@ -112,6 +114,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const ridingRef = useRef(false);
   const rosterKey = useRef('');
   const danceRef = useRef(false);
+  const ghostRef = useRef(false);
   const bikeRef = useRef('');
   const liveRef = useRef(false);
   const liveTitleRef = useRef('');
@@ -134,7 +137,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   spaceRef.current = spaceId;
   /** what the lobby knows about me */
   const meta = (s: { name: string; avatar: AvatarStyle }) => ({
-    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, rd: ridingRef.current ? 1 : 0, dn: danceRef.current ? 1 : 0, rb: ridingRef.current ? bikeRef.current : '', tl: liveRef.current ? 1 : 0, tt: liveRef.current ? liveTitleRef.current : '', tm: townMutedRef.current ? 1 : 0, t: Date.now(), u: selfRef.current?.id, c: since.current,
+    n: s.name, a: s.avatar, s: spaceRef.current, z: zoneRef.current, r: recRef.current ? 1 : 0, k: lockRef.current ? 1 : 0, st: statusRef.current, rd: ridingRef.current ? 1 : 0, dn: danceRef.current ? 1 : 0, gm: ghostRef.current ? 1 : 0, rb: ridingRef.current ? bikeRef.current : '', tl: liveRef.current ? 1 : 0, tt: liveRef.current ? liveTitleRef.current : '', tm: townMutedRef.current ? 1 : 0, t: Date.now(), u: selfRef.current?.id, c: since.current,
   });
 
   const selfId = self?.id ?? null;
@@ -145,13 +148,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     const ch = supabase.channel('office:lobby', { config: { private: true, broadcast: { self: false }, presence: { key: connId } } });
     lobby.current = ch;
     const sync = () => {
-      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; rd?: number; dn?: number; rb?: string; tl?: number; tt?: string; tm?: number; t?: number; u?: string; c?: number }[]>;
+      const state = ch.presenceState() as Record<string, { n?: string; a?: unknown; s?: string | null; z?: string | null; r?: number; k?: number; st?: string; rd?: number; dn?: number; gm?: number; rb?: string; tl?: number; tt?: string; tm?: number; t?: number; u?: string; c?: number }[]>;
       const all: Who[] = [];
       for (const [id, metas] of Object.entries(state)) {
         const m = metas.reduce((x, y) => ((y.t ?? 0) > (x.t ?? 0) ? y : x), metas[0]);
         if (!m) continue;
         const uid = typeof m.u === 'string' ? m.u : id;
-        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1, dancing: m.dn === 1, live: m.tl === 1, townTitle: typeof m.tt === 'string' ? m.tt.slice(0, 60) : '', townMuted: m.tm === 1, bike: m.rd === 1 && typeof m.rb === 'string' && m.rb ? m.rb.slice(0, 64) : undefined });
+        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1, dancing: m.dn === 1, phantom: m.gm === 1, live: m.tl === 1, townTitle: typeof m.tt === 'string' ? m.tt.slice(0, 60) : '', townMuted: m.tm === 1, bike: m.rd === 1 && typeof m.rb === 'string' && m.rb ? m.rb.slice(0, 64) : undefined });
       }
       // the newest tab of each account is the one shown; older tabs of the same account are "ghosts"
       const best = new Map<string, Who>();
@@ -241,6 +244,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     pushMeta();
   }, []);
 
+  /** I went into or out of ghost mode (everyone sees me faded). */
+  const setGhost = useCallback((on: boolean) => {
+    if (ghostRef.current === on) return;
+    ghostRef.current = on;
+    pushMeta();
+  }, []);
+
   /** Start or stop speaking to the whole office (a town hall). */
   const setTownHall = useCallback((on: boolean, title = '') => {
     liveRef.current = on;
@@ -288,6 +298,11 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       if (!p || p.id === connId || ghosts.current.has(p.id)) return;
       peers.current.set(p.id, { x: p.x, y: p.y, vx: p.vx, vy: p.vy, dir: p.dir, at: Date.now() });
     });
+    // someone is leaving this office (switching to another one): stop drawing them at once instead of waiting for the online list
+    ch.on('broadcast', { event: 'x' }, ({ payload }) => {
+      const id = (payload as { i?: unknown } | null)?.i;
+      if (typeof id === 'string' && id !== connId) peers.current.delete(id);
+    });
     // someone just arrived and asks where everybody is: answer once, spread out a little so we do not all reply at once
     // Several arrivals close together share one answer: while an answer is already waiting to go out (it will leave after
     // their request, so they get it too) a further request adds nothing. In a crowd the answers are spread over a longer window.
@@ -325,10 +340,13 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     });
     const peerMap = peers.current;
     return () => {
+      // tell the others I am going (best effort), then close the channel a moment later so the message has left
+      const wasReady = roomReady.current;
       roomReady.current = false;
-      void supabase.removeChannel(ch);
       room.current = null;
       peerMap.clear();
+      if (wasReady) { void ch.send({ type: 'broadcast', event: 'x', payload: { i: connId } }); window.setTimeout(() => { void supabase.removeChannel(ch); }, 400); }
+      else void supabase.removeChannel(ch);
     };
   }, [selfId, spaceId, awake, connId]);
 
@@ -380,5 +398,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox };
+  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox };
 }

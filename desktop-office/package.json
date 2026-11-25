@@ -29,6 +29,8 @@
       "preload.js",
       "preload-tabs.js",
       "preload-mini.js",
+      "preload-picker.js",
+      "picker.html",
       "mini.html",
       "tabs.html",
       "offline.html",

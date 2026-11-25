@@ -4652,6 +4652,8 @@ export interface DrawPerson {
   dot?: string;
   /** dancing (press X) */
   dancing?: boolean;
+  /** ghost mode: drawn faded */
+  phantom?: boolean;
   /** talking right now: a green glow on the picture and the name tag */
   speaking?: boolean;
   /** on a power bike */
@@ -4685,6 +4687,8 @@ export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   ctx.translate(fx, fy);
   ctx.scale(1.14, 1.14);
   ctx.translate(-fx, -fy);
+  // a ghost is see-through, and its outline breathes slowly
+  if (p.phantom) ctx.globalAlpha = 0.34 + 0.12 * Math.sin(t / 600);
   drawPersonBase(ctx, p, t, theme);
   ctx.restore();
 }

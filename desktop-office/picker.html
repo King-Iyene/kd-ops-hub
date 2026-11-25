@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Share your screen</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; display: flex; flex-direction: column; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #e8f4f8;
+    background: radial-gradient(120% 90% at 0% 0%, rgba(0,236,255,.10), transparent 55%), linear-gradient(165deg, #06384e, #042635 60%, #031a26); }
+  header { padding: 16px 20px 10px; }
+  h1 { margin: 0 0 4px; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+  p.sub { margin: 0; font-size: 12.5px; color: #8fb3c4; }
+  .tabs { display: flex; gap: 6px; padding: 0 20px 10px; }
+  .tab { border: 0; border-radius: 999px; padding: 7px 16px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; color: #9fc9d8; background: rgba(255,255,255,.06); }
+  .tab:hover { background: rgba(255,255,255,.1); }
+  .tab[aria-selected="true"] { color: #031a26; background: linear-gradient(135deg, #E6C275, #D6AC50); }
+  main { flex: 1; overflow-y: auto; padding: 4px 20px 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .card { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 12px; border: 2px solid transparent; background: rgba(255,255,255,.05); cursor: pointer; text-align: left; font: inherit; color: inherit; }
+  .card:hover { background: rgba(255,255,255,.09); }
+  .card:focus-visible { outline: 2px solid #00ECFF; outline-offset: 2px; }
+  .card[aria-pressed="true"] { border-color: #00ECFF; background: rgba(0,236,255,.1); }
+  .thumb { width: 100%; aspect-ratio: 16 / 10; object-fit: contain; background: #000; border-radius: 8px; display: block; }
+  .name { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; min-width: 0; }
+  .name img { width: 16px; height: 16px; flex: none; }
+  .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { padding: 40px 0; text-align: center; color: #8fb3c4; font-size: 13px; }
+  footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid rgba(0,236,255,.12); }
+  button.act { border: 0; border-radius: 10px; padding: 9px 18px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #cancel { color: #d8fbff; background: rgba(255,255,255,.08); }
+  #cancel:hover { background: rgba(255,255,255,.14); }
+  #share { color: #2a1c00; background: linear-gradient(135deg, #E6C275, #D6AC50 55%, #B98B2E); }
+  #share:disabled { opacity: .4; cursor: default; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Share your screen</h1>
+    <p class="sub">Choose a whole screen, or just one window. People in the room see only what you pick.</p>
+  </header>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-screens" aria-selected="true">Screens</button>
+    <button class="tab" role="tab" id="tab-windows" aria-selected="false">Windows</button>
+  </div>
+  <main><div class="grid" id="grid"></div><p class="empty" id="empty" hidden></p></main>
+  <footer>
+    <button class="act" id="cancel">Cancel</button>
+    <button class="act" id="share" disabled>Share</button>
+  </footer>
+<script>
+  let all = [];
+  let tab = 'screens';
+  let picked = null;
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  const share = document.getElementById('share');
+
+  function render() {
+    grid.textContent = '';
+    const list = all.filter((s) => (tab === 'screens') === s.isScreen);
+    empty.hidden = list.length > 0;
+    empty.textContent = tab === 'screens' ? 'No screens found.' : 'No open windows found. Open the window you want to share, then press the Windows tab again.';
+    for (const s of list) {
+      const card = document.createElement('button');
+      card.className = 'card';
+      card.type = 'button';
+      card.setAttribute('aria-pressed', String(picked === s.id));
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.alt = '';
+      img.src = s.thumb;
+      const name = document.createElement('div');
+      name.className = 'name';
+      if (s.icon) { const ic = document.createElement('img'); ic.src = s.icon; ic.alt = ''; name.appendChild(ic); }
+      const label = document.createElement('span');
+      label.textContent = s.name || (s.isScreen ? 'Screen' : 'Window');
+      label.title = s.name;
+      name.appendChild(label);
+      card.append(img, name);
+      card.addEventListener('click', () => { picked = s.id; share.disabled = false; render(); });
+      card.addEventListener('dblclick', () => window.kdPicker.choose(s.id));
+      grid.appendChild(card);
+    }
+  }
+  function setTab(t) {
+    tab = t;
+    document.getElementById('tab-screens').setAttribute('aria-selected', String(t === 'screens'));
+    document.getElementById('tab-windows').setAttribute('aria-selected', String(t === 'windows'));
+    render();
+  }
+  document.getElementById('tab-screens').addEventListener('click', () => setTab('screens'));
+  document.getElementById('tab-windows').addEventListener('click', () => setTab('windows'));
+  document.getElementById('cancel').addEventListener('click', () => window.kdPicker.cancel());
+  share.addEventListener('click', () => { if (picked) window.kdPicker.choose(picked); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.kdPicker.cancel(); if (e.key === 'Enter' && picked) window.kdPicker.choose(picked); });
+  window.kdPicker.onSources((list) => {
+    all = Array.isArray(list) ? list : [];
+    // start on the tab that has something; one screen is picked for you
+    const screens = all.filter((s) => s.isScreen);
+    if (!screens.length && all.length) tab = 'windows';
+    if (screens.length === 1) { picked = screens[0].id; share.disabled = false; }
+    setTab(tab);
+  });
+  window.kdPicker.ready();
+</script>
+</body>
+</html>

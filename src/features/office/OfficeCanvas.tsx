@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
 import { AID_SPEED } from './world/avatarAids';
-import { INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
+import { collides, INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
-import type { Motion } from './world/netSync';
+import { peerVisible, type Motion } from './world/netSync';
 import { dotColor } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
@@ -85,6 +85,8 @@ interface Props {
   /** pos is where you are when you get off, so the vehicle stays there */
   /** I started or stopped dancing */
   onDance?: (on: boolean) => void;
+  /** ghost mode (G): fade and walk through things */
+  onGhost?: (on: boolean) => void;
   onRide: (on: boolean, bikeId?: string, pos?: { x: number; y: number; dir: number }) => void;
   /** emoji reactions floating over people, by person id */
   emotes: React.MutableRefObject<Map<string, { e: string; until: number }>>;
@@ -184,6 +186,9 @@ export function OfficeCanvas(props: Props) {
   const lastHoverPush = useRef(0);
   /** dancing (press X); any walking, sitting or riding stops it */
   const danceRef = useRef(false);
+  // ghost mode (G)
+  const ghostRef = useRef(false);
+  const ghostLanding = useRef(false);
   /** the seat I am sitting on (its tile centre), and a seat I am walking to */
   const sitRef = useRef<{ x: number; y: number } | null>(null);
   const wantSit = useRef<string | null>(null);
@@ -235,6 +240,13 @@ export function OfficeCanvas(props: Props) {
           if (pet) { e.preventDefault(); petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
         }
         if (near) { e.preventDefault(); if (near.t === 'bike' || near.t === 'kart') propsRef.current.onRide(true, near.id); else if (SEAT_TYPES.includes(near.t)) sitRef2.current(near); else propsRef.current.onInteract(near); return; }
+      }
+      if (k === 'g' && !propsRef.current.editing && !propsRef.current.riding && !sitRef.current) {
+        e.preventDefault();
+        ghostRef.current = !ghostRef.current;
+        if (!ghostRef.current) ghostLanding.current = true; // coming back: step out of anything I am inside
+        propsRef.current.onGhost?.(ghostRef.current);
+        return;
       }
       if (k === 'x' && !propsRef.current.editing && !propsRef.current.riding && !sitRef.current) { e.preventDefault(); danceRef.current = !danceRef.current; propsRef.current.onDance?.(danceRef.current); return; }
       if (k === 'm') { miniOn.current = !miniOn.current; try { localStorage.setItem('kd:office:minimap', miniOn.current ? '1' : '0'); } catch { /* fine */ } return; }
@@ -316,7 +328,7 @@ export function OfficeCanvas(props: Props) {
       };
       for (const [id, pm] of p.peers.current) {
         const info = who.get(id);
-        if (!info || (!p.showOwnTabs && info.uid === p.me.uid) || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+        if (!peerVisible({ known: !!info, otherOffice: !!info?.spaceId && info.spaceId !== p.spaceId, ownWindow: !p.showOwnTabs && info?.uid === p.me.uid, ageMs: Date.now() - pm.at })) continue;
         const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
         consider(id, false, pos.x, pos.y);
       }
@@ -463,7 +475,7 @@ export function OfficeCanvas(props: Props) {
       };
       for (const [id, pm] of p.peers.current) {
         const info = who.get(id);
-        if (!info || (!p.showOwnTabs && info.uid === p.me.uid) || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+        if (!peerVisible({ known: !!info, otherOffice: !!info?.spaceId && info.spaceId !== p.spaceId, ownWindow: !p.showOwnTabs && info?.uid === p.me.uid, ageMs: Date.now() - pm.at })) continue;
         const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
         consider(id, false, pos.x, pos.y);
       }
@@ -659,7 +671,7 @@ export function OfficeCanvas(props: Props) {
               if (!p.follow) walkGoal.current = null;
               else if (p.followOnce) p.onFollowEnd(); // "go to" a person: stop when we get there
             } else {
-              if (!route.current.length || now - lastPlan.current > 500) {
+              if (ghostRef.current) { route.current = []; } else if (!route.current.length || now - lastPlan.current > 500) {
                 let r = findPath(solid, me.x, me.y, goal.x, goal.y);
                 if (!r) {
                   // no way to that exact spot (it is inside something, or shut off): go to the nearest place that can be reached, or stay put.
@@ -689,7 +701,7 @@ export function OfficeCanvas(props: Props) {
               const gty = Math.floor(goal.y);
               const goalOpen = solid[gty]?.[gtx] === false;
               const cl = (n: number, lo: number) => Math.min(lo + 0.68, Math.max(lo + 0.32, n));
-              const w: { x: number; y: number } | null = route.current.length ? route.current[0] : goalOpen ? { x: cl(goal.x, gtx), y: cl(goal.y, gty) } : null;
+              const w: { x: number; y: number } | null = route.current.length ? route.current[0] : ghostRef.current ? { x: goal.x, y: goal.y } : goalOpen ? { x: cl(goal.x, gtx), y: cl(goal.y, gty) } : null;
               if (!w || (route.current.length <= 1 && Math.hypot(w.x - me.x, w.y - me.y) < (route.current.length ? 0.25 : 0.1))) {
                 // arrived as near as the floor allows
                 route.current = [];
@@ -731,7 +743,15 @@ export function OfficeCanvas(props: Props) {
         me.sy += (v.vy - me.sy) * ease;
         if (v.vx === 0 && Math.abs(me.sx) < 0.08) me.sx = 0;
         if (v.vy === 0 && Math.abs(me.sy) < 0.08) me.sy = 0;
-        const np = sitRef.current ? { x: me.x, y: me.y } : advance(solid, me.x, me.y, me.sx, me.sy, dt);
+        // a ghost drifts through walls, furniture and people (but not into a locked or private room: that check is below)
+        const ghost = ghostRef.current;
+        if (ghostLanding.current) {
+          ghostLanding.current = false;
+          if (collides(solid, me.x, me.y)) { const f = nearestOpenTile(solid, me.x, me.y, [], 8); if (f) { me.x = f.x; me.y = f.y; me.sx = 0; me.sy = 0; } }
+        }
+        const np = sitRef.current ? { x: me.x, y: me.y }
+          : ghost ? { x: Math.min(p.map.w - 0.4, Math.max(0.4, me.x + me.sx * dt)), y: Math.min(p.map.h - 0.4, Math.max(0.4, me.y + me.sy * dt)) }
+          : advance(solid, me.x, me.y, me.sx, me.sy, dt);
         // a locked meeting room is a closed door: stay where we are (the page knocks for us)
         const nz = zoneAt(p.map, np.x, np.y);
         if (nz && isRoom(nz) && !p.canEnter(nz.id)) {
@@ -745,7 +765,7 @@ export function OfficeCanvas(props: Props) {
           }
         }
         // people are solid: you cannot walk through someone (hold Shift to slip through them)
-        if (!k.has('shift') && (np.x !== me.x || np.y !== me.y)) {
+        if (!k.has('shift') && !ghost && (np.x !== me.x || np.y !== me.y)) {
           const who = new Map(p.roster.map((q) => [q.id, q]));
           const bodies: { x: number; y: number }[] = [];
           for (const [id, pm] of p.peers.current) {
@@ -931,18 +951,16 @@ export function OfficeCanvas(props: Props) {
       for (const [id, pm] of p.peers.current) {
         const pos = extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now());
         const info = who.get(id);
-        // only people the online list knows (so a duplicate or half-connected window is never drawn), never another window of me
-        if (!info) continue;
-        if (!p.showOwnTabs && info.uid === p.me.uid) continue;
-        // someone who has walked into another office is not here any more (their last position is just stale)
-        if (info.spaceId && info.spaceId !== p.spaceId) continue;
+        // people we have just heard moving here are shown even if the online list is a moment behind; never another window of me;
+        // someone who walked into another office stops being shown once their last movement here is old
+        if (!peerVisible({ known: !!info, otherOffice: !!info?.spaceId && info.spaceId !== p.spaceId, ownWindow: !p.showOwnTabs && info?.uid === p.me.uid, ageMs: Date.now() - pm.at })) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info.riding, dancing: !!info.dancing, dot: dotColor(info.status), vehicle: (info.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
         });
       }
       if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
-      people.push({ x: me.x, y: me.y, dir: me.dir, dancing: danceRef.current, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), dot: dotColor(p.myStatus ?? who.get(p.me.id)?.status) });
+      people.push({ x: me.x, y: me.y, dir: me.dir, dancing: danceRef.current, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, phantom: ghostRef.current, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), dot: dotColor(p.myStatus ?? who.get(p.me.id)?.status) });
 
       // trails: smoke behind a rider, a little dust at the feet of anyone walking, and the ring where you clicked
       for (const q of people) {

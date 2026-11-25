@@ -536,25 +536,52 @@ function allowMedia() {
   });
   ses.setPermissionCheckHandler((wc, permission, requestingOrigin) => allowed.has(permission) && (requestingOrigin || '').startsWith(ORIGIN));
 
-  // screen sharing: one screen goes straight through, several screens and windows ask which to share
+  // screen sharing: one screen with nothing else open goes straight through; otherwise a picker window with Screens and Windows tabs
+  // and a small picture of each (instead of a plain list of names)
   ses.setDisplayMediaRequestHandler(async (_request, callback) => {
     try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } });
+      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 360, height: 225 }, fetchWindowIcons: true });
       if (!sources.length) return callback({});
       const screens = sources.filter((s) => s.id.startsWith('screen:'));
       if (screens.length === 1 && sources.length === screens.length) return callback({ video: screens[0] });
-      const menu = Menu.buildFromTemplate([
-        { label: 'Share which screen or window?', enabled: false },
-        { type: 'separator' },
-        ...sources.slice(0, 20).map((s) => ({ label: s.name.slice(0, 60) || s.id, click: () => callback({ video: s }) })),
-        { type: 'separator' },
-        { label: 'Cancel', click: () => callback({}) },
-      ]);
-      menu.popup({ window: win || undefined, callback: () => undefined });
+      pickSource(sources, callback);
     } catch {
       callback({});
     }
   });
+}
+
+/** Ask which screen or window to share, in a small window of its own. The callback is called exactly once. */
+function pickSource(sources, callback) {
+  const byId = new Map(sources.map((s) => [s.id, s]));
+  const list = sources.slice(0, 40).map((s) => ({
+    id: s.id,
+    name: (s.name || '').slice(0, 120),
+    isScreen: s.id.startsWith('screen:'),
+    thumb: s.thumbnail && !s.thumbnail.isEmpty() ? s.thumbnail.toDataURL() : '',
+    icon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : '',
+  }));
+  let done = false;
+  const finish = (source) => { if (done) return; done = true; try { callback(source ? { video: source } : {}); } catch { /* the request is gone */ } };
+  const picker = new BrowserWindow({
+    width: 780, height: 580, minWidth: 520, minHeight: 420, title: 'Share your screen', autoHideMenuBar: true, show: false,
+    parent: win || undefined, modal: !!win, minimizable: false, maximizable: false, backgroundColor: '#031a26',
+    webPreferences: { preload: path.join(__dirname, 'preload-picker.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false },
+  });
+  picker.setMenu(null);
+  const onReady = (e) => { if (e.sender === picker.webContents) { picker.webContents.send('picker:sources', list); picker.show(); } };
+  const onChoose = (e, id) => { if (e.sender === picker.webContents) { finish(byId.get(id) || null); picker.close(); } };
+  const onCancel = (e) => { if (e.sender === picker.webContents) { finish(null); picker.close(); } };
+  ipcMain.on('picker:ready', onReady);
+  ipcMain.on('picker:choose', onChoose);
+  ipcMain.on('picker:cancel', onCancel);
+  picker.on('closed', () => {
+    ipcMain.removeListener('picker:ready', onReady);
+    ipcMain.removeListener('picker:choose', onChoose);
+    ipcMain.removeListener('picker:cancel', onCancel);
+    finish(null); // closed with the window's X: nothing is shared
+  });
+  void picker.loadFile(path.join(__dirname, 'picker.html'));
 }
 
 async function askMacAccess() {

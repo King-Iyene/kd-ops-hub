@@ -38,6 +38,22 @@ export function rosterDebounceMs(people: number): number {
   return Math.min(1000, 150 + Math.round(people) * 6);
 }
 
+/** How long a person who just moved on this office's channel counts as being here, even if the online list has not caught up. */
+export const PEER_FRESH_MS = 20_000;
+/**
+ * Should this person be drawn (or reachable by the pointer)? The online list is slow (it is updated a moment after somebody
+ * arrives or changes office), but their movement reaches us at once on this office's channel, and the call audio already
+ * works from that. So someone we heard moving here a moment ago is shown even when the list does not know them yet or still
+ * lists them in another office. Without that you could hear people in your office and not see them.
+ */
+export function peerVisible(p: { known: boolean; otherOffice: boolean; ownWindow: boolean; ageMs: number }): boolean {
+  if (p.ownWindow) return false;
+  const fresh = p.ageMs >= 0 && p.ageMs < PEER_FRESH_MS;
+  if (!p.known) return fresh;
+  if (p.otherOffice) return fresh;
+  return true;
+}
+
 /** Compact wire format: short keys, two decimals. */
 export function pack(id: string, m: Motion, dir: number) {
   const r = (n: number) => Math.round(n * 100) / 100;

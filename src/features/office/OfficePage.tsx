@@ -212,7 +212,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(me, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -712,6 +712,16 @@ function OfficeRoom() {
     else if (d.at) setJump({ key: Date.now(), x: d.at.x + 0.5, y: d.at.y + 0.5 });
   }, [space, spaces, map]);
 
+  // Ghost mode (G): fade out and drift through things. Everybody sees you faded; a short hint the first time.
+  const onGhost = (on: boolean) => {
+    setGhost(on);
+    try {
+      if (on && !localStorage.getItem('kd:office:ghost-hint')) {
+        localStorage.setItem('kd:office:ghost-hint', '1');
+        toast({ title: 'Ghost mode', description: 'You can walk through walls, furniture and people. Locked rooms stay closed. Press G to come back.' });
+      }
+    } catch { /* fine */ }
+  };
   const goToPerson = (id: string, theirSpace: string | null) => {
     if (theirSpace && theirSpace !== space?.id) setSpaceId(theirSpace);
     // walk over to them (and stop when we arrive); across offices we walk in after arriving
@@ -1531,7 +1541,7 @@ function OfficeRoom() {
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
             noteDesks={myClaim ? (() => { const mine = life.notes.filter((n) => n.desk === myClaim.office_id); return mine.length ? { [myClaim.office_id]: { n: mine.length, gift: mine.find((n) => n.gift)?.gift ?? null } } : undefined; })() : undefined}
-            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} myStatus={status} onDance={setDancing} onRide={(on, bikeId, pos) => { void handleRide(on, bikeId, pos); }} onNear={(it) => {
+            recenter={recenter} emotes={emotes} sound={sound} timeMode={timeMode} seasonMode={seasonMode} onGhost={onGhost} onHoverPerson={hoverPerson} onHoverZone={hoverZone} canvasEl={mapCanvas} onZoomBy={(f) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z * f).toFixed(2))))} onWalkTo={(x, y) => setJump({ key: Date.now(), x, y })} riding={riding} myStatus={status} onDance={setDancing} onRide={(on, bikeId, pos) => { void handleRide(on, bikeId, pos); }} onNear={(it) => {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
