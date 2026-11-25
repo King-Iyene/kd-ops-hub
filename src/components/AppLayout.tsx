@@ -155,7 +155,7 @@ export default function AppLayout() {
           <MfaRequiredBanner />
           {/* ── Header ──────────────────────────────────────────────── */}
           {officeFull ? (
-            <div className="fixed right-3 top-2 z-30 rounded-full bg-card/80 p-0.5 shadow-md backdrop-blur"><ProfileDropdown /></div>
+            <div className="fixed right-3 top-2 z-30 flex h-10 items-center rounded-full bg-card/80 p-0.5 shadow-md backdrop-blur"><ProfileDropdown /></div>
           ) : (
           <header
             role="banner"

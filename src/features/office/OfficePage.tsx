@@ -65,7 +65,6 @@ import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
-import { ClientHoursDialog, ClientHoursStrip } from './ClientHours';
 import { cleanZones } from './world/clock';
 import { skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { AvatarStyle, Item, TileEdits, Zone } from './world/types';
@@ -628,7 +627,6 @@ function OfficeRoom() {
   // ---- find, go to, follow, ring, message (rules in social.ts) ----
   const teamMap = map;
   const [query, setQuery] = useState('');
-  const [clientHoursOpen, setClientHoursOpen] = useState(false);
   const [presence, setPresence] = useState<'all' | 'free' | 'busy'>('all');
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
@@ -1382,10 +1380,10 @@ function OfficeRoom() {
       <div className="flex min-h-0 flex-1 gap-3">
         <SlotAside slot={slot}>
           <div className="flex gap-1.5">
-            <button type="button" className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-primary to-[#0089b8] px-2 py-2 text-xs font-bold text-white shadow-[0_8px_20px_-10px_hsl(var(--primary))] transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5 shrink-0" /><span className="truncate">Invite</span></button>
+            <button type="button" className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br from-primary to-[#0089b8] px-3 text-[11.5px] font-bold text-white shadow-sm transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3 w-3 shrink-0" /><span>Invite</span></button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
+                <button type="button" aria-label="More" title="More" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>
@@ -1397,7 +1395,6 @@ function OfficeRoom() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <ClientHoursStrip onOpen={() => setClientHoursOpen(true)} />
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -1902,7 +1899,6 @@ function OfficeRoom() {
         canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)}
         onSave={(d) => { if (panel) void savePanel({ boards: { ...boardsAll, [panel.id]: d } }); }}
       />
-      <ClientHoursDialog open={clientHoursOpen} onClose={() => setClientHoursOpen(false)} />
       <ClockDialog open={panel?.t === 'wallclock'} zones={clockZones} canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)} onSave={(z) => void savePanel({ clock: z })} />
       <ManageDialog
         open={manageOpen} onClose={() => { setManageOpen(false); setManageTab('places'); }} startTab={manageTab} spaceName={space.name}
