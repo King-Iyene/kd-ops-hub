@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
+import { useDeleteConfirm } from '@/features/task-module/DeleteConfirm';
 import { signedRecordingUrl, useOfficeMutations, useRecordings, type RecordingRow } from '../data';
 
 function fmtDuration(s: number): string {
@@ -22,6 +23,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
   const actions = useOfficeMutations();
   const [links, setLinks] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
+  const { ask, dialog } = useDeleteConfirm();
 
   const sessions = useMemo<Session[]>(() => {
     const m = new Map<string, Session>();
@@ -54,9 +56,13 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
       a.click();
     } catch (e) { toast({ title: 'Could not download', description: errorMessage(e), variant: 'destructive' }); }
   };
-  const remove = async (r: RecordingRow) => {
-    if (!window.confirm('Delete this recording part permanently? This cannot be undone.')) return;
-    try { await actions.deleteRecording(r); } catch (e) { toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' }); }
+  const remove = (r: RecordingRow, room: string, parts: number) => {
+    ask({
+      what: 'recording part',
+      name: `${room}, ${fmtWhen(r.started_at)}, part ${r.part}`,
+      consequence: `The ${fmtDuration(r.duration_s)} recording (${fmtSize(r.size_bytes)}) is deleted for everyone and cannot be played or downloaded again.${parts > 1 ? ' The other parts of this meeting are not touched.' : ''}`,
+      onConfirm: () => { void actions.deleteRecording(r).catch((e: unknown) => toast({ title: 'Could not delete', description: errorMessage(e), variant: 'destructive' })); },
+    });
   };
 
   const iconBtn = 'inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
@@ -91,7 +97,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
                       {!links[r.id] && <button type="button" className={iconBtn} title="Listen" aria-label={`Listen to part ${r.part}`} onClick={() => void listen(r)}><Play className="h-3.5 w-3.5" /></button>}
                       <button type="button" className={iconBtn} title="Download" aria-label={`Download part ${r.part}`} onClick={() => void download(r, s.room)}><Download className="h-3.5 w-3.5" /></button>
                       {(isAdmin || r.recorded_by === meId) && (
-                        <button type="button" onClick={() => void remove(r)} title="Delete this part" aria-label="Delete this part" className={`${iconBtn} hover:text-destructive`}><Trash2 className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => remove(r, s.room, s.parts.length)} title="Delete this part" aria-label="Delete this part" className={`${iconBtn} hover:text-destructive`}><Trash2 className="h-3.5 w-3.5" /></button>
                       )}
                     </div>
                     {links[r.id] && (r.path.includes('-v.') ? <video controls src={links[r.id]} className="mt-1 max-h-56 w-full rounded-lg bg-black" /> : <audio controls src={links[r.id]} className="mt-1 h-8 w-full" />)}
@@ -101,6 +107,7 @@ export function RecordingsDialog({ open, onOpenChange, meId, isAdmin }: { open: 
             </div>
           ))}
         </section>
+        {dialog}
       </DialogContent>
     </Dialog>
   );
