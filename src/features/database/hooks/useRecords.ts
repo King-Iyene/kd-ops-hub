@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { nextOffset, rangeFor } from '../lib/recordPaging';
 import { chunkIds, needsSplitting, pickPageIds, type OrderKey } from '../lib/idListPaging';
+import { normalizeDateFilter } from '../lib/dateRanges';
 import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logWarn } from '@/lib/logger';
@@ -133,6 +134,8 @@ export function applyFilter(
   value: any,
   pgType: string,
 ): any {
+  // "today", "this month" and the like become real dates now, so a saved view moves with the calendar.
+  ({ operator, value } = normalizeDateFilter(operator, value, pgType) as { operator: string; value: any });
   switch (operator) {
     case 'is':
     case 'eq':
@@ -292,10 +295,11 @@ export function buildOrClauseFromFilters(
     if (!field) continue;
     if (isIncompleteFilter(filter.operator, filter.value)) continue;
     const col = field.pg_column_name;
-    const val = filter.value;
     const pgType: string = field.pg_type;
+    const norm = normalizeDateFilter(filter.operator, filter.value, pgType);
+    const val: any = norm.value;
 
-    switch (filter.operator) {
+    switch (norm.operator) {
       case 'is':
       case 'eq':
         parts.push(`${col}.eq.${pgQuote(val)}`);
