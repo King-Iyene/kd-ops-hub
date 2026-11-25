@@ -352,6 +352,22 @@ export function petAuthority(present: string[], me: string): string {
   return best;
 }
 
+/** Who runs the pets, kept steady: the lowest id wins, but the runner only changes hands once the change has lasted a moment, so a flickering online list (or a lost message) cannot make the pets jump between two computers. */
+export interface AuthorityState { cur: string | null; since: number }
+export const AUTHORITY_LOST_MS = 2500;
+export const AUTHORITY_LOWER_MS = 1500;
+export function stableAuthority(st: AuthorityState, present: string[], me: string, now: number): string {
+  const candidate = petAuthority(present, me);
+  if (st.cur === null) { st.cur = candidate; st.since = 0; return st.cur; }
+  if (candidate === st.cur) { st.since = 0; return st.cur; }
+  // the current runner is gone from the list (or is no longer the lowest): wait a moment before switching
+  const gone = st.cur !== me && !present.includes(st.cur);
+  const need = gone ? AUTHORITY_LOST_MS : AUTHORITY_LOWER_MS;
+  if (!st.since) st.since = now;
+  if (now - st.since >= need) { st.cur = candidate; st.since = 0; }
+  return st.cur;
+}
+
 export interface PetSnap {
   id: string; x: number; y: number; face: 1 | -1; view: 'side' | 'front' | 'back'; moving: boolean; mode: PetMode; v: number;
   ox: number; oy: number; ctl: string | null; carrying: boolean; ball: Ball | null; happy: number; dash: boolean; partner: string | null; play: number; wait: number;

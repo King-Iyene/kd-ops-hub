@@ -9,7 +9,7 @@ import { dotColor } from './status';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
-import { applyPetCmd, applyPetSnap, goHome, initPet, petAuthority, petBus, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
+import { applyPetCmd, applyPetSnap, goHome, initPet, petBus, stableAuthority, type AuthorityState, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
 export type { EditTool };
@@ -126,7 +126,7 @@ function cachedSolid(map: MapDef, items: Item[]): boolean[][] {
 /** when each following pet next makes a sound (ms) */
 const petVoiceAt = new Map<string, number>();
 /** the shared-pet bookkeeping of this window: when it started, when the pets' runner was last heard, when I last sent, and the newest state of each pet that arrived */
-const petSync: { current: { since: number; heardAt: number; sentAt: number; targets: Map<string, PetSnap> } } = { current: { since: 0, heardAt: 0, sentAt: 0, targets: new Map() } };
+const petSync: { current: { since: number; heardAt: number; sentAt: number; targets: Map<string, PetSnap>; auth: AuthorityState } } = { current: { since: 0, heardAt: 0, sentAt: 0, targets: new Map(), auth: { cur: null, since: 0 } } };
 /** each pet has its own voice: a steady pitch worked out from its id (big and deep, or small and high) */
 const petPitch = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return 0.82 + (h % 1000) / 1000 * 0.42; };
 
@@ -838,7 +838,7 @@ export function OfficeCanvas(props: Props) {
         const sync = petSync.current;
         if (!sync.since) sync.since = now;
         const present = p.roster.filter((r) => r.spaceId === p.spaceId).map((r) => r.id);
-        const elected = petAuthority(present, myId);
+        const elected = stableAuthority(sync.auth, present, myId, now);
         const cmds: { cmd: PetCmd; who: string; at: { x: number; y: number; dir: 0 | 1 | 2 | 3 } }[] = [];
         for (const raw of p.petInbox.current.splice(0)) {
           const m = raw as { k?: unknown; c?: unknown; id?: unknown; w?: unknown; x?: unknown; y?: unknown; d?: unknown; a?: unknown; p?: unknown };
@@ -855,7 +855,7 @@ export function OfficeCanvas(props: Props) {
           p.sendPet({ k: 'c', c: cmd.kind, id: cmd.id, w: myId, x: Math.round(me.x * 100) / 100, y: Math.round(me.y * 100) / 100, d: me.dir });
         }
         // if the person who should run the pets has not been heard for a few seconds (a paused tab), this window runs them
-        const runner = elected === myId || now - Math.max(sync.heardAt, sync.since) > 3500;
+        const runner = elected === myId || now - Math.max(sync.heardAt, sync.since) > 9000;
         for (const c of cmds) {
           const pet = petRegistry.get(c.cmd.id);
           if (!pet) continue;
@@ -898,7 +898,7 @@ export function OfficeCanvas(props: Props) {
         // the runner tells everyone where the pets are (often while something is going on, now and then when it is quiet)
         if (runner && petRegistry.size > 0) {
           const busy = [...petRegistry.values()].some((q) => q.moving || q.mode !== 'wander' || q.happyUntil > now);
-          if (now - sync.sentAt > (busy ? 180 : 1500)) {
+          if (now - sync.sentAt > (busy ? 250 : 2500)) {
             sync.sentAt = now;
             p.sendPet({ k: 's', a: myId, p: [...petRegistry.values()].map((q) => petSnap(q, now)) });
           }

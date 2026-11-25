@@ -51,3 +51,26 @@ describe('one live animal for everybody', () => {
     expect(petAuthority([], 'z')).toBe('z');
   });
 });
+
+import { AUTHORITY_LOST_MS, AUTHORITY_LOWER_MS, stableAuthority } from '../world/pets';
+describe('a steady pet runner', () => {
+  it('does not change hands when the online list flickers for a moment', () => {
+    const st = { cur: null as string | null, since: 0 };
+    expect(stableAuthority(st, ['a', 'b', 'c'], 'c', 1000)).toBe('a');
+    // "a" drops out of the list for a moment: still a, until it has been gone for a while
+    expect(stableAuthority(st, ['b', 'c'], 'c', 1500)).toBe('a');
+    expect(stableAuthority(st, ['a', 'b', 'c'], 'c', 2000)).toBe('a');
+    expect(stableAuthority(st, ['b', 'c'], 'c', 3000)).toBe('a');
+    expect(stableAuthority(st, ['b', 'c'], 'c', 3000 + AUTHORITY_LOST_MS)).toBe('b');
+  });
+  it('hands over to a lower id only after it has stayed there a moment', () => {
+    const st = { cur: null as string | null, since: 0 };
+    expect(stableAuthority(st, ['m', 'z'], 'z', 0)).toBe('m');
+    expect(stableAuthority(st, ['c', 'm', 'z'], 'z', 100)).toBe('m');
+    expect(stableAuthority(st, ['c', 'm', 'z'], 'z', 100 + AUTHORITY_LOWER_MS)).toBe('c');
+  });
+  it('with nobody else listed, I run the pets', () => {
+    const st = { cur: null as string | null, since: 0 };
+    expect(stableAuthority(st, [], 'me', 0)).toBe('me');
+  });
+});

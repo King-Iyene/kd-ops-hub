@@ -53,6 +53,9 @@ export const ROOM_TONES: Record<string, { murmur: number; murmurHz: number; pad:
 const KNOCK_SOUND = true;
 const ROOM_SOUNDS = false;
 
+/** Steps while walking. Off: people asked for a silent walk. */
+const FOOTSTEPS_ON = false;
+
 class Ambient {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -238,8 +241,8 @@ class Ambient {
       this.motor.osc.frequency.setTargetAtTime(riding && moving ? 118 : 80, c.currentTime, 0.2);
     }
 
-    // soft footsteps while you walk (one about every stride)
-    if (moving && !riding && now - this.lastStep > 340) {
+    // walking makes no sound any more (switch FOOTSTEPS_ON to bring the soft steps back)
+    if (FOOTSTEPS_ON && moving && !riding && now - this.lastStep > 340) {
       this.lastStep = now;
       this.stepSide = -this.stepSide;
       this.footstep(this.stepSide);
