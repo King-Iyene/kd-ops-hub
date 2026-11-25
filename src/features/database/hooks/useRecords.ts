@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { nextOffset, rangeFor } from '../lib/recordPaging';
+import { chunkIds, needsSplitting, pickPageIds, type OrderKey } from '../lib/idListPaging';
 import { normalizeDateFilter } from '../lib/dateRanges';
 import { useQuery, useInfiniteQuery, infiniteQueryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -786,20 +787,28 @@ export async function fetchColumnValues(
   const state = await resolveLinkQueryState(params.tableId, params.filters, undefined, fieldMap);
   const select = ['id', ...new Set(columns.filter((c) => c !== 'id'))].join(', ');
 
+  // A filter that matched thousands of linked rows is read in groups of ids (one long list is refused by the server).
+  const states = needsSplitting(state.includeIds)
+    ? chunkIds(state.includeIds as string[]).map((ids) => ({ ...state, includeIds: ids }))
+    : [state];
+
   const rows: RecordRow[] = [];
-  for (let from = 0; from < cap; from += FOOTER_PAGE) {
-    const base = supabase.schema(ctx.schemaName).from(ctx.tableName).select(select);
-    const filtered = applyRecordFilters(base, state, params.filterGroups, params.search, fieldMap, fieldsMeta);
-    if (!filtered) return { rows: [], truncated: false };
-    const { data, error } = await filtered
-      .order('id', { ascending: true })
-      .range(from, from + FOOTER_PAGE - 1);
-    if (error) throw error;
-    const page = (data ?? []) as RecordRow[];
-    rows.push(...page);
-    if (page.length < FOOTER_PAGE) return { rows, truncated: false };
+  for (const groupState of states) {
+    for (let from = 0; ; from += FOOTER_PAGE) {
+      if (rows.length >= cap) return { rows, truncated: true };
+      const base = supabase.schema(ctx.schemaName).from(ctx.tableName).select(select);
+      const filtered = applyRecordFilters(base, groupState, params.filterGroups, params.search, fieldMap, fieldsMeta);
+      if (!filtered) break;
+      const { data, error } = await filtered
+        .order('id', { ascending: true })
+        .range(from, from + FOOTER_PAGE - 1);
+      if (error) throw error;
+      const page = (data ?? []) as RecordRow[];
+      rows.push(...page);
+      if (page.length < FOOTER_PAGE) break;
+    }
   }
-  return { rows, truncated: true };
+  return { rows, truncated: false };
 }
 
 export const DEFAULT_RECORDS_PAGE_SIZE = 100;
@@ -826,6 +835,60 @@ export function infiniteRecordsOptions(params: UseInfiniteRecordsParams) {
       // Pre-resolve linked record filters (cached across pages)
       const linkState = await resolveLinkQueryState(tableId, filters, sorts, fieldMap);
       const { sortIds: infLinkSortIds, nonLinkSorts: infNonLinkSorts } = linkState;
+
+      // A link filter that matched many rows cannot go into one request address: fetch it in groups of ids.
+      if (infLinkSortIds === null && needsSplitting(linkState.includeIds)) {
+        const order: OrderKey[] = [];
+        if (infNonLinkSorts.length > 0) {
+          for (const sort of infNonLinkSorts) {
+            const field = fieldMap.get(sort.field_id);
+            if (field) order.push({ col: field.pg_column_name, ascending: sort.direction === 'asc' });
+          }
+        } else if (!sorts || sorts.length === 0) {
+          order.push({ col: 'nc_order', ascending: true }, { col: 'created_at', ascending: true });
+        }
+        order.push({ col: 'id', ascending: true });
+        const { from, to } = rangeFor(offset, pageSize);
+        const keyColumns = [...new Set(order.map((o) => o.col))].join(',');
+        const table = () => supabase.schema(ctx.schemaName).from(ctx.tableName);
+
+        // 1. Of each group of ids, the sort keys of the first rows (enough to know which rows make this page).
+        const keys: Array<Record<string, unknown> & { id: string }> = [];
+        let total = 0;
+        await runWithConcurrency(chunkIds(linkState.includeIds as string[]), 4, async (ids) => {
+          const groupQuery = applyRecordFilters(
+            table().select(keyColumns, { count: 'exact' }),
+            { ...linkState, includeIds: ids },
+            filterGroups,
+            search,
+            fieldMap,
+            fieldsMeta,
+          );
+          if (!groupQuery) return;
+          let gq = groupQuery;
+          for (const o of order) gq = gq.order(o.col, { ascending: o.ascending });
+          const { data: keyRows, error: keyError, count: groupCount } = await gq.limit(to + 1);
+          if (keyError) throw keyError;
+          total += groupCount ?? (keyRows ?? []).length;
+          keys.push(...((keyRows ?? []) as unknown as Array<Record<string, unknown> & { id: string }>));
+        });
+
+        // 2. Put the groups together in order and cut out this page.
+        const pageIds = pickPageIds(keys, order, from, to);
+
+        // 3. Fetch the page's rows (in groups, so the request address stays short) and restore the order.
+        const byId = new Map<string, RecordRow>();
+        await runWithConcurrency(chunkIds(pageIds), 4, async (ids) => {
+          const { data: pageRows, error: pageError } = await table().select('*').in('id', ids);
+          if (pageError) throw pageError;
+          for (const row of (pageRows ?? []) as RecordRow[]) byId.set(row.id, row);
+        });
+        return {
+          records: pageIds.map((id) => byId.get(id)).filter((r): r is RecordRow => !!r),
+          totalCount: total,
+          offset,
+        };
+      }
 
       const filtered = applyRecordFilters(
         supabase.schema(ctx.schemaName).from(ctx.tableName).select('*', { count: 'estimated' }),
