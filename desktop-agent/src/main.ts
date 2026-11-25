@@ -855,7 +855,6 @@ function rebuildTrayMenu() {
     { label: 'Settings…', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { type: 'separator' },
     ...taskItems,
-    { label: 'Create New Task…', click: () => createTaskPickerWindow(true) },
     { type: 'separator' },
     { label: 'Open in Browser', click: () => void shell.openExternal(WEB_APP_TIME_URL) },
     { type: 'separator' },
@@ -1038,7 +1037,10 @@ ipcMain.on('task-picker-cancel', () => {
   taskPickerWindow?.close();
 });
 
-// Inline "Create task…": subject to time_tasks' own RLS (manage_tasks
+/** People may not add tasks from the tracker; "Track project" still works (it uses the project's own General task). */
+const TASK_CREATION_FROM_TRACKER = false;
+
+// Inline "Create task…" (now switched off, see above): subject to time_tasks' own RLS (manage_tasks
 // capability, or being that project's manager) — a regular employee
 // creating a task under a project they don't manage gets a real permission
 // error back, surfaced to the picker rather than swallowed, since silently
@@ -1050,6 +1052,8 @@ ipcMain.handle(
     args: { projectId: string; projectName: string; clientName: string | null; name: string; selectAfterCreate: boolean },
   ) => {
     if (!supabase) return { ok: false, error: 'Not signed in' };
+    // Creating tasks from the tracker is switched off for everybody: people track the projects (and tasks) admins set up.
+    if (!TASK_CREATION_FROM_TRACKER) return { ok: false, error: 'Tasks are created by admins. Track the project itself, or pick an existing task.' };
     try {
       const created = await createTask(supabase, currentEmployeeId ?? '', args.projectId, args.projectName, args.clientName, args.name);
       if (args.selectAfterCreate && currentEmployeeId) {

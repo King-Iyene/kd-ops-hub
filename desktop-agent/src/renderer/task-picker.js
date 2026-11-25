@@ -78,8 +78,9 @@ function trackProjectHtml(p) {
   return `<span class="track-project" data-track-project="${escapeHtml(p.projectId)}" data-project-name="${escapeHtml(p.projectName)}" data-client="${escapeHtml(p.clientName || '')}" title="Track time on the project itself">▶ Track project</span>`;
 }
 
-function addTaskRowHtml(projectId) {
-  return `<div class="row add-task-row" data-add-project="${escapeHtml(projectId)}">+ Add task</div>`;
+// People only track projects and the tasks an admin made: nobody adds tasks from the tracker any more (admins do that in the web app).
+function addTaskRowHtml() {
+  return '';
 }
 
 function render() {
@@ -344,10 +345,7 @@ window.taskPicker.onData(({ tasks, suggested: s, projects }) => {
   // refill its project list instead of leaving it stuck on "no projects".
   if (mode === 'create') populateProjectSelect();
   // Opened from the tray's "Create New Task…": go straight to the form (once).
-  if (new URLSearchParams(location.search).get('create') === '1' && mode === 'browse' && !render.openedCreate) {
-    render.openedCreate = true;
-    enterCreateMode();
-  }
+  // (task creation from the tracker is switched off, so ?create=1 does nothing)
 });
 
 window.taskPicker.requestTasks();
