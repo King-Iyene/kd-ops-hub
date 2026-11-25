@@ -98,6 +98,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   dog: { w: 1, h: 1, solid: false, label: 'Dog' },
   wallclock: { w: 4, h: 1, solid: true, label: 'Wall clock' },
   valueswall: { w: 4, h: 1, solid: true, label: 'Core values wall' },
+  missionwall: { w: 4, h: 1, solid: true, label: 'Mission & vision wall' },
   noticeboard: { w: 3, h: 1, solid: true, label: 'Notice board' },
   bike: { w: 1, h: 1, solid: false, label: 'Bike' },
   kart: { w: 1, h: 1, solid: false, label: 'Bike' },
@@ -146,7 +147,7 @@ export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } 
 
 /** Pieces that already use the turn for something else (a bike's direction), are alive, or carry writing that must never be back to front. */
 const NO_MIRROR: ReadonlySet<string> = new Set([
-  'bike', 'kart', 'dog', 'cat', 'dogball', 'whiteboard', 'tv', 'wallclock', 'valueswall', 'noticeboard', 'pollboard', 'eventboard',
+  'bike', 'kart', 'dog', 'cat', 'dogball', 'whiteboard', 'tv', 'wallclock', 'valueswall', 'missionwall', 'noticeboard', 'pollboard', 'eventboard',
   'orgchart', 'barchart', 'worldmap', 'kanban', 'frame', 'mirror', 'gong',
 ]);
 
@@ -166,6 +167,7 @@ export function isMirrored(item: Pick<Item, 't' | 'r'>): boolean {
 export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   wallclock: 'Clocks',
   valueswall: 'Core values',
+  missionwall: 'Mission & vision',
   noticeboard: 'Notice board',
   bike: 'Ride the bike',
   kart: 'Ride the bike',

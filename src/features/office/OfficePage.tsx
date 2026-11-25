@@ -1538,7 +1538,7 @@ function OfficeRoom() {
             }} onInteract={(it) => { if (it.t === 'podium') { setTownOpen(true); return; } if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
-              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'podium' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
+              const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'missionwall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'podium' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
               if (hit && (hit.t === 'foosball' || hit.t === 'tabletennis')) { if (gamesOn(space?.layout?.settings)) setMini({ game: hit.t === 'foosball' ? 'football' : 'tennis', key: hit.id }); return; }
               if (hit && hit.t === 'eventboard') { setEventsOpen(true); return; }
               if (hit && hit.t === 'podium') { setTownOpen(true); return; }
@@ -1896,9 +1896,9 @@ function OfficeRoom() {
         );
       })()}
       <BoardDialog
-        open={!!panel && (panel.t === 'valueswall' || panel.t === 'noticeboard')}
-        kind={panel?.t === 'noticeboard' ? 'noticeboard' : 'valueswall'}
-        data={panel ? boardsAll[panel.id] ?? { title: panel.t === 'noticeboard' ? 'Notice board' : 'Our core values', cards: [] } : { title: '', cards: [] }}
+        open={!!panel && (panel.t === 'valueswall' || panel.t === 'missionwall' || panel.t === 'noticeboard')}
+        kind={panel?.t === 'noticeboard' ? 'noticeboard' : panel?.t === 'missionwall' ? 'missionwall' : 'valueswall'}
+        data={panel ? boardsAll[panel.id] ?? { title: panel.t === 'noticeboard' ? 'Notice board' : panel.t === 'missionwall' ? 'Mission & vision' : 'Our core values', cards: [] } : { title: '', cards: [] }}
         canEdit={isAdmin} saving={savingPanel} onClose={() => setPanel(null)}
         onSave={(d) => { if (panel) void savePanel({ boards: { ...boardsAll, [panel.id]: d } }); }}
       />

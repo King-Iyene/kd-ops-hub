@@ -780,7 +780,7 @@ const SOFA_COLORS = ['#4f6df5', '#0d9488', '#e0577a', '#d99a2b', '#7c5cdb'];
 const BEAN_COLORS = ['#f97316', '#14b8a6', '#8b5cf6', '#ef4444', '#eab308'];
 
 /** Furniture that never moves or animates: drawn once into a small picture, then one image draw per frame (so more furniture does not slow the office down). */
-const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall',
+const STATIC_PIECES = new Set<string>(['desk', 'table', 'coffeetable', 'papers', 'chair', 'sofa', 'beanbag', 'shelf', 'whiteboard', 'lamp', 'bin', 'books', 'plate', 'trophy', 'headphones', 'pizza', 'mat', 'cactus', 'hedge', 'sand', 'beachchair', 'towel', 'rocks', 'stool', 'bench', 'roundtable', 'piano', 'frame', 'execdesk', 'cornerdesk', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'longtable', 'worktable', 'sidetable', 'conference', 'bed', 'singlebed', 'nightstand', 'wardrobe', 'dresser', 'mirror', 'clothesrack', 'mannequin', 'shoerack', 'armchair', 'loveseat', 'ottoman', 'valueswall', 'missionwall',
   // plants, flowers and trees stand still now (they swayed before, which cost a redraw of every plant on every frame)
   'plant', 'flowers', 'tree', 'bamboo', 'palm', 'grass', 'sunflowers', 'orchid', 'lavender', 'tulips', 'monstera', 'pinetree', 'flowerbed',
   // measured: these were redrawn from scratch every frame (hundreds of canvas calls each) although they never change
@@ -839,7 +839,7 @@ function drawStaticPiece(ctx: Ctx, item: Item, dark: boolean, col: string | unde
     pose = Math.floor((theta / TAU) * SWAY_POSES) % SWAY_POSES;
     tPose = (((pose + 0.5) / SWAY_POSES) * TAU - seed * 6.28) * 900;
   }
-  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}${item.t === 'valueswall' ? '|' + (officeInfo.titles[item.id] ?? '') : ''}`;
+  const key = `${item.t}|${W}x${H}|${col ?? ''}|${dark ? 1 : 0}|${seed.toFixed(4)}|${pose}${item.t === 'valueswall' || item.t === 'missionwall' ? '|' + (officeInfo.titles[item.id] ?? '') : ''}`;
   let pic = spriteCache.get(key);
   if (!pic) {
     pic = document.createElement('canvas');
@@ -1836,6 +1836,29 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
         ctx.fill();
       });
       return true; // no moving shine any more: the sign is drawn once and reused (see STATIC_PIECES)
+    }
+    case 'missionwall': {
+      // a deep teal plaque with a gold edge and a small compass star: the company's mission and vision
+      ctx.fillStyle = vgrad(ctx, y, y + H, '#0a4a63', '#062a3b');
+      rr(ctx, x + 2, y + 3, W - 4, H - 6, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#D6AC50';
+      ctx.lineWidth = 2;
+      rr(ctx, x + 3, y + 4, W - 6, H - 8, 5);
+      ctx.stroke();
+      const mt = (officeInfo.titles[item.id] ?? 'Mission & vision').toUpperCase().slice(0, 26);
+      ctx.font = '800 9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f3dc9c';
+      ctx.fillText(mt, x + W / 2, y + 14);
+      const cx = x + W / 2, cy = y + 26;
+      ctx.fillStyle = '#00ECFF';
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4, r = k % 2 === 0 ? 6 : 2.2; ctx.lineTo(cx + Math.cos(a - Math.PI / 2) * r, cy + Math.sin(a - Math.PI / 2) * r); }
+      ctx.closePath();
+      ctx.fill();
+      return true;
     }
     case 'noticeboard': {
       ctx.fillStyle = '#7a4b22';

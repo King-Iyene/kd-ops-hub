@@ -14,7 +14,7 @@ const num = (i: number) => String(i + 1).padStart(2, '0');
 /** The core values wall and the notice board: everyone reads it, admins edit it. */
 export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave }: {
   open: boolean;
-  kind: 'valueswall' | 'noticeboard';
+  kind: 'valueswall' | 'missionwall' | 'noticeboard';
   data: BoardData;
   canEdit: boolean;
   saving: boolean;
@@ -26,7 +26,8 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
   const [find, setFind] = useState('');
   const [copied, setCopied] = useState(false);
   useEffect(() => { if (open) { setDraft(data); setEditing(false); setFind(''); } }, [open, data]);
-  const isValues = kind === 'valueswall';
+  const isMission = kind === 'missionwall';
+  const isValues = kind === 'valueswall' || isMission; // cards laid out as a wall of statements (mission and vision use the same look)
   const empty = data.cards.length === 0;
   const shown = useMemo(() => {
     const n = find.trim().toLowerCase();
@@ -50,10 +51,10 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko max-h-[88vh] overflow-y-auto md:max-w-2xl">
         <DialogHeader className="space-y-1.5 pr-6">
           <p className="inline-flex w-fit items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#D6AC50]">
-            {isValues ? <Sparkles className="h-3 w-3" /> : <Pin className="h-3 w-3" />}{isValues ? 'How we work' : 'Pinned for the team'}
+            {isValues ? <Sparkles className="h-3 w-3" /> : <Pin className="h-3 w-3" />}{isMission ? 'Why we exist' : isValues ? 'How we work' : 'Pinned for the team'}
           </p>
           <DialogTitle className="text-2xl font-extrabold tracking-tight">{editing ? 'Edit board' : data.title}</DialogTitle>
-          <DialogDescription>{isValues ? 'What we stand for, and how we work.' : 'What the team should know right now.'}</DialogDescription>
+          <DialogDescription>{isMission ? 'Why we exist, and where we are going.' : isValues ? 'What we stand for, and how we work.' : 'What the team should know right now.'}</DialogDescription>
         </DialogHeader>
 
         {!editing && (
@@ -67,21 +68,21 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
             {empty ? (
               <div className="rounded-2xl border border-dashed border-[#00ECFF]/25 bg-[#00ECFF]/[0.04] p-8 text-center">
                 <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl kd-gold">{isValues ? <Sparkles className="h-5 w-5" /> : <Pin className="h-5 w-5" />}</span>
-                <p className="font-semibold">{isValues ? 'The values wall is waiting for its first value.' : 'No notices yet.'}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{canEdit ? 'Press Edit to write the first one.' : 'An admin will post here soon.'}</p>
+                <p className="font-semibold">{isMission ? 'Our mission and vision have not been written yet.' : isValues ? 'The values wall is waiting for its first value.' : 'No notices yet.'}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{canEdit ? (isMission ? 'Press Edit to write our mission and vision.' : 'Press Edit to write the first one.') : 'An admin will post here soon.'}</p>
               </div>
             ) : shown.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Nothing matches "{find}".</p>
             ) : (
-              <div className={isValues ? 'grid gap-3 sm:grid-cols-2' : 'space-y-2.5'}>
+              <div className={isMission ? 'space-y-3' : isValues ? 'grid gap-3 sm:grid-cols-2' : 'space-y-2.5'}>
                 {shown.map(({ c, i }, k) => {
                   const a = ACCENTS[i % ACCENTS.length];
                   return isValues ? (
                     <div key={i} style={{ '--i': k, '--a': a } as React.CSSProperties} className="kd-rise group relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 transition hover:-translate-y-0.5 hover:border-[var(--a)]/50 hover:bg-white/[0.06]">
                       <span className="pointer-events-none absolute -right-2 -top-3 select-none text-[64px] font-black leading-none opacity-[0.09] transition group-hover:opacity-[0.18]" style={{ color: a }}>{num(i)}</span>
                       <span className="mb-2 block h-1 w-8 rounded-full" style={{ background: a }} />
-                      <p className="relative font-bold leading-snug">{c.h}</p>
-                      {c.t && <p className="relative mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">{c.t}</p>}
+                      <p className={`relative font-bold leading-snug ${isMission ? 'text-lg' : ''}`}>{c.h}</p>
+                      {c.t && <p className={`relative mt-1.5 whitespace-pre-wrap leading-relaxed text-muted-foreground ${isMission ? 'text-[14.5px]' : 'text-[13px]'}`}>{c.t}</p>}
                     </div>
                   ) : (
                     <div key={i} style={{ '--i': k } as React.CSSProperties} className="kd-rise relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.035] py-3.5 pl-5 pr-4">
@@ -99,7 +100,7 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
               ) : <span />}
               <span className="flex gap-2">
                 <Button variant="ghost" onClick={onClose}>Close</Button>
-                {canEdit && <Button onClick={() => setEditing(true)}>Edit</Button>}
+                {canEdit && <Button onClick={() => { if (isMission && draft.cards.length === 0) setDraft({ ...draft, cards: [{ h: 'Our mission', t: '' }, { h: 'Our vision', t: '' }] }); setEditing(true); }}>Edit</Button>}
               </span>
             </DialogFooter>
           </>
@@ -116,12 +117,12 @@ export function BoardDialog({ open, kind, data, canEdit, saving, onClose, onSave
                 <div key={i} className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-2.5">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-black" style={{ background: `${ACCENTS[i % ACCENTS.length]}22`, color: ACCENTS[i % ACCENTS.length] }}>{num(i)}</span>
-                    <input value={c.h} maxLength={60} placeholder={isValues ? 'Value, for example Integrity' : 'Notice heading'} aria-label={`Card ${i + 1} heading`} onChange={(e) => setDraft({ ...draft, cards: draft.cards.map((x, j) => (j === i ? { ...x, h: e.target.value } : x)) })} className={`${field} h-8 min-w-0 flex-1`} />
+                    <input value={c.h} maxLength={60} placeholder={isMission ? 'Heading, for example Our mission' : isValues ? 'Value, for example Integrity' : 'Notice heading'} aria-label={`Card ${i + 1} heading`} onChange={(e) => setDraft({ ...draft, cards: draft.cards.map((x, j) => (j === i ? { ...x, h: e.target.value } : x)) })} className={`${field} h-8 min-w-0 flex-1`} />
                     <button type="button" aria-label="Move up" disabled={i === 0} className="rounded p-1.5 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-30" onClick={() => move(i, -1)}><ArrowUp className="h-4 w-4" /></button>
                     <button type="button" aria-label="Move down" disabled={i === draft.cards.length - 1} className="rounded p-1.5 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-30" onClick={() => move(i, 1)}><ArrowDown className="h-4 w-4" /></button>
                     <button type="button" aria-label="Remove" className="rounded p-1.5 text-muted-foreground hover:bg-red-500/15 hover:text-red-400" onClick={() => setDraft({ ...draft, cards: draft.cards.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></button>
                   </div>
-                  <textarea value={c.t} maxLength={400} rows={2} placeholder={isValues ? 'What it means for us' : 'The details'} aria-label={`Card ${i + 1} details`} onChange={(e) => setDraft({ ...draft, cards: draft.cards.map((x, j) => (j === i ? { ...x, t: e.target.value } : x)) })} className={`${field} mt-2 py-1.5`} />
+                  <textarea value={c.t} maxLength={400} rows={2} placeholder={isMission ? 'Write it here' : isValues ? 'What it means for us' : 'The details'} aria-label={`Card ${i + 1} details`} onChange={(e) => setDraft({ ...draft, cards: draft.cards.map((x, j) => (j === i ? { ...x, t: e.target.value } : x)) })} className={`${field} mt-2 py-1.5`} />
                   <p className="mt-1 text-right text-[10px] tabular-nums text-muted-foreground">{c.t.length}/400</p>
                 </div>
               ))}
