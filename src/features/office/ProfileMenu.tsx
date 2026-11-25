@@ -104,7 +104,7 @@ export function ProfileMenu(p: Props) {
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={12} className={`ko ${SURFACE} w-[25rem] max-w-[calc(100vw-1rem)] p-0`}>
+      <PopoverContent side="top" align="start" sideOffset={12} onWheel={(e) => e.stopPropagation()} className={`ko ${SURFACE} w-[25rem] max-w-[calc(100vw-1rem)] overscroll-contain p-0`}>
         <div className="flex items-center gap-3 px-4 pt-4">
           <span className="relative flex h-12 w-12 shrink-0">
             <AvatarFace avatar={p.avatar} size={48} />
@@ -131,7 +131,7 @@ export function ProfileMenu(p: Props) {
           </div>
         </div>
 
-        <div className="max-h-[min(60vh,32rem)] overflow-y-auto px-4 pb-4 pt-3.5">
+        <div className="max-h-[min(60vh,32rem)] overflow-y-auto overscroll-contain px-4 pb-4 pt-3.5">
           {tab === 'you' && (
             <div className="space-y-4">
               <div>

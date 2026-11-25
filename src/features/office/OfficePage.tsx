@@ -1510,6 +1510,9 @@ function OfficeRoom() {
           className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-muted/30"
           onWheel={(e) => {
             if (editing) return;
+            // a menu, popup or dialog opened from here scrolls itself; its wheel ticks must not zoom the map behind it
+            // (events from a portal still travel up through this element)
+            if ((e.target as HTMLElement | null)?.closest?.('[data-radix-popper-content-wrapper],[role="dialog"],[role="menu"],[role="listbox"]')) return;
             // gather the wheel ticks of one frame into a single zoom change (each change redraws the whole page)
             wheelAcc.current += e.deltaY;
             if (wheelRaf.current) return;
