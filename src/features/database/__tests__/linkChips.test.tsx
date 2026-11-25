@@ -245,3 +245,19 @@ describe('a link to a known table opens the picker in the cell', () => {
     expect(container.querySelector('[aria-label="Edit Projects"]')).not.toBeNull();
   });
 });
+
+describe('names still being fetched', () => {
+  it('never shows a raw record id as a chip label', () => {
+    const out = legacyLinkItems(['recN6nUEz1qR9m5WJ', 'a1b2c3d4-0000-4000-8000-000000000000', 'plain text']);
+    expect(out.map((i) => i.label)).toEqual(['…', '…', 'plain text']);
+  });
+
+  it('uses the name as soon as the lookup has it', () => {
+    const out = legacyLinkItems(['recN6nUEz1qR9m5WJ'], { recN6nUEz1qR9m5WJ: 'March 2026 — Gift' });
+    expect(out[0].label).toBe('March 2026 — Gift');
+  });
+
+  it('an object with no name does not fall back to its id either', () => {
+    expect(legacyLinkItems([{ id: 'recN6nUEz1qR9m5WJ' }])[0].label).toBe('…');
+  });
+});

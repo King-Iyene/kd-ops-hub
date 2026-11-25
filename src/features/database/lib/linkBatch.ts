@@ -74,15 +74,20 @@ const CHIP_MAX = 200;
  * The names behind a list of linked values stored in the row itself (a list of ids, or of objects with a name):
  * ids are resolved through the record's lookup when there is one. Every item gets a distinct key.
  */
+/** Shown in place of a linked record's name until the name has been fetched. */
+export const PENDING_LABEL = '…';
+
 export function legacyLinkItems(value: unknown, lookup?: Record<string, string>): Array<{ id: string; label: string }> {
   if (!Array.isArray(value)) return [];
   return value.map((item: any, i: number) => {
     if (typeof item === 'object' && item !== null) {
-      const label = String(item.title || item.name || item.primary || item.id || '');
+      const named = String(item.title || item.name || item.primary || '');
+      const label = named || (looksLikeId(String(item.id ?? '')) ? PENDING_LABEL : String(item.id ?? ''));
       return { id: String(item.id ?? `${i}-${label}`), label };
     }
     const id = String(item);
-    return { id: `${i}-${id}`, label: (lookup && lookup[id]) || id };
+    // A name still being fetched shows a neutral dot-dot-dot, never the raw record id.
+    return { id: `${i}-${id}`, label: (lookup && lookup[id]) || (looksLikeId(id) ? PENDING_LABEL : id) };
   });
 }
 
