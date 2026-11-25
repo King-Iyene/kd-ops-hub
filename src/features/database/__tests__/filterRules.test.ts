@@ -166,3 +166,37 @@ describe('OR groups', () => {
     expect(buildOrClauseFromFilters([filter('isNot', 'x')], fieldMap)).toBe('name.is.null,name.neq."x"');
   });
 });
+
+describe('moving dates reach the query', () => {
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
+  it('"today" on a date column becomes today\'s date', () => {
+    const { q, calls } = recorder();
+    applyFilter(q, 'due', 'eq', 'today', 'DATE');
+    expect(calls).toEqual([['eq', 'due', today]]);
+  });
+
+  it('"this month" becomes a range from the first day to the last', () => {
+    const { q, calls } = recorder();
+    applyFilter(q, 'due', 'isWithin', 'thisCalendarMonth', 'DATE');
+    expect(calls.map((c) => c[0])).toEqual(['gte', 'lte']);
+    expect(String(calls[0][2])).toMatch(/^\d{4}-\d{2}-01$/);
+  });
+
+  it('the same words in a text column are left as text', () => {
+    const { q, calls } = recorder();
+    applyFilter(q, 'name', 'eq', 'today', 'TEXT');
+    expect(calls).toEqual([['eq', 'name', 'today']]);
+  });
+
+  it('works inside an OR group too', () => {
+    const clause = buildOrClauseFromFilters(
+      [filter('eq', 'today', 'd1')],
+      new Map([['d1', { pg_column_name: 'due', pg_type: 'DATE' }]]),
+    );
+    expect(clause).toContain(`due.eq."${today}"`);
+  });
+});

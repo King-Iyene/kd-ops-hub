@@ -17,6 +17,7 @@ import {
 import type { FieldMeta, Filter, FilterOperator } from '@/features/database/types';
 import { OPERATORS_BY_TYPE } from '@/features/database/types';
 import { getFieldTypeIcon } from './grid/field-icons';
+import { WITHIN_RANGES, isDateToken } from '../lib/dateRanges';
 
 interface FilterPanelProps {
   fields: FieldMeta[];
@@ -148,6 +149,53 @@ export function FilterPanel({ fields, filters, onFiltersChange }: FilterPanelPro
             ))}
           </SelectContent>
         </Select>
+      );
+    }
+
+    if ((uiType === 'Date' || uiType === 'DateTime') && filter.operator === 'isWithin') {
+      return (
+        <Select value={String(filter.value ?? '')} onValueChange={(v) => updateFilter(filter.id, { value: v })}>
+          <SelectTrigger className="h-7 text-xs w-[150px]">
+            <SelectValue placeholder="Choose a range" />
+          </SelectTrigger>
+          <SelectContent>
+            {WITHIN_RANGES.map((r) => (
+              <SelectItem key={r.value} value={r.value}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if ((uiType === 'Date' || uiType === 'DateTime') && filter.operator !== 'isBetween') {
+      const token = isDateToken(filter.value) ? filter.value : 'exact';
+      return (
+        <div className="flex items-center gap-1">
+          <Select
+            value={token}
+            onValueChange={(v) => updateFilter(filter.id, { value: v === 'exact' ? '' : v })}
+          >
+            <SelectTrigger className="h-7 text-xs w-[110px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="exact">Exact date</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="tomorrow">Tomorrow</SelectItem>
+            </SelectContent>
+          </Select>
+          {token === 'exact' && (
+            <Input
+              type="date"
+              value={String(filter.value ?? '')}
+              onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
+              className="h-7 text-xs w-[130px]"
+            />
+          )}
+        </div>
       );
     }
 
