@@ -66,6 +66,9 @@ async function alreadyNotified(
   return (data ?? []).length > 0;
 }
 
+/** Fuel budget messages show naira amounts: only these roles may see them. */
+const MONEY_ROLES = ["super_admin", "admin", "finance"];
+
 /** Insert one notification row per admin/finance user. */
 async function notifyAdmins(
   db: SupabaseClient,
@@ -74,12 +77,14 @@ async function notifyAdmins(
     title: string;
     body: string;
     priority?: string;
+    /** who gets it; messages with money in them are for super admins, admins and finance only */
+    roles?: string[];
   },
 ): Promise<string[]> {
   const { data: admins } = await db
     .from("profiles")
     .select("id")
-    .in("role", ["super_admin", "admin", "finance", "operations"])
+    .in("role", opts.roles ?? ["super_admin", "admin", "finance", "operations"])
     .eq("status", "active");
 
   if (!admins || admins.length === 0) return [];
@@ -140,7 +145,7 @@ async function handleBudgetAlerts(
   const { data: sampleAdmin } = await db
     .from("profiles")
     .select("id")
-    .in("role", ["super_admin", "admin", "finance", "operations"])
+    .in("role", MONEY_ROLES)
     .eq("status", "active")
     .limit(1)
     .single();
@@ -157,6 +162,7 @@ async function handleBudgetAlerts(
         "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 0 });
       await notifyAdmins(db, {
         type: "fleet_budget_exhausted",
+        roles: MONEY_ROLES,
         priority: "high",
         title: `🚨 ${plate} weekly fuel budget exhausted`,
         body: `${plate} has used 100% of its weekly fuel budget (${ngn(spent)} of ${ngn(budget)}). Further requests will be blocked until reset on Monday.`,
@@ -172,6 +178,7 @@ async function handleBudgetAlerts(
         "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 0 });
       await notifyAdmins(db, {
         type: "fleet_budget_80pct",
+        roles: MONEY_ROLES,
         priority: "normal",
         title: `⚠️ ${plate} fuel budget at 80%`,
         body: `${plate} has used 80% of its weekly fuel budget (${ngn(spent)} of ${ngn(budget)}).`,

@@ -95,10 +95,10 @@ BEGIN
       || E'\n';
   END LOOP;
 
-  -- 6. Notify admin / finance / operations users
+  -- 6. Notify super admin / admin / finance users (the message shows money)
   FOR recipient IN
     SELECT id FROM public.profiles
-    WHERE role IN ('super_admin', 'admin', 'finance', 'operations')
+    WHERE role IN ('super_admin', 'admin', 'finance')
       AND status = 'active'
   LOOP
     INSERT INTO public.notifications (user_id, type, module, priority, title, body)
