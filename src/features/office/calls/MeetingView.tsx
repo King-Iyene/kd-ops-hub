@@ -30,7 +30,7 @@ function ScreenStage({ tile }: { tile: Tile }) {
       {!ready && <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">Waiting for {tile.presenter ?? 'their'} picture…</div>}
       <div className="absolute left-2 top-2 flex max-w-[70%] items-center gap-1.5 rounded-lg bg-black/65 px-2.5 py-1 text-xs text-white backdrop-blur">
         <MonitorUp className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
-        <span className="truncate"><strong>{tile.presenter ?? 'Someone'}</strong> is sharing{what ? ` · ${what.text}` : ''}</span>
+        <span className="truncate"><strong>{tile.presenter ?? 'Someone'}</strong> is sharing{what ? ` · ${what.text}` : ''}{tile.share?.audio ? ' · with sound' : ''}</span>
       </div>
       <button type="button" aria-label={full ? 'Leave full screen' : 'Full screen'} title={full ? 'Leave full screen' : 'Full screen'}
         onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined); else void box.current?.requestFullscreen?.().catch(() => undefined); }}

@@ -14,7 +14,7 @@ interface Props {
   sharing: boolean;
   onShare: () => void;
   /** what I am sharing and who can see it (shown as a bar while I share) */
-  shareBar?: { headline: string; detail: string } | null;
+  shareBar?: { headline: string; detail: string; preview?: MediaStream | null } | null;
   /** open a shared screen large (the meeting card) */
   onOpenScreen?: () => void;
   /** somebody I could watch is sharing but I have not joined voice yet */
@@ -67,6 +67,16 @@ function downloadBlob(name: string, blob: Blob) {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** What I am sharing, small, so I can see which window or tab it is (not shown for a whole screen: it would show itself inside itself). */
+function SharePreview({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (v) { v.srcObject = stream; void v.play().catch(() => undefined); }
+  }, [stream]);
+  return <video ref={ref} muted playsInline aria-label="What you are sharing" className="h-10 w-16 shrink-0 rounded border border-white/40 bg-black object-cover" />;
 }
 
 /** A shared screen, shown small at the corner; click to open it large in the meeting card. */
@@ -134,7 +144,7 @@ export function CallDock({
       )}
       {joined && sharing && shareBar && (
         <div role="status" className="pointer-events-auto absolute left-1/2 top-3 z-30 flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-xl border border-emerald-500/50 bg-emerald-600 px-3 py-2 text-white shadow-lg">
-          <MonitorUp className="h-5 w-5 shrink-0" />
+          {shareBar.preview ? <SharePreview stream={shareBar.preview} /> : <MonitorUp className="h-5 w-5 shrink-0" />}
           <span className="min-w-0 text-xs leading-tight"><strong className="block text-sm">{shareBar.headline}</strong><span className="block truncate opacity-90">{shareBar.detail}</span></span>
           <button type="button" onClick={onShare} className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-white/90">Stop sharing</button>
         </div>

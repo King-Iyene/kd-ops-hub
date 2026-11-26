@@ -49,6 +49,9 @@ interface Conn {
   primary: string | null;
   screen: MediaStream;
   screenSender: RTCRtpSender | null;
+  screenAudioSender: RTCRtpSender | null;
+  /** plays the sound that comes with their shared screen (a tab's audio, say) */
+  screenAudio: HTMLAudioElement | null;
   pending: RTCIceCandidateInit[];
   /** which stream each arriving track came in, so a screen is told from a camera even if the news of the share arrives later */
   sids: Map<string, string>;
@@ -64,7 +67,7 @@ interface LocalMedia {
   stream: MediaStream | null;
   audio: MediaStreamTrack | null;
   video: MediaStreamTrack | null;
-  screen: { stream: MediaStream; track: MediaStreamTrack; info: ShareInfo } | null;
+  screen: { stream: MediaStream; track: MediaStreamTrack; audio: MediaStreamTrack | null; info: ShareInfo } | null;
 }
 
 export interface Tile {
@@ -186,10 +189,31 @@ export function useCalls(opts: Opts) {
     c.pc.onconnectionstatechange = null;
     c.pc.close();
     c.audio.srcObject = null;
+    if (c.screenAudio) c.screenAudio.srcObject = null;
     bump();
   }, [bump]);
 
   const closeAll = useCallback(() => { for (const id of [...conns.current.keys()]) close(id); }, [close]);
+
+  /** start a sound element; a browser may refuse until the person has touched the page, so retry on the next touch */
+  const keepPlaying = (el: HTMLAudioElement) => {
+    void el.play().catch(() => {
+      const again = () => { void el.play().catch(() => undefined); };
+      window.addEventListener('pointerdown', again, { once: true });
+      window.addEventListener('keydown', again, { once: true });
+    });
+  };
+  /** start playing the sound that comes with a shared screen (once per connection; it follows the same volume as their voice) */
+  const playScreenAudio = (c: Conn) => {
+    if (!c.screenAudio) {
+      const el = new Audio();
+      el.autoplay = true;
+      el.srcObject = c.screen; // only the sound plays here; the picture is shown by the screen tile
+      if (pickRef.current.speaker) void (el as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
+      c.screenAudio = el;
+    }
+    keepPlaying(c.screenAudio);
+  };
 
   /**
    * Sort a connection's pictures into camera and shared screen using what the presenter announced (the news can arrive after the
@@ -199,16 +223,19 @@ export function useCalls(opts: Opts) {
     let moved = false;
     if (share) {
       c.sawShare = true;
-      if (share.pid && !c.primary) c.primary = share.pid;
-      for (const t of c.stream.getVideoTracks()) {
-        if (c.sids.get(t.id) === share.sid) { c.stream.removeTrack(t); c.screen.addTrack(t); moved = true; }
+      if (share.pid && c.primary !== share.pid) { c.primary = share.pid; moved = true; } // the announcement is the truth about which stream is their voice
+      for (const t of c.stream.getTracks()) {
+        if (c.sids.get(t.id) === share.sid) {
+          c.stream.removeTrack(t); c.screen.addTrack(t); moved = true;
+          if (t.kind === 'audio') playScreenAudio(c);
+        }
       }
-      for (const t of c.screen.getVideoTracks()) {
+      for (const t of c.screen.getTracks()) {
         const sid = c.sids.get(t.id);
         if (sid && sid !== share.sid) { c.screen.removeTrack(t); moved = true; } // an older share of theirs
       }
     } else if (c.sawShare) {
-      for (const t of c.screen.getVideoTracks()) { c.screen.removeTrack(t); moved = true; } // they stopped
+      for (const t of c.screen.getTracks()) { c.screen.removeTrack(t); moved = true; } // they stopped
     }
     return moved;
   };
@@ -221,7 +248,7 @@ export function useCalls(opts: Opts) {
     audio.autoplay = true;
     audio.srcObject = stream;
     if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set() };
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set() };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -245,10 +272,11 @@ export function useCalls(opts: Opts) {
       const share = o.current.roster.find((r) => r.id === id)?.share;
       if (share) c.sawShare = true;
       // their microphone and camera name the main stream (the share announcement says so too, even for someone with no microphone)
-      if (share?.pid && !c.primary) c.primary = share.pid;
-      if (t.kind === 'audio' && !c.primary) c.primary = sid;
+      if (share?.pid) c.primary = share.pid;
+      const isScreenAudio = t.kind === 'audio' && !!sid && !!share && sid === share.sid;
+      if (t.kind === 'audio' && !isScreenAudio && !c.primary) c.primary = sid;
       // a video from the announced screen stream (or, without an announcement, from any stream other than the main one) is a shared screen
-      const isScreen = t.kind === 'video' && !!sid && (share ? sid === share.sid : !!c.primary && sid !== c.primary);
+      const isScreen = isScreenAudio || (t.kind === 'video' && !!sid && (share ? sid === share.sid : !!c.primary && sid !== c.primary));
       const target = isScreen ? c.screen : stream;
       if (!target.getTracks().includes(t)) target.addTrack(t);
       t.onmute = () => {
@@ -264,7 +292,8 @@ export function useCalls(opts: Opts) {
         c.hooked.add(ms.id);
         ms.addEventListener('removetrack', (ev) => { stream.removeTrack(ev.track); c.screen.removeTrack(ev.track); bump(); });
       }
-      if (t.kind === 'audio') {
+      if (isScreenAudio) playScreenAudio(c);
+      else if (t.kind === 'audio') {
         // browsers may refuse to play sound until the person has touched the page: start now, and retry on the next touch
         void audio.play().catch(() => {
           const again = () => { void audio.play().catch(() => undefined); };
@@ -282,7 +311,10 @@ export function useCalls(opts: Opts) {
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
     else pc.addTransceiver('audio', { direction: 'recvonly' }); // listening only: still receive their voice
     if (l.stream && l.video) { c.videoSender = pc.addTrack(l.video, l.stream); void capVideo(c.videoSender); }
-    if (l.screen) { c.screenSender = pc.addTrack(l.screen.track, l.screen.stream); void capScreen(c.screenSender); }
+    if (l.screen) {
+      c.screenSender = pc.addTrack(l.screen.track, l.screen.stream); void capScreen(c.screenSender);
+      if (l.screen.audio) c.screenAudioSender = pc.addTrack(l.screen.audio, l.screen.stream);
+    }
     bump();
     return c;
   }, [bump, close]);
@@ -348,6 +380,7 @@ export function useCalls(opts: Opts) {
         const cur = conns.current.get(id);
         if (cur) {
           cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
+          if (cur.screenAudio) cur.screenAudio.volume = cur.audio.volume;
           if (settleScreen(cur, o.current.roster.find((r) => r.id === id)?.share)) bump();
         }
       }
@@ -377,6 +410,7 @@ export function useCalls(opts: Opts) {
     local.current.audio?.stop();
     local.current.video?.stop();
     local.current.screen?.track.stop();
+    local.current.screen?.audio?.stop();
     local.current = { stream: null, audio: null, video: null, screen: null };
     setSharing(false);
     setShareInfo(null);
@@ -561,8 +595,10 @@ export function useCalls(opts: Opts) {
     local.current.screen = null;
     s.track.onended = null;
     s.track.stop();
+    s.audio?.stop();
     for (const c of conns.current.values()) {
       if (c.screenSender) { try { c.pc.removeTrack(c.screenSender); } catch { /* already gone */ } c.screenSender = null; }
+      if (c.screenAudioSender) { try { c.pc.removeTrack(c.screenAudioSender); } catch { /* already gone */ } c.screenAudioSender = null; }
     }
     setSharing(false);
     setShareInfo(null);
@@ -576,7 +612,7 @@ export function useCalls(opts: Opts) {
     try {
       const wanted = {
         video: { frameRate: { ideal: 15, max: 30 }, width: { ideal: 1920, max: 2560 }, height: { ideal: 1080, max: 1440 } },
-        audio: false,
+        audio: true, // the picker offers "also share audio" (a tab's or the computer's sound); it is only sent if the person ticks it
         // the office tab itself is never offered (sharing it would show a picture inside a picture), and the sharer may change what is shared without starting again
         selfBrowserSurface: 'exclude', surfaceSwitching: 'include', monitorTypeSurfaces: 'include',
       } as DisplayMediaStreamOptions;
@@ -586,18 +622,22 @@ export function useCalls(opts: Opts) {
       } catch (e) {
         const n = (e as DOMException)?.name;
         if (n === 'NotAllowedError' || n === 'AbortError' || n === 'NotReadableError' || n === 'SecurityError') throw e;
-        display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); // a browser that dislikes a setting above
+        display = await navigator.mediaDevices.getDisplayMedia({ video: true }); // a browser that dislikes a setting above
       }
       const track = display.getVideoTracks()[0];
       if (!track || !local.current.stream) { display.getTracks().forEach((t) => t.stop()); return; }
       try { track.contentHint = 'detail'; } catch { /* the browser decides */ }
-      const stream = new MediaStream([track]);
+      const audioTrack = display.getAudioTracks()[0] ?? null;
+      const stream = new MediaStream(audioTrack ? [track, audioTrack] : [track]);
       const st = track.getSettings() as MediaTrackSettings & { displaySurface?: string };
       const surface: ShareSurface = st.displaySurface === 'monitor' || st.displaySurface === 'window' || st.displaySurface === 'browser' ? st.displaySurface : 'unknown';
-      const info: ShareInfo = { sid: stream.id, pid: local.current.stream.id, label: track.label || '', surface };
-      local.current.screen = { stream, track, info };
+      const info: ShareInfo = { sid: stream.id, pid: local.current.stream.id, label: track.label || '', surface, audio: !!audioTrack };
+      local.current.screen = { stream, track, audio: audioTrack, info };
       track.onended = stopShare; // the browser's own "Stop sharing" button
-      for (const c of conns.current.values()) { c.screenSender = c.pc.addTrack(track, stream); void capScreen(c.screenSender); }
+      for (const c of conns.current.values()) {
+        c.screenSender = c.pc.addTrack(track, stream); void capScreen(c.screenSender);
+        if (audioTrack) c.screenAudioSender = c.pc.addTrack(audioTrack, stream);
+      }
       setSharing(true);
       setShareInfo(info);
       o.current.setShare?.(info); // the office is told what is being shared, so everyone sees it and opens it
@@ -724,7 +764,11 @@ export function useCalls(opts: Opts) {
     const out: MediaStream[] = [];
     const l = local.current;
     if (l.stream && l.audio) out.push(new MediaStream([l.audio]));
-    for (const c of conns.current.values()) if (c.stream.getAudioTracks().length) out.push(c.stream);
+    if (l.screen?.audio) out.push(new MediaStream([l.screen.audio])); // the sound that comes with my shared screen
+    for (const c of conns.current.values()) {
+      if (c.stream.getAudioTracks().length) out.push(c.stream);
+      if (c.screen.getAudioTracks().length) out.push(c.screen);
+    }
     return out;
   }, []);
 

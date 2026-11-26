@@ -12,6 +12,8 @@ export interface ShareInfo {
   /** the name of the window or tab, when the browser gives one */
   label: string;
   surface: ShareSurface;
+  /** the sound of the shared tab or computer travels with it */
+  audio?: boolean;
 }
 
 const SURFACES: ShareSurface[] = ['monitor', 'window', 'browser'];
@@ -27,18 +29,19 @@ export function cleanShare(raw: unknown): ShareInfo | null {
     pid: typeof r.p === 'string' ? r.p.slice(0, 80) : '',
     label: typeof r.l === 'string' ? r.l.slice(0, 80) : '',
     surface,
+    audio: r.a === 1,
   };
 }
 
 /** The compact form that goes into presence. */
-export function shareMeta(info: ShareInfo | null): { s: string; p: string; l: string; k: ShareSurface } | 0 {
-  return info ? { s: info.sid, p: info.pid, l: info.label.slice(0, 60), k: info.surface } : 0;
+export function shareMeta(info: ShareInfo | null): { s: string; p: string; l: string; k: ShareSurface; a: 0 | 1 } | 0 {
+  return info ? { s: info.sid, p: info.pid, l: info.label.slice(0, 60), k: info.surface, a: info.audio ? 1 : 0 } : 0;
 }
 
 /** The browser's own names for whole screens ("screen:0:0", "Screen 1") say nothing useful to a person. */
 function usefulLabel(label: string): string {
   const t = label.trim();
-  if (!t || /^(screen|monitor|display)[\s:]*\d*(:\d+)*$/i.test(t) || /^web-contents-media-stream/i.test(t)) return '';
+  if (!t || /^(screen|window|monitor|display|tab)\b[\s:]*[\d:]*$/i.test(t) || /^web-contents-media-stream/i.test(t)) return '';
   return t;
 }
 
@@ -65,11 +68,11 @@ export function screenVisible(a: { announced: boolean; everAnnounced: boolean; l
 }
 
 /** Everything that can be known about my own share, for the "you are sharing" bar. */
-export function sharingBarText(info: Pick<ShareInfo, 'surface' | 'label'> | null, viewers: string[]): { headline: string; detail: string } {
+export function sharingBarText(info: Pick<ShareInfo, 'surface' | 'label' | 'audio'> | null, viewers: string[]): { headline: string; detail: string } {
   const what = info ? describeShare(info) : { text: 'your screen', kind: '', title: '' };
   const headline = info?.surface === 'monitor' ? 'You are sharing your entire screen' : info ? `You are sharing ${what.text.charAt(0).toLowerCase()}${what.text.slice(1)}` : 'You are sharing your screen';
   const detail = viewers.length === 0
     ? 'Nobody is connected yet. People who come close, or into this room, will see it.'
     : viewers.length <= 3 ? `Seen by ${viewers.join(', ')}.` : `Seen by ${viewers.slice(0, 3).join(', ')} and ${viewers.length - 3} more.`;
-  return { headline, detail };
+  return { headline, detail: info?.audio ? `${detail} Its sound is shared too.` : detail };
 }
