@@ -24,3 +24,31 @@ describe('one account, one line per batch', () => {
     expect(splitDuplicateAccounts(items).duplicates).toHaveLength(0);
   });
 });
+
+import { groupDuplicateAccounts, mergeDuplicateAccounts } from '../batchDuplicates';
+import { friendlyDbError } from '../db-errors';
+
+describe('the duplicate dialog and the plain message', () => {
+  it('groups the lines that share an account', () => {
+    const a = { name: 'A', account_number: '0000000001', amount_ngn: 100 };
+    const b = { name: 'B', account_number: '0000000001', amount_ngn: 50 };
+    const c = { name: 'C', account_number: '0000000002', amount_ngn: 10 };
+    expect(groupDuplicateAccounts([a, b, c])).toEqual([{ account: '0000000001', lines: [a, b] }]);
+    expect(groupDuplicateAccounts([a, c])).toEqual([]);
+  });
+  it('adds the amounts into the first line when they are meant to be paid together', () => {
+    const a = { name: 'A', account_number: '0000000001', amount_ngn: 100 };
+    const b = { name: 'B', account_number: '0000000001', amount_ngn: 50 };
+    const c = { name: 'C', account_number: '0000000002', amount_ngn: 10 };
+    const r = mergeDuplicateAccounts([a, b, c]);
+    expect(r).toHaveLength(2);
+    expect(r[0]).toMatchObject({ name: 'A', amount_ngn: 150 });
+    expect(r[1]).toBe(c);
+  });
+  it('explains the database refusal in words people can act on', () => {
+    const msg = friendlyDbError({ message: 'duplicate key value violates unique constraint "uq_batch_items_batch_account"' });
+    expect(msg).toContain('same bank account');
+    expect(msg).toContain('Remove one');
+    expect(msg).not.toContain('uq_batch');
+  });
+});

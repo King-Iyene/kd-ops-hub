@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
-import { splitDuplicateAccounts } from '@/lib/batchDuplicates';
+import { groupDuplicateAccounts, mergeDuplicateAccounts, splitDuplicateAccounts } from '@/lib/batchDuplicates';
+import { DuplicateAccountsDialog } from '@/components/payments/DuplicateAccountsDialog';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
 import { formatNaira, currentYearMonth } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
-import { errorMessage } from '@/lib/db-errors';
+import { friendlyDbError } from '@/lib/db-errors';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -597,6 +598,7 @@ const NewPaymentBatch = () => {
   // a positive amount (catch it before Review, not only at save).
   const zeroAmountCount = items.filter((i) => !(Number(i.amount_ngn) > 0)).length;
 
+  const [dupDialog, setDupDialog] = useState(false);
   const handleSave = async (submit: boolean) => {
     const zeroItems = items.filter((i) => !i.amount_ngn || Number(i.amount_ngn) <= 0);
     if (zeroItems.length > 0) {
@@ -608,13 +610,9 @@ const NewPaymentBatch = () => {
       return;
     }
     // the same account can only be paid once per batch: drop the repeats (keeping the first), show what changed, and let the operator check the new total before saving
-    const dup = splitDuplicateAccounts(items);
-    if (dup.duplicates.length > 0) {
-      setItems(dup.keep);
-      toast({
-        title: `Removed ${dup.duplicates.length} duplicate ${dup.duplicates.length === 1 ? 'line' : 'lines'}`,
-        description: dup.duplicates.slice(0, 4).map((d) => `${d.item.full_name} (same account as ${d.keptWith.full_name}, ${d.item.account_number})`).join('; ') + (dup.duplicates.length > 4 ? ` and ${dup.duplicates.length - 4} more` : '') + '. Check the total, then save again.',
-      });
+    // a dialog names the lines and lets the operator remove the repeats, or (typing DUPLICATE) add them into one line
+    if (splitDuplicateAccounts(items).duplicates.length > 0) {
+      setDupDialog(true);
       return;
     }
     setSaving(true);
@@ -800,7 +798,7 @@ const NewPaymentBatch = () => {
       if (!isEditMode) dispatchPlatformWebhook('batch.created', { name: batchName, total_amount: totalAmount, beneficiary_count: items.length, status: submit ? 'pending_approval' : 'draft' });
       navigate(isEditMode ? `/payments/${editId}` : '/payments');
     } catch (err: unknown) {
-      toast({ title: 'Batch save failed', description: errorMessage(err), variant: 'destructive' });
+      toast({ title: 'The batch could not be saved', description: friendlyDbError(err), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1642,6 +1640,13 @@ const NewPaymentBatch = () => {
         open={showCsvImport}
         onOpenChange={setShowCsvImport}
         onImport={handleCsvImport}
+      />
+      <DuplicateAccountsDialog
+        open={dupDialog}
+        groups={groupDuplicateAccounts(items)}
+        onRemove={() => { setItems(splitDuplicateAccounts(items).keep); setDupDialog(false); toast({ title: 'Repeats removed', description: 'Check the total, then save again.' }); }}
+        onMerge={() => { setItems(mergeDuplicateAccounts(items)); setDupDialog(false); toast({ title: 'Amounts added together', description: 'Each repeated account is now one line with the total. Check it, then save again.' }); }}
+        onCancel={() => setDupDialog(false)}
       />
     </div>
   );
