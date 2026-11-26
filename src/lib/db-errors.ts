@@ -63,6 +63,11 @@ export function friendlyDbError(input: unknown): string {
     return 'Could not save — a linked record is missing. Refresh and try again.';
   }
 
+  // A payment batch pays each bank account once: say what happened and what to do, in plain words
+  if (raw.includes('uq_batch_items_batch_account')) {
+    return 'Two lines in this batch use the same bank account number, and a bank account can only be paid once per batch. Remove one of the two lines (or add their amounts into one line), then save again.';
+  }
+
   // Unique violations (often "already exists")
   if (raw.includes('duplicate key') || raw.includes('violates unique constraint')) {
     return 'This record already exists.';
