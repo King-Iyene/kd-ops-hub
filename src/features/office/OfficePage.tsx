@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, MonitorUp, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -34,6 +34,9 @@ import { statusOf, dotColor } from './status';
 import { canEnter as canEnterRoom, lockedRooms, occupants, parseDoor, pruneAdmitted, shouldTakeOver } from './calls/locks';
 import { useCalls } from './calls/useCalls';
 import { useRecorder } from './calls/useRecorder';
+import { createCompositor } from './calls/recordingCompositor';
+import { sharingBarText } from './calls/shareState';
+import { wantsConnection } from './calls/rules';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
 import { AvatarFace } from './AvatarFace';
@@ -230,7 +233,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -241,26 +244,30 @@ function OfficeRoom() {
   rosterRef.current = roster;
   const myLiveRef = useRef(false);
   const townMutedRef2 = useRef(false);
+  /** where someone is standing right now (their last movement, carried forward a moment), and the meeting room they are in */
+  const lookupSpot = (id: string) => {
+    const pm = peers.current.get(id);
+    if (!pm) return null;
+    const dt = Math.min(4, (Date.now() - pm.at) / 1000);
+    const x = pm.x + pm.vx * dt;
+    const y = pm.y + pm.vy * dt;
+    // which meeting room they are in comes from where they stand, so privacy never depends on the online list
+    const z = zoneAt(map, x, y);
+    const r = rosterRef.current.find((q) => q.id === id);
+    return { x, y, room: z && isRoom(z) ? z.id : null, live: !!r?.live, townMuted: !!r?.townMuted };
+  };
+  const selfSpot = () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current, live: myLiveRef.current, townMuted: townMutedRef2.current });
   const calls = useCalls({
     meId: connId,
     spaceId: space?.id ?? null,
     roster,
     peerIds: () => [...peers.current.keys()].filter((id) => !ghosts.current.has(id)),
-    lookup: (id) => {
-      const pm = peers.current.get(id);
-      if (!pm) return null;
-      const dt = Math.min(4, (Date.now() - pm.at) / 1000);
-      const x = pm.x + pm.vx * dt;
-      const y = pm.y + pm.vy * dt;
-      // which meeting room they are in comes from where they stand, so privacy never depends on the online list
-      const z = zoneAt(map, x, y);
-      const r = rosterRef.current.find((q) => q.id === id);
-      return { x, y, room: z && isRoom(z) ? z.id : null, live: !!r?.live, townMuted: !!r?.townMuted };
-    },
+    lookup: lookupSpot,
     occluded: (a, b) => wallBetween(map.walls, a.x, a.y, b.x, b.y),
-    self: () => ({ x: mine.current.m.x, y: mine.current.m.y, room: roomRef.current, live: myLiveRef.current, townMuted: townMutedRef2.current }),
+    self: selfSpot,
     send: sendRtc,
     setHandler: setRtcHandler,
+    setShare,
   });
 
   // ---- editing furniture ----
@@ -504,6 +511,10 @@ function OfficeRoom() {
   const canRecord = isAdmin || allowed(space?.layout?.settings?.recordersMode, space?.layout?.settings?.recorders, profile?.id);
   const meetingRoom = zone && isRoom(zone) ? { id: zone.id, name: zone.name } : null;
   const mapCanvas = useRef<HTMLCanvasElement | null>(null);
+  // live cameras as bubbles above heads: one hidden, playing video element per person (see the effect further down)
+  const bubbles = useRef(new Map<string, HTMLVideoElement>());
+  const tilesRef = useRef<typeof calls.tiles>([]);
+  tilesRef.current = calls.tiles;
   const recorder = useRecorder({
     meId: me?.id ?? null,
     spaceId: space?.id ?? null,
@@ -513,7 +524,26 @@ function OfficeRoom() {
     getStreams: calls.audioStreams,
     getNames: () => [me?.name ?? 'Me', ...calls.tiles.map((t) => t.name)],
     // the recording is a video of the office as you see it (people, camera bubbles and all), with everyone's voices
-    getVideoTrack: () => { try { return mapCanvas.current?.captureStream(24).getVideoTracks()[0] ?? null; } catch { return null; } },
+    getVideoTrack: () => {
+      try {
+        // the office map, and while somebody shares a screen a presentation: everyone's picture on top and the screen large beneath
+        const comp = createCompositor({
+          getMap: () => mapCanvas.current,
+          getScreens: () => {
+            const out = tilesRef.current.filter((t) => t.screen).map((t) => ({ name: t.name, stream: t.stream }));
+            const mineScreen = calls.localScreen();
+            if (mineScreen) out.push({ name: 'Your screen', stream: mineScreen });
+            return out;
+          },
+          getCameras: () => [...bubbles.current].map(([id, video]) => ({ name: id === connId ? (me?.name ?? 'You') : rosterRef.current.find((r) => r.id === id)?.name ?? 'Someone', video })),
+        });
+        const track = comp.track;
+        if (!track) return mapCanvas.current?.captureStream(24).getVideoTracks()[0] ?? null;
+        const stopTrack = track.stop.bind(track);
+        track.stop = () => { comp.stop(); stopTrack(); };
+        return track;
+      } catch { return null; }
+    },
     announce: setRecording,
   });
   const recorders = meetingRoom ? roster.filter((r) => r.rec && r.spaceId === space?.id && r.zone === meetingRoom.id) : [];
@@ -1106,6 +1136,40 @@ function OfficeRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { if (!calls.joined) setMeeting(false); }, [calls.joined]);
+  // ---- screen sharing: everyone is told, and the big card opens by itself ----
+  const screenTiles = calls.tiles.filter((t) => t.screen);
+  const seenScreens = useRef(new Set<string>());
+  const meetingByShare = useRef(false);
+  const closeMeeting = () => { meetingByShare.current = false; setMeeting(false); };
+  useEffect(() => {
+    const ids = screenTiles.map((t) => t.id);
+    const fresh = ids.filter((id) => !seenScreens.current.has(id));
+    seenScreens.current = new Set(ids);
+    if (fresh.length && calls.joined) {
+      const t = screenTiles.find((x) => x.id === fresh[0]);
+      if (!meeting) { setMeeting(true); meetingByShare.current = true; }
+      toast({ title: `${t?.presenter ?? 'Someone'} is sharing their screen`, description: 'It is open for you now. Press "Back to the map" to go back; the small picture in the corner opens it again.' });
+    }
+    // the card that opened for a share closes when the share ends
+    if (!ids.length && meetingByShare.current) { meetingByShare.current = false; setMeeting(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenTiles.map((t) => t.id).join('|'), calls.joined]);
+  // somebody I could hear is sharing and I have not joined voice: say so, with a way to join
+  const [watchNames, setWatchNames] = useState('');
+  useEffect(() => {
+    if (calls.joined) { setWatchNames(''); return; }
+    const check = () => {
+      const names = rosterRef.current
+        .filter((r) => r.share && r.id !== connId && r.spaceId === (space?.id ?? null) && (() => { const sp = lookupSpot(r.id); return !!sp && wantsConnection(selfSpot(), sp, false, false); })())
+        .map((r) => r.name.split(' ')[0]);
+      const text = names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      setWatchNames((cur) => (cur === text ? cur : text));
+    };
+    check();
+    const t = setInterval(check, 1500);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calls.joined, connId, space?.id]);
   const [status, setStatusState] = useState(() => { try { return localStorage.getItem('kd:office:status') ?? ''; } catch { return ''; } });
   const chooseStatus = (id: string) => { setStatusState(id); try { localStorage.setItem('kd:office:status', id); } catch { /* fine */ } };
   // a focus session: Focusing now, Available again when the time is up (kept in the browser so a reload does not lose it)
@@ -1341,7 +1405,6 @@ function OfficeRoom() {
   const toggleSound = () => { setSound((v) => { try { localStorage.setItem('kd:office:sound', v ? '0' : '1'); } catch { /* fine */ } return !v; }); };
 
   // live cameras as bubbles above heads: one hidden, playing video element per person
-  const bubbles = useRef(new Map<string, HTMLVideoElement>());
   useEffect(() => {
     const want = new Map<string, MediaStream>();
     for (const t of calls.tiles) if (!t.screen && t.hasVideo) want.set(t.id, t.stream);
@@ -1478,7 +1541,7 @@ function OfficeRoom() {
                   <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-[#D6AC50] before:opacity-0 before:transition-opacity hover:bg-primary/[0.07] hover:before:opacity-100">
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
                     <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-[0_0_0_2px_rgba(0,236,255,.0)] transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {whereIs(r)}</span></span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {whereIs(r)}</span>{r.share && <span className="ml-1.5 flex shrink-0 items-center gap-0.5 rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-500" title="Sharing their screen"><MonitorUp className="h-3 w-3" />Sharing</span>}</span></span>
                     </button>
                     {!isMe && (
                       <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-px rounded-full bg-popover/95 px-1 py-0.5 opacity-0 shadow-sm ring-1 ring-border/70 backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100">
@@ -1586,7 +1649,7 @@ function OfficeRoom() {
             </div>
           )}
           {meeting && calls.joined && (
-            <MeetingView me={me.name} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onClose={() => setMeeting(false)} />
+            <MeetingView me={me.name} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onClose={closeMeeting} />
           )}
           {follow && (
             <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs shadow">
@@ -1598,7 +1661,7 @@ function OfficeRoom() {
             <CallDock
               chatUnread={chat.totalUnread} onChat={() => openChat(conv)}
               devices={{ mics: calls.devices.mics, cams: calls.devices.cams, speakers: calls.devices.speakers, pick: calls.pick, noise: calls.noise, dataSaver: calls.dataSaver, onDataSaver: calls.setDataSaver, onMic: (id) => void calls.selectMic(id), onCam: (id) => void calls.selectCam(id), onSpeaker: calls.selectSpeaker, onNoise: calls.setNoise, onOpen: () => void calls.refreshDevices() }}
-              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} onShare={() => void calls.toggleShare()} onMeeting={() => setMeeting(true)} onEmote={sendEmote} tiles={calls.tiles}
+              joined={calls.joined} busy={calls.busy} error={calls.error} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} onShare={() => void calls.toggleShare()} shareBar={calls.sharing ? sharingBarText(calls.shareInfo, calls.viewers) : null} onOpenScreen={() => { meetingByShare.current = false; setMeeting(true); }} watchHint={watchNames ? { names: watchNames, onJoin: () => void calls.join() } : null} onMeeting={() => setMeeting(true)} onEmote={sendEmote} tiles={calls.tiles}
               roomName={zone && isRoom(zone) ? zone.name : null}
               onJoin={calls.join} onLeave={calls.leave} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()}
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}

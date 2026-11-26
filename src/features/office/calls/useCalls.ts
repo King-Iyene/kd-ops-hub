@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
 import { perf } from '../world/perfStats';
 import { FAR, isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
+import { screenVisible, type ShareInfo, type ShareSurface } from './shareState';
 
 /**
  * Voice and video between the people in the office, straight from browser to browser (WebRTC).
@@ -49,18 +50,29 @@ interface Conn {
   screen: MediaStream;
   screenSender: RTCRtpSender | null;
   pending: RTCIceCandidateInit[];
+  /** which stream each arriving track came in, so a screen is told from a camera even if the news of the share arrives later */
+  sids: Map<string, string>;
+  /** since when a track has been reported muted (a screen that is not changing sends nothing) */
+  mutedSince: Map<string, number>;
+  /** the other side has announced a screen share at some point on this connection */
+  sawShare: boolean;
+  /** streams we already listen to for removed tracks */
+  hooked: Set<string>;
 }
 
 interface LocalMedia {
   stream: MediaStream | null;
   audio: MediaStreamTrack | null;
   video: MediaStreamTrack | null;
-  screen: { stream: MediaStream; track: MediaStreamTrack } | null;
+  screen: { stream: MediaStream; track: MediaStreamTrack; info: ShareInfo } | null;
 }
 
 export interface Tile {
   /** a shared screen rather than a camera (shown larger) */
   screen?: boolean;
+  /** for a shared screen: who is presenting and what they chose to share */
+  share?: ShareInfo;
+  presenter?: string;
   id: string;
   name: string;
   stream: MediaStream;
@@ -82,6 +94,8 @@ interface Opts {
   occluded?: (a: Spot, b: Spot) => boolean;
   send: (s: RtcSignal) => void;
   setHandler: (h: ((raw: unknown) => void) | null) => void;
+  /** tell the office that I started or stopped sharing my screen, and what (so everyone sees it, and the others can tell it from a camera) */
+  setShare?: (s: ShareInfo | null) => void;
 }
 
 export function useCalls(opts: Opts) {
@@ -134,8 +148,26 @@ export function useCalls(opts: Opts) {
   const o = useRef(opts);
   o.current = opts;
   const conns = useRef(new Map<string, Conn>());
+  /** cap what a shared screen sends: sharp text matters more than smooth motion */
+  const capScreen = async (sender: RTCRtpSender | null) => {
+    if (!sender) return;
+    try {
+      const p = sender.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      // the presenter sends a copy to every viewer: the more of them, the less each copy may take
+      const n = conns.current.size;
+      p.encodings[0].maxBitrate = saverRef.current ? 600_000 : n <= 3 ? 2_500_000 : n <= 6 ? 1_500_000 : 1_000_000;
+      p.encodings[0].maxFramerate = 15;
+      (p as RTCRtpSendParameters & { degradationPreference?: string }).degradationPreference = 'maintain-resolution';
+      await sender.setParameters(p);
+    } catch { /* the browser keeps its own limit */ }
+  };
+
   const local = useRef<LocalMedia>({ stream: null, audio: null, video: null, screen: null });
   const [sharing, setSharing] = useState(false);
+  const capCount = useRef(0);
+  /** what I am sharing right now (null when nothing) */
+  const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
   /** who is talking right now ('' is me): a ref for the map (read every frame) and a state for the meeting view */
   const speaking = useRef(new Set<string>());
   const [speakingIds, setSpeakingIds] = useState<Set<string>>(new Set());
@@ -159,6 +191,28 @@ export function useCalls(opts: Opts) {
 
   const closeAll = useCallback(() => { for (const id of [...conns.current.keys()]) close(id); }, [close]);
 
+  /**
+   * Sort a connection's pictures into camera and shared screen using what the presenter announced (the news can arrive after the
+   * picture does), and clear a share the presenter has stopped. Returns true when something moved.
+   */
+  const settleScreen = (c: Conn, share: ShareInfo | undefined): boolean => {
+    let moved = false;
+    if (share) {
+      c.sawShare = true;
+      if (share.pid && !c.primary) c.primary = share.pid;
+      for (const t of c.stream.getVideoTracks()) {
+        if (c.sids.get(t.id) === share.sid) { c.stream.removeTrack(t); c.screen.addTrack(t); moved = true; }
+      }
+      for (const t of c.screen.getVideoTracks()) {
+        const sid = c.sids.get(t.id);
+        if (sid && sid !== share.sid) { c.screen.removeTrack(t); moved = true; } // an older share of theirs
+      }
+    } else if (c.sawShare) {
+      for (const t of c.screen.getVideoTracks()) { c.screen.removeTrack(t); moved = true; } // they stopped
+    }
+    return moved;
+  };
+
   const create = useCallback((id: string): Conn => {
     const me = o.current.meId as string;
     const pc = new RTCPeerConnection(iceConfig());
@@ -167,7 +221,7 @@ export function useCalls(opts: Opts) {
     audio.autoplay = true;
     audio.srcObject = stream;
     if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, pending: [] };
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set() };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -187,13 +241,29 @@ export function useCalls(opts: Opts) {
     pc.ontrack = (e) => {
       const t = e.track;
       const sid = e.streams[0]?.id ?? null;
-      // the microphone always arrives first and names the main stream; a video from any other stream is a shared screen
+      if (sid) c.sids.set(t.id, sid);
+      const share = o.current.roster.find((r) => r.id === id)?.share;
+      if (share) c.sawShare = true;
+      // their microphone and camera name the main stream (the share announcement says so too, even for someone with no microphone)
+      if (share?.pid && !c.primary) c.primary = share.pid;
       if (t.kind === 'audio' && !c.primary) c.primary = sid;
-      const target = t.kind === 'video' && c.primary && sid && sid !== c.primary ? c.screen : stream;
+      // a video from the announced screen stream (or, without an announcement, from any stream other than the main one) is a shared screen
+      const isScreen = t.kind === 'video' && !!sid && (share ? sid === share.sid : !!c.primary && sid !== c.primary);
+      const target = isScreen ? c.screen : stream;
       if (!target.getTracks().includes(t)) target.addTrack(t);
-      t.onmute = bump;
-      t.onunmute = bump;
-      t.onended = () => { target.removeTrack(t); bump(); };
+      t.onmute = () => {
+        c.mutedSince.set(t.id, Date.now());
+        window.setTimeout(bump, 12_500); // a still screen may stay quiet; look again once the grace is over
+        bump();
+      };
+      t.onunmute = () => { c.mutedSince.delete(t.id); bump(); };
+      t.onended = () => { stream.removeTrack(t); c.screen.removeTrack(t); bump(); };
+      // when the other side takes a track away (stops sharing) it leaves the stream it came in
+      const ms = e.streams[0];
+      if (ms && !c.hooked.has(ms.id)) {
+        c.hooked.add(ms.id);
+        ms.addEventListener('removetrack', (ev) => { stream.removeTrack(ev.track); c.screen.removeTrack(ev.track); bump(); });
+      }
       if (t.kind === 'audio') {
         // browsers may refuse to play sound until the person has touched the page: start now, and retry on the next touch
         void audio.play().catch(() => {
@@ -212,7 +282,7 @@ export function useCalls(opts: Opts) {
     if (l.stream && l.audio) pc.addTrack(l.audio, l.stream);
     else pc.addTransceiver('audio', { direction: 'recvonly' }); // listening only: still receive their voice
     if (l.stream && l.video) { c.videoSender = pc.addTrack(l.video, l.stream); void capVideo(c.videoSender); }
-    if (l.screen) c.screenSender = pc.addTrack(l.screen.track, l.screen.stream);
+    if (l.screen) { c.screenSender = pc.addTrack(l.screen.track, l.screen.stream); void capScreen(c.screenSender); }
     bump();
     return c;
   }, [bump, close]);
@@ -276,10 +346,18 @@ export function useCalls(opts: Opts) {
         if (want && !c && isInitiator(meId, id)) create(id);
         else if (!want && c) close(id);
         const cur = conns.current.get(id);
-        if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
+        if (cur) {
+          cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
+          if (settleScreen(cur, o.current.roster.find((r) => r.id === id)?.share)) bump();
+        }
       }
       for (const id of [...conns.current.keys()]) if (!here.has(id)) close(id);
       perf.rtc = conns.current.size;
+      // while I share, re-fit what each viewer's copy may take whenever the number of viewers changes
+      if (local.current.screen && conns.current.size !== capCount.current) {
+        capCount.current = conns.current.size;
+        for (const c of conns.current.values()) void capScreen(c.screenSender);
+      }
     };
     const t = setInterval(tick, 400);
     tick();
@@ -301,6 +379,8 @@ export function useCalls(opts: Opts) {
     local.current.screen?.track.stop();
     local.current = { stream: null, audio: null, video: null, screen: null };
     setSharing(false);
+    setShareInfo(null);
+    o.current.setShare?.(null);
   }, []);
 
   const join = useCallback(async () => {
@@ -485,6 +565,8 @@ export function useCalls(opts: Opts) {
       if (c.screenSender) { try { c.pc.removeTrack(c.screenSender); } catch { /* already gone */ } c.screenSender = null; }
     }
     setSharing(false);
+    setShareInfo(null);
+    o.current.setShare?.(null); // everyone is told it stopped, so no stale picture is left open
   }, []);
 
   /** Share my screen, a window or a browser tab with everyone I am talking to. */
@@ -492,17 +574,40 @@ export function useCalls(opts: Opts) {
     if (local.current.screen) { stopShare(); return; }
     if (!local.current.stream || !navigator.mediaDevices?.getDisplayMedia) { setError('This browser cannot share the screen.'); return; }
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+      const wanted = {
+        video: { frameRate: { ideal: 15, max: 30 }, width: { ideal: 1920, max: 2560 }, height: { ideal: 1080, max: 1440 } },
+        audio: false,
+        // the office tab itself is never offered (sharing it would show a picture inside a picture), and the sharer may change what is shared without starting again
+        selfBrowserSurface: 'exclude', surfaceSwitching: 'include', monitorTypeSurfaces: 'include',
+      } as DisplayMediaStreamOptions;
+      let display: MediaStream;
+      try {
+        display = await navigator.mediaDevices.getDisplayMedia(wanted);
+      } catch (e) {
+        const n = (e as DOMException)?.name;
+        if (n === 'NotAllowedError' || n === 'AbortError' || n === 'NotReadableError' || n === 'SecurityError') throw e;
+        display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); // a browser that dislikes a setting above
+      }
       const track = display.getVideoTracks()[0];
-      if (!track) return;
+      if (!track || !local.current.stream) { display.getTracks().forEach((t) => t.stop()); return; }
+      try { track.contentHint = 'detail'; } catch { /* the browser decides */ }
       const stream = new MediaStream([track]);
-      local.current.screen = { stream, track };
+      const st = track.getSettings() as MediaTrackSettings & { displaySurface?: string };
+      const surface: ShareSurface = st.displaySurface === 'monitor' || st.displaySurface === 'window' || st.displaySurface === 'browser' ? st.displaySurface : 'unknown';
+      const info: ShareInfo = { sid: stream.id, pid: local.current.stream.id, label: track.label || '', surface };
+      local.current.screen = { stream, track, info };
       track.onended = stopShare; // the browser's own "Stop sharing" button
-      for (const c of conns.current.values()) c.screenSender = c.pc.addTrack(track, stream);
+      for (const c of conns.current.values()) { c.screenSender = c.pc.addTrack(track, stream); void capScreen(c.screenSender); }
       setSharing(true);
+      setShareInfo(info);
+      o.current.setShare?.(info); // the office is told what is being shared, so everyone sees it and opens it
       setError(null);
     } catch (e) {
-      if ((e as DOMException)?.name !== 'NotAllowedError') setError('Could not start screen sharing.');
+      const n = (e as DOMException)?.name;
+      if (n === 'NotAllowedError' || n === 'AbortError') return; // the person closed the picker
+      setError(n === 'NotReadableError'
+        ? 'Your computer would not let the browser capture the screen. On a Mac, allow Screen Recording for this browser in System Settings, Privacy and Security, then try again.'
+        : 'Could not start screen sharing.');
     }
   }, [stopShare]);
 
@@ -515,22 +620,31 @@ export function useCalls(opts: Opts) {
   }, []);
 
   const tiles: Tile[] = [];
+  const nowMs = Date.now();
   for (const [id, c] of conns.current) {
+    const who = opts.roster.find((r) => r.id === id)?.name ?? 'Someone';
+    const share = opts.roster.find((r) => r.id === id)?.share;
     const v = c.stream.getVideoTracks()[0];
     tiles.push({
       id,
-      name: opts.roster.find((r) => r.id === id)?.name ?? 'Someone',
+      name: who,
       stream: c.stream,
       hasVideo: !!v && !v.muted && v.readyState === 'live',
       muted: mutedPeers.has(id),
     });
     const sv = c.screen.getVideoTracks()[0];
-    if (sv && !sv.muted && sv.readyState === 'live') {
-      const who = opts.roster.find((r) => r.id === id)?.name ?? 'Someone';
-      tiles.unshift({ id: `${id}:screen`, name: `${who}'s screen`, stream: c.screen, hasVideo: true, muted: false, screen: true });
+    if (sv) {
+      const announced = !!share && (c.sids.get(sv.id) ?? share.sid) === share.sid;
+      const since = c.mutedSince.get(sv.id);
+      if (screenVisible({ announced, everAnnounced: c.sawShare, live: sv.readyState === 'live', muted: sv.muted, mutedForMs: since ? nowMs - since : 0 })) {
+        tiles.unshift({ id: `${id}:screen`, name: `${who}'s screen`, stream: c.screen, hasVideo: true, muted: false, screen: true, share: share ?? undefined, presenter: who });
+      }
     }
   }
-  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** the people who are connected to me right now (who can see what I share) */
+  const viewers = [...conns.current.keys()].map((id) => opts.roster.find((r) => r.id === id)?.name ?? 'Someone');
+  const stableViewers = useMemo(() => viewers, [viewers.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // listen to the loudness of my microphone and of everyone in the call to know who is talking
   useEffect(() => {
@@ -602,6 +716,9 @@ export function useCalls(opts: Opts) {
     };
   }, []);
 
+  /** The screen I am sharing, if any (a recording by the presenter includes it). */
+  const localScreen = useCallback((): MediaStream | null => local.current.screen?.stream ?? null, []);
+
   /** Every audio stream in the call right now (mine and everyone connected), for the recorder to mix. */
   const audioStreams = useCallback((): MediaStream[] => {
     const out: MediaStream[] = [];
@@ -611,5 +728,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, sharing, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams, devices, pick, noise, dataSaver, setDataSaver, selectMic, selectCam, selectSpeaker, setNoise, refreshDevices };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, shareInfo, viewers: stableViewers, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams, localScreen, devices, pick, noise, dataSaver, setDataSaver, selectMic, selectCam, selectSpeaker, setNoise, refreshDevices };
 }

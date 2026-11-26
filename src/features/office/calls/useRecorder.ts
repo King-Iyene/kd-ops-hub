@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Records a meeting room (a video of the office with everyone's voices; sound only if the picture is not available), on the recorder's own computer, and saves it to private storage.
+ * Records a meeting room (a video of the office, or of the shared screen with everyone's pictures when somebody shares one, with everyone's voices; sound only if the picture is not available), on the recorder's own computer, and saves it to private storage.
  *  - Only people listed in office_recorders may record (the database enforces this too).
  *  - Only inside a meeting room, and only while joined to voice. Leaving the room or the call stops it.
  *  - Everyone in the room is told (announce flag, shown as a banner by the page).
@@ -86,7 +86,7 @@ export function useRecorder(opts: Opts) {
   const startPart = useCallback((r: NonNullable<typeof run.current>) => {
     const chunks: Blob[] = [];
     const source = r.video ? new MediaStream([...r.dest.stream.getAudioTracks(), r.video]) : r.dest.stream;
-    const rec = new MediaRecorder(source, { mimeType: r.mime, audioBitsPerSecond: 64_000, ...(r.video ? { videoBitsPerSecond: 1_800_000 } : {}) });
+    const rec = new MediaRecorder(source, { mimeType: r.mime, audioBitsPerSecond: 64_000, ...(r.video ? { videoBitsPerSecond: 2_500_000 } : {}) });
     const part = r.part;
     const startedAt = new Date();
     r.segStart = Date.now();
