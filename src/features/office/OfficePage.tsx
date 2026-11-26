@@ -139,6 +139,24 @@ function OfficeRoom() {
     };
   }, [profile, myAvatar]);
 
+  // My character: chosen in the avatar menu, worn only while I have it on (key C). It is never saved over my real look:
+  // it only changes what is drawn and what the others are told, and it is gone when I press C again or leave.
+  const [charId, setCharIdState] = useState<string | null>(null);
+  const [charOn, setCharOn] = useState(false);
+  useEffect(() => {
+    if (!profile?.id) return;
+    try { setCharIdState(localStorage.getItem(`kd:office:character:${profile.id}`)); } catch { /* none chosen */ }
+  }, [profile?.id]);
+  const chooseCharacter = (id: string | null) => {
+    setCharIdState(id);
+    try { if (profile?.id) { if (id) localStorage.setItem(`kd:office:character:${profile.id}`, id); else localStorage.removeItem(`kd:office:character:${profile.id}`); } } catch { /* fine */ }
+  };
+  const charLook = useMemo(() => LOOKS.find((l) => l.id === charId) ?? null, [charId]);
+  const meLive = useMemo(() => {
+    if (!me || !charOn || !charLook) return me;
+    return { ...me, avatar: { ...me.avatar, ...charLook.apply(me.avatar) } as AvatarStyle };
+  }, [me, charOn, charLook]);
+
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
 
   // make sure my personal office exists (the database also creates it automatically)
@@ -212,7 +230,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(me, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -1128,7 +1146,7 @@ function OfficeRoom() {
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); window.removeEventListener('focus', beat); setOfficeHere(false); };
   }, []);
   // the KD Ops desktop app's small window shows who is around and sets Do not disturb while the computer is locked (nothing happens in a browser)
-  useDesktopMini({ name: me?.name ?? '', avatar: me?.avatar, status, roster, myUid: me?.id ?? '', onStatus: chooseStatus });
+  useDesktopMini({ name: me?.name ?? '', avatar: meLive?.avatar, status, roster, myUid: me?.id ?? '', onStatus: chooseStatus });
   // like Gather: Ctrl+O available, Ctrl+I busy, Ctrl+U do not disturb
   useEffect(() => {
     const keys: Record<string, string> = { o: 'available', i: 'busy', u: 'dnd' };
@@ -1209,40 +1227,28 @@ function OfficeRoom() {
   useEffect(() => { if (superseded && myLiveRef.current) { myLiveRef.current = false; setMyLive(false); setTownHall(false); } }, [superseded]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pollsOpen, setPollsOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
-  // quick change: [ and ] flip through the ready-made looks at once; the choice is saved a moment after the last press
-  const lookAt = useRef(-1);
-  const lookSave = useRef<{ timer: number | null; style: AvatarStyle | null }>({ timer: null, style: null });
-  const lookLabelTimer = useRef<number | null>(null);
+  // C: turn into my character (chosen in the avatar menu) and back. Nothing is saved: it is a costume, not a change of look.
   const [lookLabel, setLookLabel] = useState<string | null>(null);
-  const quickLook = (d: 1 | -1) => {
+  const lookLabelTimer = useRef<number | null>(null);
+  const toggleCharacter = () => {
     if (!me || editing || avatarOpen) return;
-    const n = LOOKS.length;
-    lookAt.current = lookAt.current < 0 ? (d > 0 ? 0 : n - 1) : (lookAt.current + d + n) % n;
-    const look = LOOKS[lookAt.current];
-    const next = { ...me.avatar, ...look.apply(me.avatar) } as AvatarStyle;
-    actions.previewAvatar(me.id, next);
-    setLookLabel(look.label);
-    if (lookLabelTimer.current) window.clearTimeout(lookLabelTimer.current);
-    lookLabelTimer.current = window.setTimeout(() => setLookLabel(null), 1800);
-    const sv = lookSave.current;
-    sv.style = next;
-    if (sv.timer) window.clearTimeout(sv.timer);
-    sv.timer = window.setTimeout(() => {
-      sv.timer = null;
-      const st = sv.style;
-      sv.style = null;
-      if (st) void actions.saveAvatar(me.id, st).catch((err) => toast({ title: 'Could not save your look', description: errorMessage(err), variant: 'destructive' }));
-    }, 700);
+    const say = (t: string) => {
+      setLookLabel(t);
+      if (lookLabelTimer.current) window.clearTimeout(lookLabelTimer.current);
+      lookLabelTimer.current = window.setTimeout(() => setLookLabel(null), 2200);
+    };
+    if (!charLook) { say('Pick your character: Avatar menu, Looks, then tap the star'); return; }
+    if (charOn) { setCharOn(false); say('Back to you'); } else { setCharOn(true); say(`You are ${charLook.label}`); }
   };
-  const quickLookRef = useRef(quickLook);
-  quickLookRef.current = quickLook;
+  const toggleCharacterRef = useRef(toggleCharacter);
+  toggleCharacterRef.current = toggleCharacter;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key !== '[' && e.key !== ']') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.toLowerCase() !== 'c' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       e.preventDefault();
-      quickLookRef.current(e.key === ']' ? 1 : -1);
+      toggleCharacterRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1536,7 +1542,7 @@ function OfficeRoom() {
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
           <OfficeCanvas
-            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...me, id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
+            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...(meLive ?? me), id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}
@@ -1598,7 +1604,7 @@ function OfficeRoom() {
               canRecord={canRecord} recording={recorder.recording} recSeconds={recorder.seconds} recNotice={recNotice}
               leading={(
                 <ProfileMenu
-                  name={me.name} skin={me.avatar.skin} avatar={me.avatar} status={status} onStatus={chooseStatus} onFocus={startFocus} focusLeft={focusLeft} onAvatar={() => setAvatarOpen(true)}
+                  name={me.name} skin={(meLive ?? me).avatar.skin} avatar={(meLive ?? me).avatar} status={status} onStatus={chooseStatus} onFocus={startFocus} focusLeft={focusLeft} onAvatar={() => setAvatarOpen(true)}
                   timeMode={timeMode} seasonMode={seasonMode} sound={sound} onToggleSound={toggleSound} volume={volume} onVolume={chooseVolume} notify={{ on: notify.on, denied: notify.denied, supported: notify.supported, toggle: () => void notify.toggle(), desktop: isDesktopApp() }} myWeather={myWeather} myPlace={myCity} onMyPlace={chooseMyPlace} zoom={zoom} onZoom={(d) => setZoom((z) => Math.min(2.2, Math.max(0.5, +(z + d).toFixed(1))))} traySize={traySize} onTraySize={chooseTray}
                   canEdit={canEdit} editing={editing} onEdit={() => startEdit()} canRecord={canRecord} onRecordings={() => setRecordingsOpen(true)} canSettings={isAdmin} onSettings={() => setSettingsOpen(true)} canManage={isAdmin || canEdit} onManage={() => setManageOpen(true)} onGuests={() => setVisitorsOpen(true)} guestsWaiting={guests.waitingCount}
                   myOffice={myClaim ? (map.zones.find((q) => q.id === myClaim.office_id)?.name ?? 'My office') : null}
@@ -1629,7 +1635,7 @@ function OfficeRoom() {
           )}
           {lookLabel && !editing && (
             <div role="status" className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs font-medium shadow-lg backdrop-blur">
-              Look: {lookLabel} <kbd className="ml-1 rounded border px-1">[</kbd><kbd className="ml-0.5 rounded border px-1">]</kbd>
+              {lookLabel} <kbd className="ml-1 rounded border px-1">C</kbd>
             </div>
           )}
           {editing && held && (
@@ -1960,7 +1966,7 @@ function OfficeRoom() {
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
       <AvatarDialog
-        open={avatarOpen} onOpenChange={setAvatarOpen} value={me.avatar} name={me.name} saving={savingAvatar}
+        open={avatarOpen} onOpenChange={setAvatarOpen} value={me.avatar} name={me.name} saving={savingAvatar} characterId={charId} onCharacter={chooseCharacter}
         onSave={async (a) => {
           setSavingAvatar(true);
           try {

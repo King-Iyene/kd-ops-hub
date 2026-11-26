@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Dices, Footprints, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dices, Footprints, RotateCcw, Star } from 'lucide-react';
 import { AIDS, BEARDS, BOTTOMS, COSTUMES, EXTRAS, GLASSES, HAIR_CHOICES, HAIR_STYLES, HATS, JACKETS, OUTFITS, SHOES, SKIN_CHOICES, TIES } from './world/avatarParts';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,18 @@ const TABS: { id: string; label: string; sections: Section[] }[] = [
 ];
 
 const CLEAR: Partial<AvatarStyle> = { aid: 0, costume: 0, bottom: 0, jacket: 0, tie: 0, hat: 0, glasses: 0, extra: 0, beard: 0 };
+
+/**
+ * A plain model for the small pictures: nothing worn, nothing added, only my skin and hair colour (and the colour of the part
+ * being chosen) so the one thing being picked is what you see. `choosing` is the setting the picture varies, so it is left alone.
+ */
+export function isolatedBase(mine: Pick<AvatarStyle, 'skin' | 'hair' | 'hairStyle'>, colorKey: keyof AvatarStyle | undefined, color: unknown, inner: string | undefined, choosing: keyof AvatarStyle): AvatarStyle {
+  const b = { ...defaultAvatar('plain'), ...CLEAR, skin: mine.skin, hair: mine.hair, outfit: 0, hairStyle: choosing === 'hairStyle' ? mine.hairStyle : 3, shirt: '#e5e7eb', pants: '#4b5563', shoes: 0, shoeColor: '#f8fafc', inner: '#f8fafc' } as AvatarStyle & Record<string, unknown>;
+  if (colorKey && color !== undefined) b[colorKey] = color;
+  if (inner) b.inner = inner;
+  if (choosing === 'outfit') b.jacket = 0;
+  return b;
+}
 
 /** Ready-made looks: one tap puts a whole outfit together. Every piece in them can also be picked by hand in the other tabs. */
 export const LOOKS: { id: string; label: string; apply: (a: AvatarStyle) => Partial<AvatarStyle> }[] = [
@@ -206,13 +218,16 @@ function ColorRow({ label, palette, value, onPick }: { label: string; palette: s
 }
 
 /** Make your avatar. The picture is drawn with the same code as the office, so what you see is what others see. */
-export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }: {
+export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave, characterId, onCharacter }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   value: AvatarStyle;
   name: string;
   saving: boolean;
   onSave: (a: AvatarStyle) => void;
+  /** the look worn while the C key is on (kept on this computer, never saved over the real look) */
+  characterId?: string | null;
+  onCharacter?: (id: string | null) => void;
 }) {
   const [draft, setDraft] = useState(value);
   const [tab, setTab] = useState<string>('looks');
@@ -230,7 +245,12 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
   useEffect(() => {
     if (!open) return;
     let raf = 0;
+    let last = -1e9;
     const draw = (t: number) => {
+      raf = requestAnimationFrame(draw);
+      // standing still needs only a few pictures a second (a blink, a breath); walking needs every one
+      if (!walk && t - last < 90) return;
+      last = t;
       const c = canvasRef.current;
       if (c) {
         const ctx = c.getContext('2d')!;
@@ -245,7 +265,6 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
         drawPerson(ctx, { x: sx, y: 1.05, dir, moving: walk, name: '', avatar: draft, isMe: false, id: 'preview' }, t, { dark: false });
         ctx.restore();
       }
-      raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
@@ -253,11 +272,22 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
   const turn = (d: number) => setDir((cur) => ([0, 2, 3, 1] as const)[(([0, 2, 3, 1] as const).indexOf(cur) + d + 4) % 4]);
 
+  // The small pictures show only the thing being chosen, on a plain model that keeps just my skin and hair colour (and the colour
+  // of this very part), not my whole avatar. That is also far less to draw, and they only redraw when one of those changes.
+  const { skin: dSkin, hair: dHair, hairStyle: dHairStyle } = draft;
+  const partColor = section?.color ? draft[section.color] : undefined;
+  const innerColor = draft.inner;
   const optionGrid = useMemo(() => {
     if (!section?.option || !section.labels) return null;
     const key = section.option;
-    return section.labels.map((label, id) => ({ id, label, avatar: { ...draft, [key]: id } as AvatarStyle }));
-  }, [section, draft]);
+    const base = isolatedBase({ skin: dSkin, hair: dHair, hairStyle: dHairStyle }, section.color, partColor, section.extraColor ? innerColor : undefined, key);
+    const rows = section.labels.map((label, id) => ({ id, label, avatar: { ...base, [key]: id } as AvatarStyle }));
+    // "None" always comes first, whatever its number is
+    const none = rows.findIndex((r) => /^none$/i.test(r.label));
+    return none > 0 ? [rows[none], ...rows.filter((_, i) => i !== none)] : rows;
+  }, [section, dSkin, dHair, dHairStyle, partColor, innerColor]);
+  // the ready-made looks are drawn on the same plain model, so tweaking a colour does not redraw sixty pictures
+  const lookBase = useMemo(() => ({ ...defaultAvatar('look'), skin: dSkin, hair: dHair, hairStyle: dHairStyle }) as AvatarStyle, [dSkin, dHair, dHairStyle]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -287,13 +317,22 @@ export function AvatarDialog({ open, onOpenChange, value, name, saving, onSave }
 
             {tab === 'looks' && (
               <div>
-                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from (traditional, formal, fun or a full character), then change anything you like in the other tabs. In the office, press [ or ] to flip through these looks without opening anything. Every piece can be picked by hand too.</p>
+                <p className="mb-2 text-xs text-muted-foreground">Pick a look to start from (traditional, formal, fun or a full character), then change anything you like in the other tabs. Tap the star on a look to make it your character: in the office, press C to turn into it and C again to turn back. That never changes your saved look. Every piece can be picked by hand too.</p>
                 <div className="grid max-h-[22rem] grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
                   {LOOKS.map((l) => (
-                    <button key={l.id} type="button" onClick={() => set(l.apply(draft))} className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 p-1.5 ring-1 ring-transparent transition hover:bg-muted hover:ring-primary/40">
-                      <Thumb avatar={{ ...draft, ...l.apply(draft) }} focus="full" size={84} />
-                      <span className="text-[11px] font-semibold">{l.label}</span>
-                    </button>
+                    <div key={l.id} className="relative">
+                      <button type="button" onClick={() => set(l.apply(draft))} className="flex w-full flex-col items-center gap-1 rounded-xl bg-muted/50 p-1.5 ring-1 ring-transparent transition hover:bg-muted hover:ring-primary/40">
+                        <Thumb avatar={{ ...lookBase, ...l.apply(lookBase) }} focus="full" size={84} />
+                        <span className="text-[11px] font-semibold">{l.label}</span>
+                      </button>
+                      {onCharacter && (
+                        <button type="button" aria-pressed={characterId === l.id} title={characterId === l.id ? 'This is your character (press C in the office). Tap to remove it.' : 'Make this my character: press C in the office to become it'}
+                          onClick={() => onCharacter(characterId === l.id ? null : l.id)}
+                          className={`absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full ring-1 transition ${characterId === l.id ? 'bg-amber-400 text-slate-900 ring-amber-500' : 'bg-background/80 text-muted-foreground ring-border hover:text-amber-500'}`}>
+                          <Star className="h-3.5 w-3.5" fill={characterId === l.id ? 'currentColor' : 'none'} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
                 <div className="mt-3 space-y-2.5 rounded-xl bg-muted/40 p-2.5">

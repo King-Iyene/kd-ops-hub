@@ -13,8 +13,8 @@ import { perf, setSmooth } from './world/perfStats';
 
 /** What to press, shown in the profile menu. Keep in step with the key handlers in OfficeCanvas / OfficePage / CallDock. */
 export const KEY_GUIDE: { title: string; rows: [string[], string][] }[] = [
-  { title: 'Move', rows: [[['W', 'A', 'S', 'D'], 'Walk (arrow keys work too)'], [['Shift'], 'Hold to walk faster'], [['M'], 'Show or hide the minimap'], [['[', ']'], 'Look at the previous or next person']] },
-  { title: 'Act', rows: [[['F'], 'Use what glows yellow: sit, ride, read, pets'], [['X'], 'Dance, press again to stop'], [['G'], 'Hold to turn into a ghost'], [['E'], 'Reactions, then press 1 to 8'], [['H'], 'Raise your hand']] },
+  { title: 'Move', rows: [[['W', 'A', 'S', 'D'], 'Walk (arrow keys work too)'], [['Shift'], 'Hold to walk faster'], [['M'], 'Show or hide the minimap']] },
+  { title: 'Act', rows: [[['F'], 'Use what glows yellow: sit, ride, read, pets'], [['X'], 'Dance, press again to stop'], [['G'], 'Hold to turn into a ghost'], [['E'], 'Reactions, then press 1 to 8'], [['H'], 'Raise your hand'], [['C'], 'Turn into your character, again to turn back']] },
   { title: 'Status and places', rows: [[['Ctrl', 'O'], 'Available'], [['Ctrl', 'I'], 'Busy'], [['Ctrl', 'U'], 'Do not disturb'], [['Ctrl', 'D'], 'Walk to my office']] },
   { title: 'Editing an office', rows: [[['R'], 'Turn the held item'], [['Delete'], 'Remove the held item'], [['Ctrl', 'Z'], 'Undo (Ctrl+Y to redo)'], [['Esc'], 'Cancel']] },
   { title: 'Other', rows: [[['Ctrl', 'Alt', 'P'], 'Show how the Office is running']] },
