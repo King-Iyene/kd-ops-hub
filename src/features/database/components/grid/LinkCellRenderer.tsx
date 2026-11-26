@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize2, Plus, Search, X } from 'lucide-react';
 import {
   Popover,
@@ -19,6 +19,7 @@ import { useCreateRecord } from '../../hooks/useRecords';
 import { useLinkData, type LinkedItem } from '../../hooks/useBatchedLinks';
 import { LinkChips } from './LinkChips';
 import { linesForRowHeight } from '../../lib/linkBatch';
+import { createExclusiveOpen } from '../../lib/exclusiveOpen';
 import { useDatabaseUI } from '../../lib/store';
 import { useGridColors } from '../../hooks/useGridColors';
 
@@ -352,6 +353,9 @@ function LinkPickerContent({
   );
 }
 
+// Opening one link list closes any other that is open, and a click anywhere outside closes it.
+const exclusiveLinkPopover = createExclusiveOpen();
+
 export function LinkPopover({
   field,
   record,
@@ -365,10 +369,38 @@ export function LinkPopover({
   bubbleClick?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setIsOpen(false), []);
+
+  const handleOpenChange = useCallback(
+    (next: boolean) => {
+      if (next) exclusiveLinkPopover.claim(close);
+      else exclusiveLinkPopover.release(close);
+      setIsOpen(next);
+    },
+    [close],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (contentRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      handleOpenChange(false);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [isOpen, handleOpenChange]);
+
+  useEffect(() => () => exclusiveLinkPopover.release(close), [close]);
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <div
+          ref={triggerRef}
           role="button"
           tabIndex={-1}
           aria-label={`Edit ${field.name}`}
@@ -378,7 +410,7 @@ export function LinkPopover({
             if (e.key === 'Enter') {
               e.preventDefault();
               e.stopPropagation();
-              setIsOpen(true);
+              handleOpenChange(true);
             }
           }}
         >
@@ -386,12 +418,13 @@ export function LinkPopover({
         </div>
       </PopoverTrigger>
       <PopoverContent
+        ref={contentRef}
         className="w-96 p-0"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onClick={(e) => e.stopPropagation()}
       >
-        {isOpen && <LinkPickerContent field={field} record={record} onClose={() => setIsOpen(false)} />}
+        {isOpen && <LinkPickerContent field={field} record={record} onClose={() => handleOpenChange(false)} />}
       </PopoverContent>
     </Popover>
   );
