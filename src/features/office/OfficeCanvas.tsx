@@ -1184,22 +1184,6 @@ export function OfficeCanvas(props: Props) {
         ctx.lineWidth = 2.2;
         ctx.stroke();
         ctx.restore();
-        ctx.font = '700 11px system-ui, sans-serif';
-        const tw = 28;
-        const cx0 = (nearIt.x + sz.w / 2) * TILE;
-        const cy0 = nearIt.y * TILE - 8 + Math.sin(now / 280) * 2;
-        ctx.fillStyle = 'rgba(15,23,42,0.88)';
-        ctx.beginPath();
-        ctx.roundRect(cx0 - tw / 2, cy0 - 11, tw, 22, 11);
-        ctx.fill();
-        ctx.fillStyle = '#fbbf24';
-        ctx.beginPath();
-        ctx.roundRect(cx0 - tw / 2 + 4, cy0 - 7, 20, 14, 5);
-        ctx.fill();
-        ctx.fillStyle = '#0f172a';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('F', cx0, cy0 + 0.5);
       }
 
       // a pet close by (and nothing else to press F on): F makes it follow me, or stay
@@ -1212,7 +1196,7 @@ export function OfficeCanvas(props: Props) {
           nearPetRef.current = bp.id;
           ctx.save();
           ctx.font = '700 10px system-ui, sans-serif';
-          const lab = bp.mode === 'follow' ? 'F  Stay here' : 'F  Follow me';
+          const lab = bp.mode === 'follow' ? 'Stay here' : 'Follow me';
           const lw = ctx.measureText(lab).width + 16;
           const gx = bp.x * TILE;
           const gy = bp.y * TILE - 30 + Math.sin(now / 280) * 2;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX, Gauge } from 'lucide-react';
+import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX, Gauge, Keyboard } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
@@ -10,6 +10,15 @@ import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky
 import type { Weather } from './world/weather';
 import { LABEL, SURFACE } from './ui';
 import { perf, setSmooth } from './world/perfStats';
+
+/** What to press, shown in the profile menu. Keep in step with the key handlers in OfficeCanvas / OfficePage / CallDock. */
+export const KEY_GUIDE: { title: string; rows: [string[], string][] }[] = [
+  { title: 'Move', rows: [[['W', 'A', 'S', 'D'], 'Walk (arrow keys work too)'], [['Shift'], 'Hold to walk faster'], [['M'], 'Show or hide the minimap'], [['[', ']'], 'Look at the previous or next person']] },
+  { title: 'Act', rows: [[['F'], 'Use what glows yellow: sit, ride, read, pets'], [['X'], 'Dance, press again to stop'], [['G'], 'Hold to turn into a ghost'], [['E'], 'Reactions, then press 1 to 8'], [['H'], 'Raise your hand']] },
+  { title: 'Status and places', rows: [[['Ctrl', 'O'], 'Available'], [['Ctrl', 'I'], 'Busy'], [['Ctrl', 'U'], 'Do not disturb'], [['Ctrl', 'D'], 'Walk to my office']] },
+  { title: 'Editing an office', rows: [[['R'], 'Turn the held item'], [['Delete'], 'Remove the held item'], [['Ctrl', 'Z'], 'Undo (Ctrl+Y to redo)'], [['Esc'], 'Cancel']] },
+  { title: 'Other', rows: [[['Ctrl', 'Alt', 'P'], 'Show how the Office is running']] },
+];
 
 interface Props {
   name: string;
@@ -76,6 +85,7 @@ export function ProfileMenu(p: Props) {
   const [customText, setCustomText] = useState('');
   const [statusOpen, setStatusOpen] = useState(false);
   const [smooth, setSmoothState] = useState(() => perf.smooth || perf.autoSmooth);
+  const [keysOpen, setKeysOpen] = useState(false);
   const st = statusOf(p.status);
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
@@ -208,6 +218,29 @@ export function ProfileMenu(p: Props) {
                     <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${smooth ? 'left-[1.15rem]' : 'left-0.5'}`} />
                   </button>
                 </div>
+              </div>
+              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+                <button type="button" aria-expanded={keysOpen} onClick={() => setKeysOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 text-left">
+                  <span className="flex items-center gap-2 text-[13px] font-semibold"><Keyboard className="h-4 w-4" />Keyboard guide</span>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${keysOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {keysOpen && (
+                  <dl className="mt-2.5 space-y-3">
+                    {KEY_GUIDE.map((g) => (
+                      <div key={g.title}>
+                        <dt className="mb-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#D6AC50]">{g.title}</dt>
+                        <dd className="space-y-1">
+                          {g.rows.map(([keys, what]) => (
+                            <div key={what} className="flex items-center justify-between gap-3 text-[12px]">
+                              <span className="text-muted-foreground">{what}</span>
+                              <span className="flex shrink-0 gap-1">{keys.map((k) => <kbd key={k} className="rounded-md bg-white/[0.09] px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ring-white/10">{k}</kbd>)}</span>
+                            </div>
+                          ))}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
               </div>
               {p.notify.supported && (
                 <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title={p.notify.denied ? 'Blocked in your browser. Allow notifications for this site, then turn this on.' : p.notify.desktop ? 'Rings, waves and messages pop up on your desktop.' : 'Get a pop-up when someone rings, waves or messages you while this window is behind others.'}>
