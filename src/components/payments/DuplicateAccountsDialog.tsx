@@ -43,6 +43,7 @@ export function DuplicateAccountsDialog({ open, groups, onRemove, onMerge, onCan
                   </li>
                 ))}
               </ul>
+              <p className="mt-1.5 text-[11.5px] text-muted-foreground">If you add them together: 1 payment of <strong className="text-foreground">{formatNaira(g.lines.reduce((n, l) => n + Number(l.amount_ngn), 0))}</strong> to {g.lines[0].full_name}.</p>
             </div>
           ))}
         </div>
@@ -55,7 +56,7 @@ export function DuplicateAccountsDialog({ open, groups, onRemove, onMerge, onCan
           </div>
           <div className="rounded-xl border p-3">
             <p className="text-sm font-semibold">Option 2: it is on purpose, pay it together</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">The amounts are added into one line, so the account gets one payment of the total. To confirm this is intentional, type <strong>DUPLICATE</strong>.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">The repeated lines are added together into <strong>one line</strong> (the first name stays), so the batch counts that account as <strong>one payment</strong> of the total shown above and the number of people in the batch goes down by {total}. To confirm this is on purpose, type <strong>DUPLICATE</strong>.</p>
             <div className="mt-2 flex gap-2">
               <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type DUPLICATE" aria-label="Type DUPLICATE to confirm" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm" />
               <Button variant="outline" disabled={!sure} onClick={onMerge}>Add amounts together</Button>

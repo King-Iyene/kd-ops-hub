@@ -1645,7 +1645,7 @@ const NewPaymentBatch = () => {
         open={dupDialog}
         groups={groupDuplicateAccounts(items)}
         onRemove={() => { setItems(splitDuplicateAccounts(items).keep); setDupDialog(false); toast({ title: 'Repeats removed', description: 'Check the total, then save again.' }); }}
-        onMerge={() => { setItems(mergeDuplicateAccounts(items)); setDupDialog(false); toast({ title: 'Amounts added together', description: 'Each repeated account is now one line with the total. Check it, then save again.' }); }}
+        onMerge={() => { setItems(mergeDuplicateAccounts(items)); setDupDialog(false); toast({ title: 'Amounts added together', description: 'Each repeated account is now ONE line with the combined amount, and the batch counts it as one payment. Check the total, then save again.' }); }}
         onCancel={() => setDupDialog(false)}
       />
     </div>
