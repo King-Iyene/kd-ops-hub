@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useCompanyEmployeeIds } from '@/features/timetrack/lib/trackerEmployees';
 import { formatHours } from '../../reports/useReportData';
 import { DateRangeSelect, datePresets } from '../../ui/DateRangeSelect';
+import { STICKY_FILTERS } from '../../ui/stickyFilters';
 import { DASHBOARD_RANGES, bucketHours, bucketKind, rangeText } from '../../lib/dashboardRange';
 
 interface DashRow {
@@ -89,7 +90,7 @@ export default function RealTimeDashboardPage() {
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Real-time Dashboard" description={`Live rollup of logged hours · ${rangeText(start, end)}`} icon={LayoutDashboard} />
-      <DateRangeSelect start={start} end={end} setStart={setStart} setEnd={setEnd} only={[...DASHBOARD_RANGES]} />
+      <div className={STICKY_FILTERS}><DateRangeSelect start={start} end={end} setStart={setStart} setEnd={setEnd} only={[...DASHBOARD_RANGES]} /></div>
 
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : (
         <>

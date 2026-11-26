@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { captureDomain } from '../../lib/siteNames';
 import { useFieldTeamIds } from '../../lib/trackerEmployees';
 import { DateRangeSelect } from '@/features/timetrack/ui/DateRangeSelect';
+import { STICKY_FILTERS } from '@/features/timetrack/ui/stickyFilters';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
@@ -105,7 +106,7 @@ export function ActivityDateRangeBar({ start, end, setStart, setEnd }: {
   start: string; end: string; setStart: (v: string) => void; setEnd: (v: string) => void;
 }) {
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${STICKY_FILTERS}`}>
       <Label className="text-xs text-muted-foreground">Date range</Label>
       <DateRangeSelect className="mt-1" start={start} end={end} setStart={setStart} setEnd={setEnd} />
     </div>

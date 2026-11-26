@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DaySelect } from '@/features/timetrack/ui/DateRangeSelect';
+import { STICKY_FILTERS } from '@/features/timetrack/ui/stickyFilters';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Loader2, History } from 'lucide-react';
@@ -54,7 +55,7 @@ export default function TimelinePage() {
   return (
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Timeline" description="One employee's captures for a day, collapsed into continuous blocks per application" icon={History} />
-      <div className="flex items-end gap-3">
+      <div className={`flex items-end gap-3 ${STICKY_FILTERS}`}>
         <div>
           <Label>Employee</Label>
           <Select value={employeeId} onValueChange={setEmployeeId}>

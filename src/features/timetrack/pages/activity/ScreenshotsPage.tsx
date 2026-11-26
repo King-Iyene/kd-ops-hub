@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScreenPanels, estimateScreens, useImageDims } from '@/features/timetrack/ui/ScreenPanels';
 import { EmployeeSelect } from '@/features/timetrack/ui/EmployeeSelect';
 import { DaySelect } from '@/features/timetrack/ui/DateRangeSelect';
+import { STICKY_FILTERS } from '@/features/timetrack/ui/stickyFilters';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -183,7 +184,7 @@ export default function ScreenshotsPage() {
     <div className="space-y-3 sm:space-y-6">
       <PageHeader title="Screenshots" description="Captured only for employees with screenshots enabled under Agent & policy" icon={ImageIcon} />
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${STICKY_FILTERS}`}>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <p className="mb-1 text-xs text-muted-foreground">Date</p>

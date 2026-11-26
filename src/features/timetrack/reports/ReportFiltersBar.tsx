@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DateRangeSelect } from '../ui/DateRangeSelect';
+import { STICKY_FILTERS } from '../ui/stickyFilters';
 import type { ReportFiltersState } from './useReportFilters';
 import { useReportLookups } from './useReportData';
 
@@ -91,7 +92,7 @@ export function ReportFiltersBar({ filters: f, onExportCsv, onExportXlsx, extraA
   const { employees, projects, tags } = useReportLookups();
 
   return (
-    <div className="mb-4 space-y-3">
+    <div className={cn('mb-4 space-y-3', STICKY_FILTERS)}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div>
