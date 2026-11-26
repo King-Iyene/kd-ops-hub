@@ -712,13 +712,13 @@ function OfficeRoom() {
     else if (d.at) setJump({ key: Date.now(), x: d.at.x + 0.5, y: d.at.y + 0.5 });
   }, [space, spaces, map]);
 
-  // Ghost mode (G): fade out and drift through things. Everybody sees you faded; a short hint the first time.
+  // Ghost mode (hold G): fade out and drift through things. Everybody sees you faded; a short hint the first time.
   const onGhost = (on: boolean) => {
     setGhost(on);
     try {
       if (on && !localStorage.getItem('kd:office:ghost-hint')) {
         localStorage.setItem('kd:office:ghost-hint', '1');
-        toast({ title: 'Ghost mode', description: 'You can walk through walls, furniture and people. Locked rooms stay closed. Press G to come back.' });
+        toast({ title: 'Ghost mode', description: 'You can walk through walls, furniture and people. Locked rooms stay closed. Hold G to stay a ghost; let go to come back.' });
       }
     } catch { /* fine */ }
   };

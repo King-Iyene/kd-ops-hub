@@ -244,9 +244,8 @@ export function OfficeCanvas(props: Props) {
       }
       if (k === 'g' && !propsRef.current.editing && !propsRef.current.riding && !sitRef.current) {
         e.preventDefault();
-        ghostRef.current = !ghostRef.current;
-        if (!ghostRef.current) ghostLanding.current = true; // coming back: step out of anything I am inside
-        propsRef.current.onGhost?.(ghostRef.current);
+        // Hold G: ghost while the key is down (key repeat is ignored), back to normal on release.
+        if (!ghostRef.current) { ghostRef.current = true; propsRef.current.onGhost?.(true); }
         return;
       }
       if (k === 'x' && !propsRef.current.editing && !propsRef.current.riding && !sitRef.current) { e.preventDefault(); danceRef.current = !danceRef.current; propsRef.current.onDance?.(danceRef.current); return; }
@@ -257,8 +256,18 @@ export function OfficeCanvas(props: Props) {
         e.preventDefault();
       }
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
-    const blur = () => keys.current.clear();
+    const endGhost = () => {
+      if (!ghostRef.current) return;
+      ghostRef.current = false;
+      ghostLanding.current = true; // coming back: step out of anything I am inside
+      propsRef.current.onGhost?.(false);
+    };
+    const up = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      keys.current.delete(k);
+      if (k === 'g') endGhost();
+    };
+    const blur = () => { keys.current.clear(); endGhost(); };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);

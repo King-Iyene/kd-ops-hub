@@ -86,7 +86,8 @@ const TONE_COLOR: Record<Tone, string> = { good: '#5eead4', warn: '#fbbf24', bad
 /** What the numbers add up to, in a sentence. */
 export function perfVerdict(): { text: string; tone: Tone } {
   if (isSoftwareGraphics(graphicsName())) return { text: 'Graphics acceleration is not being used, so the drawing runs on the processor. That is the likely reason it is slow.', tone: 'bad' };
-  if (perf.workMs > 20) return { text: 'Drawing is the slow part, not the network. Try Smooth mode.', tone: 'bad' };
+  if (perf.fps >= 45) return { text: 'Running smoothly.', tone: 'good' };
+  if (perf.workMs > 20 && perf.fps < 30) return { text: 'Drawing is the slow part, not the network, and the graphics chip is working. The processor is likely busy with other programs: check Task Manager, or try Smooth mode.', tone: 'bad' };
   if (perf.msgIn > 150) return { text: 'Many movement messages are arriving: the network is busy.', tone: 'warn' };
   if (perf.rtc > 8) return { text: 'Many voice links are open. That is heavy on the processor.', tone: 'warn' };
   if (perf.fps >= 50) return { text: 'Running smoothly.', tone: 'good' };
