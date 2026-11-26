@@ -137,6 +137,7 @@ interface ApiKey {
   created_at: string;
   last_used_at: string | null;
   expires_at: string | null;
+  base_id: string | null;
 }
 
 export default function ApiKeysManager() {
@@ -152,6 +153,8 @@ export default function ApiKeysManager() {
   const [keyName, setKeyName] = useState('');
   const [selectedScopes, setSelectedScopes] = useState<Set<string>>(new Set());
   const [expiration, setExpiration] = useState('never');
+  // 'all' = platform-wide (works on every base); otherwise the id of the one base the key is limited to.
+  const [baseLimit, setBaseLimit] = useState('all');
   const [creating, setCreating] = useState(false);
   const [revoking, setRevoking] = useState(false);
 
@@ -167,7 +170,7 @@ export default function ApiKeysManager() {
       const { data, error } = await supabase
         .schema('nc_meta')
         .from('api_keys')
-        .select('id, name, key_prefix, scopes, created_at, last_used_at, expires_at')
+        .select('id, name, key_prefix, scopes, created_at, last_used_at, expires_at, base_id')
         .eq('workspace_id', PLATFORM_WORKSPACE_ID)
         .is('revoked_at', null)
         .order('created_at', { ascending: false });
@@ -175,6 +178,16 @@ export default function ApiKeysManager() {
       return data as ApiKey[];
     },
   });
+
+  const { data: bases = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['platform-api-key-bases'],
+    queryFn: async () => {
+      const { data, error } = await supabase.schema('nc_meta').from('bases').select('id, name').order('name');
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; name: string }>;
+    },
+  });
+  const baseName = (id: string | null) => (id ? bases.find((b) => b.id === id)?.name ?? 'One base' : null);
 
   /* ---- Actions ---- */
 
@@ -204,6 +217,7 @@ export default function ApiKeysManager() {
           scopes: Array.from(selectedScopes),
           created_by: user.id,
           expires_at: expiresAtFromOption(expiration),
+          base_id: baseLimit === 'all' ? null : baseLimit,
         });
       if (error) throw error;
 
@@ -244,6 +258,7 @@ export default function ApiKeysManager() {
     setKeyName('');
     setSelectedScopes(new Set());
     setExpiration('never');
+    setBaseLimit('all');
   }
 
   function toggleScope(value: string) {
@@ -344,6 +359,9 @@ export default function ApiKeysManager() {
                       <div className="flex items-center gap-2">
                         <Shield size={14} className="text-muted-foreground" />
                         {key.name}
+                        <Badge variant="secondary" className="text-3xs px-1.5 py-0">
+                          {key.base_id ? `Only: ${baseName(key.base_id)}` : 'All bases'}
+                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -451,6 +469,27 @@ export default function ApiKeysManager() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Which base the key may touch */}
+            <div className="space-y-2">
+              <Label>Which base can this key use?</Label>
+              <Select value={baseLimit} onValueChange={setBaseLimit}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All bases (platform-wide)</SelectItem>
+                  {bases.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      Only {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                A key limited to one base is refused on every other base. Pick one unless you really need all of them.
+              </p>
             </div>
 
             {/* Expiration */}
