@@ -6,7 +6,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import { peerVisible, type Motion } from './world/netSync';
 import { dotColor } from './status';
-import { perf, perfReadout, rollMessageRates, smoothNow } from './world/perfStats';
+import { createHud, perf, smoothNow } from './world/perfStats';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
@@ -1363,23 +1363,20 @@ export function OfficeCanvas(props: Props) {
     raf = requestAnimationFrame(frame);
 
     // Ctrl + Alt + P: a small readout of how the Office is running here (made outside React, so it costs nothing when hidden)
-    let hud: HTMLPreElement | null = null;
+    let hud: { el: HTMLElement; update: () => void } | null = null;
     let hudTimer = 0;
     const toggleHud = () => {
-      if (hud) { hud.remove(); hud = null; window.clearInterval(hudTimer); return; }
-      hud = document.createElement('pre');
-      hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:8px 10px;border-radius:8px;background:rgba(3,26,38,.88);color:#b9f5ff;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre';
-      document.body.appendChild(hud);
-      const tick = () => { rollMessageRates(performance.now()); if (hud) hud.textContent = perfReadout(); };
-      tick();
-      hudTimer = window.setInterval(tick, 500);
+      if (hud) { hud.el.remove(); hud = null; window.clearInterval(hudTimer); return; }
+      hud = createHud();
+      document.body.appendChild(hud.el);
+      hudTimer = window.setInterval(() => hud?.update(), 500);
     };
     const hudKey = (e: KeyboardEvent) => { if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'p') { e.preventDefault(); toggleHud(); } };
     window.addEventListener('keydown', hudKey);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', hudKey);
-      if (hud) { hud.remove(); window.clearInterval(hudTimer); }
+      if (hud) { hud.el.remove(); window.clearInterval(hudTimer); }
       ro.disconnect();
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseleave', leave);

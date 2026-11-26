@@ -22,3 +22,18 @@ describe('office performance numbers', () => {
     expect(perfReadout()).toContain('on (by itself)');
   });
 });
+
+import { isSoftwareGraphics, perfVerdict } from '../world/perfStats';
+describe('what the numbers mean', () => {
+  it('knows software drawing from a real graphics card', () => {
+    expect(isSoftwareGraphics('Google SwiftShader')).toBe(true);
+    expect(isSoftwareGraphics('Microsoft Basic Render Driver')).toBe(true);
+    expect(isSoftwareGraphics('NVIDIA GeForce GTX 1650 Direct3D11')).toBe(false);
+    expect(isSoftwareGraphics('Intel(R) UHD Graphics 620')).toBe(false);
+  });
+  it('says the network is not the problem when messages are quiet and drawing is slow', () => {
+    perf.workMs = 60; perf.msgIn = 0; perf.rtc = 0; perf.fps = 8;
+    expect(perfVerdict().text).toMatch(/not the network|graphics acceleration/i);
+    expect(perfVerdict().tone).toBe('bad');
+  });
+});
