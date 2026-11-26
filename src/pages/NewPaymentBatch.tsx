@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { dispatchPlatformWebhook } from '@/lib/platform-webhooks';
+import { splitDuplicateAccounts } from '@/lib/batchDuplicates';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useFeatureAccess } from '@/hooks/usePermission';
@@ -603,6 +604,16 @@ const NewPaymentBatch = () => {
         title: `${zeroItems.length} beneficiar${zeroItems.length === 1 ? 'y has' : 'ies have'} ₦0 amount`,
         description: 'Set amounts for all beneficiaries before saving.',
         variant: 'destructive',
+      });
+      return;
+    }
+    // the same account can only be paid once per batch: drop the repeats (keeping the first), show what changed, and let the operator check the new total before saving
+    const dup = splitDuplicateAccounts(items);
+    if (dup.duplicates.length > 0) {
+      setItems(dup.keep);
+      toast({
+        title: `Removed ${dup.duplicates.length} duplicate ${dup.duplicates.length === 1 ? 'line' : 'lines'}`,
+        description: dup.duplicates.slice(0, 4).map((d) => `${d.item.full_name} (same account as ${d.keptWith.full_name}, ${d.item.account_number})`).join('; ') + (dup.duplicates.length > 4 ? ` and ${dup.duplicates.length - 4} more` : '') + '. Check the total, then save again.',
       });
       return;
     }
