@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
+import { perf } from '../world/perfStats';
 import { FAR, isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
 
 /**
@@ -278,6 +279,7 @@ export function useCalls(opts: Opts) {
         if (cur) cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
       }
       for (const id of [...conns.current.keys()]) if (!here.has(id)) close(id);
+      perf.rtc = conns.current.size;
     };
     const t = setInterval(tick, 400);
     tick();

@@ -6,6 +6,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import { peerVisible, type Motion } from './world/netSync';
 import { dotColor } from './status';
+import { perf, perfReadout, rollMessageRates, smoothNow } from './world/perfStats';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
@@ -284,7 +285,8 @@ export function OfficeCanvas(props: Props) {
     let msAvg = 16;
     const resize = () => {
       const r = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, QUALITY[qualityLevel]);
+      const dpr = Math.min(window.devicePixelRatio || 1, QUALITY[qualityLevel], smoothNow() ? 1 : 9);
+      perf.dpr = dpr; perf.quality = qualityLevel;
       w = r.width;
       h = r.height;
       canvas.width = Math.round(w * dpr);
@@ -567,8 +569,23 @@ export function OfficeCanvas(props: Props) {
     canvas.addEventListener('contextmenu', ctxMenu);
 
     let slowAt = 0;
+    let lastDraw = 0;
+    let wasSmooth = smoothNow();
+    let slowSince = 0;
+    let fpsFrames = 0;
+    let fpsAt = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
+      // Smooth mode: about 30 pictures a second (every other beat of a 60 Hz screen)
+      const smooth = smoothNow();
+      if (smooth !== wasSmooth) { wasSmooth = smooth; resize(); }
+      if (smooth && !tabHidden.current && now - lastDraw < 28) return;
+      const work0 = performance.now();
+      perf.frameMs += ((now - lastDraw) - perf.frameMs) * 0.1;
+      lastDraw = now;
+      fpsFrames += 1;
+      if (!fpsAt) fpsAt = now;
+      if (now - fpsAt >= 1000) { perf.fps = Math.round((fpsFrames * 1000) / (now - fpsAt)); fpsFrames = 0; fpsAt = now; }
       // on a hidden tab nobody is looking: draw about 4 times a second instead of 60, so the tab you are in stays fast
       if (tabHidden.current) { if (now - slowAt < 250) return; slowAt = now; }
       const p = propsRef.current;
@@ -577,6 +594,8 @@ export function OfficeCanvas(props: Props) {
       if (frameMs > 0 && frameMs < 400 && !tabHidden.current) {
         msAvg += (frameMs - msAvg) * 0.04;
         if (msAvg > 26 && now - qualityAt > 4000 && qualityLevel < QUALITY.length - 1) { qualityLevel++; qualityAt = now; msAvg = 16; resize(); }
+        // already as soft as it goes and still slow for a good while: switch Smooth mode on by itself
+        if (qualityLevel === QUALITY.length - 1 && msAvg > 38 && !perf.smooth && !perf.autoSmooth) { if (!slowSince) slowSince = now; else if (now - slowSince > 6000) perf.autoSmooth = true; } else slowSince = 0;
       }
       last = now;
       const solid = cachedSolid(p.map, p.items);
@@ -942,7 +961,7 @@ export function OfficeCanvas(props: Props) {
       drawFloor(ctx, p.map, theme, now, view);
       {
         const seasonNow = seasonFor(p.seasonMode, Date.now());
-        drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now, view);
+        if (!smooth) drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now, view);
       }
 
       // people, with identity from the lobby; positions of others are worked out from their last message
@@ -956,7 +975,7 @@ export function OfficeCanvas(props: Props) {
         if (!peerVisible({ known: !!info, otherOffice: !!info?.spaceId && info.spaceId !== p.spaceId, ownWindow: !p.showOwnTabs && info?.uid === p.me.uid, ageMs: Date.now() - pm.at })) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !!seatAt(p.items, pos.x, pos.y) && !(pm.vx || pm.vy), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
+          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !(pm.vx || pm.vy) && !!seatAt(p.items, pos.x, pos.y), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
         });
       }
       if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
@@ -1020,7 +1039,10 @@ export function OfficeCanvas(props: Props) {
       drawItems(ctx, rugs, theme, now);
       drawWalls(ctx, p.map, theme, now, view);
       const rest = sortCache.current.rest;
-      const sortedPeople = [...people].sort((a, b) => a.y - b.y);
+      // people outside the view are not drawn at all (with a crowd most of them are off screen)
+      perf.online = p.roster.length;
+      const sortedPeople = people.filter((q) => q.isMe || (q.x >= view.x0 - 3 && q.x <= view.x1 + 3 && q.y >= view.y0 - 4 && q.y <= view.y1 + 4)).sort((a, b) => a.y - b.y);
+      perf.drawn = sortedPeople.length;
       // pets move, so their depth is worked out each frame
       const petList = sortCache.current.pets.filter(onScreen).sort((a, b) => depth(a) - depth(b));
       let qi = 0;
@@ -1336,10 +1358,28 @@ export function OfficeCanvas(props: Props) {
         ctx.restore();
         ctx.restore();
       } else miniRect.current = null;
+      perf.workMs += ((performance.now() - work0) - perf.workMs) * 0.1;
     };
     raf = requestAnimationFrame(frame);
+
+    // Ctrl + Alt + P: a small readout of how the Office is running here (made outside React, so it costs nothing when hidden)
+    let hud: HTMLPreElement | null = null;
+    let hudTimer = 0;
+    const toggleHud = () => {
+      if (hud) { hud.remove(); hud = null; window.clearInterval(hudTimer); return; }
+      hud = document.createElement('pre');
+      hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:8px 10px;border-radius:8px;background:rgba(3,26,38,.88);color:#b9f5ff;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;pointer-events:none;white-space:pre';
+      document.body.appendChild(hud);
+      const tick = () => { rollMessageRates(performance.now()); if (hud) hud.textContent = perfReadout(); };
+      tick();
+      hudTimer = window.setInterval(tick, 500);
+    };
+    const hudKey = (e: KeyboardEvent) => { if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'p') { e.preventDefault(); toggleHud(); } };
+    window.addEventListener('keydown', hudKey);
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', hudKey);
+      if (hud) { hud.remove(); window.clearInterval(hudTimer); }
       ro.disconnect();
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseleave', leave);

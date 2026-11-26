@@ -460,13 +460,16 @@ function drawCachedLayer(slot: { c: LayerCache | null }, ctx: Ctx, owner: unknow
         paint(pc as unknown as Ctx, { x0: px0, y0: py0, x1: px1, y1: py1 });
         c.chunks.set(key, cv);
       }
-      // shown through a window of its own tiles (a hair wider, so no thin line shows between two squares)
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x0 * TILE, y0 * TILE, (x1 - x0) * TILE + (x1 < mapW ? 0.6 : 0), (y1 - y0) * TILE + (y1 < mapH ? 0.6 : 0));
-      ctx.clip();
-      ctx.drawImage(cv, px0 * TILE, py0 * TILE, (px1 - px0) * TILE, (py1 - py0) * TILE);
-      ctx.restore();
+      // Shown through a window of its own tiles (a hair wider where it meets the next square, so no thin line shows between two
+      // squares), and only the part that is on screen is copied: one exact copy, without a clip, instead of the whole square.
+      const wx0 = Math.max(x0, need.x0), wx1 = Math.min(x1, need.x1), wy0 = Math.max(y0, need.y0), wy1 = Math.min(y1, need.y1);
+      if (wx1 <= wx0 || wy1 <= wy0) continue;
+      const dx = wx0 * TILE, dy = wy0 * TILE;
+      const dw = (wx1 - wx0) * TILE + (wx1 === x1 && x1 < mapW ? 0.6 : 0);
+      const dh = (wy1 - wy0) * TILE + (wy1 === y1 && y1 < mapH ? 0.6 : 0);
+      const sx = (dx - px0 * TILE) * s, sy = (dy - py0 * TILE) * s;
+      const sw = Math.min(dw * s, cv.width - sx), sh = Math.min(dh * s, cv.height - sy);
+      if (sw > 0 && sh > 0) ctx.drawImage(cv, sx, sy, sw, sh, dx, dy, sw / s, sh / s);
     }
   }
   return true;

@@ -202,14 +202,27 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
 export const SEAT_TYPES: ItemType[] = ['chair', 'stool', 'beanbag', 'sofa', 'bench', 'beachchair', 'log', 'stump', 'gamingchair', 'diningchair', 'barstool', 'executivechair', 'rockingchair', 'armchair', 'loveseat', 'ottoman'];
 
 /** The seat under a point (the tile of a chair, sofa, bench... that covers it), if any. */
+// Which seat covers which tile, worked out once per list of items (not once per person per frame: that was a loop over every
+// piece of furniture for each of 100+ people, 60 times a second). The first seat in the list wins, as before.
+const seatCells = new WeakMap<Item[], Map<number, Item>>();
+function seatIndex(items: Item[]): Map<number, Item> {
+  let m = seatCells.get(items);
+  if (!m) {
+    m = new Map();
+    for (const it of items) {
+      if (!SEAT_TYPES.includes(it.t)) continue;
+      const { w, h } = itemSize(it);
+      for (let yy = it.y; yy < it.y + h; yy++) for (let xx = it.x; xx < it.x + w; xx++) { const k = yy * 4096 + xx; if (!m.has(k)) m.set(k, it); }
+    }
+    seatCells.set(items, m);
+  }
+  return m;
+}
 export function seatAt(items: Item[], x: number, y: number): { item: Item; x: number; y: number } | null {
   const cx = Math.floor(x), cy = Math.floor(y);
-  for (const it of items) {
-    if (!SEAT_TYPES.includes(it.t)) continue;
-    const { w, h } = itemSize(it);
-    if (cx >= it.x && cy >= it.y && cx < it.x + w && cy < it.y + h) return { item: it, x: cx + 0.5, y: cy + 0.5 };
-  }
-  return null;
+  if (cx < 0 || cy < 0 || cx >= 4096) return null;
+  const it = seatIndex(items).get(cy * 4096 + cx);
+  return it ? { item: it, x: cx + 0.5, y: cy + 0.5 } : null;
 }
 
 /** How much faster a power bike is than walking. */

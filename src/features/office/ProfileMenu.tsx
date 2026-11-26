@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX } from 'lucide-react';
+import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX, Gauge } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
@@ -9,6 +9,7 @@ import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
 import { seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import type { Weather } from './world/weather';
 import { LABEL, SURFACE } from './ui';
+import { perf, setSmooth } from './world/perfStats';
 
 interface Props {
   name: string;
@@ -74,6 +75,7 @@ export function ProfileMenu(p: Props) {
   const [customEmoji, setCustomEmoji] = useState('💬');
   const [customText, setCustomText] = useState('');
   const [statusOpen, setStatusOpen] = useState(false);
+  const [smooth, setSmoothState] = useState(() => perf.smooth || perf.autoSmooth);
   const st = statusOf(p.status);
   const now = Date.now();
   const sky = skyState(p.timeMode, now);
@@ -195,6 +197,17 @@ export function ProfileMenu(p: Props) {
                   </button>
                 </div>
                 <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} disabled={!p.sound} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="mt-2.5 h-1 w-full cursor-pointer accent-primary disabled:opacity-40" />
+              </div>
+              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title="For slower computers: draws 30 pictures a second instead of 60, at normal sharpness and without rain and other weather effects. Press Ctrl + Alt + P in the Office to see how it is running.">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 text-[13px] font-semibold"><Gauge className="h-4 w-4" />Smooth mode</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{smooth ? (perf.autoSmooth && !perf.smooth ? 'On by itself, because the Office was running slowly.' : 'On: lighter drawing for slower computers.') : 'Turn on if the Office feels slow or jerky.'}</span>
+                  </span>
+                  <button type="button" role="switch" aria-checked={smooth} onClick={() => { const next = !smooth; setSmoothState(next); setSmooth(next); if (!next) perf.autoSmooth = false; }} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${smooth ? 'bg-primary' : 'bg-white/15'}`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${smooth ? 'left-[1.15rem]' : 'left-0.5'}`} />
+                  </button>
+                </div>
               </div>
               {p.notify.supported && (
                 <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title={p.notify.denied ? 'Blocked in your browser. Allow notifications for this site, then turn this on.' : p.notify.desktop ? 'Rings, waves and messages pop up on your desktop.' : 'Get a pop-up when someone rings, waves or messages you while this window is behind others.'}>

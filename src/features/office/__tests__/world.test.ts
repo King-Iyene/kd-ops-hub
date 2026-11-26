@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, applyTileEdits, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, isRoom, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
+import { seatAt, advance, applyTileEdits, buildSolid, canPlace, collides, extrapolate, facing, findPath, inputVelocity, itemCells, isRoom, itemSize, newItemId, reachable, sanitizeItems, WALK_SPEED, zoneAt } from '../world/world';
 import { buildBlank, buildHQ, buildPersonalOffice, buildTeamOffice } from '../world/templates';
 import type { Item } from '../world/types';
 
@@ -579,5 +579,17 @@ describe('vehicles', () => {
     const { buildHQ } = await import('../world/templates');
     expect(nearestInteractive([{ id: 'k', t: 'kart' as const, x: 5, y: 5 }], 5.5, 6.2)?.t).toBe('kart');
     expect(buildHQ([]).items.filter((i) => i.t === 'kart').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('seatAt uses a per-list index', () => {
+  it('finds the seat covering a tile, the first one in the list, and nothing elsewhere', () => {
+    const items = [{ id: 'a', t: 'chair', x: 5, y: 5 }, { id: 'b', t: 'desk', x: 8, y: 8 }, { id: 'c', t: 'sofa', x: 10, y: 3 }] as Item[];
+    expect(seatAt(items, 5.4, 5.9)?.item.id).toBe('a');
+    expect(seatAt(items, 8.5, 8.5)).toBeNull(); // a desk is not a seat
+    expect(seatAt(items, 10.2, 3.2)?.item.id).toBe('c');
+    expect(seatAt(items, -1, 3)).toBeNull();
+    // a new list is indexed afresh
+    expect(seatAt([{ id: 'z', t: 'chair', x: 1, y: 1 }] as Item[], 1.5, 1.5)?.item.id).toBe('z');
   });
 });

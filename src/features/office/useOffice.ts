@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { AvatarStyle } from './world/types';
+import { countIn, countOut } from './world/perfStats';
 import { pack, replyWindowMs, rosterDebounceMs, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
 import { cleanAvatar } from './world/render';
 import type { RtcSignal } from './calls/rules';
@@ -294,6 +295,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       lastSent.current = { ...m, at: Date.now() };
     };
     ch.on('broadcast', { event: 'm' }, ({ payload }) => {
+      countIn();
       const p = unpack(payload);
       if (!p || p.id === connId || ghosts.current.has(p.id)) return;
       peers.current.set(p.id, { x: p.x, y: p.y, vx: p.vx, vy: p.vy, dir: p.dir, at: Date.now() });
@@ -357,6 +359,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     if (!ch || !roomReady.current || !selfRef.current || supersededRef.current) return;
     const reason = shouldSend(lastSent.current, m, now);
     if (!reason) return;
+    countOut();
     void ch.send({ type: 'broadcast', event: 'm', payload: pack(connId, m, dir) });
     lastSent.current = { ...m, at: now };
   }, []);
