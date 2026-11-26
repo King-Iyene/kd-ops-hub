@@ -1418,7 +1418,8 @@ function OfficeRoom() {
   /** Where someone is right now, in words: the room they stand in, or the open floor, or another office. */
   const whereIs = (r: { id: string; spaceId: string | null }): string => {
     if (r.spaceId && r.spaceId !== space?.id) return `In ${nameOfSpace(r.spaceId)}`;
-    const pm = peers.current.get(r.id);
+    // I am not in the list of other people's movements, so my own spot comes from where I stand
+    const pm = r.id === connId ? { x: mine.current.m.x, y: mine.current.m.y } : peers.current.get(r.id);
     if (!pm) return space ? `In ${space.name}` : 'In the office';
     const z = zoneAt(map, pm.x, pm.y);
     if (!z || z.kind === 'portal') return 'In the open office';
