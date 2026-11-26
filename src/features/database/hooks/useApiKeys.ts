@@ -19,6 +19,16 @@ async function hashKey(raw: string): Promise<string> {
     .join('');
 }
 
+// Keys made in a base's own box belong to the platform workspace (the one that always exists) and are tied to the
+// base with base_id, which the data API enforces. The box offers read/write/delete; the API understands these scopes.
+export const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
+const API_SCOPE: Record<string, string> = { read: 'records:read', write: 'records:write', delete: 'data:delete' };
+
+export function toApiScopes(scopes: string[]): string[] {
+  return scopes.map((s) => API_SCOPE[s] ?? s);
+}
+
 function generateKey(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -39,7 +49,7 @@ export function useApiKeys(baseId: string | null | undefined) {
         .schema('nc_meta')
         .from('api_keys')
         .select('id, name, key_prefix, scopes, created_at, last_used_at, expires_at')
-        .eq('workspace_id', baseId)
+        .eq('base_id', baseId)
         .is('revoked_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -63,11 +73,12 @@ export function useCreateApiKey() {
         .schema('nc_meta')
         .from('api_keys')
         .insert({
-          workspace_id: input.baseId,
+          workspace_id: PLATFORM_WORKSPACE_ID,
+          base_id: input.baseId,
           name: input.name,
           key_hash: keyHash,
           key_prefix: keyPrefix,
-          scopes: input.scopes,
+          scopes: toApiScopes(input.scopes),
           created_by: user.id,
         })
         .select('id, name, key_prefix, scopes, created_at, last_used_at, expires_at')

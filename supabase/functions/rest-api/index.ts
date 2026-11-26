@@ -18,6 +18,7 @@ import { Pool } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
 import { crypto } from 'https://deno.land/std@0.224.0/crypto/mod.ts';
 import { encodeHex } from 'https://deno.land/std@0.224.0/encoding/hex.ts';
 import { classifyRef, normalizeLinkInput, planLinkChange } from '../_shared/rest-links.ts';
+import { keyMayUseBase } from '../_shared/api-key-scope.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -189,6 +190,7 @@ function hasScope(scopes: string[], needed: string): boolean {
 
 interface ApiKeyInfo {
   workspace_id: string;
+  base_id: string | null; // when set, the key only works on this base
   scopes: string[];
   key_id: string;
 }
@@ -208,9 +210,9 @@ async function authenticateApiKey(pool: Pool, authHeader: string | null): Promis
   const conn = await pool.connect();
   try {
     const { rows } = await conn.queryObject<{
-      id: string; workspace_id: string; scopes: string[];
+      id: string; workspace_id: string; scopes: string[]; base_id: string | null;
     }>(
-      `SELECT id, workspace_id, scopes FROM nc_meta.api_keys
+      `SELECT id, workspace_id, scopes, base_id FROM nc_meta.api_keys
        WHERE key_hash = $1 AND revoked_at IS NULL
          AND (expires_at IS NULL OR expires_at > now())`,
       [hash],
@@ -220,7 +222,7 @@ async function authenticateApiKey(pool: Pool, authHeader: string | null): Promis
     // Update last_used_at (fire-and-forget)
     conn.queryObject(`UPDATE nc_meta.api_keys SET last_used_at = now() WHERE id = $1`, [rows[0].id]).catch(() => {});
 
-    return { workspace_id: rows[0].workspace_id, scopes: rows[0].scopes, key_id: rows[0].id };
+    return { workspace_id: rows[0].workspace_id, scopes: rows[0].scopes, key_id: rows[0].id, base_id: rows[0].base_id ?? null };
   } finally {
     conn.release();
   }
@@ -284,7 +286,8 @@ interface FieldMeta {
 
 const PLATFORM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
-async function resolveBase(pool: Pool, workspaceId: string, param: string) {
+async function resolveBase(pool: Pool, auth: { workspace_id: string; base_id: string | null }, param: string) {
+  const workspaceId = auth.workspace_id;
   // Reject raw UUIDs — only short IDs and slugs accepted
   if (UUID_RE.test(param)) return null;
   const decodedUuid = decodeShortId(param);
@@ -301,7 +304,10 @@ async function resolveBase(pool: Pool, workspaceId: string, param: string) {
        WHERE ${wsClause}${lookupField} = ${paramIdx}`,
       params,
     );
-    return rows[0] ?? null;
+    const found = rows[0] ?? null;
+    // A key limited to one base cannot see any other base (answered as not found, like a base that does not exist).
+    if (found && !keyMayUseBase(auth.base_id, found.id)) return null;
+    return found;
   } finally {
     conn.release();
   }
@@ -636,11 +642,11 @@ async function handleListBases(pool: Pool, auth: ApiKeyInfo) {
     const query = isPlatform
       ? `SELECT b.id, b.name, b.slug, b.icon, b.color,
                 (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
-         FROM nc_meta.bases b WHERE b.workspace_id != $1 ORDER BY b.position`
+         FROM nc_meta.bases b WHERE b.workspace_id != $1 AND ($2::uuid IS NULL OR b.id = $2::uuid) ORDER BY b.position`
       : `SELECT b.id, b.name, b.slug, b.icon, b.color,
                 (SELECT count(*) FROM nc_meta.tables t WHERE t.base_id = b.id)::int AS table_count
-         FROM nc_meta.bases b WHERE b.workspace_id = $1 ORDER BY b.position`;
-    const { rows } = await conn.queryObject(query, [auth.workspace_id]);
+         FROM nc_meta.bases b WHERE b.workspace_id = $1 AND ($2::uuid IS NULL OR b.id = $2::uuid) ORDER BY b.position`;
+    const { rows } = await conn.queryObject(query, [auth.workspace_id, auth.base_id]);
     const bases = (rows as any[]).map(b => ({ ...b, id: uuidToShort(b.id) }));
     return json({ bases });
   } finally {
@@ -649,7 +655,7 @@ async function handleListBases(pool: Pool, auth: ApiKeyInfo) {
 }
 
 async function handleListTables(pool: Pool, auth: ApiKeyInfo, baseIdOrSlug: string) {
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
 
   const conn = await pool.connect();
@@ -685,7 +691,7 @@ async function handleListRecords(
 ) {
   if (!hasScope(auth.scopes,'records:read')) return err('Scope records:read required', 403);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -777,7 +783,7 @@ async function handleGetRecord(
   const decodedRecordId = decodeShortId(recordId);
   if (!decodedRecordId) return err('Invalid record ID format — use short IDs, not UUIDs', 400);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -807,7 +813,7 @@ async function handleCreateRecords(
 ) {
   if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -878,7 +884,7 @@ async function handleUpdateRecords(
 ) {
   if (!hasScope(auth.scopes,'records:write')) return err('Scope records:write required', 403);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -960,7 +966,7 @@ async function handleDeleteRecords(
     return err('Scope records:write or data:delete required', 403);
   }
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -1001,7 +1007,7 @@ async function handleDeleteRecords(
 // ---------- Field Handlers ----------
 
 async function handleListFields(pool: Pool, _auth: ApiKeyInfo, baseIdOrSlug: string, tableIdOrSlug: string) {
-  const base = await resolveBase(pool, _auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, _auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -1025,7 +1031,7 @@ async function handleCreateField(
   pool: Pool, auth: ApiKeyInfo,
   baseIdOrSlug: string, tableIdOrSlug: string, body: any,
 ) {
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -1081,7 +1087,7 @@ async function handleUpdateField(
   const decodedFieldId = decodeShortId(fieldId);
   if (!decodedFieldId) return err('Invalid field ID format — use short IDs, not UUIDs', 400);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
@@ -1134,7 +1140,7 @@ async function handleDeleteField(
   const decodedFieldId = decodeShortId(fieldId);
   if (!decodedFieldId) return err('Invalid field ID format — use short IDs, not UUIDs', 400);
 
-  const base = await resolveBase(pool, auth.workspace_id, baseIdOrSlug);
+  const base = await resolveBase(pool, auth, baseIdOrSlug);
   if (!base) return err('Base not found', 404);
   const table = await resolveTable(pool, base.id, tableIdOrSlug);
   if (!table) return err('Table not found', 404);
