@@ -5078,12 +5078,29 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   // hair on top of the head
   ctx.fillStyle = a.hair;
   if (back) {
-    disc(ctx, px, hy, 9, a.hair);
+    // "None" is bald from behind too (it used to grow a full head of hair here that the front never had)
+    if (!(costume === 'none' && dressedAs.hairStyle === 3)) disc(ctx, px, hy, 9, a.hair);
   } else if (a.hairStyle !== 3) {
     if (a.hairStyle !== 9) {
       ctx.beginPath();
       ctx.arc(px, hy - 1, 9, Math.PI, Math.PI * 2);
       ctx.fill();
+      // a fuller front: a curved hairline with hair down to the temples (the plain half-circle left a bald-looking forehead),
+      // and from the side the hair also covers the back of the head, like the back view does
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(px, hy, 8.9, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(px - 10, hy - 11);
+      ctx.lineTo(px + 10, hy - 11);
+      ctx.lineTo(px + 10, hy + 0.8);
+      ctx.quadraticCurveTo(px + 6.5, hy - 5.6, px, hy - 5.2);
+      ctx.quadraticCurveTo(px - 6.5, hy - 5.6, px - 10, hy + 0.8);
+      ctx.closePath();
+      ctx.fill();
+      if (side) { ctx.beginPath(); ctx.ellipse(px - fx * 5.2, hy + 0.5, 4.6, 7, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
     }
     if (a.hairStyle === 8) {
       ctx.beginPath();
