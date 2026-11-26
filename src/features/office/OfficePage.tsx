@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, ChevronDown, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, MonitorUp, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -39,11 +39,11 @@ import { sharingBarText } from './calls/shareState';
 import { wantsConnection } from './calls/rules';
 import { RecordingsDialog } from './calls/RecordingsDialog';
 import { useOffice } from './useOffice';
-import { AvatarFace } from './AvatarFace';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
-import { seenLabel } from './lastSeen';
+import { seenAgo } from './lastSeen';
+import { OfflineRow, PersonRow, SideTitle, Tabs, shortWhere } from './SidebarParts';
 import { useKeepSeen, useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
@@ -97,17 +97,6 @@ function SlotAside({ slot, children }: { slot: HTMLElement | null; children: Rea
 
 /** True when someone can be reached right now: no status, or Available. */
 const isFreeStatus = (id: unknown) => !id || id === 'available';
-
-/** A sidebar section title you can click to fold the list away (so there is room for other things). */
-function SecHead({ id, shut, flip, children }: { id: string; shut: (id: string) => boolean; flip: (id: string) => void; children: ReactNode }) {
-  const closed = shut(id);
-  return (
-    <button type="button" onClick={() => flip(id)} aria-expanded={!closed} className="mb-1.5 flex w-full items-center gap-1.5 border-b border-primary/15 pb-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-primary/80 transition-colors hover:text-primary">
-      <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${closed ? '-rotate-90' : ''}`} />
-      <span className="flex items-center gap-1.5">{children}</span>
-    </button>
-  );
-}
 
 /** Focusing or in a meeting: rings and waves arrive without a sound. */
 function quietNow(): boolean {
@@ -676,6 +665,8 @@ function OfficeRoom() {
   const teamMap = map;
   const [query, setQuery] = useState('');
   const [presence, setPresence] = useState<'all' | 'free' | 'busy'>('all');
+  const [showAllAway, setShowAllAway] = useState(false);
+  const menuAt = useRef({ x: 260, y: 160 });
   const [jump, setJump] = useState<{ key: number; x: number; y: number } | null>(null);
   const [follow, setFollow] = useState<string | null>(null);
   const [followOnce, setFollowOnce] = useState(false);
@@ -1458,11 +1449,19 @@ function OfficeRoom() {
 
       <div className="flex min-h-0 flex-1 gap-3">
         <SlotAside slot={slot}>
-          <div className="flex gap-1.5">
-            <button type="button" className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br from-primary to-[#0089b8] px-3 text-[11.5px] font-bold text-white shadow-sm transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3 w-3 shrink-0" /><span>Invite</span></button>
+          {/* search, invite and the rest in one line */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-[#9ff6ff]/60" />
+              <input
+                value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people and rooms" aria-label="Search people and rooms"
+                className="h-8 w-full rounded-lg bg-white/[0.04] pl-8 pr-2 text-[12.5px] outline-none ring-1 ring-inset ring-white/10 transition placeholder:text-muted-foreground/70 focus:bg-white/[0.06] focus:ring-[#00ECFF]/50"
+              />
+            </div>
+            <button type="button" aria-label="Invite people" title="Invite people" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-[#0089b8] text-white shadow-sm transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5" /></button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="More" title="More" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></button>
+                <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/10 hover:bg-white/[0.08]"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>
@@ -1474,115 +1473,108 @@ function OfficeRoom() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person or room…" aria-label="Find a person or room"
-              className="h-9 w-full rounded-xl border border-input bg-background pl-8 pr-2 text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
 
+          {/* people first: that is what this list is for */}
           <section>
-            <SecHead id="spaces" shut={shut} flip={flip}>Spaces</SecHead>
-            {!shut('spaces') && (<>
-            <div className="space-y-0.5">
-              {teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).map((sp) => (
-                <div key={sp.id} className={`group flex items-center rounded-lg transition-colors hover:bg-muted ${sp.id === space.id ? 'bg-muted font-medium' : ''}`}>
-                  <button type="button" onClick={() => setSpaceId(sp.id)} className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left text-sm">
-                    <Building2 className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{sp.name}</span>
-                  </button>
-                  <button type="button" aria-label={`Copy link to ${sp.name}`} title="Copy link" onClick={() => void copySpaceLink(sp)} className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded opacity-0 hover:bg-background group-hover:opacity-100"><LinkIcon className="h-3.5 w-3.5" /></button>
-                  {isSuper && (
-                    <span className="mr-1 flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
-                      <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-background"><Pencil className="h-3.5 w-3.5" /></button>
-                      {sp.id !== myTeam?.id && <button type="button" aria-label={`Delete ${sp.name}`} title="Delete" onClick={() => void removeSpace(sp)} className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-background"><Trash2 className="h-3.5 w-3.5" /></button>}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-primary hover:bg-muted"><Plus className="h-4 w-4" />New space</button>}
-            </div>
-          </>)}
-          </section>
-          {roomSpaceId && (
-            <section>
-              <SecHead id="rooms" shut={shut} flip={flip}>Rooms</SecHead>
-            {!shut('rooms') && (<>
-              <div className="space-y-1">
-                {teamMap.zones.filter((z) => (z.kind === 'meeting' || z.kind === 'lounge') && matches(z.name, query)).map((z) => {
-                  const people = roomPeople(z.id);
-                  return (
-                    <button key={z.id} type="button" onClick={() => goToRoom(z)} title={`Go to ${z.name}`} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted">
-                      <div className="flex items-center justify-between"><span className="inline-flex items-center gap-1.5">{z.name}{locked.has(z.id) && <Lock className="h-3 w-3 text-amber-500" aria-label="Locked" />}</span><span className={`text-xs ${people.length ? 'font-semibold text-emerald-500' : 'text-muted-foreground'}`}>{people.length}</span></div>
-                      {people.length > 0 && <p className="truncate text-xs text-muted-foreground">{people.map((p) => p.name.split(' ')[0]).join(', ')}</p>}
-                    </button>
-                  );
-                })}
-              </div>
-            </>)}
-          </section>
-          )}
-
-          <section>
-            <SecHead id="online" shut={shut} flip={flip}><Users className="h-3.5 w-3.5" />Online ({roster.length})</SecHead>
+            <SideTitle title="People" count={roster.length} open={!shut('online')} onToggle={() => flip('online')} />
             {!shut('online') && (<>
             {roster.length > 1 && (
-              <div className="mb-1.5 flex gap-1" role="group" aria-label="Show people">
-                {([['all', `All ${roster.length}`], ['free', `Free ${roster.filter((r) => isFreeStatus(r.status)).length}`], ['busy', `Busy ${roster.filter((r) => !isFreeStatus(r.status)).length}`]] as const).map(([k, label]) => (
-                  <button key={k} type="button" aria-pressed={presence === k} onClick={() => setPresence(k)} className={`flex-1 rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums transition ${presence === k ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{label}</button>
-                ))}
-              </div>
+              <Tabs value={presence} onChange={setPresence} options={[
+                { id: 'all', label: 'All', count: roster.length },
+                { id: 'free', label: 'Free', count: roster.filter((r) => isFreeStatus(r.status)).length },
+                { id: 'busy', label: 'Busy', count: roster.filter((r) => !isFreeStatus(r.status)).length },
+              ]} />
             )}
-            <div className="space-y-1">
-              {roster.filter((r) => matches(r.name, query) && (presence === 'all' || (presence === 'free') === isFreeStatus(r.status))).map((r) => {
+            <div className="space-y-px">
+              {[...roster]
+                .filter((r) => matches(r.name, query) && (presence === 'all' || (presence === 'free') === isFreeStatus(r.status)))
+                // you first, then people who are talking or sharing, then the rest by name
+                .sort((a, b) => (a.id === connId ? -1 : b.id === connId ? 1 : 0) || (Number(!!b.share) + Number(calls.speakingIds.has(b.id))) - (Number(!!a.share) + Number(calls.speakingIds.has(a.id))) || a.name.localeCompare(b.name))
+                .map((r) => {
                 const isMe = r.id === connId;
-                const act = 'flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+                const act = 'flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground';
+                const tile = calls.tiles.find((t) => t.id === r.id && !t.screen);
+                const st = statusOf(r.status);
                 return (
-                  <div key={r.id} className="group relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-[#D6AC50] before:opacity-0 before:transition-opacity hover:bg-primary/[0.07] hover:before:opacity-100">
-                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isMe ? 'Your profile' : `See ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}>
-                    <span className="relative shrink-0"><AvatarFace avatar={r.avatar} size={36} /><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-[0_0_0_2px_rgba(0,236,255,.0)] transition-colors" style={{ background: dotColor(r.status) }} title={statusOf(r.status)?.label ?? 'Available'} /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.name}{isMe ? ' (you)' : ''}</span><span className="flex min-w-0 items-center text-xs text-muted-foreground"><span className="truncate">{statusOf(r.status) ? statusOf(r.status)?.label : 'Active now'} · {whereIs(r)}</span>{r.share && <span className="ml-1.5 flex shrink-0 items-center gap-0.5 rounded bg-emerald-500/15 px-1 text-[10px] font-semibold text-emerald-500" title="Sharing their screen"><MonitorUp className="h-3 w-3" />Sharing</span>}</span></span>
-                    </button>
-                    {!isMe && (
-                      <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-px rounded-full bg-popover/95 px-1 py-0.5 opacity-0 shadow-sm ring-1 ring-border/70 backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                        {calls.tiles.some((t) => t.id === r.id && !t.screen) && (
-                          <button type="button" className={act} title={calls.tiles.find((t) => t.id === r.id)?.muted ? `Unmute ${r.name}` : `Mute ${r.name} (only for you)`} aria-label={`Mute ${r.name}`} onClick={() => calls.toggleMutePeer(r.id)}>
-                            {calls.tiles.find((t) => t.id === r.id)?.muted ? <VolumeX className="h-3 w-3 text-red-500" /> : <Volume2 className="h-3 w-3" />}
-                          </button>
-                        )}
-                        <button type="button" className={act} title={`View ${r.name}'s profile`} aria-label={`View ${r.name}'s profile`} onClick={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}><UserCircle className="h-3 w-3" /></button>
-                        <button type="button" className={act} title={`Go to ${r.name}`} onMouseEnter={(e) => { e.currentTarget.title = `Go to ${r.name} · ${whereIs(r)}`; }} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3 w-3" /></button>
-                        <button type="button" className={`${act} ${follow === r.id ? 'bg-primary/15 text-primary' : ''}`} title={follow === r.id ? 'Stop following' : `Follow ${r.name}`} aria-label={`Follow ${r.name}`} onClick={() => startFollow(r.id)}><Footprints className="h-3 w-3" /></button>
-                        <button type="button" className={act} title={`Ring ${r.name}`} aria-label={`Ring ${r.name}`} onClick={() => ring(r)}><BellRing className="h-3 w-3" /></button>
-                        <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3 w-3" /></button>
-                      </span>
-                    )}
-                  </div>
+                  <PersonRow
+                    key={r.id} avatar={r.avatar} name={r.name} isMe={isMe} color={dotColor(r.status)} statusLabel={st && !isFreeStatus(r.status) ? st.label : null}
+                    where={shortWhere(whereIs(r))} speaking={calls.speakingIds.has(r.id)} sharing={!!r.share} recording={r.rec}
+                    onOpen={(e) => setProfileCardUid(r.uid, e.clientX, e.clientY)}
+                    actions={isMe ? null : (<>
+                      <button type="button" className={act} title={`Message ${r.name}`} aria-label={`Message ${r.name}`} onClick={() => openChat(r.id)}><MessageCircle className="h-3.5 w-3.5" /></button>
+                      <button type="button" className={act} title={`Go to ${r.name}`} onMouseEnter={(e) => { e.currentTarget.title = `Go to ${r.name} · ${whereIs(r)}`; }} aria-label={`Go to ${r.name}`} onClick={() => goToPerson(r.id, r.spaceId)}><LocateFixed className="h-3.5 w-3.5" /></button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className={act} title={`More for ${r.name}`} aria-label={`More for ${r.name}`} onPointerDown={(e) => { menuAt.current = { x: e.clientX, y: e.clientY }; }}><MoreHorizontal className="h-3.5 w-3.5" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onSelect={() => ring(r)}><BellRing className="mr-2 h-4 w-4" />Ring {r.name.split(' ')[0]}</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => startFollow(r.id)}><Footprints className="mr-2 h-4 w-4" />{follow === r.id ? 'Stop following' : 'Follow'}</DropdownMenuItem>
+                          {tile && <DropdownMenuItem onSelect={() => calls.toggleMutePeer(r.id)}>{tile.muted ? <Volume2 className="mr-2 h-4 w-4" /> : <VolumeX className="mr-2 h-4 w-4" />}{tile.muted ? 'Unmute (only for you)' : 'Mute (only for you)'}</DropdownMenuItem>}
+                          <DropdownMenuItem onSelect={() => setProfileCardUid(r.uid, menuAt.current.x, menuAt.current.y)}><UserCircle className="mr-2 h-4 w-4" />Profile</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>)}
+                  />
                 );
               })}
-              {roster.length === 0 && <p className="px-2.5 text-xs text-muted-foreground">Nobody yet.</p>}
+              {roster.length === 0 && <p className="px-2 text-xs text-muted-foreground">Nobody yet.</p>}
             </div>
           </>)}
           </section>
 
-          {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query)).length > 0 && (
-            <section>
-              <SecHead id="offline" shut={shut} flip={flip}>Offline ({(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id)).length})</SecHead>
-            {!shut('offline') && (<>
-              <div className="space-y-0.5">
-                {(directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query))
-                  // the people who were here most recently come first
-                  .sort((a, b) => (Date.parse(lastSeen?.get(b.id) ?? '') || 0) - (Date.parse(lastSeen?.get(a.id) ?? '') || 0))
-                  .map((p) => (
-                  <button key={p.id} type="button" onClick={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} title={`See ${p.name}'s profile`} className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground">
-                    <AvatarFace avatar={p.avatar} size={32} dim />
-                    <span className="min-w-0 flex-1"><span className="block truncate">{p.name}</span><span className="flex items-center gap-1.5 text-[11px] opacity-80"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" /><span className="truncate">{lastSeen?.get(p.id) ? seenLabel(lastSeen.get(p.id)) : 'Not seen yet'}</span></span></span>
+          {/* where to go: rooms, and the spaces for people who can switch */}
+          {(roomSpaceId || teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).length > 1 || isAdmin) && (
+          <section>
+            <SideTitle title="Places" open={!shut('rooms')} onToggle={() => flip('rooms')} />
+            {!shut('rooms') && (<div className="space-y-px">
+              {teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).length > 1 && teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).map((sp) => (
+                <div key={sp.id} className={`group flex items-center rounded-lg transition-colors hover:bg-white/[0.05] ${sp.id === space.id ? 'bg-[#00ECFF]/[0.07]' : ''}`}>
+                  <button type="button" onClick={() => setSpaceId(sp.id)} className="flex min-w-0 flex-1 items-center gap-2 px-1.5 py-1.5 text-left text-[12.5px]">
+                    <Building2 className={`h-3.5 w-3.5 shrink-0 ${sp.id === space.id ? 'text-[#00ECFF]' : 'text-muted-foreground'}`} /><span className={`truncate ${sp.id === space.id ? 'font-semibold' : ''}`}>{sp.name}</span>
                   </button>
-                ))}
-              </div>
-            </>)}
+                  <span className="mr-1 hidden shrink-0 gap-0.5 group-hover:flex">
+                    <button type="button" aria-label={`Copy link to ${sp.name}`} title="Copy link" onClick={() => void copySpaceLink(sp)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><LinkIcon className="h-3.5 w-3.5" /></button>
+                    {isSuper && <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><Pencil className="h-3.5 w-3.5" /></button>}
+                    {isSuper && sp.id !== myTeam?.id && <button type="button" aria-label={`Delete ${sp.name}`} title="Delete" onClick={() => void removeSpace(sp)} className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-white/10"><Trash2 className="h-3.5 w-3.5" /></button>}
+                  </span>
+                </div>
+              ))}
+              {roomSpaceId && teamMap.zones.filter((z) => (z.kind === 'meeting' || z.kind === 'lounge') && matches(z.name, query)).map((z) => {
+                const people = roomPeople(z.id);
+                return (
+                  <button key={z.id} type="button" onClick={() => goToRoom(z)} title={`Go to ${z.name}`} className="block w-full rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 text-[12.5px]"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${people.length ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/20'}`} /><span className="truncate">{z.name}</span>{locked.has(z.id) && <Lock className="h-3 w-3 shrink-0 text-amber-500" aria-label="Locked" />}</span>
+                      {people.length > 0 && <span className="font-mono text-[10.5px] font-semibold text-emerald-400">{people.length}</span>}
+                    </div>
+                    {people.length > 0 && <p className="ml-3 truncate text-[11px] text-muted-foreground">{people.map((p) => p.name.split(' ')[0]).join(', ')}</p>}
+                  </button>
+                );
+              })}
+              {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-[12px] text-primary hover:bg-white/[0.05]"><Plus className="h-3.5 w-3.5" />New space</button>}
+            </div>)}
           </section>
           )}
+
+          {/* people who are away are folded out of sight until you want them */}
+          {(() => {
+            const away = (directory ?? []).filter((p) => !roster.some((r) => r.uid === p.id) && matches(p.name, query))
+              // the people who were here most recently come first
+              .sort((a, b) => (Date.parse(lastSeen?.get(b.id) ?? '') || 0) - (Date.parse(lastSeen?.get(a.id) ?? '') || 0));
+            if (!away.length) return null;
+            const open = folded.includes('offline:open');
+            const shown = open ? (showAllAway ? away : away.slice(0, 8)) : [];
+            return (
+              <section>
+                <SideTitle title="Away" count={away.length} open={open} onToggle={() => flip('offline:open')} />
+                {open && (<div className="space-y-px">
+                  {shown.map((p) => <OfflineRow key={p.id} avatar={p.avatar} name={p.name} seen={lastSeen?.get(p.id) ? seenAgo(lastSeen.get(p.id)).replace(' ago', '') : 'never'} onOpen={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} />)}
+                  {!showAllAway && away.length > shown.length && <button type="button" onClick={() => setShowAllAway(true)} className="w-full rounded-md px-1.5 py-1 text-left text-[11px] font-semibold text-[#9ff6ff]/80 hover:bg-white/[0.04]">Show all {away.length}</button>}
+                </div>)}
+              </section>
+            );
+          })()}
         </SlotAside>
 
         <div

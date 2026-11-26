@@ -1,0 +1,96 @@
+import type { ReactNode } from 'react';
+import { ChevronDown, MapPin, MonitorUp } from 'lucide-react';
+import { AvatarFace } from './AvatarFace';
+import type { AvatarStyle } from './world/types';
+
+/** The people sidebar: a few calm pieces (a title with a count, one-line people, folded-away offline), in the KD colours. */
+
+const two = (n: number) => String(n).padStart(2, '0');
+
+/** A section title: a small glowing marker, the name, the count in gold, and a hairline that fades out. Click to fold. */
+export function SideTitle({ title, count, open, onToggle, right }: { title: string; count?: number; open: boolean; onToggle: () => void; right?: ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-2">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="group flex min-w-0 flex-1 items-center gap-2 text-left">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-[2px] bg-[#00ECFF] shadow-[0_0_8px_#00ECFF]" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9ff6ff]/85 transition-colors group-hover:text-[#9ff6ff]">{title}</span>
+        {count !== undefined && <span className="font-mono text-[10.5px] font-semibold text-[#D6AC50]">{two(count)}</span>}
+        <span className="h-px min-w-3 flex-1 bg-gradient-to-r from-[#00ECFF]/35 to-transparent" />
+        <ChevronDown className={`h-3 w-3 shrink-0 text-[#9ff6ff]/50 transition-transform ${open ? '' : '-rotate-90'}`} />
+      </button>
+      {right}
+    </div>
+  );
+}
+
+/** A quiet three-way filter: text with a glowing underline under the one that is on (no big coloured pills). */
+export function Tabs<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: string; count: number }[] }) {
+  return (
+    <div role="tablist" className="mb-1.5 flex items-center gap-3 border-b border-white/[0.06] px-0.5">
+      {options.map((o) => (
+        <button key={o.id} type="button" role="tab" aria-selected={value === o.id} onClick={() => onChange(o.id)}
+          className={`relative -mb-px pb-1.5 text-[11px] font-semibold transition-colors ${value === o.id ? 'text-[#9ff6ff]' : 'text-muted-foreground hover:text-foreground'}`}>
+          {o.label} <span className="font-mono text-[10px] opacity-70">{o.count}</span>
+          {value === o.id && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#00ECFF] shadow-[0_0_8px_#00ECFF]" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Where somebody is, without the "In" in front. */
+export const shortWhere = (s: string) => s.replace(/^In /, '');
+
+/** One person who is here now. The picture has a ring in their status colour (and pulses while they talk). */
+export function PersonRow({ avatar, name, isMe, color, statusLabel, where, speaking, sharing, recording, onOpen, actions }: {
+  avatar: AvatarStyle;
+  name: string;
+  isMe: boolean;
+  /** the status colour (green free, amber busy, red do not disturb) */
+  color: string;
+  /** shown only when it says something (not Available) */
+  statusLabel: string | null;
+  where: string;
+  speaking: boolean;
+  sharing: boolean;
+  recording: boolean;
+  onOpen: (e: React.MouseEvent) => void;
+  actions: ReactNode;
+}) {
+  return (
+    <div className="group relative flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-white/[0.045]">
+      <button type="button" onClick={onOpen} title={isMe ? 'Your profile' : `See ${name}'s profile`} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <span className={`relative shrink-0 rounded-full ${speaking ? 'animate-pulse' : ''}`} style={{ boxShadow: `0 0 0 2px ${speaking ? '#34d399' : color}, 0 0 12px ${speaking ? '#34d399' : color}66` }}>
+          <AvatarFace avatar={avatar} size={32} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[13px] font-semibold leading-tight">{name}</span>
+            {isMe && <span className="shrink-0 rounded bg-[#00ECFF]/15 px-1 text-[9px] font-bold uppercase tracking-wider text-[#9ff6ff]">you</span>}
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+            <MapPin className="h-2.5 w-2.5 shrink-0 opacity-60" /><span className="truncate">{where}</span>
+          </span>
+        </span>
+      </button>
+      <span className="flex shrink-0 items-center gap-1 group-hover:hidden group-focus-within:hidden">
+        {sharing && <span title="Sharing their screen" className="flex items-center gap-0.5 rounded bg-emerald-500/15 px-1 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-400"><MonitorUp className="h-3 w-3" />Live</span>}
+        {recording && <span title="Recording a meeting" className="h-2 w-2 animate-pulse rounded-full bg-red-500" />}
+        {statusLabel && <span className="rounded px-1 py-0.5 text-[9.5px] font-bold uppercase tracking-wide" style={{ color, background: `${color}22` }}>{statusLabel}</span>}
+      </span>
+      {/* the few things you do with a person show on hover, over the right-hand end of the row */}
+      <span className="absolute right-1 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-full bg-popover/95 px-1 py-0.5 shadow-md ring-1 ring-[#00ECFF]/25 backdrop-blur group-hover:flex group-focus-within:flex">{actions}</span>
+    </div>
+  );
+}
+
+/** Somebody who is not here: a small, dim line with when they were last here. */
+export function OfflineRow({ avatar, name, seen, onOpen }: { avatar: AvatarStyle; name: string; seen: string; onOpen: (e: React.MouseEvent) => void }) {
+  return (
+    <button type="button" onClick={onOpen} title={`See ${name}'s profile`} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground">
+      <AvatarFace avatar={avatar} size={22} dim />
+      <span className="min-w-0 flex-1 truncate text-[12px]">{name}</span>
+      <span className="shrink-0 font-mono text-[9.5px] opacity-60">{seen}</span>
+    </button>
+  );
+}
