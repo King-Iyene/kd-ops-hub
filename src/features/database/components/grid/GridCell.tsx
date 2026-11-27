@@ -97,6 +97,7 @@ export const GridCell = React.memo(function GridCell({
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (e.shiftKey) return;
       if (field.ui_type === 'Checkbox' && !isSystemField) {
         onCellUpdate(record.id, field.id, !value);
         return;
