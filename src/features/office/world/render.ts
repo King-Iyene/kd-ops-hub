@@ -4641,6 +4641,8 @@ export interface DrawPerson {
   dir: 0 | 1 | 2 | 3;
   moving: boolean;
   name: string;
+  /** pixels to lift the name tag (set when somebody's tag would cover another's) */
+  tagLift?: number;
   avatar: AvatarStyle;
   isMe: boolean;
   /** this person's live camera, drawn as a bubble above their head */
@@ -5324,7 +5326,7 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   const label = p.name;
   const dotW = p.dot ? 8 : 0;
   const w = ctx.measureText(label).width + 12 + dotW;
-  const ty = py - 38 + bob;
+  const ty = py - 38 + bob - (p.tagLift ?? 0);
   if (p.name) {
   ctx.fillStyle = 'rgba(15,23,42,0.25)';
   rr(ctx, px - w / 2 + 1, ty - 7, w, 14, 7);
