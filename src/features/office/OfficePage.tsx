@@ -27,7 +27,7 @@ import { VisitorsDialog } from './guest/VisitorsDialog';
 import { useGuestInvites } from './guest/useGuestInvites';
 import { ALL, isPicture, safeFileName, shouldNotify, useChat, type ChatMsg } from './chat';
 import { playChime, playRecordingCue, playRing, playWave } from './chime';
-import { canSendTo, cleanText, matches, parsePing } from './social';
+import { canSendTo, matches, parsePing } from './social';
 import { CallDock } from './calls/CallDock';
 import { MeetingView } from './calls/MeetingView';
 import { ProfileMenu } from './ProfileMenu';
@@ -857,28 +857,8 @@ function OfficeRoom() {
     lastSent.current.set(`wave:${r.id}`, Date.now());
     sendPing({ k: 'wave', f: connId, n: me.name, t: r.id, s: space?.id ?? null });
     sendEmote('👋');
-    playWave(0.2);
+    playWave(0.12);
     toast({ title: `You waved at ${r.name}`, description: 'If they are free they will come over.' });
-  };
-
-  const sendMessage = async (text: string, file: File | null) => {
-    const target = chatWith;
-    if (!target || !me) return;
-    if (!roster.some((r) => r.id === target.id)) throw new Error(`${target.name} is offline.`);
-    if (!canSendTo(lastSent.current, target.id, Date.now(), 'dm')) throw new Error('Slow down a little.');
-    let img: string | undefined;
-    let imgUrl: string | undefined;
-    if (file) {
-      img = `${me.id}/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${file.type.split('/')[1].replace('jpeg', 'jpg')}`;
-      const up = await supabase.storage.from('office-shared').upload(img, file, { contentType: file.type });
-      if (up.error) throw up.error;
-      imgUrl = URL.createObjectURL(file);
-    }
-    const clean = cleanText(text);
-    if (!clean && !img) return;
-    lastSent.current.set(`dm:${target.id}`, Date.now());
-    sendPing({ k: 'dm', f: connId, n: me.name, t: target.id, s: space?.id ?? null, text: clean || undefined, img });
-    setInbox((l) => [...l.slice(-99), { id: crypto.randomUUID(), withId: target.id, mine: true, text: clean || undefined, imgUrl, at: Date.now() }]);
   };
 
   const handlePing = async (raw: unknown) => {
@@ -1439,7 +1419,6 @@ function OfficeRoom() {
   };
   const here = roster.filter((r) => r.spaceId === space?.id);
   const roomPeople = (zid: string) => roster.filter((r) => r.spaceId === roomSpaceId && r.zone === zid);
-  const otherOffices = (spaces ?? []).filter((s) => s.kind === 'personal' && s.owner_id !== profile?.id);
 
   if (!me || !spaces) {
     return <div className="p-6 text-sm text-muted-foreground">Loading the office…</div>;
