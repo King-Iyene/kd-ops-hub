@@ -1,64 +1,40 @@
-import { FILES } from '@/features/office/desktopApp';
+import { feedDownload, feedOsFor, feedUrl, readFeed, saveFromUrl, type FeedOs } from '@/features/office/desktopApp';
 
 /**
- * The KD Ops Time Tracker installers, served from our own project's public storage (the "desktop-app" bucket), never from GitHub:
- * the repository is private, so a GitHub link would send people to a GitHub login or error page. The "Mirror Time Tracker installers"
- * workflow keeps the files there. If a file is not there yet, the person is told so in the app and nothing opens.
+ * The KD Ops Time Tracker installers, served from the same update feed the installed tracker updates itself from (our own public
+ * storage, never GitHub: the repository is private, so a GitHub link would send people to a login or error page). The Download buttons
+ * read the feed's small version file to learn which installer is the newest, so a download and an update can never disagree.
+ * If the feed has nothing yet, the person is told so in the app and nothing opens.
  */
-export type TrackerOs = 'windows' | 'mac' | 'linux';
+export type TrackerOs = FeedOs;
 
-const STORED: Record<TrackerOs, { file: string; ext: string; label: string }> = {
-  windows: { file: 'KD-Time-Tracker-Setup.exe', ext: 'exe', label: 'Windows (.exe)' },
-  mac: { file: 'KD-Time-Tracker.dmg', ext: 'dmg', label: 'Mac, Apple chip (.dmg)' },
-  linux: { file: 'KD-Time-Tracker.AppImage', ext: 'AppImage', label: 'Linux (.AppImage)' },
-};
+export const TRACKER_OSES: { os: TrackerOs; label: string }[] = [
+  { os: 'windows', label: 'Windows (.exe)' },
+  { os: 'mac', label: 'Mac, Apple chip (.dmg)' },
+  { os: 'linux', label: 'Linux (.AppImage)' },
+];
 
-export const TRACKER_OSES: { os: TrackerOs; label: string }[] = (Object.keys(STORED) as TrackerOs[]).map((os) => ({ os, label: STORED[os].label }));
-
-/** The address of the installer for a system; "?download=" makes the browser save it under a proper name instead of leaving the page. */
-export function trackerUrl(os: TrackerOs, version: string | null): string {
-  const f = STORED[os];
-  const saveAs = `KD-Ops-Time-Tracker${version ? `-${version}` : ''}.${f.ext}`;
-  return `${FILES()}/${f.file}?download=${encodeURIComponent(saveAs)}`;
-}
-
-/** Which version is on the storage (null when there is none yet). */
+/** Which version is on the feed (null when there is none yet). */
 export async function fetchTrackerVersion(): Promise<string | null> {
   try {
-    const r = await fetch(`${FILES()}/tracker-version.json`, { cache: 'no-store' });
+    const r = await fetch(`${feedUrl('tracker')}/latest.yml`, { cache: 'no-store' });
     if (!r.ok) return null;
-    const j = (await r.json()) as { version?: unknown };
-    return typeof j.version === 'string' && /^[0-9][0-9A-Za-z.-]*$/.test(j.version) ? j.version : null;
+    return readFeed(await r.text()).version;
   } catch {
     return null;
   }
 }
 
 /** The system this computer runs, or null on a phone or tablet (the tracker is for computers). */
-export function trackerOsFor(platform: string = typeof navigator === 'undefined' ? '' : `${navigator.userAgent} ${navigator.platform}`): TrackerOs | null {
-  const p = platform.toLowerCase();
-  if (/android|iphone|ipad|ipod/.test(p)) return null;
-  if (/win/.test(p) && !/darwin/.test(p)) return 'windows';
-  if (/mac/.test(p)) return 'mac';
-  if (/linux|x11/.test(p)) return 'linux';
-  return null;
-}
+export const trackerOsFor = feedOsFor;
 
-/** Start the download without leaving the page. 'not-ready' when the installer is not on our storage yet. */
-export async function startTrackerDownload(os: TrackerOs, version: string | null): Promise<'started' | 'not-ready'> {
-  const url = trackerUrl(os, version);
-  try {
-    const r = await fetch(url, { method: 'HEAD' });
-    if (!r.ok) return 'not-ready';
-  } catch {
-    return 'not-ready';
-  }
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = '';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+/** The folder the tracker's files are in (for tests and for the checks that the feed never points at GitHub). */
+export const trackerFeedFolder = () => feedUrl('tracker');
+
+/** Start the download without leaving the page. 'not-ready' when the feed has no installer for this system yet. */
+export async function startTrackerDownload(os: TrackerOs): Promise<'started' | 'not-ready'> {
+  const d = await feedDownload('tracker', os);
+  if (!d) return 'not-ready';
+  saveFromUrl(d.url, d.file);
   return 'started';
 }

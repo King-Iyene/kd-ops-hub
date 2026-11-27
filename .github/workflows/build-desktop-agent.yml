@@ -34,13 +34,21 @@ name: Build desktop agent installers
 #
 # Triggers:
 #   - push of a tag matching "desktop-agent-v*" (real release)
-#   - manual dispatch (for verification builds without cutting a release)
+#   - manual dispatch (a verification build; tick "publish" to cut the release for the version in desktop-agent/package.json)
+#
+# After a published build finishes, "Mirror Time Tracker installers" puts it on our own update feed (the one the installed tracker updates from
+# and the Download button reads), by itself.
 
 on:
   push:
     tags:
       - "desktop-agent-v*"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish this build (the release "desktop-agent-v<version in desktop-agent/package.json>"; it then goes onto the update feed by itself)
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -118,7 +126,7 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/desktop-agent-v')
+    if: ${{ startsWith(github.ref, 'refs/tags/desktop-agent-v') || inputs.publish }}
     runs-on: ubuntu-latest
     # The default GITHUB_TOKEN is read-only unless a job explicitly asks for
     # write access. Without this, softprops/action-gh-release can find the
@@ -127,6 +135,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the release name
+        id: rel
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/desktop-agent-v* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=desktop-agent-v$(jq -r .version desktop-agent/package.json)" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -136,7 +155,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "KD Ops Time Tracker ${{ github.ref_name }}"
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: "KD Ops Time Tracker ${{ steps.rel.outputs.tag }}"
           body: |
             Native desktop agent for KD Ops Hub time tracking — tracks active
             window/app outside the browser, same as the rest of the Time

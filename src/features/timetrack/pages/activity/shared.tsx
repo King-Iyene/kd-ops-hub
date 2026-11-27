@@ -209,7 +209,7 @@ function DesktopAgentDialogContent() {
   const get = async (os: TrackerOs) => {
     setBusy(os);
     setNote(null);
-    const r = await startTrackerDownload(os, version.data ?? null);
+    const r = await startTrackerDownload(os);
     setBusy(null);
     setNote(r === 'started' ? 'Your download has started. When it finishes, open the installer.' : 'This installer is not ready yet. Please try again in a few minutes, or ask an admin.');
   };

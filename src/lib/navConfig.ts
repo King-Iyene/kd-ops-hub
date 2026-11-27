@@ -327,6 +327,16 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     iconBg: 'bg-cyan-500/15',
     groups: ['taskModule'],
   },
+  // The Agent sits high in the list, right after Task (the two everyday tools); Admin is always last.
+  {
+    key: 'opsAgent',
+    label: 'Agent',
+    description: 'Flags, summaries & chat',
+    icon: 'Bot',
+    color: 'text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    groups: ['opsAgent'],
+  },
   {
     key: 'people',
     label: 'People & HR',
@@ -381,6 +391,7 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     iconBg: 'bg-fuchsia-500/15',
     groups: ['office'],
   },
+  // Admin is always the last one.
   {
     key: 'admin',
     label: 'Admin',
@@ -389,16 +400,6 @@ export const SIDEBAR_HUBS: SidebarHub[] = [
     color: 'text-slate-400',
     iconBg: 'bg-slate-500/15',
     groups: ['admin'],
-  },
-  // Last in the list: the Agent sits at the bottom of the side panel.
-  {
-    key: 'opsAgent',
-    label: 'Agent',
-    description: 'Flags, summaries & chat',
-    icon: 'Bot',
-    color: 'text-violet-400',
-    iconBg: 'bg-violet-500/15',
-    groups: ['opsAgent'],
   },
 ];
 

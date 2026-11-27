@@ -6,6 +6,10 @@ name: Build KD Ops desktop app
 # and put the same files (including latest*.yml) on the release tagged kd-ops-desktop-channel, which is where installed apps look for updates. Each installer is built on its own operating system, because a macOS .dmg
 # cannot be built on Linux.
 #
+# After a published build finishes, "Mirror desktop installers" puts it on OUR OWN update feed (public storage, folder updates/office) by itself.
+# That feed is what the app (since 0.3.9) updates from and what the Download button reads; the GitHub channel above stays only so that
+# older installed apps (0.3.8 and earlier, which look there) still find the new version and move onto the feed.
+#
 # Mac note: the app is not signed with an Apple developer account, so macOS shows a warning the first time
 # (right-click the app, choose Open). Signing needs a paid Apple developer account.
 

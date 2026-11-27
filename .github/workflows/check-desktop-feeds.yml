@@ -1,0 +1,51 @@
+name: Check desktop update feeds
+
+# Every day, checks that the update feeds of both desktop apps (KD Ops and the Time Tracker) are complete, public, and on the same version as
+# the newest published release. If not, this run FAILS, and GitHub emails the owner about a failed scheduled run: that is the alarm
+# for "the newest build never reached everybody", which used to go unnoticed until people complained.
+#
+# It only reads (the feeds are public); no secret is printed or needed beyond the project reference.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check both feeds
+        run: |
+          set -u
+          FAIL=0
+          check() { # app, release tag prefix
+            local app="$1" prefix="$2"
+            local base="https://$REF.supabase.co/storage/v1/object/public/desktop-app/updates/$app"
+            local newest
+            newest=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft,isPrerelease -q ".[] | select(.isDraft==false and .isPrerelease==false) | .tagName | select(startswith(\"$prefix\"))" | sed "s/^$prefix//" | sort -V | tail -1)
+            echo "== $app: newest published release is '$newest'"
+            for y in latest.yml latest-mac.yml latest-linux.yml; do
+              local text
+              if ! text=$(curl -fsS "$base/$y"); then echo "PROBLEM: $app $y is not on the feed"; FAIL=1; continue; fi
+              local v
+              v=$(echo "$text" | sed -nE "s/^version:[[:space:]]*['\"]?([0-9][0-9A-Za-z.+-]*)['\"]?[[:space:]]*$/\1/p" | head -1)
+              echo "$app $y -> version '$v'"
+              if [ -n "$newest" ] && [ "$v" != "$newest" ]; then echo "PROBLEM: $app $y is on '$v' but the newest release is '$newest' (the build never reached the feed)"; FAIL=1; fi
+              for f in $(echo "$text" | sed -nE "s/^[[:space:]]*(-[[:space:]]+)?(url|path):[[:space:]]*['\"]?([^'\"[:space:]]+)['\"]?[[:space:]]*$/\3/p" | sort -u); do
+                code=$(curl -sS -o /dev/null -I -w '%{http_code}' "$base/$f" || echo 000)
+                echo "  $f -> $code"
+                [ "$code" = "200" ] || { echo "PROBLEM: $app $f is listed in $y but cannot be fetched ($code)"; FAIL=1; }
+              done
+            done
+          }
+          check office "office-desktop-v"
+          check tracker "desktop-agent-v"
+          if [ "$FAIL" != "0" ]; then echo "At least one update feed is behind or broken. Run 'Mirror desktop installers' / 'Mirror Time Tracker installers' (Run workflow) to repair it."; exit 1; fi
+          echo "Both update feeds are complete and up to date."

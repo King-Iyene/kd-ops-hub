@@ -1,18 +1,19 @@
 name: Mirror Time Tracker installers
 
-# The KD Ops Time Tracker installers are built into releases of this PRIVATE repository, which only people with a GitHub login to it
-# can download from. This copies the current installers into the public "desktop-app" storage bucket (created by a migration) so the
-# "Get desktop app" button in Time Tracking can hand them out straight from our own project, with no GitHub page in between.
+# KD Ops Time Tracker: copies a PUBLISHED build onto OUR OWN update feed (the public "desktop-app" storage bucket, folder updates/tracker).
 #
-# It runs by itself after "Build desktop agent installers" finishes, and by hand (Run workflow) to fill the bucket the first time or to
-# repeat it. Which version: the one typed in, otherwise the one in desktop-agent/package.json.
-# It uses the same secrets the other Supabase workflows use (SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF); no new secret is needed.
+# Why: see "Mirror desktop installers". The installed tracker (its update address) and the "Get desktop app" button in Time Tracking both
+# read this feed, never GitHub, so a build that is on the feed is a build everybody gets, and nobody can be left on an old version
+# because GitHub said no.
+#
+# It runs by itself whenever "Build desktop agent installers" finishes; a build that was not published (no release for its version) is
+# skipped. Run it by hand to repeat or repair (type a version, or leave it empty for the version of the code it runs on).
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to mirror (leave empty for the one in desktop-agent/package.json)
+        description: Version to put on the feed (leave empty for the version in desktop-agent/package.json)
         type: string
         default: ''
   workflow_run:
@@ -32,20 +33,26 @@ jobs:
       REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Work out the version and fetch the installers from the release
+      - name: Work out the version and fetch the published build
         run: |
           set -e
           V="${{ inputs.version }}"
           if [ -z "$V" ]; then V=$(jq -r .version desktop-agent/package.json); fi
-          echo "Mirroring KD Ops Time Tracker $V"
-          echo "V=$V" >> "$GITHUB_ENV"
+          echo "KD Ops Time Tracker $V"
+          if ! gh release view "desktop-agent-v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "There is no published release desktop-agent-v$V (that build was not published), so there is nothing to put on the feed."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
           mkdir -p dl
-          gh release download "desktop-agent-v$V" --repo "$GITHUB_REPOSITORY" --dir dl \
-            --pattern "KD-Ops-Time-Tracker-Setup-$V.exe" --pattern "KD.Ops.Time.Tracker-$V-arm64.dmg" --pattern "KD.Ops.Time.Tracker-$V.AppImage"
+          gh release download "desktop-agent-v$V" --repo "$GITHUB_REPOSITORY" --dir dl
           ls -la dl
 
       - name: Get the storage key for the project (never printed)
+        if: env.SKIP != '1'
         run: |
           set -e
           KEY=$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$REF/api-keys?reveal=true" | jq -r '.[] | select(.name=="service_role") | .api_key')
@@ -53,27 +60,6 @@ jobs:
           echo "::add-mask::$KEY"
           echo "SERVICE_KEY=$KEY" >> "$GITHUB_ENV"
 
-      - name: Upload to the public bucket under fixed names
-        run: |
-          set -e
-          up() { # local file, name in the bucket, content type
-            echo "Uploading $2 ($(du -h "$1" | cut -f1))"
-            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "https://$REF.supabase.co/storage/v1/object/desktop-app/$2" \
-              -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" -H "x-upsert: true" -H "Content-Type: $3" --data-binary @"$1")
-            if [ "$code" != "200" ]; then echo "Upload of $2 failed ($code):"; cat resp.txt; echo; exit 1; fi
-          }
-          up "dl/KD-Ops-Time-Tracker-Setup-$V.exe" "KD-Time-Tracker-Setup.exe" application/octet-stream
-          up "dl/KD.Ops.Time.Tracker-$V-arm64.dmg" "KD-Time-Tracker.dmg" application/octet-stream
-          up "dl/KD.Ops.Time.Tracker-$V.AppImage" "KD-Time-Tracker.AppImage" application/octet-stream
-          printf '{"version":"%s"}' "$V" > tracker-version.json
-          up tracker-version.json "tracker-version.json" application/json
-
-      - name: Check that everyone can get them without a login
-        run: |
-          set -e
-          for f in KD-Time-Tracker-Setup.exe KD-Time-Tracker.dmg KD-Time-Tracker.AppImage tracker-version.json; do
-            code=$(curl -sS -o /dev/null -I -w '%{http_code}' "https://$REF.supabase.co/storage/v1/object/public/desktop-app/$f")
-            echo "$f -> $code"
-            [ "$code" = "200" ] || exit 1
-          done
-          echo "KD Ops Time Tracker $V is on the public download bucket."
+      - name: Put it on the update feed (installers first, the version files last, then check everybody can fetch it)
+        if: env.SKIP != '1'
+        run: bash scripts/publish-update-feed.sh tracker dl

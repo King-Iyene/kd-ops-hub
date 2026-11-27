@@ -3,7 +3,7 @@ import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Ha
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
-import { desktopDownload } from './desktopApp';
+import { desktopLabel } from './desktopApp';
 import { downloadDesktopApp } from './desktopDownloadAction';
 import type { AvatarStyle } from './world/types';
 import { WeatherCard, phaseOf, seasonBadge } from './SkyPanel';
@@ -126,7 +126,7 @@ export function ProfileMenu(p: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <p className="truncate text-[15px] font-extrabold leading-tight tracking-tight">{p.name}</p>
-              {<button type="button" title={`Download the KD Ops desktop app for ${desktopDownload().label}`} aria-label="Download the desktop app" onClick={() => { void downloadDesktopApp(); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
+              {<button type="button" title={`Download the KD Ops desktop app for ${desktopLabel()}`} aria-label="Download the desktop app" onClick={() => { void downloadDesktopApp(); }} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-muted-foreground ring-1 ring-white/[0.08] transition hover:bg-white/[0.14] hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>}
             </div>
             <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{st ? st.label : 'Available'}</p>
           </div>
@@ -271,7 +271,7 @@ export function ProfileMenu(p: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2.5">
                 {tile('guests', <UserPlus className="h-4 w-4" />, p.guestsWaiting ? `Guests (${p.guestsWaiting})` : 'Guests', p.guestsWaiting ? `${p.guestsWaiting} waiting at the door` : 'Invite visitors by email', p.onGuests)}
-                {tile('download', <Download className="h-4 w-4" />, 'Get the desktop app', `For ${desktopDownload().label}: KD Ops and the Office in one app`, () => { void downloadDesktopApp(); })}
+                {tile('download', <Download className="h-4 w-4" />, 'Get the desktop app', `For ${desktopLabel()}: KD Ops and the Office in one app`, () => { void downloadDesktopApp(); })}
                 {p.canManage && tile('manage', <Settings className="h-4 w-4" />, 'Manage space', 'Offices, seats, people', p.onManage)}
                 {p.canEdit && !p.editing && tile('edit', <Hammer className="h-4 w-4" />, 'Edit the space', 'Objects, walls, floors', p.onEdit)}
                 {p.canSettings && tile('settings', <Settings className="h-4 w-4" />, 'Permissions', 'Builders and recorders', p.onSettings)}
