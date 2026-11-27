@@ -1,5 +1,5 @@
 import React from 'react';
-import { Expand, MoreHorizontal } from 'lucide-react';
+import { GripVertical, Maximize2 } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import type { GridColorTokens } from '../../hooks/useGridColors';
 import { useDatabaseUI } from '../../lib/store';
@@ -143,24 +143,24 @@ export const GridRow = React.memo(function GridRow({
             className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
             style={{ accentColor: colors.primary, outlineColor: colors.primary }}
             checked
+            onClick={(e) => e.stopPropagation()}
             onChange={() => onToggleRowSelection(record.id)}
             aria-label={`Deselect row ${rowNum}`}
           />
         ) : (
           <>
             <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
-            <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-between px-1.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
               {!grouped && (
                 <span
                   draggable
-                  className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
+                  className="flex cursor-grab items-center active:cursor-grabbing text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
                   onDragStart={(e) => onRowDragStart(e, record.id)}
                   onDragEnd={onRowDragEnd}
-                  style={{ fontSize: 13 }}
                   role="button"
                   aria-label={`Drag to reorder row ${rowNum}`}
                 >
-                  &#8801;
+                  <GripVertical size={14} aria-hidden="true" />
                 </span>
               )}
               <input
@@ -168,36 +168,28 @@ export const GridRow = React.memo(function GridRow({
                 className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
                 style={{ outlineColor: colors.primary }}
                 checked={false}
+                onClick={(e) => e.stopPropagation()}
                 onChange={() => onToggleRowSelection(record.id)}
                 aria-label={`Select row ${rowNum}`}
               />
               {onExpandRow && (
                 <button
-                  className="p-0.5 rounded hover:bg-accent"
+                  className="flex h-5 w-5 items-center justify-center rounded text-[#9AA2AF] hover:bg-black/5 hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:bg-white/10 dark:hover:text-[hsl(220,20%,88%)]"
                   onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
+                  onKeyDown={(e) => {
+                    // The row menu opens with a right-click; keyboard users get it here.
+                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                      e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onOpenRowMenu(rect.left, rect.bottom, record);
+                    }
+                  }}
                   aria-label={`Expand row ${rowNum}`}
+                  title="Open this record"
                 >
-                  <Expand size={12} />
+                  <Maximize2 size={13} aria-hidden="true" />
                 </button>
               )}
-              <button
-                className="p-0.5 rounded hover:bg-accent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenRowMenu(e.clientX, e.clientY, record);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                    e.preventDefault();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onOpenRowMenu(rect.left, rect.bottom, record);
-                  }
-                }}
-                aria-label={`Row ${rowNum} options`}
-                aria-haspopup="menu"
-              >
-                <MoreHorizontal size={12} />
-              </button>
             </div>
           </>
         )}
