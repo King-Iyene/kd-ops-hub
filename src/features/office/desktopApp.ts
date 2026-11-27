@@ -15,7 +15,8 @@ export function inDesktopApp(): boolean {
  * Where the installers are served from: our own project's public storage (the repository is private, so a GitHub link only
  * works for people with a GitHub login to it). The "Mirror desktop installers" workflow keeps the files there.
  */
-const FILES = () => `${(import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ''}/storage/v1/object/public/desktop-app`;
+/** The public folder the installers are served from (our own project's storage). */
+export const FILES = () => `${(import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ''}/storage/v1/object/public/desktop-app`;
 
 /** The installer that fits this computer, and a short name for it ("Windows"). The url is empty on a phone or tablet. */
 export function desktopDownload(platform: string = typeof navigator === 'undefined' ? '' : `${navigator.userAgent} ${navigator.platform}`): { label: string; url: string; file: string } {
