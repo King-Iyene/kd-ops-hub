@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './world/types';
 import { AID_SPEED } from './world/avatarAids';
-import { collides, INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
+import { collides, INTERACTIVE, SEAT_TYPES, seatAt, itemCells, ITEM_DEFS, RIDE_SPEED, isRoom, itemSize, nearestInteractive, WALK_SPEED, advance, buildSolid, extrapolate, facing, findPath, lineClear, smoothRoute, tilesOfPeople, nearestOpenTile, reachable, inputVelocity, zoneAt } from './world/world';
 import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets, drawLighting, drawPerson, drawVignette, drawWalls, drawZoneLabels, type DrawPerson } from './world/render';
 import type { PeerMotion, Who } from './useOffice';
 import { peerVisible, type Motion } from './world/netSync';
@@ -609,6 +609,17 @@ export function OfficeCanvas(props: Props) {
       last = now;
       const solid = cachedSolid(p.map, p.items);
       const me = meRef.current;
+      /** where the other people in this space stand right now (they are solid: you cannot walk through them) */
+      const peerBodies = () => {
+        const who = new Map(p.roster.map((q) => [q.id, q]));
+        const bodies: { x: number; y: number }[] = [];
+        for (const [id, pm] of p.peers.current) {
+          const info = who.get(id);
+          if (!info || info.uid === p.me.uid || (info.spaceId && info.spaceId !== p.spaceId)) continue;
+          bodies.push(extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now()));
+        }
+        return bodies;
+      };
 
       // "go to a spot": a new request sets a walking goal (the route is worked out below)
       const j = p.jump;
@@ -700,7 +711,9 @@ export function OfficeCanvas(props: Props) {
               else if (p.followOnce) p.onFollowEnd(); // "go to" a person: stop when we get there
             } else {
               if (ghostRef.current) { route.current = []; } else if (!route.current.length || now - lastPlan.current > 500) {
-                let r = findPath(solid, me.x, me.y, goal.x, goal.y);
+                // go round people standing in the way (a doorway with somebody in it); if there is no way round them, plan as if they were not there
+                const people = k.has('shift') ? null : tilesOfPeople(peerBodies(), p.map.w);
+                let r = (people && people.size ? findPath(solid, me.x, me.y, goal.x, goal.y, people) : null) ?? findPath(solid, me.x, me.y, goal.x, goal.y);
                 if (!r) {
                   // no way to that exact spot (it is inside something, or shut off): go to the nearest place that can be reached, or stay put.
                   // Walking straight at it is what left people stuck against a wall.
@@ -718,7 +731,8 @@ export function OfficeCanvas(props: Props) {
                     r = [{ x: me.x, y: me.y }];
                   }
                 }
-                route.current = r;
+                // cut the corners: straight lines where they are open instead of tile by tile along the wall
+                route.current = smoothRoute(solid, me, r);
                 lastPlan.current = now;
               }
               while (route.current.length > 1 && Math.hypot(route.current[0].x - me.x, route.current[0].y - me.y) < 0.25) route.current.shift();
@@ -794,13 +808,7 @@ export function OfficeCanvas(props: Props) {
         }
         // people are solid: you cannot walk through someone (hold Shift to slip through them)
         if (!k.has('shift') && !ghost && (np.x !== me.x || np.y !== me.y)) {
-          const who = new Map(p.roster.map((q) => [q.id, q]));
-          const bodies: { x: number; y: number }[] = [];
-          for (const [id, pm] of p.peers.current) {
-            const info = who.get(id);
-            if (!info || info.uid === p.me.uid || (info.spaceId && info.spaceId !== p.spaceId)) continue;
-            bodies.push(extrapolate(solid, { x: pm.x, y: pm.y, vx: pm.vx, vy: pm.vy, at: pm.at }, Date.now()));
-          }
+          const bodies = peerBodies();
           const R = 0.8;
           const blockedAt = (x: number, y: number) => bodies.some((q) => {
             const dn = Math.hypot(x - q.x, y - q.y);
@@ -917,9 +925,9 @@ export function OfficeCanvas(props: Props) {
           const was = pet.happyUntil;
           if (runner) {
             // it follows (and brings the ball back to) the person who called it, wherever that person is
-            const ctl = pet.ctl === myId ? { x: me.x, y: me.y, dir: me.dir } : pet.ctl ? p.peers.current.get(pet.ctl) : undefined;
+            const ctl = pet.ctl === myId ? { x: me.x, y: me.y, dir: me.dir, speed: Math.hypot(me.sx, me.sy) } : pet.ctl ? p.peers.current.get(pet.ctl) : undefined;
             if ((pet.mode === 'follow' || pet.mode === 'fetch' || pet.mode === 'return') && !ctl) goHome(pet); // they left
-            stepPet(pet, dt, now, ctl ? { x: ctl.x, y: ctl.y, dir: ctl.dir } : { x: pet.x, y: pet.y }, solid, Math.random, petRegistry);
+            stepPet(pet, dt, now, ctl ? { x: ctl.x, y: ctl.y, dir: ctl.dir, speed: 'speed' in ctl ? ctl.speed : Math.hypot(ctl.vx, ctl.vy) } : { x: pet.x, y: pet.y }, solid, Math.random, petRegistry);
           } else {
             const target = sync.targets.get(pet.id);
             if (target) applyPetSnap(pet, target, now, dt);
@@ -946,7 +954,7 @@ export function OfficeCanvas(props: Props) {
         // the runner tells everyone where the pets are (often while something is going on, now and then when it is quiet)
         if (runner && petRegistry.size > 0) {
           const busy = [...petRegistry.values()].some((q) => q.moving || q.mode !== 'wander' || q.happyUntil > now);
-          if (now - sync.sentAt > (busy ? 250 : 2500)) {
+          if (now - sync.sentAt > (busy ? 150 : 2500)) {
             sync.sentAt = now;
             p.sendPet({ k: 's', a: myId, p: [...petRegistry.values()].map((q) => petSnap(q, now)) });
           }

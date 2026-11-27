@@ -469,13 +469,14 @@ export function nearestOpenTile(solid: boolean[][], x: number, y: number, avoid:
  * A walking route from (sx, sy) to (tx, ty) as waypoints at tile centres (the start tile is left out), going around
  * walls and furniture. If the target tile is blocked the route ends next to it. Null when there is no way there.
  */
-export function findPath(solid: boolean[][], sx: number, sy: number, tx: number, ty: number): { x: number; y: number }[] | null {
+export function findPath(solid: boolean[][], sx: number, sy: number, tx: number, ty: number, blockedTiles?: ReadonlySet<number>): { x: number; y: number }[] | null {
   const h = solid.length;
   const w = solid[0]?.length ?? 0;
   const s = { x: Math.floor(sx), y: Math.floor(sy) };
   const t = { x: Math.floor(tx), y: Math.floor(ty) };
-  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && !solid[y][x];
-  if (!open(s.x, s.y)) return null;
+  // `blockedTiles` (tile number = y * width + x) are tiles somebody is standing on: go round them, but never refuse to start or finish on one
+  const open = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && !solid[y][x] && !(blockedTiles?.has(y * w + x) && !(x === s.x && y === s.y) && !(x === t.x && y === t.y));
+  if (!(s.x >= 0 && s.y >= 0 && s.x < w && s.y < h) || solid[s.y][s.x]) return null;
   const prev = new Map<number, number>();
   const id = (x: number, y: number) => y * w + x;
   prev.set(id(s.x, s.y), -1);
@@ -507,6 +508,47 @@ export function findPath(solid: boolean[][], sx: number, sy: number, tx: number,
     const b = tiles[i + 1];
     return !b || b.x - p.x !== p.x - a.x || b.y - p.y !== p.y - a.y;
   });
+}
+
+/** The tiles that people standing at these spots take up (a person is about a tile wide), as tile numbers for `findPath`. */
+export function tilesOfPeople(bodies: { x: number; y: number }[], width: number, radius = 0.95): Set<number> {
+  const out = new Set<number>();
+  for (const b of bodies) {
+    for (let ty = Math.floor(b.y) - 1; ty <= Math.floor(b.y) + 1; ty++) {
+      for (let tx = Math.floor(b.x) - 1; tx <= Math.floor(b.x) + 1; tx++) {
+        if (tx >= 0 && ty >= 0 && Math.hypot(tx + 0.5 - b.x, ty + 0.5 - b.y) < radius) out.add(ty * width + tx);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A route made of tile centres hugs walls and walks in L shapes. This cuts the corners: from where you stand it heads straight for the
+ * furthest waypoint that can be reached in a straight line with room to spare on both sides, then does the same from there.
+ * The last point (where you are going) is always kept.
+ */
+export function smoothRoute(solid: boolean[][], from: { x: number; y: number }, route: { x: number; y: number }[], clear = 0.36): { x: number; y: number }[] {
+  if (route.length < 2) return route;
+  const wide = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const nx = (-dy / d) * clear, ny = (dx / d) * clear;
+    // the body must be able to make the trip (not just its middle), so three lines are checked, and with the same rule as walking uses
+    return lineClear(solid, a.x, a.y, b.x, b.y) && lineClear(solid, a.x + nx, a.y + ny, b.x + nx, b.y + ny) && lineClear(solid, a.x - nx, a.y - ny, b.x - nx, b.y - ny)
+      && !collides(solid, b.x, b.y);
+  };
+  const out: { x: number; y: number }[] = [];
+  let cur = from;
+  let i = 0;
+  while (i < route.length) {
+    let j = route.length - 1;
+    while (j > i && !wide(cur, route[j])) j--;
+    out.push(route[j]);
+    cur = route[j];
+    i = j + 1;
+  }
+  return out;
 }
 
 export type PlaceResult = { ok: true } | { ok: false; reason: string };

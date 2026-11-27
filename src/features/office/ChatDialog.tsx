@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { supabase } from '@/lib/supabase';
 import { AvatarFace } from './AvatarFace';
 import { ALL, MAX_ATTACHMENTS, MAX_BODY, checkAttachment, convOf, fileKind, formatBytes, groupReactions, isPicture, type ChatMsg, type Reaction } from './chat';
-import { ConfirmDelete, MessageBar, ReactionChips } from './ChatParts';
+import { ConfirmDelete, ImageViewer, MessageBar, ReactionChips } from './ChatParts';
 import { EmojiPicker } from './EmojiPicker';
 import { useEmoteBar } from './emoji';
 import { splitLinks } from './social';
@@ -18,6 +18,7 @@ const urls = new Map<string, string>();
 /** A picture in a message (a private link that is made when it is first shown). */
 function ChatImage({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(urls.get(path) ?? null);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     if (url) return;
     let live = true;
@@ -27,7 +28,14 @@ function ChatImage({ path }: { path: string }) {
     return () => { live = false; };
   }, [path, url]);
   if (!url) return <div className="h-32 w-48 animate-pulse rounded-xl bg-white/10" />;
-  return <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Shared picture" className="max-h-60 max-w-full rounded-xl object-cover" /></a>;
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} title="Open picture" aria-label="Open picture" className="block cursor-zoom-in overflow-hidden rounded-xl">
+        <img src={url} alt="Shared picture" className="max-h-60 max-w-full rounded-xl object-cover transition hover:brightness-110" />
+      </button>
+      {open && <ImageViewer src={url} onClose={() => setOpen(false)} />}
+    </>
+  );
 }
 
 const FILE_ICON = { pdf: FileText, doc: FileText, sheet: FileSpreadsheet, slides: Presentation, zip: FileArchive, audio: FileAudio, video: FileVideo, text: FileIcon } as const;
@@ -234,7 +242,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
   let lastDay = '';
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="ko flex h-[min(82vh,44rem)] w-[calc(100vw-1.5rem)] md:max-w-4xl gap-0 overflow-hidden rounded-3xl p-0">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => { if (document.querySelector('[data-image-viewer]')) e.preventDefault(); }} className="ko flex h-[min(82vh,44rem)] w-[calc(100vw-1.5rem)] md:max-w-4xl gap-0 overflow-hidden rounded-3xl p-0">
         <DialogTitle className="sr-only">Chat</DialogTitle>
         <DialogDescription className="sr-only">Message everyone in the space, or one person.</DialogDescription>
 
