@@ -26,7 +26,7 @@ export function MessageBar({ quick, onReact, onMore, onDelete, side }: { quick: 
       {quick.map((e) => (
         <button key={e} type="button" onClick={() => onReact(e)} title={`React ${e}`} aria-label={`React ${e}`} className="flex h-7 w-7 items-center justify-center rounded-full text-[16px] transition-transform hover:scale-125 hover:bg-white/10">{e}</button>
       ))}
-      <button type="button" onClick={onMore} title="More reactions" aria-label="More reactions" className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"><Smile className="h-4 w-4" /></button>
+      <button type="button" data-emoji-toggle onClick={onMore} title="More reactions" aria-label="More reactions" className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"><Smile className="h-4 w-4" /></button>
       {onDelete && (
         <>
           <span className="mx-0.5 h-4 w-px bg-white/15" />

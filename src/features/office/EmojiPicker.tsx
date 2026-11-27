@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Search } from 'lucide-react';
 import { EMOJI_GROUPS, searchEmoji, topUsed, toggleQuick } from './emoji';
 
@@ -16,6 +16,17 @@ export function EmojiPicker({ quick, freq, onPick, onQuick, onClose }: {
   const [q, setQ] = useState('');
   const [group, setGroup] = useState<string>('recent');
   const [customising, setCustomising] = useState(false);
+  // a click anywhere outside the picker closes it (the button that opens it carries data-emoji-toggle, so it can close it itself)
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (!t || root.current?.contains(t) || t.closest?.('[data-emoji-toggle]')) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', down, true);
+    return () => document.removeEventListener('pointerdown', down, true);
+  }, [onClose]);
   const used = useMemo(() => topUsed(freq), [freq]);
   const found = useMemo(() => (q.trim() ? searchEmoji(q).map((x) => x.e) : null), [q]);
   const shown = found ?? (group === 'recent' ? (used.length ? used : quick) : (EMOJI_GROUPS.find((g) => g.id === group)?.items.map((x) => x.e) ?? []));
@@ -27,7 +38,7 @@ export function EmojiPicker({ quick, freq, onPick, onQuick, onClose }: {
   };
 
   return (
-    <div className="ko pointer-events-auto w-[22rem] max-w-[92vw] overflow-hidden rounded-2xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.7)] ring-1 ring-black/30 backdrop-blur-2xl">
+    <div ref={root} className="ko pointer-events-auto w-[22rem] max-w-[92vw] overflow-hidden rounded-2xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.7)] ring-1 ring-black/30 backdrop-blur-2xl">
       <div className="flex gap-0.5 border-b border-border px-1.5 pt-1.5">
         {[{ id: 'recent', icon: '🕒', label: 'Frequently used' }, ...EMOJI_GROUPS].map((g) => (
           <button key={g.id} type="button" title={g.label} aria-label={g.label} onClick={() => { setGroup(g.id); setQ(''); }}

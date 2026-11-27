@@ -97,10 +97,10 @@ function ScreenTile({ tile, onOpen }: { tile: Tile; onOpen?: () => void }) {
 
 /** A person in the video tray: their picture (or an initial), a green frame while they talk, mute, click for the big view. */
 /** One small icon button. */
-function Btn({ on, ok, danger, label, onClick, disabled, children }: { on?: boolean; ok?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+function Btn({ on, ok, danger, label, onClick, disabled, children, emojiToggle }: { on?: boolean; ok?: boolean; danger?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode; emojiToggle?: boolean }) {
   const tone = danger ? 'bg-red-600 text-white hover:bg-red-700' : ok ? 'bg-emerald-500/20 text-emerald-600 ring-1 ring-emerald-500/50 hover:bg-emerald-500/30 dark:text-emerald-400' : on ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-muted';
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${tone}`}>
+    <button type="button" {...(emojiToggle ? { 'data-emoji-toggle': true } : {})} onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`flex h-8 min-w-8 items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-50 ${tone}`}>
       {children}
     </button>
   );
@@ -201,7 +201,7 @@ export function CallDock({
               {chatUnread > 0 && <span className="absolute -right-2.5 -top-2 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{chatUnread > 9 ? '9+' : chatUnread}</span>}
             </span>
           </Btn>
-          <Btn label="More emotes" onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
+          <Btn label="More emotes" emojiToggle onClick={() => setEmoOpen((o) => !o)} on={emoOpen}><Smile className="h-4 w-4" /></Btn>
           {bar.quick.map((e) => (
             <button key={e} type="button" title={`React ${e}`} aria-label={`React ${e}`} onClick={() => react(e)} className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-muted">{e}</button>
           ))}

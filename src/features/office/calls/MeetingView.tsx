@@ -146,12 +146,12 @@ function ScreenStage({ tile }: { tile: Tile }) {
 }
 
 /** A round control on the dock: lit when it is doing something, red when it is off and that matters. */
-function DockButton({ label, onClick, active, danger, children, wide }: { label: string; onClick: () => void; active?: boolean; danger?: boolean; children: React.ReactNode; wide?: boolean }) {
+function DockButton({ label, onClick, active, danger, children, wide, emojiToggle }: { label: string; onClick: () => void; active?: boolean; danger?: boolean; children: React.ReactNode; wide?: boolean; emojiToggle?: boolean }) {
   const tone = danger ? 'bg-red-500 text-white hover:bg-red-400 shadow-[0_0_18px_rgba(239,68,68,.45)]'
     : active ? 'bg-emerald-400/20 text-emerald-200 ring-1 ring-inset ring-emerald-300/60 hover:bg-emerald-400/30'
       : 'bg-white/[0.07] text-white hover:bg-white/[0.14] ring-1 ring-inset ring-white/10';
   return (
-    <button type="button" onClick={onClick} title={label} aria-label={label} className={`flex h-11 items-center justify-center gap-2 rounded-full transition ${wide ? 'px-4 text-[12.5px] font-semibold' : 'w-11'} ${tone}`}>
+    <button type="button" {...(emojiToggle ? { 'data-emoji-toggle': true } : {})} onClick={onClick} title={label} aria-label={label} className={`flex h-11 items-center justify-center gap-2 rounded-full transition ${wide ? 'px-4 text-[12.5px] font-semibold' : 'w-11'} ${tone}`}>
       {children}
     </button>
   );
@@ -303,7 +303,7 @@ export function MeetingView(p: MeetingProps) {
           {bar.quick.map((e) => (
             <button key={e} type="button" title={`React ${e}`} aria-label={`React ${e}`} onClick={() => react(e)} className="flex h-11 w-9 items-center justify-center rounded-full text-[22px] transition-transform hover:scale-125 hover:bg-white/[0.08]">{e}</button>
           ))}
-          <DockButton label="More reactions" active={emoOpen} onClick={() => setEmoOpen((o) => !o)}><Smile className="h-5 w-5" /></DockButton>
+          <DockButton label="More reactions" emojiToggle active={emoOpen} onClick={() => setEmoOpen((o) => !o)}><Smile className="h-5 w-5" /></DockButton>
           <span className="mx-1 h-6 w-px bg-white/15" />
           <DockButton label="Reconnect: start the connections again if somebody cannot hear or be heard" onClick={p.onReconnect}><RefreshCw className="h-5 w-5" /></DockButton>
           <DockButton label="Leave the call" danger wide onClick={p.onLeave}><LogOut className="h-4 w-4" />Leave</DockButton>
