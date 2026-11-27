@@ -22,6 +22,7 @@ import { MfaRequiredBanner } from '@/components/MfaRequiredBanner';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useKeepSeen } from '@/features/office/useLastSeen';
 import { useAppPings } from '@/features/office/appPings';
+import { useDesktopUpdateNudge } from '@/features/office/desktopNudge';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
@@ -124,6 +125,13 @@ export default function AppLayout() {
     title: kind === 'ring' ? `${name} wants a word` : `${name} is waving at you`,
     description: 'Open the Office to say hi.',
     action: <ToastAction altText="Open the Office" onClick={open}>Open</ToastAction>,
+  }));
+  // an old desktop app is told, by the website it shows, that a newer one is ready (only inside the desktop app)
+  useDesktopUpdateNudge(({ current, latest, download }) => toast({
+    title: 'A newer KD Ops app is ready',
+    description: `You have version ${current}. Version ${latest} has the latest fixes: download it and open it to install over this one.`,
+    duration: 120_000,
+    action: <ToastAction altText="Download the newer KD Ops app" onClick={download}>Download</ToastAction>,
   }));
 
   const mainRef = useRef<HTMLElement>(null);
