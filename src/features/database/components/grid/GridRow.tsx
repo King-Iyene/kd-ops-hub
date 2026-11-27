@@ -96,7 +96,7 @@ export const GridRow = React.memo(function GridRow({
 
   return (
     <div
-      className="kd-grid-row absolute left-0 w-full flex group/row"
+      className="kd-grid-row absolute left-0 w-full flex group/row select-none [&_input]:select-text [&_textarea]:select-text"
       role="row"
       aria-rowindex={rowNum}
       aria-selected={isChecked}
