@@ -94,4 +94,17 @@ if [ "$DRY" != "1" ]; then
   done
   [ "$FAIL" = "0" ] || { echo "The feed is NOT complete."; exit 1; }
 fi
+# prove the files everybody downloads are byte for byte what was built: each version file lists the SHA-512 of every installer, so the
+# public copy is fetched once more and hashed, and must match. (This is the same check the installed apps make before they install an update.)
+if [ "$DRY" != "1" ] && command -v openssl >/dev/null 2>&1; then
+  BAD=0
+  for y in "${YMLS[@]}"; do
+    while read -r name sum; do
+      [ -n "$name" ] || continue
+      got=$(curl -sS "$PUB/$name" | openssl dgst -sha512 -binary | base64 -w0)
+      if [ "$got" = "$sum" ]; then echo "sha512 ok: $name"; else echo "SHA-512 MISMATCH: $name (the public copy is not the file that was built)"; BAD=1; fi
+    done < <(awk '/^[[:space:]]*-[[:space:]]+url:/ {gsub(/^[[:space:]]*-[[:space:]]+url:[[:space:]]*/, ""); gsub(/["\x27]/, ""); n=$0} /^[[:space:]]+sha512:/ && n != "" {s=$2; gsub(/["\x27]/, "", s); print n, s; n=""}' "$y")
+  done
+  [ "$BAD" = "0" ] || { echo "The feed does not match what was built."; exit 1; }
+fi
 echo "KD Ops $APP update feed is live at $BASE/object/public/$BUCKET/$PREFIX/"
