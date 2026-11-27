@@ -27,6 +27,24 @@ export interface ChatMsg {
 
 export interface Who { id: string; name: string }
 
+// ── reactions ─────────────────────────────────────────────────────────────
+export interface Reaction { message_id: string; user_id: string; emoji: string }
+export interface ReactionGroup { emoji: string; count: number; mine: boolean; users: string[] }
+/** One chip per emoji: how many people used it, whether I did, and who (in the order they reacted). */
+export function groupReactions(rows: Reaction[], me: string): ReactionGroup[] {
+  const by = new Map<string, ReactionGroup>();
+  for (const r of rows) {
+    const g = by.get(r.emoji) ?? { emoji: r.emoji, count: 0, mine: false, users: [] };
+    if (!g.users.includes(r.user_id)) { g.users.push(r.user_id); g.count += 1; if (r.user_id === me) g.mine = true; }
+    by.set(r.emoji, g);
+  }
+  return [...by.values()];
+}
+
+/** A message that is just one GIF from GIPHY's own picture hosts is shown as the picture (never any other address). */
+const GIF_URL = /^https:\/\/(media\d*|i)\.giphy\.com\/[\w\-/.]+\.(gif|webp)(\?[\w=&.\-%]*)?$/;
+export const isGifUrl = (body: string) => body.length <= 600 && GIF_URL.test(body.trim());
+
 // ── attachments ────────────────────────────────────────────────────────────
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
@@ -140,6 +158,7 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [lastRead, setLastRead] = useState<Record<string, number>>(() => loadRead());
   const [loading, setLoading] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
   const incoming = useRef(onIncoming);
   incoming.current = onIncoming;
 
@@ -158,8 +177,17 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
         .or(`and(space_id.eq.${spaceId},to_id.is.null),to_id.eq.${meId},sender_id.eq.${meId}`)
         .order('created_at', { ascending: false }).limit(300);
       if (!live) return;
-      setMsgs(((data ?? []) as ChatMsg[]).reverse());
+      const list = ((data ?? []) as ChatMsg[]).reverse();
+      setMsgs(list);
       setLoading(false);
+      // the reactions on those messages
+      if (list.length) {
+        const { data: rx } = await sb.from('office_message_reactions').select('message_id, user_id, emoji').in('message_id', list.map((m) => m.id));
+        if (!live) return;
+        const by: Record<string, Reaction[]> = {};
+        for (const r of (rx ?? []) as Reaction[]) (by[r.message_id] ??= []).push(r);
+        setReactions(by);
+      }
     })();
     const ch = supabase.channel(`office-chat:${meId}:${spaceId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'office_messages' }, (payload) => {
@@ -171,6 +199,15 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'office_messages' }, (payload) => {
         const id = (payload.old as { id?: string } | null)?.id;
         if (id) setMsgs((cur) => cur.filter((x) => x.id !== id));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'office_message_reactions' }, (payload) => {
+        const r = payload.new as Reaction;
+        setReactions((cur) => ((cur[r.message_id] ?? []).some((x) => x.user_id === r.user_id && x.emoji === r.emoji) ? cur : { ...cur, [r.message_id]: [...(cur[r.message_id] ?? []), r] }));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'office_message_reactions' }, (payload) => {
+        const r = payload.old as Partial<Reaction> | null;
+        if (!r?.message_id || !r.user_id || !r.emoji) return;
+        setReactions((cur) => ({ ...cur, [r.message_id as string]: (cur[r.message_id as string] ?? []).filter((x) => !(x.user_id === r.user_id && x.emoji === r.emoji)) }));
       })
       .subscribe();
     return () => { live = false; void supabase.removeChannel(ch); };
@@ -204,7 +241,23 @@ export function useChat(meId: string | null, spaceId: string | null, onIncoming:
     return !error;
   }, []);
 
+  /** react with an emoji, or take my reaction back if I already used it (shown at once, put back if it fails) */
+  const react = useCallback(async (messageId: string, emoji: string) => {
+    if (!meId || emoji.length > 16) return false;
+    const have = (reactions[messageId] ?? []).some((r) => r.user_id === meId && r.emoji === emoji);
+    const mineRow: Reaction = { message_id: messageId, user_id: meId, emoji };
+    setReactions((cur) => ({ ...cur, [messageId]: have ? (cur[messageId] ?? []).filter((r) => !(r.user_id === meId && r.emoji === emoji)) : [...(cur[messageId] ?? []), mineRow] }));
+    const { error } = have
+      ? await sb.from('office_message_reactions').delete().eq('message_id', messageId).eq('user_id', meId).eq('emoji', emoji)
+      : await sb.from('office_message_reactions').insert({ message_id: messageId, emoji });
+    if (error) {
+      setReactions((cur) => ({ ...cur, [messageId]: have ? [...(cur[messageId] ?? []), mineRow] : (cur[messageId] ?? []).filter((r) => !(r.user_id === meId && r.emoji === emoji)) }));
+      return false;
+    }
+    return true;
+  }, [meId, reactions]);
+
   const unread = useMemo(() => (meId ? unreadCounts(msgs, meId, lastRead) : {}), [msgs, meId, lastRead]);
   const totalUnread = useMemo(() => Object.values(unread).reduce((a, b) => a + b, 0), [unread]);
-  return { msgs, loading, send, markRead, remove, lastRead, unread, totalUnread };
+  return { msgs, loading, send, markRead, remove, react, reactions, lastRead, unread, totalUnread };
 }
