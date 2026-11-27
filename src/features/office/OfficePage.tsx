@@ -44,6 +44,7 @@ import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
 import { isActiveRecently, seenAgo } from './lastSeen';
+import { presenceInfo } from './presenceState';
 import { OfflineRow, PersonRow, SideTitle, Tabs, shortWhere } from './SidebarParts';
 import { useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
@@ -1841,7 +1842,7 @@ function OfficeRoom() {
           if (mine || isAdmin) pa.push({ key: 'unclaim', label: mine ? (z.seat ? 'Give up my seat' : 'Give up my office') : 'Unclaim (free it)', icon: <Minus className="h-4 w-4" />, run: go(() => void unclaimOffice(z.id)) });
           pa.push({ key: 'link', label: 'Copy link', icon: <LinkIcon className="h-4 w-4" />, run: go(() => void copyLink(`&room=${z.id}`, `It opens ${z.name}.`)) });
           return (
-            <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={who.name + (mine ? ' (you)' : '')} avatar={who.avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} actions={pa} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
+            <PersonCard x={zoneCard.cx} y={zoneCard.cy} name={who.name + (mine ? ' (you)' : '')} avatar={who.avatar} online={!!live} presence={presenceInfo(!!live || mine, lastSeen?.get(who.id), st ? st.label : null)} status={st ? st.emoji + ' ' + st.label : null} actions={pa} onEnter={keepZoneCard} onLeave={leaveZoneCard} />
           );
         }
         // nobody has it yet: the same card, with a plus for a face
@@ -2013,7 +2014,7 @@ function OfficeRoom() {
           acts.push({ key: 'fol', label: 'Follow', icon: <Footprints className="h-4 w-4" />, run: done(() => startFollow(live.id)) });
         }
         if (isMe) acts.push({ key: 'av', label: 'Change avatar', icon: <Users className="h-4 w-4" />, primary: true, run: done(() => setAvatarOpen(true)) });
-        return <ProfileDialog x={profileCard?.x ?? 0} y={profileCard?.y ?? 0} onClose={() => setProfileCardUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
+        return <ProfileDialog x={profileCard?.x ?? 0} y={profileCard?.y ?? 0} onClose={() => setProfileCardUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} presence={presenceInfo(!!live || isMe, lastSeen?.get(profileCardUid), st ? st.label : null)} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
       })()}
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog

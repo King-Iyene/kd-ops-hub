@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
+import type { AvatarStyle } from '../world/types';
 import { perf } from '../world/perfStats';
 import { FAR, isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
 import { screenVisible, type ShareInfo, type ShareSurface } from './shareState';
@@ -61,6 +62,9 @@ interface Conn {
   sawShare: boolean;
   /** streams we already listen to for removed tracks */
   hooked: Set<string>;
+  /** when this connection was made, and when it last became connected (0 = never) */
+  born: number;
+  connectedAt: number;
 }
 
 interface LocalMedia {
@@ -76,6 +80,12 @@ export interface Tile {
   /** for a shared screen: who is presenting and what they chose to share */
   share?: ShareInfo;
   presenter?: string;
+  /** for a person: their picture and whether their microphone and camera are on (from what they told the office) */
+  avatar?: AvatarStyle;
+  micOn?: boolean;
+  camOn?: boolean;
+  /** how the connection to them is doing */
+  conn?: 'connected' | 'connecting' | 'reconnecting';
   id: string;
   name: string;
   stream: MediaStream;
@@ -97,6 +107,8 @@ interface Opts {
   occluded?: (a: Spot, b: Spot) => boolean;
   send: (s: RtcSignal) => void;
   setHandler: (h: ((raw: unknown) => void) | null) => void;
+  /** how long a connection may take to come up before it is dropped and started again (milliseconds; a test shortens it) */
+  watchdogMs?: number;
   /** tell the office that I started or stopped sharing my screen, and what (so everyone sees it, and the others can tell it from a camera) */
   setShare?: (s: ShareInfo | null) => void;
 }
@@ -195,6 +207,23 @@ export function useCalls(opts: Opts) {
 
   const closeAll = useCallback(() => { for (const id of [...conns.current.keys()]) close(id); }, [close]);
 
+  /** after a connection is dropped for being stuck, wait a little (longer each time it happens) before the next try */
+  const notBefore = useRef(new Map<string, number>());
+  const resets = useRef(new Map<string, number>());
+  /**
+   * A connection that is stuck or has failed is dropped and started again, by itself, so nobody has to refresh the page to be heard.
+   * The other side is told, so it drops its half too and the two start clean (the one with the lower id makes the new offer).
+   */
+  const resetConn = useCallback((id: string) => {
+    const me = o.current.meId;
+    if (!me || !conns.current.has(id)) return;
+    try { o.current.send({ f: me, t: id, k: 'rst', d: {} }); } catch { /* they will time out on their side too */ }
+    close(id);
+    const n = (resets.current.get(id) ?? 0) + 1;
+    resets.current.set(id, n);
+    notBefore.current.set(id, Date.now() + Math.min(16_000, 1000 * 2 ** Math.min(n, 4)));
+  }, [close]);
+
   /** start a sound element; a browser may refuse until the person has touched the page, so retry on the next touch */
   const keepPlaying = (el: HTMLAudioElement) => {
     void el.play().catch(() => {
@@ -248,7 +277,7 @@ export function useCalls(opts: Opts) {
     audio.autoplay = true;
     audio.srcObject = stream;
     if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set() };
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set(), born: Date.now(), connectedAt: 0 };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -304,7 +333,17 @@ export function useCalls(opts: Opts) {
       bump();
     };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') close(id);
+      if (pc.connectionState === 'connected') c.connectedAt = Date.now();
+      if (pc.connectionState === 'failed') resetConn(id);
+      else if (pc.connectionState === 'closed') close(id);
+      else bump();
+    };
+    // a connection that has dropped out may come back by itself; if it has not after a moment, ask the network to find a new route
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState !== 'disconnected') return;
+      window.setTimeout(() => {
+        if (conns.current.get(id) === c && pc.iceConnectionState === 'disconnected') { try { pc.restartIce(); } catch { /* the watchdog handles it */ } }
+      }, 3000);
     };
 
     const l = local.current;
@@ -329,6 +368,11 @@ export function useCalls(opts: Opts) {
     let c = conns.current.get(s.f);
     // never accept a call from someone we should not be hearing (for example, from outside our meeting room)
     if (!other || !wantsConnection(o.current.self(), other, true)) return;
+    // they say a connection is stuck: drop ours too; whoever makes the offers starts a new one a moment later
+    if (s.k === 'rst') {
+      if (c) { close(s.f); notBefore.current.set(s.f, Date.now() + 1000); }
+      return;
+    }
     if (!c) {
       if (s.k !== 'sdp') return;
       c = create(s.f);
@@ -375,9 +419,11 @@ export function useCalls(opts: Opts) {
         const near = Math.hypot(mine.x - other.x, mine.y - other.y) <= FAR;
         const occ = near && !!o.current.occluded?.(mine, other);
         const want = wantsConnection(mine, other, !!c, occ);
-        if (want && !c && isInitiator(meId, id)) create(id);
+        if (want && !c && isInitiator(meId, id) && Date.now() >= (notBefore.current.get(id) ?? 0)) create(id);
         else if (!want && c) close(id);
         const cur = conns.current.get(id);
+        if (cur && cur.pc.connectionState !== 'connected' && Date.now() - cur.born > (o.current.watchdogMs ?? 12_000)) { resetConn(id); continue; } // stuck: start again
+        if (cur && cur.connectedAt && Date.now() - cur.connectedAt > 10_000) resets.current.delete(id); // healthy for a while: forget past trouble
         if (cur) {
           cur.audio.volume = mutedRef.current.has(id) ? 0 : volumeFor(mine, other, occ);
           if (cur.screenAudio) cur.screenAudio.volume = cur.audio.volume;
@@ -395,7 +441,7 @@ export function useCalls(opts: Opts) {
     const t = setInterval(tick, 400);
     tick();
     return () => clearInterval(t);
-  }, [joined, create, close]);
+  }, [joined, create, close, resetConn]);
 
   useEffect(() => {
     opts.setHandler(joined ? (raw) => { void onSignal(raw); } : null);
@@ -651,6 +697,32 @@ export function useCalls(opts: Opts) {
     }
   }, [stopShare]);
 
+  /** Start every connection again from scratch (the "Reconnect" button, for when somebody cannot hear or be heard). */
+  const reconnectAll = useCallback(() => {
+    for (const id of [...conns.current.keys()]) resetConn(id);
+    for (const id of [...notBefore.current.keys()]) notBefore.current.set(id, Date.now() + 500);
+    resets.current.clear();
+  }, [resetConn]);
+
+  // the network came back, or the computer woke up: connections that dropped are started again, working ones look for a fresh route
+  useEffect(() => {
+    if (!joined) return;
+    let hiddenAt = 0;
+    const nudge = () => {
+      for (const [id, c] of [...conns.current]) {
+        if (c.pc.connectionState === 'connected') { try { c.pc.restartIce(); } catch { /* fine */ } } else resetConn(id);
+      }
+    };
+    const onVisible = () => {
+      if (document.hidden) { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > 30_000) nudge();
+      hiddenAt = 0;
+    };
+    window.addEventListener('online', nudge);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.removeEventListener('online', nudge); document.removeEventListener('visibilitychange', onVisible); };
+  }, [joined, resetConn]);
+
   const toggleMutePeer = useCallback((id: string) => {
     setMutedPeers((prev) => {
       const next = new Set(prev);
@@ -662,8 +734,9 @@ export function useCalls(opts: Opts) {
   const tiles: Tile[] = [];
   const nowMs = Date.now();
   for (const [id, c] of conns.current) {
-    const who = opts.roster.find((r) => r.id === id)?.name ?? 'Someone';
-    const share = opts.roster.find((r) => r.id === id)?.share;
+    const entry = opts.roster.find((r) => r.id === id);
+    const who = entry?.name ?? 'Someone';
+    const share = entry?.share;
     const v = c.stream.getVideoTracks()[0];
     tiles.push({
       id,
@@ -671,6 +744,10 @@ export function useCalls(opts: Opts) {
       stream: c.stream,
       hasVideo: !!v && !v.muted && v.readyState === 'live',
       muted: mutedPeers.has(id),
+      avatar: entry?.avatar,
+      micOn: entry?.mic,
+      camOn: entry?.cam,
+      conn: c.pc.connectionState === 'connected' ? 'connected' : c.connectedAt ? 'reconnecting' : 'connecting',
     });
     const sv = c.screen.getVideoTracks()[0];
     if (sv) {
@@ -681,7 +758,7 @@ export function useCalls(opts: Opts) {
       }
     }
   }
-  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}${t.micOn ?? ''}${t.camOn ?? ''}${t.conn ?? ''}${t.avatar ? 'a' : ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   /** the people who are connected to me right now (who can see what I share) */
   const viewers = [...conns.current.keys()].map((id) => opts.roster.find((r) => r.id === id)?.name ?? 'Someone');
   const stableViewers = useMemo(() => viewers, [viewers.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -772,5 +849,5 @@ export function useCalls(opts: Opts) {
     return out;
   }, []);
 
-  return { joined, busy, error, micOn, camOn, selfCam, sharing, shareInfo, viewers: stableViewers, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, audioStreams, localScreen, devices, pick, noise, dataSaver, setDataSaver, selectMic, selectCam, selectSpeaker, setNoise, refreshDevices };
+  return { joined, busy, error, micOn, camOn, selfCam, sharing, shareInfo, viewers: stableViewers, speaking, speakingIds, tiles: stableTiles, join, leave, toggleMic, toggleCam, toggleShare, toggleMutePeer, reconnectAll, audioStreams, localScreen, devices, pick, noise, dataSaver, setDataSaver, selectMic, selectCam, selectSpeaker, setNoise, refreshDevices };
 }

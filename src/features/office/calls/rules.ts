@@ -71,8 +71,8 @@ export interface RtcSignal {
   f: string;
   /** to */
   t: string;
-  /** 'sdp' = offer or answer, 'ice' = network candidate */
-  k: 'sdp' | 'ice';
+  /** 'sdp' = offer or answer, 'ice' = network candidate, 'rst' = "this connection is stuck, drop yours and we start again" */
+  k: 'sdp' | 'ice' | 'rst';
   d: unknown;
 }
 
@@ -81,7 +81,7 @@ export function parseSignal(raw: unknown, myId: string): RtcSignal | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Record<string, unknown>;
   if (typeof p.f !== 'string' || typeof p.t !== 'string' || p.f.length > 64 || p.t !== myId || p.f === myId) return null;
-  if (p.k !== 'sdp' && p.k !== 'ice') return null;
+  if (p.k !== 'sdp' && p.k !== 'ice' && p.k !== 'rst') return null;
   if (!p.d || typeof p.d !== 'object') return null;
   return { f: p.f, t: p.t, k: p.k, d: p.d };
 }
