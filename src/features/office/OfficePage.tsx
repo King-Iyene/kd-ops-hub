@@ -17,7 +17,8 @@ import { ToastAction } from '@/components/ui/toast';
 import { type Msg } from './MessageDialog';
 import { ChatDialog } from './ChatDialog';
 import { allowed, canDo } from './OfficeSettingsDialog';
-import { desktopDownload, inDesktopApp } from './desktopApp';
+import { inDesktopApp } from './desktopApp';
+import { downloadDesktopApp } from './desktopDownloadAction';
 import { useDesktopMini } from './useDesktopMini';
 import { markOfficeAlive, setOfficeHere } from '@/lib/officeAlive';
 import { isHeld, useVehicles } from './useVehicles';
@@ -1465,7 +1466,7 @@ function OfficeRoom() {
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/10 hover:bg-white/[0.08]"><MoreHorizontal className="h-4 w-4" /></button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onSelect={() => { window.open(desktopDownload().url, '_blank', 'noopener'); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => { void downloadDesktopApp(); }}><Download className="mr-2 h-4 w-4" />Get the KD Ops desktop app</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setVisitorsOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Guests{guests.waitingCount ? ` (${guests.waitingCount} waiting)` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void copyLink(zone && isRoom(zone) ? `&room=${zone.id}` : '', 'It opens the office at this room.')}><LinkIcon className="mr-2 h-4 w-4" />Copy link to here</DropdownMenuItem>
                 {(isAdmin || canEdit) && <DropdownMenuItem onSelect={() => setManageOpen(true)}><Settings className="mr-2 h-4 w-4" />Manage space</DropdownMenuItem>}
