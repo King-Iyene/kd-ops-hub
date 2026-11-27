@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TRACKER_OSES, fetchTrackerVersion, startTrackerDownload, trackerOsFor, type TrackerOs } from '../../lib/trackerDownload';
 
 export interface ActivityLog {
   id: string;
@@ -195,71 +196,37 @@ export function useLogsWithIntervals(start: string, end: string) {
 }
 
 /**
- * TimeCamp's own equivalent (top bar "download apps" icon) just links to a
- * marketing page with built installers. This checks the repo's real GitHub
- * Releases for a packaged build and, when one exists, shows direct
- * one-click download buttons per OS (no GitHub browsing, no git clone).
+ * TimeCamp's own equivalent (top bar "download apps" icon) just links to a marketing page with built installers. Ours gives one-click
+ * download buttons per system. The installers are served from our own project's storage, never from GitHub (the repository is private,
+ * so GitHub would show a login or error page): a click starts the download right here, and if the file is not there yet it says so.
  */
-interface GhReleaseAsset { name: string; browser_download_url: string; size: number }
-interface GhRelease { tag_name: string; assets: GhReleaseAsset[] }
-
-function pickAsset(assets: GhReleaseAsset[], test: (name: string) => boolean) {
-  return assets.find((a) => test(a.name.toLowerCase()));
-}
-
-function useLatestDesktopRelease() {
-  return useQuery({
-    queryKey: ['desktop-agent-latest-release'],
-    queryFn: async (): Promise<GhRelease | null> => {
-      // This repo also publishes other apps (the KD Office desktop app), so never trust GitHub's
-      // single "latest" release: take the newest release that is a Time Tracker one.
-      const res = await fetch(
-        'https://api.github.com/repos/King-Iyene/kd-ops-hub/releases?per_page=30',
-        { headers: { Accept: 'application/vnd.github+json' } },
-      );
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error(`GitHub releases: ${res.status}`);
-      const all = (await res.json()) as (GhRelease & { draft?: boolean; prerelease?: boolean })[];
-      return all.find((r) => r.tag_name.startsWith('desktop-agent-v') && !r.draft && !r.prerelease) ?? null;
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-}
-
 function DesktopAgentDialogContent() {
-  const { data: release, isLoading, isError } = useLatestDesktopRelease();
+  const version = useQuery({ queryKey: ['tracker-version'], queryFn: fetchTrackerVersion, staleTime: 5 * 60 * 1000, retry: 1 });
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState<TrackerOs | null>(null);
+  const mine = trackerOsFor();
 
-  const win = release ? pickAsset(release.assets, (n) => n.endsWith('.exe')) : undefined;
-  const mac = release ? pickAsset(release.assets, (n) => n.endsWith('.dmg')) : undefined;
-  const linux = release ? pickAsset(release.assets, (n) => n.endsWith('.appimage') || n.endsWith('.deb')) : undefined;
-  const hasAnyInstaller = Boolean(win || mac || linux);
+  const get = async (os: TrackerOs) => {
+    setBusy(os);
+    setNote(null);
+    const r = await startTrackerDownload(os, version.data ?? null);
+    setBusy(null);
+    setNote(r === 'started' ? 'Your download has started. When it finishes, open the installer.' : 'This installer is not ready yet. Please try again in a few minutes, or ask an admin.');
+  };
 
   return (
     <DialogContent className="max-w-lg">
       <DialogHeader><DialogTitle>KD Ops Time Tracker (desktop agent)</DialogTitle></DialogHeader>
       <div className="space-y-3 text-sm">
-        {isLoading && (
-          <p className="text-muted-foreground flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Checking for the latest build…
-          </p>
-        )}
-        {!isLoading && hasAnyInstaller && (
-          <>
-            <p className="text-muted-foreground">Version {release?.tag_name} — click your operating system to download the installer.</p>
-            <div className="flex flex-col gap-2">
-              {win && <a href={win.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Windows (.exe)</Button></a>}
-              {mac && <a href={mac.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for macOS (.dmg)</Button></a>}
-              {linux && <a href={linux.browser_download_url}><Button className="w-full justify-start" size="sm"><Download className="h-4 w-4 mr-2" /> Download for Linux</Button></a>}
-            </div>
-          </>
-        )}
-        {!isLoading && !hasAnyInstaller && (
-          <p className="text-muted-foreground">
-            {isError ? "Couldn't check for a download right now — try again in a moment."
-              : "No installer is published yet — the agent hasn't been built as a real app yet, only this web UI exists so far. Check back soon."}
-          </p>
-        )}
+        <p className="text-muted-foreground">{version.data ? `Version ${version.data}. ` : ''}Click your operating system to download the installer.</p>
+        <div className="flex flex-col gap-2">
+          {TRACKER_OSES.map(({ os, label }) => (
+            <Button key={os} variant={os === mine ? 'default' : 'outline'} className="w-full justify-start" size="sm" disabled={busy !== null} onClick={() => void get(os)}>
+              {busy === os ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} Download for {label}
+            </Button>
+          ))}
+        </div>
+        {note && <p role="status" className="rounded-md bg-muted px-3 py-2 text-foreground">{note}</p>}
         <p className="text-muted-foreground">
           An admin must also enable tracking for that employee first, under
           <span className="font-medium text-foreground"> Agent &amp; policy</span> —

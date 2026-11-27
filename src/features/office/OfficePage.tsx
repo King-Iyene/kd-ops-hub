@@ -67,6 +67,7 @@ import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { roleLabel } from '@/lib/roles';
 import { withDirectoryNames } from './personName';
+import { sendAppPing } from './appPings';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
@@ -859,6 +860,19 @@ function OfficeRoom() {
     sendEmote('👋');
     playWave(0.12);
     toast({ title: `You waved at ${r.name}`, description: 'If they are free they will come over.' });
+  };
+
+  /** A wave or ring to somebody who is using the app but is not in the Office: it reaches them on whatever page they are on. */
+  const pingApp = async (uid: string, name: string, kind: 'wave' | 'ring') => {
+    if (!me) return;
+    if (!canSendTo(lastSent.current, uid, Date.now(), kind)) { toast({ title: kind === 'wave' ? `You just waved at ${name}` : `You just rang ${name}`, description: 'Give them a moment.' }); return; }
+    lastSent.current.set(`${kind}:${uid}`, Date.now());
+    const r = await sendAppPing(uid, kind);
+    if (r === 'sent') {
+      if (kind === 'wave') playWave(0.12);
+      toast({ title: kind === 'wave' ? `You waved at ${name}` : `Rang ${name}`, description: 'They are using the app, so they get a notification wherever they are.' });
+    } else if (r === 'slow') toast({ title: `You just ${kind === 'wave' ? 'waved at' : 'rang'} ${name}`, description: 'Give them a moment.' });
+    else toast({ title: 'Could not send that', description: 'Please try again in a moment.', variant: 'destructive' });
   };
 
   const handlePing = async (raw: unknown) => {
@@ -1812,8 +1826,9 @@ function OfficeRoom() {
           const go = (fn: () => void) => () => { setZoneCard(null); fn(); };
           const pa: CardAction[] = [{ key: 'prof', label: 'View profile', icon: <UserCircle className="h-4 w-4" />, run: go(() => setProfileCardUid(who.id, zoneCard.cx, zoneCard.cy)) }];
           if (!mine) {
-            pa.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: !!live, off: live ? undefined : 'They are offline', run: go(() => live && wave(live)) });
-            pa.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live, run: go(() => openChat(who.id)) });
+            const appActive = !live && isActiveRecently(lastSeen?.get(who.id));
+            pa.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: !!live || appActive, off: live || appActive ? undefined : 'They are offline', run: go(() => { if (live) wave(live); else if (appActive) void pingApp(who.id, who.name, 'wave'); }) });
+            pa.push({ key: 'msg', label: 'Message', icon: <MessageCircle className="h-4 w-4" />, primary: !live && !appActive, run: go(() => openChat(who.id)) });
           }
           pa.push({ key: 'walk', label: 'Walk there', icon: <Footprints className="h-4 w-4" />, run: go(() => walkToOffice(z.id)) });
           // give it up (yours) or free it (an admin), right on the card: no right-click needed
@@ -1982,6 +1997,11 @@ function OfficeRoom() {
         const st = live ? statusOf(live.status) : null;
         const done = (fn: () => void) => () => { setProfileCardUid(null); fn(); };
         const acts: ProfileAction[] = [];
+        // using the app on another page (not in the Office): a wave or ring still reaches them
+        if (!live && !isMe && isActiveRecently(lastSeen?.get(profileCardUid))) {
+          acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: true, run: done(() => void pingApp(profileCardUid, name, 'wave')) });
+          acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-4 w-4" />, run: done(() => void pingApp(profileCardUid, name, 'ring')) });
+        }
         if (live && !isMe) {
           acts.push({ key: 'wave', label: 'Wave', icon: <Hand className="h-4 w-4" />, primary: true, run: done(() => wave(live)) });
           acts.push({ key: 'ring', label: 'Ring', icon: <BellRing className="h-4 w-4" />, run: done(() => ring(live)) });

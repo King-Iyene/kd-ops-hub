@@ -6,7 +6,7 @@ import { TILE, defaultAvatar, depth, drawBall, drawFloor, drawItems, officePets,
 import type { PeerMotion, Who } from './useOffice';
 import { peerVisible, type Motion } from './world/netSync';
 import { dotColor } from './status';
-import { createHud, perf, smoothNow } from './world/perfStats';
+import { createHud, HUD_SHOW_MS, perf, smoothNow } from './world/perfStats';
 import { stackTags } from './world/nameTags';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
@@ -1373,18 +1373,26 @@ export function OfficeCanvas(props: Props) {
     // Ctrl + Alt + P: a small readout of how the Office is running here (made outside React, so it costs nothing when hidden)
     let hud: { el: HTMLElement; update: () => void } | null = null;
     let hudTimer = 0;
+    let hudHide = 0;
+    const closeHud = () => { window.clearTimeout(hudHide); if (hud) { hud.el.remove(); hud = null; window.clearInterval(hudTimer); } };
+    // it goes away by itself a few seconds after it opened, unless the pointer is resting on it (then it waits until the pointer leaves)
+    const armHud = (ms: number) => { window.clearTimeout(hudHide); hudHide = window.setTimeout(closeHud, ms); };
     const toggleHud = () => {
-      if (hud) { hud.el.remove(); hud = null; window.clearInterval(hudTimer); return; }
+      if (hud) { closeHud(); return; }
       hud = createHud();
+      hud.el.style.pointerEvents = 'auto';
+      hud.el.addEventListener('mouseenter', () => window.clearTimeout(hudHide));
+      hud.el.addEventListener('mouseleave', () => armHud(2500));
       document.body.appendChild(hud.el);
       hudTimer = window.setInterval(() => hud?.update(), 500);
+      armHud(HUD_SHOW_MS);
     };
     const hudKey = (e: KeyboardEvent) => { if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'p') { e.preventDefault(); toggleHud(); } };
     window.addEventListener('keydown', hudKey);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('keydown', hudKey);
-      if (hud) { hud.el.remove(); window.clearInterval(hudTimer); }
+      closeHud();
       ro.disconnect();
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mouseleave', leave);

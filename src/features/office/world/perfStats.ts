@@ -94,6 +94,9 @@ export function perfVerdict(): { text: string; tone: Tone } {
   return { text: 'Fine for now.', tone: 'plain' };
 }
 
+/** How long the readout stays on screen by itself (ms) when the pointer is not on it. */
+export const HUD_SHOW_MS = 10_000;
+
 /** The readout panel: one line per number, coloured by how healthy it is. Built outside React; call update() twice a second. */
 export function createHud(): { el: HTMLElement; update: () => void } {
   const el = document.createElement('div');

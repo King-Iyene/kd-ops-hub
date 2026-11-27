@@ -21,6 +21,9 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { MfaRequiredBanner } from '@/components/MfaRequiredBanner';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useKeepSeen } from '@/features/office/useLastSeen';
+import { useAppPings } from '@/features/office/appPings';
+import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 import { Search } from 'lucide-react';
@@ -115,6 +118,13 @@ export default function AppLayout() {
   // note that I am using the app (once when it opens, then every two minutes) so everyone sees who is active, not only people inside the Office
   const myId = useAuthStore((s) => s.profile?.id);
   useKeepSeen(myId);
+  // a wave or ring from somebody in the Office reaches me on whatever page I am on
+  const { toast } = useToast();
+  useAppPings(myId, ({ kind, name, open }) => toast({
+    title: kind === 'ring' ? `${name} wants a word` : `${name} is waving at you`,
+    description: 'Open the Office to say hi.',
+    action: <ToastAction altText="Open the Office" onClick={open}>Open</ToastAction>,
+  }));
 
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
