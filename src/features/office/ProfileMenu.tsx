@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX, Gauge, Keyboard } from 'lucide-react';
+import { Bell, ChevronDown, Download, Circle, DoorClosed, UserPlus, DoorOpen, Hammer, Lock, LockOpen, Minus, Palette, Pencil, Plus, Settings, Video, Volume2, VolumeX, Gauge, Info, Keyboard } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MAX_STATUS_TEXT, STATUSES, STATUS_EMOJI, customStatusId, dotColor, statusOf } from './status';
 import { AvatarFace } from './AvatarFace';
 import { desktopLabel } from './desktopApp';
@@ -13,6 +14,33 @@ import { LABEL, SURFACE } from './ui';
 import { perf, setSmooth } from './world/perfStats';
 
 /** What to press, shown in the profile menu. Keep in step with the key handlers in OfficeCanvas / OfficePage / CallDock. */
+/** What Smooth mode does, in plain words (shown in the tooltip next to its name). */
+export const SMOOTH_MODE_HELP = [
+  'Makes the Office lighter for your computer.',
+  'It draws the Office about 30 times a second instead of 60, and a little less sharp, so a slower computer has less to do and movement looks steadier instead of jerky.',
+  'Turn it on if the Office feels slow or laggy. Leave it off on a good computer, where it only makes things look less smooth.',
+  'It can also turn itself on if the Office stays very slow. Press Ctrl + Alt + P to see how the Office is running.',
+];
+
+/** A small (i) next to Smooth mode: hover it (or tab to it) and a short explanation appears at once. */
+export function SmoothModeHelp() {
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" aria-label="What is Smooth mode?" className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[#9ff6ff]/70 transition-colors hover:text-[#9ff6ff] focus-visible:text-[#9ff6ff] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary" onClick={(e) => e.stopPropagation()}>
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className="z-[80] max-w-[17rem] space-y-1.5 p-3 text-[12px] leading-snug">
+          <p className="font-semibold">{SMOOTH_MODE_HELP[0]}</p>
+          {SMOOTH_MODE_HELP.slice(1).map((t) => <p key={t} className="text-muted-foreground">{t}</p>)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export const KEY_GUIDE: { title: string; rows: [string[], string][] }[] = [
   { title: 'Move', rows: [[['W', 'A', 'S', 'D'], 'Walk (arrow keys work too)'], [['Shift'], 'Hold to walk faster'], [['M'], 'Show or hide the minimap']] },
   { title: 'Act', rows: [[['F'], 'Use what glows yellow: sit, ride, read, pets'], [['X'], 'Dance, press again to stop'], [['G'], 'Hold to turn into a ghost'], [['E'], 'Reactions, then press 1 to 8'], [['H'], 'Raise your hand'], [['C'], 'Turn into your character, again to turn back']] },
@@ -209,10 +237,10 @@ export function ProfileMenu(p: Props) {
                 </div>
                 <input type="range" min={0} max={100} value={Math.round(p.volume * 100)} disabled={!p.sound} onChange={(e) => p.onVolume(Number(e.target.value) / 100)} aria-label="Volume" className="mt-2.5 h-1 w-full cursor-pointer accent-primary disabled:opacity-40" />
               </div>
-              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]" title="For slower computers: draws 30 pictures a second instead of 60, at normal sharpness and without rain and other weather effects. Press Ctrl + Alt + P in the Office to see how it is running.">
+              <div className="rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="min-w-0">
-                    <span className="flex items-center gap-2 text-[13px] font-semibold"><Gauge className="h-4 w-4" />Smooth mode</span>
+                    <span className="flex items-center gap-2 text-[13px] font-semibold"><Gauge className="h-4 w-4" />Smooth mode<SmoothModeHelp /></span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{smooth ? (perf.autoSmooth && !perf.smooth ? 'On by itself, because the Office was running slowly.' : 'On: lighter drawing for slower computers.') : 'Turn on if the Office feels slow or jerky.'}</span>
                   </span>
                   <button type="button" role="switch" aria-checked={smooth} onClick={() => { const next = !smooth; setSmoothState(next); setSmooth(next); if (!next) perf.autoSmooth = false; }} className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${smooth ? 'bg-primary' : 'bg-white/15'}`}>
