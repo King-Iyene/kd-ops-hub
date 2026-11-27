@@ -32,6 +32,8 @@ drop function if exists public.leave_annual_quota(uuid, integer);
 drop function if exists public.leave_used_column(text);
 drop function if exists public.leave_accrued_days(numeric, integer, date);
 drop function if exists public.leave_working_days(date, date, boolean);
+drop function if exists public.leave_whos_away(date, date);
+delete from public.email_templates where key = 'leave.update';
 drop function if exists public.leave_caller_is_admin();
 drop table if exists public.leave_balance_adjustments;
 drop table if exists public.leave_events;

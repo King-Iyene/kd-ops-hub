@@ -631,8 +631,84 @@ BEGIN
 END;
 $$;
 
+
 -- ---------------------------------------------------------------------------
--- 15. Who may call what
+-- 15. Who is away: everyone can see who is out and when, nothing more.
+--     Names and dates only. The kind of leave (sick, maternity...) and pending
+--     requests are shown to admins and to the person themselves, nobody else.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.leave_whos_away(p_from date, p_to date)
+RETURNS TABLE (
+  leave_id uuid, employee_id uuid, employee_name text, department_name text,
+  start_date date, end_date date, days numeric, leave_type text, status text
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT lr.id, lr.employee_id, COALESCE(p.full_name, 'Someone'), d.name,
+         lr.start_date, lr.end_date, lr.days_requested,
+         CASE WHEN public.leave_caller_is_admin() OR lr.employee_id = auth.uid() THEN lr.leave_type END,
+         lr.status
+  FROM public.leave_requests lr
+  JOIN public.profiles p ON p.id = lr.employee_id
+  LEFT JOIN public.departments d ON d.id = p.department_id
+  WHERE auth.uid() IS NOT NULL
+    AND lr.deleted_at IS NULL
+    AND lr.start_date <= p_to AND lr.end_date >= p_from
+    AND COALESCE(p.status, 'active') <> 'inactive'
+    AND (lr.status = 'approved'
+         OR (lr.status = 'pending' AND (public.leave_caller_is_admin() OR lr.employee_id = auth.uid())))
+  ORDER BY lr.start_date, p.full_name;
+$$;
+REVOKE ALL ON FUNCTION public.leave_whos_away(date, date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.leave_whos_away(date, date) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 16. One email template for "your leave changed" (edited, cancelled, moved
+--     back to pending, added for you). Approved / not-approved reuse the
+--     existing request.approved / request.rejected templates.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.email_templates
+  (key, name, description, category, subject, html_body, text_body, variables,
+   default_subject, default_html_body, default_text_body, is_system)
+VALUES
+  ('leave.update',
+   'Leave update (employee)',
+   'Sent when an admin changes, cancels or adds leave for someone. {{headline}} says what happened.',
+   'hr',
+   '{{headline}}',
+   '<p>Hi {{requester_name}},</p>
+<p><strong>{{headline}}</strong></p>
+<p>{{summary}}</p>
+{{#note}}<p>Note from {{by_name}}: <em>{{note}}</em></p>{{/note}}
+<p>See the details in KD Ops: <a href="{{link}}">{{link}}</a></p>',
+   'Hi {{requester_name}},
+{{headline}}
+{{summary}}
+Note from {{by_name}}: {{note}}
+View: {{link}}',
+   '[
+     {"name":"requester_name","description":"Employee","example":"Bola"},
+     {"name":"headline","description":"What happened","example":"Your leave was changed"},
+     {"name":"summary","description":"One-liner","example":"Annual leave, 7 to 11 Dec (5 days)"},
+     {"name":"by_name","description":"Who made the change","example":"Siyeofori"},
+     {"name":"note","description":"Optional note","example":""},
+     {"name":"link","description":"Deep link","example":"https://ops.kdsquares.com/leave"}
+   ]'::jsonb,
+   '{{headline}}',
+   '<p>Hi {{requester_name}},</p>
+<p><strong>{{headline}}</strong></p>
+<p>{{summary}}</p>
+{{#note}}<p>Note from {{by_name}}: <em>{{note}}</em></p>{{/note}}
+<p>See the details in KD Ops: <a href="{{link}}">{{link}}</a></p>',
+   'Hi {{requester_name}},
+{{headline}}
+{{summary}}
+Note from {{by_name}}: {{note}}
+View: {{link}}',
+   true)
+ON CONFLICT (key) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 17. Who may call what
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE f text;
