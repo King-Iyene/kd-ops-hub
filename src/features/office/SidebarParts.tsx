@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ChevronDown, MapPin, MonitorUp } from 'lucide-react';
+import { Building2, ChevronDown, DoorOpen, Lock, MapPin, MonitorUp, Sofa } from 'lucide-react';
 import { AvatarFace } from './AvatarFace';
 import type { AvatarStyle } from './world/types';
 
@@ -92,5 +92,58 @@ export function OfflineRow({ avatar, name, seen, active, onOpen }: { avatar: Ava
       <span className="min-w-0 flex-1 truncate text-[12px]">{name}</span>
       <span className={`shrink-0 font-mono text-[9.5px] ${active ? 'text-[#9ff6ff]' : 'opacity-60'}`}>{active ? 'in the app' : seen}</span>
     </button>
+  );
+}
+
+/** A room people can walk into: a lamp that is lit when somebody is in it, the name, a stack of the faces inside, and a lock if it is shut. */
+export function PlaceRow({ name, kind, people, locked, onOpen }: {
+  name: string;
+  kind: 'meeting' | 'lounge' | string;
+  people: { id: string; name: string; avatar: AvatarStyle }[];
+  locked: boolean;
+  onOpen: () => void;
+}) {
+  const Icon = kind === 'lounge' ? Sofa : DoorOpen;
+  const busy = people.length > 0;
+  const shown = people.slice(0, 3);
+  return (
+    <button type="button" onClick={onOpen} title={locked ? `${name} is locked` : `Go to ${name}`}
+      className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]">
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset transition-colors ${busy ? 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/30' : 'bg-white/[0.03] text-muted-foreground ring-white/10 group-hover:text-foreground'}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-[12.5px] font-semibold leading-tight">{name}</span>
+          {locked && <Lock className="h-3 w-3 shrink-0 text-amber-400" aria-label="Locked" />}
+        </span>
+        <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-muted-foreground">
+          {busy ? (people.length === 1 ? `${people[0].name} is in` : `${people.length} people in`) : locked ? 'Locked' : 'Empty'}
+        </span>
+      </span>
+      {busy && (
+        <span className="flex shrink-0 items-center">
+          {shown.map((p, i) => <span key={p.id} className="rounded-full ring-2 ring-popover" style={{ marginLeft: i ? -7 : 0 }}><AvatarFace avatar={p.avatar} size={20} /></span>)}
+          {people.length > shown.length && <span className="ml-1 font-mono text-[10px] font-semibold text-emerald-300">+{people.length - shown.length}</span>}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** One of the office spaces you can switch to. The one you are in has a glowing edge. */
+export function SpaceRow({ name, current, onOpen, actions }: { name: string; current: boolean; onOpen: () => void; actions?: ReactNode }) {
+  return (
+    <div className={`group relative flex items-center rounded-lg transition-colors hover:bg-white/[0.05] ${current ? 'bg-[#00ECFF]/[0.07]' : ''}`}>
+      {current && <span aria-hidden className="absolute bottom-1.5 left-0 top-1.5 w-[2px] rounded-full bg-[#00ECFF] shadow-[0_0_8px_#00ECFF]" />}
+      <button type="button" onClick={onOpen} aria-current={current ? 'true' : undefined} className="flex min-w-0 flex-1 items-center gap-2.5 px-1.5 py-1.5 text-left">
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${current ? 'bg-[#00ECFF]/10 text-[#00ECFF] ring-[#00ECFF]/30' : 'bg-white/[0.03] text-muted-foreground ring-white/10'}`}><Building2 className="h-3.5 w-3.5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className={`block truncate text-[12.5px] leading-tight ${current ? 'font-bold' : 'font-semibold'}`}>{name}</span>
+          <span className="mt-0.5 block text-[10.5px] leading-tight text-muted-foreground">{current ? 'You are here' : 'Switch to this space'}</span>
+        </span>
+      </button>
+      {actions}
+    </div>
   );
 }

@@ -30,26 +30,34 @@ export function PersonCard({ x, y, name, avatar, online, presence, status, sub, 
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const w = 216;
+  const w = 232;
   const left = Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8));
   // just above the pointer and overlapping it a little, so there is no gap to cross on the way up
   const above = y > 190;
   const pos = above ? { bottom: window.innerHeight - y - 20 } : { top: y + 40 };
+  const away = presence ? presence.kind === 'offline' : !online;
+  const color = presence ? presence.color : online ? '#34d399' : '#94a3b8';
+  const words = sub ?? (presence ? (presence.kind === 'office' ? status ?? presence.label : presence.label) : online ? status ?? 'Available' : 'Offline');
   return createPortal(
     <div className="ko fixed z-[65]" style={{ left, ...pos, width: w }} onMouseEnter={onEnter} onMouseLeave={onLeave} title={hint ?? undefined}>
-      <div className="relative pt-7">
-        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 drop-shadow-lg">{avatar ? <AvatarFace avatar={avatar} size={56} dim={presence ? presence.kind === 'offline' : !online} /> : <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[#00ECFF]/40 bg-[#052d3f] text-2xl text-[#9ff6ff]/60">+</span>}</div>
-        <div className="animate-in fade-in zoom-in-95 kd-card relative overflow-hidden rounded-2xl px-3 pb-3 pt-9 text-center text-white duration-100">
-          <p className="truncate text-[14px] font-bold leading-tight">
-            {name}{avatar && <span className={`ml-1.5 inline-block h-2 w-2 rounded-full align-middle ${presence ? '' : online ? 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,.22)]' : 'bg-slate-400'}`} style={presence ? { background: presence.color, boxShadow: presence.kind === 'offline' ? undefined : `0 0 0 3px ${presence.color}38` } : undefined} aria-label={presence ? presence.label : online ? 'Online' : 'Offline'} />}
+      <div className="relative pt-8">
+        <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2">
+          {avatar
+            ? <span className="block rounded-full bg-[#052d3f] p-[3px] drop-shadow-lg" style={{ boxShadow: `0 0 0 2px ${color}${away ? '66' : ''}, 0 0 18px ${color}${away ? '00' : '55'}` }}><AvatarFace avatar={avatar} size={56} dim={away} /></span>
+            : <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-[#D6AC50]/55 bg-[#052d3f] text-2xl text-[#E6C275]/80">+</span>}
+        </div>
+        <div className="animate-in fade-in zoom-in-95 kd-card relative overflow-hidden rounded-2xl px-3 pb-3 pt-10 text-center text-white duration-100">
+          <p className="truncate text-[14.5px] font-bold leading-tight tracking-tight">{name}</p>
+          <p className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] font-medium" style={{ color: away ? '#b6c7d0' : '#eafcff', background: `${color}${away ? '1c' : '26'}` }}>
+            {avatar && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${away ? '' : 'animate-pulse'}`} style={{ background: color }} aria-label={presence ? presence.label : online ? 'Online' : 'Offline'} />}
+            <span className="truncate">{words}</span>
           </p>
-          <p className="mt-0.5 truncate text-[12px] leading-tight text-[#9fc9d8]">{sub ?? (presence ? (presence.kind === 'office' ? status ?? presence.label : presence.label) : online ? status ?? 'Available' : 'Offline')}</p>
           {actions.length > 0 && (
             <div className="mt-3 flex items-center justify-center gap-2">
               {actions.map((a) => (
                 <button
                   key={a.key} type="button" disabled={!!a.off} title={a.off ?? a.label} aria-label={a.label} onClick={a.run}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl hover:-translate-y-px transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${a.primary && !a.off ? 'kd-gold hover:brightness-110' : 'bg-[#00ECFF]/10 text-[#d8fbff] ring-1 ring-inset ring-[#00ECFF]/15 hover:bg-[#00ECFF]/20'}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 ${a.primary && !a.off ? 'kd-gold shadow-[0_6px_16px_-8px_rgba(214,172,80,.9)] hover:brightness-110' : 'bg-[#00ECFF]/10 text-[#d8fbff] ring-1 ring-inset ring-[#00ECFF]/15 hover:bg-[#00ECFF]/20 hover:ring-[#00ECFF]/40'}`}
                 >{a.icon}</button>
               ))}
             </div>
