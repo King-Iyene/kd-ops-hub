@@ -42,6 +42,7 @@ let quitting = false;
 let active = 'ops';
 let updateReadyVersion = null;
 const startedAt = Date.now();
+const { zoomFromInput, nextZoomLevel } = require('./zoom-keys');
 let autoUpdater = null;
 const views = {};
 const counts = { ops: 0, office: 0 };
@@ -251,6 +252,14 @@ function createView(id) {
   // tell the site it is inside the desktop app (it shows this on "you are somewhere else" and turns notifications on)
   const baseUa = wc.getUserAgent().replace(/\sElectron\/\S+/, '');
   wc.setUserAgent(`${baseUa} KDOfficeDesktop/${app.getVersion()} KDOpsDesktop/${app.getVersion()}`);
+
+  // zoom with the keyboard: Ctrl (or Cmd) with plus, minus or zero, with or without Shift (the menu shortcuts alone missed Ctrl+Shift+minus)
+  wc.on('before-input-event', (event, input) => {
+    const z = zoomFromInput(input);
+    if (!z) return;
+    event.preventDefault();
+    try { wc.setZoomLevel(nextZoomLevel(wc.getZoomLevel(), z)); } catch { /* the page is going away */ }
+  });
 
   wc.setWindowOpenHandler(({ url }) => {
     const r = routeOf(url);
@@ -747,7 +756,7 @@ function zoomActive(delta) {
   const v = views[active];
   if (!v || v.webContents.isDestroyed()) return;
   const wc = v.webContents;
-  wc.setZoomLevel(delta === 0 ? 0 : Math.max(-3, Math.min(4, wc.getZoomLevel() + delta)));
+  wc.setZoomLevel(delta === 0 ? 0 : nextZoomLevel(wc.getZoomLevel(), delta > 0 ? 'in' : 'out'));
 }
 
 app.whenReady().then(() => {
