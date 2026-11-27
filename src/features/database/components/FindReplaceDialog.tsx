@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Search, Replace, ChevronDown, ChevronUp, CaseSensitive } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Replace, ChevronDown, ChevronUp, CaseSensitive, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { FieldMeta, RecordRow } from '../types';
 
@@ -74,9 +73,13 @@ export function FindReplaceDialog({
   }, [matches.length, currentIdx]);
 
   useEffect(() => {
+    if (!open) {
+      onHighlightCell?.(null);
+      return;
+    }
     const match = matches[currentIdx];
     onHighlightCell?.(match ? `${match.recordId}:${match.fieldId}` : null);
-  }, [currentIdx, matches, onHighlightCell]);
+  }, [open, currentIdx, matches, onHighlightCell]);
 
   const goNext = useCallback(() => {
     if (matches.length === 0) return;
@@ -107,92 +110,85 @@ export function FindReplaceDialog({
     }
   }, [matches, findText, replaceText, caseSensitive, onCellUpdate]);
 
+  if (!open) return null;
+
+  const fieldClass =
+    'w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs-plus text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30';
+  const iconBtn =
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+
+  // A small bar at the top, like Airtable's: no backdrop, so the rows being searched stay visible and usable.
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onHighlightCell?.(null); onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Search size={16} className="text-primary" />
-            Find {showReplace && '& Replace'}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 pt-1">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative">
-              <input
-                ref={findRef}
-                type="text"
-                value={findText}
-                onChange={(e) => { setFindText(e.target.value); setCurrentIdx(0); }}
-                placeholder="Find in this view..."
-                className="w-full px-3 py-2 text-xs-plus rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { if (e.shiftKey) goPrev(); else goNext(); }
-                  if (e.key === 'Escape') onOpenChange(false);
-                }}
-              />
-              {findText && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-[#9AA2AF] dark:text-[hsl(220,25%,50%)]">
-                  {matches.length > 0 ? `${currentIdx + 1} / ${matches.length}` : '0 results'}
-                </span>
-              )}
-            </div>
-            <button
-              className={`p-1.5 rounded-md border transition-colors ${caseSensitive ? 'border-primary bg-primary/10 text-primary' : 'border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#9AA2AF]'}`}
-              onClick={() => setCaseSensitive(!caseSensitive)}
-              title="Case sensitive"
-            >
-              <CaseSensitive size={16} />
-            </button>
-            <button className="p-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#9AA2AF] hover:text-[#374151] dark:hover:text-white transition-colors" onClick={goPrev} title="Previous">
-              <ChevronUp size={16} />
-            </button>
-            <button className="p-1.5 rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] text-[#9AA2AF] hover:text-[#374151] dark:hover:text-white transition-colors" onClick={goNext} title="Next">
-              <ChevronDown size={16} />
-            </button>
-          </div>
-
-          <button
-            className="text-xs text-primary hover:underline"
-            onClick={() => setShowReplace(!showReplace)}
-          >
-            {showReplace ? 'Hide replace' : 'Show replace'}
-          </button>
-
-          {showReplace && (
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={replaceText}
-                onChange={(e) => setReplaceText(e.target.value)}
-                placeholder="Replace with..."
-                className="w-full px-3 py-2 text-xs-plus rounded-md border border-[#E5E5E5] dark:border-[hsl(220,25%,18%)] bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-                onKeyDown={(e) => { if (e.key === 'Escape') onOpenChange(false); }}
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-8"
-                  onClick={replaceOne}
-                  disabled={matches.length === 0}
-                >
-                  <Replace size={13} className="mr-1" /> Replace
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-8"
-                  onClick={replaceAll}
-                  disabled={matches.length === 0}
-                >
-                  Replace all ({matches.length})
-                </Button>
-              </div>
-            </div>
+    <div
+      role="search"
+      aria-label="Find in this view"
+      className="fixed right-4 top-28 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-popover p-2 shadow-lg"
+    >
+      <div className="flex items-center gap-1">
+        <div className="relative flex-1">
+          <input
+            ref={findRef}
+            type="text"
+            value={findText}
+            onChange={(e) => { setFindText(e.target.value); setCurrentIdx(0); }}
+            placeholder="Find in this view"
+            className={fieldClass + ' pr-16'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { if (e.shiftKey) goPrev(); else goNext(); }
+              if (e.key === 'Escape') onOpenChange(false);
+            }}
+          />
+          {findText && (
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground">
+              {matches.length > 0 ? `${currentIdx + 1} / ${matches.length}` : 'No results'}
+            </span>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+        <button
+          className={`${iconBtn} ${caseSensitive ? '!border-primary !bg-primary/10 !text-primary' : ''}`}
+          onClick={() => setCaseSensitive(!caseSensitive)}
+          title="Match case"
+          aria-pressed={caseSensitive}
+        >
+          <CaseSensitive size={16} />
+        </button>
+        <button className={iconBtn} onClick={goPrev} title="Previous match (Shift+Enter)" aria-label="Previous match">
+          <ChevronUp size={16} />
+        </button>
+        <button className={iconBtn} onClick={goNext} title="Next match (Enter)" aria-label="Next match">
+          <ChevronDown size={16} />
+        </button>
+        <button
+          className={`${iconBtn} ${showReplace ? '!bg-muted !text-foreground' : ''}`}
+          onClick={() => setShowReplace(!showReplace)}
+          title={showReplace ? 'Hide replace' : 'Replace'}
+          aria-pressed={showReplace}
+        >
+          <Replace size={15} />
+        </button>
+        <button className={iconBtn} onClick={() => onOpenChange(false)} title="Close (Esc)" aria-label="Close find">
+          <X size={16} />
+        </button>
+      </div>
+
+      {showReplace && (
+        <div className="mt-2 flex items-center gap-1">
+          <input
+            type="text"
+            value={replaceText}
+            onChange={(e) => setReplaceText(e.target.value)}
+            placeholder="Replace with"
+            className={fieldClass}
+            onKeyDown={(e) => { if (e.key === 'Escape') onOpenChange(false); }}
+          />
+          <Button size="sm" variant="outline" className="h-8 shrink-0 text-xs" onClick={replaceOne} disabled={matches.length === 0}>
+            Replace
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 shrink-0 text-xs" onClick={replaceAll} disabled={matches.length === 0}>
+            All ({matches.length})
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
