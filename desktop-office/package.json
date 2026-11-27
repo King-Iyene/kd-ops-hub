@@ -1,6 +1,6 @@
 {
   "name": "kd-ops-desktop",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "private": true,
   "description": "KD Ops: the KD Squares ops site and the virtual Office as one desktop app",
   "author": {
@@ -26,6 +26,7 @@
     "files": [
       "main.js",
       "update-cache.js",
+      "zoom-keys.js",
       "preload.js",
       "preload-tabs.js",
       "preload-mini.js",
