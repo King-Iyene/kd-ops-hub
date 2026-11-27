@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  Table2,
   Plus,
+  ChevronLeft,
+  ChevronRight,
   Pencil,
   Copy,
   Trash2,
@@ -46,16 +47,14 @@ import {
   useDeleteTable,
   useUpdateTable,
   useDuplicateTable,
-  useRecordCount,
 } from '../hooks';
 import { usePrefetchTable } from '../hooks/usePrefetchTable';
 import {
   useManualHiddenTables,
   usePinnedTables,
-  useRecentTableIds,
   useShowHiddenTables,
 } from '../hooks/useNavPrefs';
-import { countHiddenTables, filterVisibleTables, pickTabTables } from '../lib/tableVisibility';
+import { countHiddenTables, filterVisibleTables } from '../lib/tableVisibility';
 import { CreateTableDialog } from './CreateTableDialog';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { ImportAirtableDialog } from './ImportAirtableDialog';
@@ -99,16 +98,6 @@ function InlineRenameInput({
   );
 }
 
-function TabRecordCount({ baseId, tableId }: { baseId: string; tableId: string }) {
-  const { data: count } = useRecordCount(baseId, tableId);
-  if (count == null) return null;
-  return (
-    <span className="text-2xs opacity-50 tabular-nums ml-0.5">
-      {count > 999 ? `${(count / 1000).toFixed(1)}k` : count}
-    </span>
-  );
-}
-
 function SortableTableTabWrapper({ id, children }: { id: string; children: (props: { setNodeRef: (el: HTMLElement | null) => void; style: React.CSSProperties; attributes: Record<string, any>; listeners: Record<string, any> | undefined }) => React.ReactNode }) {
   const {
     attributes,
@@ -134,30 +123,6 @@ function darkenColor(hex: string, amount: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgb(${Math.round(r * (1 - amount))}, ${Math.round(g * (1 - amount))}, ${Math.round(b * (1 - amount))})`;
-}
-
-// Rough widths used to decide how many tabs fit: one tab (icon, name up to 120px, count, menu), and the fixed controls.
-const TAB_SLOT_WIDTH = 150;
-const RESERVED_WIDTH = 190;
-const MAX_TABS = 6;
-const FALLBACK_TABS = 4;
-
-/** Width of an element, kept current as the window or sidebar is resized. 0 until first measured. */
-function useElementWidth(ref: React.RefObject<HTMLElement>): number {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    setWidth(el.clientWidth);
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver((entries) => {
-      const w = Math.round(entries[0]?.contentRect.width ?? 0);
-      setWidth((prev) => (prev === w ? prev : w));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref]);
-  return width;
 }
 
 interface TableTabBarProps {
@@ -186,7 +151,6 @@ export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps
   const { hiddenIds: manualHidden, toggleHidden: toggleHideTable } = useManualHiddenTables(activeBaseId);
   const [showHidden, setShowHidden] = useShowHiddenTables();
   const { pinnedIds } = usePinnedTables(activeBaseId);
-  const recentTableIds = useRecentTableIds(activeBaseId);
 
   // The query can briefly still hold the previous base's tables while the next one loads.
   const sortedTables = useMemo(
@@ -203,14 +167,34 @@ export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps
     [sortedTables, activeTableId, manualHidden],
   );
 
-  // Only as many tabs as fit: the open table plus the ones used most recently. Everything else is one click away in All tables.
-  const barRef = useRef<HTMLDivElement>(null);
-  const barWidth = useElementWidth(barRef);
-  const maxTabs = barWidth > 0 ? Math.min(MAX_TABS, Math.floor((barWidth - RESERVED_WIDTH) / TAB_SLOT_WIDTH)) : FALLBACK_TABS;
-  const tabTables = useMemo(
-    () => pickTabTables(selectableTables, { activeId: activeTableId, recentIds: recentTableIds, max: maxTabs }),
-    [selectableTables, activeTableId, recentTableIds, maxTabs],
-  );
+  // Like Airtable: every table is a tab, in order, and the strip scrolls sideways when they do not all fit.
+  const tabTables = selectableTables;
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const updateEdges = useCallback(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  }, []);
+  useEffect(() => {
+    updateEdges();
+    const el = stripRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateEdges, tabTables.length]);
+  // Keep the open table's tab in view.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip || !activeTableId) return;
+    strip.querySelector<HTMLElement>(`[data-tab-id="${activeTableId}"]`)?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [activeTableId, tabTables.length]);
+  const scrollStrip = useCallback((delta: number) => {
+    stripRef.current?.scrollBy({ left: delta, behavior: 'smooth' });
+  }, []);
 
   const [tablesOpenLocal, setTablesOpenLocal] = useState(false);
   const tablesPopoverOpen = tablesOpen ?? tablesOpenLocal;
@@ -298,169 +282,197 @@ export function TableTabBar({ tablesOpen, onTablesOpenChange }: TableTabBarProps
   if (!activeBaseId) return null;
 
   return (
-    <div ref={barRef} className="flex items-center h-[38px] px-1 gap-0 overflow-hidden shrink-0 select-none" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
-      <AllTablesPopover
-        open={tablesPopoverOpen}
-        onOpenChange={setTablesPopoverOpen}
-        tables={sortedTables}
-        activeTableId={activeTableId}
-        pinnedIds={pinnedIds}
-        manualHidden={manualHidden}
-        hiddenCount={hiddenCount}
-        showHidden={showHidden}
-        onShowHiddenChange={setShowHidden}
-        onSelect={(tableId) => {
-          setTablesPopoverOpen(false);
-          if (tableId !== activeTableId) navigateToTable(tableId);
-        }}
-        onUnhide={toggleHideTable}
-      />
-      <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
-        <SortableContext items={tabTables.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-      {tabTables.map((table: any) => (
-        <SortableTableTabWrapper key={table.id} id={table.id}>
-          {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
-        <div ref={setNodeRef} style={dndStyle} {...attributes} {...listeners} className="group/tab flex items-center h-full min-w-0 shrink">
-          <a
-            href={activeBaseId ? `/data/${toShort(activeBaseId)}/${toShort(table.id)}` : '#'}
-            className={cn(
-              'relative flex items-center gap-1.5 h-full min-w-0 px-3 text-xs-plus cursor-pointer transition-colors no-underline',
-              table.id === activeTableId
-                ? 'bg-white dark:bg-[hsl(220,30%,10%)] text-[#374151] dark:text-[hsl(220,25%,88%)] font-medium rounded-t-md -mb-px'
-                : 'text-white/70 hover:text-white',
-            )}
-            {...(activeBaseId ? prefetch.handlersFor(activeBaseId, table.id) : {})}
-            onClick={(e) => { e.preventDefault(); navigateToTable(table.id); }}
-            onDoubleClick={() => setRenamingId(table.id)}
-          >
-            {table.icon ? (
-              <span className="text-xs-plus shrink-0">{table.icon}</span>
-            ) : (
-              <Table2 size={14} className="shrink-0" />
-            )}
-            {renamingId === table.id ? (
-              <InlineRenameInput
-                value={table.name}
-                onCommit={(name) => handleRename(table.id, name)}
-                onCancel={() => setRenamingId(null)}
-              />
-            ) : (
-              <span className="truncate max-w-[120px]">{table.name}</span>
-            )}
-            {/* Only the open table is counted: counting every tab fired one request per table (43 on KDS Finances). */}
-            {renamingId !== table.id && activeBaseId && table.id === activeTableId && (
-              <TabRecordCount baseId={activeBaseId} tableId={table.id} />
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  data-tab-menu-trigger
-                  className={cn(
-                    'p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-opacity shrink-0',
-                    table.id === activeTableId
-                      ? 'opacity-60 hover:opacity-100'
-                      : 'opacity-0 group-hover/tab:opacity-60 hover:!opacity-100',
-                  )}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ChevronDown size={12} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuItem
-                  className="text-xs gap-2"
-                  onClick={() => setRenamingId(table.id)}
-                >
-                  <Pencil size={12} /> Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-xs gap-2"
-                  onClick={() => handleDuplicate(table)}
-                >
-                  <Copy size={12} /> Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-xs gap-2"
-                  onClick={() => setIconPickerId(iconPickerId === table.id ? null : table.id)}
-                >
-                  <Smile size={12} /> Change icon
-                </DropdownMenuItem>
-                {iconPickerId === table.id && (
-                  <div className="relative" onClick={(e) => e.stopPropagation()}>
-                    <EmojiPicker
-                      onSelect={(emoji) => {
-                        if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji || null });
-                        setIconPickerId(null);
-                      }}
-                      onClose={() => setIconPickerId(null)}
-                    />
-                  </div>
-                )}
-                <DropdownMenuItem
-                  className="text-xs gap-2"
-                  onClick={() => {
-                    const wasHidden = manualHidden.has(table.id);
-                    toggleHideTable(table.id);
-                    if (!wasHidden && table.id === activeTableId) {
-                      const next = selectableTables.find((t) => t.id !== table.id && !manualHidden.has(t.id));
-                      if (next) navigateToTable(next.id);
-                    }
-                  }}
-                >
-                  {manualHidden.has(table.id) ? <Eye size={12} /> : <EyeOff size={12} />}
-                  {manualHidden.has(table.id) ? 'Unhide table' : 'Hide table'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-xs gap-2 text-red-500 focus:text-red-500"
-                  onClick={() => handleDelete(table)}
-                >
-                  <Trash2 size={12} /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </a>
-        </div>
-          )}
-        </SortableTableTabWrapper>
-      ))}
-        </SortableContext>
-      </DndContext>
-      <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-        <DropdownMenuTrigger asChild>
+    <div className="flex h-[40px] shrink-0 select-none items-end gap-1 px-2" style={{ backgroundColor: darkenColor(baseColor, 0.55) }}>
+      <div className="relative flex h-full min-w-0 items-end">
+        {edges.left && (
           <button
-            className="flex items-center justify-center h-7 w-7 ml-0.5 rounded hover:bg-white/20 text-white/70 hover:text-white transition-colors shrink-0"
-            title="Add table"
+            type="button"
+            className="absolute left-0 top-1/2 z-20 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+            onClick={() => scrollStrip(-240)}
+            aria-label="Scroll tables left"
           >
-            <Plus size={15} />
+            <ChevronLeft size={14} />
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem className="text-xs gap-2" onClick={() => setCreateTableOpen(true)}>
-            <Plus size={12} /> Create new table
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportCsvOpen(true)}>
-            <Upload size={12} /> Import CSV
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs gap-2" onClick={() => setImportAirtableOpen(true)}>
-            <Download size={12} /> Import from Airtable
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+        <div
+          ref={stripRef}
+          onScroll={updateEdges}
+          onWheel={(e) => {
+            // A mouse wheel scrolls the tabs sideways.
+            const el = stripRef.current;
+            if (el && Math.abs(e.deltaY) > Math.abs(e.deltaX)) el.scrollLeft += e.deltaY;
+          }}
+          className="flex h-full min-w-0 items-end overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none' }}
+          role="tablist"
+          aria-label="Tables"
+        >
+          <DndContext sensors={tableSensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
+            <SortableContext items={tabTables.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+              {tabTables.map((table: any) => {
+                const isActive = table.id === activeTableId;
+                return (
+                  <SortableTableTabWrapper key={table.id} id={table.id}>
+                    {({ setNodeRef, style: dndStyle, attributes, listeners }) => (
+                      <div
+                        ref={setNodeRef}
+                        style={dndStyle}
+                        {...attributes}
+                        {...listeners}
+                        data-tab-id={table.id}
+                        className="group/tab flex h-[32px] shrink-0 items-center"
+                      >
+                        <a
+                          href={activeBaseId ? `/data/${toShort(activeBaseId)}/${toShort(table.id)}` : '#'}
+                          role="tab"
+                          aria-selected={isActive}
+                          className={cn(
+                            'relative flex h-full items-center gap-1.5 whitespace-nowrap rounded-t-md px-3 text-[13px] no-underline transition-colors cursor-pointer',
+                            isActive
+                              ? '-mb-px bg-white font-medium text-[#1D1F25] dark:bg-[hsl(220,30%,10%)] dark:text-[hsl(220,25%,92%)]'
+                              : 'text-white/85 hover:bg-white/15 hover:text-white',
+                          )}
+                          {...(activeBaseId ? prefetch.handlersFor(activeBaseId, table.id) : {})}
+                          onClick={(e) => { e.preventDefault(); navigateToTable(table.id); }}
+                          onDoubleClick={() => setRenamingId(table.id)}
+                        >
+                          {table.icon ? <span className="shrink-0 text-[13px]">{table.icon}</span> : null}
+                          {renamingId === table.id ? (
+                            <InlineRenameInput
+                              value={table.name}
+                              onCommit={(name) => handleRename(table.id, name)}
+                              onCancel={() => setRenamingId(null)}
+                            />
+                          ) : (
+                            <span className="max-w-[200px] truncate">{table.name}</span>
+                          )}
+                          {/* The menu arrow belongs to the open table only, as in Airtable. */}
+                          {isActive && renamingId !== table.id && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  data-tab-menu-trigger
+                                  className="shrink-0 rounded p-0.5 opacity-60 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`${table.name} options`}
+                                >
+                                  <ChevronDown size={13} />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-44">
+                                <DropdownMenuItem className="gap-2 text-xs" onClick={() => setRenamingId(table.id)}>
+                                  <Pencil size={12} /> Rename table
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 text-xs" onClick={() => handleDuplicate(table)}>
+                                  <Copy size={12} /> Duplicate table
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 text-xs"
+                                  onClick={() => setIconPickerId(iconPickerId === table.id ? null : table.id)}
+                                >
+                                  <Smile size={12} /> Change icon
+                                </DropdownMenuItem>
+                                {iconPickerId === table.id && (
+                                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                    <EmojiPicker
+                                      onSelect={(emoji) => {
+                                        if (activeBaseId) updateTable.mutate({ id: table.id, baseId: activeBaseId, icon: emoji || null });
+                                        setIconPickerId(null);
+                                      }}
+                                      onClose={() => setIconPickerId(null)}
+                                    />
+                                  </div>
+                                )}
+                                <DropdownMenuItem
+                                  className="gap-2 text-xs"
+                                  onClick={() => {
+                                    const wasHidden = manualHidden.has(table.id);
+                                    toggleHideTable(table.id);
+                                    if (!wasHidden && table.id === activeTableId) {
+                                      const next = selectableTables.find((t) => t.id !== table.id && !manualHidden.has(t.id));
+                                      if (next) navigateToTable(next.id);
+                                    }
+                                  }}
+                                >
+                                  {manualHidden.has(table.id) ? <Eye size={12} /> : <EyeOff size={12} />}
+                                  {manualHidden.has(table.id) ? 'Unhide table' : 'Hide table'}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="gap-2 text-xs text-red-500 focus:text-red-500"
+                                  onClick={() => handleDelete(table)}
+                                >
+                                  <Trash2 size={12} /> Delete table
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </a>
+                      </div>
+                    )}
+                  </SortableTableTabWrapper>
+                );
+              })}
+            </SortableContext>
+          </DndContext>
+        </div>
+        {edges.right && (
+          <button
+            type="button"
+            className="absolute right-0 top-1/2 z-20 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+            onClick={() => scrollStrip(240)}
+            aria-label="Scroll tables right"
+          >
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
 
-      <CreateTableDialog
-        open={createTableOpen}
-        onOpenChange={setCreateTableOpen}
-      />
-      <ImportCsvDialog
-        open={importCsvOpen}
-        onOpenChange={setImportCsvOpen}
-      />
-      <ImportAirtableDialog
-        open={importAirtableOpen}
-        onOpenChange={setImportAirtableOpen}
-      />
+      <div className="flex h-[32px] shrink-0 items-center gap-1 pb-0.5">
+        <AllTablesPopover
+          open={tablesPopoverOpen}
+          onOpenChange={setTablesPopoverOpen}
+          tables={sortedTables}
+          activeTableId={activeTableId}
+          pinnedIds={pinnedIds}
+          manualHidden={manualHidden}
+          hiddenCount={hiddenCount}
+          showHidden={showHidden}
+          onShowHiddenChange={setShowHidden}
+          onSelect={(tableId) => {
+            setTablesPopoverOpen(false);
+            if (tableId !== activeTableId) navigateToTable(tableId);
+          }}
+          onUnhide={toggleHideTable}
+        />
+        <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex h-7 shrink-0 items-center gap-1 rounded px-2 text-[13px] text-white/85 transition-colors hover:bg-white/15 hover:text-white"
+              title="Add or import a table"
+            >
+              <Plus size={14} />
+              <span className="whitespace-nowrap">Add or import</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="gap-2 text-xs" onClick={() => setCreateTableOpen(true)}>
+              <Plus size={12} /> Create new table
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2 text-xs" onClick={() => setImportCsvOpen(true)}>
+              <Upload size={12} /> Import CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2 text-xs" onClick={() => setImportAirtableOpen(true)}>
+              <Download size={12} /> Import from Airtable
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <CreateTableDialog open={createTableOpen} onOpenChange={setCreateTableOpen} />
+      <ImportCsvDialog open={importCsvOpen} onOpenChange={setImportCsvOpen} />
+      <ImportAirtableDialog open={importAirtableOpen} onOpenChange={setImportAirtableOpen} />
     </div>
   );
 }
