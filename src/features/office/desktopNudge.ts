@@ -28,6 +28,8 @@ export function isOlder(a: string, b: string): boolean {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** How long after the app opens before it may be told about a newer version (the app's own updater gets this long to do it first). */
+export const NUDGE_FIRST_MS = 4 * 60 * 1000;
 /**
  * Tell the person? Only when the app is behind the feed, the app has not already downloaded the update itself (that shows "restart to
  * update"), and they have not been told about this exact version in the last day (so it never nags).
@@ -63,7 +65,9 @@ export function useDesktopUpdateNudge(show: (p: { current: string; latest: strin
       markShown(d.version, now);
       showRef.current({ current, latest: d.version, download: () => saveFromUrl(d.url, d.file) });
     };
-    const first = window.setTimeout(() => void check(), 20_000); // let the app settle first
+    // wait a few minutes first: the app's own updater usually finds, downloads and offers the update by itself (the "New version ready" popup),
+    // and this message is only for the apps that did not manage that
+    const first = window.setTimeout(() => void check(), NUDGE_FIRST_MS);
     const again = window.setInterval(() => void check(), 4 * 60 * 60 * 1000);
     return () => { stop = true; window.clearTimeout(first); window.clearInterval(again); if (typeof off === 'function') off(); };
   }, []);
