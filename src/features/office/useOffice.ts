@@ -108,6 +108,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   /** who people say they are, learned from anybody we hear moving whom the online list does not know (see world/identity.ts) */
   const idents = useRef(new Map<string, Ident>());
   const presenceIds = useRef(new Set<string>());
+  /** connections the online list has shown at some point (so one that disappears from it has left, rather than been dropped) */
+  const wasListed = useRef(new Set<string>());
   const [identVer, setIdentVer] = useState(0);
   const [tick, setTick] = useState(0);
   const synthCache = useRef(new Map<string, Who>());
@@ -203,7 +205,15 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       // forget people who have left, and tabs that are no longer the one shown
       const here = new Set(all.map((w) => w.id));
       presenceIds.current = here;
-      for (const id of [...peers.current.keys()]) if (ghostIds.has(id) || (!here.has(id) && !idents.current.has(id))) peers.current.delete(id);
+      for (const id of here) wasListed.current.add(id);
+      for (const id of [...peers.current.keys()]) {
+        if (here.has(id) && !ghostIds.has(id)) continue;
+        const pm = peers.current.get(id);
+        // gone from the list after being on it: they left. Never on the list but heard moving a moment ago: the list dropped them (or has
+        // not caught up), so keep them until they have been quiet for a while, long enough to be asked who they are.
+        const dropped = !wasListed.current.has(id) && !!pm && Date.now() - pm.at < PEER_FRESH_MS;
+        if (ghostIds.has(id) || (!idents.current.has(id) && !dropped)) { peers.current.delete(id); wasListed.current.delete(id); }
+      }
     };
     // rings and messages addressed to one person (see social.ts); everyone gets the packet, only the addressee acts
     ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });

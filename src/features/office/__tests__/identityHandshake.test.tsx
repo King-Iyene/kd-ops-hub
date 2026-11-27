@@ -50,6 +50,11 @@ import { useOffice } from '../useOffice';
 import { defaultAvatar } from '../world/render';
 
 const flush = async (ms = 50) => { await act(async () => { await new Promise((r) => setTimeout(r, ms)); }); };
+/** wait (up to a time limit) until something is true, instead of guessing how long the pretend network takes */
+const until = async (cond: () => boolean, limitMs = 8000) => {
+  const end = Date.now() + limitMs;
+  while (!cond() && Date.now() < end) await flush(100);
+};
 
 describe('everybody who is here is shown with their own name, even when the online list drops them', () => {
   beforeEach(() => { vi.useRealTimers(); h.channels = []; h.tracked.clear(); h.hiddenFrom.clear(); });
@@ -68,12 +73,12 @@ describe('everybody who is here is shown with their own name, even when the onli
     expect(king.result.current.roster.some((w) => w.name === 'Nina Okari')).toBe(false); // not yet: nobody has asked
     expect(king.result.current.isKnown(nina.result.current.connId)).toBe(false);
     // King's client notices an unknown mover and asks who it is; Nina answers
-    await flush(3000);
+    await until(() => king.result.current.isKnown(nina.result.current.connId));
     expect(king.result.current.isKnown(nina.result.current.connId)).toBe(true);
     const names = king.result.current.roster.map((w) => w.name);
     expect(names).toContain('Nina Okari');
     expect(names).not.toContain('Someone');
-  }, 15000);
+  }, 20000);
 
   it('never lists another window of the same account', async () => {
     const a = renderHook(() => useOffice({ id: 'user-king', name: 'King Iyene', avatar: defaultAvatar('user-king') }, 'space1'));
@@ -81,8 +86,8 @@ describe('everybody who is here is shown with their own name, even when the onli
     await flush(100);
     h.hiddenFrom.set(a.result.current.connId, new Set([b.result.current.connId]));
     await act(async () => { b.result.current.update({ x: 6, y: 5, vx: 1, vy: 0 }, 1, Date.now()); });
-    await flush(3000);
+    await until(() => a.result.current.isKnown(b.result.current.connId));
     expect(a.result.current.roster.some((w) => w.id === b.result.current.connId)).toBe(false);
     expect(a.result.current.isKnown(b.result.current.connId)).toBe(true); // known, but it is me
-  }, 15000);
+  }, 20000);
 });
