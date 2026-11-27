@@ -42,9 +42,9 @@ import { useOffice } from './useOffice';
 import { InviteDialog } from './InviteDialog';
 import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
-import { seenAgo } from './lastSeen';
+import { isActiveRecently, seenAgo } from './lastSeen';
 import { OfflineRow, PersonRow, SideTitle, Tabs, shortWhere } from './SidebarParts';
-import { useKeepSeen, useLastSeen } from './useLastSeen';
+import { useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
 import { SkyPanel } from './SkyPanel';
@@ -117,7 +117,6 @@ function OfficeRoom() {
   const { data: spaces } = useSpaces();
   const { data: directory } = useDirectory();
   const { data: lastSeen } = useLastSeen();
-  useKeepSeen(profile?.id);
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
 
@@ -710,7 +709,7 @@ function OfficeRoom() {
     notifyPing(`${g.name} is at the door`, 'A guest is waiting to come in.', () => setVisitorsOpen(true), 'guest:' + g.id);
     toast({ title: `${g.name} is at the door`, description: 'A guest is waiting to come in.', action: <ToastAction altText="Open guests" onClick={() => setVisitorsOpen(true)}>Let in</ToastAction> });
   });
-  const chatPeople = useMemo(() => (directory ?? []).map((d) => ({ id: d.id, name: d.name, avatar: d.avatar, online: roster.some((r) => r.uid === d.id) })), [directory, roster]);
+  const chatPeople = useMemo(() => (directory ?? []).map((d) => { const online = roster.some((r) => r.uid === d.id); return { id: d.id, name: d.name, avatar: d.avatar, online, active: !online && isActiveRecently(lastSeen?.get(d.id)) }; }), [directory, roster, lastSeen]);
   const sendChat = async (p: { text: string; file: File | null; to: string | null; announce: boolean; kudos?: string }) => {
     if (!me) return false;
     const people = chatPeople.map((x) => ({ id: x.id, name: x.name }));
@@ -1570,7 +1569,7 @@ function OfficeRoom() {
               <section>
                 <SideTitle title="Away" count={away.length} open={open} onToggle={() => flip('offline:open')} />
                 {open && (<div className="space-y-px">
-                  {shown.map((p) => <OfflineRow key={p.id} avatar={p.avatar} name={p.name} seen={lastSeen?.get(p.id) ? seenAgo(lastSeen.get(p.id)).replace(' ago', '') : 'never'} onOpen={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} />)}
+                  {shown.map((p) => <OfflineRow key={p.id} avatar={p.avatar} name={p.name} active={isActiveRecently(lastSeen?.get(p.id))} seen={lastSeen?.get(p.id) ? seenAgo(lastSeen.get(p.id)).replace(' ago', '') : 'never'} onOpen={(e) => setProfileCardUid(p.id, e.clientX, e.clientY)} />)}
                   {!showAllAway && away.length > shown.length && <button type="button" onClick={() => setShowAllAway(true)} className="w-full rounded-md px-1.5 py-1 text-left text-[11px] font-semibold text-[#9ff6ff]/80 hover:bg-white/[0.04]">Show all {away.length}</button>}
                 </div>)}
               </section>

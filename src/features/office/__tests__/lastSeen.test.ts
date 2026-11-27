@@ -27,3 +27,26 @@ describe('last seen', () => {
     expect(seenLabel(null, now)).toBe('Not seen yet');
   });
 });
+
+import { isActiveRecently } from '../lastSeen';
+import { shortName } from '../personName';
+
+describe('who counts as active in the app', () => {
+  const now = Date.parse('2026-11-27T12:00:00Z');
+  it('is anyone seen in the last five minutes, wherever they were in the app', () => {
+    expect(isActiveRecently('2026-11-27T11:57:00Z', now)).toBe(true);
+    expect(isActiveRecently('2026-11-27T11:50:00Z', now)).toBe(false);
+    expect(isActiveRecently(null, now)).toBe(false);
+    expect(isActiveRecently('nonsense', now)).toBe(false);
+  });
+});
+
+describe('names in the lists', () => {
+  it('uses the full name, then the email, and only then says Someone', () => {
+    expect(shortName('King  Iyene')).toBe('King Iyene');
+    expect(shortName('', 'king.iyene@kdsquares.com')).toBe('King Iyene');
+    expect(shortName(null, 'nina_okari2@kdsquares.com')).toBe('Nina Okari');
+    expect(shortName(null, null)).toBe('Someone');
+    expect(shortName('  ', '@x.com')).toBe('Someone');
+  });
+});

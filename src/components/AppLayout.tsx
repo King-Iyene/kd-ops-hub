@@ -19,7 +19,8 @@ import { TaskModalHost } from '@/features/task-module/TaskModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MfaRequiredBanner } from '@/components/MfaRequiredBanner';
-import { useEffectiveRole } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import { useKeepSeen } from '@/features/office/useLastSeen';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 import { Search } from 'lucide-react';
@@ -111,6 +112,9 @@ export default function AppLayout() {
   const officeFull = inDesktopApp() && location.pathname.startsWith('/office');
   useTimeOfDay();
   useIdleTimeout();
+  // note that I am using the app (once when it opens, then every two minutes) so everyone sees who is active, not only people inside the Office
+  const myId = useAuthStore((s) => s.profile?.id);
+  useKeepSeen(myId);
 
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);

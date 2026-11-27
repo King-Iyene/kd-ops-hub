@@ -85,12 +85,12 @@ export function PersonRow({ avatar, name, isMe, color, statusLabel, where, speak
 }
 
 /** Somebody who is not here: a small, dim line with when they were last here. */
-export function OfflineRow({ avatar, name, seen, onOpen }: { avatar: AvatarStyle; name: string; seen: string; onOpen: (e: React.MouseEvent) => void }) {
+export function OfflineRow({ avatar, name, seen, active, onOpen }: { avatar: AvatarStyle; name: string; seen: string; /** using the app somewhere else right now */ active?: boolean; onOpen: (e: React.MouseEvent) => void }) {
   return (
     <button type="button" onClick={onOpen} title={`See ${name}'s profile`} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground">
-      <AvatarFace avatar={avatar} size={22} dim />
+      <span className="relative shrink-0"><AvatarFace avatar={avatar} size={22} dim={!active} />{active && <span className="absolute -bottom-px -right-px h-2 w-2 rounded-full border border-popover bg-[#00ECFF] shadow-[0_0_6px_#00ECFF]" />}</span>
       <span className="min-w-0 flex-1 truncate text-[12px]">{name}</span>
-      <span className="shrink-0 font-mono text-[9.5px] opacity-60">{seen}</span>
+      <span className={`shrink-0 font-mono text-[9.5px] ${active ? 'text-[#9ff6ff]' : 'opacity-60'}`}>{active ? 'in the app' : seen}</span>
     </button>
   );
 }

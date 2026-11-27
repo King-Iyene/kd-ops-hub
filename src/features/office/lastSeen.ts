@@ -14,6 +14,13 @@ export function seenAgo(seenAt: string | number | null | undefined, now: number 
   return 'Over a month ago';
 }
 
+/** Seen within the last few minutes anywhere in the app (the heartbeat runs every two minutes), so "active" without being in the Office. */
+export function isActiveRecently(seenAt: string | number | null | undefined, now: number = Date.now(), windowMs: number = 5 * 60_000): boolean {
+  if (seenAt === null || seenAt === undefined) return false;
+  const t = typeof seenAt === 'number' ? seenAt : Date.parse(seenAt);
+  return Number.isFinite(t) && now - t >= -60_000 && now - t < windowMs;
+}
+
 /** "Active 3 hours ago" for the last day, then "Last seen 3 days ago". */
 export function seenLabel(seenAt: string | number | null | undefined, now: number = Date.now()): string {
   const ago = seenAgo(seenAt, now);

@@ -1,3 +1,4 @@
+import { shortName } from './personName';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { AvatarStyle, Item } from './world/types';
@@ -37,10 +38,7 @@ export function useSpaces() {
 /** Makes sure the signed-in person has a personal office (the database also does this automatically). */
 export interface Person { id: string; name: string; avatar: AvatarStyle; role: string; gender?: string | null }
 
-/** The full name, the way people appear in the office. */
-export function shortName(full: string | null | undefined): string {
-  return (full ?? '').split(' ').filter(Boolean).join(' ') || 'Someone';
-}
+export { shortName } from './personName';
 
 export interface DeskClaim { office_id: string; user_id: string }
 
@@ -124,12 +122,12 @@ export function useDirectory() {
     queryFn: async (): Promise<Person[]> => {
       const memberIds = await fetchMemberIds();
       const [{ data: pplAll }, { data: avs }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, role, gender').order('full_name'),
+        supabase.from('profiles').select('id, full_name, email, role, gender').order('full_name'),
         supabase.from('office_avatars').select('profile_id, style'),
       ]);
       const styles = new Map((avs ?? []).map((a) => [a.profile_id as string, a.style]));
       const ppl = memberIds ? (pplAll ?? []).filter((p) => memberIds.has(p.id as string)) : (pplAll ?? []);
-      return ppl.map((p) => ({ id: p.id as string, name: shortName(p.full_name as string), avatar: cleanAvatar(styles.get(p.id as string), p.id as string, p.gender as string | null), role: (p.role as string) ?? '', gender: p.gender as string | null }));
+      return ppl.map((p) => ({ id: p.id as string, name: shortName(p.full_name as string, p.email as string | null), avatar: cleanAvatar(styles.get(p.id as string), p.id as string, p.gender as string | null), role: (p.role as string) ?? '', gender: p.gender as string | null }));
     },
     staleTime: 60_000,
   });

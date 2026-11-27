@@ -7,7 +7,8 @@ import { ALL, MAX_ATTACHMENTS, MAX_BODY, checkAttachment, convOf, fileKind, form
 import { splitLinks } from './social';
 import type { AvatarStyle } from './world/types';
 
-export interface ChatPerson { id: string; name: string; avatar: AvatarStyle; online: boolean }
+/** `online` is in the Office right now; `active` is using the app somewhere else (not in the Office). */
+export interface ChatPerson { id: string; name: string; avatar: AvatarStyle; online: boolean; active?: boolean }
 
 const urls = new Map<string, string>();
 
@@ -125,6 +126,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
         const lb = last.get(b.id)?.created_at ?? '';
         if (la !== lb) return la < lb ? 1 : -1;
         if (a.online !== b.online) return a.online ? -1 : 1;
+        if (!!a.active !== !!b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
   }, [people, q, last, meId]);
@@ -187,17 +189,17 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
     if (ok) { setText(''); setFiles([]); setAnnounce(false); } else setErr('That did not send. Check your connection and try again.');
   };
 
-  const row = (id: string, name: string, avatar: AvatarStyle | null, online: boolean) => {
+  const row = (id: string, name: string, avatar: AvatarStyle | null, online: boolean, active = false) => {
     const m = last.get(id);
     const u = unread[id] ?? 0;
     return (
       <button key={id} type="button" onClick={() => { onConv(id); setListOpen(false); }}
         className={`relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${conv === id ? 'bg-[#00ECFF]/[0.10] ring-1 ring-inset ring-[#00ECFF]/20' : 'hover:bg-white/[0.06]'}`}>
-        {avatar ? <span className="relative shrink-0"><AvatarFace avatar={avatar} size={30} dim={!online} />{online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-popover bg-emerald-500" />}</span>
+        {avatar ? <span className="relative shrink-0"><AvatarFace avatar={avatar} size={30} dim={!online && !active} />{online ? <span title="In the Office" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-popover bg-emerald-500" /> : active ? <span title="Active in the app" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-popover bg-[#00ECFF]" /> : null}</span>
           : <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary"><Users className="h-4 w-4" /></span>}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-semibold">{name}</span>
-          <span className="block truncate text-[11.5px] text-muted-foreground">{m ? (m.sender_id === meId ? 'You: ' : '') + (m.body || 'Picture') : online ? 'Online' : 'Offline'}</span>
+          <span className="block truncate text-[11.5px] text-muted-foreground">{m ? (m.sender_id === meId ? 'You: ' : '') + (m.body || 'Picture') : online ? 'Online' : active ? 'Active in the app' : 'Offline'}</span>
         </span>
         {u > 0 && <span className="shrink-0 rounded-full bg-[#D6AC50] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2a1c00]">{u > 99 ? '99+' : u}</span>}
       </button>
@@ -223,7 +225,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
             {row(ALL, `Everyone in ${spaceName}`, null, true)}
             <p className="px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#D6AC50]">Direct messages</p>
-            {list.map((p) => row(p.id, p.name, p.avatar, p.online))}
+            {list.map((p) => row(p.id, p.name, p.avatar, p.online, !!p.active))}
             {list.length === 0 && <p className="px-2.5 py-3 text-xs text-muted-foreground">No one matches.</p>}
           </div>
         </aside>
@@ -233,10 +235,10 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
           {drag && <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-[#00ECFF]/70 bg-[#031a26]/90 text-center"><div><Paperclip className="mx-auto mb-2 h-7 w-7 text-[#00ECFF]" /><p className="font-bold">Drop to attach</p><p className="text-xs text-muted-foreground">Pictures, PDFs, documents, sheets, zips, audio, video (up to 25 MB)</p></div></div>}
           <header className="flex items-center gap-3 border-b border-[#00ECFF]/10 bg-gradient-to-r from-[#00ECFF]/[0.07] to-transparent px-4 py-3">
             <button type="button" aria-label="Back to conversations" onClick={() => setListOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 sm:hidden"><ArrowLeft className="h-4 w-4" /></button>
-            {other ? <AvatarFace avatar={other.avatar} size={34} dim={!other.online} /> : <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-primary/20 text-primary"><Users className="h-4 w-4" /></span>}
+            {other ? <AvatarFace avatar={other.avatar} size={34} dim={!other.online && !other.active} /> : <span className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-primary/20 text-primary"><Users className="h-4 w-4" /></span>}
             <div className="min-w-0 flex-1 pr-8">
               <p className="truncate text-[15px] font-bold tracking-tight">{other ? other.name : `Everyone in ${spaceName}`}</p>
-              <p className="truncate text-xs text-muted-foreground">{other ? (other.online ? 'Online' : 'Offline. They will see this when they are back.') : 'Everyone in the office can read this. @name to get someone\'s attention.'}</p>
+              <p className="truncate text-xs text-muted-foreground">{other ? (other.online ? 'Online' : other.active ? 'Active in the app. They will see this soon.' : 'Offline. They will see this when they are back.') : 'Everyone in the office can read this. @name to get someone\'s attention.'}</p>
             </div>
           </header>
 
