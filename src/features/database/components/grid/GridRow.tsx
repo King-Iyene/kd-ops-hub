@@ -36,7 +36,8 @@ export interface GridRowProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   onFieldUpdate: (fieldId: string, tableId: string, updates: any) => void;
   onExpandRow?: (record: RecordRow) => void;
-  onToggleRowSelection: (id: string) => void;
+  /** extend = Shift was held: select every row from the last ticked one to this one. */
+  onToggleRowSelection: (id: string, extend?: boolean) => void;
   onOpenRowMenu: (x: number, y: number, record: RecordRow) => void;
   onRowDragStart: (e: React.DragEvent, recordId: string) => void;
   onRowDragEnd: () => void;
@@ -133,7 +134,7 @@ export const GridRow = React.memo(function GridRow({
           color: colors.muted,
           cursor: 'pointer',
         }}
-        onClick={() => onToggleRowSelection(record.id)}
+        onClick={(e) => onToggleRowSelection(record.id, e.shiftKey)}
         onDragOver={grouped ? undefined : (e) => onRowDragOver(e, index)}
         onDrop={grouped ? undefined : (e) => onRowDrop(e, index)}
       >
@@ -143,8 +144,8 @@ export const GridRow = React.memo(function GridRow({
             className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
             style={{ accentColor: colors.primary, outlineColor: colors.primary }}
             checked
-            onClick={(e) => e.stopPropagation()}
-            onChange={() => onToggleRowSelection(record.id)}
+            onClick={(e) => { e.stopPropagation(); onToggleRowSelection(record.id, e.shiftKey); }}
+            onChange={() => undefined}
             aria-label={`Deselect row ${rowNum}`}
           />
         ) : (
@@ -168,8 +169,8 @@ export const GridRow = React.memo(function GridRow({
                 className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
                 style={{ outlineColor: colors.primary }}
                 checked={false}
-                onClick={(e) => e.stopPropagation()}
-                onChange={() => onToggleRowSelection(record.id)}
+                onClick={(e) => { e.stopPropagation(); onToggleRowSelection(record.id, e.shiftKey); }}
+                onChange={() => undefined}
                 aria-label={`Select row ${rowNum}`}
               />
               {onExpandRow && (
@@ -231,7 +232,7 @@ export const GridRow = React.memo(function GridRow({
                 } : {}),
                 ...(isInRange ? { backgroundColor: `${colors.primary}14` } : {}),
               }}
-              onClick={grouped ? undefined : (e) => onCellRangeClick(e, index, colIdx)}
+              onClickCapture={grouped ? undefined : (e) => onCellRangeClick(e, index, colIdx)}
             >
               <GridCell
                 field={field}

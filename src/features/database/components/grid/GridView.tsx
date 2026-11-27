@@ -6,6 +6,7 @@ import { evaluateCondition } from './evaluate-condition';
 import { useDatabaseUI, type SummaryFunction } from '../../lib/store';
 import { formatCurrency, formatNumber, formatPercent } from '../../lib/numberFormat';
 import { countChecked, dateExtremes, median, toNumbers, uniqueCount } from '../../lib/summaries';
+import { rowIdsBetween } from '../../lib/rowRange';
 import { NUMERIC_TYPES, defaultSummary as getDefaultSummary } from '../../lib/footerColumns';
 import { describeNarrowing } from '../../lib/filterRules';
 import { NoMatches } from '../NoMatches';
@@ -430,9 +431,17 @@ function GridViewInner({
     setTimeout(() => setFlashCells(new Set()), 600);
   }, []);
 
-  const toggleRowSelection = useCallback((id: string) => {
+  const lastToggledRowRef = useRef<string | null>(null);
+  const toggleRowSelection = useCallback((id: string, extend = false) => {
+    const last = lastToggledRowRef.current;
+    lastToggledRowRef.current = id;
     setSelectedRowIds((prev) => {
       const next = new Set(prev);
+      if (extend && last && last !== id) {
+        // Shift+tick: every row from the last ticked one to this one.
+        for (const rowId of rowIdsBetween(recordsRef.current.map((r) => r.id), last, id)) next.add(rowId);
+        return next;
+      }
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -942,10 +951,11 @@ function GridViewInner({
   const handleCellRangeClick = useCallback((e: React.MouseEvent, rowIndex: number, colIndex: number) => {
     const selectedCellId = useDatabaseUI.getState().selectedCellId;
     if (e.shiftKey && selectedCellId) {
-      const { records, fieldsWithWidths } = keyboardStateRef.current;
+      const { records, fieldsWithWidths, selectionAnchor: heldAnchor } = keyboardStateRef.current;
       const [rowId, anchorFid] = selectedCellId.split(':');
-      const anchorRowIdx = records.findIndex((r) => r.id === rowId);
-      const anchorColIdx = fieldsWithWidths.findIndex((f) => f.id === anchorFid);
+      // A second Shift+click keeps the first anchor instead of starting over.
+      const anchorRowIdx = heldAnchor ? heldAnchor.row : records.findIndex((r) => r.id === rowId);
+      const anchorColIdx = heldAnchor ? heldAnchor.col : fieldsWithWidths.findIndex((f) => f.id === anchorFid);
       if (anchorRowIdx !== -1 && anchorColIdx !== -1) {
         setSelectionAnchor({ row: anchorRowIdx, col: anchorColIdx });
         setSelectionRange({
