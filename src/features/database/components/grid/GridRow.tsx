@@ -1,5 +1,5 @@
 import React from 'react';
-import { Expand, MoreHorizontal } from 'lucide-react';
+import { GripVertical, Maximize2 } from 'lucide-react';
 import type { FieldMeta, RecordRow } from '@/features/database/types';
 import type { GridColorTokens } from '../../hooks/useGridColors';
 import { useDatabaseUI } from '../../lib/store';
@@ -36,7 +36,8 @@ export interface GridRowProps {
   onCellUpdate: (recordId: string, fieldId: string, value: any) => void;
   onFieldUpdate: (fieldId: string, tableId: string, updates: any) => void;
   onExpandRow?: (record: RecordRow) => void;
-  onToggleRowSelection: (id: string) => void;
+  /** extend = Shift was held: select every row from the last ticked one to this one. */
+  onToggleRowSelection: (id: string, extend?: boolean) => void;
   onOpenRowMenu: (x: number, y: number, record: RecordRow) => void;
   onRowDragStart: (e: React.DragEvent, recordId: string) => void;
   onRowDragEnd: () => void;
@@ -96,7 +97,7 @@ export const GridRow = React.memo(function GridRow({
 
   return (
     <div
-      className="kd-grid-row absolute left-0 w-full flex group/row"
+      className="kd-grid-row absolute left-0 w-full flex group/row select-none [&_input]:select-text [&_textarea]:select-text"
       role="row"
       aria-rowindex={rowNum}
       aria-selected={isChecked}
@@ -133,7 +134,7 @@ export const GridRow = React.memo(function GridRow({
           color: colors.muted,
           cursor: 'pointer',
         }}
-        onClick={() => onToggleRowSelection(record.id)}
+        onClick={(e) => onToggleRowSelection(record.id, e.shiftKey)}
         onDragOver={grouped ? undefined : (e) => onRowDragOver(e, index)}
         onDrop={grouped ? undefined : (e) => onRowDrop(e, index)}
       >
@@ -143,24 +144,24 @@ export const GridRow = React.memo(function GridRow({
             className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
             style={{ accentColor: colors.primary, outlineColor: colors.primary }}
             checked
-            onChange={() => onToggleRowSelection(record.id)}
+            onClick={(e) => { e.stopPropagation(); onToggleRowSelection(record.id, e.shiftKey); }}
+            onChange={() => undefined}
             aria-label={`Deselect row ${rowNum}`}
           />
         ) : (
           <>
             <span className="group-hover/row:opacity-0 group-focus-within/row:opacity-0">{rowNum}</span>
-            <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-between px-1.5 opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 transition-opacity">
               {!grouped && (
                 <span
                   draggable
-                  className="cursor-grab active:cursor-grabbing px-0.5 text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
+                  className="flex cursor-grab items-center active:cursor-grabbing text-[#9AA2AF] hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:text-[hsl(220,20%,88%)]"
                   onDragStart={(e) => onRowDragStart(e, record.id)}
                   onDragEnd={onRowDragEnd}
-                  style={{ fontSize: 13 }}
                   role="button"
                   aria-label={`Drag to reorder row ${rowNum}`}
                 >
-                  &#8801;
+                  <GripVertical size={14} aria-hidden="true" />
                 </span>
               )}
               <input
@@ -168,36 +169,28 @@ export const GridRow = React.memo(function GridRow({
                 className="w-3.5 h-3.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
                 style={{ outlineColor: colors.primary }}
                 checked={false}
-                onChange={() => onToggleRowSelection(record.id)}
+                onClick={(e) => { e.stopPropagation(); onToggleRowSelection(record.id, e.shiftKey); }}
+                onChange={() => undefined}
                 aria-label={`Select row ${rowNum}`}
               />
               {onExpandRow && (
                 <button
-                  className="p-0.5 rounded hover:bg-accent"
+                  className="flex h-5 w-5 items-center justify-center rounded text-[#9AA2AF] hover:bg-black/5 hover:text-[#374151] dark:text-[hsl(220,15%,55%)] dark:hover:bg-white/10 dark:hover:text-[hsl(220,20%,88%)]"
                   onClick={(e) => { e.stopPropagation(); onExpandRow(record); }}
+                  onKeyDown={(e) => {
+                    // The row menu opens with a right-click; keyboard users get it here.
+                    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                      e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onOpenRowMenu(rect.left, rect.bottom, record);
+                    }
+                  }}
                   aria-label={`Expand row ${rowNum}`}
+                  title="Open this record"
                 >
-                  <Expand size={12} />
+                  <Maximize2 size={13} aria-hidden="true" />
                 </button>
               )}
-              <button
-                className="p-0.5 rounded hover:bg-accent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenRowMenu(e.clientX, e.clientY, record);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-                    e.preventDefault();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onOpenRowMenu(rect.left, rect.bottom, record);
-                  }
-                }}
-                aria-label={`Row ${rowNum} options`}
-                aria-haspopup="menu"
-              >
-                <MoreHorizontal size={12} />
-              </button>
             </div>
           </>
         )}
@@ -239,7 +232,7 @@ export const GridRow = React.memo(function GridRow({
                 } : {}),
                 ...(isInRange ? { backgroundColor: `${colors.primary}14` } : {}),
               }}
-              onClick={grouped ? undefined : (e) => onCellRangeClick(e, index, colIdx)}
+              onClickCapture={grouped ? undefined : (e) => onCellRangeClick(e, index, colIdx)}
             >
               <GridCell
                 field={field}

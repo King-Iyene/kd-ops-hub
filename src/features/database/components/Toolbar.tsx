@@ -18,6 +18,7 @@ import { exportToCsv } from '../lib/csv';
 import { useTables } from '../hooks';
 import type { Filter as FilterType, FilterGroup, Sort, Group, FilterOperator, RowColorRule, FieldMeta } from '../types';
 import { OPERATORS_BY_TYPE } from '../types';
+import { WITHIN_RANGES, isDateToken } from '../lib/dateRanges';
 
 const OPERATOR_LABELS: Record<string, string> = {
   is: 'is',
@@ -51,6 +52,9 @@ const OPERATOR_LABELS: Record<string, string> = {
   isChecked: 'is checked',
   isNotChecked: 'is not checked',
 };
+
+// Saved views may still use these; the "is within" choice covers them for new filters.
+const OLD_DATE_RANGE_OPERATORS = new Set<string>(['isWithinPastWeek', 'isWithinPastMonth', 'isWithinPastYear']);
 
 const NO_VALUE_OPERATORS = new Set<string>([
   'isEmpty', 'isNotEmpty', 'isChecked', 'isNotChecked',
@@ -90,15 +94,49 @@ function FilterValueInput({
     );
   }
 
-  // Date fields: use date input
+  // Date fields, as in Airtable: "is within" picks a stretch of time, "is between" takes two dates,
+  // and the others take one date (or Today / Yesterday / Tomorrow, which move with the calendar).
   if (uiType === 'Date' || uiType === 'DateTime') {
+    const box =
+      'text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]';
+
+    if (filter.operator === 'isWithin') {
+      return (
+        <select className={`${box} flex-1 max-w-[150px]`} value={String(filter.value ?? '')} onChange={(e) => onChange(e.target.value)}>
+          <option value="">Choose a time...</option>
+          {WITHIN_RANGES.map((r) => (
+            <option key={r.value} value={r.value}>{r.label}</option>
+          ))}
+        </select>
+      );
+    }
+
+    if (filter.operator === 'isBetween') {
+      const parts = Array.isArray(filter.value) ? filter.value : String(filter.value ?? '').split(',');
+      const from = String(parts[0] ?? '').trim();
+      const to = String(parts[1] ?? '').trim();
+      return (
+        <div className="flex items-center gap-1">
+          <input type="date" aria-label="From date" className={`${box} w-[118px]`} value={from} onChange={(e) => onChange([e.target.value, to])} />
+          <span className="text-2xs text-[#9AA2AF] dark:text-[hsl(220,15%,55%)]">and</span>
+          <input type="date" aria-label="To date" className={`${box} w-[118px]`} value={to} onChange={(e) => onChange([from, e.target.value])} />
+        </div>
+      );
+    }
+
+    const token = isDateToken(filter.value) ? filter.value : 'exact';
     return (
-      <input
-        type="date"
-        className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)] flex-1 max-w-[130px]"
-        value={filter.value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <div className="flex items-center gap-1">
+        <select className={`${box} w-[92px]`} value={token} onChange={(e) => onChange(e.target.value === 'exact' ? '' : e.target.value)}>
+          <option value="exact">Exact date</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="tomorrow">Tomorrow</option>
+        </select>
+        {token === 'exact' && (
+          <input type="date" className={`${box} w-[118px]`} value={String(filter.value ?? '')} onChange={(e) => onChange(e.target.value)} />
+        )}
+      </div>
     );
   }
 
@@ -175,9 +213,16 @@ function FilterRuleRow({
       <select
         className="text-2xs border border-[#E5E5E5] dark:border-[hsl(220,20%,18%)] rounded px-1.5 py-1 text-[#374151] dark:text-[hsl(220,20%,88%)] dark:bg-[hsl(220,20%,12%)]"
         value={filter.operator}
-        onChange={(e) => onUpdate(filter.id, { operator: e.target.value as FilterOperator })}
+        onChange={(e) => {
+          const next = e.target.value as FilterOperator;
+          // A value typed for one kind of date filter means nothing to another, so start that one fresh.
+          const dateKind = (op: string) => (op === 'isBetween' ? 'between' : op === 'isWithin' ? 'within' : 'single');
+          const isDate = field?.ui_type === 'Date' || field?.ui_type === 'DateTime';
+          const reset = isDate && dateKind(next) !== dateKind(filter.operator);
+          onUpdate(filter.id, reset ? { operator: next, value: next === 'isBetween' ? ['', ''] : '' } : { operator: next });
+        }}
       >
-        {ops.map((op) => (
+        {ops.filter((op) => !OLD_DATE_RANGE_OPERATORS.has(op) || op === filter.operator).map((op) => (
           <option key={op} value={op}>{OPERATOR_LABELS[op] ?? op}</option>
         ))}
       </select>

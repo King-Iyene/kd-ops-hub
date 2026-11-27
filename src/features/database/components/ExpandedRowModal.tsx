@@ -615,35 +615,11 @@ function DeleteRecordButton({
 }: {
   onDelete: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-
-  if (confirming) {
-    return (
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => {
-            onDelete();
-            setConfirming(false);
-          }}
-          className="px-2 py-1 rounded text-2xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-        >
-          Confirm
-        </button>
-        <button
-          onClick={() => setConfirming(false)}
-          className="px-2 py-1 rounded text-2xs font-medium text-[#6A7184] dark:text-[hsl(220,20%,60%)] hover:bg-muted transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
   return (
     <button
-      onClick={() => setConfirming(true)}
+      onClick={onDelete}
       className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-      title="Delete record"
+      title="Delete record (Ctrl+Z undoes it)"
     >
       <Trash2 size={15} className="text-red-500 dark:text-red-400" />
     </button>

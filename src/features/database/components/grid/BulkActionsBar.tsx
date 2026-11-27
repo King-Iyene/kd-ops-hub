@@ -23,7 +23,6 @@ export const BulkActionsBar = React.memo(function BulkActionsBar({
   onBulkDelete,
   onCellUpdate,
 }: BulkActionsBarProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showUpdateField, setShowUpdateField] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [updateValue, setUpdateValue] = useState('');
@@ -87,7 +86,6 @@ export const BulkActionsBar = React.memo(function BulkActionsBar({
     if (!onBulkDelete) return;
     onBulkDelete(Array.from(selectedRowIds));
     onClearSelection();
-    setShowDeleteConfirm(false);
   }, [selectedRowIds, onBulkDelete, onClearSelection]);
 
   const handleBulkUpdate = useCallback(() => {
@@ -446,42 +444,16 @@ export const BulkActionsBar = React.memo(function BulkActionsBar({
 
       {/* Delete */}
       <div className="relative">
-        {!showDeleteConfirm ? (
-          <button
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{ color: 'var(--bulk-bar-danger)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            <Trash2 size={14} />
-            Move to trash
-          </button>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs" style={{ color: 'var(--bulk-bar-danger)' }}>
-              Delete {count}?
-            </span>
-            <button
-              className="px-2 py-1 rounded-md text-2xs font-medium text-white"
-              style={{ backgroundColor: 'var(--bulk-bar-danger)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-danger-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-danger)')}
-              onClick={handleDelete}
-            >
-              Confirm
-            </button>
-            <button
-              className="px-2 py-1 rounded-md text-2xs font-medium"
-              style={{ color: 'var(--bulk-bar-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              No
-            </button>
-          </div>
-        )}
+        <button
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{ color: 'var(--bulk-bar-danger)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bulk-bar-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          onClick={handleDelete}
+        >
+          <Trash2 size={14} />
+          Move to trash
+        </button>
       </div>
 
       {/* Divider */}

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from '../components/toast-store';
-import { resolveTableContextShared as resolveTableContext } from './useRecords';
+import { resolveTableContextShared as resolveTableContext, removeRowsFromRecordsCache } from './useRecords';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -43,7 +43,7 @@ export function useTrashRecords(baseId: string | null) {
 /*  Mutations                                                          */
 /* ------------------------------------------------------------------ */
 
-async function restoreByRecordId(baseId: string, tableId: string, recordId: string) {
+export async function restoreByRecordId(baseId: string, tableId: string, recordId: string) {
   const { data: trashEntry } = await supabase
     .schema('nc_meta')
     .from('trash')
@@ -57,6 +57,19 @@ async function restoreByRecordId(baseId: string, tableId: string, recordId: stri
   const ctx = await resolveTableContext(baseId, tableId);
   await supabase.schema(ctx.schemaName).from(ctx.tableName).insert(trashEntry.record_data);
   await supabase.schema('nc_meta').from('trash').delete().eq('id', trashEntry.id);
+}
+
+/** Put deleted rows back (used by Ctrl+Z) and refresh the lists. */
+export async function restoreRecords(
+  qc: ReturnType<typeof useQueryClient>,
+  baseId: string,
+  tableId: string,
+  recordIds: string[],
+) {
+  for (const id of recordIds) await restoreByRecordId(baseId, tableId, id);
+  qc.invalidateQueries({ queryKey: ['nc', 'records', baseId, tableId] });
+  qc.invalidateQueries({ queryKey: ['nc', 'recordCount', baseId, tableId] });
+  qc.invalidateQueries({ queryKey: ['nc', 'trash', baseId] });
 }
 
 export function useSoftDeleteRecord() {
@@ -75,6 +88,7 @@ export function useSoftDeleteRecord() {
   };
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -115,9 +129,14 @@ export function useSoftDeleteRecord() {
         .eq('id', input.recordId);
       if (delErr) throw delErr;
     },
+    // The row leaves the grid the moment you delete it; the server catches up in the background.
+    onMutate: async (variables) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      return { previous: removeRowsFromRecordsCache(qc, variables.baseId, variables.tableId, [variables.recordId]) };
+    },
     onSuccess: (_data, variables) => {
-      toast.success('Record moved to trash', {
-        duration: 6000,
+      toast.success('Moved to trash', {
+        duration: 3000,
         action: {
           label: 'Undo',
           onClick: () => {
@@ -125,11 +144,12 @@ export function useSoftDeleteRecord() {
           },
         },
       });
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'trash', variables.baseId] });
     },
-    onError: () => {
+    onError: (_err, variables, context) => {
+      if (context?.previous) for (const [key, data] of context.previous) qc.setQueryData(key, data);
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.error('Failed to move record to trash');
     },
   });
@@ -139,6 +159,7 @@ export function useBulkSoftDeleteRecords() {
   const qc = useQueryClient();
 
   return useMutation({
+    mutationKey: ['nc', 'user-save'],
     mutationFn: async (input: {
       baseId: string;
       tableId: string;
@@ -186,13 +207,18 @@ export function useBulkSoftDeleteRecords() {
         if (delErr) throw delErr;
       }
     },
+    onMutate: async (variables) => {
+      await qc.cancelQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      return { previous: removeRowsFromRecordsCache(qc, variables.baseId, variables.tableId, variables.recordIds) };
+    },
     onSuccess: (_data, variables) => {
-      toast.success(`${variables.recordIds.length} record(s) moved to trash`);
-      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
+      toast.success(`${variables.recordIds.length} record(s) moved to trash`, { duration: 3000 });
       qc.invalidateQueries({ queryKey: ['nc', 'recordCount', variables.baseId, variables.tableId] });
       qc.invalidateQueries({ queryKey: ['nc', 'trash', variables.baseId] });
     },
-    onError: () => {
+    onError: (_err, variables, context) => {
+      if (context?.previous) for (const [key, data] of context.previous) qc.setQueryData(key, data);
+      qc.invalidateQueries({ queryKey: ['nc', 'records', variables.baseId, variables.tableId] });
       toast.error('Failed to move records to trash');
     },
   });
