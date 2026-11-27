@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, Lock, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -45,7 +45,7 @@ import { ManageDialog, type Claimable, type ManageTab } from './ManageDialog';
 import { petBus, petCmdFor, petName, petRegistry } from './world/pets';
 import { isActiveRecently, seenAgo } from './lastSeen';
 import { presenceInfo } from './presenceState';
-import { OfflineRow, PersonRow, SideTitle, Tabs, shortWhere } from './SidebarParts';
+import { OfflineRow, PersonRow, PlaceRow, SideTitle, SpaceRow, Tabs, shortWhere } from './SidebarParts';
 import { useLastSeen } from './useLastSeen';
 import { PersonCard, type CardAction } from './PersonCard';
 import { SkyControl } from './SkyControl';
@@ -65,6 +65,7 @@ import { notifyPing, useMissedReset, useNotifySetting, isDesktopApp } from './no
 import { useQuery } from '@tanstack/react-query';
 import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { roleLabel } from '@/lib/roles';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
@@ -1537,30 +1538,19 @@ function OfficeRoom() {
             <SideTitle title="Places" open={!shut('rooms')} onToggle={() => flip('rooms')} />
             {!shut('rooms') && (<div className="space-y-px">
               {teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).length > 1 && teamSpaces.filter((sp) => isAdmin || sp.id === myTeam?.id).map((sp) => (
-                <div key={sp.id} className={`group flex items-center rounded-lg transition-colors hover:bg-white/[0.05] ${sp.id === space.id ? 'bg-[#00ECFF]/[0.07]' : ''}`}>
-                  <button type="button" onClick={() => setSpaceId(sp.id)} className="flex min-w-0 flex-1 items-center gap-2 px-1.5 py-1.5 text-left text-[12.5px]">
-                    <Building2 className={`h-3.5 w-3.5 shrink-0 ${sp.id === space.id ? 'text-[#00ECFF]' : 'text-muted-foreground'}`} /><span className={`truncate ${sp.id === space.id ? 'font-semibold' : ''}`}>{sp.name}</span>
-                  </button>
+                <SpaceRow key={sp.id} name={sp.name} current={sp.id === space.id} onOpen={() => setSpaceId(sp.id)} actions={(
                   <span className="mr-1 hidden shrink-0 gap-0.5 group-hover:flex">
-                    <button type="button" aria-label={`Copy link to ${sp.name}`} title="Copy link" onClick={() => void copySpaceLink(sp)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><LinkIcon className="h-3.5 w-3.5" /></button>
-                    {isSuper && <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><Pencil className="h-3.5 w-3.5" /></button>}
-                    {isSuper && sp.id !== myTeam?.id && <button type="button" aria-label={`Delete ${sp.name}`} title="Delete" onClick={() => void removeSpace(sp)} className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-white/10"><Trash2 className="h-3.5 w-3.5" /></button>}
+                      <button type="button" aria-label={`Copy link to ${sp.name}`} title="Copy link" onClick={() => void copySpaceLink(sp)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><LinkIcon className="h-3.5 w-3.5" /></button>
+                      {isSuper && <button type="button" aria-label={`Rename ${sp.name}`} title="Rename" onClick={() => { setRenaming(sp); setRenameValue(sp.name); }} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white/10"><Pencil className="h-3.5 w-3.5" /></button>}
+                      {isSuper && sp.id !== myTeam?.id && <button type="button" aria-label={`Delete ${sp.name}`} title="Delete" onClick={() => void removeSpace(sp)} className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-white/10"><Trash2 className="h-3.5 w-3.5" /></button>}
                   </span>
-                </div>
+                )} />
               ))}
               {roomSpaceId && teamMap.zones.filter((z) => (z.kind === 'meeting' || z.kind === 'lounge') && matches(z.name, query)).map((z) => {
                 const people = roomPeople(z.id);
-                return (
-                  <button key={z.id} type="button" onClick={() => goToRoom(z)} title={`Go to ${z.name}`} className="block w-full rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex min-w-0 items-center gap-1.5 text-[12.5px]"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${people.length ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/20'}`} /><span className="truncate">{z.name}</span>{locked.has(z.id) && <Lock className="h-3 w-3 shrink-0 text-amber-500" aria-label="Locked" />}</span>
-                      {people.length > 0 && <span className="font-mono text-[10.5px] font-semibold text-emerald-400">{people.length}</span>}
-                    </div>
-                    {people.length > 0 && <p className="ml-3 truncate text-[11px] text-muted-foreground">{people.map((p) => p.name.split(' ')[0]).join(', ')}</p>}
-                  </button>
-                );
+                return <PlaceRow key={z.id} name={z.name} kind={z.kind} people={people.map((p) => ({ id: p.id, name: p.name.split(' ')[0], avatar: p.avatar }))} locked={locked.has(z.id)} onOpen={() => goToRoom(z)} />;
               })}
-              {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-[12px] text-primary hover:bg-white/[0.05]"><Plus className="h-3.5 w-3.5" />New space</button>}
+              {isAdmin && <button type="button" onClick={() => setNewSpaceOpen(true)} className="mt-1 flex w-full items-center gap-2 rounded-lg border border-dashed border-[#00ECFF]/25 px-2 py-1.5 text-left text-[11.5px] font-semibold text-[#9ff6ff]/80 transition-colors hover:border-[#00ECFF]/50 hover:bg-[#00ECFF]/[0.06] hover:text-[#9ff6ff]"><Plus className="h-3.5 w-3.5" />New space</button>}
             </div>)}
           </section>
           )}
@@ -2019,7 +2009,7 @@ function OfficeRoom() {
           acts.push({ key: 'fol', label: 'Follow', icon: <Footprints className="h-4 w-4" />, run: done(() => startFollow(live.id)) });
         }
         if (isMe) acts.push({ key: 'av', label: 'Change avatar', icon: <Users className="h-4 w-4" />, primary: true, run: done(() => setAvatarOpen(true)) });
-        return <ProfileDialog x={profileCard?.x ?? 0} y={profileCard?.y ?? 0} onClose={() => setProfileCardUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} presence={presenceInfo(!!live || isMe, lastSeen?.get(profileCardUid), st ? st.label : null)} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} actions={acts} />;
+        return <ProfileDialog x={profileCard?.x ?? 0} y={profileCard?.y ?? 0} onClose={() => setProfileCardUid(null)} name={name + (isMe ? ' (you)' : '')} avatar={avatar} online={!!live} presence={presenceInfo(!!live || isMe, lastSeen?.get(profileCardUid), st ? st.label : null)} status={st ? st.emoji + ' ' + st.label : null} where={live ? nameOfSpace(live.spaceId) : null} role={dir?.role ? roleLabel(dir.role) : null} actions={acts} />;
       })()}
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
