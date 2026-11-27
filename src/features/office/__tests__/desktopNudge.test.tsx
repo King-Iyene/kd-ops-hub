@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { desktopVersionFromUa, isOlder, shouldNudge, useDesktopUpdateNudge } from '../desktopNudge';
+import { NUDGE_FIRST_MS, desktopVersionFromUa, isOlder, shouldNudge, useDesktopUpdateNudge } from '../desktopNudge';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -47,22 +47,28 @@ describe('inside the desktop app', () => {
   it('shows the message once, with a Download that saves the newest installer', async () => {
     const show = vi.fn();
     renderHook(() => useDesktopUpdateNudge(show));
-    await vi.advanceTimersByTimeAsync(21_000);
+    await vi.advanceTimersByTimeAsync(NUDGE_FIRST_MS + 1000);
     expect(show).toHaveBeenCalledTimes(1);
     expect(show.mock.calls[0][0]).toMatchObject({ current: '0.3.8', latest: '0.3.9' });
     await vi.advanceTimersByTimeAsync(5 * 60 * 60 * 1000); // checks again later, but not twice in a day
     expect(show).toHaveBeenCalledTimes(1);
   });
+  it('does not speak before the app\'s own updater has had its time (and stays quiet if that update turned up)', async () => {
+    const show = vi.fn();
+    renderHook(() => useDesktopUpdateNudge(show));
+    await vi.advanceTimersByTimeAsync(NUDGE_FIRST_MS - 5000);
+    expect(show).not.toHaveBeenCalled();
+  });
   it('says nothing when the feed has nothing yet, or the app is already up to date', async () => {
     feed.result = null;
     const a = vi.fn();
     renderHook(() => useDesktopUpdateNudge(a));
-    await vi.advanceTimersByTimeAsync(21_000);
+    await vi.advanceTimersByTimeAsync(NUDGE_FIRST_MS + 1000);
     expect(a).not.toHaveBeenCalled();
     feed.result = { url: 'u', file: 'f.exe', version: '0.3.8' };
     const b = vi.fn();
     renderHook(() => useDesktopUpdateNudge(b));
-    await vi.advanceTimersByTimeAsync(21_000);
+    await vi.advanceTimersByTimeAsync(NUDGE_FIRST_MS + 1000);
     expect(b).not.toHaveBeenCalled();
   });
 });
