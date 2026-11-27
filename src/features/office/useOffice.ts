@@ -188,7 +188,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
         const m = metas.reduce((x, y) => ((y.t ?? 0) > (x.t ?? 0) ? y : x), metas[0]);
         if (!m) continue;
         const uid = typeof m.u === 'string' ? m.u : id;
-        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : 'Someone', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1, dancing: m.dn === 1, phantom: m.gm === 1, share: cleanShare(m.sh) ?? undefined, voice: m.vc === 1, mic: m.mi === 1, cam: m.cm === 1, live: m.tl === 1, townTitle: typeof m.tt === 'string' ? m.tt.slice(0, 60) : '', townMuted: m.tm === 1, bike: m.rd === 1 && typeof m.rb === 'string' && m.rb ? m.rb.slice(0, 64) : undefined });
+        all.push({ id, uid, since: typeof m.c === 'number' ? m.c : 0, name: typeof m.n === 'string' ? m.n.slice(0, 60) : '', avatar: cleanAvatar(m.a, uid), spaceId: m.s ?? null, zone: m.z ?? null, rec: m.r === 1, locked: m.k === 1, status: typeof m.st === 'string' ? m.st.slice(0, 48) : '', riding: m.rd === 1, dancing: m.dn === 1, phantom: m.gm === 1, share: cleanShare(m.sh) ?? undefined, voice: m.vc === 1, mic: m.mi === 1, cam: m.cm === 1, live: m.tl === 1, townTitle: typeof m.tt === 'string' ? m.tt.slice(0, 60) : '', townMuted: m.tm === 1, bike: m.rd === 1 && typeof m.rb === 'string' && m.rb ? m.rb.slice(0, 64) : undefined });
       }
       // the newest tab of each account is the one shown; older tabs of the same account are "ghosts"
       const best = new Map<string, Who>();

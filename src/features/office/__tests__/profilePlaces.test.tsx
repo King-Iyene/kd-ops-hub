@@ -83,3 +83,16 @@ describe('places in the sidebar', () => {
     expect(go).toHaveBeenCalledTimes(1);
   });
 });
+
+import { withDirectoryNames } from '../personName';
+describe('one name for everybody', () => {
+  const dir = new Map([['u1', 'Kelvin Sampson'], ['u2', 'Nina Okari']]);
+  it('uses the profile name, replaces blank and "Someone", and changes nothing when nothing needs it', () => {
+    const a = { uid: 'u1', name: 'Kelvin' }; const b = { uid: 'u2', name: 'Someone' }; const c = { uid: 'g', name: '' }; const d = { uid: 'v', name: 'Visitor Vee' };
+    const out = withDirectoryNames([a, b, c, d], dir);
+    expect(out.map((x) => x.name)).toEqual(['Kelvin Sampson', 'Nina Okari', 'Teammate', 'Visitor Vee']);
+    expect(out[3]).toBe(d);
+    const same = [{ uid: 'u1', name: 'Kelvin Sampson' }, d];
+    expect(withDirectoryNames(same, dir)).toBe(same);
+  });
+});

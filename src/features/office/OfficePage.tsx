@@ -66,6 +66,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DEFAULT_PLACE, PLACES, fetchWeather } from './world/weather';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { roleLabel } from '@/lib/roles';
+import { withDirectoryNames } from './personName';
 import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, useDirectory, useMyAvatar, useOfficeMutations, useSpaces, type SpaceRow } from './data';
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
@@ -224,7 +225,10 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setMedia, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster: rosterRaw, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setMedia, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
+  // everybody is called by the name on their profile, the same everywhere
+  const nameByUid = useMemo(() => new Map((directory ?? []).map((d) => [d.id, d.name] as const)), [directory]);
+  const roster = useMemo(() => withDirectoryNames(rosterRaw, nameByUid), [rosterRaw, nameByUid]);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);

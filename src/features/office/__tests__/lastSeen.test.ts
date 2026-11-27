@@ -46,7 +46,7 @@ describe('names in the lists', () => {
     expect(shortName('King  Iyene')).toBe('King Iyene');
     expect(shortName('', 'king.iyene@kdsquares.com')).toBe('King Iyene');
     expect(shortName(null, 'nina_okari2@kdsquares.com')).toBe('Nina Okari');
-    expect(shortName(null, null)).toBe('Someone');
-    expect(shortName('  ', '@x.com')).toBe('Someone');
+    expect(shortName(null, null)).toBe('Team member');
+    expect(shortName('  ', '@x.com')).toBe('Team member');
   });
 });
