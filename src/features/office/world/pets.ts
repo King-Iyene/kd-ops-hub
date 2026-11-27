@@ -64,6 +64,9 @@ export interface PetState {
   blockedFor: number;
   /** a playful dash round its person (while following) */
   dashing: boolean;
+  /** the way it is going right now (tiles per second), so other screens can carry on moving it between updates */
+  vx?: number;
+  vy?: number;
 }
 
 export type PetCmd =
@@ -80,8 +83,11 @@ export function initPet(id: string, kind: PetKind, x: number, y: number): PetSta
   return { id, kind, x: x + 0.5, y: y + 0.5, hx: x + 0.5, hy: y + 0.5, ox: x + 0.5, oy: y + 0.5, ctl: null, face: 1, view: 'side', v: 0, moving: false, mode: 'wander', tx: x + 0.5, ty: y + 0.5, wait: 1 + (x % 3), ball: null, carrying: false, happyUntil: 0, stuck: 0, partner: null, playUntil: 0, fxAt: 0, route: [], routeGoal: null, blockedFor: 0, dashing: false };
 }
 
-// a pet can outrun its owner (4.5 tiles a second) so it never lags behind
-const SPEED: Record<PetKind, { walk: number; run: number }> = { dog: { walk: 2.3, run: 5.6 }, cat: { walk: 1.7, run: 4.8 } };
+// A pet must outrun its owner: people walk at WALK_SPEED (6.4 tiles a second) and ride a bike at about twice that, so a following pet
+// also speeds up to a little more than whatever its person is doing right now (see `me.speed` in stepPet).
+const SPEED: Record<PetKind, { walk: number; run: number }> = { dog: { walk: 3, run: 7.6 }, cat: { walk: 2.2, run: 6.8 } };
+/** The fastest a pet will ever go, however fast its person is going. */
+export const PET_TOP_SPEED = 17;
 const BALL_FLIGHT = 700;
 
 function free(solid: boolean[][], x: number, y: number): boolean {
@@ -114,7 +120,7 @@ export function lineClear(solid: boolean[][], x0: number, y0: number, x1: number
 }
 
 /** Move a pet one step toward a point; returns true when it has got there. */
-function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: number, dt: number, stopAt: number): boolean {
+function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: number, dt: number, stopAt: number, keepPace = false): boolean {
   const goalX = tx, goalY = ty;
   const gd = Math.hypot(tx - p.x, ty - p.y);
   if (gd <= stopAt) { p.moving = false; p.v = 0; p.route = []; p.routeGoal = null; return true; }
@@ -137,7 +143,8 @@ function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: 
   const d = Math.hypot(dx, dy);
   if (d <= stopAt) { p.moving = false; p.v = 0; return !p.route.length; }
   // ease towards the wanted speed instead of jumping to it, and slow down as it arrives
-  const want = Math.min(speed, Math.max(speed * 0.35, d * 2.6));
+  // (a pet keeping pace with a moving person does not slow down for the spot beside them, which is moving too)
+  const want = keepPace && d > 0.6 ? speed : Math.min(speed, Math.max(speed * 0.35, d * 2.6));
   p.v += (want - p.v) * Math.min(1, dt * 9);
   const vx = (dx / d) * p.v;
   const vy = (dy / d) * p.v;
@@ -146,6 +153,8 @@ function walkTo(p: PetState, solid: boolean[][], tx: number, ty: number, speed: 
   p.stuck = gained < p.v * dt * 0.25 ? p.stuck + dt : 0;
   p.x = next.x;
   p.y = next.y;
+  p.vx = vx;
+  p.vy = vy;
   p.moving = gained > 0.0005;
   // it looks the way it is going: mostly up or down the screen shows its front or back, otherwise its side
   if (Math.abs(vy) > Math.abs(vx) * 1.25 && Math.abs(vy) > 0.3) p.view = vy > 0 ? 'front' : 'back';
@@ -212,8 +221,11 @@ function endPlay(p: PetState, now: number): void {
   goHome(p);
 }
 
-export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3 }, solid: boolean[][], rand: () => number, others?: Map<string, PetState>): void {
-  const sp = SPEED[p.kind];
+export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y: number; dir?: 0 | 1 | 2 | 3; /** how fast the person is going (tiles a second) */ speed?: number }, solid: boolean[][], rand: () => number, others?: Map<string, PetState>): void {
+  const base = SPEED[p.kind];
+  // keep up with a person who is running or on a bike: always a little faster than they are
+  const boost = p.mode === 'follow' || p.mode === 'return' ? Math.min(PET_TOP_SPEED, Math.max(base.run, (me.speed ?? 0) * 1.3)) / base.run : 1;
+  const sp = { walk: base.walk * boost, run: base.run * boost };
   if (p.mode === 'play') {
     const q = p.partner ? others?.get(p.partner) : undefined;
     // the game ends on time, or if the other one has gone off to do something else (or been called away)
@@ -236,7 +248,7 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
   }
   if (p.mode === 'follow') {
     const d = Math.hypot(me.x - p.x, me.y - p.y);
-    if (d > 30) { p.x = me.x; p.y = me.y + 1; p.v = 0; return; }
+    if (d > 30) { const h = heelPoint(p, me); p.x = free(solid, h.x, h.y) ? h.x : me.x; p.y = free(solid, h.x, h.y) ? h.y : me.y; p.v = 0; p.route = []; p.routeGoal = null; return; }
     const heel = heelPoint(p, me);
     const dh = Math.hypot(heel.x - p.x, heel.y - p.y);
     // a playful dash round the person it is following, then back to heel
@@ -259,7 +271,10 @@ export function stepPet(p: PetState, dt: number, now: number, me: { x: number; y
       return;
     }
     // far away it runs flat out; near you it trots
-    walkTo(p, solid, heel.x, heel.y, dh > 5 ? sp.run : Math.max(sp.walk * 1.7, Math.min(sp.run, dh * 2.4)), dt, 0.45);
+    const trot = Math.max(sp.walk * 1.7, Math.min(sp.run, dh * 2.4));
+    // while its person is on the move it matches their pace (and a bit more, the further behind it is), instead of falling back until it has to sprint
+    const pace = (me.speed ?? 0) > 1 ? Math.min(sp.run, (me.speed ?? 0) * 1.1 + dh * 2.5) : 0;
+    walkTo(p, solid, heel.x, heel.y, dh > 5 ? sp.run : Math.max(trot, pace), dt, 0.45, pace > 0);
     return;
   }
   if (p.mode === 'fetch' && p.ball) {
@@ -371,6 +386,8 @@ export function stableAuthority(st: AuthorityState, present: string[], me: strin
 export interface PetSnap {
   id: string; x: number; y: number; face: 1 | -1; view: 'side' | 'front' | 'back'; moving: boolean; mode: PetMode; v: number;
   ox: number; oy: number; ctl: string | null; carrying: boolean; ball: Ball | null; happy: number; dash: boolean; partner: string | null; play: number; wait: number;
+  /** the way it is going (tiles a second), so a screen can keep it moving until the next update arrives */
+  vx?: number; vy?: number;
   /** when this computer received it (the "ms from now" times count from then); not sent */
   at?: number;
 }
@@ -382,13 +399,19 @@ export function petSnap(p: PetState, now: number): PetSnap {
     id: p.id, x: r(p.x), y: r(p.y), face: p.face, view: p.view, moving: p.moving, mode: p.mode, v: r(p.v), ox: p.ox, oy: p.oy, ctl: p.ctl,
     carrying: p.carrying, ball: p.ball ? { ...p.ball, thrownAt: Math.round(p.ball.thrownAt - now) } : null,
     happy: Math.max(0, Math.round(p.happyUntil - now)), dash: p.dashing, partner: p.partner, play: Math.max(0, Math.round(p.playUntil - now)), wait: r(p.wait),
+    vx: p.moving ? r(p.vx ?? 0) : 0, vy: p.moving ? r(p.vy ?? 0) : 0,
   };
 }
 
 /** Take a pet's state from the one that runs it. The position glides toward the sent one (snapping when far off). */
 export function applyPetSnap(p: PetState, s: PetSnap, now: number, dt: number): void {
-  const gap = Math.hypot(s.x - p.x, s.y - p.y);
-  if (gap > 4) { p.x = s.x; p.y = s.y; } else { const k = Math.min(1, dt * 12); p.x += (s.x - p.x) * k; p.y += (s.y - p.y) * k; }
+  // where it should be by now: the position it was sent at, plus the way it was going since (for up to a third of a second)
+  const age = Math.min(0.35, Math.max(0, (now - (s.at ?? now)) / 1000));
+  const tx = s.x + (s.vx ?? 0) * age;
+  const ty = s.y + (s.vy ?? 0) * age;
+  const gap = Math.hypot(tx - p.x, ty - p.y);
+  // far off (it was called across the map, or this screen was asleep): put it there; otherwise glide, and glide quicker the further off it is
+  if (gap > Math.max(5, (s.v ?? 0) * 1.2)) { p.x = tx; p.y = ty; } else { const k = Math.min(1, dt * (14 + gap * 4)); p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
   p.face = s.face; p.view = s.view; p.moving = s.moving; p.mode = s.mode; p.v = s.v; p.ox = s.ox; p.oy = s.oy; p.ctl = s.ctl;
   p.carrying = s.carrying; p.dashing = s.dash; p.partner = s.partner; p.wait = s.wait;
   const base = s.at ?? now;

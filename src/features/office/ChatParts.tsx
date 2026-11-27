@@ -1,4 +1,6 @@
-import { Loader2, Smile, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Loader2, Maximize2, Smile, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { ReactionGroup } from './chat';
 
@@ -57,5 +59,78 @@ export function ConfirmDelete({ open, preview, authorName, mine, onCancel, onCon
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 8;
+/** Keep a zoom level inside what makes sense. */
+export const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+/**
+ * A picture opened inside the app: dark backdrop, the picture centred, and it can be zoomed (mouse wheel, + and - keys or the buttons,
+ * double click) and dragged around when zoomed in. Esc, the X, or a click on the dark part closes only the picture, not the chat behind it.
+ */
+export function ImageViewer({ src, onClose }: { src: string; onClose: () => void }) {
+  const [z, setZ] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number; px: number; py: number; moved: boolean; onBackdrop: boolean } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const reset = () => { setZ(1); setPos({ x: 0, y: 0 }); };
+  /** zoom towards a point (relative to the middle of the screen) so what is under the pointer stays under it */
+  const zoomAt = (next: number, cx = 0, cy = 0) => {
+    const n = clampZoom(next);
+    setPos((p) => (n <= 1 ? { x: 0, y: 0 } : { x: cx - (cx - p.x) * (n / z), y: cy - (cy - p.y) * (n / z) }));
+    setZ(n);
+  };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+      else if (e.key === '+' || e.key === '=') zoomAt(z * 1.25);
+      else if (e.key === '-' || e.key === '_') zoomAt(z / 1.25);
+      else if (e.key === '0') reset();
+    };
+    window.addEventListener('keydown', k, true);
+    return () => window.removeEventListener('keydown', k, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [z, onClose]);
+  const centre = (e: { clientX: number; clientY: number }) => {
+    const r = box.current?.getBoundingClientRect();
+    return r ? { x: e.clientX - (r.left + r.width / 2), y: e.clientY - (r.top + r.height / 2) } : { x: 0, y: 0 };
+  };
+  return createPortal(
+    <div data-image-viewer className="pointer-events-auto fixed inset-0 z-[90] flex select-none flex-col bg-black/90 backdrop-blur-sm animate-in fade-in duration-150" role="dialog" aria-label="Picture">
+      <div className="flex h-12 shrink-0 items-center justify-end gap-1 px-3">
+        <span className="mr-auto font-mono text-[11px] text-white/50">{Math.round(z * 100)}%</span>
+        <button type="button" aria-label="Zoom out" title="Zoom out (-)" onClick={() => zoomAt(z / 1.25)} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button>
+        <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoomAt(z * 1.25)} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button>
+        <button type="button" aria-label="Fit to screen" title="Fit to screen (0)" onClick={reset} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10"><Maximize2 className="h-4 w-4" /></button>
+        <button type="button" aria-label="Close picture" title="Close (Esc)" onClick={onClose} className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10"><X className="h-4 w-4" /></button>
+      </div>
+      <div
+        ref={box}
+        className={`relative min-h-0 flex-1 overflow-hidden ${z > 1 ? (drag.current ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'}`}
+        onWheel={(e) => { const c = centre(e); zoomAt(z * Math.exp(-e.deltaY * 0.0015), c.x, c.y); }}
+        onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y, moved: false, onBackdrop: (e.target as HTMLElement).dataset.backdrop !== undefined }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) d.moved = true;
+          if (z > 1 && d.moved) setPos({ x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y });
+        }}
+        onPointerUp={() => {
+          const d = drag.current;
+          drag.current = null;
+          // a plain click on the dark part (not on the picture) closes it
+          if (d && !d.moved && d.onBackdrop) onClose();
+        }}
+        onDoubleClick={(e) => { if (z > 1) reset(); else { const c = centre(e); zoomAt(2.5, c.x, c.y); } }}
+      >
+        <div data-backdrop className="absolute inset-0 flex items-center justify-center p-4 pb-6">
+          <img src={src} alt="Shared picture" draggable={false} className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${z})`, transition: drag.current ? 'none' : 'transform 80ms ease-out' }} />
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
