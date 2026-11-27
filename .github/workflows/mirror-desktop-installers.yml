@@ -1,18 +1,20 @@
 name: Mirror desktop installers
 
-# The desktop app installers are built into releases of this PRIVATE repository, which only people with a GitHub login to it can
-# download from. This copies the current installers into the public "desktop-app" storage bucket (created by a migration) so the
-# Download button in the app can give them to everyone straight from our own project, with no GitHub page in between.
+# KD Ops desktop app: copies a PUBLISHED build onto OUR OWN update feed (the public "desktop-app" storage bucket, folder updates/office).
 #
-# It runs by itself after "Build KD Ops desktop app" finishes, and by hand (Run workflow) to fill the bucket the first time or to
-# repeat it. Which version: the one the app points at (DESKTOP_VERSION in src/features/office/desktopApp.ts), unless one is typed in.
-# It uses the same secrets the other Supabase workflows use (SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF); no new secret is needed.
+# Why: the app is built into releases of this PRIVATE repository, which only people with a GitHub login to it can read. If installed apps
+# or the Download button asked GitHub, people without access got nothing, and apps silently stopped updating. The feed is public by design
+# (an installer is not a secret) and is the ONE place both the installed apps (their update address) and the Download button read.
+#
+# It runs by itself whenever "Build KD Ops desktop app" finishes, so publishing can never be forgotten again: a build that was not
+# published (no release for its version) is simply skipped. Run it by hand to repeat or repair (type a version, or leave it empty for
+# the version of the code it runs on). It uses the same secrets the other Supabase workflows use; no new secret is needed.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to mirror (leave empty for the one the app points at)
+        description: Version to put on the feed (leave empty for the version in desktop-office/package.json)
         type: string
         default: ''
   workflow_run:
@@ -32,20 +34,27 @@ jobs:
       REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the code the build ran on, so its version is the one that was built
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Work out the version and fetch the installers from the release
+      - name: Work out the version and fetch the published build
         run: |
           set -e
           V="${{ inputs.version }}"
-          if [ -z "$V" ]; then V=$(grep -oP "DESKTOP_VERSION = '\K[^']+" src/features/office/desktopApp.ts); fi
-          echo "Mirroring KD Ops $V"
-          echo "V=$V" >> "$GITHUB_ENV"
+          if [ -z "$V" ]; then V=$(jq -r .version desktop-office/package.json); fi
+          echo "KD Ops $V"
+          if ! gh release view "office-desktop-v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "There is no published release office-desktop-v$V (that build was not published), so there is nothing to put on the feed."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
           mkdir -p dl
-          gh release download "office-desktop-v$V" --repo "$GITHUB_REPOSITORY" --dir dl \
-            --pattern "KD-Ops-Setup-$V.exe" --pattern "KD-Ops-$V.dmg" --pattern "KD-Ops-$V.AppImage"
+          gh release download "office-desktop-v$V" --repo "$GITHUB_REPOSITORY" --dir dl
           ls -la dl
 
       - name: Get the storage key for the project (never printed)
+        if: env.SKIP != '1'
         run: |
           set -e
           KEY=$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$REF/api-keys?reveal=true" | jq -r '.[] | select(.name=="service_role") | .api_key')
@@ -54,6 +63,7 @@ jobs:
           echo "SERVICE_KEY=$KEY" >> "$GITHUB_ENV"
 
       - name: Make sure the project accepts files this big
+        if: env.SKIP != '1'
         run: |
           set -e
           NOW=$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$REF/config/storage" | jq -r '.fileSizeLimit // 0')
@@ -64,29 +74,6 @@ jobs:
               -d '{"fileSizeLimit": 314572800}' "https://api.supabase.com/v1/projects/$REF/config/storage" || true
           fi
 
-      - name: Upload to the public bucket under fixed names
-        run: |
-          set -e
-          up() { # local file, name in the bucket
-            echo "Uploading $2 ($(du -h "$1" | cut -f1))"
-            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "https://$REF.supabase.co/storage/v1/object/desktop-app/$2" \
-              -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" -H "x-upsert: true" -H "Content-Type: application/octet-stream" --data-binary @"$1")
-            if [ "$code" != "200" ]; then echo "Upload of $2 failed ($code):"; cat resp.txt; echo; exit 1; fi
-          }
-          up "dl/KD-Ops-Setup-$V.exe" "KD-Ops-Setup.exe"
-          up "dl/KD-Ops-$V.dmg" "KD-Ops.dmg"
-          up "dl/KD-Ops-$V.AppImage" "KD-Ops.AppImage"
-          printf '{"version":"%s"}' "$V" > version.json
-          code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "https://$REF.supabase.co/storage/v1/object/desktop-app/version.json" \
-            -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" -H "x-upsert: true" -H "Content-Type: application/json" --data-binary @version.json)
-          [ "$code" = "200" ] || { echo "Upload of version.json failed ($code)"; cat resp.txt; exit 1; }
-
-      - name: Check that everyone can get them without a login
-        run: |
-          set -e
-          for f in KD-Ops-Setup.exe KD-Ops.dmg KD-Ops.AppImage version.json; do
-            code=$(curl -sS -o /dev/null -I -w '%{http_code}' "https://$REF.supabase.co/storage/v1/object/public/desktop-app/$f")
-            echo "$f -> $code"
-            [ "$code" = "200" ] || exit 1
-          done
-          echo "KD Ops $V is on the public download bucket."
+      - name: Put it on the update feed (installers first, the version files last, then check everybody can fetch it)
+        if: env.SKIP != '1'
+        run: bash scripts/publish-update-feed.sh office dl

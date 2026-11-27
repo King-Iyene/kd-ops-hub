@@ -1,6 +1,6 @@
 {
   "name": "kd-ops-timetrack-agent",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "private": true,
   "description": "KD Ops Time Tracker",
   "author": {
@@ -14,7 +14,7 @@
     "build": "npm run prebuild && tsc -p tsconfig.json",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder --publish=never",
-    "release": "npm run build && electron-builder --publish=always"
+    "release": "echo Releases are made by the Build desktop agent installers workflow, not from a computer"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -46,10 +46,10 @@
     },
     "icon": "build/icon.png",
     "npmRebuild": false,
+    "artifactName": "KD-Ops-Time-Tracker-${version}-${arch}.${ext}",
     "publish": {
-      "provider": "github",
-      "owner": "King-Iyene",
-      "repo": "kd-ops-hub"
+      "provider": "generic",
+      "url": "https://mseeurrvdcfxdmvqjjki.supabase.co/storage/v1/object/public/desktop-app/updates/tracker"
     },
     "linux": {
       "target": [

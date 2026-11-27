@@ -1,6 +1,6 @@
 {
   "name": "kd-ops-desktop",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "private": true,
   "description": "KD Ops: the KD Squares ops site and the virtual Office as one desktop app",
   "author": {
@@ -89,7 +89,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://github.com/King-Iyene/kd-ops-hub/releases/download/kd-ops-desktop-channel"
+        "url": "https://mseeurrvdcfxdmvqjjki.supabase.co/storage/v1/object/public/desktop-app/updates/office"
       }
     ]
   },
