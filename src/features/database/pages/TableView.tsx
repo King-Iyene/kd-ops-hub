@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, useDeferredValue } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { Toolbar } from '../components/Toolbar';
@@ -12,6 +13,7 @@ import {
   useUpdateRecord,
   useDeleteRecord,
   useSoftDeleteRecord,
+  restoreRecords,
   useBulkSoftDeleteRecords,
   useDuplicateRecord,
   useCreateField,
@@ -268,6 +270,7 @@ export function TableView() {
   const updateRecord = useUpdateRecord();
   const deleteRecord = useDeleteRecord();
   const duplicateRecord = useDuplicateRecord();
+  const queryClient = useQueryClient();
   const softDeleteRecord = useSoftDeleteRecord();
   const bulkSoftDelete = useBulkSoftDeleteRecords();
   const createField = useCreateField();
@@ -538,9 +541,21 @@ export function TableView() {
   const handleDeleteRow = useCallback(
     (recordId: string) => {
       if (!activeBaseId || !activeTableId) return;
-      softDeleteRecord.mutate({ baseId: activeBaseId, tableId: activeTableId, recordId });
+      softDeleteRecord.mutate(
+        { baseId: activeBaseId, tableId: activeTableId, recordId },
+        {
+          onSuccess: () =>
+            pushUndo({
+              type: 'row_delete',
+              description: 'Delete record',
+              payload: { recordId },
+              undo: () => restoreRecords(queryClient, activeBaseId, activeTableId, [recordId]),
+              redo: async () => { await softDeleteRecord.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, recordId }); },
+            }),
+        },
+      );
     },
-    [activeBaseId, activeTableId, softDeleteRecord],
+    [activeBaseId, activeTableId, softDeleteRecord, pushUndo, queryClient],
   );
 
   const handleUpdateFieldOptions = useCallback(
@@ -578,9 +593,21 @@ export function TableView() {
   const handleBulkDeleteRows = useCallback(
     (recordIds: string[]) => {
       if (!activeBaseId || !activeTableId) return;
-      bulkSoftDelete.mutate({ baseId: activeBaseId, tableId: activeTableId, recordIds });
+      bulkSoftDelete.mutate(
+        { baseId: activeBaseId, tableId: activeTableId, recordIds },
+        {
+          onSuccess: () =>
+            pushUndo({
+              type: 'row_delete',
+              description: 'Delete records',
+              payload: { recordIds },
+              undo: () => restoreRecords(queryClient, activeBaseId, activeTableId, recordIds),
+              redo: async () => { await bulkSoftDelete.mutateAsync({ baseId: activeBaseId, tableId: activeTableId, recordIds }); },
+            }),
+        },
+      );
     },
-    [activeBaseId, activeTableId, bulkSoftDelete],
+    [activeBaseId, activeTableId, bulkSoftDelete, pushUndo, queryClient],
   );
 
   const handleDeleteField = useCallback(
