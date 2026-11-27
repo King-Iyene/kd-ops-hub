@@ -7,6 +7,7 @@ import type { PeerMotion, Who } from './useOffice';
 import { peerVisible, type Motion } from './world/netSync';
 import { dotColor } from './status';
 import { createHud, perf, smoothNow } from './world/perfStats';
+import { stackTags } from './world/nameTags';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
@@ -290,6 +291,8 @@ export function OfficeCanvas(props: Props) {
     // sharpness steps down by itself when the frames are slow (a big screen at 2x draws four times as many pixels)
     const QUALITY = [1.5, 1, 0.75];
     let qualityLevel = 0;
+    let whoFor: unknown = null;
+    let whoMap = new Map<string, (typeof props.roster)[number]>();
     let qualityAt = 0;
     let msAvg = 16;
     const resize = () => {
@@ -611,7 +614,9 @@ export function OfficeCanvas(props: Props) {
       const me = meRef.current;
       /** where the other people in this space stand right now (they are solid: you cannot walk through them) */
       const peerBodies = () => {
-        const who = new Map(p.roster.map((q) => [q.id, q]));
+        // the lookup of who is who is rebuilt only when the people list changes, not on every frame
+        if (whoFor !== p.roster) { whoFor = p.roster; whoMap = new Map(p.roster.map((q) => [q.id, q])); }
+        const who = whoMap;
         const bodies: { x: number; y: number }[] = [];
         for (const [id, pm] of p.peers.current) {
           const info = who.get(id);
@@ -1060,6 +1065,8 @@ export function OfficeCanvas(props: Props) {
       perf.online = p.roster.length;
       const sortedPeople = people.filter((q) => q.isMe || (q.x >= view.x0 - 3 && q.x <= view.x1 + 3 && q.y >= view.y0 - 4 && q.y <= view.y1 + 4)).sort((a, b) => a.y - b.y);
       perf.drawn = sortedPeople.length;
+      // tags of people standing close together are stepped up so each can be read
+      if (sortedPeople.length > 1) { const lifts = stackTags(sortedPeople, TILE); for (let i = 0; i < sortedPeople.length; i++) sortedPeople[i].tagLift = lifts[i]; }
       // pets move, so their depth is worked out each frame
       const petList = sortCache.current.pets.filter(onScreen).sort((a, b) => depth(a) - depth(b));
       let qi = 0;
