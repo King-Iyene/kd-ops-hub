@@ -237,7 +237,10 @@ export default function AppLayout() {
           </header>
           )}
           {/* ── Main content ────────────────────────────────────────── */}
-          <main ref={mainRef} id="main-content" className={officeFull ? 'flex-1 overflow-hidden p-0 kd-gradient-mesh' : 'flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh'}>
+          {/* In Time Track the page itself scrolls (not this box), so the date / people filter bar of a page can stay pinned under the header while the
+              page scrolls: a sticky bar only sticks to the nearest box that really scrolls, and this box grows with its content, so it must not
+              be a scrolling box there. Other pages keep the box as it was. */}
+          <main ref={mainRef} id="main-content" className={officeFull ? 'flex-1 overflow-hidden p-0 kd-gradient-mesh' : `flex-1 p-4 md:p-5 lg:p-6 ${location.pathname.startsWith('/timetrack') ? 'overflow-visible' : 'overflow-auto'} kd-gradient-mesh`}>
             <div key={location.pathname} className="kd-page-transition">
               {/* key={pathname} resets the boundary on navigation, so a
                   crash on one page doesn't permanently break the next. */}
