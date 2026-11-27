@@ -56,6 +56,8 @@ interface PersonProps {
   camOn?: boolean;
   conn?: 'connected' | 'connecting' | 'reconnecting';
   quality?: 'good' | 'fair' | 'poor';
+  /** nobody could say who this is (an older version of the app): ask them to refresh */
+  unknown?: boolean;
   /** an emoji they just sent, floating over their picture */
   reaction?: string;
   muted?: boolean;
@@ -98,7 +100,7 @@ function PersonTile(p: PersonProps) {
         </span>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-3 pb-2 pt-6 text-white">
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold tracking-tight">{p.name}{p.isMe && <span className="ml-1.5 rounded bg-[#00ECFF]/20 px-1 text-[9px] font-bold uppercase tracking-wider text-[#9ff6ff]">you</span>}</span>
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold tracking-tight" title={p.unknown ? 'Their app is an older version and cannot say who they are. Ask them to refresh the page.' : undefined}>{p.name}{p.unknown && <span className="ml-1.5 font-normal text-amber-300/90">· ask them to refresh</span>}{p.isMe && <span className="ml-1.5 rounded bg-[#00ECFF]/20 px-1 text-[9px] font-bold uppercase tracking-wider text-[#9ff6ff]">you</span>}</span>
         {p.micOn === false && <span title="Microphone is off" className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/85"><MicOff className="h-3 w-3" /></span>}
         {p.micOn === true && !p.speaking && <Mic className="h-3.5 w-3.5 text-emerald-300/90" />}
         {p.camOn === false && <span title="Camera is off" className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15"><VideoOff className="h-3 w-3" /></span>}
@@ -228,7 +230,7 @@ export function MeetingView(p: MeetingProps) {
 
   const me = <PersonTile key="me" name={p.me.name} avatar={p.me.avatar} stream={p.selfCam} showVideo={!!p.selfCam && p.camOn} speaking={p.speaking.has('')} isMe reaction={reactions[p.selfId]} micOn={p.micOn} camOn={p.camOn} small={presenting || layout === 'speaker'} className={presenting || layout === 'speaker' ? 'h-full w-44 shrink-0' : ''} />;
   const person = (t: Tile, small: boolean, big = false) => (
-    <PersonTile key={t.id} name={t.name} avatar={t.avatar} stream={t.stream} showVideo={t.hasVideo} speaking={p.speaking.has(t.id)} micOn={t.micOn} camOn={t.camOn ?? t.hasVideo} conn={t.conn} quality={t.quality} reaction={reactions[t.id]} muted={t.muted}
+    <PersonTile key={t.id} name={t.name} avatar={t.avatar} stream={t.stream} showVideo={t.hasVideo} speaking={p.speaking.has(t.id)} micOn={t.micOn} camOn={t.camOn ?? t.hasVideo} conn={t.conn} quality={t.quality} unknown={t.unknown} reaction={reactions[t.id]} muted={t.muted}
       small={small} pinned={pinned === t.id} onMute={() => p.onMutePeer(t.id)} onPin={() => setPinned((cur) => (cur === t.id ? null : t.id))} className={small ? 'h-full w-44 shrink-0' : big ? 'h-full' : ''} />
   );
 
@@ -295,7 +297,7 @@ export function MeetingView(p: MeetingProps) {
         {emoOpen && <div className="absolute bottom-full z-30 mb-3"><EmojiPicker quick={bar.quick} freq={bar.freq} onPick={react} onQuick={bar.setQuick} onClose={() => setEmoOpen(false)} /></div>}
         <div className="flex items-center gap-2 rounded-full bg-[#031a26]/85 p-1.5 shadow-[0_18px_40px_-16px_rgba(0,0,0,.9)] ring-1 ring-inset ring-[#00ECFF]/25 backdrop-blur">
           <DockButton label={p.micOn ? 'Microphone is on: click to mute' : 'Microphone is off: click to turn on'} active={p.micOn} danger={!p.micOn} onClick={p.onMic}>{p.micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}</DockButton>
-          <DockButton label={p.camOn ? 'Camera is on: click to turn off' : 'Camera is off: click to turn on'} active={p.camOn} onClick={p.onCam}>{p.camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}</DockButton>
+          <DockButton label={p.camOn ? 'Camera is on: click to turn off' : 'Camera is off: click to turn on'} active={p.camOn} danger={!p.camOn} onClick={p.onCam}>{p.camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}</DockButton>
           <DockButton label={p.sharing ? 'Stop sharing your screen' : 'Share your screen, a window or a tab'} active={p.sharing} onClick={p.onShare}>{p.sharing ? <MonitorOff className="h-5 w-5" /> : <MonitorUp className="h-5 w-5" />}</DockButton>
           <span className="mx-1 h-6 w-px bg-white/15" />
           {bar.quick.map((e) => (

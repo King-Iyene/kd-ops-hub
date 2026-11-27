@@ -74,6 +74,9 @@ export interface RtcSignal {
   /** 'sdp' = offer or answer, 'ice' = network candidate, 'rst' = "this connection is stuck, drop yours and we start again" */
   k: 'sdp' | 'ice' | 'rst';
   d: unknown;
+  /** who is sending (their name and account), on the set-up messages, so the other side can name them without waiting for the online list */
+  n?: string;
+  u?: string;
 }
 
 /** Accept only well-formed set-up messages addressed to me. */
@@ -83,5 +86,7 @@ export function parseSignal(raw: unknown, myId: string): RtcSignal | null {
   if (typeof p.f !== 'string' || typeof p.t !== 'string' || p.f.length > 64 || p.t !== myId || p.f === myId) return null;
   if (p.k !== 'sdp' && p.k !== 'ice' && p.k !== 'rst') return null;
   if (!p.d || typeof p.d !== 'object') return null;
-  return { f: p.f, t: p.t, k: p.k, d: p.d };
+  const n = typeof p.n === 'string' && p.n.trim() ? p.n.trim().slice(0, 60) : undefined;
+  const u = typeof p.u === 'string' && p.u && p.u.length <= 64 ? p.u : undefined;
+  return { f: p.f, t: p.t, k: p.k, d: p.d, ...(n ? { n } : {}), ...(u ? { u } : {}) };
 }

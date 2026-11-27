@@ -259,6 +259,9 @@ function OfficeRoom() {
     send: sendRtc,
     setHandler: setRtcHandler,
     setShare,
+    myName: me?.name,
+    myUid: me?.id,
+    allowOwnWindows: multi,
   });
 
   // ---- editing furniture ----

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Who } from '../useOffice';
 import type { AvatarStyle } from '../world/types';
+import { defaultAvatar } from '../world/render';
 import { perf } from '../world/perfStats';
 import { FAR, isInitiator, parseSignal, volumeFor, wantsConnection, type RtcSignal, type Spot } from './rules';
 import { screenVisible, type ShareInfo, type ShareSurface } from './shareState';
@@ -65,6 +66,9 @@ interface Conn {
   /** when this connection was made, and when it last became connected (0 = never) */
   born: number;
   connectedAt: number;
+  /** who the other side says they are (from their set-up messages) */
+  peerName: string;
+  peerUid: string;
   /** how good the line is, from the round trip time and lost packets (updated every few seconds while connected) */
   quality: 'good' | 'fair' | 'poor';
   lastIn: { received: number; lost: number } | null;
@@ -89,6 +93,8 @@ export interface Tile {
   camOn?: boolean;
   /** how the connection to them is doing */
   conn?: 'connected' | 'connecting' | 'reconnecting';
+  /** nobody could say who this is (an older version of the app on their side): shown as a prompt to refresh, not as a name */
+  unknown?: boolean;
   /** line quality, when connected */
   quality?: 'good' | 'fair' | 'poor';
   id: string;
@@ -112,6 +118,11 @@ interface Opts {
   occluded?: (a: Spot, b: Spot) => boolean;
   send: (s: RtcSignal) => void;
   setHandler: (h: ((raw: unknown) => void) | null) => void;
+  /** who I am, sent with the set-up messages so the other side can name me at once (a person's name is never "Someone") */
+  myName?: string;
+  myUid?: string;
+  /** another window of my own account may be called (testing with ?multi only) */
+  allowOwnWindows?: boolean;
   /** how long a connection may take to come up before it is dropped and started again (milliseconds; a test shortens it) */
   watchdogMs?: number;
   /** tell the office that I started or stopped sharing my screen, and what (so everyone sees it, and the others can tell it from a camera) */
@@ -282,7 +293,8 @@ export function useCalls(opts: Opts) {
     audio.autoplay = true;
     audio.srcObject = stream;
     if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set(), born: Date.now(), connectedAt: 0, quality: 'good', lastIn: null };
+    window.setTimeout(bump, 4200); // an unnamed connection is called "Joining…" for a few seconds, then asks for a refresh
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set(), born: Date.now(), connectedAt: 0, peerName: '', peerUid: '', quality: 'good', lastIn: null };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -292,7 +304,7 @@ export function useCalls(opts: Opts) {
       try {
         c.making = true;
         await pc.setLocalDescription();
-        o.current.send({ f: me, t: id, k: 'sdp', d: pc.localDescription?.toJSON() ?? {} });
+        o.current.send({ f: me, t: id, k: 'sdp', d: pc.localDescription?.toJSON() ?? {}, n: o.current.myName, u: o.current.myUid });
       } catch {
         /* the next rules check will try again */
       } finally {
@@ -373,6 +385,8 @@ export function useCalls(opts: Opts) {
     let c = conns.current.get(s.f);
     // never accept a call from someone we should not be hearing (for example, from outside our meeting room)
     if (!other || !wantsConnection(o.current.self(), other, true)) return;
+    // another window of my own account is never called (it would show up as a stranger on my own card)
+    if (s.u && s.u === o.current.myUid && !o.current.allowOwnWindows) { if (c) close(s.f); return; }
     // they say a connection is stuck: drop ours too; whoever makes the offers starts a new one a moment later
     if (s.k === 'rst') {
       if (c) { close(s.f); notBefore.current.set(s.f, Date.now() + 1000); }
@@ -382,6 +396,8 @@ export function useCalls(opts: Opts) {
       if (s.k !== 'sdp') return;
       c = create(s.f);
     }
+    if (s.n) c.peerName = s.n;
+    if (s.u) c.peerUid = s.u;
     const { pc } = c;
     try {
       if (s.k === 'sdp') {
@@ -393,7 +409,7 @@ export function useCalls(opts: Opts) {
         for (const cand of c.pending.splice(0)) await pc.addIceCandidate(cand).catch(() => undefined);
         if (desc.type === 'offer') {
           await pc.setLocalDescription();
-          o.current.send({ f: me, t: s.f, k: 'sdp', d: pc.localDescription?.toJSON() ?? {} });
+          o.current.send({ f: me, t: s.f, k: 'sdp', d: pc.localDescription?.toJSON() ?? {}, n: o.current.myName, u: o.current.myUid });
         }
       } else {
         const cand = s.d as RTCIceCandidateInit;
@@ -767,7 +783,11 @@ export function useCalls(opts: Opts) {
   const nowMs = Date.now();
   for (const [id, c] of conns.current) {
     const entry = opts.roster.find((r) => r.id === id);
-    const who = entry?.name ?? 'Someone';
+    // the online list first, then what they told us themselves; never "Someone": while it is not known it says so, and after a few
+    // seconds (an older version of the app on their side says nothing) it asks for a refresh
+    const named = entry?.name ?? (c.peerName || '');
+    const unknown = !named && nowMs - c.born > 4000;
+    const who = named || (unknown ? 'Needs to refresh' : 'Joining…');
     const share = entry?.share;
     const v = c.stream.getVideoTracks()[0];
     tiles.push({
@@ -776,7 +796,8 @@ export function useCalls(opts: Opts) {
       stream: c.stream,
       hasVideo: !!v && !v.muted && v.readyState === 'live',
       muted: mutedPeers.has(id),
-      avatar: entry?.avatar,
+      avatar: entry?.avatar ?? (c.peerUid ? defaultAvatar(c.peerUid) : undefined),
+      unknown,
       micOn: entry?.mic,
       camOn: entry?.cam,
       conn: c.pc.connectionState === 'connected' ? 'connected' : c.connectedAt ? 'reconnecting' : 'connecting',
@@ -791,9 +812,9 @@ export function useCalls(opts: Opts) {
       }
     }
   }
-  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}${t.micOn ?? ''}${t.camOn ?? ''}${t.conn ?? ''}${t.quality ?? ''}${t.avatar ? 'a' : ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}${t.micOn ?? ''}${t.camOn ?? ''}${t.conn ?? ''}${t.quality ?? ''}${t.unknown ? 'u' : ''}${t.avatar ? 'a' : ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   /** the people who are connected to me right now (who can see what I share) */
-  const viewers = [...conns.current.keys()].map((id) => opts.roster.find((r) => r.id === id)?.name ?? 'Someone');
+  const viewers = [...conns.current.entries()].map(([id, c]) => opts.roster.find((r) => r.id === id)?.name ?? (c.peerName || 'a colleague'));
   const stableViewers = useMemo(() => viewers, [viewers.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // listen to the loudness of my microphone and of everyone in the call to know who is talking

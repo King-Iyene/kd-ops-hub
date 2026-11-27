@@ -121,3 +121,15 @@ describe('walls block sound', () => {
     expect(volumeFor({ x: 0, y: 0, room: null }, { x: 20, y: 0, room: null, live: true }, true)).toBe(1);
   });
 });
+
+describe('who is sending, on a set-up message', () => {
+  const good = { f: 'a', t: 'me', k: 'sdp', d: {} };
+  it('carries the name and account, trimmed, and leaves them out when they are not text', () => {
+    expect(parseSignal({ ...good, n: '  Nina Okari ', u: 'user-1' }, 'me')).toMatchObject({ n: 'Nina Okari', u: 'user-1' });
+    expect(parseSignal({ ...good, n: 5, u: '' }, 'me')).toEqual({ f: 'a', t: 'me', k: 'sdp', d: {} });
+    expect(parseSignal({ ...good, n: 'x'.repeat(200) }, 'me')?.n).toHaveLength(60);
+  });
+  it('accepts a reset request', () => {
+    expect(parseSignal({ f: 'a', t: 'me', k: 'rst', d: {} }, 'me')?.k).toBe('rst');
+  });
+});

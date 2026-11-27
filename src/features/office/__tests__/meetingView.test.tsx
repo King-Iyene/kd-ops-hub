@@ -42,6 +42,11 @@ describe('the meeting card', () => {
     expect(f.onLeave).toHaveBeenCalledTimes(1);
     expect(f.onClose).toHaveBeenCalledTimes(1);
   });
+  it('shows the camera button red when the camera is off, like the microphone', () => {
+    setup();
+    expect(screen.getByLabelText('Camera is off: click to turn on').className).toContain('bg-red-500');
+    expect(screen.getByLabelText('Microphone is off: click to turn on').className).toContain('bg-red-500');
+  });
   it('sends an emoji reaction from the card, and mutes somebody for me only', () => {
     const f = setup();
     fireEvent.click(screen.getAllByLabelText(/^React /)[0]);
