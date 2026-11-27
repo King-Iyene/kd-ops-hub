@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Loader2, Search, Smile, Trash2 } from 'lucide-react';
+import { Loader2, Smile, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { supabase } from '@/lib/supabase';
 import type { ReactionGroup } from './chat';
 
-/** Pieces of the chat that are worth keeping apart: reactions under a message, the hover bar, the delete question and the GIF picker. */
+/** Pieces of the chat that are worth keeping apart: reactions under a message, the hover bar and the delete question. */
 
 /** The emoji under a message: one chip per emoji with a count, lit when it is mine; click to add or take back yours. */
 export function ReactionChips({ groups, nameOf, onToggle, mine }: { groups: ReactionGroup[]; nameOf: (id: string) => string; onToggle: (emoji: string) => void; mine: boolean }) {
@@ -59,67 +57,5 @@ export function ConfirmDelete({ open, preview, authorName, mine, onCancel, onCon
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-interface Gif { id: string; title: string; preview: string; url: string; w: number; h: number }
-
-/** GIF search (through our own function, so the key stays on the server). Pick one and it is sent. */
-export function GifPicker({ onPick, onClose }: { onPick: (url: string) => void; onClose: () => void }) {
-  const [q, setQ] = useState('');
-  const [gifs, setGifs] = useState<Gif[] | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'off' | 'error'>('loading');
-  const seq = useRef(0);
-  useEffect(() => {
-    const mine = ++seq.current;
-    setState('loading');
-    const t = window.setTimeout(() => {
-      void supabase.functions.invoke('office-gifs', { body: { q } }).then(({ data, error }) => {
-        if (mine !== seq.current) return;
-        const d = data as { configured?: boolean; gifs?: Gif[] } | null;
-        if (error || !d) { setState('error'); return; }
-        if (d.configured === false) { setState('off'); return; }
-        setGifs(d.gifs ?? []);
-        setState('ready');
-      });
-    }, q ? 350 : 0);
-    return () => window.clearTimeout(t);
-  }, [q]);
-  return (
-    <div className="ko pointer-events-auto w-[22rem] max-w-[92vw] overflow-hidden rounded-2xl border border-[#00ECFF]/20 bg-popover/95 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.7)] backdrop-blur" role="dialog" aria-label="Choose a GIF">
-      <div className="flex items-center gap-2 border-b border-white/[0.07] p-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search GIFs, for example thanks or party" aria-label="Search GIFs" className="h-9 w-full rounded-xl bg-white/[0.06] pl-8 pr-2 text-[13px] outline-none ring-1 ring-white/[0.07] placeholder:text-muted-foreground focus:ring-primary/60" />
-        </div>
-        <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-white/10 hover:text-foreground">Close</button>
-      </div>
-      <div className="h-64 overflow-y-auto p-2">
-        {state === 'loading' && !gifs && <p className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading GIFs…</p>}
-        {state === 'off' && <p className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">GIFs are not set up yet. An admin adds a GIPHY key once and they appear for everyone.</p>}
-        {state === 'error' && <p className="flex h-full items-center justify-center px-4 text-center text-sm text-muted-foreground">Could not load GIFs. Check your connection and try again.</p>}
-        {state === 'ready' && gifs && gifs.length === 0 && <p className="flex h-full items-center justify-center text-sm text-muted-foreground">No GIFs found for that.</p>}
-        {(state === 'ready' || (state === 'loading' && gifs)) && gifs && gifs.length > 0 && (
-          <div className="columns-2 gap-2">
-            {gifs.map((g) => (
-              <button key={g.id} type="button" onClick={() => { onPick(g.url); onClose(); }} title={g.title || 'GIF'} className="mb-2 block w-full overflow-hidden rounded-lg ring-1 ring-white/10 transition hover:ring-[#00ECFF]/60">
-                <img src={g.preview} alt={g.title || 'GIF'} loading="lazy" className="w-full" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <p className="border-t border-white/[0.07] px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Powered by GIPHY</p>
-    </div>
-  );
-}
-
-/** A GIF in a message. */
-export function GifImage({ url }: { url: string }) {
-  return (
-    <a href={url} target="_blank" rel="noreferrer noopener" className="relative block w-fit">
-      <img src={url} alt="GIF" loading="lazy" className="max-h-56 max-w-full rounded-xl object-cover" />
-      <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 text-[9px] font-extrabold tracking-wider text-white">GIF</span>
-    </a>
   );
 }

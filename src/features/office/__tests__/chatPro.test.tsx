@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { groupReactions, isGifUrl, type ChatMsg } from '../chat';
+import { groupReactions, type ChatMsg } from '../chat';
 
-vi.mock('@/lib/supabase', () => ({ supabase: { storage: { from: () => ({ createSignedUrl: async () => ({ data: null }) }) }, functions: { invoke: async () => ({ data: { configured: false, gifs: [] }, error: null }) } } }));
+vi.mock('@/lib/supabase', () => ({ supabase: { storage: { from: () => ({ createSignedUrl: async () => ({ data: null }) }) } } }));
 
 import { ChatDialog } from '../ChatDialog';
 
@@ -14,17 +14,6 @@ describe('reactions grouped for display', () => {
     ], 'me');
     expect(g).toEqual([{ emoji: '👍', count: 2, mine: false, users: ['a', 'b'] }, { emoji: '🎉', count: 1, mine: true, users: ['me'] }]);
     expect(groupReactions([], 'me')).toEqual([]);
-  });
-});
-
-describe('which addresses count as a GIF', () => {
-  it('accepts only GIPHY picture hosts', () => {
-    expect(isGifUrl('https://media2.giphy.com/media/v1.Y2lk/abc123/giphy.gif?cid=1&ep=v1&rid=giphy.gif&ct=g')).toBe(true);
-    expect(isGifUrl('https://i.giphy.com/abc123.webp')).toBe(true);
-    expect(isGifUrl('https://evil.example.com/media/x.gif')).toBe(false);
-    expect(isGifUrl('http://media.giphy.com/media/x/giphy.gif')).toBe(false);
-    expect(isGifUrl('look https://media.giphy.com/media/x/giphy.gif')).toBe(false);
-    expect(isGifUrl('https://media.giphy.com.evil.com/x.gif')).toBe(false);
   });
 });
 
@@ -75,10 +64,9 @@ describe('the chat window', () => {
     expect(onReact).toHaveBeenCalledWith('2', '🔥');
     expect(screen.getByTitle(/You, Nina Okari reacted|Nina Okari, You reacted/)).toBeTruthy();
   });
-  it('has emoji and GIF buttons beside the box, and says when GIFs are not set up', async () => {
+  it('has an emoji button beside the box and no GIF button', () => {
     setup({ isAdmin: false });
     expect(screen.getByLabelText('Emoji')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('GIF'));
-    expect(await screen.findByText(/GIFs are not set up yet/)).toBeTruthy();
+    expect(screen.queryByLabelText('GIF')).toBeNull();
   });
 });

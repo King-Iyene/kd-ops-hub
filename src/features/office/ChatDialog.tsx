@@ -3,8 +3,8 @@ import { ArrowLeft, Award, Download, File as FileIcon, FileArchive, FileAudio, F
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
 import { AvatarFace } from './AvatarFace';
-import { ALL, MAX_ATTACHMENTS, MAX_BODY, checkAttachment, convOf, fileKind, formatBytes, groupReactions, isGifUrl, isPicture, type ChatMsg, type Reaction } from './chat';
-import { ConfirmDelete, GifImage, GifPicker, MessageBar, ReactionChips } from './ChatParts';
+import { ALL, MAX_ATTACHMENTS, MAX_BODY, checkAttachment, convOf, fileKind, formatBytes, groupReactions, isPicture, type ChatMsg, type Reaction } from './chat';
+import { ConfirmDelete, MessageBar, ReactionChips } from './ChatParts';
 import { EmojiPicker } from './EmojiPicker';
 import { useEmoteBar } from './emoji';
 import { splitLinks } from './social';
@@ -114,7 +114,6 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
   const [delBusy, setDelBusy] = useState(false);
   /** the full emoji picker: for a message (its id) or for the box I am typing in */
   const [emoFor, setEmoFor] = useState<string | 'composer' | null>(null);
-  const [gifOpen, setGifOpen] = useState(false);
   const bar = useEmoteBar();
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [announce, setAnnounce] = useState(false);
@@ -156,7 +155,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
     if (!open) { setNewFrom(null); return; }
     const since = lastRead?.[conv] ?? 0;
     setNewFrom(thread.find((m) => m.sender_id !== meId && new Date(m.created_at).getTime() > since)?.id ?? null);
-    setKudosOpen(false); setDelTarget(null); setEmoFor(null); setGifOpen(false);
+    setKudosOpen(false); setDelTarget(null); setEmoFor(null);
     // only when the conversation is opened: later messages arrive below the line
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, conv]);
@@ -213,13 +212,6 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
     setText(next);
     requestAnimationFrame(() => { if (el) { el.focus(); const pos = Math.min(next.length, start + add.length); el.setSelectionRange(pos, pos); } });
   };
-  const sendGif = async (url: string) => {
-    if (busy) return;
-    setBusy(true); setErr(null);
-    const ok = await onSend({ text: url, file: null, to: conv === ALL ? null : conv, announce: false });
-    setBusy(false);
-    if (!ok) setErr('That GIF did not send. Check your connection and try again.');
-  };
   const delMsg = delTarget ? msgs.find((x) => x.id === delTarget) ?? null : null;
 
   const row = (id: string, name: string, avatar: AvatarStyle | null, online: boolean, active = false) => {
@@ -232,7 +224,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
           : <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary"><Users className="h-4 w-4" /></span>}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-semibold">{name}</span>
-          <span className="block truncate text-[11.5px] text-muted-foreground">{m ? (m.sender_id === meId ? 'You: ' : '') + (isGifUrl(m.body) ? 'GIF' : m.body || 'Picture') : online ? 'Online' : active ? 'Active in the app' : 'Offline'}</span>
+          <span className="block truncate text-[11.5px] text-muted-foreground">{m ? (m.sender_id === meId ? 'You: ' : '') + (m.body || 'Picture') : online ? 'Online' : active ? 'Active in the app' : 'Offline'}</span>
         </span>
         {u > 0 && <span className="shrink-0 rounded-full bg-[#D6AC50] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2a1c00]">{u > 99 ? '99+' : u}</span>}
       </button>
@@ -323,7 +315,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
                           )}
                           <div className={`rounded-2xl px-3 py-2 ${!mine && m.mentions.includes(meId) ? 'ring-1 ring-[#D6AC50]/60 ' : ''}${mine ? 'rounded-br-md bg-gradient-to-br from-[#0a86b4] to-[#006994] text-white shadow-[0_8px_20px_-10px_rgba(0,160,220,.8)]' : 'rounded-bl-md border border-white/[0.06] bg-white/[0.06]'}`}>
                             {!mine && conv === ALL && !sameSender && <p className="mb-0.5 truncate text-[11.5px] font-bold text-[#9ff6ff]/85">{who?.name ?? 'Someone'}</p>}
-                            {isGifUrl(m.body) ? <GifImage url={m.body.trim()} /> : m.body && m.body !== '(picture)' && m.body !== '(file)' && <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed"><Body text={m.body} /></p>}
+                            {m.body && m.body !== '(picture)' && m.body !== '(file)' && <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed"><Body text={m.body} /></p>}
                             {m.img && <div className={m.body && m.body !== '(picture)' ? 'mt-1.5' : ''}><ChatImage path={m.img} /></div>}
                             {m.file_path && <div className={m.body && m.body !== '(file)' ? 'mt-1.5' : ''}><ChatFile m={m} /></div>}
                             <p className="mt-0.5 text-right text-[10px] text-muted-foreground">{clock(m.created_at)}</p>
@@ -374,12 +366,10 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
                 </div>
               )}
               {emoFor === 'composer' && <div className="absolute bottom-full left-0 z-30 mb-2"><EmojiPicker quick={bar.quick} freq={bar.freq} onPick={(e) => { bar.bump(e); insertText(e); }} onQuick={bar.setQuick} onClose={() => setEmoFor(null)} /></div>}
-              {gifOpen && <div className="absolute bottom-full left-0 z-30 mb-2"><GifPicker onClose={() => setGifOpen(false)} onPick={(url) => void sendGif(url)} /></div>}
               <div className="flex items-end gap-1 rounded-2xl bg-white/[0.05] p-1.5 ring-1 ring-inset ring-white/[0.08] transition focus-within:bg-white/[0.07] focus-within:ring-[#00ECFF]/45">
                 <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => { addFiles([...(e.target.files ?? [])]); e.target.value = ''; }} />
                 <button type="button" aria-label="Attach files" title="Attach files. You can also paste a picture or drag files here." onClick={() => fileRef.current?.click()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-white/[0.1] hover:text-foreground"><Paperclip className="h-[18px] w-[18px]" /></button>
-                <button type="button" aria-label="Emoji" title="Emoji" aria-pressed={emoFor === 'composer'} onClick={() => { setGifOpen(false); setEmoFor(emoFor === 'composer' ? null : 'composer'); }} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition hover:bg-white/[0.1] ${emoFor === 'composer' ? 'bg-white/[0.1] text-[#9ff6ff]' : 'text-muted-foreground hover:text-foreground'}`}><Smile className="h-[18px] w-[18px]" /></button>
-                <button type="button" aria-label="GIF" title="Send a GIF" aria-pressed={gifOpen} onClick={() => { setEmoFor(null); setGifOpen((o) => !o); }} className={`flex h-9 shrink-0 items-center justify-center rounded-xl px-2 text-[11px] font-extrabold tracking-wider transition hover:bg-white/[0.1] ${gifOpen ? 'bg-white/[0.1] text-[#9ff6ff]' : 'text-muted-foreground hover:text-foreground'}`}>GIF</button>
+                <button type="button" aria-label="Emoji" title="Emoji" aria-pressed={emoFor === 'composer'} onClick={() => setEmoFor(emoFor === 'composer' ? null : 'composer')} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition hover:bg-white/[0.1] ${emoFor === 'composer' ? 'bg-white/[0.1] text-[#9ff6ff]' : 'text-muted-foreground hover:text-foreground'}`}><Smile className="h-[18px] w-[18px]" /></button>
                 <textarea ref={taRef} value={text} maxLength={MAX_BODY} rows={1} onChange={(e) => { setText(e.target.value); setSel(0); }}
                   onPaste={(e) => { const fs = [...e.clipboardData.files]; if (fs.length) { e.preventDefault(); addFiles(fs); } }}
                   onKeyDown={(e) => {
@@ -406,7 +396,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
           </footer>
         </section>
         <ConfirmDelete open={!!delMsg} busy={delBusy} mine={delMsg?.sender_id === meId} authorName={delMsg ? byId.get(delMsg.sender_id)?.name ?? 'someone' : ''}
-          preview={delMsg ? (isGifUrl(delMsg.body) ? 'A GIF' : delMsg.body && delMsg.body !== '(picture)' && delMsg.body !== '(file)' ? delMsg.body : delMsg.file_name ?? 'A picture') : ''}
+          preview={delMsg ? (delMsg.body && delMsg.body !== '(picture)' && delMsg.body !== '(file)' ? delMsg.body : delMsg.file_name ?? 'A picture') : ''}
           onCancel={() => { if (!delBusy) setDelTarget(null); }}
           onConfirm={() => { if (!delMsg || !onDelete) return; setDelBusy(true); void onDelete(delMsg.id).finally(() => { setDelBusy(false); setDelTarget(null); }); }} />
       </DialogContent>

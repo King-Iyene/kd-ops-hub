@@ -41,10 +41,6 @@ export function groupReactions(rows: Reaction[], me: string): ReactionGroup[] {
   return [...by.values()];
 }
 
-/** A message that is just one GIF from GIPHY's own picture hosts is shown as the picture (never any other address). */
-const GIF_URL = /^https:\/\/(media\d*|i)\.giphy\.com\/[\w\-/.]+\.(gif|webp)(\?[\w=&.\-%]*)?$/;
-export const isGifUrl = (body: string) => body.length <= 600 && GIF_URL.test(body.trim());
-
 // ── attachments ────────────────────────────────────────────────────────────
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
