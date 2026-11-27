@@ -25,7 +25,7 @@ export { useAutomations, useCreateAutomation, useUpdateAutomation, useDeleteAuto
 export { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from './useWebhooks';
 export { useDuplicateBase } from './useDuplicateBase';
 export { useAuditLog } from './useAuditLog';
-export { useTrashRecords, useSoftDeleteRecord, useBulkSoftDeleteRecords, useRestoreRecord, usePermanentlyDeleteRecord, useEmptyTrash } from './useTrash';
+export { useTrashRecords, useSoftDeleteRecord, restoreRecords, useBulkSoftDeleteRecords, useRestoreRecord, usePermanentlyDeleteRecord, useEmptyTrash } from './useTrash';
 export type { TrashEntry } from './useTrash';
 export { useRecordHistory } from './useRecordHistory';
 export { useWorkspaceUsers } from './useWorkspaceUsers';

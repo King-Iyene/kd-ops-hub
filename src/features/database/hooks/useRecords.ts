@@ -1064,6 +1064,20 @@ function updateInfiniteCache<_T>(
   });
 }
 
+/** Take rows out of every cached list of this table at once (so a delete shows instantly) and return what to put back on failure. */
+export function removeRowsFromRecordsCache(
+  qc: ReturnType<typeof useQueryClient>,
+  baseId: string,
+  tableId: string,
+  ids: string[],
+) {
+  const queryKey = ['nc', 'records', baseId, tableId];
+  const previous = qc.getQueriesData<RecordsResult>({ queryKey });
+  const gone = new Set(ids);
+  updateInfiniteCache(qc, queryKey, (records) => records.filter((r) => !gone.has(r.id)), -ids.length);
+  return previous;
+}
+
 export function useCreateRecord() {
   const qc = useQueryClient();
 
