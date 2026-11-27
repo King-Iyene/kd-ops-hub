@@ -3,7 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { AvatarStyle } from './world/types';
 import { countIn, countOut } from './world/perfStats';
-import { pack, replyWindowMs, rosterDebounceMs, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
+import { PEER_FRESH_MS, pack, replyWindowMs, rosterDebounceMs, shouldSend, unpack, type Motion, type SentMotion } from './world/netSync';
 import { cleanAvatar } from './world/render';
 import type { RtcSignal } from './calls/rules';
 import type { DoorMsg } from './calls/locks';
@@ -56,6 +56,7 @@ export interface PeerMotion { x: number; y: number; vx: number; vy: number; dir:
 import { isEmoji } from './emoji';
 import { ambient } from './ambient';
 import { cleanShare, shareMeta, type ShareInfo } from './calls/shareState';
+import { cleanIdent, completeRoster, unknownToAsk, type Ident } from './world/identity';
 
 export const EMOTES = ['👍', '👏', '❤️', '🎉', '😂', '😮', '🙌', '✋', '🔥', '💯'];
 
@@ -102,9 +103,30 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const ghosts = useRef(new Set<string>());
   const [superseded, setSuperseded] = useState(false);
   const supersededRef = useRef(false);
-  const [roster, setRoster] = useState<Who[]>([]);
+  /** what the lobby's online list says (can be late, and can drop somebody under load) */
+  const [presenceRoster, setRoster] = useState<Who[]>([]);
+  /** who people say they are, learned from anybody we hear moving whom the online list does not know (see world/identity.ts) */
+  const idents = useRef(new Map<string, Ident>());
+  const presenceIds = useRef(new Set<string>());
+  const [identVer, setIdentVer] = useState(0);
+  const [tick, setTick] = useState(0);
+  const synthCache = useRef(new Map<string, Who>());
+  const lastRoster = useRef<Who[]>([]);
   const [connected, setConnected] = useState(false);
   const peers = useRef(new Map<string, PeerMotion>());
+  // the online list, completed with people we can hear but the list does not show (so nobody is ever "Someone", and everybody who is here is listed)
+  const roster = useMemo(() => {
+    const merged = completeRoster(presenceRoster, idents.current, peers.current, { now: Date.now(), selfUid: self?.id ?? null, multi, spaceId, freshMs: PEER_FRESH_MS }, synthCache.current);
+    const prev = lastRoster.current;
+    const same = prev.length === merged.length && prev.every((w, i) => w === merged[i]);
+    if (!same) lastRoster.current = merged;
+    return same ? prev : merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presenceRoster, identVer, tick, self?.id, multi, spaceId]);
+  useEffect(() => {
+    const t = window.setInterval(() => { if (idents.current.size) setTick((n) => n + 1); }, 3000);
+    return () => window.clearInterval(t);
+  }, []);
   const lobby = useRef<RealtimeChannel | null>(null);
   const room = useRef<RealtimeChannel | null>(null);
   const roomReady = useRef(false);
@@ -180,13 +202,20 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       if (rk !== rosterKey.current) { rosterKey.current = rk; setRoster(shown); }
       // forget people who have left, and tabs that are no longer the one shown
       const here = new Set(all.map((w) => w.id));
-      for (const id of [...peers.current.keys()]) if (!here.has(id) || ghostIds.has(id)) peers.current.delete(id);
+      presenceIds.current = here;
+      for (const id of [...peers.current.keys()]) if (ghostIds.has(id) || (!here.has(id) && !idents.current.has(id))) peers.current.delete(id);
     };
     // rings and messages addressed to one person (see social.ts); everyone gets the packet, only the addressee acts
     ch.on('broadcast', { event: 'ping' }, ({ payload }) => { pingHandler.current?.(payload); });
     // a shaky connection sends a burst of presence events: handle them together, once
     let syncTimer: ReturnType<typeof setTimeout> | null = null;
     const syncSoon = () => { if (syncTimer) return; syncTimer = setTimeout(() => { syncTimer = null; sync(); }, rosterDebounceMs(headCount.current)); };
+    // if my own entry has gone missing from the list (a dropped update), put it back, so nobody loses sight of me
+    const heal = window.setInterval(() => {
+      const s = selfRef.current;
+      if (!s || !(ch.state === 'joined')) return;
+      if (!(ch.presenceState() as Record<string, unknown>)[connId]) void ch.track(meta(s));
+    }, 15_000);
     ch.on('presence', { event: 'sync' }, syncSoon).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true);
@@ -195,6 +224,7 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       }
     });
     return () => {
+      window.clearInterval(heal);
       if (syncTimer) clearTimeout(syncTimer);
       setConnected(false);
       void supabase.removeChannel(ch);
@@ -243,6 +273,9 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   }, []);
 
   /** I started or stopped dancing (everyone sees it). */
+  /** do we know who this connection is (the online list or their own answer)? Calls and drawing wait for that, so nobody is ever "Someone". */
+  const isKnown = useCallback((id: string) => presenceIds.current.has(id) || idents.current.has(id), []);
+
   const setDancing = useCallback((on: boolean) => {
     if (danceRef.current === on) return;
     danceRef.current = on;
@@ -309,12 +342,41 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
       countIn();
       const p = unpack(payload);
       if (!p || p.id === connId || ghosts.current.has(p.id)) return;
+      // another window of me, once it has said so, is neither drawn nor called
+      const idn = idents.current.get(p.id);
+      if (!multi && idn && idn.uid === selfRef.current?.id) return;
       peers.current.set(p.id, { x: p.x, y: p.y, vx: p.vx, vy: p.vy, dir: p.dir, at: Date.now() });
+    });
+    // somebody we hear but the online list does not know: ask who they are, and answer when asked (world/identity.ts)
+    const firstUnknown = new Map<string, number>();
+    const asked = new Map<string, number>();
+    const resolver = window.setInterval(() => {
+      if (!roomReady.current) return;
+      const ids = unknownToAsk(peers.current.keys(), (id) => presenceIds.current.has(id) || idents.current.has(id), firstUnknown, asked, Date.now());
+      if (ids.length) void ch.send({ type: 'broadcast', event: 'who', payload: { i: ids } });
+    }, 500);
+    let lastAnswer = 0;
+    ch.on('broadcast', { event: 'who' }, ({ payload }) => {
+      const ids = (payload as { i?: unknown } | null)?.i;
+      if (!Array.isArray(ids) || !ids.includes(connId) || Date.now() - lastAnswer < 2000 || supersededRef.current) return;
+      lastAnswer = Date.now();
+      window.setTimeout(() => {
+        const s = selfRef.current;
+        if (!roomReady.current || !s) return;
+        void ch.send({ type: 'broadcast', event: 'iam', payload: { i: connId, u: s.id, n: s.name, a: s.avatar, c: since.current } });
+      }, Math.random() * 300);
+    });
+    ch.on('broadcast', { event: 'iam' }, ({ payload }) => {
+      const r = cleanIdent(payload, cleanAvatar, Date.now());
+      if (!r || r.id === connId || ghosts.current.has(r.id)) return;
+      idents.current.set(r.id, r.ident);
+      if (!multi && r.ident.uid === selfRef.current?.id) peers.current.delete(r.id);
+      setIdentVer((v) => v + 1);
     });
     // someone is leaving this office (switching to another one): stop drawing them at once instead of waiting for the online list
     ch.on('broadcast', { event: 'x' }, ({ payload }) => {
       const id = (payload as { i?: unknown } | null)?.i;
-      if (typeof id === 'string' && id !== connId) peers.current.delete(id);
+      if (typeof id === 'string' && id !== connId) { peers.current.delete(id); idents.current.delete(id); }
     });
     // someone just arrived and asks where everybody is: answer once, spread out a little so we do not all reply at once
     // Several arrivals close together share one answer: while an answer is already waiting to go out (it will leave after
@@ -353,6 +415,8 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
     });
     const peerMap = peers.current;
     return () => {
+      window.clearInterval(resolver);
+      idents.current.clear();
       // tell the others I am going (best effort), then close the channel a moment later so the message has left
       const wasReady = roomReady.current;
       roomReady.current = false;
@@ -412,5 +476,5 @@ export function useOffice(self: { id: string; name: string; avatar: AvatarStyle 
   const setDoorHandler = useCallback((h: ((raw: unknown) => void) | null) => { doorHandler.current = h; }, []);
   const setRtcHandler = useCallback((h: ((raw: unknown) => void) | null) => { rtcHandler.current = h; }, []);
 
-  return { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox };
+  return { connId, multi, superseded, claim, ghosts, roster, isKnown, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox };
 }

@@ -221,7 +221,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -249,7 +249,8 @@ function OfficeRoom() {
     meId: connId,
     spaceId: space?.id ?? null,
     roster,
-    peerIds: () => [...peers.current.keys()].filter((id) => !ghosts.current.has(id)),
+    // only people whose name we know are called (somebody still unknown is asked who they are, and joins within a moment)
+    peerIds: () => [...peers.current.keys()].filter((id) => !ghosts.current.has(id) && isKnown(id)),
     lookup: lookupSpot,
     occluded: (a, b) => wallBetween(map.walls, a.x, a.y, b.x, b.y),
     self: selfSpot,

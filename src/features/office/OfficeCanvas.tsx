@@ -984,7 +984,7 @@ export function OfficeCanvas(props: Props) {
         if (!peerVisible({ known: !!info, otherOffice: !!info?.spaceId && info.spaceId !== p.spaceId, ownWindow: !p.showOwnTabs && info?.uid === p.me.uid, ageMs: Date.now() - pm.at })) continue;
         people.push({
           x: pos.x, y: pos.y, dir: pm.dir, moving: (pm.vx !== 0 || pm.vy !== 0) && Date.now() - pm.at < 3000,
-          name: info?.name ?? 'Someone', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !(pm.vx || pm.vy) && !!seatAt(p.items, pos.x, pos.y), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
+          name: info?.name ?? '', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !(pm.vx || pm.vy) && !!seatAt(p.items, pos.x, pos.y), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
         });
       }
       if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
