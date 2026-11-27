@@ -2024,7 +2024,7 @@ function OfficeRoom() {
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
         open={chatOpen} onClose={() => setChatOpen(false)} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
-        people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat} onDelete={chat.remove} lastRead={chat.lastRead}
+        people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat} onDelete={chat.remove} onReact={(id, e) => void chat.react(id, e)} reactions={chat.reactions} lastRead={chat.lastRead}
       />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
