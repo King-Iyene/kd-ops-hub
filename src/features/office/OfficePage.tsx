@@ -223,7 +223,7 @@ function OfficeRoom() {
     return list;
   }, [savedItems, decor, map]);
 
-  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
+  const { connId, multi, superseded, claim, ghosts, roster, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setMedia, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
 
   // ---- voice and video (who hears whom is decided in calls/rules.ts) ----
   const meetingIds = useMemo(() => new Set(map.zones.filter((z) => isRoom(z)).map((z) => z.id)), [map]);
@@ -1129,6 +1129,8 @@ function OfficeRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { if (!calls.joined) setMeeting(false); }, [calls.joined]);
+  // everybody sees on my card whether I am in the call and whether my microphone and camera are on
+  useEffect(() => { setMedia(calls.joined, calls.micOn, calls.camOn); }, [calls.joined, calls.micOn, calls.camOn, setMedia]);
   // ---- screen sharing: everyone is told, and the big card opens by itself ----
   const screenTiles = calls.tiles.filter((t) => t.screen);
   const seenScreens = useRef(new Set<string>());
@@ -1644,7 +1646,7 @@ function OfficeRoom() {
             </div>
           )}
           {meeting && calls.joined && (
-            <MeetingView me={me.name} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onClose={closeMeeting} />
+            <MeetingView me={{ name: me.name, avatar: (meLive ?? me).avatar }} selfCam={calls.selfCam} micOn={calls.micOn} camOn={calls.camOn} sharing={calls.sharing} roomName={meetingRoom?.name ?? null} tiles={calls.tiles} speaking={calls.speakingIds} onMutePeer={calls.toggleMutePeer} onMic={() => void calls.toggleMic()} onCam={() => void calls.toggleCam()} onShare={() => void calls.toggleShare()} onReconnect={calls.reconnectAll} onLeave={() => { closeMeeting(); calls.leave(); }} onEmote={sendEmote} emotes={emotes.current} selfId={connId} onClose={closeMeeting} />
           )}
           {follow && (
             <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-1 text-xs shadow">

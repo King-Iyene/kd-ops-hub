@@ -65,6 +65,9 @@ interface Conn {
   /** when this connection was made, and when it last became connected (0 = never) */
   born: number;
   connectedAt: number;
+  /** how good the line is, from the round trip time and lost packets (updated every few seconds while connected) */
+  quality: 'good' | 'fair' | 'poor';
+  lastIn: { received: number; lost: number } | null;
 }
 
 interface LocalMedia {
@@ -86,6 +89,8 @@ export interface Tile {
   camOn?: boolean;
   /** how the connection to them is doing */
   conn?: 'connected' | 'connecting' | 'reconnecting';
+  /** line quality, when connected */
+  quality?: 'good' | 'fair' | 'poor';
   id: string;
   name: string;
   stream: MediaStream;
@@ -132,14 +137,14 @@ export function useCalls(opts: Opts) {
   const noiseRef = useRef(noise);
   noiseRef.current = noise;
   /** the camera picture: small and slow when saving data */
-  const videoSize = () => (saverRef.current ? { width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { ideal: 12, max: 15 } } : { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } });
+  const videoSize = () => (saverRef.current ? { width: { ideal: 320 }, height: { ideal: 180 }, frameRate: { ideal: 12, max: 15 } } : { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24 } });
   /** cap how much the camera sends (bits per second) */
   const capVideo = async (sender: RTCRtpSender | null) => {
     if (!sender) return;
     try {
       const p = sender.getParameters();
       if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-      p.encodings[0].maxBitrate = saverRef.current ? 150_000 : 900_000;
+      p.encodings[0].maxBitrate = saverRef.current ? 150_000 : 1_100_000;
       await sender.setParameters(p);
     } catch { /* the browser keeps its own limit */ }
   };
@@ -277,7 +282,7 @@ export function useCalls(opts: Opts) {
     audio.autoplay = true;
     audio.srcObject = stream;
     if (pickRef.current.speaker) void (audio as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId?.(pickRef.current.speaker).catch(() => undefined);
-    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set(), born: Date.now(), connectedAt: 0 };
+    const c: Conn = { pc, polite: !isInitiator(me, id), making: false, ignore: false, stream, audio, videoSender: null, primary: null, screen: new MediaStream(), screenSender: null, screenAudioSender: null, screenAudio: null, pending: [], sids: new Map(), mutedSince: new Map(), sawShare: false, hooked: new Set(), born: Date.now(), connectedAt: 0, quality: 'good', lastIn: null };
     conns.current.set(id, c);
 
     pc.onicecandidate = (e) => {
@@ -697,6 +702,33 @@ export function useCalls(opts: Opts) {
     }
   }, [stopShare]);
 
+  // every few seconds, rate each connection (round trip time and lost packets) so a poor line is shown on the card
+  useEffect(() => {
+    if (!joined) return;
+    const t = window.setInterval(() => {
+      for (const c of conns.current.values()) {
+        if (c.pc.connectionState !== 'connected') continue;
+        void c.pc.getStats().then((rep) => {
+          let rtt = 0;
+          let received = 0;
+          let lost = 0;
+          rep.forEach((r) => {
+            if (r.type === 'candidate-pair' && (r.nominated || r.state === 'succeeded') && typeof r.currentRoundTripTime === 'number') rtt = Math.max(rtt, r.currentRoundTripTime * 1000);
+            if (r.type === 'inbound-rtp' && r.kind === 'audio') { received += r.packetsReceived ?? 0; lost += r.packetsLost ?? 0; }
+          });
+          const prev = c.lastIn;
+          c.lastIn = { received, lost };
+          const dr = prev ? received - prev.received : 0;
+          const dl = prev ? Math.max(0, lost - prev.lost) : 0;
+          const loss = dr + dl > 20 ? dl / (dr + dl) : 0;
+          const q: 'good' | 'fair' | 'poor' = rtt > 400 || loss > 0.08 ? 'poor' : rtt > 200 || loss > 0.03 ? 'fair' : 'good';
+          if (q !== c.quality) { c.quality = q; bump(); }
+        }).catch(() => undefined);
+      }
+    }, 4000);
+    return () => window.clearInterval(t);
+  }, [joined, bump]);
+
   /** Start every connection again from scratch (the "Reconnect" button, for when somebody cannot hear or be heard). */
   const reconnectAll = useCallback(() => {
     for (const id of [...conns.current.keys()]) resetConn(id);
@@ -748,6 +780,7 @@ export function useCalls(opts: Opts) {
       micOn: entry?.mic,
       camOn: entry?.cam,
       conn: c.pc.connectionState === 'connected' ? 'connected' : c.connectedAt ? 'reconnecting' : 'connecting',
+      quality: c.quality,
     });
     const sv = c.screen.getVideoTracks()[0];
     if (sv) {
@@ -758,7 +791,7 @@ export function useCalls(opts: Opts) {
       }
     }
   }
-  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}${t.micOn ?? ''}${t.camOn ?? ''}${t.conn ?? ''}${t.avatar ? 'a' : ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stableTiles = useMemo(() => tiles, [tiles.map((t) => `${t.id}${t.hasVideo}${t.muted}${t.name}${t.share?.sid ?? ''}${t.share?.label ?? ''}${t.micOn ?? ''}${t.camOn ?? ''}${t.conn ?? ''}${t.quality ?? ''}${t.avatar ? 'a' : ''}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   /** the people who are connected to me right now (who can see what I share) */
   const viewers = [...conns.current.keys()].map((id) => opts.roster.find((r) => r.id === id)?.name ?? 'Someone');
   const stableViewers = useMemo(() => viewers, [viewers.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
