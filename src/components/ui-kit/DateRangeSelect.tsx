@@ -13,6 +13,7 @@ export function datePresets(now = new Date()) {
   return [
     { key: 'today', label: 'Today', start: fmt(now), end: fmt(now) },
     { key: 'yesterday', label: 'Yesterday', start: fmt(addDays(now, -1)), end: fmt(addDays(now, -1)) },
+    { key: 'last7', label: 'Last 7 days', start: fmt(addDays(now, -6)), end: fmt(now) },
     { key: 'week', label: 'This week', start: fmt(weekStart), end: fmt(now) },
     { key: 'lastweek', label: 'Last week', start: fmt(addDays(weekStart, -7)), end: fmt(addDays(weekStart, -1)) },
     { key: 'month', label: 'This month', start: fmt(startOfMonth(now)), end: fmt(now) },
