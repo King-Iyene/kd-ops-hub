@@ -137,6 +137,36 @@ describe('crew cliq dm: a direct chat with oneself (everything arrives from the 
   });
 });
 
+describe('crew cliq dm: the connected account is not the owner (the usual setup)', () => {
+  const KING = '20012345678';
+  const CONNECTED = '30099887766';   // the team member whose Zoho sign-in the connection uses
+  const m = (over: Partial<IncomingMessage>): IncomingMessage => ({ id: 'm', time: 5000, text: 'approve a1b2c3', senderId: KING, senderEmail: null, ...over });
+
+  it('never reads what the connected account wrote as a command from the owner', () => {
+    const planned = planCommands([
+      m({ id: 'conn1', time: 2000, senderId: CONNECTED, text: 'approve a1b2c3' }),
+      m({ id: 'conn2', time: 2100, senderId: CONNECTED, text: 'approve a1b2c3 confirm' }),
+      m({ id: 'king', time: 3000, senderId: KING, text: 'approve a1b2c3' }),
+    ], { ownerId: KING, cursorMs: 1000 });
+    expect(planned.map((p) => p.message.id)).toEqual(['king']);
+  });
+
+  it('only ever picks the chat that has exactly the owner in it, never the connected account\'s other chats', () => {
+    const chats = [
+      { chatId: 'WITH_BOSS', userIds: [KING], participants: 2, modified: 10 },
+      { chatId: 'WITH_SOMEONE', userIds: ['555'], participants: 2, modified: 99 },
+      { chatId: 'GROUP', userIds: [KING, '555', '777'], participants: 4, modified: 100 },
+    ];
+    expect(pickDmChat(chats, KING)).toBe('WITH_BOSS');
+    expect(pickDmChat(chats, '555')).toBe('WITH_SOMEONE');
+  });
+
+  it('is told so on the settings card text constants: nothing the connected account writes is obeyed', () => {
+    expect(fromOwner({ senderId: CONNECTED }, KING)).toBe(false);
+    expect(fromOwner({ senderId: KING }, KING)).toBe(true);
+  });
+});
+
 describe('crew cliq dm: when Zoho refuses', () => {
   it('tells the owner in plain words that Zoho needs one more permission, with the connection name', () => {
     for (const s of [401, 403]) {
