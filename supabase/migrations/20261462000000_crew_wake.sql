@@ -88,6 +88,26 @@ DROP TRIGGER IF EXISTS crew_messages_wake ON public.crew_messages;
 CREATE TRIGGER crew_messages_wake AFTER INSERT ON public.crew_messages
   FOR EACH ROW WHEN (NEW.from_agent IS NULL AND NEW.to_agent IS NOT NULL) EXECUTE FUNCTION public.crew_wake_on_owner_message();
 
+-- an executive writes to a colleague: the colleague wakes up to read it (this is how they talk to each other on their own).
+-- Guard against ping-pong: at most 8 agent-to-agent messages in one thread per hour, and the queue's own rules (one wait per person,
+-- one wake per person per 10 minutes) still apply.
+CREATE OR REPLACE FUNCTION public.crew_wake_on_agent_message() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_from text;
+BEGIN
+  BEGIN
+    IF (SELECT count(*) FROM public.crew_messages WHERE from_agent IS NOT NULL AND to_agent IS NOT NULL AND created_at > now() - interval '1 hour'
+          AND ((from_agent = NEW.from_agent AND to_agent = NEW.to_agent) OR (from_agent = NEW.to_agent AND to_agent = NEW.from_agent))) > 6 THEN RETURN NEW; END IF;
+    SELECT name INTO v_from FROM public.crew_agents WHERE id = NEW.from_agent;
+    PERFORM public.crew_enqueue_wake(NEW.to_agent, coalesce(v_from, 'A colleague') || ' wrote to you: read your inbox and answer.', 'agent', NEW.from_agent, 1);
+  EXCEPTION WHEN OTHERS THEN NULL;   -- never stop the message itself
+  END;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS crew_messages_wake_agent ON public.crew_messages;
+CREATE TRIGGER crew_messages_wake_agent AFTER INSERT ON public.crew_messages
+  FOR EACH ROW WHEN (NEW.from_agent IS NOT NULL AND NEW.to_agent IS NOT NULL) EXECUTE FUNCTION public.crew_wake_on_agent_message();
+
 -- the cron tick: only calls out when something is waiting (the same pattern as the Ops Agent's delivery)
 CREATE OR REPLACE FUNCTION public.crew_wake_tick() RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$

@@ -64,6 +64,13 @@ BEGIN
     IF public.crew_event_wake(r.slug, 'WEEKLY SELF-REVIEW: read your notes, what the owner approved and rejected this week, the mistakes logged against you and what he answered. Write down what you learned (op note), name one habit you will change, file one improvement idea if the system could do something for you (op idea), and ask the owner at most 3 new questions you still need answered to work on your own. Be short.') THEN woken := woken || r.slug; END IF;
   END LOOP;
 
+  -- the daily stand-up: the first scan of the day after the owner arrives wakes the CFO to ask each head what they are working on and keep notes
+  -- (the way the villagers in the video bump into each other and ask what is going on)
+  IF NOT EXISTS (SELECT 1 FROM public.crew_wake_queue q WHERE q.reason LIKE 'DAILY STAND-UP%' AND q.created_at > v_now - interval '20 hours')
+     AND public.crew_event_wake('cfo', 'DAILY STAND-UP: ask each of your direct reports, with one short message each (op message to their slug), what they are working on, what is stuck and what they need from a colleague; wake only those who are not already running. Write what you learn as notes. Then include a one-line team status in your next briefing.') THEN
+    woken := woken || 'cfo';
+  END IF;
+
   UPDATE public.crew_settings SET last_event_scan_at = v_now WHERE id;
   RETURN jsonb_build_object('scanned_since', v_since, 'woken', woken);
 END $$;
