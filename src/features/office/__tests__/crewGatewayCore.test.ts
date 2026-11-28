@@ -127,6 +127,44 @@ describe('crew gateway: what an agent can ask for', () => {
   });
 });
 
+describe('crew gateway: meetings', () => {
+  const MEETING = '44444444-4444-4444-8444-444444444444';
+
+  it('reads a meeting thread as the authenticated agent only', async () => {
+    expect(await run('meeting', { meeting_id: MEETING, p_agent: TABLE })).toEqual({ fn: 'crew_meeting_thread', args: { p_agent: AGENT, p_meeting: MEETING } });
+    await expect(run('meeting')).rejects.toThrow('meeting_id is required');
+    await expect(run('meeting', { meeting_id: 'not-an-id' })).rejects.toThrow('must be an id');
+  });
+
+  it('posts one contribution: body required, at most 1200 characters', async () => {
+    expect(await run('meeting_post', { meeting_id: MEETING, body: 'Cash is tight: two months left.' })).toEqual({
+      fn: 'crew_meeting_post', args: { p_agent: AGENT, p_meeting: MEETING, p_body: 'Cash is tight: two months left.', p_minutes: null },
+    });
+    await expect(run('meeting_post', { meeting_id: MEETING })).rejects.toThrow('body is required');
+    await expect(run('meeting_post', { meeting_id: MEETING, body: '   ' })).rejects.toThrow('body is required');
+    await expect(run('meeting_post', { meeting_id: MEETING, body: 'x'.repeat(1201) })).rejects.toThrow('too long');
+    expect(await run('meeting_post', { meeting_id: MEETING, body: 'x'.repeat(1200) })).toMatchObject({ args: { p_minutes: null } });
+    await expect(run('meeting_post', { body: 'hello' })).rejects.toThrow('meeting_id is required');
+  });
+
+  it('minutes: a summary, short lists and action items with slugs; the body becomes optional', async () => {
+    const minutes = { summary: 'Runway is two months.', decisions: ['Chase receivables'], needs_owner: ['Approve a bridge loan?'], action_items: [{ agent: 'cfo', task: 'Draft the loan note' }] };
+    expect(await run('meeting_post', { meeting_id: MEETING, minutes })).toEqual({
+      fn: 'crew_meeting_post', args: { p_agent: AGENT, p_meeting: MEETING, p_body: '', p_minutes: minutes },
+    });
+    expect(await run('meeting_post', { meeting_id: MEETING, minutes: { summary: 'Short.' } })).toMatchObject({ args: { p_minutes: { summary: 'Short.', decisions: [], needs_owner: [], action_items: [] } } });
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: 'text' })).rejects.toThrow('minutes must be an object');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { decisions: ['x'] } })).rejects.toThrow('summary is required');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 'x'.repeat(1501) } })).rejects.toThrow('too long');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', decisions: Array(11).fill('d') } })).rejects.toThrow('at most 10');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', needs_owner: ['y'.repeat(301)] } })).rejects.toThrow('300 characters');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', decisions: [1] } })).rejects.toThrow('300 characters');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', action_items: [{ agent: 'CFO; drop', task: 'x' }] } })).rejects.toThrow('agent (a slug)');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', action_items: [{ agent: 'cfo' }] } })).rejects.toThrow('task is required');
+    await expect(run('meeting_post', { meeting_id: MEETING, minutes: { summary: 's', action_items: Array(11).fill({ agent: 'cfo', task: 't' }) } })).rejects.toThrow('at most 10');
+  });
+});
+
 describe('crew gateway: errors, limits, tokens', () => {
   it('shows the agent only our own refusals', () => {
     expect(describeDbError({ code: 'P0001', message: 'this agent may not write to that base' })).toEqual({ status: 400, message: 'this agent may not write to that base' });

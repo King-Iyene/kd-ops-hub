@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
+import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMeeting, type CrewMeetingMember, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -37,8 +37,16 @@ export function useCrewProposals(group: keyof typeof GROUPS) {
   );
 }
 
+/**
+ * Lines said in a meeting carry a meeting_id and belong to the Meetings tab, not to the inbox or the team channel. They are dropped here rather than in the
+ * query, so these screens keep working in the minutes between the app being deployed and the meetings migration being applied.
+ */
+function withoutMeetingLines(q: unknown) {
+  return (q as PromiseLike<{ data: CrewMessage[] | null; error: unknown }>).then((r) => ({ ...r, data: r.data ? r.data.filter((m) => !m.meeting_id) : r.data })) as never;
+}
+
 export function useCrewMessages() {
-  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150) as never, { staleTime: 10_000, refetchInterval: 20_000 });
+  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutMeetingLines(cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { staleTime: 10_000, refetchInterval: 20_000 });
 }
 
 export function useCrewOrders() {
@@ -163,7 +171,7 @@ export function useSetOfficeViewers() {
 
 /** The owner's inbox, polled; shared with the Messages tab through the same query key. `enabled` is false for everyone but the owner (no queries are made). */
 export function useCrewInbox(enabled: boolean) {
-  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150) as never, { enabled, staleTime: 10_000, refetchInterval: 20_000 });
+  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutMeetingLines(cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { enabled, staleTime: 10_000, refetchInterval: 20_000 });
 }
 
 /** What is waiting on the owner: messages from the executives he has not read, and proposals to decide. */
@@ -191,5 +199,42 @@ export function useRetireAgent() {
 
 /** Every message in the team channel: the executives to you, to each other, and yours to them (the owner reads them all). */
 export function useCrewChannel() {
-  return useSupabaseQuery<CrewMessage[]>([...KEY, 'channel'], () => cdb.from('crew_messages').select('*').order('created_at', { ascending: false }).limit(300) as never, { staleTime: 8_000, refetchInterval: 15_000 });
+  return useSupabaseQuery<CrewMessage[]>([...KEY, 'channel'], () => withoutMeetingLines(cdb.from('crew_messages').select('*').order('created_at', { ascending: false }).limit(300)), { staleTime: 8_000, refetchInterval: 15_000 });
+}
+
+// ── Meetings (owner only: the database lets nobody else read or change them) ──────────────────────────────────────────────────────────────────
+const LIVE_POLL = 5_000;
+
+/** Every meeting, newest first. Polled every 5 s while one is running, every 30 s otherwise. */
+export function useCrewMeetings(enabled = true) {
+  return useSupabaseQuery<CrewMeeting[]>([...KEY, 'meetings'], () => cdb.from('crew_meetings').select('*').order('created_at', { ascending: false }).limit(50) as never, {
+    enabled, staleTime: 3_000, refetchInterval: (q) => ((q.state.data ?? []).some((m) => m.status !== 'closed') ? LIVE_POLL : 30_000),
+  });
+}
+
+export function useCrewMeetingMembers(meetingId: string | null, live: boolean) {
+  return useSupabaseQuery<CrewMeetingMember[]>([...KEY, 'meeting-members', meetingId ?? ''], () => cdb.from('crew_meeting_members').select('*').eq('meeting_id', meetingId!) as never, { enabled: !!meetingId, staleTime: 3_000, refetchInterval: live ? LIVE_POLL : false });
+}
+
+/** The transcript of one meeting, oldest first: what the agents said and what the owner said. Polled every 5 s while the meeting is running. */
+export function useCrewMeetingLines(meetingId: string | null, live: boolean) {
+  return useSupabaseQuery<CrewMessage[]>([...KEY, 'meeting-lines', meetingId ?? ''], () => cdb.from('crew_messages').select('*').eq('meeting_id', meetingId!).order('created_at', { ascending: true }).limit(300) as never, { enabled: !!meetingId, staleTime: 3_000, refetchInterval: live ? LIVE_POLL : false });
+}
+
+export function useCallMeeting() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<string, { topic: string; brief: string; agents: string[]; chair: string }>(
+    (v) => cdb.rpc('crew_meeting_call', { p_topic: v.topic.trim(), p_brief: v.brief.trim(), p_agents: v.agents, p_chair: v.chair }) as never,
+    { onSuccess: refresh },
+  );
+}
+
+export function useMeetingSay() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<string, { meetingId: string; body: string }>((v) => cdb.rpc('crew_meeting_say', { p_meeting: v.meetingId, p_body: v.body.trim() }) as never, { onSuccess: refresh });
+}
+
+export function useMeetingEnd() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<null, string>((meetingId) => cdb.rpc('crew_meeting_end', { p_meeting: meetingId }) as never, { onSuccess: refresh });
 }
