@@ -75,6 +75,10 @@ describe('isTeamRule: only team items are sent on their own', () => {
   it('tasks, time tracking and daily reports are team items', () => {
     for (const c of ['TK01', 'TK13', 'TR01', 'TR10', 'RP01', 'RP03']) expect(isTeamRule(c)).toBe(true);
   });
+  it('missing fuel and expense receipts are team items too, so the driver is asked and the manager tagged', () => {
+    for (const c of ['FL01', 'EX01']) expect(isTeamRule(c)).toBe(true);
+    for (const c of ['FX01', 'E01', 'EXX01', 'XFL01']) expect(isTeamRule(c)).toBe(false);
+  });
   it('system, payment, HR and setup items stay in the Inbox', () => {
     for (const c of ['SY01', 'SY03', 'PY01', 'PY02', 'BK01', 'LN01', 'DC01', 'PF01', 'HL01', 'CT01', 'SU01', 'FT01', 'ES01', '']) expect(isTeamRule(c)).toBe(false);
     expect(isTeamRule(null)).toBe(false);
