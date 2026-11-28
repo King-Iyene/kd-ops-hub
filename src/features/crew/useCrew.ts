@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMeeting, type CrewMeetingMember, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus, type VisitorThread } from './crewDb';
+import { cdb, type CliqConnection, type CliqPostLogRow, type StandingPermission, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMeeting, type CrewMeetingMember, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus, type VisitorThread } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -149,7 +149,7 @@ export function useCrewSettings() {
 }
 
 export function useCliqConnections() {
-  return useSupabaseQuery<CliqConnection[]>([...KEY, 'cliq-connections'], () => cdb.from('agent_connections').select('id, name, kind, config').eq('kind', 'cliq').order('name') as never, { staleTime: 60_000 });
+  return useSupabaseQuery<CliqConnection[]>([...KEY, 'cliq-connections'], () => cdb.from('agent_connections').select('id, name, kind, status, config').eq('kind', 'cliq').order('name') as never, { staleTime: 60_000 });
 }
 
 export function useSaveCrewSettings() {
@@ -238,6 +238,30 @@ export function useMeetingSay() {
 export function useMeetingEnd() {
   const refresh = useRefresh();
   return useSupabaseMutation<null, string>((meetingId) => cdb.rpc('crew_meeting_end', { p_meeting: meetingId }) as never, { onSuccess: refresh });
+}
+
+/** What agents may do on their own, inside limits the owner sets (today: post to the team in a Cliq channel). Owner-only (the database hides it from everyone else). */
+export function useStandingPermissions() {
+  return useSupabaseQuery<StandingPermission[]>([...KEY, 'standing'], () => cdb.from('crew_standing_permissions').select('*').order('created_at') as never, { staleTime: 15_000 });
+}
+
+/** The latest posts agents made (or tried to make) under a standing permission. */
+export function useCliqPostLog() {
+  return useSupabaseQuery<CliqPostLogRow[]>([...KEY, 'cliq-post-log'], () => cdb.from('crew_cliq_posts').select('*').order('created_at', { ascending: false }).limit(30) as never, { staleTime: 10_000, refetchInterval: 30_000 });
+}
+
+export function useSetStandingPermission() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<null, { agent: string; connection: string | null; enabled: boolean; max: number; kinds: string[] }>(
+    (v) => cdb.rpc('crew_set_standing_permission', { p_agent: v.agent, p_connection: v.connection, p_enabled: v.enabled, p_max: v.max, p_kinds: v.kinds }) as never,
+    { onSuccess: refresh },
+  );
+}
+
+/** The kill switch: every standing permission off, now. */
+export function useStandingKillAll() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<number, void>(() => cdb.rpc('crew_standing_kill_all') as never, { onSuccess: refresh });
 }
 
 // ── Visitors: people the owner let into the Office can see the executives and ask them questions, nothing more ──────────────────────────────────

@@ -32,9 +32,15 @@ function fromPayload(p: Props['proposal']): Preview {
   return { source: String(p.payload.source ?? ''), op, fields: keys.map((column) => ({ column, before: before[column] ?? null, after: after[column] ?? values[column] ?? null, changed: before[column] !== (after[column] ?? values[column]) })) };
 }
 
+/** The live preview of one waiting app.* proposal (owner only). Cards use isError to fall back to their own before/after table. */
+export function useAppPreview(proposal: Props['proposal']) {
+  const live = proposal.status === 'pending' && proposal.action.startsWith('app.');
+  return useSupabaseQuery<Preview>(['crew', 'app-preview', proposal.id], () => cdb.rpc('crew_app_preview', { p_proposal: proposal.id }) as never, { enabled: live, staleTime: 15_000, retry: false });
+}
+
 export function AppChangeView({ proposal, tone = 'light' }: Props) {
   const live = proposal.status === 'pending' && proposal.action.startsWith('app.');
-  const q = useSupabaseQuery<Preview>(['crew', 'app-preview', proposal.id], () => cdb.rpc('crew_app_preview', { p_proposal: proposal.id }) as never, { enabled: live, staleTime: 15_000 });
+  const q = useAppPreview(proposal);
   if (!proposal.action.startsWith('app.')) return null;
   const data: Preview = q.data ?? fromPayload(proposal);
   const dark = tone === 'dark';
