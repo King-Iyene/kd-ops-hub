@@ -9,6 +9,8 @@
 import { serviceClient } from '../_shared/agent-claude.ts';
 import { deliver } from '../_shared/agent-deliver.ts';
 import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
+import { validDmTarget } from '../_shared/agent-cliq-core.ts';
+import { dmFailureText } from '../_shared/crew-cliq-core.ts';
 import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
@@ -42,6 +44,7 @@ Deno.serve(async (req) => {
       let sendConfig = conn.config as Record<string, unknown>;
 
       let msg;
+      let dmTarget: string | null = null;
       if (row.kind === 'flag') {
         const { data: f } = await db.from('agent_flags').select('id, rule_code, severity, title, why, suggested_action, item_type, person_id').eq('id', row.ref_id).maybeSingle();
         if (!f) { await finish({ status: 'failed', error: 'The item no longer exists.' }); out.failed++; continue; }
@@ -74,9 +77,12 @@ Deno.serve(async (req) => {
         const { data: m } = await db.from('crew_messages').select('id, from_agent, kind, body').eq('id', row.ref_id).maybeSingle();
         if (!m) { await finish({ status: 'failed', error: 'The message no longer exists.' }); out.failed++; continue; }
         const { data: a } = m.from_agent ? await db.from('crew_agents').select('name, title').eq('id', m.from_agent).maybeSingle() : { data: null };
-        const { data: st } = await db.from('crew_settings').select('notify_profile_id').eq('id', true).maybeSingle();
-        const mention = await mentionFor(db, conn.kind, st?.notify_profile_id as string | null | undefined);
-        msg = { ...formatCrewMessage({ kind: m.kind as string, body: m.body as string }, (a?.name as string | undefined) ?? 'Crew', (a?.title as string | undefined) ?? ''), mention };
+        const { data: st } = await db.from('crew_settings').select('notify_profile_id, cliq_dm, cliq_owner_id').eq('id', true).maybeSingle();
+        const crewMsg = formatCrewMessage({ kind: m.kind as string, body: m.body as string }, (a?.name as string | undefined) ?? 'Crew', (a?.title as string | undefined) ?? '');
+        // "Me, as a direct message": the owner is sent the message directly (no tag needed) instead of it being posted in the channel.
+        const ownerCliq = st?.cliq_dm === true && (conn.config as Record<string, unknown>).mode === 'api' && validDmTarget(st?.cliq_owner_id) ? (st?.cliq_owner_id as string) : null;
+        if (ownerCliq) { dmTarget = ownerCliq; msg = { ...crewMsg, cliq: { dm: ownerCliq } }; }
+        else msg = { ...crewMsg, mention: await mentionFor(db, conn.kind, st?.notify_profile_id as string | null | undefined) };
       } else if (row.kind === 'record') {
         // A new entry in a Task table, sent through the rule that asked for it.
         const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;
@@ -102,8 +108,11 @@ Deno.serve(async (req) => {
         if (row.kind === 'crew') await db.from('crew_messages').update({ cliq_sent_at: new Date().toISOString() }).eq('id', row.ref_id);
         if (row.kind === 'record' && row.rule_id) await db.from('tm_table_connections').update({ last_sent_at: new Date().toISOString() }).eq('id', row.rule_id);
         await db.from('agent_connections').update({ status: 'connected', last_error: null }).eq('id', conn.id);
+        if (dmTarget) await db.from('crew_settings').update({ cliq_error: null, cliq_error_at: null }).eq('id', true).not('cliq_error', 'is', null);
         out.sent++;
       } else {
+        // A direct message that Zoho refuses with 401 or 403 needs one more permission: say so, in words, on the Crew settings card.
+        if (dmTarget) await db.from('crew_settings').update({ cliq_error: dmFailureText(r.status, conn.name as string), cliq_error_at: new Date().toISOString() }).eq('id', true);
         const last = attempts >= MAX_ATTEMPTS;
         await finish({ status: last ? 'failed' : 'pending', attempts, error: (r.error ?? 'Failed').slice(0, 300) });
         await db.from('agent_connections').update({ status: 'error', last_error: (r.error ?? 'Failed').slice(0, 300) }).eq('id', conn.id);
