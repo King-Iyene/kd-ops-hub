@@ -9,6 +9,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { GatewayError, bearer, describeDbError, makeLimiter, plan, type Json } from '../_shared/crew-gateway-core.ts';
+import { readReserve } from '../_shared/crew-post-core.ts';
+import { postTeamMessage } from '../_shared/crew-post.ts';
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
 const allowed = makeLimiter(90);
@@ -61,6 +63,16 @@ Deno.serve(async (req) => {
       const d = describeDbError(error);
       if (d.status >= 500) console.error('crew-gateway', body.op, error.code, error.message);
       return reply({ ok: false, error: d.message }, d.status);
+    }
+    // A post to the team in Cliq: the database has already applied the permission, the cap and the text rules (and logged the attempt).
+    // Post only what it allowed, then write the result into the log.
+    if (p.fn === 'crew_cliq_post_reserve') {
+      const r = readReserve(data);
+      if (!r.allowed) return reply({ ok: false, error: r.error }, 400);
+      const sent = await postTeamMessage(db, r);
+      await db.rpc('crew_cliq_post_finish', { p_post: r.post_id, p_ok: sent.ok, p_error: sent.ok ? null : sent.error });
+      if (!sent.ok) return reply({ ok: false, error: `the post could not be sent: ${sent.error}` }, 502);
+      return reply({ ok: true, result: { posted: true, tagged: r.mentions.filter((m) => m.id).map((m) => m.name), named_only: r.mentions.filter((m) => !m.id).map((m) => m.name) } });
     }
     return reply({ ok: true, result: data });
   } catch (e) {

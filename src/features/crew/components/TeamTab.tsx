@@ -8,6 +8,7 @@ import { useCrewAgents, useCrewNotes, useCrewPrivate, useCrewRuns, useIssueToken
 import { buildOrgTree, type OrgNode } from '../orgChart';
 import { Avatar, StatusDot } from './shared';
 import { CliqSettings } from './CliqSettings';
+import { StandingPermissions } from './StandingPermissions';
 import { PauseToggle } from './PauseToggle';
 import { OfficeViewers } from './OfficeViewers';
 import { DaemonKeys } from './DaemonKeys';
@@ -135,7 +136,7 @@ export function TeamTab() {
           {tree.map((n) => <Node key={n.agent.id} node={n} selected={current?.id ?? null} onSelect={setSelected} depth={1} />)}
         </ul>
       </div>
-      <div className="space-y-6">{current ? <Detail agent={current} /> : <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Choose someone to see what they may do, what they have learned and how their last runs went.</div>}<CliqSettings /><OfficeViewers /><DaemonKeys /></div>
+      <div className="space-y-6">{current ? <Detail agent={current} /> : <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Choose someone to see what they may do, what they have learned and how their last runs went.</div>}<CliqSettings /><StandingPermissions /><OfficeViewers /><DaemonKeys /></div>
     </div>
   );
 }
