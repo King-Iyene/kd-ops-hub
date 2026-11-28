@@ -169,6 +169,7 @@ export function useCrewAttention(enabled: boolean) {
   const unread = (inbox.data ?? []).filter((m) => m.to_owner && !m.read_at && m.from_agent !== null);
   const waitingCount = (waiting.data ?? []).length;
   return { unread, unreadCount: unread.length, waitingCount, total: unread.length + waitingCount };
+}
 
 export function useCrewMistakes(agentId: string | null) {
   return useSupabaseQuery<CrewMistake[]>([...KEY, 'mistakes', agentId ?? ''], () => cdb.from('crew_mistakes').select('*').eq('agent_id', agentId!).order('created_at', { ascending: false }).limit(20) as never, { enabled: !!agentId, staleTime: 20_000 });
