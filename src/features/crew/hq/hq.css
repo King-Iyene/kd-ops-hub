@@ -1,0 +1,104 @@
+/* Crew HQ: one accent system ("signal") on top of the app's own surface tokens. Surfaces, borders and text come from the theme (bg-card,
+   border-border, text-foreground...), so light and dark both follow it; only the accent, the status colours and a few shapes are defined here. */
+
+.crew-hq {
+  /* signal: a clear ultramarine-violet, distinct from the app's teal and gold. HSL triplets, used as hsl(var(--hq-signal) / a). */
+  --hq-signal: 252 72% 50%;
+  --hq-signal-ink: 252 80% 42%;       /* signal as text on a light surface */
+  --hq-ok: 164 60% 34%;
+  --hq-warn: 18 82% 52%;              /* coral, not amber */
+  --hq-risk: 348 76% 50%;
+  --hq-idle: 215 14% 55%;
+  --hq-meet: 312 56% 52%;
+}
+html.dark .crew-hq {
+  --hq-signal: 252 94% 74%;
+  --hq-signal-ink: 252 94% 80%;
+  --hq-ok: 160 58% 52%;
+  --hq-warn: 18 90% 64%;
+  --hq-risk: 348 90% 68%;
+  --hq-idle: 215 16% 62%;
+  --hq-meet: 312 70% 70%;
+}
+
+/* eyebrow label */
+.hq-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.hq-num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* a card with a coloured spine on its left edge and a faint signal glow in the corner */
+.hq-card {
+  position: relative; border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--card)); color: hsl(var(--card-foreground));
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.03), 0 8px 24px -16px hsl(var(--foreground) / 0.25);
+  --spine: var(--hq-signal);
+}
+.hq-card::before {
+  content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: hsl(var(--spine));
+}
+.hq-card.hq-glow { background-image: radial-gradient(120% 90% at 0% 0%, hsl(var(--hq-signal) / 0.09), transparent 55%); }
+.hq-card[data-risk='high'] { --spine: var(--hq-risk); }
+.hq-card[data-risk='medium'] { --spine: var(--hq-warn); }
+.hq-card[data-risk='low'] { --spine: var(--hq-ok); }
+.hq-card[data-risk='none'] { --spine: var(--hq-idle); }
+.hq-card-flat::before { display: none; }
+
+.hq-interactive { transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 160ms, border-color 160ms; }
+.hq-interactive:hover { transform: translateY(-1px); border-color: hsl(var(--hq-signal) / 0.45); box-shadow: 0 10px 28px -16px hsl(var(--hq-signal) / 0.55); }
+
+/* status ring around a face: a spinning arc while an agent works, a steady ring otherwise */
+.hq-face { position: relative; display: inline-flex; flex-shrink: 0; padding: 4px; border-radius: 9999px; --ring: var(--hq-ok); }
+.hq-face::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; background: hsl(var(--ring));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.hq-face[data-status='working']::before, .hq-face[data-status='thinking']::before {
+  background: conic-gradient(from 0deg, hsl(var(--hq-signal)), hsl(var(--hq-signal) / 0.05) 72%, hsl(var(--hq-signal)));
+  animation: hq-spin 2.4s linear infinite;
+}
+.hq-face[data-status='thinking']::before { animation-duration: 4s; }
+.hq-face[data-status='waiting_approval'] { --ring: var(--hq-warn); }
+.hq-face[data-status='meeting'] { --ring: var(--hq-meet); }
+.hq-face[data-status='walking'] { --ring: var(--hq-signal); }
+.hq-face[data-status='offline'], .hq-face[data-status='paused'] { --ring: var(--hq-idle); }
+.hq-face[data-status='offline']::before, .hq-face[data-status='paused']::before { opacity: 0.45; }
+
+.hq-dot { display: inline-block; width: 8px; height: 8px; border-radius: 9999px; background: hsl(var(--hq-idle)); }
+.hq-dot[data-tone='ok'] { background: hsl(var(--hq-ok)); }
+.hq-dot[data-tone='signal'] { background: hsl(var(--hq-signal)); }
+.hq-dot[data-tone='warn'] { background: hsl(var(--hq-warn)); }
+.hq-dot[data-tone='risk'] { background: hsl(var(--hq-risk)); }
+.hq-dot[data-tone='meet'] { background: hsl(var(--hq-meet)); }
+.hq-dot[data-live='true'] { animation: hq-pulse 1.8s ease-in-out infinite; }
+
+/* chips */
+.hq-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 600; line-height: 1.6; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+.hq-chip[data-tone='signal'] { background: hsl(var(--hq-signal) / 0.12); color: hsl(var(--hq-signal-ink)); }
+.hq-chip[data-tone='ok'] { background: hsl(var(--hq-ok) / 0.14); color: hsl(var(--hq-ok)); }
+.hq-chip[data-tone='warn'] { background: hsl(var(--hq-warn) / 0.15); color: hsl(var(--hq-warn)); }
+.hq-chip[data-tone='risk'] { background: hsl(var(--hq-risk) / 0.13); color: hsl(var(--hq-risk)); }
+.hq-chip[data-tone='meet'] { background: hsl(var(--hq-meet) / 0.14); color: hsl(var(--hq-meet)); }
+
+/* the rail */
+.hq-rail-item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; border-radius: 12px; padding: 9px 12px; font-size: 14px; font-weight: 600; color: hsl(var(--muted-foreground)); transition: background 140ms, color 140ms; }
+.hq-rail-item:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.hq-rail-item[aria-current='page'] { background: hsl(var(--hq-signal) / 0.12); color: hsl(var(--hq-signal-ink)); }
+.hq-rail-item[aria-current='page']::before { content: ''; position: absolute; left: -10px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: hsl(var(--hq-signal)); }
+
+.hq-kbd { display: inline-flex; min-width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid hsl(var(--border)); border-bottom-width: 2px; background: hsl(var(--background)); padding: 0 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); }
+
+.hq-signal-btn { background: hsl(var(--hq-signal)); color: hsl(252 100% 99%); }
+html.dark .hq-signal-btn { color: hsl(252 60% 12%); }
+.hq-signal-btn:hover { filter: brightness(1.07); }
+.hq-signal-btn:disabled { opacity: 0.5; }
+
+.hq-focus:focus-visible { outline: 2px solid hsl(var(--hq-signal)); outline-offset: 2px; }
+
+.hq-rise { animation: hq-rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes hq-spin { to { transform: rotate(360deg); } }
+@keyframes hq-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+@keyframes hq-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .crew-hq *, .crew-hq *::before, .crew-hq *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .hq-interactive:hover { transform: none; }
+}

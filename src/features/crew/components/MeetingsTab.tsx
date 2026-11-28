@@ -18,16 +18,16 @@ import { ago } from '../helpers';
 const MAX_PEOPLE = 8;
 
 const STATUS_BADGE: Record<MeetingStatus, { label: string; tone: string }> = {
-  open: { label: 'Live', tone: 'bg-emerald-500/20 text-emerald-300' },
-  summarising: { label: 'Writing minutes', tone: 'bg-amber-500/20 text-amber-300' },
-  closed: { label: 'Closed', tone: 'bg-slate-700 text-slate-300' },
+  open: { label: 'Live', tone: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+  summarising: { label: 'Writing minutes', tone: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+  closed: { label: 'Closed', tone: 'bg-muted text-foreground/80' },
 };
 
 function StatusBadge({ status }: { status: MeetingStatus }) {
   const b = STATUS_BADGE[status];
   return (
     <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide', b.tone)}>
-      {status === 'open' ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden /> : null}
+      {status === 'open' ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden /> : null}
       {b.label}
     </span>
   );
@@ -39,8 +39,8 @@ function Btn({ tone = 'ghost', className, ...p }: React.ButtonHTMLAttributes<HTM
       type="button"
       {...p}
       className={cn(
-        'rounded-md px-4 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50',
-        tone === 'go' && 'bg-sky-500 text-white hover:bg-sky-400', tone === 'stop' && 'bg-slate-700 text-slate-100 hover:bg-slate-600', tone === 'ghost' && 'text-slate-300 hover:bg-slate-800',
+        'rounded-md px-4 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        tone === 'go' && 'bg-primary text-primary-foreground hover:bg-primary/90', tone === 'stop' && 'bg-muted text-foreground hover:bg-muted/70', tone === 'ghost' && 'text-foreground/80 hover:bg-muted',
         className,
       )}
     />
@@ -51,14 +51,14 @@ const firstName = (a?: CrewAgent) => a?.name.split(' ')[0] ?? 'Someone';
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 function Face({ agent, size = 40 }: { agent?: CrewAgent; size?: number }) {
-  return agent ? <AvatarFace avatar={agentAvatar(agent)} size={size} /> : <span className="shrink-0 rounded-full bg-slate-700" style={{ width: size, height: size }} aria-hidden />;
+  return agent ? <AvatarFace avatar={agentAvatar(agent)} size={size} /> : <span className="shrink-0 rounded-full bg-muted" style={{ width: size, height: size }} aria-hidden />;
 }
 
 // ── (a) call a meeting ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-function CallForm({ agents, onCalled }: { agents: CrewAgent[]; onCalled: (id: string) => void }) {
+function CallForm({ agents, onCalled, initialTopic = '' }: { agents: CrewAgent[]; onCalled: (id: string) => void; initialTopic?: string }) {
   const { toast } = useToast();
   const call = useCallMeeting();
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState(initialTopic);
   const [brief, setBrief] = useState('');
   const [chosen, setChosen] = useState<string[] | null>(null);   // null = nobody ticked yet: the CFO is the starting point
   const [chairPick, setChairPick] = useState('');
@@ -82,38 +82,38 @@ function CallForm({ agents, onCalled }: { agents: CrewAgent[]; onCalled: (id: st
   };
 
   return (
-    <form className="rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-lg" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-      <h2 className="flex items-center gap-2 text-base font-bold text-white"><Users className="h-4 w-4 text-sky-300" aria-hidden />Call a meeting</h2>
-      <p className="mt-1 text-xs text-slate-400">They discuss it on their own (two short rounds), then the chair writes the minutes. Nothing is changed in a meeting: anything they want to change comes to you as a proposal.</p>
+    <form className="rounded-xl border border-border bg-card p-4 shadow-lg" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <h2 className="flex items-center gap-2 text-base font-bold text-foreground"><Users className="h-4 w-4 text-primary" aria-hidden />Call a meeting</h2>
+      <p className="mt-1 text-xs text-muted-foreground">They discuss it on their own (two short rounds), then the chair writes the minutes. Nothing is changed in a meeting: anything they want to change comes to you as a proposal.</p>
 
-      <label htmlFor="meeting-topic" className="mt-3 block text-xs font-semibold text-slate-300">Topic</label>
+      <label htmlFor="meeting-topic" className="mt-3 block text-xs font-semibold text-foreground/80">Topic</label>
       <input id="meeting-topic" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} placeholder="What should they discuss or decide?"
-        className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300" />
+        className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
 
-      <label htmlFor="meeting-context" className="mt-3 block text-xs font-semibold text-slate-300">Context from you <span className="font-normal text-slate-500">(optional)</span></label>
+      <label htmlFor="meeting-context" className="mt-3 block text-xs font-semibold text-foreground/80">Context from you <span className="font-normal text-muted-foreground">(optional)</span></label>
       <Textarea id="meeting-context" value={brief} onChange={(e) => setBrief(e.target.value)} maxLength={3000} rows={3} placeholder="Anything they should know before they start: numbers, deadlines, what you lean towards."
-        className="mt-1 border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500" />
+        className="mt-1 border-border bg-background text-foreground placeholder:text-muted-foreground" />
 
       <fieldset className="mt-3">
-        <legend className="text-xs font-semibold text-slate-300">Who takes part <span className="font-normal text-slate-500">({picked.length} of {MAX_PEOPLE}; at least 2)</span></legend>
+        <legend className="text-xs font-semibold text-foreground/80">Who takes part <span className="font-normal text-muted-foreground">({picked.length} of {MAX_PEOPLE}; at least 2)</span></legend>
         <div className="mt-1 grid gap-1.5 sm:grid-cols-2">
           {agents.map((a) => {
             const on = picked.includes(a.id);
             const disabled = !on && full;
             return (
-              <label key={a.id} className={cn('flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition', on ? 'border-sky-500/60 bg-sky-500/10' : 'border-slate-700 bg-slate-950/60 hover:bg-slate-800', disabled && 'cursor-not-allowed opacity-50')}>
+              <label key={a.id} className={cn('flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition', on ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-muted/60 hover:bg-muted', disabled && 'cursor-not-allowed opacity-50')}>
                 <input type="checkbox" checked={on} disabled={disabled} onChange={() => toggle(a.id)} className="h-4 w-4 shrink-0 accent-sky-500" />
                 <Face agent={a} size={32} />
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-white">{a.name}</span><span className="block truncate text-xs text-sky-300">{a.title}</span></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{a.name}</span><span className="block truncate text-xs text-primary">{a.title}</span></span>
               </label>
             );
           })}
         </div>
       </fieldset>
 
-      <label htmlFor="meeting-chair" className="mt-3 block text-xs font-semibold text-slate-300">Chair (writes the minutes)</label>
+      <label htmlFor="meeting-chair" className="mt-3 block text-xs font-semibold text-foreground/80">Chair (writes the minutes)</label>
       <select id="meeting-chair" value={chair} onChange={(e) => setChairPick(e.target.value)} disabled={picked.length === 0}
-        className="mt-1 h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-auto sm:min-w-[16rem]">
+        className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:min-w-[16rem]">
         {picked.length === 0 ? <option value="">Pick people first</option> : null}
         {agents.filter((a) => picked.includes(a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}: {a.title}</option>)}
       </select>
@@ -130,9 +130,9 @@ function MeetingList({ meetings, selectedId, onSelect }: { meetings: CrewMeeting
       {meetings.map((m) => (
         <li key={m.id}>
           <button type="button" onClick={() => onSelect(m.id)} aria-current={m.id === selectedId ? 'true' : undefined}
-            className={cn('w-full rounded-lg border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300', m.id === selectedId ? 'border-sky-500/60 bg-sky-500/10' : 'border-slate-700 bg-slate-900 hover:bg-slate-800')}>
-            <span className="flex flex-wrap items-center gap-2"><StatusBadge status={m.status} /><span className="text-[11px] text-slate-400">{ago(m.created_at)}</span></span>
-            <span className="mt-1 line-clamp-2 block text-sm font-semibold text-white">{m.topic}</span>
+            className={cn('w-full rounded-lg border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', m.id === selectedId ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card hover:bg-muted')}>
+            <span className="flex flex-wrap items-center gap-2"><StatusBadge status={m.status} /><span className="text-[11px] text-muted-foreground">{ago(m.created_at)}</span></span>
+            <span className="mt-1 line-clamp-2 block text-sm font-semibold text-foreground">{m.topic}</span>
           </button>
         </li>
       ))}
@@ -143,15 +143,15 @@ function MeetingList({ meetings, selectedId, onSelect }: { meetings: CrewMeeting
 function Bubble({ line, agent, mine }: { line: CrewMessage; agent?: CrewAgent; mine: boolean }) {
   return (
     <li className={cn('flex gap-3', mine && 'flex-row-reverse')}>
-      {mine ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white" aria-hidden>You</span> : <Face agent={agent} />}
-      <div className={cn('min-w-0 max-w-[85%] rounded-2xl px-3.5 py-2.5', mine ? 'rounded-tr-sm bg-sky-600/30 ring-1 ring-sky-500/40' : 'rounded-tl-sm bg-slate-800')}>
-        <p className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-slate-400">
-          <span className="text-sm font-bold text-white">{mine ? 'You' : firstName(agent)}</span>
-          {!mine ? <span className="text-sky-300">{agent?.title ?? ''}</span> : null}
+      {mine ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-foreground" aria-hidden>You</span> : <Face agent={agent} />}
+      <div className={cn('min-w-0 max-w-[85%] rounded-2xl px-3.5 py-2.5', mine ? 'rounded-tr-sm bg-sky-600/30 ring-1 ring-sky-500/40' : 'rounded-tl-sm bg-muted')}>
+        <p className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-muted-foreground">
+          <span className="text-sm font-bold text-foreground">{mine ? 'You' : firstName(agent)}</span>
+          {!mine ? <span className="text-primary">{agent?.title ?? ''}</span> : null}
           {line.meeting_round ? <span>round {line.meeting_round}</span> : null}
           <time dateTime={line.created_at} title={new Date(line.created_at).toLocaleString()}>{clock(line.created_at)}</time>
         </p>
-        <p className="mt-1 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-slate-100">{line.body}</p>
+        <p className="mt-1 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground">{line.body}</p>
       </div>
     </li>
   );
@@ -167,33 +167,33 @@ function Minutes({ meeting, byId, bySlug }: { meeting: CrewMeeting; byId: Map<st
   }, [mins]);
   if (!mins) return null;
   return (
-    <section className="rounded-xl border border-emerald-500/30 bg-slate-900 p-4" aria-label="Minutes">
-      <h3 className="flex items-center gap-2 text-base font-bold text-white"><CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden />Minutes<span className="text-xs font-normal text-slate-400">by {firstName(chair)}{meeting.closed_at ? `, ${ago(meeting.closed_at)}` : ''}</span></h3>
-      <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-slate-100">{mins.summary}</p>
+    <section className="rounded-xl border border-emerald-500/30 bg-card p-4" aria-label="Minutes">
+      <h3 className="flex items-center gap-2 text-base font-bold text-foreground"><CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-300" aria-hidden />Minutes<span className="text-xs font-normal text-muted-foreground">by {firstName(chair)}{meeting.closed_at ? `, ${ago(meeting.closed_at)}` : ''}</span></h3>
+      <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">{mins.summary}</p>
 
       {mins.decisions.length > 0 ? (
-        <div className="mt-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Decisions</h4>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-200">{mins.decisions.map((d, i) => <li key={i}>{d}</li>)}</ul></div>
+        <div className="mt-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Decisions</h4>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-foreground">{mins.decisions.map((d, i) => <li key={i}>{d}</li>)}</ul></div>
       ) : null}
 
       {mins.needs_owner.length > 0 ? (
         <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-300">Needs your decision</h4>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-100">{mins.needs_owner.map((d, i) => <li key={i}>{d}</li>)}</ul>
-          <p className="mt-2 text-xs text-slate-400">If a decision means a change, the executive will put it in your To-Do tab as a proposal. Nothing is done until you approve it there.</p>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Needs your decision</h4>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-foreground">{mins.needs_owner.map((d, i) => <li key={i}>{d}</li>)}</ul>
+          <p className="mt-2 text-xs text-muted-foreground">If a decision means a change, the executive will put it in your To-Do tab as a proposal. Nothing is done until you approve it there.</p>
         </div>
       ) : null}
 
       {perAgent.length > 0 ? (
-        <div className="mt-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-sky-300">Action items</h4>
+        <div className="mt-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Action items</h4>
           <ul className="mt-2 space-y-2">
             {perAgent.map(([slug, tasks]) => {
               const a = bySlug.get(slug);
               return (
-                <li key={slug} className="flex items-start gap-3 rounded-lg bg-slate-950/60 p-2.5">
+                <li key={slug} className="flex items-start gap-3 rounded-lg bg-muted/60 p-2.5">
                   <Face agent={a} size={32} />
-                  <div className="min-w-0"><p className="text-sm font-semibold text-white">{a?.name ?? slug}<span className="ml-2 text-xs font-normal text-sky-300">{a?.title ?? ''}</span></p>
-                    <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-sm text-slate-200">{tasks.map((t, i) => <li key={i}>{t}</li>)}</ul></div>
+                  <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{a?.name ?? slug}<span className="ml-2 text-xs font-normal text-primary">{a?.title ?? ''}</span></p>
+                    <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-sm text-foreground">{tasks.map((t, i) => <li key={i}>{t}</li>)}</ul></div>
                 </li>
               );
             })}
@@ -238,40 +238,40 @@ function MeetingView({ meeting, agents }: { meeting: CrewMeeting; agents: CrewAg
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-        <div className="flex flex-wrap items-center gap-2"><StatusBadge status={meeting.status} /><span className="text-xs text-slate-400">{meeting.status === 'open' ? `Round ${meeting.round} of ${meeting.max_rounds}` : null} chaired by {firstName(chair)}, called {ago(meeting.created_at)}</span></div>
-        <h2 className="mt-2 text-lg font-bold text-white">{meeting.topic}</h2>
-        {meeting.brief ? <p className="mt-1 whitespace-pre-wrap text-sm text-slate-300"><span className="font-semibold text-slate-200">Your context: </span>{meeting.brief}</p> : null}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2"><StatusBadge status={meeting.status} /><span className="text-xs text-muted-foreground">{meeting.status === 'open' ? `Round ${meeting.round} of ${meeting.max_rounds}` : null} chaired by {firstName(chair)}, called {ago(meeting.created_at)}</span></div>
+        <h2 className="mt-2 text-lg font-bold text-foreground">{meeting.topic}</h2>
+        {meeting.brief ? <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/80"><span className="font-semibold text-foreground">Your context: </span>{meeting.brief}</p> : null}
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Members">
-          {mem.map((m) => <span key={m.agent_id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 py-0.5 pl-0.5 pr-2.5 text-xs text-slate-200"><Face agent={byId.get(m.agent_id)} size={20} />{firstName(byId.get(m.agent_id))}</span>)}
+          {mem.map((m) => <span key={m.agent_id} className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pl-0.5 pr-2.5 text-xs text-foreground"><Face agent={byId.get(m.agent_id)} size={20} />{firstName(byId.get(m.agent_id))}</span>)}
         </div>
       </div>
 
       <div ref={box} role="log" aria-live="polite" aria-label="Meeting transcript" tabIndex={0}
         onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}
-        className="max-h-[60vh] min-h-[8rem] overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/60 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
-        {rows.length === 0 ? <p className="p-4 text-center text-sm text-slate-400">{live ? 'Nobody has spoken yet. The executives are being woken and read the topic first; the first lines usually appear within a few minutes.' : 'Nothing was said in this meeting.'}</p> : (
+        className="max-h-[60vh] min-h-[8rem] overflow-y-auto rounded-xl border border-border bg-muted/60 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {rows.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">{live ? 'Nobody has spoken yet. The executives are being woken and read the topic first; the first lines usually appear within a few minutes.' : 'Nothing was said in this meeting.'}</p> : (
           <ul className="space-y-3">{rows.map((l) => <Bubble key={l.id} line={l} agent={l.from_agent ? byId.get(l.from_agent) : undefined} mine={l.from_agent === null} />)}</ul>
         )}
       </div>
 
-      {meeting.status === 'open' && waiting.length > 0 ? <p className="text-sm text-slate-300"><span className="font-semibold text-slate-100">Waiting for:</span> {waiting.join(', ')}</p> : null}
-      {meeting.status === 'open' && waiting.length === 0 && mem.length > 0 ? <p className="text-sm text-slate-400">Everyone has spoken this round. The next step starts within a minute.</p> : null}
-      {meeting.status === 'summarising' ? <p className="text-sm text-amber-300">Waiting for {firstName(chair)} to write the minutes.</p> : null}
+      {meeting.status === 'open' && waiting.length > 0 ? <p className="text-sm text-foreground/80"><span className="font-semibold text-foreground">Waiting for:</span> {waiting.join(', ')}</p> : null}
+      {meeting.status === 'open' && waiting.length === 0 && mem.length > 0 ? <p className="text-sm text-muted-foreground">Everyone has spoken this round. The next step starts within a minute.</p> : null}
+      {meeting.status === 'summarising' ? <p className="text-sm text-amber-700 dark:text-amber-300">Waiting for {firstName(chair)} to write the minutes.</p> : null}
 
       {live ? (
-        <div className="rounded-xl border border-slate-700 bg-slate-900 p-3">
-          <label htmlFor="meeting-say" className="text-xs font-semibold text-slate-300">Speak in the meeting</label>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <label htmlFor="meeting-say" className="text-xs font-semibold text-foreground/80">Speak in the meeting</label>
           <Textarea id="meeting-say" value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={2000} placeholder="Add a point, answer a question or redirect them. They read it at the next round."
-            className="mt-1 border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500" onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }} />
+            className="mt-1 border-border bg-background text-foreground placeholder:text-muted-foreground" onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }} />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Btn tone="go" onClick={send} disabled={!text.trim() || say.isPending}><Send className="mr-1 inline h-4 w-4" aria-hidden />Send</Btn>
-            <span className="text-[11px] text-slate-500">Ctrl+Enter sends</span>
+            <span className="text-[11px] text-muted-foreground">Ctrl+Enter sends</span>
             {meeting.status === 'open' ? (
               <span className="ml-auto flex flex-wrap items-center gap-2">
                 {confirmEnd ? (
                   <>
-                    <span className="text-xs text-slate-300">Stop now and ask {firstName(chair)} for the minutes?</span>
+                    <span className="text-xs text-foreground/80">Stop now and ask {firstName(chair)} for the minutes?</span>
                     <Btn tone="stop" onClick={finish} disabled={end.isPending}>Yes, end it</Btn>
                     <Btn onClick={() => setConfirmEnd(false)}>Keep going</Btn>
                   </>
@@ -287,7 +287,7 @@ function MeetingView({ meeting, agents }: { meeting: CrewMeeting; agents: CrewAg
   );
 }
 
-export function MeetingsTab() {
+export function MeetingsTab({ initialTopic }: { initialTopic?: string } = {}) {
   const agents = useCrewAgents();
   const meetings = useCrewMeetings();
   const [sel, setSel] = useState<string | null>(null);
@@ -299,10 +299,10 @@ export function MeetingsTab() {
   const team = agents.data ?? [];
 
   return (
-    <div className="space-y-4 rounded-xl bg-slate-950 p-3 text-white sm:p-4">
-      <CallForm agents={team} onCalled={setSel} />
-      {meetings.isError ? <p role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">Meetings could not be loaded: {meetings.error.message}</p> : null}
-      {!meetings.isLoading && !meetings.isError && list.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-sm text-slate-400">No meetings yet. Call one above.</p> : null}
+    <div className="space-y-4 text-foreground">
+      <CallForm key={initialTopic ?? ''} agents={team} onCalled={setSel} initialTopic={initialTopic} />
+      {meetings.isError ? <p role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">Meetings could not be loaded: {meetings.error.message}</p> : null}
+      {!meetings.isLoading && !meetings.isError && list.length === 0 ? <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No meetings yet. Call one above.</p> : null}
       {list.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <MeetingList meetings={list} selectedId={selected?.id ?? null} onSelect={setSel} />
