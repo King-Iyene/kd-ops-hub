@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
+import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -169,4 +169,17 @@ export function useCrewAttention(enabled: boolean) {
   const unread = (inbox.data ?? []).filter((m) => m.to_owner && !m.read_at && m.from_agent !== null);
   const waitingCount = (waiting.data ?? []).length;
   return { unread, unreadCount: unread.length, waitingCount, total: unread.length + waitingCount };
+
+export function useCrewMistakes(agentId: string | null) {
+  return useSupabaseQuery<CrewMistake[]>([...KEY, 'mistakes', agentId ?? ''], () => cdb.from('crew_mistakes').select('*').eq('agent_id', agentId!).order('created_at', { ascending: false }).limit(20) as never, { enabled: !!agentId, staleTime: 20_000 });
+}
+
+export function useLogMistake() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<string, { agentId: string; kind: string; note: string }>((v) => cdb.rpc('crew_log_mistake', { p_target: v.agentId, p_kind: v.kind, p_note: v.note.trim() }) as never, { onSuccess: refresh });
+}
+
+export function useRetireAgent() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<{ retired: string }, { agentId: string; reason: string }>((v) => cdb.rpc('crew_retire_agent', { p_agent: v.agentId, p_reason: v.reason.trim() }) as never, { onSuccess: refresh });
 }
