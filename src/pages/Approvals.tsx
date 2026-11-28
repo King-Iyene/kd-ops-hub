@@ -20,7 +20,6 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { errorMessage } from '@/lib/db-errors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { reviewLeaveFromAnywhere } from '@/features/leave/leaveApi';
 import { useApprovalStore } from '@/store/approvalStore';
 import { logAudit, type AuditActionType } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
@@ -444,7 +443,7 @@ const Approvals = () => {
 
       // Leave goes through the same single database step as the Leave screens, so the
       // balance is taken off, the history is written and the person is told, all together.
-      if (it.kind === 'leave') {
+      if ((it.kind as Kind) === 'leave') {
         await reviewLeaveFromAnywhere(rawId(it.id), 'approve', null, profile?.full_name || 'An admin');
         await logAudit(AUDIT_APPROVE.leave, describeApprove(it), profile);
         toast({ title: 'Request approved' });
@@ -606,7 +605,7 @@ const Approvals = () => {
       await rejectPaymentBatch(rawId(it.id), reason);
     } else if (it.kind === 'expense') {
       await rejectExpense(rawId(it.id), reason);
-    } else if (it.kind === 'leave') {
+    } else if ((it.kind as Kind) === 'leave') {
       // One database step: status, reason, history and the person's notification.
       await reviewLeaveFromAnywhere(rawId(it.id), 'reject', reason, profile?.full_name || 'An admin');
       await logAudit(AUDIT_REJECT.leave, `${describeReject(it)} — ${reason}`, profile);

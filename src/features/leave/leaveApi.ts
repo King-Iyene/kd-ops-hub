@@ -188,18 +188,19 @@ export function useLeaveLive() {
 // ── changes ─────────────────────────────────────────────────────────────────
 
 export interface LeaveFailure { message: string; overBalance: boolean }
-export type LeaveResult<T = void> = { ok: true; data: T } | { ok: false; error: LeaveFailure };
+/** ok tells which half to read: data when it worked, error when it did not. */
+export interface LeaveResult<T = void> { ok: boolean; data: T; error: LeaveFailure }
 
-const fail = (err: unknown): { ok: false; error: LeaveFailure } => {
+const fail = <T,>(err: unknown): LeaveResult<T> => {
   const raw = (err as { message?: string })?.message ?? 'Something went wrong. Please try again.';
-  return { ok: false, error: { message: cleanDbMessage(raw), overBalance: isOverBalanceError(raw) } };
+  return { ok: false, data: undefined as T, error: { message: cleanDbMessage(raw), overBalance: isOverBalanceError(raw) } };
 };
 
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<LeaveResult<T>> {
   const { data, error } = await db.rpc(fn, args);
-  if (error) return fail(error);
+  if (error) return fail<T>(error);
   void useApprovalStore.getState().refresh?.();
-  return { ok: true, data: data as T };
+  return { ok: true, data: data as T, error: undefined as unknown as LeaveFailure };
 }
 
 export interface LeaveFields { type: string; start: string; end: string; half: boolean; reason?: string | null }

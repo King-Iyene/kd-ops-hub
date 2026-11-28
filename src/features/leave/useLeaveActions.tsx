@@ -99,7 +99,7 @@ export function useLeaveActions() {
         confirmLabel: 'Delete',
         variant: 'destructive',
       });
-      if (!ok) return { ok: false as const, error: { message: 'cancelled', overBalance: false } };
+      if (!ok) return { ok: false, data: undefined, error: { message: 'cancelled', overBalance: false } } as LeaveResult<void>;
       return finish(await leaveApi.remove(row.id, null), 'Leave deleted');
     },
     addNote: async (row: LeaveRow, note: string) => finish(await leaveApi.addNote(row.id, note), 'Note saved'),
