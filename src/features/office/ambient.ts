@@ -35,6 +35,7 @@ export const SURFACES: Record<string, { lp: number; peak: number; len: number }>
   grass: { lp: 760, peak: 0.05, len: 0.13 },
   gray: { lp: 430, peak: 0.065, len: 0.08 },
   sand: { lp: 360, peak: 0.05, len: 0.15 },
+  scifi: { lp: 900, peak: 0.05, len: 0.07 }, // the Executive Wing: a soft metallic tap
 };
 
 /** The hum of each room: a filtered murmur, a soft pad, or the bleeps of the arcade. */
