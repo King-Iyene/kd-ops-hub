@@ -79,21 +79,21 @@ export function CrewNotifier() {
 
   if (banners.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed right-4 top-16 z-[70] flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-3" aria-live="polite">
+    <div className="pointer-events-none fixed right-4 top-16 z-[200] flex w-[min(34rem,calc(100vw-2rem))] flex-col gap-3" aria-live="polite">
       {banners.map((b) => (
-        <div key={b.id} className="pointer-events-auto overflow-hidden rounded-xl border border-primary/40 bg-card shadow-2xl ring-1 ring-black/20">
-          <div className="flex gap-3 p-4">
-            {b.agent ? <AvatarFace avatar={agentAvatar(b.agent)} size={52} /> : <span className="h-[52px] w-[52px] shrink-0 rounded-full bg-muted" />}
+        <div key={b.id} className="pointer-events-auto overflow-hidden rounded-2xl border-2 border-sky-400 bg-slate-900 text-white shadow-[0_20px_60px_rgba(0,0,0,0.65)]">
+          <div className="flex gap-4 p-5">
+            {b.agent ? <AvatarFace avatar={agentAvatar(b.agent)} size={72} /> : <span className="h-[72px] w-[72px] shrink-0 rounded-full bg-muted" />}
             <div className="min-w-0 flex-1">
-              <p className="flex items-baseline gap-2"><span className="text-base font-bold">{b.who}</span><span className="truncate text-xs text-muted-foreground">{b.title}</span><span className="ml-auto shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">{b.kind}</span></p>
-              <p className="mt-1 line-clamp-6 whitespace-pre-wrap text-[14.5px] leading-snug">{b.body}</p>
+              <p className="flex items-baseline gap-2"><span className="text-lg font-bold text-white">{b.who}</span><span className="truncate text-sm text-sky-300">{b.title}</span><span className="ml-auto shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">{b.kind}</span></p>
+              <p className="mt-1 line-clamp-8 whitespace-pre-wrap text-base leading-relaxed text-slate-100">{b.body}</p>
               {b.more > 0 ? <p className="mt-1 text-xs text-muted-foreground">and {b.more} more message{b.more > 1 ? 's' : ''}</p> : null}
             </div>
             <button type="button" aria-label="Dismiss" onClick={() => dismiss(b.id)} className="h-6 w-6 shrink-0 rounded text-muted-foreground hover:bg-muted"><X className="mx-auto h-4 w-4" /></button>
           </div>
-          <div className="flex gap-2 border-t bg-muted/30 px-4 py-2">
-            <button type="button" onClick={() => { openMailbox(b.id); dismiss(b.id); }} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90">Open and reply</button>
-            <button type="button" onClick={() => dismiss(b.id)} className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted">Dismiss</button>
+          <div className="flex gap-2 border-t border-slate-700 bg-slate-800 px-5 py-3">
+            <button type="button" onClick={() => { openMailbox(b.id); dismiss(b.id); }} className="rounded-md bg-sky-500 px-4 py-2 text-sm font-bold text-white hover:bg-sky-400">Open and reply</button>
+            <button type="button" onClick={() => dismiss(b.id)} className="rounded-md px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Dismiss</button>
           </div>
         </div>
       ))}
