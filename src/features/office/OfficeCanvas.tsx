@@ -1049,7 +1049,7 @@ export function OfficeCanvas(props: Props) {
           s.home = home;
           ctxA.meetingSpot = spots[i];
           stepAgent(s, dtA, nowS, a.status, ctxA);
-          people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, seated: s.seated, typing: s.seated, name: firstName(a.name), avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
+          people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, seated: s.seated, typing: s.seated, executive: true, name: firstName(a.name), avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
         });
         for (const id of [...agentSims.keys()]) if (!seenIds.has(id)) agentSims.delete(id);
       } else if (agentSims.size > 0) agentSims.clear();
