@@ -10,7 +10,7 @@
 import { validDc, type CliqDc } from './agent-cliq-core.ts';
 
 export interface CliqChannel { channelId: string; name: string; unique: string; chatId: string }
-export interface CliqMessage { id: string; time: number; senderId: string; senderName: string; text: string; mentionIds: string[]; mentionNames: Record<string, string>; threadChatId: string | null }
+export interface CliqMessage { id: string; time: number; senderId: string; senderName: string; /** Only when Zoho includes it; the Crew commands use it to recognise the owner. */ senderEmail?: string; text: string; mentionIds: string[]; mentionNames: Record<string, string>; threadChatId: string | null }
 export type Classification = 'request' | 'message' | 'ack';
 export interface TrackedRow {
   channel_id: string; channel_name: string; channel_unique: string; chat_id: string; message_id: string; thread_chat_id: string | null; posted_at: string;
@@ -87,6 +87,7 @@ export function parseMessages(json: unknown): { messages: CliqMessage[]; next: s
     const threadChatId = str(m.thread_chat_id) || str(thread.chat_id) || str(thread.thread_chat_id) || str(m.thread_id) || null;
     messages.push({
       id, time: time < 1e11 ? time * 1000 : time, senderId: str(sender.id) || str(sender.zuid), senderName: str(sender.name) || str(sender.first_name),
+      ...(str(sender.email_id) || str(sender.email) ? { senderEmail: str(sender.email_id) || str(sender.email) } : {}),
       text, mentionIds: [...ids].filter((x) => !EVERYONE.has(x.toLowerCase())), mentionNames, threadChatId,
     });
   }

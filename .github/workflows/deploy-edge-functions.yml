@@ -227,6 +227,11 @@ jobs:
       - name: Deploy crew-wake
         run: supabase functions deploy crew-wake --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
+      # Crew in Zoho Cliq: posts proposals waiting for the owner and carries out his approve / reject / reply messages. Cron-only (X-Cron-Secret),
+      # called every minute by crew_cliq_tick() and only when the owner switched it on; only the owner's own Cliq account is obeyed.
+      - name: Deploy crew-cliq
+        run: supabase functions deploy crew-cliq --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       # Inbound webhooks for Database automations. Callers are external services, so no Supabase JWT: --no-verify-jwt,
       # and the function authenticates every request by an HMAC signature (X-KDOps-Signature) against the automation's secret.
       - name: Deploy webhook-inflow
