@@ -9,6 +9,7 @@ import { buildOrgTree, type OrgNode } from '../orgChart';
 import { Avatar, StatusDot } from './shared';
 import { CliqSettings } from './CliqSettings';
 import { OfficeViewers } from './OfficeViewers';
+import { DaemonKeys } from './DaemonKeys';
 import { ago } from '../helpers';
 
 function Node({ node, selected, onSelect, depth }: { node: OrgNode; selected: string | null; onSelect: (a: CrewAgent) => void; depth: number }) {
@@ -132,7 +133,7 @@ export function TeamTab() {
           {tree.map((n) => <Node key={n.agent.id} node={n} selected={current?.id ?? null} onSelect={setSelected} depth={1} />)}
         </ul>
       </div>
-      <div className="space-y-6">{current ? <Detail agent={current} /> : <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Choose someone to see what they may do, what they have learned and how their last runs went.</div>}<CliqSettings /><OfficeViewers /></div>
+      <div className="space-y-6">{current ? <Detail agent={current} /> : <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Choose someone to see what they may do, what they have learned and how their last runs went.</div>}<CliqSettings /><OfficeViewers /><DaemonKeys /></div>
     </div>
   );
 }

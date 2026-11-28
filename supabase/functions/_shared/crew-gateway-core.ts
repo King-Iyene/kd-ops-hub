@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -189,6 +189,7 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
       if (!targetId) throw new GatewayError('no agent called ' + who);
       return { fn: 'crew_wake', args: { p_agent: agentId, p_target: targetId, p_reason: text(a, 'reason', 1000), p_depth: int(a, 'depth', 0, 5, 0) } };
     }
+    case 'wakes': return { fn: 'crew_claim_wakes', args: { p_agent: agentId, p_max: int(a, 'max', 1, 12, 6) } };
     case 'mistakes': return { fn: 'crew_team_mistakes', args: { p_agent: agentId } };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
     case 'report_done': return { fn: 'crew_report_done', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_result: obj(a, 'result', 8000) } };

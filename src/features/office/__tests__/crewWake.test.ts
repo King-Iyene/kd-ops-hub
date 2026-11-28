@@ -20,6 +20,11 @@ describe('waking an executive: the gateway op', () => {
     await expect(run('wake', { agent: 'compliance_head' })).rejects.toThrow('reason is required');
   });
 
+  it('lets the CFO key collect the waiting tasks for the PC daemon, bounded', async () => {
+    expect(await run('wakes')).toMatchObject({ fn: 'crew_claim_wakes', args: { p_agent: AGENT, p_max: 6 } });
+    expect(await run('wakes', { max: 99 })).toMatchObject({ args: { p_max: 12 } });
+  });
+
   it('lets an executive ask the owner a question', async () => {
     expect(await run('message', { kind: 'question', body: 'Which table holds the live income?' })).toMatchObject({ fn: 'crew_post_message', args: { p_kind: 'question' } });
   });

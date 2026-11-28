@@ -45,3 +45,7 @@ bun.lock
 bun.lockb
 
 .claude/
+
+# The Crew daemon: its keys and its log stay on the owner's PC
+tools/crew-daemon/crew-daemon.env
+tools/crew-daemon/crew-daemon.log
