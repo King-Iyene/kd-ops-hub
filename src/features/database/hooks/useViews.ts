@@ -42,6 +42,8 @@ export function useCreateView() {
       field_order?: string[];
       field_visibility?: Record<string, boolean>;
       field_widths?: Record<string, number>;
+      row_height?: ViewMeta['row_height'];
+      row_color_rules?: ViewMeta['row_color_rules'];
       position?: number;
     }) => {
       const { data, error } = await supabase
@@ -57,6 +59,8 @@ export function useCreateView() {
           field_order: input.field_order ?? [],
           field_visibility: input.field_visibility ?? {},
           field_widths: input.field_widths ?? {},
+          row_height: input.row_height ?? null,
+          row_color_rules: input.row_color_rules ?? [],
           is_default: false,
           is_locked: false,
           position: input.position ?? 0,
@@ -83,7 +87,7 @@ export function useUpdateView() {
     mutationFn: async (input: {
       id: string;
       table_id: string;
-      updates: Partial<Pick<ViewMeta, 'name' | 'filters' | 'sorts' | 'groups' | 'field_order' | 'field_visibility' | 'field_widths' | 'is_locked' | 'position' | 'form_config'>>;
+      updates: Partial<Pick<ViewMeta, 'name' | 'filters' | 'sorts' | 'groups' | 'field_order' | 'field_visibility' | 'field_widths' | 'row_height' | 'row_color_rules' | 'is_locked' | 'position' | 'form_config'>>;
     }) => {
       const { data, error } = await supabase
         .schema('nc_meta')
@@ -141,6 +145,8 @@ export function viewConfigFromMeta(view: ViewMeta) {
     hiddenFieldIds,
     fieldOrder: view.field_order ?? [],
     fieldWidths: view.field_widths ?? {},
+    rowHeight: view.row_height ?? null,
+    rowColorRules: view.row_color_rules ?? [],
   };
 }
 
@@ -207,6 +213,8 @@ export function useSaveViewConfig() {
         field_visibility: fieldVisibility,
         field_order: state.fieldOrder ?? [],
         field_widths: state.fieldWidths ?? {},
+        row_height: state.rowHeight,
+        row_color_rules: state.rowColorRules ?? [],
       },
     });
   };

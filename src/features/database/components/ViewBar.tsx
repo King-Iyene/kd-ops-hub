@@ -318,6 +318,8 @@ export function ViewBar() {
                     field_order: view.field_order,
                     field_visibility: view.field_visibility,
                     field_widths: view.field_widths,
+                    row_height: view.row_height,
+                    row_color_rules: view.row_color_rules,
                     position: (views?.length ?? 0) + 1,
                   });
                 }

@@ -159,6 +159,10 @@ export interface ViewMeta {
   field_order: string[];
   field_visibility: Record<string, boolean>;
   field_widths: Record<string, number>;
+  /** Saved with the view so everyone sees the same row size. null = not chosen, use the screen's default. */
+  row_height: 'short' | 'medium' | 'tall' | 'extra-tall' | null;
+  /** The view's "color rows by" rules. */
+  row_color_rules: RowColorRule[];
   is_default: boolean;
   is_locked: boolean;
   position: number;
