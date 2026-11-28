@@ -6419,6 +6419,8 @@ export type Database = {
           thread_id: string
           to_agent: string | null
           to_owner: boolean
+          to_profile: string | null
+          viewer_chat: boolean
         }
         Insert: {
           body: string
@@ -6436,6 +6438,8 @@ export type Database = {
           thread_id?: string
           to_agent?: string | null
           to_owner?: boolean
+          to_profile?: string | null
+          viewer_chat?: boolean
         }
         Update: {
           body?: string
@@ -6453,6 +6457,8 @@ export type Database = {
           thread_id?: string
           to_agent?: string | null
           to_owner?: boolean
+          to_profile?: string | null
+          viewer_chat?: boolean
         }
         Relationships: [
           {
@@ -6530,6 +6536,48 @@ export type Database = {
             columns: ["to_agent"]
             isOneToOne: false
             referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "crew_v_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_profile_fkey"
+            columns: ["to_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -29612,6 +29660,8 @@ export type Database = {
           thread_id: string
           to_agent: string | null
           to_owner: boolean
+          to_profile: string | null
+          viewer_chat: boolean
         }[]
         SetofOptions: {
           from: "*"
@@ -29749,6 +29799,7 @@ export type Database = {
           p_ref_order?: string
           p_ref_proposal?: string
           p_to_agent: string
+          p_to_profile?: string
         }
         Returns: string
       }
@@ -29872,6 +29923,14 @@ export type Database = {
       crew_signals: { Args: { p_agent: string }; Returns: Json }
       crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
       crew_team_mistakes: { Args: { p_agent: string }; Returns: Json }
+      crew_viewer_questions: { Args: { p_agent: string }; Returns: Json }
+      crew_viewer_say: {
+        Args: { p_agent: string; p_body: string }
+        Returns: Json
+      }
+      crew_viewer_thread: { Args: { p_agent: string }; Returns: Json }
+      crew_viewer_tick: { Args: never; Returns: number }
+      crew_viewer_wake: { Args: { p_agent: string }; Returns: boolean }
       crew_wake: {
         Args: {
           p_agent: string
