@@ -160,7 +160,7 @@ export function initAgentSim(id: string, home: { x: number; y: number }, now = 0
   // they start in their chairs; the first one gets up after a while, the others at different times
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return { id, x: home.x, y: home.y, vx: 0, vy: 0, dir: 3, moving: false, seated: true, mode: 'desk', home, route: [], thinkAt: now + 40 + (h % 200), stuck: 0 };
+  return { id, x: home.x, y: home.y, vx: 0, vy: 0, dir: 3, moving: false, seated: true, mode: 'desk', home, route: [], thinkAt: now + 150 + (h % 500), stuck: 0 };
 }
 
 export interface AgentCtx {
@@ -173,6 +173,8 @@ export interface AgentCtx {
   places?: { x: number; y: number }[];
   /** the other executives and where they are now (so one can walk over to a colleague for a chat) */
   others?: { id: string; x: number; y: number }[];
+  /** how many executives are away from their desks right now (so that never more than two are up at once) */
+  away?: number;
 }
 
 /** What an agent is doing, from its public status: the same rule for everybody. Working or thinking means staying in the chair. */
@@ -261,7 +263,10 @@ export function stepAgent(a: AgentSim, dt: number, now: number, status: AgentSta
     if (dHome >= 0.35) {
       // been away long enough: back to the chair for a good sit
       setRoute(a, ctx, a.home.x, a.home.y);
-      a.thinkAt = now + routeSeconds(a) + 150 + ctx.rand() * 250;
+      a.thinkAt = now + routeSeconds(a) + 360 + ctx.rand() * 420;
+    } else if (!isRestless(a.id) || (ctx.away ?? 0) >= 2) {
+      // most of the team stays in the chair; and never more than two are away from their desks at once
+      a.thinkAt = now + 240 + ctx.rand() * 360;
     } else if (ctx.rand() < 0.3) {
       // a coffee, some water or a snack in the lounge
       const spot = BREAK_SPOTS[Math.floor(ctx.rand() * BREAK_SPOTS.length) % BREAK_SPOTS.length];
@@ -288,4 +293,11 @@ export function stepAgent(a: AgentSim, dt: number, now: number, status: AgentSta
     if (dHome >= 0.35) setRoute(a, ctx, a.home.x, a.home.y);
     a.thinkAt = now + 3;
   }
+}
+
+/** Only about a third of the team ever gets up to walk about; the rest stay at their desks all day (a fixed trait of each person). */
+export function isRestless(id: string): boolean {
+  let h = 7;
+  for (let i = 0; i < id.length; i++) h = (h * 33 + id.charCodeAt(i)) >>> 0;
+  return h % 100 < 35;
 }

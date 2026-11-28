@@ -10,7 +10,7 @@ import { createHud, HUD_SHOW_MS, perf, smoothNow } from './world/perfStats';
 import { stackTags } from './world/nameTags';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
-import { ambient } from './ambient';
+import { ambient, soundLevel } from './ambient';
 import { drawSciFiGlow } from './world/scifi';
 import { CFO_POST, standsAtPost, agentAvatar, deskStand, deskWalkable, firstName, placesToVisit, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
 import { applyPetCmd, applyPetSnap, goHome, initPet, petBus, stableAuthority, type AuthorityState, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
@@ -1039,7 +1039,7 @@ export function OfficeCanvas(props: Props) {
         const ordered = sortAgents(p.agents);
         const spots = meetingSpots(solid, ordered.length);
         const walk = deskWalkable(solid);
-        const ctxA = { solid: walk, owner: p.isOwner ? { x: me.x, y: me.y } : null, meetingSpot: spots[0], rand: Math.random, places: placesToVisit(walk, deskStand(0)), others: [...agentSims.values()].map((o) => ({ id: o.id, x: o.x, y: o.y })) };
+        const ctxA = { solid: walk, owner: p.isOwner ? { x: me.x, y: me.y } : null, meetingSpot: spots[0], rand: Math.random, places: placesToVisit(walk, deskStand(0)), away: [...agentSims.values()].filter((o) => !o.stands && !o.seated && Math.hypot(o.x - o.home.x, o.y - o.home.y) > 1.5).length, others: [...agentSims.values()].map((o) => ({ id: o.id, x: o.x, y: o.y })) };
         const seenIds = new Set<string>();
         ordered.forEach((a, i) => {
           seenIds.add(a.id);
@@ -1052,6 +1052,10 @@ export function OfficeCanvas(props: Props) {
           people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, seated: s.seated, typing: s.seated, name: firstName(a.name), avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
         });
         for (const id of [...agentSims.keys()]) if (!seenIds.has(id)) agentSims.delete(id);
+        // the sound of the room: the keyboards of everyone seated near me
+        let typing = 0;
+        for (const s of agentSims.values()) if (s.seated) typing += soundLevel(Math.hypot(s.x - me.x, s.y - me.y), 12);
+        ambient.typing(Math.min(1, typing), now);
       } else if (agentSims.size > 0) agentSims.clear();
       if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
       people.push({ x: me.x, y: me.y, dir: me.dir, dancing: danceRef.current, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, phantom: ghostRef.current, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), dot: dotColor(p.myStatus ?? who.get(p.me.id)?.status) });

@@ -512,6 +512,31 @@ class Ambient {
     });
   }
 
+  /** keyboards: soft clicks, more of them and louder the nearer the typists are (level 0 to 1). Called every frame; it schedules its own clicks. */
+  private nextClick = 0;
+  typing(level: number, now: number) {
+    const c = this.ctx;
+    if (!this.enabled || !c || !this.master || !this.noise || c.state !== 'running' || level < 0.02 || now < this.nextClick) return;
+    this.nextClick = now + 55 + Math.random() * 190 / (0.4 + level);
+    const t = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = this.noise;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1800 + Math.random() * 2200;
+    bp.Q.value = 1.4;
+    const g = c.createGain();
+    const peak = 0.045 * Math.min(1, level) * (0.6 + Math.random() * 0.6);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(this.master);
+    src.start(t, Math.random() * 1.5);
+    src.stop(t + 0.04);
+  }
+
   // ---- building blocks --------------------------------------------------------
 
   private ensure(): AudioContext | null {
