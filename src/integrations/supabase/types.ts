@@ -9404,6 +9404,113 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_balance_adjustments: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          employee_id: string
+          field: string
+          id: string
+          new_value: number
+          old_value: number | null
+          reason: string
+          year: number
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          employee_id: string
+          field: string
+          id?: string
+          new_value: number
+          old_value?: number | null
+          reason: string
+          year: number
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          employee_id?: string
+          field?: string
+          id?: string
+          new_value?: number
+          old_value?: number | null
+          reason?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balance_adjustments_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           annual_quota: number
@@ -9485,6 +9592,92 @@ export type Database = {
           },
         ]
       }
+      leave_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          details: Json | null
+          from_status: string | null
+          id: string
+          kind: string
+          leave_id: string
+          note: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          from_status?: string | null
+          id?: string
+          kind: string
+          leave_id: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          from_status?: string | null
+          id?: string
+          kind?: string
+          leave_id?: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_events_leave_id_fkey"
+            columns: ["leave_id"]
+            isOneToOne: false
+            referencedRelation: "leave_calendar_v"
+            referencedColumns: ["leave_id"]
+          },
+          {
+            foreignKeyName: "leave_events_leave_id_fkey"
+            columns: ["leave_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_policies: {
         Row: {
           accrual_type: string
@@ -9544,9 +9737,14 @@ export type Database = {
       }
       leave_requests: {
         Row: {
+          cancel_reason: string | null
+          cancelled_by: string | null
           created_at: string
+          created_by: string | null
           days_requested: number
           deleted_at: string | null
+          edited_at: string | null
+          edited_by: string | null
           employee_id: string
           end_date: string
           id: string
@@ -9555,15 +9753,23 @@ export type Database = {
           reason: string | null
           rejection_reason: string | null
           resubmitted_from_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
           reviewed_by: string | null
+          source: string
           start_date: string
           status: string
           updated_at: string
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_by?: string | null
           created_at?: string
+          created_by?: string | null
           days_requested: number
           deleted_at?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           employee_id: string
           end_date: string
           id?: string
@@ -9572,15 +9778,23 @@ export type Database = {
           reason?: string | null
           rejection_reason?: string | null
           resubmitted_from_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
           reviewed_by?: string | null
+          source?: string
           start_date: string
           status?: string
           updated_at?: string
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_by?: string | null
           created_at?: string
+          created_by?: string | null
           days_requested?: number
           deleted_at?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
           employee_id?: string
           end_date?: string
           id?: string
@@ -9589,12 +9803,120 @@ export type Database = {
           reason?: string | null
           rejection_reason?: string | null
           resubmitted_from_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
           reviewed_by?: string | null
+          source?: string
           start_date?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leave_requests_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leave_requests_employee_id_fkey"
             columns: ["employee_id"]
@@ -25699,6 +26021,273 @@ export type Database = {
       }
       is_ndi_admin: { Args: never; Returns: boolean }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
+      leave_accrued_days: {
+        Args: { p_quota: number; p_start: string; p_year: number }
+        Returns: number
+      }
+      leave_add_note: {
+        Args: { p_id: string; p_note: string }
+        Returns: undefined
+      }
+      leave_adjust_balance: {
+        Args: {
+          p_employee: string
+          p_field: string
+          p_reason: string
+          p_value: number
+          p_year: number
+        }
+        Returns: undefined
+      }
+      leave_annual_quota: {
+        Args: { p_employee: string; p_year: number }
+        Returns: number
+      }
+      leave_assert_no_overlap: {
+        Args: {
+          p_employee: string
+          p_end: string
+          p_except?: string
+          p_start: string
+        }
+        Returns: undefined
+      }
+      leave_caller_is_admin: { Args: never; Returns: boolean }
+      leave_cancel: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: {
+          cancel_reason: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          days_requested: number
+          deleted_at: string | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          is_half_day: boolean
+          leave_type: string
+          reason: string | null
+          rejection_reason: string | null
+          resubmitted_from_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leave_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      leave_check_dates: {
+        Args: { p_end: string; p_half: boolean; p_start: string }
+        Returns: number
+      }
+      leave_delete: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      leave_describe: { Args: { p_leave: string }; Returns: string }
+      leave_edit: {
+        Args: {
+          p_end: string
+          p_half: boolean
+          p_id: string
+          p_note?: string
+          p_override?: boolean
+          p_reason?: string
+          p_start: string
+          p_type: string
+        }
+        Returns: {
+          cancel_reason: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          days_requested: number
+          deleted_at: string | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          is_half_day: boolean
+          leave_type: string
+          reason: string | null
+          rejection_reason: string | null
+          resubmitted_from_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leave_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      leave_log_event: {
+        Args: {
+          p_details?: Json
+          p_from: string
+          p_kind: string
+          p_leave: string
+          p_note: string
+          p_to: string
+        }
+        Returns: undefined
+      }
+      leave_move_balance: {
+        Args: {
+          p_cap?: number
+          p_days: number
+          p_employee: string
+          p_type: string
+          p_year: number
+        }
+        Returns: boolean
+      }
+      leave_notify: {
+        Args: {
+          p_body: string
+          p_priority?: string
+          p_title: string
+          p_user: string
+        }
+        Returns: undefined
+      }
+      leave_notify_admins: {
+        Args: { p_body: string; p_except?: string; p_title: string }
+        Returns: undefined
+      }
+      leave_record: {
+        Args: {
+          p_employee: string
+          p_end: string
+          p_half?: boolean
+          p_override?: boolean
+          p_reason?: string
+          p_start: string
+          p_status?: string
+          p_type: string
+        }
+        Returns: string
+      }
+      leave_revert: {
+        Args: { p_id: string; p_note?: string }
+        Returns: {
+          cancel_reason: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          days_requested: number
+          deleted_at: string | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          is_half_day: boolean
+          leave_type: string
+          reason: string | null
+          rejection_reason: string | null
+          resubmitted_from_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leave_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      leave_review: {
+        Args: {
+          p_decision: string
+          p_id: string
+          p_note?: string
+          p_override?: boolean
+        }
+        Returns: {
+          cancel_reason: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          days_requested: number
+          deleted_at: string | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          is_half_day: boolean
+          leave_type: string
+          reason: string | null
+          rejection_reason: string | null
+          resubmitted_from_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leave_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      leave_submit: {
+        Args: {
+          p_end: string
+          p_half?: boolean
+          p_reason?: string
+          p_start: string
+          p_type: string
+        }
+        Returns: string
+      }
+      leave_used_column: { Args: { p_type: string }; Returns: string }
+      leave_whos_away: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          days: number
+          department_name: string
+          employee_id: string
+          employee_name: string
+          end_date: string
+          leave_id: string
+          leave_type: string
+          start_date: string
+          status: string
+        }[]
+      }
+      leave_working_days: {
+        Args: { p_end: string; p_half?: boolean; p_start: string }
+        Returns: number
+      }
       lock_payroll_run_for_disbursement: {
         Args: { p_run_id: string }
         Returns: {
