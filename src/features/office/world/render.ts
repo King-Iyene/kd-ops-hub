@@ -2292,6 +2292,7 @@ function drawExtra(ctx: Ctx, item: Item, dark: boolean, t: number, col: string |
     case 'eventboard': { drawEventBoard(ctx, x, y, W, H, t); break; }
     case 'pollboard': { drawPollBoard(ctx, x, y, W, H, t, seed); break; }
     case 'gametable': { drawGameTable(ctx, x, y, W, H, t, seed); break; }
+    case 'mailbox': { drawMailbox(ctx, x, y, W, H, t); break; }
     case 'gong': { drawGong(ctx, x, y, W, H, t, seed); break; }
     case 'standingdesk': { drawStandingDesk(ctx, x, y, W, H, t, seed, col); break; }
     case 'execdesk': { drawExecDesk(ctx, x, y, W, H, col); break; }
@@ -5424,5 +5425,39 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
     ctx.lineTo(px, by + bh + 5);
     ctx.closePath();
     ctx.fill();
+  }
+}
+
+
+/** How many messages from the executives the owner has not read: the mailbox in the Executive Wing shows it (set by the office page). */
+let mailboxUnread = 0;
+export function setMailboxUnread(n: number) { mailboxUnread = Math.max(0, Math.floor(n)); }
+
+/** The owner's mailbox: a tall post box with a gold roof and a slot; the red flag goes up and a red badge shows the number when there is unread mail. */
+function drawMailbox(ctx: Ctx, x: number, y: number, W: number, H: number, t: number) {
+  const cx = x + W / 2;
+  ctx.fillStyle = 'rgba(8,14,28,0.35)';
+  ctx.beginPath(); ctx.ellipse(cx, y + H - 3, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+  // the post
+  ctx.fillStyle = '#3b2a1a'; ctx.fillRect(cx - 2, y + H - 14, 4, 12);
+  // the box
+  const g = ctx.createLinearGradient(cx - 11, 0, cx + 11, 0);
+  g.addColorStop(0, '#2f56c4'); g.addColorStop(0.55, '#1e3a8a'); g.addColorStop(1, '#14275f');
+  ctx.fillStyle = g;
+  rr(ctx, cx - 11, y + 7, 22, 17, 5); ctx.fill();
+  ctx.fillStyle = '#d4af37'; rr(ctx, cx - 12, y + 5, 24, 4, 2); ctx.fill();
+  ctx.fillStyle = '#0b1220'; ctx.fillRect(cx - 6, y + 13, 12, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cx - 9, y + 10, 2, 11);
+  // the flag: up and red when there is unread mail
+  const up = mailboxUnread > 0;
+  ctx.fillStyle = '#9ca3af'; ctx.fillRect(cx + 11, up ? y + 3 : y + 14, 2, up ? 12 : 7);
+  ctx.fillStyle = up ? '#ef4444' : '#6b7280'; ctx.fillRect(cx + 13, up ? y + 3 : y + 14, 6, 4);
+  if (up) {
+    const pulse = 1 + 0.08 * Math.sin(t / 260);
+    const bx = cx + 10, by = y - 1, r = 8.5 * pulse;
+    ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.font = '700 10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(mailboxUnread > 99 ? '99+' : String(mailboxUnread), bx, by + 0.5);
   }
 }
