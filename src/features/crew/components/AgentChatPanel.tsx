@@ -63,9 +63,9 @@ export function AgentChatPanel({ agentId, onClose, embedded = false, onBack }: {
       <div className={embedded ? 'min-h-0 flex-1 space-y-2 overflow-y-auto p-3' : 'max-h-72 min-h-24 space-y-2 overflow-y-auto p-3'}>
         {thread.length === 0 ? <p className="text-xs text-muted-foreground">Nothing yet. Say what you need: they will answer, and push back if you are wrong.</p> : null}
         {thread.map((m) => (
-          <div key={m.id} className={cn('max-w-[85%] rounded-lg px-3 py-2 text-sm', m.from_agent === null ? 'ml-auto bg-primary text-primary-foreground' : 'bg-muted')}>
+          <div key={m.id} className={cn('max-w-[85%] rounded-lg px-3 py-2 text-sm', m.from_agent === null ? 'ml-auto bg-white/10 text-foreground ring-1 ring-inset ring-white/10' : 'bg-muted')}>
             <p className="whitespace-pre-wrap">{m.body}</p>
-            <p className={cn('mt-1 text-[10px]', m.from_agent === null ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{ago(m.created_at)}</p>
+            <p className={cn('mt-1 text-[10px]', 'text-muted-foreground')}>{ago(m.created_at)}</p>
           </div>
         ))}
       </div>
