@@ -34,7 +34,7 @@ export function riskOrder(r: string): number { return r === 'high' ? 0 : r === '
 
 /** What an approve button should say: record actions are applied on approval, the rest are a go-ahead. */
 export function approveLabel(action: string): string {
-  if (action.startsWith('record.')) return 'Approve and apply';
+  if (action.startsWith('record.') || action.startsWith('app.')) return 'Approve and apply';
   if (action.startsWith('advice.')) return 'Accept';
   if (action.startsWith('agent.')) return 'Approve and carry out';
   return 'Approve (go ahead)';
@@ -43,6 +43,7 @@ export function approveLabel(action: string): string {
 export function describeAction(action: string): string {
   const map: Record<string, string> = {
     'record.create': 'Add a record', 'record.update': 'Change a record', 'record.soft_delete': 'Move a record to the trash',
+    'app.create': 'Add to KDOps', 'app.update': 'Change in KDOps', 'app.soft_delete': 'Hide in KDOps (soft delete)',
     'draft.batch_payment': 'Draft a batch payment', 'draft.payroll_run': 'Draft a payroll run', 'draft.invoice': 'Prepare an invoice', 'draft.filing': 'Draft a tax filing',
     'external.github': 'GitHub change', 'external.vercel': 'Vercel change', 'external.supabase': 'Supabase change', 'external.other': 'Other outside change',
     'drive.create': 'Create a file in Google Drive', 'drive.update': 'Change a file in Google Drive', 'drive.trash': 'Move a Google Drive file to the trash',

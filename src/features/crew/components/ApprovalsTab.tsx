@@ -7,6 +7,7 @@ import type { CrewAgent, CrewProposal } from '../crewDb';
 import { useCrewAgents, useCrewProposals, useDecideProposal, useMarkDone } from '../useCrew';
 import { approveLabel, describeAction, riskOrder } from '../orgChart';
 import { Avatar, Empty, RiskBadge } from './shared';
+import { AppChangeView } from './AppChangeView';
 import { agentName, ago } from '../helpers';
 
 type Group = 'waiting' | 'carry_out' | 'history';
@@ -58,6 +59,7 @@ function ProposalCard({ p, agents, group }: { p: CrewProposal; agents: CrewAgent
           </div>
           <p className="mt-2 text-sm font-medium">{p.summary}</p>
           {p.rationale ? <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{p.rationale}</p> : null}
+          <AppChangeView proposal={p} />
 
           {p.endorsements.length > 0 ? (
             <ul className="mt-2 space-y-1 text-xs">

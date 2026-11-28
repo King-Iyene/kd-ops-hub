@@ -12,6 +12,7 @@ import type { CrewAgent, CrewMessage, CrewProposal } from './crewDb';
 import { useCrewAgents, useCrewAttention, useCrewInbox, useCrewMistakes, useCrewOrders, useCrewProposals, useCrewRuns, useCrewSettings, useDecideProposal, useMarkRead, useSay } from './useCrew';
 import { approveLabel, buildOrgTree, describeAction, riskOrder, STATUS_LABEL, type OrgNode } from './orgChart';
 import { RiskBadge } from './components/shared';
+import { AppChangeView } from './components/AppChangeView';
 import { ago } from './helpers';
 import { OrdersTab } from './components/OrdersTab';
 import { ChannelTab } from './components/ChannelTab';
@@ -152,6 +153,7 @@ function ProposalCard({ p, agent, byId, onLater, thread }: { p: CrewProposal; ag
         </div>
       ) : null}
       {retire && target ? <div className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm text-slate-200"><span className="font-bold text-red-200">{target.name}</span> · {target.title}{pay.reason ? <p className="mt-1 text-xs text-slate-400">{str(pay.reason)}</p> : null}</div> : null}
+      <AppChangeView proposal={p} tone="dark" />
       {p.rationale ? <><p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">Why</p><Detail text={p.rationale} /></> : null}
       {ev.length ? (
         <div className="mt-2">

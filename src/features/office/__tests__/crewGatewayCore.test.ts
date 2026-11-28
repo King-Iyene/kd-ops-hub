@@ -56,6 +56,28 @@ describe('crew gateway: what an agent can ask for', () => {
     await expect(run('propose', { action: 'advice.finance', summary: 'x', payload: { big: 'y'.repeat(70_000) } })).rejects.toThrow('too big');
   });
 
+  it('app changes: a source (never a table), values by column name, soft delete only, no permanent delete', async () => {
+    const create = await run('propose', { action: 'app.create', source: 'subscriptions', summary: 'Add Vercel Pro', payload: { values: { name: 'Vercel Pro', amount_ngn: 30000 } }, ledger_key: 'sub:vercel-pro:monthly' });
+    expect(create).toMatchObject({ fn: 'crew_propose', args: { p_action: 'app.create', p_table: null, p_payload: { source: 'subscriptions', values: { name: 'Vercel Pro', amount_ngn: 30000 } }, p_ledger_key: 'sub:vercel-pro:monthly' } });
+    // the top-level source wins over a source smuggled inside the payload
+    expect(await run('propose', { action: 'app.update', source: 'vendors', summary: 'x', payload: { source: 'payroll_runs', record_id: TABLE, values: { notes: 'a' } } })).toMatchObject({ args: { p_payload: { source: 'vendors', record_id: TABLE } } });
+    expect(await run('propose', { action: 'app.soft_delete', source: 'clients', summary: 'x', payload: { record_id: TABLE } })).toMatchObject({ args: { p_action: 'app.soft_delete' } });
+    await expect(run('propose', { action: 'app.create', summary: 'x', payload: { values: { name: 'a' } } })).rejects.toThrow('source is required');
+    await expect(run('propose', { action: 'app.create', source: 'subscriptions; drop table x', summary: 'x' })).rejects.toThrow('source must be');
+    await expect(run('propose', { action: 'app.create', source: 'subscriptions', summary: 'x', table_id: TABLE })).rejects.toThrow('not a table_id');
+    await expect(run('propose', { action: 'app.delete', source: 'subscriptions', summary: 'x' })).rejects.toThrow('unknown action');
+    await expect(run('propose', { action: 'app.hard_delete', source: 'subscriptions', summary: 'x' })).rejects.toThrow('unknown action');
+    await expect(run('propose', { action: 'app.create', source: 'subscriptions', summary: 'x', payload: 'text' })).rejects.toThrow('must be an object');
+    // an agent cannot pretend to be another one
+    expect(await run('propose', { action: 'app.create', source: 'clients', summary: 'x', p_agent: 'someone-else', payload: { values: { name: 'a' } } })).toMatchObject({ args: { p_agent: AGENT } });
+  });
+
+  it('app_schema: lists the writable sources, or the columns of one', async () => {
+    expect(await run('app_schema')).toEqual({ fn: 'crew_app_schema', args: { p_agent: AGENT, p_source: null } });
+    expect(await run('app_schema', { source: 'subscriptions', p_agent: 'someone-else' })).toEqual({ fn: 'crew_app_schema', args: { p_agent: AGENT, p_source: 'subscriptions' } });
+    await expect(run('app_schema', { source: 'x'.repeat(41) })).rejects.toThrow('too long');
+  });
+
   it('read: validates filters and caps the page size', async () => {
     const p = await run('read', { table_id: TABLE, limit: 99999, filters: [{ field: 'Date Paid', op: 'gte', value: '2026-11-01' }] });
     expect(p).toMatchObject({ fn: 'crew_read_records', args: { p_limit: 500, p_filters: [{ field: 'Date Paid', op: 'gte', value: '2026-11-01' }] } });
