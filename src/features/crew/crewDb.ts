@@ -65,7 +65,7 @@ export interface CrewProposal {
   executed_at: string | null;
 }
 
-export type MessageKind = 'message' | 'reply' | 'report' | 'alert' | 'challenge' | 'reminder' | 'brief';
+export type MessageKind = 'message' | 'reply' | 'report' | 'alert' | 'challenge' | 'reminder' | 'brief' | 'question';
 
 export interface CrewMessage {
   id: string;

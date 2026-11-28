@@ -223,6 +223,10 @@ jobs:
       - name: Deploy crew-gateway
         run: supabase functions deploy crew-gateway --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
+      # Wakes an executive when something happens: starts the shared Crew runner routine (secrets CREW_RUNNER_ID and CREW_RUNNER_TOKEN)
+      - name: Deploy crew-wake
+        run: supabase functions deploy crew-wake --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       # Inbound webhooks for Database automations. Callers are external services, so no Supabase JWT: --no-verify-jwt,
       # and the function authenticates every request by an HMAC signature (X-KDOps-Signature) against the automation's secret.
       - name: Deploy webhook-inflow

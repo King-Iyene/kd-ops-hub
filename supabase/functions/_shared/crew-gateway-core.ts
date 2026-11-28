@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -62,7 +62,7 @@ export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_pa
 const STATUSES = ['offline', 'idle', 'working', 'thinking', 'waiting_approval', 'walking', 'meeting'] as const;
 const NOTE_KINDS = ['lesson', 'rule', 'fact', 'preference', 'mistake'] as const;
 const NOTE_SOURCES = ['proposal_outcome', 'owner_feedback', 'self_review', 'order_veto', 'ci_result', 'other'] as const;
-const MSG_KINDS = ['message', 'reply', 'report', 'alert', 'challenge', 'reminder', 'brief'] as const;
+const MSG_KINDS = ['message', 'reply', 'report', 'alert', 'challenge', 'reminder', 'brief', 'question'] as const;
 const MISTAKE_KINDS = ['wrong_proposal', 'duplicate', 'wrong_numbers', 'missed_deadline', 'ignored_order', 'other'] as const;
 const IDEA_STATUSES = ['open', 'triaged', 'approved', 'building', 'shipped', 'rejected', 'merged'] as const;
 const FILTER_OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'] as const;
@@ -181,6 +181,13 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
       const targetId = await lookup(who);
       if (!targetId) throw new GatewayError('no agent called ' + who);
       return { fn: 'crew_report_mistake', args: { p_agent: agentId, p_target: targetId, p_kind: oneOf(a, 'kind', MISTAKE_KINDS, 'other'), p_note: text(a, 'note', 1000), p_proposal: uuid(a, 'proposal_id', false) } };
+    }
+    case 'wake': {
+      const who = a.agent;
+      if (typeof who !== 'string' || !/^[a-z][a-z0-9_]{1,30}$/.test(who)) throw new GatewayError('agent must be the slug of your manager or of someone who reports to you');
+      const targetId = await lookup(who);
+      if (!targetId) throw new GatewayError('no agent called ' + who);
+      return { fn: 'crew_wake', args: { p_agent: agentId, p_target: targetId, p_reason: text(a, 'reason', 1000), p_depth: int(a, 'depth', 0, 5, 0) } };
     }
     case 'mistakes': return { fn: 'crew_team_mistakes', args: { p_agent: agentId } };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
