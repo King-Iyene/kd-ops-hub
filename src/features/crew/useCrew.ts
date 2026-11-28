@@ -146,8 +146,12 @@ export function useCliqConnections() {
 
 export function useSaveCrewSettings() {
   const refresh = useRefresh();
-  return useSupabaseMutation<null, { enabled: boolean; connection: string | null; profile: string | null; kinds: string[] }>(
-    (v) => cdb.rpc('crew_save_settings', { p_enabled: v.enabled, p_connection: v.connection, p_profile: v.profile, p_kinds: v.kinds }) as never,
+  // commands / ownerId are sent only when given: left out, the database keeps what it has ('' for ownerId clears it).
+  return useSupabaseMutation<null, { enabled: boolean; connection: string | null; profile: string | null; kinds: string[]; commands?: boolean; ownerId?: string }>(
+    (v) => cdb.rpc('crew_save_settings', {
+      p_enabled: v.enabled, p_connection: v.connection, p_profile: v.profile, p_kinds: v.kinds,
+      ...(v.commands !== undefined ? { p_commands: v.commands } : {}), ...(v.ownerId !== undefined ? { p_owner_id: v.ownerId } : {}),
+    }) as never,
     { onSuccess: refresh },
   );
 }
