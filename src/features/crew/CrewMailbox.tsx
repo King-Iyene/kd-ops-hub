@@ -9,10 +9,12 @@ import { useAuthStore } from '@/store/authStore';
 import { AvatarFace } from '@/features/office/AvatarFace';
 import { agentAvatar } from '@/features/office/world/agents';
 import type { CrewAgent, CrewMessage, CrewProposal } from './crewDb';
-import { useCrewAgents, useCrewAttention, useCrewInbox, useCrewMistakes, useCrewProposals, useCrewRuns, useCrewSettings, useDecideProposal, useMarkRead, useSay } from './useCrew';
+import { useCrewAgents, useCrewAttention, useCrewInbox, useCrewMistakes, useCrewOrders, useCrewProposals, useCrewRuns, useCrewSettings, useDecideProposal, useMarkRead, useSay } from './useCrew';
 import { approveLabel, buildOrgTree, describeAction, riskOrder, STATUS_LABEL, type OrgNode } from './orgChart';
 import { RiskBadge } from './components/shared';
 import { ago } from './helpers';
+import { OrdersTab } from './components/OrdersTab';
+import { ChannelTab } from './components/ChannelTab';
 
 export const OPEN_MAILBOX = 'crew-open-mailbox';
 
@@ -112,7 +114,7 @@ function Say({ agentId, placeholder, prefix, onSent, label = 'Send' }: { agentId
 }
 
 /** A proposal that waits for the owner: who, what, why, the evidence, and the buttons. A hire reads like a candidate interview. */
-function ProposalCard({ p, agent, byId, onLater }: { p: CrewProposal; agent?: CrewAgent; byId: Map<string, CrewAgent>; onLater: (until: number) => void }) {
+function ProposalCard({ p, agent, byId, onLater, thread }: { p: CrewProposal; agent?: CrewAgent; byId: Map<string, CrewAgent>; onLater: (until: number) => void; thread?: CrewMessage[] }) {
   const { toast } = useToast();
   const decide = useDecideProposal();
   const [mode, setMode] = useState<null | 'challenge' | 'reject'>(null);
@@ -140,6 +142,12 @@ function ProposalCard({ p, agent, byId, onLater }: { p: CrewProposal; agent?: Cr
         <div className="mt-2 rounded-lg bg-fuchsia-500/10 p-3 text-sm text-slate-200">
           <p className="font-bold text-fuchsia-200">Candidate: {str(pay.name ?? '')}{pay.role ? ` · ${str(pay.role)}` : ''}</p>
           <p className="text-xs text-slate-400">{pay.replaces ? `Replaces ${str(pay.replaces)}` : pay.reports_to ? `Would report to ${str(pay.reports_to)}` : ''}</p>
+        </div>
+      ) : null}
+      {hire && thread && thread.length ? (
+        <div className="mt-3 space-y-2 rounded-lg bg-slate-950/60 p-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">The interview so far</p>
+          {thread.map((m) => <div key={m.id} className={cn('rounded-lg p-2 text-[13px]', m.from_agent ? 'bg-slate-800 text-slate-100' : 'ml-8 bg-sky-900/50 text-sky-50')}><p className="whitespace-pre-wrap">{m.body}</p><p className="mt-1 text-[10px] text-slate-400">{m.from_agent ? (agent?.name.split(' ')[0] ?? 'Them') : 'You'} · {ago(m.created_at)}</p></div>)}
         </div>
       ) : null}
       {retire && target ? <div className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm text-slate-200"><span className="font-bold text-red-200">{target.name}</span> · {target.title}{pay.reason ? <p className="mt-1 text-xs text-slate-400">{str(pay.reason)}</p> : null}</div> : null}
@@ -236,7 +244,9 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
   const inbox = useCrewInbox(true);
   const waiting = useCrewProposals('waiting');
   const attention = useCrewAttention(true);
-  const [tab, setTab] = useState<'todo' | 'agents'>('todo');
+  const [tab, setTab] = useState<'todo' | 'agents' | 'orders' | 'team'>('todo');
+  const orders = useCrewOrders();
+  const challenged = (orders.data ?? []).filter((o) => o.status === 'challenged').length;
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [talk, setTalk] = useState<string | null>(null);
@@ -282,8 +292,8 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
         <SheetHeader className="border-b border-slate-800 p-4 text-left">
           <SheetTitle className="text-white">Command Center</SheetTitle>
           <SheetDescription className="text-slate-400">{total === 0 ? 'Nothing is waiting for you.' : `${total} thing${total > 1 ? 's' : ''} waiting for you · ${attention.unreadCount} unread message${attention.unreadCount === 1 ? '' : 's'}`} · {busy} of {active.length} agents working now</SheetDescription>
-          <div className="mt-2 flex gap-2">
-            {([['todo', `To-Do (${total})`], ['agents', `Agents (${active.length})`]] as const).map(([k, label]) => (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {([['todo', `To-Do (${total})`], ['agents', `Agents (${active.length})`], ['orders', challenged ? `Orders (${challenged} challenged)` : 'Orders'], ['team', 'Team channel']] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-bold transition', tab === k ? 'bg-amber-400 text-slate-900' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}>{label}</button>
             ))}
           </div>
@@ -305,7 +315,7 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
                 {noisy.length > 1 ? <Btn tone="stop" disabled={readMany.isPending} onClick={() => readMany.mutate(noisy.map((m) => m.id))}>Got it on all {noisy.length} briefings and reports</Btn> : null}
               </div>
               {shownProps.length + shownMail.length === 0 ? <p className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">All clear. When an agent needs a decision, an answer or your eyes, it lands here with the full story and buttons.</p> : null}
-              {shownProps.map((p) => <ProposalCard key={p.id} p={p} agent={byId.get(p.agent_id)} byId={byId} onLater={(until) => sn.snooze(p.id, until)} />)}
+              {shownProps.map((p) => <ProposalCard key={p.id} p={p} agent={byId.get(p.agent_id)} byId={byId} onLater={(until) => sn.snooze(p.id, until)} thread={p.action === 'agent.hire' ? (inbox.data ?? []).filter((m) => (m.from_agent === p.agent_id && m.to_owner) || (m.from_agent === null && m.to_agent === p.agent_id)).sort((x, y) => x.created_at.localeCompare(y.created_at)).slice(-5) : undefined} />)}
               {shownMail.map((m) => <MessageCard key={m.id} m={m} agent={m.from_agent ? byId.get(m.from_agent) : undefined} focus={m.id === focusId} onLater={(until) => sn.snooze(m.id, until)} />)}
               {snoozedCount > 0 ? <button type="button" onClick={() => setShowSnoozed(!showSnoozed)} className="text-xs font-semibold text-sky-300 hover:underline">{showSnoozed ? 'Hide' : 'Show'} the {snoozedCount} you snoozed</button> : null}
               {doneMail.length ? (
@@ -315,6 +325,10 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
                 </div>
               ) : null}
             </div>
+          ) : tab === 'orders' ? (
+            <div className="rounded-xl bg-background p-3 text-foreground"><OrdersTab /></div>
+          ) : tab === 'team' ? (
+            <div className="rounded-xl bg-background p-3 text-foreground"><ChannelTab /></div>
           ) : (
             <div className="space-y-2">
               <div className="relative">
