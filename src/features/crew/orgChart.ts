@@ -36,6 +36,7 @@ export function riskOrder(r: string): number { return r === 'high' ? 0 : r === '
 export function approveLabel(action: string): string {
   if (action.startsWith('record.')) return 'Approve and apply';
   if (action.startsWith('advice.')) return 'Accept';
+  if (action.startsWith('agent.')) return 'Approve and carry out';
   return 'Approve (go ahead)';
 }
 
@@ -45,6 +46,7 @@ export function describeAction(action: string): string {
     'draft.batch_payment': 'Draft a batch payment', 'draft.payroll_run': 'Draft a payroll run', 'draft.invoice': 'Prepare an invoice', 'draft.filing': 'Draft a tax filing',
     'external.github': 'GitHub change', 'external.vercel': 'Vercel change', 'external.supabase': 'Supabase change', 'external.other': 'Other outside change',
     'advice.knowledge': 'Update the company brain',
+    'agent.retire': 'Let a team member go', 'agent.hire': 'Hire a new team member',
   };
   return map[action] ?? (action.startsWith('advice.') ? `Advice: ${action.slice(7).replace(/_/g, ' ')}` : action);
 }

@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -58,11 +58,12 @@ function int(a: Json, k: string, min: number, max: number, dflt: number): number
   return Math.max(min, Math.min(max, Math.trunc(v)));
 }
 
-export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|external\.(github|vercel|supabase|other))$/;
+export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|agent\.(retire|hire)|external\.(github|vercel|supabase|other))$/;
 const STATUSES = ['offline', 'idle', 'working', 'thinking', 'waiting_approval', 'walking', 'meeting'] as const;
 const NOTE_KINDS = ['lesson', 'rule', 'fact', 'preference', 'mistake'] as const;
 const NOTE_SOURCES = ['proposal_outcome', 'owner_feedback', 'self_review', 'order_veto', 'ci_result', 'other'] as const;
 const MSG_KINDS = ['message', 'reply', 'report', 'alert', 'challenge', 'reminder', 'brief'] as const;
+const MISTAKE_KINDS = ['wrong_proposal', 'duplicate', 'wrong_numbers', 'missed_deadline', 'ignored_order', 'other'] as const;
 const IDEA_STATUSES = ['open', 'triaged', 'approved', 'building', 'shipped', 'rejected', 'merged'] as const;
 const FILTER_OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'] as const;
 
@@ -174,6 +175,14 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
         p_spec: text(a, 'spec', 8000, false), p_estimate: text(a, 'estimate', 300, false), p_merge_into: uuid(a, 'merge_into', false),
       },
     };
+    case 'mistake': {
+      const who = a.agent;
+      if (typeof who !== 'string' || !/^[a-z][a-z0-9_]{1,30}$/.test(who)) throw new GatewayError('agent must be the slug of someone who reports to you');
+      const targetId = await lookup(who);
+      if (!targetId) throw new GatewayError('no agent called ' + who);
+      return { fn: 'crew_report_mistake', args: { p_agent: agentId, p_target: targetId, p_kind: oneOf(a, 'kind', MISTAKE_KINDS, 'other'), p_note: text(a, 'note', 1000), p_proposal: uuid(a, 'proposal_id', false) } };
+    }
+    case 'mistakes': return { fn: 'crew_team_mistakes', args: { p_agent: agentId } };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
     case 'report_done': return { fn: 'crew_report_done', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_result: obj(a, 'result', 8000) } };
     default: throw new GatewayError(`unknown operation (use one of: ${OPS.join(', ')})`, 404);
