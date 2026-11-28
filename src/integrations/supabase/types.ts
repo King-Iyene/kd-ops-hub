@@ -6029,6 +6029,8 @@ export type Database = {
           name: string
           office_x: number | null
           office_y: number | null
+          paused: boolean
+          paused_at: string | null
           reports_to: string | null
           retired_at: string | null
           retired_reason: string | null
@@ -6051,6 +6053,8 @@ export type Database = {
           name: string
           office_x?: number | null
           office_y?: number | null
+          paused?: boolean
+          paused_at?: string | null
           reports_to?: string | null
           retired_at?: string | null
           retired_reason?: string | null
@@ -6073,6 +6077,8 @@ export type Database = {
           name?: string
           office_x?: number | null
           office_y?: number | null
+          paused?: boolean
+          paused_at?: string | null
           reports_to?: string | null
           retired_at?: string | null
           retired_reason?: string | null
@@ -29859,6 +29865,10 @@ export type Database = {
         Returns: undefined
       }
       crew_set_office_viewers: { Args: { p_ids: string[] }; Returns: string[] }
+      crew_set_paused: {
+        Args: { p_agent: string; p_paused: boolean }
+        Returns: Json
+      }
       crew_signals: { Args: { p_agent: string }; Returns: Json }
       crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
       crew_team_mistakes: { Args: { p_agent: string }; Returns: Json }
