@@ -258,6 +258,8 @@ export function useRestoreSnapshot() {
             field_order: v.field_order,
             field_visibility: v.field_visibility,
             field_widths: v.field_widths,
+            row_height: v.row_height ?? null,
+            row_color_rules: v.row_color_rules ?? [],
             is_default: v.is_default,
             is_locked: v.is_locked,
             position: v.position,

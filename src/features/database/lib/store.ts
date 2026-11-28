@@ -59,6 +59,8 @@ interface DatabaseUIState {
     hiddenFieldIds?: Set<string>;
     fieldOrder?: string[];
     fieldWidths?: Record<string, number>;
+    rowHeight?: 'short' | 'medium' | 'tall' | 'extra-tall' | null;
+    rowColorRules?: RowColorRule[];
   }) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -203,9 +205,17 @@ export const useDatabaseUI = create<DatabaseUIState>()(
         hiddenFieldIds: viewConfig.hiddenFieldIds ?? new Set(),
         fieldOrder: viewConfig.fieldOrder ?? [],
         fieldWidths: viewConfig.fieldWidths ?? {},
+        rowColorRules: viewConfig.rowColorRules ?? [],
       } : {}),
     }));
-    void useDatabaseUI.persist.rehydrate();
+    // Layout kept in this browser is loaded next. What the view itself saved wins over it, so a view looks the same for everyone.
+    void useDatabaseUI.persist.rehydrate().then(() => {
+      if (!viewConfig || useDatabaseUI.getState().activeViewId !== id) return;
+      const saved: Partial<DatabaseUIState> = {};
+      if (viewConfig.rowHeight) saved.rowHeight = viewConfig.rowHeight;
+      if (viewConfig.fieldWidths && Object.keys(viewConfig.fieldWidths).length > 0) saved.fieldWidths = viewConfig.fieldWidths;
+      if (Object.keys(saved).length > 0) useDatabaseUI.setState(saved);
+    });
   },
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),

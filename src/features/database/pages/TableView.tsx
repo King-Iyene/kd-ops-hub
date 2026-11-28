@@ -170,6 +170,8 @@ export function TableView() {
   const updateView = useUpdateView();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const groupByLevels = useDatabaseUI((s) => s.groupByLevels);
+  const rowHeight = useDatabaseUI((s) => s.rowHeight);
+  const rowColorRules = useDatabaseUI((s) => s.rowColorRules);
 
   // Saving the view's settings must only happen when a person changed something.
   // The old effect saved once for every page load (the saved settings arriving in
@@ -194,6 +196,8 @@ export function TableView() {
       field_visibility: fieldVisibility,
       field_widths: fieldWidths,
       field_order: fieldOrder,
+      row_height: rowHeight,
+      row_color_rules: rowColorRules,
     };
     const sig = JSON.stringify(updates);
 
@@ -207,6 +211,9 @@ export function TableView() {
         field_visibility: saved.field_visibility ?? {},
         field_widths: saved.field_widths ?? {},
         field_order: saved.field_order ?? [],
+        // A view that never chose a row height is not "different" from the screen default.
+        row_height: saved.row_height ?? rowHeight,
+        row_color_rules: saved.row_color_rules ?? [],
       });
       if (sig === savedSig) {
         baselineSigRef.current = sig;
@@ -226,7 +233,7 @@ export function TableView() {
       updateView.mutate({ id: activeViewId, table_id: activeTableId, updates });
     }, 2000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, activeViewId, activeTableId, updateView, activeView]);
+  }, [filters, sorts, groupByLevels, hiddenFieldIds, fieldWidths, fieldOrder, rowHeight, rowColorRules, activeViewId, activeTableId, updateView, activeView]);
 
   // The table opens with no filters in the store and learns the default view's saved filters and sorts a
   // moment later. Asking for rows in between wasted a request on the wrong filters and showed rows that then
