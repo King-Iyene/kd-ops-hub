@@ -187,6 +187,35 @@ describe('crew gateway: meetings', () => {
   });
 });
 
+describe('crew gateway: visitors (people the owner let in, who are not the owner)', () => {
+  const PERSON = '55555555-5555-4555-8555-555555555555';
+
+  it('reads visitor questions as the authenticated agent only; they are not in the inbox', async () => {
+    expect(await run('visitor_questions', { p_agent: TABLE })).toEqual({ fn: 'crew_viewer_questions', args: { p_agent: AGENT } });
+    expect(await run('inbox')).toMatchObject({ fn: 'crew_inbox' });
+  });
+
+  it('message with to_profile is a short reply for that person only, never for the owner or a colleague', async () => {
+    expect(await run('message', { to_profile: PERSON, body: 'Cash is fine; ask the owner for details.', kind: 'alert' })).toEqual({
+      fn: 'crew_post_message',
+      args: { p_agent: AGENT, p_to_agent: null, p_body: 'Cash is fine; ask the owner for details.', p_kind: 'reply', p_ref_proposal: null, p_ref_order: null, p_to_profile: PERSON },
+    });
+    expect(await run('message', { to_profile: PERSON.toUpperCase(), body: 'ok' })).toMatchObject({ args: { p_to_profile: PERSON } });
+    await expect(run('message', { to_profile: 'not-an-id', body: 'x' })).rejects.toThrow('must be an id');
+    await expect(run('message', { to_profile: PERSON, to: 'cfo', body: 'x' })).rejects.toThrow('cannot be combined');
+    await expect(run('message', { to_profile: PERSON, to: 'owner', body: 'x' })).rejects.toThrow('cannot be combined');
+    await expect(run('message', { to_profile: PERSON, body: 'x', ref_proposal: TABLE })).rejects.toThrow('cannot refer to a proposal');
+    await expect(run('message', { to_profile: PERSON, body: 'x', ref_order: TABLE })).rejects.toThrow('cannot refer to an order');
+    await expect(run('message', { to_profile: PERSON })).rejects.toThrow('body is required');
+    await expect(run('message', { to_profile: PERSON, body: 'x'.repeat(2001) })).rejects.toThrow('too long');
+  });
+
+  it('a message without to_profile works as before (to the owner by default)', async () => {
+    expect(await run('message', { body: 'hello' })).toMatchObject({ args: { p_to_agent: null, p_kind: 'message' } });
+    expect(((await run('message', { body: 'hello' })) as { args: Record<string, unknown> }).args).not.toHaveProperty('p_to_profile');
+  });
+});
+
 describe('crew gateway: errors, limits, tokens', () => {
   it('shows the agent only our own refusals', () => {
     expect(describeDbError({ code: 'P0001', message: 'this agent may not write to that base' })).toEqual({ status: 400, message: 'this agent may not write to that base' });

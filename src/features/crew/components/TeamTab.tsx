@@ -8,6 +8,7 @@ import { useCrewAgents, useCrewNotes, useCrewPrivate, useCrewRuns, useIssueToken
 import { buildOrgTree, type OrgNode } from '../orgChart';
 import { Avatar, StatusDot } from './shared';
 import { CliqSettings } from './CliqSettings';
+import { PauseToggle } from './PauseToggle';
 import { OfficeViewers } from './OfficeViewers';
 import { DaemonKeys } from './DaemonKeys';
 import { ago } from '../helpers';
@@ -57,6 +58,7 @@ function Detail({ agent }: { agent: CrewAgent }) {
           {agent.activity ? <span className="ml-2 text-xs text-muted-foreground">{agent.activity}</span> : null}
         </div>
       </div>
+      <PauseToggle agentId={agent.id} name={agent.name} />
       {p ? (
         <div className="grid gap-2 text-xs sm:grid-cols-3">
           <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground">Brain</div>{p.model}{p.advisor_model ? ` (advisor ${p.advisor_model})` : ''}</div>
