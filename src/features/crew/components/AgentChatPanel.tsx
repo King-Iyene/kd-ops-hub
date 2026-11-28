@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Mic, MicOff, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { useCrewAgents, useCrewMessages, useSay } from '../useCrew';
+import { useCrewAgents, useCrewMessages, useMarkRead, useSay } from '../useCrew';
 import { canListen, listen, micProblem } from '../voice';
 import { StatusDot } from './shared';
 import { AvatarFace } from '@/features/office/AvatarFace';
@@ -20,6 +20,7 @@ export function AgentChatPanel({ agentId, onClose, embedded = false, onBack }: {
   const agents = useCrewAgents();
   const messages = useCrewMessages();
   const say = useSay();
+  const markRead = useMarkRead();
   const [body, setBody] = useState('');
   const [listening, setListening] = useState(false);
   const [stop, setStop] = useState<(() => void) | null>(null);
@@ -32,6 +33,11 @@ export function AgentChatPanel({ agentId, onClose, embedded = false, onBack }: {
       .slice(-30),
     [messages.data, agentId],
   );
+
+  // reading the conversation clears its unread mark
+  const unreadIds = thread.filter((m) => m.from_agent === agentId && !m.read_at).map((m) => m.id).join(",");
+  useEffect(() => { if (unreadIds) markRead.mutate(unreadIds.split(",")); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unreadIds]);
 
   if (!agent) return null;
 

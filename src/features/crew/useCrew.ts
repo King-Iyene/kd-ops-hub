@@ -157,6 +157,20 @@ export function useSetOfficeViewers() {
   return useSupabaseMutation<string[], string[]>((ids) => cdb.rpc('crew_set_office_viewers', { p_ids: ids }) as never, { onSuccess: refresh });
 }
 
+/** The owner's inbox, polled; shared with the Messages tab through the same query key. `enabled` is false for everyone but the owner (no queries are made). */
+export function useCrewInbox(enabled: boolean) {
+  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150) as never, { enabled, staleTime: 10_000, refetchInterval: 20_000 });
+}
+
+/** What is waiting on the owner: messages from the executives he has not read, and proposals to decide. */
+export function useCrewAttention(enabled: boolean) {
+  const inbox = useCrewInbox(enabled);
+  const waiting = useSupabaseQuery<CrewProposal[]>(k.proposals('waiting'), () => cdb.from('crew_proposals').select('*').in('status', GROUPS.waiting).order('created_at', { ascending: true }).limit(200) as never, { enabled, staleTime: 10_000, refetchInterval: 20_000 });
+  const unread = (inbox.data ?? []).filter((m) => m.to_owner && !m.read_at && m.from_agent !== null);
+  const waitingCount = (waiting.data ?? []).length;
+  return { unread, unreadCount: unread.length, waitingCount, total: unread.length + waitingCount };
+}
+
 export function useCrewMistakes(agentId: string | null) {
   return useSupabaseQuery<CrewMistake[]>([...KEY, 'mistakes', agentId ?? ''], () => cdb.from('crew_mistakes').select('*').eq('agent_id', agentId!).order('created_at', { ascending: false }).limit(20) as never, { enabled: !!agentId, staleTime: 20_000 });
 }

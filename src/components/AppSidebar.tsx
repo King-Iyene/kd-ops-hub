@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import { useCrewAttention } from '@/features/crew/useCrew';
 import { BrandLogo } from '@/components/BrandLogo';
 import { TaskSidebarNav } from '@/components/TaskSidebarNav';
 import { OpsAgentSidebarNav } from '@/components/OpsAgentSidebarNav';
@@ -75,6 +76,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
+  const crewWaiting = useCrewAttention(profile?.role === 'super_admin').total;
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
   useEffect(() => {
@@ -133,11 +135,12 @@ export function AppSidebar() {
       for (const item of hubNavItems) {
         if (item.badge === 'approvals' && approvalTotal > 0) total += approvalTotal;
         if (item.badge === 'anomalies' && anomalyOpenCount > 0) { total += anomalyOpenCount; hasAnomaly = true; }
+        if (item.badge === 'crew' && crewWaiting > 0) total += crewWaiting;
       }
       counts[hub.key] = { total, hasAnomaly };
     }
     return counts;
-  }, [navItems, approvalTotal, anomalyOpenCount]);
+  }, [navItems, approvalTotal, anomalyOpenCount, crewWaiting]);
 
   // ─── Active hub ────────────────────────────────────────────────────────────
   const [activeHub, setActiveHub] = useState<string | null>(null);
@@ -187,7 +190,8 @@ export function AppSidebar() {
         (item.url !== '/' && location.pathname.startsWith(item.url));
     const badgeCount =
       item.badge === 'approvals' ? approvalTotal :
-      item.badge === 'anomalies' ? anomalyOpenCount : 0;
+      item.badge === 'anomalies' ? anomalyOpenCount :
+      item.badge === 'crew' ? crewWaiting : 0;
     const showBadge = badgeCount > 0;
     const badgeTone = item.badge === 'anomalies'
       ? 'bg-destructive/90 text-white'
@@ -255,7 +259,7 @@ export function AppSidebar() {
         </SidebarMenuButton>
       </SidebarMenuItem>
     );
-  }, [navItems, location.pathname, approvalTotal, anomalyOpenCount, sidebarCollapsed]);
+  }, [navItems, location.pathname, approvalTotal, anomalyOpenCount, crewWaiting, sidebarCollapsed]);
 
   const ungroupedItems = navItems.filter((n) => UNGROUPED_TITLES.includes(n.title));
 

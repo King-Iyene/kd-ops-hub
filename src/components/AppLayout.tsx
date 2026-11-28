@@ -12,6 +12,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { ChatWidget } from '@/components/ChatWidget';
+import { CrewNotifier } from '@/features/crew/CrewNotifier';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { Outlet, useLocation } from 'react-router-dom';
 import { NewTaskButton } from '@/features/task-module/NewTaskDialog';
@@ -258,6 +259,7 @@ export default function AppLayout() {
       <KeyboardShortcuts />
       <MobileNav />
       <ChatWidget />
+      <CrewNotifier />
       <ScrollToTop />
       <div className="h-14 md:hidden" />
     </div>

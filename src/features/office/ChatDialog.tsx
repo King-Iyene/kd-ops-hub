@@ -90,7 +90,7 @@ const dayLabel = (iso: string) => {
  */
 export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onConv, msgs, unread, isAdmin, loading, onRead, onSend, onDelete, onReact, reactions, lastRead, agents, agentId, onAgentId, renderAgent }: {
   /** the owner's AI executives, listed under the people; picking one shows their conversation (the owner only: leave out for everyone else) */
-  agents?: { id: string; name: string; title: string; avatar: AvatarStyle; status: string }[];
+  agents?: { id: string; name: string; title: string; avatar: AvatarStyle; status: string; unread?: number }[];
   agentId?: string | null;
   onAgentId?: (id: string | null) => void;
   renderAgent?: (id: string, onBack: () => void) => ReactNode;
@@ -276,6 +276,7 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
                       <span className="block truncate text-[13px] font-semibold">{a.name.split(' ')[0]}</span>
                       <span className="block truncate text-[11.5px] text-muted-foreground">{a.title}</span>
                     </span>
+                    {(a.unread ?? 0) > 0 && <span className="shrink-0 rounded-full bg-[#D6AC50] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2a1c00]">{a.unread}</span>}
                   </button>
                 ))}
               </>

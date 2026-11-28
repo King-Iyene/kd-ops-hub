@@ -75,7 +75,7 @@ import { defaultAvatar, officeInfo } from './world/render';
 import { withWingFurniture } from './world/wing';
 import { agentAvatar, type AgentInfo } from './world/agents';
 import { AgentProfileDialog } from './AgentProfile';
-import { useCrewAgents } from '@/features/crew/useCrew';
+import { useCrewAgents, useCrewAttention } from '@/features/crew/useCrew';
 import { AgentChatPanel } from '@/features/crew/components/AgentChatPanel';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
 import { cleanZones } from './world/clock';
@@ -711,7 +711,8 @@ function OfficeRoom() {
   const openChat = (c: string) => { setAgentChat(null); setConv(c); setChatOpen(true); };
   // clicking one of the executives in the Office opens the Chat window on their conversation (the owner only)
   useEffect(() => { if (agentChat && isSuper) setChatOpen(true); }, [agentChat, isSuper]);
-  const chatAgents = useMemo(() => (isSuper ? agentInfos.map((a) => ({ id: a.id, name: a.name, title: a.title, status: a.status, avatar: agentAvatar(a) })) : undefined), [agentInfos, isSuper]);
+  const crewAttention = useCrewAttention(isSuper);
+  const chatAgents = useMemo(() => (isSuper ? agentInfos.map((a) => ({ id: a.id, name: a.name, title: a.title, status: a.status, avatar: agentAvatar(a), unread: crewAttention.unread.filter((m) => m.from_agent === a.id).length })) : undefined), [agentInfos, isSuper, crewAttention.unread]);
   const chatCtx = useRef({ open: false, conv: ALL });
   chatCtx.current = { open: chatOpen, conv };
   const onChatIncoming = (m: ChatMsg) => {
