@@ -6,7 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useCrewAgents, useCrewMessages, useSay } from '../useCrew';
 import { canListen, listen, micProblem } from '../voice';
-import { Avatar, StatusDot } from './shared';
+import { StatusDot } from './shared';
+import { AvatarFace } from '@/features/office/AvatarFace';
+import { agentAvatar } from '@/features/office/world/agents';
 import { ago } from '../helpers';
 
 /**
@@ -50,7 +52,7 @@ export function AgentChatPanel({ agentId, onClose, embedded = false, onBack }: {
     <div className={embedded ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'fixed bottom-4 right-4 z-40 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-xl'} role={embedded ? undefined : 'dialog'} aria-label={`Chat with ${agent.name}`}>
       <div className="flex items-center gap-3 border-b p-3">
         {embedded && onBack ? <button type="button" onClick={onBack} aria-label="Back to conversations" className="rounded p-1 text-muted-foreground hover:bg-muted sm:hidden">←</button> : null}
-        <Avatar agent={agent} size={36} />
+        <AvatarFace avatar={agentAvatar(agent)} size={40} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{agent.name.split(' ')[0]}</div>
           <div className="truncate text-xs text-muted-foreground">{agent.title}</div>

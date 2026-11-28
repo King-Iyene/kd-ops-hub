@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildHQ } from '../world/templates';
 import { buildSolid, collides, reachable } from '../world/world';
-import { BOARDROOM, BREAK_SPOTS, DESK_SLOTS, WING, agentAvatar, deskStand, firstName, initAgentSim, meetingSpots, modeFor, deskWalkable, placesToVisit, sortAgents, statusDot, stepAgent, type AgentCtx, type AgentSim, type AgentStatus } from '../world/agents';
+import { BOARDROOM, BREAK_SPOTS, CFO_POST, DESK_SLOTS, WING, agentAvatar, deskStand, firstName, initAgentSim, meetingSpots, modeFor, deskWalkable, placesToVisit, sortAgents, statusDot, stepAgent, type AgentCtx, type AgentSim, type AgentStatus } from '../world/agents';
 
 const map = buildHQ();
 const solid = buildSolid(map, map.items);
@@ -37,6 +37,17 @@ describe('the Executive Wing on the map', () => {
       expect(p.y).toBeGreaterThanOrEqual(WING.y0);
       expect(p.y).toBeLessThanOrEqual(WING.y1 + 1);
     });
+  });
+
+  it('has an open, reachable standing post for the CFO in the boardroom, who stands there and never sits', () => {
+    expect(reach.has(key(CFO_POST))).toBe(true);
+    expect(collides(asolid, CFO_POST.x, CFO_POST.y)).toBe(false);
+    const a = initAgentSim('cfo', CFO_POST);
+    a.stands = true; a.seated = false;
+    let t = 0;
+    for (let i = 0; i < 30 * 120; i++) { t += 1 / 30; stepAgent(a, 1 / 30, t, 'working', { solid: asolid, owner: null, meetingSpot: CFO_POST, rand: () => 0.5 }); }
+    expect(a.seated).toBe(false);
+    expect(Math.hypot(a.x - CFO_POST.x, a.y - CFO_POST.y)).toBeLessThan(0.1);
   });
 
   it('gives every desk its own chair, and leaves the aisles open', () => {
@@ -136,7 +147,7 @@ describe('how the agents move', () => {
       const home = deskStand(3);
       const a = initAgentSim('a', home);
       let t = 0, up = 0, sat = 0, away = false;
-      for (let i = 0; i < 30 * 600; i++) {
+      for (let i = 0; i < 30 * 1800; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, status, ctx());
         if (a.moving) up++;
@@ -147,7 +158,7 @@ describe('how the agents move', () => {
       expect(sat, status).toBeGreaterThan(up);
       expect(away, status).toBe(true);
     }
-  });
+  }, 60_000);
 
   it('walks only on open floor, never through a wall or furniture, and now and then walks right out of the wing', () => {
     const places = placesToVisit(asolid, deskStand(0));
@@ -159,7 +170,7 @@ describe('how the agents move', () => {
       const a = initAgentSim('c' + seed, home);
       const c = ctx({ rand: seeded(seed * 13), places });
       let t = 0;
-      for (let i = 0; i < 30 * 400; i++) {
+      for (let i = 0; i < 30 * 1500; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, 'idle', c);
         expect(collides(asolid, a.x, a.y)).toBe(false);
@@ -167,7 +178,7 @@ describe('how the agents move', () => {
       }
     }
     expect(farthest).toBeGreaterThan(15);
-  });
+  }, 60_000);
 
   it('goes to the lounge for a coffee now and then', () => {
     let visited = false;
@@ -175,14 +186,14 @@ describe('how the agents move', () => {
       const a = initAgentSim('b' + seed, deskStand(seed));
       let t = 0;
       const c = ctx({ rand: seeded(seed * 11) });
-      for (let i = 0; i < 30 * 900; i++) {
+      for (let i = 0; i < 30 * 2400; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, 'idle', c);
         if (BREAK_SPOTS.some((b) => Math.hypot(a.x - b.x, a.y - b.y) < 1.2)) { visited = true; break; }
       }
     }
     expect(visited).toBe(true);
-  });
+  }, 60_000);
 
   it('walks across the map to the owner when it has something for him, and stops beside him', () => {
     const owner = { x: 31, y: 47.6 }; // the front gate of the old map

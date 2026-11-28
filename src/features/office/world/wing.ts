@@ -30,3 +30,6 @@ export function inWing(p: { x: number; y: number }): boolean {
 export function withWingFurniture<T extends { x: number; y: number }>(saved: T[], fromBuilding: T[]): T[] {
   return [...saved.filter((i) => !inWing(i)), ...fromBuilding.filter(inWing)];
 }
+
+/** Where the CFO stands: in the agents' boardroom, close to the wing, on his feet (he has no desk). */
+export const CFO_POST = { x: 49.5, y: 26.5 };
