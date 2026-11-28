@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/authStore';
+import { cdb } from './crewDb';
 import { useCrewAgents, useCrewAttention } from './useCrew';
 
 /** A soft two-note chime (no sound file, no service). Silent if the browser has not allowed sound yet. */
@@ -49,6 +50,15 @@ export function CrewNotifier() {
     toast({ title: fresh.length > 1 ? `${who} and ${fresh.length - 1} more wrote to you` : `${who} wrote to you`, description: m.body.length > 110 ? m.body.slice(0, 110) + '…' : m.body });
     chime();
   }, [attention.unread, agents.data, isSuper, toast]);
+
+  // "online" for the executives: the owner has the app open and visible. They only watch the system for events while this beats.
+  useEffect(() => {
+    if (!isSuper) return;
+    const ping = () => { if (document.visibilityState === 'visible') void Promise.resolve(cdb.rpc('crew_owner_ping')).then(() => undefined, () => undefined); };
+    ping();
+    const t = window.setInterval(ping, 120_000);
+    return () => window.clearInterval(t);
+  }, [isSuper]);
 
   return null;
 }

@@ -98,7 +98,7 @@ const SUIT_SHOES = { shoes: 1, shoeColor: '#111827' };
  * the same person at the same desk. (An agent that is not in the table gets a look made from its name.)
  */
 const LOOKS: Record<string, Look> = {
-  cfo: { skin: '#5b3a29', hair: '#0b0b0b', hairStyle: 0, beard: 1, outfit: 2, jacket: 1, jacketColor: '#0f2a4a', inner: '#f8fafc', tie: 1, tieColor: '#991b1b', glasses: 1, pants: '#0b1220', shoes: 1, shoeColor: '#3b1d0e' },
+  cfo: { skin: '#5b3a29', hair: '#0b0b0b', hairStyle: 0, beard: 1, outfit: 2, jacket: 1, jacketColor: '#0a0a10', inner: '#ffffff', tie: 1, tieColor: '#d4af37', glasses: 1, pants: '#0a0a10', shoes: 1, shoeColor: '#000000' },
   finance_head: { skin: '#e0ac69', hair: '#6b4423', hairStyle: 0, beard: 0, outfit: 2, jacket: 1, jacketColor: '#374151', inner: '#e0f2fe', tie: 1, tieColor: '#0e7490', glasses: 0, pants: '#1f2937', ...SUIT_SHOES },
   controller: { skin: '#c68642', hair: '#6b7280', hairStyle: 3, beard: 3, outfit: 2, jacket: 4, jacketColor: '#78350f', inner: '#f1f5f9', tie: 2, tieColor: '#7f1d1d', glasses: 1, pants: '#292524', ...SUIT_SHOES },
   treasury: { skin: '#8d5524', hair: '#111827', hairStyle: 8, beard: 0, outfit: 2, jacket: 1, jacketColor: '#7f1d1d', inner: '#fafaf9', tie: 0, glasses: 0, extra: 2, pants: '#1c1917', ...SUIT_SHOES },
