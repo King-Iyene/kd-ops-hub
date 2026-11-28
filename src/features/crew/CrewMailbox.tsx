@@ -16,6 +16,7 @@ import { ago } from './helpers';
 import { OrdersTab } from './components/OrdersTab';
 import { ChannelTab } from './components/ChannelTab';
 import { HandoffsTab } from './components/HandoffsTab';
+import { MeetingsTab } from './components/MeetingsTab';
 
 export const OPEN_MAILBOX = 'crew-open-mailbox';
 
@@ -287,7 +288,7 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
   const agents = useCrewAgents();
   const inbox = useCrewInbox(true);
   const waiting = useCrewProposals('waiting');
-  const [tab, setTab] = useState<'todo' | 'agents' | 'orders' | 'team' | 'handoffs'>('todo');
+  const [tab, setTab] = useState<'todo' | 'agents' | 'orders' | 'team' | 'handoffs' | 'meetings'>('todo');
   const orders = useCrewOrders();
   const challenged = (orders.data ?? []).filter((o) => o.status === 'challenged').length;
   const [filter, setFilter] = useState<Filter>('all');
@@ -349,7 +350,7 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
             ))}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {([['todo', `To-Do (${total})`], ['agents', `Agents (${active.length})`], ['orders', challenged ? `Orders (${challenged} challenged)` : 'Orders'], ['handoffs', 'Hand-offs'], ['team', 'Team channel']] as const).map(([k, label]) => (
+            {([['todo', `To-Do (${total})`], ['agents', `Agents (${active.length})`], ['orders', challenged ? `Orders (${challenged} challenged)` : 'Orders'], ['meetings', 'Meetings'], ['handoffs', 'Hand-offs'], ['team', 'Team channel']] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-bold transition', tab === k ? 'bg-amber-400 text-slate-900' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}>{label}</button>
             ))}
           </div>
@@ -384,6 +385,8 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
             </div>
           ) : tab === 'orders' ? (
             <div className="rounded-xl bg-background p-3 text-foreground"><OrdersTab /></div>
+          ) : tab === 'meetings' ? (
+            <MeetingsTab />
           ) : tab === 'handoffs' ? (
             <HandoffsTab />
           ) : tab === 'team' ? (
