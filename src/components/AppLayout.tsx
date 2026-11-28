@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { CrewMailbox } from '@/features/crew/CrewMailbox';
 import { DesktopAgentHeaderButton } from '@/features/timetrack/pages/activity/shared';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { inDesktopApp } from '@/features/office/desktopApp';
@@ -231,6 +232,7 @@ export default function AppLayout() {
                 </kbd>
               </button>
               {location.pathname.startsWith('/timetrack') && <DesktopAgentHeaderButton />}
+              <CrewMailbox />
               <NotificationBell />
               <ThemeToggle />
               <div className="hidden sm:block w-px h-4 bg-border/60" />
