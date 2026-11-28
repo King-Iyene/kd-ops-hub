@@ -132,7 +132,7 @@ function body(ctx: Ctx, L: Look, dir: number, step: number, seated: boolean, typ
   // ---- torso
   const shoulderHalf = side ? 4.3 : 7.8;
   const waistHalf = side ? 4 : 6;
-  const torsoBottom = dress ? HIP + 10 : HIP + 1.5;
+  const torsoBottom = seated ? HIP + 3 : dress ? HIP + 10 : HIP + 1.5;
   const tg = ctx.createLinearGradient(-shoulderHalf, 0, shoulderHalf, 0);
   tg.addColorStop(0, lighter(top, 0.12)); tg.addColorStop(0.55, top); tg.addColorStop(1, darker(top, 0.28));
   ctx.fillStyle = tg;
@@ -148,7 +148,7 @@ function body(ctx: Ctx, L: Look, dir: number, step: number, seated: boolean, typ
   // a soft highlight down the shoulder, and a hem line
   ctx.fillStyle = 'rgba(255,255,255,0.10)';
   ctx.fillRect(-shoulderHalf + 1.2, SHOULDER, 1.6, 9);
-  if (dress) {
+  if (dress && !seated) {
     // a skirt that flares a little to the knee
     const sk = ctx.createLinearGradient(-8, 0, 8, 0);
     sk.addColorStop(0, lighter(top, 0.08)); sk.addColorStop(1, darker(top, 0.3));
@@ -216,6 +216,24 @@ function body(ctx: Ctx, L: Look, dir: number, step: number, seated: boolean, typ
   if (!side) { drawArm(-shoulderHalf - 1.2, -swing * 0.8, true); drawArm(shoulderHalf + 1.2, swing * 0.8, true); }
   else drawArm(dir === 2 ? 1.2 : -1.2, swing * 0.8, true);
 
+  if (back) {
+    // from behind: the collar, the shoulder seams and a belt line
+    ctx.fillStyle = darker(top, 0.22);
+    rrect(ctx, -3.8, SHOULDER - 1.4, 7.6, 2.4, 1); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(-shoulderHalf + 1, SHOULDER + 1.2); ctx.lineTo(-3.8, SHOULDER - 0.6); ctx.moveTo(shoulderHalf - 1, SHOULDER + 1.2); ctx.lineTo(3.8, SHOULDER - 0.6); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(-shoulderHalf + 2, SHOULDER + 2, 3, 8); ctx.fillRect(shoulderHalf - 5, SHOULDER + 2, 3, 8);
+    if (!dress) { ctx.fillStyle = darker(top, 0.35); ctx.fillRect(-waistHalf, torsoBottom - 2.4, waistHalf * 2, 1.2); }
+  }
+  if (seated) {
+    // the chair back, between the viewer and the person: it hides the lower back and the hips, so they read as sitting in it
+    const cb = ctx.createLinearGradient(-9, 0, 9, 0);
+    cb.addColorStop(0, '#324158'); cb.addColorStop(0.5, '#1d2738'); cb.addColorStop(1, '#10161f');
+    ctx.fillStyle = cb;
+    rrect(ctx, -9.2, SHOULDER + 5.2, 18.4, 13.6, 3.4); ctx.fill();
+    ctx.fillStyle = 'rgba(125,211,252,0.35)'; ctx.fillRect(-7.2, SHOULDER + 5.8, 14.4, 0.9);
+    ctx.fillStyle = '#0b1019'; ctx.fillRect(-1.2, SHOULDER + 18.4, 2.4, 3);
+  }
   // ---- neck
   ctx.fillStyle = darker(L.skin, 0.12);
   ctx.fillRect(-1.8, NECK - 1.2, 3.6, 3.4);
@@ -230,6 +248,10 @@ function hair(ctx: Ctx, L: Look, dir: number) {
   const g = ctx.createLinearGradient(cx - 5, cy - 6, cx + 5, cy + 4);
   g.addColorStop(0, lighter(h, 0.2)); g.addColorStop(0.5, h); g.addColorStop(1, darker(h, 0.25));
   ctx.fillStyle = g;
+  if (back && L.hairStyle !== 3) {
+    ctx.beginPath(); ctx.ellipse(cx, cy - 0.2, HEAD_RX + 0.5, HEAD_RY + 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    if (L.hairStyle === 1 || L.hairStyle === 8) { rrect(ctx, cx - HEAD_RX - 1.2, cy - 1, HEAD_RX * 2 + 2.4, L.hairStyle === 1 ? 12.5 : 7.6, 2); ctx.fill(); }
+  }
   const cap = (r = 1) => { ctx.beginPath(); ctx.ellipse(cx, cy - 1.3, HEAD_RX + 0.7 * r, HEAD_RY + 0.3, 0, Math.PI, 0); ctx.closePath(); ctx.fill(); };
   switch (L.hairStyle) {
     case 3: break; // none
@@ -263,7 +285,7 @@ function head(ctx: Ctx, L: Look, dir: number, typing: boolean, t: number) {
   ctx.save();
   if (side) ctx.scale(fx, 1);
   // hair behind the head (long styles)
-  if (L.hairStyle === 1 || L.hairStyle === 8 || L.hairStyle === 7) hair(ctx, L, dir);
+  if (!back && (L.hairStyle === 1 || L.hairStyle === 8 || L.hairStyle === 7)) hair(ctx, L, dir);
   // ears
   if (!back) { ell(ctx, -HEAD_RX - 0.2, HEAD_Y + 0.6, 0.9, 1.5, L.skinShade); ell(ctx, HEAD_RX + 0.2, HEAD_Y + 0.6, 0.9, 1.5, L.skinShade); }
   // the head, lit from the upper left
@@ -304,7 +326,7 @@ function head(ctx: Ctx, L: Look, dir: number, typing: boolean, t: number) {
     // earrings
     if (L.extra === 2) for (const ex of side ? [-HEAD_RX] : [-HEAD_RX - 0.2, HEAD_RX + 0.2]) ell(ctx, ex, HEAD_Y + 2.4, 0.9, 0.9, '#d6ac50');
   }
-  if (L.hairStyle !== 1 && L.hairStyle !== 8 && L.hairStyle !== 7) hair(ctx, L, dir);
+  if (back || (L.hairStyle !== 1 && L.hairStyle !== 8 && L.hairStyle !== 7)) hair(ctx, L, dir);
   else if (!back) {
     // the fringe of a long style in front
     ctx.fillStyle = L.hair.startsWith('#') ? L.hair : '#222222';
@@ -330,7 +352,7 @@ export function drawExecutive(ctx: Ctx, p: ExecutiveFigure, t: number, dark: boo
   const phase = p.moving ? t / 135 : 0;
   const step = p.moving && !p.seated ? Math.sin(phase) : 0;
   const bob = p.moving && !p.seated ? -Math.abs(Math.cos(phase)) * 1.1 : p.seated ? 0 : Math.sin(t / 900) * 0.3;
-  const seatedDrop = p.seated ? 7 : 0;
+  const seatedDrop = p.seated ? 9 : 0;
 
   // ground shadow and a soft cool light under the feet (the sci-fi touch)
   if (!p.seated) {
