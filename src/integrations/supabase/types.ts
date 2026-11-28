@@ -6119,6 +6119,62 @@ export type Database = {
         }
         Relationships: []
       }
+      crew_app_write_sources: {
+        Row: {
+          cols: Json
+          create_fixed: Json
+          delete_where: string | null
+          edit_where: string
+          natural_key: string[]
+          ops: string[]
+          relation: string
+          roles: string[]
+          rules: string
+          soft: Json | null
+          source: string
+          stamp_created_by: string | null
+          stamp_note: string | null
+        }
+        Insert: {
+          cols: Json
+          create_fixed?: Json
+          delete_where?: string | null
+          edit_where?: string
+          natural_key?: string[]
+          ops: string[]
+          relation: string
+          roles: string[]
+          rules?: string
+          soft?: Json | null
+          source: string
+          stamp_created_by?: string | null
+          stamp_note?: string | null
+        }
+        Update: {
+          cols?: Json
+          create_fixed?: Json
+          delete_where?: string | null
+          edit_where?: string
+          natural_key?: string[]
+          ops?: string[]
+          relation?: string
+          roles?: string[]
+          rules?: string
+          soft?: Json | null
+          source?: string
+          stamp_created_by?: string | null
+          stamp_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_app_write_sources_source_fkey"
+            columns: ["source"]
+            isOneToOne: true
+            referencedRelation: "crew_app_sources"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
       crew_cliq_posts: {
         Row: {
           agent_id: string
@@ -29660,6 +29716,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crew_app_check_duplicate: {
+        Args: { p_record: string; p_source: string; p_values: Json }
+        Returns: undefined
+      }
+      crew_app_check_values: {
+        Args: { p_op: string; p_source: string; p_values: Json }
+        Returns: Json
+      }
+      crew_app_live_sql: { Args: { p_soft: Json }; Returns: string }
+      crew_app_preview: { Args: { p_proposal: string }; Returns: Json }
+      crew_app_schema: {
+        Args: { p_agent: string; p_source?: string }
+        Returns: Json
+      }
       crew_begin_run: {
         Args: { p_agent: string; p_kind?: string }
         Returns: Json
@@ -29789,6 +29859,10 @@ export type Database = {
         Returns: Json
       }
       crew_execute_agent: {
+        Args: { p_by: string; p_proposal: string }
+        Returns: Json
+      }
+      crew_execute_app: {
         Args: { p_by: string; p_proposal: string }
         Returns: Json
       }
