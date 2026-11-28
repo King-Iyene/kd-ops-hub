@@ -65,7 +65,7 @@ jobs:
             desktop-office/release/latest*.yml
             desktop-office/release/*.blockmap
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
   # Publishing is the step that was forgotten before: installed apps only update from the "kd-ops-desktop-channel" release, so a build that was
   # never put there left every employee on the old version until they reinstalled. Tick "publish" when running the workflow and it does it:
