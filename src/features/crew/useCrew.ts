@@ -132,6 +132,9 @@ export function useAddIdea() {
   const refresh = useRefresh();
   return useSupabaseMutation<string, { title: string; problem: string; proposal: string }>(
     (v) => cdb.rpc('crew_idea_owner_add', { p_title: v.title.trim(), p_problem: v.problem.trim(), p_proposal: v.proposal.trim() }) as never,
+    { onSuccess: refresh },
+  );
+}
 
 export function useCrewSettings() {
   return useSupabaseQuery<CrewSettings>([...KEY, 'settings'], () => cdb.from('crew_settings').select('*').eq('id', true).single() as never, { staleTime: 30_000 });

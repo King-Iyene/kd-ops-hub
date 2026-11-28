@@ -42,7 +42,7 @@ export function meetingSpots(solid: boolean[][], n: number): { x: number; y: num
 
 const GENDER: Record<string, 'female' | 'male'> = {
   cfo: 'female', finance_head: 'male', controller: 'male', treasury: 'female', payroll: 'female', revenue: 'male', fpa: 'female',
-  ops_head: 'male', tasks_head: 'male', compliance_head: 'female', product_head: 'female', marketing_head: 'female', engineering_head: 'male', ndi_head: 'female',
+  ops_head: 'male', tasks_head: 'male', people_head: 'female', compliance_head: 'female', product_head: 'female', marketing_head: 'female', engineering_head: 'male', ndi_head: 'female',
 };
 
 /** A professional look, the same for everyone who sees it: a person-like default for the name, in the agent's colour, a blazer for the heads. */
