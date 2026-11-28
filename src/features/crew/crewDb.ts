@@ -127,3 +127,6 @@ export interface CrewIdea {
   owner_note: string | null;
   created_at: string;
 }
+
+export interface CrewSettings { id: true; cliq_enabled: boolean; cliq_connection_id: string | null; notify_profile_id: string | null; notify_kinds: MessageKind[]; updated_at: string }
+export interface CliqConnection { id: string; name: string; kind: string; config: { channel?: string } }

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CrewIdea, type CrewAgent, type CrewAgentPrivate, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
+import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -132,6 +132,19 @@ export function useAddIdea() {
   const refresh = useRefresh();
   return useSupabaseMutation<string, { title: string; problem: string; proposal: string }>(
     (v) => cdb.rpc('crew_idea_owner_add', { p_title: v.title.trim(), p_problem: v.problem.trim(), p_proposal: v.proposal.trim() }) as never,
+
+export function useCrewSettings() {
+  return useSupabaseQuery<CrewSettings>([...KEY, 'settings'], () => cdb.from('crew_settings').select('*').eq('id', true).single() as never, { staleTime: 30_000 });
+}
+
+export function useCliqConnections() {
+  return useSupabaseQuery<CliqConnection[]>([...KEY, 'cliq-connections'], () => cdb.from('agent_connections').select('id, name, kind, config').eq('kind', 'cliq').order('name') as never, { staleTime: 60_000 });
+}
+
+export function useSaveCrewSettings() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<null, { enabled: boolean; connection: string | null; profile: string | null; kinds: string[] }>(
+    (v) => cdb.rpc('crew_save_settings', { p_enabled: v.enabled, p_connection: v.connection, p_profile: v.profile, p_kinds: v.kinds }) as never,
     { onSuccess: refresh },
   );
 }

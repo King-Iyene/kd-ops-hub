@@ -72,5 +72,26 @@ export function formatSummary(s: SummaryRow): Outgoing {
   return { title: `${name}, ${when}`, text: plainText(s.narrative ?? 'No details.'), event: 'summary', meta: { severity: 'info', rule: '', person: '' }};
 }
 
+export interface CrewMessageRow { kind: string; body: string }
+
+const CREW_KIND: Record<string, string> = {
+  challenge: 'Challenge', alert: 'Alert', reminder: 'Reminder', report: 'Report', brief: 'Briefing', message: 'Message', reply: 'Reply',
+};
+
+/**
+ * A message one of the AI executives wrote to the owner, as it reads in Cliq: who, what kind, then the words as they are.
+ * Plain text, trimmed to a length a channel shows well; the owner is tagged by the caller. Nothing is added that the agent did not say.
+ */
+export function formatCrewMessage(m: CrewMessageRow, agentName: string, agentTitle: string): Outgoing {
+  const who = agentTitle ? `${agentName}, ${agentTitle}` : agentName;
+  const body = plainText(m.body).slice(0, 1500);
+  return {
+    title: `[${(CREW_KIND[m.kind] ?? 'Message').toUpperCase()}] ${who}`.slice(0, 200),
+    text: body,
+    event: 'crew',
+    meta: { severity: m.kind === 'challenge' || m.kind === 'alert' ? 'high' : 'info', rule: 'CREW', person: agentName },
+  };
+}
+
 /** At most this many tries; a message that keeps failing stops being tried and shows as failed. */
 export const MAX_ATTEMPTS = 4;
