@@ -1,6 +1,6 @@
 -- Crew: the Head of Operations' standing permission to post in Cliq: off by default, owner-only controls, the daily cap, the text rules, the one-reminder-a-day rule,
 -- the log, the kill switch, the time source and the twice-a-day routine.
--- Replay: with the Crew migrations (through 20261474) applied, run  psql -v ON_ERROR_STOP=1 < supabase/tests/crew_ops_followups.sql   (everything is rolled back).
+-- Replay: with the Crew migrations (through 20261481) applied, run  psql -v ON_ERROR_STOP=1 < supabase/tests/crew_ops_followups.sql   (everything is rolled back).
 BEGIN;
 
 CREATE FUNCTION pg_temp.t_err(p_sql text, p_needle text) RETURNS void LANGUAGE plpgsql AS $$
@@ -95,6 +95,12 @@ BEGIN
   EXECUTE 'RESET ROLE';
   v_checks := v_checks + 6;
 
+  -- a paused agent cannot post (20261480)
+  UPDATE public.crew_agents SET paused = true WHERE id = v_ops;
+  PERFORM pg_temp.t_eq('a paused agent is refused', pg_temp.t_reserve(v_ops, 'announcement', 'Hello team'), 'you are paused by the owner: you cannot post');
+  UPDATE public.crew_agents SET paused = false WHERE id = v_ops;
+  v_checks := v_checks + 1;
+
   -- the owner switches it on (the channel must be a Zoho sign-in connection with a channel; the limit and kinds are checked)
   PERFORM set_config('request.jwt.claim.sub', v_owner::text, true);
   EXECUTE 'SET LOCAL ROLE authenticated';
@@ -176,6 +182,10 @@ BEGIN
   -- the first working day from tomorrow, at work start + 95 minutes: slot 1 runs once
   v_day := v_day + 1;
   WHILE NOT (extract(isodow FROM v_day)::int = ANY (v_days)) LOOP v_day := v_day + 1; END LOOP;
+  UPDATE public.crew_agents SET paused = true WHERE id = v_ops;
+  PERFORM pg_temp.t_eq('a paused Henry is not woken by the routine', public.crew_ops_followup_tick((v_day::timestamp + v_work_start + interval '95 minutes') AT TIME ZONE v_tz), 'permission off');
+  UPDATE public.crew_agents SET paused = false WHERE id = v_ops;
+  v_checks := v_checks + 1;
   v_res := public.crew_ops_followup_tick((v_day::timestamp + v_work_start + interval '95 minutes') AT TIME ZONE v_tz);
   PERFORM pg_temp.t_eq('slot 1 ran (woke Henry, or nobody was behind)', v_res LIKE 'woke ops_head%' OR v_res = 'nothing to do now', true);
   PERFORM pg_temp.t_eq('and is recorded once', (SELECT count(*) FROM public.crew_ops_followup_runs WHERE day = v_day AND slot = 1)::int, 1);

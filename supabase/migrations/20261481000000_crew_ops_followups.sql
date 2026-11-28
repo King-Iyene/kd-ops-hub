@@ -12,8 +12,9 @@
 --   * crew_ops_followup_tick() + cron "crew_ops_followup": on working days, twice a day, at (work start + 90 min) and (work end - 2 hours) in the company
 --     time zone from the Ops Agent settings (09:00 and 17:00 New York today, so 10:30 and 15:00), it wakes Henry ONCE per slot, only when his permission is on
 --     and someone is behind. The wake text tells him exactly what to do. Two wakes a day at most.
+-- A paused agent (20261480) cannot post and is not woken by the routine. This migration comes after 20261480 on purpose.
 -- Nothing posts anywhere until the owner switches the permission on in Crew > Team.
--- Rollback: supabase/rollbacks/20261474_crew_ops_followups_down.sql
+-- Rollback: supabase/rollbacks/20261481_crew_ops_followups_down.sql
 
 -- 1. the permission and the log ----------------------------------------------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.crew_standing_permissions (
@@ -102,6 +103,7 @@ BEGIN
   SELECT * INTO a FROM public.crew_agents WHERE id = p_agent AND active;
   IF NOT FOUND THEN RAISE EXCEPTION 'unknown or inactive agent'; END IF;
   SELECT * INTO perm FROM public.crew_standing_permissions WHERE agent_id = p_agent AND kind = 'cliq_post';
+  IF a.paused THEN RETURN public.crew_cliq_post_refuse(p_agent, perm.id, p_kind, btrim(coalesce(p_text, '')), 'you are paused by the owner: you cannot post'); END IF;
 
   IF p_kind IS NULL OR p_kind NOT IN ('tracking_followup', 'announcement') THEN
     RETURN public.crew_cliq_post_refuse(p_agent, perm.id, p_kind, v_text, 'kind must be tracking_followup or announcement');
@@ -261,7 +263,7 @@ BEGIN
   SELECT * INTO s FROM public.agent_settings WHERE id;
   IF s.timezone IS NULL THEN RETURN 'no time zone'; END IF;
   SELECT a.id INTO v_ops FROM public.crew_agents a JOIN public.crew_standing_permissions sp ON sp.agent_id = a.id AND sp.kind = 'cliq_post' AND sp.enabled AND sp.connection_id IS NOT NULL
-   WHERE a.slug = 'ops_head' AND a.active;
+   WHERE a.slug = 'ops_head' AND a.active AND NOT a.paused;
   IF v_ops IS NULL THEN RETURN 'permission off'; END IF;
 
   v_local := p_now AT TIME ZONE s.timezone;

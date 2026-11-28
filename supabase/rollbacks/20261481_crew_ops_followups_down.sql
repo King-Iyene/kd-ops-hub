@@ -1,4 +1,4 @@
--- Rolls back 20261474000000_crew_ops_followups.sql: the standing permission, the post log (and its history), the time source and the routine go away.
+-- Rolls back 20261481000000_crew_ops_followups.sql: the standing permission, the post log (and its history), the time source and the routine go away.
 -- Posts already made in Cliq stay there. The Head of Operations goes back to reviewing tracker items without posting.
 DO $$ BEGIN PERFORM cron.unschedule('crew_ops_followup'); EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
