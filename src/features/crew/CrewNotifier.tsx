@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
+import { openMailbox } from './CrewMailbox';
 import { useAuthStore } from '@/store/authStore';
 import { cdb } from './crewDb';
 import { useCrewAgents, useCrewAttention } from './useCrew';
@@ -47,7 +49,7 @@ export function CrewNotifier() {
     if (fresh.length === 0) return;
     const m = fresh[0];
     const who = agents.data?.find((a) => a.id === m.from_agent)?.name.split(' ')[0] ?? 'An executive';
-    toast({ title: fresh.length > 1 ? `${who} and ${fresh.length - 1} more wrote to you` : `${who} wrote to you`, description: m.body.length > 110 ? m.body.slice(0, 110) + '…' : m.body });
+    toast({ title: fresh.length > 1 ? `${who} and ${fresh.length - 1} more wrote to you` : `${who} wrote to you`, description: m.body.length > 110 ? m.body.slice(0, 110) + '…' : m.body, action: <ToastAction altText="Open the message" onClick={() => openMailbox(m.id)}>Open</ToastAction> });
     chime();
   }, [attention.unread, agents.data, isSuper, toast]);
 
