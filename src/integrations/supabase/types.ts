@@ -5533,6 +5533,772 @@ export type Database = {
         }
         Relationships: []
       }
+      crew_agent_private: {
+        Row: {
+          advisor_model: string | null
+          agent_id: string
+          allowed_actions: string[]
+          allowed_read_bases: string[]
+          allowed_write_bases: string[]
+          instructions: string
+          max_pending: number
+          max_runs_per_day: number | null
+          model: string
+          notes: string
+          persona: string
+          scorecard: Json
+          updated_at: string
+        }
+        Insert: {
+          advisor_model?: string | null
+          agent_id: string
+          allowed_actions?: string[]
+          allowed_read_bases?: string[]
+          allowed_write_bases?: string[]
+          instructions?: string
+          max_pending?: number
+          max_runs_per_day?: number | null
+          model?: string
+          notes?: string
+          persona?: string
+          scorecard?: Json
+          updated_at?: string
+        }
+        Update: {
+          advisor_model?: string | null
+          agent_id?: string
+          allowed_actions?: string[]
+          allowed_read_bases?: string[]
+          allowed_write_bases?: string[]
+          instructions?: string
+          max_pending?: number
+          max_runs_per_day?: number | null
+          model?: string
+          notes?: string
+          persona?: string
+          scorecard?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_agent_private_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_agent_tokens: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_agent_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_agents: {
+        Row: {
+          active: boolean
+          activity: string
+          avatar: Json
+          color: string
+          company: string
+          created_at: string
+          department: string
+          id: string
+          last_seen_at: string | null
+          name: string
+          office_x: number | null
+          office_y: number | null
+          reports_to: string | null
+          role: string
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          activity?: string
+          avatar?: Json
+          color?: string
+          company?: string
+          created_at?: string
+          department?: string
+          id?: string
+          last_seen_at?: string | null
+          name: string
+          office_x?: number | null
+          office_y?: number | null
+          reports_to?: string | null
+          role: string
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          activity?: string
+          avatar?: Json
+          color?: string
+          company?: string
+          created_at?: string
+          department?: string
+          id?: string
+          last_seen_at?: string | null
+          name?: string
+          office_x?: number | null
+          office_y?: number | null
+          reports_to?: string | null
+          role?: string
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_agents_reports_to_fkey"
+            columns: ["reports_to"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_knowledge: {
+        Row: {
+          body: string
+          topic: string
+          updated_at: string
+          updated_by_agent: string | null
+        }
+        Insert: {
+          body: string
+          topic: string
+          updated_at?: string
+          updated_by_agent?: string | null
+        }
+        Update: {
+          body?: string
+          topic?: string
+          updated_at?: string
+          updated_by_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_knowledge_updated_by_agent_fkey"
+            columns: ["updated_by_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_ledger: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          key: string
+          meta: Json
+          proposal_id: string | null
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          key: string
+          meta?: Json
+          proposal_id?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          key?: string
+          meta?: Json
+          proposal_id?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_ledger_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "crew_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_messages: {
+        Row: {
+          body: string
+          cliq_sent_at: string | null
+          created_at: string
+          from_agent: string | null
+          from_profile: string | null
+          id: string
+          kind: string
+          read_at: string | null
+          ref_order: string | null
+          ref_proposal: string | null
+          thread_id: string
+          to_agent: string | null
+          to_owner: boolean
+        }
+        Insert: {
+          body: string
+          cliq_sent_at?: string | null
+          created_at?: string
+          from_agent?: string | null
+          from_profile?: string | null
+          id?: string
+          kind?: string
+          read_at?: string | null
+          ref_order?: string | null
+          ref_proposal?: string | null
+          thread_id?: string
+          to_agent?: string | null
+          to_owner?: boolean
+        }
+        Update: {
+          body?: string
+          cliq_sent_at?: string | null
+          created_at?: string
+          from_agent?: string | null
+          from_profile?: string | null
+          id?: string
+          kind?: string
+          read_at?: string | null
+          ref_order?: string | null
+          ref_proposal?: string | null
+          thread_id?: string
+          to_agent?: string | null
+          to_owner?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_messages_from_agent_fkey"
+            columns: ["from_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_from_profile_fkey"
+            columns: ["from_profile"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_from_profile_fkey"
+            columns: ["from_profile"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_from_profile_fkey"
+            columns: ["from_profile"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_messages_from_profile_fkey"
+            columns: ["from_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_from_profile_fkey"
+            columns: ["from_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_ref_order_fkey"
+            columns: ["ref_order"]
+            isOneToOne: false
+            referencedRelation: "crew_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_ref_proposal_fkey"
+            columns: ["ref_proposal"]
+            isOneToOne: false
+            referencedRelation: "crew_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_to_agent_fkey"
+            columns: ["to_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_notes: {
+        Row: {
+          agent_id: string
+          body: string
+          confidence: number
+          created_at: string
+          evidence: Json
+          id: string
+          kind: string
+          retired_at: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          body: string
+          confidence?: number
+          created_at?: string
+          evidence?: Json
+          id?: string
+          kind: string
+          retired_at?: string | null
+          source?: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          body?: string
+          confidence?: number
+          created_at?: string
+          evidence?: Json
+          id?: string
+          kind?: string
+          retired_at?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_notes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_orders: {
+        Row: {
+          agent_id: string
+          challenge: string | null
+          challenge_evidence: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          owner_response: string | null
+          resolved_at: string | null
+          responded_at: string | null
+          status: string
+          text: string
+        }
+        Insert: {
+          agent_id: string
+          challenge?: string | null
+          challenge_evidence?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          owner_response?: string | null
+          resolved_at?: string | null
+          responded_at?: string | null
+          status?: string
+          text: string
+        }
+        Update: {
+          agent_id?: string
+          challenge?: string | null
+          challenge_evidence?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          owner_response?: string | null
+          resolved_at?: string | null
+          responded_at?: string | null
+          status?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_orders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_prompters: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          note: string
+          profile_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          note?: string
+          profile_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          note?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_prompters_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_prompters_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_proposals: {
+        Row: {
+          action: string
+          agent_id: string
+          approved_by_agent: string | null
+          base_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          dedupe_key: string | null
+          endorsements: Json
+          error: string | null
+          evidence: Json
+          executed_at: string | null
+          expires_at: string | null
+          id: string
+          last_reminded_at: string | null
+          ledger_key: string | null
+          order_id: string | null
+          payload: Json
+          rationale: string
+          remind_at: string
+          remind_count: number
+          requires_approver: string
+          result: Json
+          risk: string
+          status: string
+          summary: string
+          table_id: string | null
+        }
+        Insert: {
+          action: string
+          agent_id: string
+          approved_by_agent?: string | null
+          base_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          dedupe_key?: string | null
+          endorsements?: Json
+          error?: string | null
+          evidence?: Json
+          executed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          ledger_key?: string | null
+          order_id?: string | null
+          payload?: Json
+          rationale?: string
+          remind_at?: string
+          remind_count?: number
+          requires_approver?: string
+          result?: Json
+          risk?: string
+          status?: string
+          summary: string
+          table_id?: string | null
+        }
+        Update: {
+          action?: string
+          agent_id?: string
+          approved_by_agent?: string | null
+          base_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          dedupe_key?: string | null
+          endorsements?: Json
+          error?: string | null
+          evidence?: Json
+          executed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          ledger_key?: string | null
+          order_id?: string | null
+          payload?: Json
+          rationale?: string
+          remind_at?: string
+          remind_count?: number
+          requires_approver?: string
+          result?: Json
+          risk?: string
+          status?: string
+          summary?: string
+          table_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_proposals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_approved_by_agent_fkey"
+            columns: ["approved_by_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_proposals_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "crew_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_runs: {
+        Row: {
+          agent_id: string
+          finished_at: string | null
+          id: string
+          kind: string
+          ok: boolean | null
+          started_at: string
+          stats: Json
+          summary: string
+        }
+        Insert: {
+          agent_id: string
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          ok?: boolean | null
+          started_at?: string
+          stats?: Json
+          summary?: string
+        }
+        Update: {
+          agent_id?: string
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          ok?: boolean | null
+          started_at?: string
+          stats?: Json
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_job_alerts: {
         Row: {
           detail: string | null
@@ -25737,6 +26503,261 @@ export type Database = {
             }
             Returns: Json
           }
+      crew_add_note: {
+        Args: {
+          p_agent: string
+          p_body: string
+          p_confidence?: number
+          p_evidence?: Json
+          p_kind: string
+          p_source?: string
+        }
+        Returns: string
+      }
+      crew_agent_by_token: { Args: { p_token: string }; Returns: string }
+      crew_agent_perms: {
+        Args: { p_agent: string }
+        Returns: {
+          advisor_model: string | null
+          agent_id: string
+          allowed_actions: string[]
+          allowed_read_bases: string[]
+          allowed_write_bases: string[]
+          instructions: string
+          max_pending: number
+          max_runs_per_day: number | null
+          model: string
+          notes: string
+          persona: string
+          scorecard: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "crew_agent_private"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      crew_begin_run: {
+        Args: { p_agent: string; p_kind?: string }
+        Returns: Json
+      }
+      crew_can_prompt: { Args: { p_profile: string }; Returns: boolean }
+      crew_check_table_access: {
+        Args: {
+          p_perm: Database["public"]["Tables"]["crew_agent_private"]["Row"]
+          p_table: string
+          p_write: boolean
+        }
+        Returns: string
+      }
+      crew_decide: {
+        Args: { p_decision: string; p_note?: string; p_proposal: string }
+        Returns: Json
+      }
+      crew_due_reminders: { Args: never; Returns: number }
+      crew_endorse: {
+        Args: {
+          p_agent: string
+          p_note: string
+          p_proposal: string
+          p_stance: string
+        }
+        Returns: string
+      }
+      crew_execute: {
+        Args: { p_by: string; p_proposal: string }
+        Returns: Json
+      }
+      crew_get_knowledge: {
+        Args: { p_agent: string; p_topic?: string }
+        Returns: Json
+      }
+      crew_give_order: {
+        Args: { p_agent: string; p_text: string }
+        Returns: string
+      }
+      crew_grant_prompt: {
+        Args: { p_note?: string; p_profile: string }
+        Returns: undefined
+      }
+      crew_heartbeat: {
+        Args: {
+          p_activity?: string
+          p_agent: string
+          p_status: string
+          p_x?: number
+          p_y?: number
+        }
+        Returns: undefined
+      }
+      crew_inbox: {
+        Args: { p_agent: string; p_limit?: number }
+        Returns: {
+          body: string
+          cliq_sent_at: string | null
+          created_at: string
+          from_agent: string | null
+          from_profile: string | null
+          id: string
+          kind: string
+          read_at: string | null
+          ref_order: string | null
+          ref_proposal: string | null
+          thread_id: string
+          to_agent: string | null
+          to_owner: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crew_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      crew_is_owner: { Args: never; Returns: boolean }
+      crew_issue_token: {
+        Args: { p_label?: string; p_slug: string }
+        Returns: string
+      }
+      crew_ledger_release: { Args: { p_key: string }; Returns: undefined }
+      crew_list_tables: { Args: { p_agent: string }; Returns: Json }
+      crew_log_run: {
+        Args: {
+          p_agent: string
+          p_kind: string
+          p_ok: boolean
+          p_stats?: Json
+          p_summary: string
+        }
+        Returns: string
+      }
+      crew_mark_done: {
+        Args: { p_note?: string; p_proposal: string; p_result?: Json }
+        Returns: undefined
+      }
+      crew_mark_read: { Args: { p_ids: string[] }; Returns: undefined }
+      crew_my_approved: {
+        Args: { p_agent: string }
+        Returns: {
+          action: string
+          agent_id: string
+          approved_by_agent: string | null
+          base_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          dedupe_key: string | null
+          endorsements: Json
+          error: string | null
+          evidence: Json
+          executed_at: string | null
+          expires_at: string | null
+          id: string
+          last_reminded_at: string | null
+          ledger_key: string | null
+          order_id: string | null
+          payload: Json
+          rationale: string
+          remind_at: string
+          remind_count: number
+          requires_approver: string
+          result: Json
+          risk: string
+          status: string
+          summary: string
+          table_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "crew_proposals"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      crew_post_message: {
+        Args: {
+          p_agent: string
+          p_body: string
+          p_kind?: string
+          p_ref_order?: string
+          p_ref_proposal?: string
+          p_to_agent: string
+        }
+        Returns: string
+      }
+      crew_propose: {
+        Args: {
+          p_action: string
+          p_agent: string
+          p_dedupe?: string
+          p_evidence?: Json
+          p_ledger_key?: string
+          p_order?: string
+          p_payload: Json
+          p_rationale: string
+          p_risk?: string
+          p_summary: string
+          p_table: string
+        }
+        Returns: string
+      }
+      crew_read_records: {
+        Args: {
+          p_agent: string
+          p_desc?: boolean
+          p_filters?: Json
+          p_limit?: number
+          p_order_field?: string
+          p_table: string
+        }
+        Returns: Json
+      }
+      crew_report_done: {
+        Args: { p_agent: string; p_proposal: string; p_result?: Json }
+        Returns: undefined
+      }
+      crew_resolve_order: {
+        Args: { p_note?: string; p_order: string; p_resolution: string }
+        Returns: undefined
+      }
+      crew_respond_order: {
+        Args: {
+          p_agent: string
+          p_evidence?: Json
+          p_order: string
+          p_stance: string
+          p_text: string
+        }
+        Returns: undefined
+      }
+      crew_retire_my_note: {
+        Args: { p_agent: string; p_note: string }
+        Returns: undefined
+      }
+      crew_retire_note: { Args: { p_note: string }; Returns: undefined }
+      crew_revoke_prompt: { Args: { p_profile: string }; Returns: undefined }
+      crew_revoke_tokens: { Args: { p_slug: string }; Returns: number }
+      crew_row_from_values: {
+        Args: { p_table: string; p_values: Json }
+        Returns: Json
+      }
+      crew_save_summary: {
+        Args: { p_agent: string; p_notes: string }
+        Returns: undefined
+      }
+      crew_say: { Args: { p_agent: string; p_body: string }; Returns: string }
+      crew_set_knowledge: {
+        Args: { p_body: string; p_topic: string }
+        Returns: undefined
+      }
+      crew_signals: { Args: { p_agent: string }; Returns: Json }
+      crew_withdraw: {
+        Args: { p_agent: string; p_proposal: string }
+        Returns: undefined
+      }
       cron_last_errors: {
         Args: never
         Returns: {
