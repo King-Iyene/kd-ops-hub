@@ -57,7 +57,7 @@ function Detail({ agent }: { agent: CrewAgent }) {
       {p ? (
         <div className="grid gap-2 text-xs sm:grid-cols-3">
           <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground">Brain</div>{p.model}{p.advisor_model ? ` (advisor ${p.advisor_model})` : ''}</div>
-          <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground">Runs allowed per day</div>{p.max_runs_per_day}</div>
+          <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground">Runs per day</div>{p.max_runs_per_day === null ? "No limit" : p.max_runs_per_day}</div>
           <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground">Last seen</div>{ago(agent.last_seen_at)}</div>
         </div>
       ) : null}

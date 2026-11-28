@@ -54,7 +54,7 @@ function ProposalCard({ p, agents, group }: { p: CrewProposal; agents: CrewAgent
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{describeAction(p.action)}</span>
             <RiskBadge risk={p.risk} />
-            {p.requires_approver === 'manager_or_owner' && p.status === 'pending' ? <span className="text-xs text-muted-foreground">low risk: the Deputy CEO may clear it</span> : null}
+            {p.requires_approver === 'manager_or_owner' && p.status === 'pending' ? <span className="text-xs text-muted-foreground">low risk: the CFO may clear it</span> : null}
           </div>
           <p className="mt-2 text-sm font-medium">{p.summary}</p>
           {p.rationale ? <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{p.rationale}</p> : null}

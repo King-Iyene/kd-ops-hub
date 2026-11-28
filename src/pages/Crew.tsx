@@ -33,7 +33,7 @@ export default function Crew() {
       <PageHeader
         title="Crew"
         icon={Users}
-        description="Your deputy, finance team, heads of operations, product, marketing and engineering, and the head of NDI. They read, think, advise and propose. Nothing changes until you approve it."
+        description="Your CFO, the VP Finance and finance team, and the heads of operations, tasks, product, marketing, engineering and NDI. They read, think, advise and propose. Nothing changes until you approve it."
       />
       <div className="mb-6 flex flex-wrap gap-2" role="tablist">
         {tabs.map((t) => (

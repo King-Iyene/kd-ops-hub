@@ -42,7 +42,7 @@ export function approveLabel(action: string): string {
 export function describeAction(action: string): string {
   const map: Record<string, string> = {
     'record.create': 'Add a record', 'record.update': 'Change a record', 'record.soft_delete': 'Move a record to the trash',
-    'draft.batch_payment': 'Draft a batch payment', 'draft.payroll_run': 'Draft a payroll run', 'draft.invoice': 'Prepare an invoice',
+    'draft.batch_payment': 'Draft a batch payment', 'draft.payroll_run': 'Draft a payroll run', 'draft.invoice': 'Prepare an invoice', 'draft.filing': 'Draft a tax filing',
     'external.github': 'GitHub change', 'external.vercel': 'Vercel change', 'external.supabase': 'Supabase change', 'external.other': 'Other outside change',
     'advice.knowledge': 'Update the company brain',
   };

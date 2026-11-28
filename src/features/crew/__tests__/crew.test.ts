@@ -8,7 +8,7 @@ const agent = (id: string, name: string, department: string, reports_to: string 
 });
 
 describe('org chart', () => {
-  it('builds the reporting tree: deputy over heads, finance director over the finance staff', () => {
+  it('builds the reporting tree: CFO over heads, VP Finance over the finance staff', () => {
     const list = [
       agent('ctrl', 'Chinedu', 'Finance', 'fd'), agent('fd', 'Adaeze', 'Finance', 'dep'), agent('dep', 'Tobi', 'Executive'),
       agent('eng', 'Kunle', 'Engineering', 'dep'), agent('trs', 'Halima', 'Finance', 'fd'),
@@ -39,6 +39,7 @@ describe('org chart', () => {
     expect(approveLabel('record.create')).toBe('Approve and apply');
     expect(approveLabel('external.vercel')).toBe('Approve (go ahead)');
     expect(approveLabel('advice.strategy')).toBe('Accept');
+    expect(describeAction('draft.filing')).toBe('Draft a tax filing');
     expect(describeAction('record.soft_delete')).toBe('Move a record to the trash');
     expect(describeAction('advice.market_sizing')).toBe('Advice: market sizing');
   });
@@ -46,14 +47,14 @@ describe('org chart', () => {
 
 describe('free voice', () => {
   it('gives every agent a stable voice and different agents different ones', () => {
-    expect(voiceFor('deputy')).toEqual(voiceFor('deputy'));
-    const v = voiceFor('finance_director');
+    expect(voiceFor('cfo')).toEqual(voiceFor('cfo'));
+    const v = voiceFor('vp_finance');
     expect(v.pitch).toBeGreaterThanOrEqual(0.8);
     expect(v.pitch).toBeLessThanOrEqual(1.5);
     expect(v.rate).toBeGreaterThanOrEqual(0.95);
     expect(v.rate).toBeLessThanOrEqual(1.15);
     expect(hash('a')).not.toBe(hash('b'));
-    const set = new Set(['deputy', 'controller', 'treasury', 'payroll', 'revenue', 'fpa', 'ops_head', 'product_head', 'marketing_head', 'engineering_head', 'ndi_head'].map((s) => `${voiceFor(s).pitch.toFixed(2)}/${voiceFor(s).rate.toFixed(2)}`));
+    const set = new Set(['cfo', 'controller', 'treasury', 'payroll', 'revenue', 'fpa', 'ops_head', 'product_head', 'marketing_head', 'engineering_head', 'ndi_head'].map((s) => `${voiceFor(s).pitch.toFixed(2)}/${voiceFor(s).rate.toFixed(2)}`));
     expect(set.size).toBeGreaterThan(5);
   });
 

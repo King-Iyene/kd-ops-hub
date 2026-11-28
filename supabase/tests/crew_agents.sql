@@ -7,12 +7,15 @@
 -- starting TESTFAIL, is a real failure. Everything is rolled back by that exception. Uses a real super_admin profile id (edit the owner uuid below).
 -- =============================================================================
 
+
+
+
 -- ============ TEST (rolled back by the final exception) ============
 DO $t$
 DECLARE dep uuid; cfo uuid; ndi uuid; cto uuid; tbl uuid; pid uuid; pid2 uuid; res jsonb; o text := ''; owner uuid := 'cd87b258-3030-408f-b8f5-8057b3b6afd3'; rid uuid; n int; msg text; cnt int;
 BEGIN
-  SELECT id INTO cfo FROM public.crew_agents WHERE slug='finance_director';
-  SELECT id INTO dep FROM public.crew_agents WHERE slug='deputy';
+  SELECT id INTO cfo FROM public.crew_agents WHERE slug='finance_head';
+  SELECT id INTO dep FROM public.crew_agents WHERE slug='cfo';
   SELECT id INTO ndi FROM public.crew_agents WHERE slug='ndi_head';
   SELECT id INTO cto FROM public.crew_agents WHERE slug='engineering_head';
   SELECT t.id INTO tbl FROM nc_meta.tables t WHERE t.base_id='b211448d-ab7d-4cc8-8bf6-68ff09d62b81' AND t.pg_table_name='income';
@@ -86,14 +89,23 @@ BEGIN
   pid2 := public.crew_propose((SELECT id FROM public.crew_agents WHERE slug='treasury'),'draft.batch_payment',NULL,'Pay vendors Friday','cash ok','{"items":[]}','{}','medium');
   res := public.crew_decide(pid2,'approve',null); o := o||'draft_status='||(res->>'status')||';';
   PERFORM public.crew_report_done((SELECT id FROM public.crew_agents WHERE slug='treasury'),pid2,'{"done":true}'); o := o||'draft_reported;';
-  o := o||'agents='||(SELECT count(*) FROM public.crew_agents)||',reports_to_deputy='||(SELECT count(*) FROM public.crew_agents WHERE reports_to=dep)||',reports_to_fd='||(SELECT count(*) FROM public.crew_agents WHERE reports_to=cfo)||';';
-  res := public.crew_begin_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine'); o := o||'run1='||(res->>'allowed')||';';
+  o := o||'agents='||(SELECT count(*) FROM public.crew_agents)||',reports_to_cfo='||(SELECT count(*) FROM public.crew_agents WHERE reports_to=dep)||',reports_to_vp='||(SELECT count(*) FROM public.crew_agents WHERE reports_to=cfo)||';';
+  res := public.crew_begin_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine'); o := o||'run1='||(res->>'allowed')||',left='||coalesce(res->>'runs_left','none')||';';
+  UPDATE public.crew_agent_private SET max_runs_per_day = 1 WHERE agent_id = (SELECT id FROM public.crew_agents WHERE slug='ops_head');
   PERFORM public.crew_log_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine',true,'done');
-  res := public.crew_begin_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine'); o := o||'run2='||(res->>'allowed')||';';
+  res := public.crew_begin_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine'); o := o||'limited_run_blocked='||(NOT (res->>'allowed')::boolean)||';';
+  UPDATE public.crew_agent_private SET max_runs_per_day = NULL WHERE agent_id = (SELECT id FROM public.crew_agents WHERE slug='ops_head');
+  PERFORM public.crew_log_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine',true,'done');
+  res := public.crew_begin_run((SELECT id FROM public.crew_agents WHERE slug='ops_head'),'routine'); o := o||'unlimited_run_allowed='||(res->>'allowed')||';';
   pid2 := public.crew_propose(dep,'advice.knowledge',NULL,'Write down our offers','owner told me','{"topic":"offers","body":"We sell X and Y"}');
   BEGIN PERFORM public.crew_propose(dep,'advice.knowledge',NULL,'bad','', '{"topic":1}'); o := o||'FAIL bad knowledge;'; EXCEPTION WHEN OTHERS THEN o := o||'ok bad knowledge refused;'; END;
   res := public.crew_decide(pid2,'approve',null); o := o||'knowledge='||(public.crew_get_knowledge(dep,'offers')->>'body')||';';
   o := o||'topics='||jsonb_array_length(public.crew_get_knowledge(dep))||';';
+  pid2 := public.crew_propose((SELECT id FROM public.crew_agents WHERE slug='compliance_head'),'draft.filing',NULL,'Draft the VAT return for November','due 21st','{"tax":"VAT"}','{}','medium');
+  res := public.crew_decide(pid2,'approve',null); o := o||'filing_status='||(res->>'status')||';';
+  BEGIN PERFORM public.crew_propose((SELECT id FROM public.crew_agents WHERE slug='compliance_head'),'record.create',tbl,'x','', '{"values":{"Client":"X"}}'); o := o||'FAIL compliance wrote;'; EXCEPTION WHEN OTHERS THEN o := o||'ok compliance cannot write records;'; END;
+  o := o||'tasks_reports_to_ops='||(SELECT (reports_to = (SELECT id FROM public.crew_agents WHERE slug='ops_head')) FROM public.crew_agents WHERE slug='tasks_head')||';';
+  o := o||'finance_head_reports_to_cfo='||(SELECT (reports_to = dep) FROM public.crew_agents WHERE slug='finance_head')||';';
   o := o||'jobs='||(SELECT count(*) FROM cron.job WHERE jobname='crew_reminders')||';';
   -- 11 who may prompt
   PERFORM public.crew_say(dep,'hello deputy'); o := o||'owner_say_ok;';

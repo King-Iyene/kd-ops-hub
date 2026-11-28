@@ -32,7 +32,7 @@ export interface CrewAgentPrivate {
   advisor_model: string | null;
   allowed_actions: string[];
   max_pending: number;
-  max_runs_per_day: number;
+  max_runs_per_day: number | null;
 }
 
 export type ProposalStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'failed' | 'expired' | 'withdrawn';
