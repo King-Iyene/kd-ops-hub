@@ -58,7 +58,7 @@ function int(a: Json, k: string, min: number, max: number, dflt: number): number
   return Math.max(min, Math.min(max, Math.trunc(v)));
 }
 
-export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|agent\.(retire|hire)|external\.(github|vercel|supabase|other))$/;
+export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|agent\.(retire|hire)|external\.(github|vercel|supabase|other)|drive\.(create|update|trash))$/;
 const STATUSES = ['offline', 'idle', 'working', 'thinking', 'waiting_approval', 'walking', 'meeting'] as const;
 const NOTE_KINDS = ['lesson', 'rule', 'fact', 'preference', 'mistake'] as const;
 const NOTE_SOURCES = ['proposal_outcome', 'owner_feedback', 'self_review', 'order_veto', 'ci_result', 'other'] as const;

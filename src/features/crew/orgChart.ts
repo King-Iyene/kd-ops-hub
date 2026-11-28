@@ -45,6 +45,7 @@ export function describeAction(action: string): string {
     'record.create': 'Add a record', 'record.update': 'Change a record', 'record.soft_delete': 'Move a record to the trash',
     'draft.batch_payment': 'Draft a batch payment', 'draft.payroll_run': 'Draft a payroll run', 'draft.invoice': 'Prepare an invoice', 'draft.filing': 'Draft a tax filing',
     'external.github': 'GitHub change', 'external.vercel': 'Vercel change', 'external.supabase': 'Supabase change', 'external.other': 'Other outside change',
+    'drive.create': 'Create a file in Google Drive', 'drive.update': 'Change a file in Google Drive', 'drive.trash': 'Move a Google Drive file to the trash',
     'advice.knowledge': 'Update the company brain',
     'agent.retire': 'Let a team member go', 'agent.hire': 'Hire a new team member',
   };

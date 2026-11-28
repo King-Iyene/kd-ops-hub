@@ -39,6 +39,8 @@ describe('crew gateway: what an agent can ask for', () => {
   it('propose: only known actions, bounded text, a valid risk', async () => {
     await expect(run('propose', { action: 'record.hard_delete', summary: 'x' })).rejects.toThrow('unknown action');
     expect(await run('propose', { action: 'draft.filing', summary: 'Draft the VAT return' })).toMatchObject({ args: { p_action: 'draft.filing' } });
+    expect(await run('propose', { action: 'drive.create', summary: 'Save the duplicate-check sheet' })).toMatchObject({ args: { p_action: 'drive.create' } });
+    await expect(run('propose', { action: 'drive.share', summary: 'x' })).rejects.toThrow('unknown action');
     await expect(run('propose', { action: 'draft.payment_now', summary: 'x' })).rejects.toThrow('unknown action');
     await expect(run('propose', { action: 'external.production_deploy', summary: 'x' })).rejects.toThrow('unknown action');
     await expect(run('propose', { action: 'advice.finance' })).rejects.toThrow('summary is required');
