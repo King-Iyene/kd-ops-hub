@@ -6030,6 +6030,8 @@ export type Database = {
           office_x: number | null
           office_y: number | null
           reports_to: string | null
+          retired_at: string | null
+          retired_reason: string | null
           role: string
           slug: string
           status: string
@@ -6050,6 +6052,8 @@ export type Database = {
           office_x?: number | null
           office_y?: number | null
           reports_to?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
           role: string
           slug: string
           status?: string
@@ -6070,6 +6074,8 @@ export type Database = {
           office_x?: number | null
           office_y?: number | null
           reports_to?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
           role?: string
           slug?: string
           status?: string
@@ -6374,6 +6380,103 @@ export type Database = {
             columns: ["to_agent"]
             isOneToOne: false
             referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_mistakes: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          kind: string
+          note: string
+          proposal_id: string | null
+          reported_by_agent: string | null
+          reported_by_profile: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          note: string
+          proposal_id?: string | null
+          reported_by_agent?: string | null
+          reported_by_profile?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string
+          proposal_id?: string | null
+          reported_by_agent?: string | null
+          reported_by_profile?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_mistakes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "crew_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_agent_fkey"
+            columns: ["reported_by_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "crew_v_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_mistakes_reported_by_profile_fkey"
+            columns: ["reported_by_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -6942,6 +7045,93 @@ export type Database = {
             columns: ["owner_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_staff_changes: {
+        Row: {
+          agent_id: string
+          by_profile: string | null
+          created_at: string
+          id: string
+          kind: string
+          proposal_id: string | null
+          reason: string
+        }
+        Insert: {
+          agent_id: string
+          by_profile?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          proposal_id?: string | null
+          reason?: string
+        }
+        Update: {
+          agent_id?: string
+          by_profile?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          proposal_id?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_staff_changes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "crew_v_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_by_profile_fkey"
+            columns: ["by_profile"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_staff_changes_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "crew_proposals"
             referencedColumns: ["id"]
           },
         ]
@@ -29014,6 +29204,10 @@ export type Database = {
         Args: { p_by: string; p_proposal: string }
         Returns: Json
       }
+      crew_execute_agent: {
+        Args: { p_by: string; p_proposal: string }
+        Returns: Json
+      }
       crew_get_knowledge: {
         Args: { p_agent: string; p_topic?: string }
         Returns: Json
@@ -29035,6 +29229,15 @@ export type Database = {
           p_y?: number
         }
         Returns: undefined
+      }
+      crew_hire_now: {
+        Args: {
+          p_by: string
+          p_payload: Json
+          p_proposal?: string
+          p_proposer?: string
+        }
+        Returns: Json
       }
       crew_idea_decide: {
         Args: { p_decision: string; p_idea: string; p_note?: string }
@@ -29097,6 +29300,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      crew_is_boss_of: {
+        Args: { p_boss: string; p_target: string }
+        Returns: boolean
+      }
       crew_is_company_owner: { Args: never; Returns: boolean }
       crew_is_owner: { Args: never; Returns: boolean }
       crew_issue_token: {
@@ -29108,6 +29315,15 @@ export type Database = {
       crew_list_tables: {
         Args: { p_agent: string; p_search?: string; p_table?: string }
         Returns: Json
+      }
+      crew_log_mistake: {
+        Args: {
+          p_kind: string
+          p_note: string
+          p_proposal?: string
+          p_target: string
+        }
+        Returns: string
       }
       crew_log_run: {
         Args: {
@@ -29124,6 +29340,10 @@ export type Database = {
         Returns: undefined
       }
       crew_mark_read: { Args: { p_ids: string[] }; Returns: undefined }
+      crew_mistake_count: {
+        Args: { p_days?: number; p_target: string }
+        Returns: number
+      }
       crew_my_approved: {
         Args: { p_agent: string }
         Returns: {
@@ -29217,6 +29437,16 @@ export type Database = {
         Args: { p_agent: string; p_proposal: string; p_result?: Json }
         Returns: undefined
       }
+      crew_report_mistake: {
+        Args: {
+          p_agent: string
+          p_kind: string
+          p_note: string
+          p_proposal?: string
+          p_target: string
+        }
+        Returns: string
+      }
       crew_resolve_order: {
         Args: { p_note?: string; p_order: string; p_resolution: string }
         Returns: undefined
@@ -29231,11 +29461,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      crew_retire_agent: {
+        Args: { p_agent: string; p_reason: string }
+        Returns: Json
+      }
       crew_retire_my_note: {
         Args: { p_agent: string; p_note: string }
         Returns: undefined
       }
       crew_retire_note: { Args: { p_note: string }; Returns: undefined }
+      crew_retire_now: {
+        Args: {
+          p_by: string
+          p_proposal?: string
+          p_reason: string
+          p_target: string
+        }
+        Returns: Json
+      }
       crew_revoke_prompt: { Args: { p_profile: string }; Returns: undefined }
       crew_revoke_tokens: { Args: { p_slug: string }; Returns: number }
       crew_row_from_values: {
@@ -29263,6 +29506,7 @@ export type Database = {
       crew_set_office_viewers: { Args: { p_ids: string[] }; Returns: string[] }
       crew_signals: { Args: { p_agent: string }; Returns: Json }
       crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
+      crew_team_mistakes: { Args: { p_agent: string }; Returns: Json }
       crew_withdraw: {
         Args: { p_agent: string; p_proposal: string }
         Returns: undefined
