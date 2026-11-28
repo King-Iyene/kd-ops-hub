@@ -7076,7 +7076,11 @@ export type Database = {
           cliq_commands_enabled: boolean
           cliq_connection_id: string | null
           cliq_cursor_ms: number
+          cliq_dm: boolean
+          cliq_dm_chat_id: string | null
           cliq_enabled: boolean
+          cliq_error: string | null
+          cliq_error_at: string | null
           cliq_owner_id: string | null
           id: boolean
           last_event_scan_at: string | null
@@ -7093,7 +7097,11 @@ export type Database = {
           cliq_commands_enabled?: boolean
           cliq_connection_id?: string | null
           cliq_cursor_ms?: number
+          cliq_dm?: boolean
+          cliq_dm_chat_id?: string | null
           cliq_enabled?: boolean
+          cliq_error?: string | null
+          cliq_error_at?: string | null
           cliq_owner_id?: string | null
           id?: boolean
           last_event_scan_at?: string | null
@@ -7110,7 +7118,11 @@ export type Database = {
           cliq_commands_enabled?: boolean
           cliq_connection_id?: string | null
           cliq_cursor_ms?: number
+          cliq_dm?: boolean
+          cliq_dm_chat_id?: string | null
           cliq_enabled?: boolean
+          cliq_error?: string | null
+          cliq_error_at?: string | null
           cliq_owner_id?: string | null
           id?: boolean
           last_event_scan_at?: string | null
@@ -29829,6 +29841,7 @@ export type Database = {
         Args: {
           p_commands?: boolean
           p_connection: string
+          p_dm?: boolean
           p_enabled: boolean
           p_kinds: string[]
           p_owner_id?: string
