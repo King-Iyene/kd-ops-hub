@@ -5698,6 +5698,84 @@ export type Database = {
           },
         ]
       }
+      crew_ideas: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          departments: string[]
+          estimate: string
+          evidence: Json
+          id: string
+          merged_into: string | null
+          owner_note: string | null
+          priority: string
+          problem: string
+          proposal: string
+          requested_by: string | null
+          spec: string
+          status: string
+          support_count: number
+          supporters: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          departments?: string[]
+          estimate?: string
+          evidence?: Json
+          id?: string
+          merged_into?: string | null
+          owner_note?: string | null
+          priority?: string
+          problem: string
+          proposal?: string
+          requested_by?: string | null
+          spec?: string
+          status?: string
+          support_count?: number
+          supporters?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          departments?: string[]
+          estimate?: string
+          evidence?: Json
+          id?: string
+          merged_into?: string | null
+          owner_note?: string | null
+          priority?: string
+          problem?: string
+          proposal?: string
+          requested_by?: string | null
+          spec?: string
+          status?: string
+          support_count?: number
+          supporters?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_ideas_merged_into_fkey"
+            columns: ["merged_into"]
+            isOneToOne: false
+            referencedRelation: "crew_ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_ideas_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crew_knowledge: {
         Row: {
           body: string
@@ -6295,6 +6373,76 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_settings: {
+        Row: {
+          cliq_connection_id: string | null
+          cliq_enabled: boolean
+          id: boolean
+          notify_kinds: string[]
+          notify_profile_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cliq_connection_id?: string | null
+          cliq_enabled?: boolean
+          id?: boolean
+          notify_kinds?: string[]
+          notify_profile_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cliq_connection_id?: string | null
+          cliq_enabled?: boolean
+          id?: boolean
+          notify_kinds?: string[]
+          notify_profile_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_settings_cliq_connection_id_fkey"
+            columns: ["cliq_connection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_settings_notify_profile_id_fkey"
+            columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_notify_profile_id_fkey"
+            columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_notify_profile_id_fkey"
+            columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_notify_profile_id_fkey"
+            columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_settings_notify_profile_id_fkey"
+            columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -26594,6 +26742,43 @@ export type Database = {
         }
         Returns: undefined
       }
+      crew_idea_decide: {
+        Args: { p_decision: string; p_idea: string; p_note?: string }
+        Returns: undefined
+      }
+      crew_idea_list: {
+        Args: { p_agent: string; p_status?: string }
+        Returns: Json
+      }
+      crew_idea_owner_add: {
+        Args: { p_problem: string; p_proposal?: string; p_title: string }
+        Returns: string
+      }
+      crew_idea_submit: {
+        Args: {
+          p_agent: string
+          p_evidence?: Json
+          p_problem: string
+          p_proposal?: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      crew_idea_support: {
+        Args: { p_agent: string; p_idea: string; p_note?: string }
+        Returns: Json
+      }
+      crew_idea_triage: {
+        Args: {
+          p_agent: string
+          p_estimate?: string
+          p_idea: string
+          p_merge_into?: string
+          p_priority?: string
+          p_spec?: string
+        }
+        Returns: Json
+      }
       crew_inbox: {
         Args: { p_agent: string; p_limit?: number }
         Returns: {
@@ -26746,6 +26931,15 @@ export type Database = {
         Args: { p_table: string; p_values: Json }
         Returns: Json
       }
+      crew_save_settings: {
+        Args: {
+          p_connection: string
+          p_enabled: boolean
+          p_kinds: string[]
+          p_profile: string
+        }
+        Returns: undefined
+      }
       crew_save_summary: {
         Args: { p_agent: string; p_notes: string }
         Returns: undefined
@@ -26756,10 +26950,12 @@ export type Database = {
         Returns: undefined
       }
       crew_signals: { Args: { p_agent: string }; Returns: Json }
+      crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
       crew_withdraw: {
         Args: { p_agent: string; p_proposal: string }
         Returns: undefined
       }
+      crew_words: { Args: { p: string }; Returns: string[] }
       cron_last_errors: {
         Args: never
         Returns: {
