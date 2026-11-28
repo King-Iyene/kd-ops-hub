@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
+import { Bot, Copy, RotateCw, Undo2 as UndoIcon, Redo2 as RedoIcon, X as CloseIcon, Save as SaveIcon, Map as MapIcon, BellRing, Download, Hand, MoreHorizontal, Settings, Building2, Link as LinkIcon, UserPlus, Volume2, VolumeX, Pencil, Trash2, Minus, Plus, Footprints, LocateFixed, MessageCircle, Mic, Search, Video, Users, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/db-errors';
@@ -1487,6 +1487,8 @@ function OfficeRoom() {
               />
             </div>
             <button type="button" aria-label="Invite people" title="Invite people" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-[#0089b8] text-white shadow-sm transition hover:brightness-110" onClick={() => setInviteOpen(true)}><UserPlus className="h-3.5 w-3.5" /></button>
+            {/* the Crew: your AI executives. Only the owner has it; one tap opens the Command Center (to-do, agents, orders, hand-offs, team channel) */}
+            {isSuper ? <button type="button" aria-label={`Crew, ${crewAttention.total} waiting`} title="Crew: your AI executives" className="relative flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-amber-400 px-2.5 text-[12px] font-bold text-slate-900 shadow-sm transition hover:brightness-110" onClick={() => openMailbox()}><Bot className="h-3.5 w-3.5" />Crew{crewAttention.total > 0 ? <span className="rounded-full bg-slate-900 px-1.5 text-[10px] text-amber-300">{crewAttention.total}</span> : null}</button> : null}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label="More" title="More" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/10 hover:bg-white/[0.08]"><MoreHorizontal className="h-4 w-4" /></button>
