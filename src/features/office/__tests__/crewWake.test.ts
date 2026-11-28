@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { plan } from '../../../../supabase/functions/_shared/crew-gateway-core';
-import { classifyFire, fireUrl, wakeText } from '../../../../supabase/functions/_shared/crew-wake-core';
+import { batchText, classifyFire, fireUrl, wakeText } from '../../../../supabase/functions/_shared/crew-wake-core';
 
 const AGENT = '11111111-1111-4111-8111-111111111111';
 const known: Record<string, string> = { compliance_head: '44444444-4444-4444-8444-444444444444' };
@@ -30,6 +30,14 @@ describe('waking an executive: what the runner receives and how Anthropic answer
     const t = wakeText({ id: 'w', slug: 'cfo', reason: 'The owner wrote to you\u0007\u0000: answer him', depth: 1, source: 'owner' });
     expect(t).toBe('AGENT=cfo\nDEPTH=1\nSOURCE=owner\nREASON=The owner wrote to you  : answer him');
     expect(wakeText({ id: 'w', slug: 'cfo', reason: 'x'.repeat(5000), depth: 0, source: 'event' }).length).toBeLessThan(1600);
+  });
+
+  it('puts every waiting task in one list, the owner first, so a burst of events costs one session', () => {
+    const t = batchText([{ id: '1', slug: 'controller', reason: '3 new expenses', depth: 0, source: 'event' }, { id: '2', slug: 'cfo', reason: 'The owner wrote to you\nanswer him', depth: 0, source: 'owner' }]);
+    expect(t.startsWith('TASKS (2):')).toBe(true);
+    expect(t.indexOf('AGENT=cfo')).toBeLessThan(t.indexOf('AGENT=controller'));
+    expect(t).toContain('REASON=The owner wrote to you / answer him');
+    expect(batchText(Array.from({ length: 40 }, (_, i) => ({ id: String(i), slug: 'cfo', reason: 'x'.repeat(900), depth: 0, source: 'event' }))).length).toBeLessThanOrEqual(7000);
   });
 
   it('builds the fire address from the routine id', () => {

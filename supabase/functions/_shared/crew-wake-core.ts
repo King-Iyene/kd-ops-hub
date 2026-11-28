@@ -12,6 +12,20 @@ export function wakeText(row: WakeRow): string {
   return `AGENT=${row.slug}\nDEPTH=${row.depth}\nSOURCE=${row.source}\nREASON=${clean}`;
 }
 
+/**
+ * One start of the CFO's routine carries every waiting task, so a burst of events costs one session, not one per person. The CFO reads the list and
+ * runs each task as the named executive (each with its own key), then writes ONE briefing. Owner messages come first.
+ */
+export function batchText(rows: WakeRow[]): string {
+  const ordered = [...rows].sort((a, b) => Number(b.source === 'owner') - Number(a.source === 'owner'));
+  const lines = ordered.map((r, i) => {
+    // eslint-disable-next-line no-control-regex
+    const clean = r.reason.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ').slice(0, 900);
+    return `${i + 1}. AGENT=${r.slug} DEPTH=${r.depth} SOURCE=${r.source}\n   REASON=${clean.replace(/\n/g, ' / ')}`;
+  });
+  return `TASKS (${ordered.length}):\n${lines.join('\n')}`.slice(0, 7000);
+}
+
 export function fireUrl(runnerId: string): string {
   return `https://api.anthropic.com/v1/claude_code/routines/${encodeURIComponent(runnerId)}/fire`;
 }
