@@ -6828,6 +6828,8 @@ export type Database = {
           id: boolean
           notify_kinds: string[]
           notify_profile_id: string | null
+          office_viewers: string[]
+          owner_profile_id: string | null
           updated_at: string
         }
         Insert: {
@@ -6836,6 +6838,8 @@ export type Database = {
           id?: boolean
           notify_kinds?: string[]
           notify_profile_id?: string | null
+          office_viewers?: string[]
+          owner_profile_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -6844,6 +6848,8 @@ export type Database = {
           id?: boolean
           notify_kinds?: string[]
           notify_profile_id?: string | null
+          office_viewers?: string[]
+          owner_profile_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6892,6 +6898,48 @@ export type Database = {
           {
             foreignKeyName: "crew_settings_notify_profile_id_fkey"
             columns: ["notify_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "crew_v_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_settings_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
@@ -28939,6 +28987,7 @@ export type Database = {
         Returns: Json
       }
       crew_can_prompt: { Args: { p_profile: string }; Returns: boolean }
+      crew_can_see_agents: { Args: never; Returns: boolean }
       crew_check_table_access: {
         Args: {
           p_perm: Database["public"]["Tables"]["crew_agent_private"]["Row"]
@@ -29048,6 +29097,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      crew_is_company_owner: { Args: never; Returns: boolean }
       crew_is_owner: { Args: never; Returns: boolean }
       crew_issue_token: {
         Args: { p_label?: string; p_slug: string }
@@ -29210,6 +29260,7 @@ export type Database = {
         Args: { p_body: string; p_topic: string }
         Returns: undefined
       }
+      crew_set_office_viewers: { Args: { p_ids: string[] }; Returns: string[] }
       crew_signals: { Args: { p_agent: string }; Returns: Json }
       crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
       crew_withdraw: {
