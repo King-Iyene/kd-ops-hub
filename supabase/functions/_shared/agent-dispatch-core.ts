@@ -2,6 +2,7 @@
 // No Deno APIs here, so it can be unit tested.
 
 import type { Outgoing } from './agent-deliver-core.ts';
+import { MORE, headline, shortLines, withFooter } from './crew-cliq-look.ts';
 
 export interface FlagRow { id: string; rule_code: string; severity: string; title: string; why: string; suggested_action: string | null; item_type: string }
 
@@ -74,20 +75,16 @@ export function formatSummary(s: SummaryRow): Outgoing {
 
 export interface CrewMessageRow { kind: string; body: string }
 
-const CREW_KIND: Record<string, string> = {
-  challenge: 'Challenge', alert: 'Alert', reminder: 'Reminder', report: 'Report', brief: 'Briefing', message: 'Message', reply: 'Reply',
-};
-
 /**
- * A message one of the AI executives wrote to the owner, as it reads in Cliq: who, what kind, then the words as they are.
- * Plain text, trimmed to a length a channel shows well; the owner is tagged by the caller. Nothing is added that the agent did not say.
+ * A message one of the AI executives wrote to the owner, as it reads in Cliq (the design is in crew-cliq-look.ts): a bold one-line headline with an emoji
+ * for the kind, the agent's first name and role, the first few short lines of what they said, a pointer to the app when it was shortened, and a quiet footer.
+ * The owner is tagged by the caller. Nothing is added that the agent did not say.
  */
 export function formatCrewMessage(m: CrewMessageRow, agentName: string, agentTitle: string): Outgoing {
-  const who = agentTitle ? `${agentName}, ${agentTitle}` : agentName;
-  const body = plainText(m.body).slice(0, 1500);
+  const { lines, more } = shortLines(m.body, { lines: 4, lineMax: 220 });
   return {
-    title: `[${(CREW_KIND[m.kind] ?? 'Message').toUpperCase()}] ${who}`.slice(0, 200),
-    text: body,
+    title: headline(m.kind, agentName, agentTitle),
+    text: withFooter(more ? [...lines, MORE] : lines),
     event: 'crew',
     meta: { severity: m.kind === 'challenge' || m.kind === 'alert' ? 'high' : 'info', rule: 'CREW', person: agentName },
   };

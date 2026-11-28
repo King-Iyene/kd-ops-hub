@@ -141,10 +141,10 @@ describe('crew cliq: the team and the owner look-up', () => {
 describe('crew cliq: formatProposal', () => {
   it('shows who, what, the summary, the risk and the exact reply lines', () => {
     const m = formatProposal(P);
-    expect(m.title).toBe('Hale (Chief Financial Officer) needs your decision');
+    expect(m.title).toBe('✋ Approval needed: Hale, Chief Financial Officer');
     expect(m.text).toContain('Wants to: change a record');
     expect(m.text).toContain('Correct the March rent amount');
-    expect(m.text).toContain('Risk: medium');
+    expect(m.text).toContain('Risk: 🟡 medium');
     expect(m.text).toContain('approve a1b2c3\n');
     expect(m.text).toContain('reject a1b2c3 your reason');
     expect(m.text).not.toContain('confirm');
@@ -153,7 +153,7 @@ describe('crew cliq: formatProposal', () => {
   it('asks for the word confirm on a high-risk proposal and on hiring or letting someone go', () => {
     const high = formatProposal({ ...P, risk: 'high' });
     expect(high.text).toContain('approve a1b2c3 confirm');
-    expect(high.text).toContain('Risk: high');
+    expect(high.text).toContain('Risk: 🔴 high');
     const staff = formatProposal({ ...P, action: 'agent.retire', risk: 'low' });
     expect(staff.text).toContain('approve a1b2c3 confirm');
     expect(staff.text).toContain('let a team member go');
@@ -192,31 +192,34 @@ describe('crew cliq: formatProposal', () => {
 
 describe('crew cliq: replies', () => {
   it('says what happened after a decision', () => {
-    expect(formatDecision('reject', { status: 'rejected', agent: 'Hale King' }).text).toMatch(/^Rejected\. Hale has been told/);
-    expect(formatDecision('approve', { status: 'executed', summary: 'Fix rent' }).title).toBe('Approved and done');
+    expect(formatDecision('reject', { status: 'rejected', agent: 'Hale King' }).title).toBe('❌ Rejected');
+    expect(formatDecision('reject', { status: 'rejected', agent: 'Hale King' }).text).toMatch(/^Hale has been told/);
+    expect(formatDecision('approve', { status: 'executed', summary: 'Fix rent' }).title).toBe('✅ Approved and done');
     expect(formatDecision('approve', { status: 'approved' }).text).toContain('carry it out in the app');
     expect(formatDecision('approve', { status: 'failed', error: 'the table no longer exists' }).text).toContain('the table no longer exists');
     expect(formatDecision('approve', { status: 'failed' }).text).toContain('no reason given');
   });
 
   it('says who the message went to', () => {
-    expect(formatSaid('Hale King')).toEqual({ title: 'Sent to Hale', text: expect.stringContaining('Sent to Hale.') });
+    expect(formatSaid('Hale King')).toEqual({ title: '📨 Sent to Hale', text: expect.stringContaining('Hale reads it') });
   });
 
   it('passes the database sentence through as plain text and falls back when there is none', () => {
-    expect(formatError('that one is already approved').text).toBe('that one is already approved');
-    expect(formatError('P0001: no proposal starts with abc123').text).toBe('no proposal starts with abc123');
-    expect(formatError(`bad {@123} thing${OWN_MARK}`).text).toBe('bad thing');
+    const first = (t: { text: string }) => t.text.split('\n')[0];
+    expect(first(formatError('that one is already approved'))).toBe('that one is already approved');
+    expect(first(formatError('P0001: no proposal starts with abc123'))).toBe('no proposal starts with abc123');
+    expect(first(formatError(`bad {@123} thing${OWN_MARK}`))).toBe('bad thing');
     expect(formatError(undefined).text).toContain('Try again');
-    expect(formatError('x'.repeat(900)).text.length).toBe(300);
+    expect(first(formatError('x'.repeat(900))).length).toBe(300);
+    expect(formatError('x').title).toBe('⚠️ Could not do that');
   });
 
   it('lists what is waiting, or says nothing is', () => {
-    expect(formatStatus([]).text).toBe('Nothing is waiting for you.');
+    expect(formatStatus([]).title).toBe('📋 Nothing is waiting for you');
     const s = formatStatus([P, { ...P, code: 'ffeedd', agent_name: 'Hannah Brooks', summary: 'Pay the vendor', risk: 'high' }]);
-    expect(s.title).toBe('Crew status: 2 waiting');
-    expect(s.text).toContain('a1b2c3  Hale: Correct the March rent amount (medium)');
-    expect(s.text).toContain('ffeedd  Hannah: Pay the vendor (high)');
+    expect(s.title).toBe('📋 2 waiting for you');
+    expect(s.text).toContain('a1b2c3 · Hale: Correct the March rent amount 🟡');
+    expect(s.text).toContain('ffeedd · Hannah: Pay the vendor 🔴');
   });
 
   it('has a help text that names every command and the safety rules', () => {
