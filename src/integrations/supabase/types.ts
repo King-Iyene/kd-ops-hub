@@ -6929,31 +6929,43 @@ export type Database = {
           cliq_connection_id: string | null
           cliq_enabled: boolean
           id: boolean
+          last_event_scan_at: string | null
           notify_kinds: string[]
           notify_profile_id: string | null
           office_viewers: string[]
           owner_profile_id: string | null
+          owner_seen_at: string | null
           updated_at: string
+          watch_events: boolean
+          watch_only_online: boolean
         }
         Insert: {
           cliq_connection_id?: string | null
           cliq_enabled?: boolean
           id?: boolean
+          last_event_scan_at?: string | null
           notify_kinds?: string[]
           notify_profile_id?: string | null
           office_viewers?: string[]
           owner_profile_id?: string | null
+          owner_seen_at?: string | null
           updated_at?: string
+          watch_events?: boolean
+          watch_only_online?: boolean
         }
         Update: {
           cliq_connection_id?: string | null
           cliq_enabled?: boolean
           id?: boolean
+          last_event_scan_at?: string | null
           notify_kinds?: string[]
           notify_profile_id?: string | null
           office_viewers?: string[]
           owner_profile_id?: string | null
+          owner_seen_at?: string | null
           updated_at?: string
+          watch_events?: boolean
+          watch_only_online?: boolean
         }
         Relationships: [
           {
@@ -7132,6 +7144,66 @@ export type Database = {
             columns: ["proposal_id"]
             isOneToOne: false
             referencedRelation: "crew_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_wake_queue: {
+        Row: {
+          agent_id: string
+          attempts: number
+          created_at: string
+          depth: number
+          error: string | null
+          fired_at: string | null
+          id: string
+          reason: string
+          requested_by_agent: string | null
+          session_url: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          created_at?: string
+          depth?: number
+          error?: string | null
+          fired_at?: string | null
+          id?: string
+          reason: string
+          requested_by_agent?: string | null
+          session_url?: string | null
+          source: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          created_at?: string
+          depth?: number
+          error?: string | null
+          fired_at?: string | null
+          id?: string
+          reason?: string
+          requested_by_agent?: string | null
+          session_url?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_wake_queue_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_wake_queue_requested_by_agent_fkey"
+            columns: ["requested_by_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
             referencedColumns: ["id"]
           },
         ]
@@ -29186,6 +29258,10 @@ export type Database = {
         }
         Returns: string
       }
+      crew_claim_wakes: {
+        Args: { p_agent: string; p_max?: number }
+        Returns: Json
+      }
       crew_decide: {
         Args: { p_decision: string; p_note?: string; p_proposal: string }
         Returns: Json
@@ -29199,6 +29275,21 @@ export type Database = {
           p_stance: string
         }
         Returns: string
+      }
+      crew_enqueue_wake: {
+        Args: {
+          p_by?: string
+          p_depth?: number
+          p_reason: string
+          p_source: string
+          p_target: string
+        }
+        Returns: string
+      }
+      crew_event_scan: { Args: never; Returns: Json }
+      crew_event_wake: {
+        Args: { p_reason: string; p_slug: string }
+        Returns: boolean
       }
       crew_execute: {
         Args: { p_by: string; p_proposal: string }
@@ -29383,6 +29474,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      crew_owner_ping: { Args: never; Returns: undefined }
       crew_post_message: {
         Args: {
           p_agent: string
@@ -29507,6 +29599,16 @@ export type Database = {
       crew_signals: { Args: { p_agent: string }; Returns: Json }
       crew_similarity: { Args: { a: string[]; b: string[] }; Returns: number }
       crew_team_mistakes: { Args: { p_agent: string }; Returns: Json }
+      crew_wake: {
+        Args: {
+          p_agent: string
+          p_depth?: number
+          p_reason: string
+          p_target: string
+        }
+        Returns: string
+      }
+      crew_wake_tick: { Args: never; Returns: undefined }
       crew_withdraw: {
         Args: { p_agent: string; p_proposal: string }
         Returns: undefined
