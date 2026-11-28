@@ -122,7 +122,7 @@ jobs:
             desktop-agent/release/*.yml
             desktop-agent/release/*.blockmap
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 3
 
   release:
     needs: build
