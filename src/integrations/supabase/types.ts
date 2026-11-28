@@ -25727,6 +25727,8 @@ export type Database = {
       agent_rule_dc02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_es01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_es02: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_ex01: { Args: { p_now?: string }; Returns: Json }
+      agent_rule_fl01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ft01: { Args: { p_now?: string }; Returns: Json }
       agent_rule_ft02: { Args: { p_now?: string }; Returns: Json }
       agent_rule_hl01: { Args: { p_now?: string }; Returns: Json }
