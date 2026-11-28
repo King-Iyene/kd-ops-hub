@@ -21,6 +21,7 @@ vi.mock('../../useCrew', () => {
     useResolveOrder: () => ({ mutate: vi.fn(), isPending: false }), useGiveOrder: () => ({ mutate: vi.fn(), isPending: false }),
   };
 });
+vi.mock('../../components/PauseToggle', () => ({ usePausedAgents: () => ({ data: [] }), PauseToggle: () => null }));
 vi.mock('../hooks', () => ({ useWakeQueue: () => ({ data: undefined }) }));
 vi.mock('@/features/office/AvatarFace', () => ({ AvatarFace: () => null }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));

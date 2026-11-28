@@ -41,3 +41,12 @@ export function useSnoozed() {
   const wake = useCallback((id: string) => { const m = { ...snoozeStore.get() }; delete m[id]; snoozeStore.set(m); }, []);
   return { snoozed: map, snooze, wake };
 }
+
+/** The first-run keyboard hint on Today: true once the owner has dismissed it. */
+export const hintStore = makeStore<boolean>('crew-hq-hint-dismissed', (raw) => raw === true, false, (v) => v);
+
+export function useShortcutHint() {
+  const dismissed = useSyncExternalStore(hintStore.subscribe, hintStore.get, hintStore.get);
+  const dismiss = useCallback(() => hintStore.set(true), []);
+  return { show: !dismissed, dismiss };
+}

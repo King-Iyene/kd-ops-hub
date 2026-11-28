@@ -1,6 +1,6 @@
 // TODAY: the briefing. Hale's latest brief, four live numbers, the team's pulse, and the three decisions that matter most.
 import { useMemo, useState } from 'react';
-import { ArrowUpRight, Check, Send } from 'lucide-react';
+import { ArrowUpRight, Check, Keyboard, Send, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { CrewAgent, CrewMessage } from '../crewDb';
@@ -11,7 +11,8 @@ import { DecisionCard } from './DecisionCard';
 import { useLatestRuns } from './hooks';
 import { computeHandoffs, isBusy, type Navigate } from './logic';
 import { usePausedIds } from './pause';
-import { Btn, Chip, EmptyState, ErrorState, Eyebrow, Face, HqCard, LoadingRows, Prose, Section } from './ui';
+import { Btn, Chip, EmptyState, ErrorState, Eyebrow, Face, HqCard, Kbd, LoadingRows, Prose, Section } from './ui';
+import { useShortcutHint } from './store';
 import { STATUS_WORD } from './tones';
 import type { HqData } from './useHq';
 
@@ -62,6 +63,28 @@ function Brief({ data, onSend }: { data: HqData; onSend: ReturnType<typeof useHq
   );
 }
 
+/** A friendly one-time hint about the keyboard, until the owner dismisses it (kept in this browser). */
+export function ShortcutHint({ onShow }: { onShow: () => void }) {
+  const { show, dismiss } = useShortcutHint();
+  if (!show) return null;
+  return (
+    <aside aria-label="Keyboard tips" className="flex items-start gap-3 rounded-2xl border border-[hsl(var(--hq-signal)/0.3)] bg-[hsl(var(--hq-signal)/0.08)] p-4">
+      <Keyboard className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(var(--hq-signal-ink))]" aria-hidden />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="font-bold">Tip: you can run this from the keyboard</p>
+        <p className="mt-1 text-muted-foreground">
+          <Kbd>J</Kbd> <Kbd>K</Kbd> move between decisions, <Kbd>A</Kbd> approves, <Kbd>R</Kbd> rejects, <Kbd>?</Kbd> lists them all. <Kbd>Ctrl</Kbd> <Kbd>K</Kbd> or <Kbd>/</Kbd> opens the command bar: type <span className="font-semibold text-foreground">tell hale …</span> to message someone.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Btn tone="go" onClick={() => { dismiss(); onShow(); }}>Show me the decisions</Btn>
+          <Btn tone="ghost" onClick={dismiss}>Got it, hide this</Btn>
+        </div>
+      </div>
+      <button type="button" onClick={dismiss} aria-label="Dismiss the tip" className="hq-focus rounded-lg p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+    </aside>
+  );
+}
+
 function Pulse({ agents, onOpen }: { agents: CrewAgent[]; onOpen: (a: CrewAgent) => void }) {
   const runs = useLatestRuns();
   const paused = usePausedIds();
@@ -98,6 +121,7 @@ export function TodayView({ data, onNavigate, onOpenAgent }: { data: HqData; onN
   return (
     <div className="space-y-8">
       {data.error ? <ErrorState message={data.error} /> : null}
+      <ShortcutHint onShow={() => onNavigate('decisions')} />
       <Brief data={data} onSend={actions} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-live="polite">

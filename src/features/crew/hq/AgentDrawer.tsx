@@ -13,7 +13,8 @@ import { useCrewAgents, useCrewKnowledge, useCrewMistakes, useCrewNotes, useCrew
 import { useHqActions } from './actions';
 import { useAgentAccess, useSelfReviews } from './hooks';
 import { actionLabel, PICKUP_LABEL, pickup } from './logic';
-import { PauseToggleSlot, usePausedIds } from './pause';
+import { PauseToggle } from '../components/PauseToggle';
+import { usePausedIds } from './pause';
 import { PickupChip } from './Receipts';
 import { Btn, Chip, EmptyState, Eyebrow, Face, LoadingRows, Prose, StatusLine } from './ui';
 import type { HqData } from './useHq';
@@ -43,7 +44,7 @@ function Overview({ agent }: { agent: CrewAgent }) {
   const copy = async (t: string) => { try { await navigator.clipboard.writeText(t); toast({ title: 'Copied' }); } catch { toast({ title: 'Could not copy: select it by hand', variant: 'destructive' }); } };
   return (
     <div className="space-y-5">
-      {PauseToggleSlot ? <PauseToggleSlot agentId={agent.id} name={agent.name} /> : null}
+      <PauseToggle agentId={agent.id} name={agent.name} />
       <section className="space-y-2">
         <Eyebrow>Role</Eyebrow>
         <p className="text-sm [overflow-wrap:anywhere]">{agent.title} · {agent.department}{agent.company && agent.company !== 'All' ? ` · ${agent.company}` : ''}</p>
