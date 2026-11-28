@@ -44,6 +44,16 @@ export function consentUrl(p: { dc: CliqDc; clientId: string; redirectUri: strin
 export const accountsUrl = (dc: CliqDc) => `https://accounts.zoho.${dc}/oauth/v2/token`;
 export const messagesUrl = (dc: CliqDc, channel: string) => `https://cliq.zoho.${dc}/api/v3/channelsbyname/${encodeURIComponent(channel)}/messages`;
 
+/** A Cliq user id (digits) or an email: the two things Zoho takes in the address of a direct message. */
+export const validDmTarget = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9._@+-]{2,120}$/.test(v);
+/**
+ * A direct message to one person: POST https://cliq.zoho.<dc>/api/v2/buddies/<user id or email>/message  { "text": "..." }
+ * Zoho's documentation lists the same ZohoCliq.Webhooks.CREATE permission as channel posting, so no new permission is asked for. The person must
+ * be in the same Zoho organisation (or a mutual contact). Null when the target is not a plain id or email, or the data center is not a known one.
+ */
+export const dmMessageUrl = (dc: CliqDc, idOrEmail: string): string | null =>
+  validDc(dc) && validDmTarget(idOrEmail) ? `https://cliq.zoho.${dc}/api/v2/buddies/${encodeURIComponent(idOrEmail)}/message` : null;
+
 /** The form body for either swap: a grant code for a refresh token, or a refresh token for an access token. */
 export function tokenForm(p: { clientId: string; clientSecret: string; code?: string; refreshToken?: string; redirectUri?: string }): string {
   const f = new URLSearchParams();

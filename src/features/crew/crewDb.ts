@@ -156,7 +156,9 @@ export interface CrewSettings {
   id: true; cliq_enabled: boolean; cliq_connection_id: string | null; notify_profile_id: string | null; notify_kinds: MessageKind[]; owner_profile_id: string | null; office_viewers: string[]; updated_at: string;
   /** Approve, reject and reply from Cliq (off by default) and the one Cliq account that is obeyed. Missing until the migration has run. */
   cliq_commands_enabled?: boolean; cliq_owner_id?: string | null;
+  /** Send to the owner as a direct message instead of a channel, and the last problem sending or reading in Cliq (plain words). Missing until the migration has run. */
+  cliq_dm?: boolean; cliq_error?: string | null; cliq_error_at?: string | null;
 }
-export interface CliqConnection { id: string; name: string; kind: string; config: { channel?: string } }
+export interface CliqConnection { id: string; name: string; kind: string; config: { channel?: string; mode?: string } }
 
 export interface CrewMistake { id: string; agent_id: string; kind: string; note: string; created_at: string; reported_by_agent: string | null; reported_by_profile: string | null }
