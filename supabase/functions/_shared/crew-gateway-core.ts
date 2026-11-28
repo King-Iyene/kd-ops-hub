@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -85,6 +85,32 @@ function filters(a: Json): Json[] {
     const value = f.value === undefined || f.value === null ? null : String(f.value).slice(0, 300);
     return { field: f.field, op, value };
   });
+}
+
+/** A list of short texts for the meeting minutes (at most 10, each at most 300 characters); missing means none. */
+function shortList(m: Json, k: string): string[] {
+  const v = m[k];
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v) || v.length > 10) throw new GatewayError(`minutes.${k} must be a list of at most 10 short texts`);
+  return v.map((x) => {
+    if (typeof x !== 'string' || x.length > 300) throw new GatewayError(`each item of minutes.${k} must be text of at most 300 characters`);
+    return x;
+  });
+}
+
+/** The chair's minutes: a summary, what was decided, what needs the owner, and who does what. The database checks the slugs. */
+function minutesOf(a: Json): Json | null {
+  const v = a.minutes;
+  if (v === undefined || v === null) return null;
+  if (!isObj(v)) throw new GatewayError('minutes must be an object');
+  const summary = text(v, 'summary', 1500);
+  const items = v.action_items;
+  if (items !== undefined && items !== null && (!Array.isArray(items) || items.length > 10)) throw new GatewayError('minutes.action_items must be a list of at most 10');
+  const action_items = ((items as unknown[] | undefined | null) ?? []).map((it) => {
+    if (!isObj(it) || typeof it.agent !== 'string' || !/^[a-z][a-z0-9_]{1,30}$/.test(it.agent)) throw new GatewayError('each action item needs agent (a slug) and task');
+    return { agent: it.agent, task: text(it, 'task', 300) };
+  });
+  return { summary, decisions: shortList(v, 'decisions'), needs_owner: shortList(v, 'needs_owner'), action_items };
 }
 
 /**
@@ -190,6 +216,12 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
       return { fn: 'crew_wake', args: { p_agent: agentId, p_target: targetId, p_reason: text(a, 'reason', 1000), p_depth: int(a, 'depth', 0, 5, 0) } };
     }
     case 'wakes': return { fn: 'crew_claim_wakes', args: { p_agent: agentId, p_max: int(a, 'max', 1, 12, 6) } };
+    // meetings: read the thread, add one contribution; the chair, when asked, sends the minutes. A meeting changes nothing (the database checks membership and turns).
+    case 'meeting': return { fn: 'crew_meeting_thread', args: { p_agent: agentId, p_meeting: uuid(a, 'meeting_id') } };
+    case 'meeting_post': {
+      const minutes = minutesOf(a);
+      return { fn: 'crew_meeting_post', args: { p_agent: agentId, p_meeting: uuid(a, 'meeting_id'), p_body: text(a, 'body', 1200, minutes === null) ?? '', p_minutes: minutes } };
+    }
     case 'mistakes': return { fn: 'crew_team_mistakes', args: { p_agent: agentId } };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
     case 'report_done': return { fn: 'crew_report_done', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_result: obj(a, 'result', 8000) } };

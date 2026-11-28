@@ -79,7 +79,29 @@ export interface CrewMessage {
   ref_order: string | null;
   created_at: string;
   read_at: string | null;
+  /** Set on a line said in a meeting (the Meetings tab shows those; the inbox and the team channel leave them out). Missing until the meetings migration has run. */
+  meeting_id?: string | null;
+  meeting_round?: number | null;
 }
+
+export type MeetingStatus = 'open' | 'summarising' | 'closed';
+export interface MeetingMinutes { summary: string; decisions: string[]; needs_owner: string[]; action_items: { agent: string; task: string }[] }
+export interface CrewMeeting {
+  id: string;
+  topic: string;
+  brief: string;
+  chair_agent: string;
+  called_by: string | null;
+  status: MeetingStatus;
+  round: number;
+  max_rounds: number;
+  round_started_at: string;
+  summarising_at: string | null;
+  created_at: string;
+  closed_at: string | null;
+  minutes: MeetingMinutes | null;
+}
+export interface CrewMeetingMember { meeting_id: string; agent_id: string; spoke_round: number }
 
 export type OrderStatus = 'given' | 'accepted' | 'challenged' | 'vetoed' | 'withdrawn' | 'done';
 
