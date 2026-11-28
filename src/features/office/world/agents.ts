@@ -10,9 +10,12 @@
 import type { AvatarStyle } from './types';
 import { advance, facing, findPath, nearestOpenTile, reachable } from './world';
 import { defaultAvatar } from './render';
-import { BOARDROOM, BREAK_SPOTS, DESK_SLOTS, WING } from './wing';
+import { BOARDROOM, BREAK_SPOTS, CFO_POST, DESK_SLOTS, WING } from './wing';
 
-export { BOARDROOM, BREAK_SPOTS, DESK_SLOTS, WING } from './wing';
+export { BOARDROOM, BREAK_SPOTS, CFO_POST, DESK_SLOTS, WING } from './wing';
+
+/** The CFO stands at his post in the boardroom instead of sitting at a desk. */
+export const standsAtPost = (slug: string): boolean => slug === 'cfo';
 
 export type AgentStatus = 'offline' | 'idle' | 'working' | 'thinking' | 'waiting_approval' | 'walking' | 'meeting';
 export interface AgentInfo { id: string; slug: string; name: string; title: string; color: string; status: AgentStatus; department?: string }
@@ -147,6 +150,8 @@ export interface AgentSim {
   route: { x: number; y: number }[];
   thinkAt: number;
   stuck: number;
+  /** has no desk: stands at its post (the CFO) */
+  stands?: boolean;
 }
 
 const SPEED = 2.2; // tiles per second: unhurried
@@ -155,7 +160,7 @@ export function initAgentSim(id: string, home: { x: number; y: number }, now = 0
   // they start in their chairs; the first one gets up after a while, the others at different times
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return { id, x: home.x, y: home.y, vx: 0, vy: 0, dir: 3, moving: false, seated: true, mode: 'desk', home, route: [], thinkAt: now + 4 + (h % 40), stuck: 0 };
+  return { id, x: home.x, y: home.y, vx: 0, vy: 0, dir: 3, moving: false, seated: true, mode: 'desk', home, route: [], thinkAt: now + 40 + (h % 200), stuck: 0 };
 }
 
 export interface AgentCtx {
@@ -231,8 +236,8 @@ export function stepAgent(a: AgentSim, dt: number, now: number, status: AgentSta
   const dHome = Math.hypot(a.home.x - a.x, a.home.y - a.y);
   if ((a.mode === 'desk' || a.mode === 'wander') && a.route.length === 0 && dHome < 0.35) {
     a.x = a.home.x; a.y = a.home.y;
-    a.dir = 3;
-    a.seated = true;
+    a.dir = a.stands ? 0 : 3;
+    a.seated = !a.stands;
   } else {
     a.seated = false;
   }
@@ -256,7 +261,7 @@ export function stepAgent(a: AgentSim, dt: number, now: number, status: AgentSta
     if (dHome >= 0.35) {
       // been away long enough: back to the chair for a good sit
       setRoute(a, ctx, a.home.x, a.home.y);
-      a.thinkAt = now + routeSeconds(a) + 25 + ctx.rand() * 45;
+      a.thinkAt = now + routeSeconds(a) + 150 + ctx.rand() * 250;
     } else if (ctx.rand() < 0.3) {
       // a coffee, some water or a snack in the lounge
       const spot = BREAK_SPOTS[Math.floor(ctx.rand() * BREAK_SPOTS.length) % BREAK_SPOTS.length];

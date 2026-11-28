@@ -12,7 +12,7 @@ import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
 import { drawSciFiGlow } from './world/scifi';
-import { agentAvatar, deskStand, deskWalkable, firstName, placesToVisit, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
+import { CFO_POST, standsAtPost, agentAvatar, deskStand, deskWalkable, firstName, placesToVisit, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
 import { applyPetCmd, applyPetSnap, goHome, initPet, petBus, stableAuthority, type AuthorityState, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
