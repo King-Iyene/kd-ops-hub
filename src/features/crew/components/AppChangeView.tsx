@@ -34,7 +34,7 @@ function fromPayload(p: Props['proposal']): Preview {
 }
 
 /** The live preview of one waiting app.* proposal (owner only). Cards use isError to fall back to their own before/after table. */
-export function useAppPreview(proposal: Props['proposal']) {
+function useAppPreview(proposal: Props['proposal']) {
   const live = proposal.status === 'pending' && proposal.action.startsWith('app.');
   return useSupabaseQuery<Preview>(['crew', 'app-preview', proposal.id], () => cdb.rpc('crew_app_preview', { p_proposal: proposal.id }) as never, { enabled: live, staleTime: 15_000, retry: false });
 }
