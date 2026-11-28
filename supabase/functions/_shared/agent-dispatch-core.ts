@@ -6,7 +6,7 @@ import type { Outgoing } from './agent-deliver-core.ts';
 export interface FlagRow { id: string; rule_code: string; severity: string; title: string; why: string; suggested_action: string | null; item_type: string }
 
 /** Only team items (tasks, time tracking, daily reports) are ever sent on their own. Everything else stays in the Inbox. */
-export const isTeamRule = (code: string | null | undefined): boolean => /^(TK|TR|RP)[0-9]+$/.test(code ?? '');
+export const isTeamRule = (code: string | null | undefined): boolean => /^(TK|TR|RP|FL|EX)[0-9]+$/.test(code ?? '');
 
 const LABEL: Record<string, string> = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW', info: 'INFO' };
 
