@@ -263,6 +263,8 @@ export default function AppLayout() {
       <MobileNav />
       <ChatWidget />
       <CrewNotifier />
+      {/* in the desktop app the office is full screen and the top bar (with the mailbox button) is gone: keep the mailbox panel, the standing mailbox and the F key working */}
+      {officeFull ? <CrewMailbox headless /> : null}
       <ScrollToTop />
       <div className="h-14 md:hidden" />
     </div>
