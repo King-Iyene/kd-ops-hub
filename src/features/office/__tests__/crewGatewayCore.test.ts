@@ -88,6 +88,18 @@ describe('crew gateway: what an agent can ask for', () => {
     await expect(run('idea_triage', { idea_id: TABLE, priority: 'urgent' })).rejects.toThrow('priority must be');
   });
 
+  it('app data: sources, a bounded read of one source, and a brief list of tables', async () => {
+    expect(await run('sources')).toMatchObject({ fn: 'crew_list_sources', args: { p_agent: AGENT } });
+    expect(await run('app', { source: 'expenses', filters: [{ field: 'status', op: 'eq', value: 'pending' }], select: ['id', 'amount_ngn'], limit: 99999, order_field: 'date' })).toMatchObject({ fn: 'crew_read_app', args: { p_source: 'expenses', p_limit: 500, p_select: ['id', 'amount_ngn'], p_order_field: 'date', p_desc: true } });
+    await expect(run('app', {})).rejects.toThrow('source is required');
+    await expect(run('app', { source: 'expenses', select: ['id; drop table x'] })).rejects.toThrow('list of column names');
+    await expect(run('app', { source: 'expenses', select: [] })).rejects.toThrow('list of column names');
+    await expect(run('app', { source: 'expenses', filters: [{ field: 'x', op: 'sql' }] })).rejects.toThrow('op must be');
+    expect(await run('tables')).toMatchObject({ fn: 'crew_list_tables', args: { p_search: null, p_table: null } });
+    expect(await run('tables', { search: 'income', table_id: TABLE })).toMatchObject({ args: { p_search: 'income', p_table: TABLE } });
+    await expect(run('tables', { table_id: 'nope' })).rejects.toThrow('must be an id');
+  });
+
   it('heartbeat: status from the fixed list, numbers only', async () => {
     expect(await run('heartbeat', { status: 'walking', activity: 'to the owner', x: 10, y: 4.5 })).toMatchObject({ fn: 'crew_heartbeat', args: { p_status: 'walking', p_x: 10, p_y: 4.5 } });
     await expect(run('heartbeat', { status: 'sleeping' })).rejects.toThrow('status must be');

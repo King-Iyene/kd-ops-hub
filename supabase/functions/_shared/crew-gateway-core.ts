@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -66,6 +66,14 @@ const MSG_KINDS = ['message', 'reply', 'report', 'alert', 'challenge', 'reminder
 const IDEA_STATUSES = ['open', 'triaged', 'approved', 'building', 'shipped', 'rejected', 'merged'] as const;
 const FILTER_OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'] as const;
 
+/** A short list of column names (letters, digits and underscores only), or null when not given. */
+function names(a: Json, k: string): string[] | null {
+  const v = a[k];
+  if (v === undefined || v === null) return null;
+  if (!Array.isArray(v) || v.length === 0 || v.length > 60 || !v.every((x) => typeof x === 'string' && /^[a-z][a-z0-9_]{0,60}$/.test(x))) throw new GatewayError(`${k} must be a list of column names`);
+  return v as string[];
+}
+
 function filters(a: Json): Json[] {
   const v = a.filters;
   if (v === undefined || v === null) return [];
@@ -87,7 +95,14 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
     case 'whoami': return { read: 'whoami' };
     case 'team': return { read: 'team' };
     case 'proposals': return { read: 'proposals', status: a.status === undefined ? undefined : oneOf(a, 'status', ['pending', 'approved', 'rejected', 'executed', 'failed', 'expired', 'withdrawn'] as const), limit: int(a, 'limit', 1, 100, 30) };
-    case 'tables': return { fn: 'crew_list_tables', args: { p_agent: agentId } };
+    case 'tables': return { fn: 'crew_list_tables', args: { p_agent: agentId, p_search: text(a, 'search', 80, false), p_table: uuid(a, 'table_id', false) } };
+    case 'sources': return { fn: 'crew_list_sources', args: { p_agent: agentId } };
+    case 'app': return {
+      fn: 'crew_read_app',
+      args: {
+        p_agent: agentId, p_source: text(a, 'source', 40), p_filters: filters(a), p_limit: int(a, 'limit', 1, 500, 100), p_order_field: text(a, 'order_field', 80, false), p_desc: a.desc === false ? false : true, p_select: names(a, 'select'),
+      },
+    };
     case 'read': return {
       fn: 'crew_read_records',
       args: { p_agent: agentId, p_table: uuid(a, 'table_id'), p_filters: filters(a), p_limit: int(a, 'limit', 1, 500, 100), p_order_field: text(a, 'order_field', 120, false), p_desc: a.desc === false ? false : true },
