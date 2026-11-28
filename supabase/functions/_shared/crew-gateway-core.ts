@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post', 'visitor_questions', 'cliq_post',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'app_schema', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post', 'visitor_questions', 'cliq_post',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -58,7 +58,7 @@ function int(a: Json, k: string, min: number, max: number, dflt: number): number
   return Math.max(min, Math.min(max, Math.trunc(v)));
 }
 
-export const ACTION_RE = /^(record\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|agent\.(retire|hire)|external\.(github|vercel|supabase|other)|drive\.(create|update|trash))$/;
+export const ACTION_RE = /^(record\.(create|update|soft_delete)|app\.(create|update|soft_delete)|draft\.(batch_payment|payroll_run|invoice|filing)|advice\.[a-z_]+|agent\.(retire|hire)|external\.(github|vercel|supabase|other)|drive\.(create|update|trash))$/;
 const STATUSES = ['offline', 'idle', 'working', 'thinking', 'waiting_approval', 'walking', 'meeting'] as const;
 const NOTE_KINDS = ['lesson', 'rule', 'fact', 'preference', 'mistake'] as const;
 const NOTE_SOURCES = ['proposal_outcome', 'owner_feedback', 'self_review', 'order_veto', 'ci_result', 'other'] as const;
@@ -138,6 +138,8 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
         p_agent: agentId, p_source: text(a, 'source', 40), p_filters: filters(a), p_limit: int(a, 'limit', 1, 500, 100), p_order_field: text(a, 'order_field', 80, false), p_desc: a.desc === false ? false : true, p_select: names(a, 'select'),
       },
     };
+    // which KDOps sources this agent may propose changes to, and the exact writable columns of one (so it never guesses a column name)
+    case 'app_schema': return { fn: 'crew_app_schema', args: { p_agent: agentId, p_source: text(a, 'source', 40, false) } };
     case 'read': return {
       fn: 'crew_read_records',
       args: { p_agent: agentId, p_table: uuid(a, 'table_id'), p_filters: filters(a), p_limit: int(a, 'limit', 1, 500, 100), p_order_field: text(a, 'order_field', 120, false), p_desc: a.desc === false ? false : true },
@@ -145,11 +147,19 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
     case 'propose': {
       const action = a.action;
       if (typeof action !== 'string' || !ACTION_RE.test(action)) throw new GatewayError('unknown action');
+      let payload = obj(a, 'payload');
+      if (action.startsWith('app.')) {
+        // an app change names a SOURCE (checked against the database allowlist), never a table; the values go by column name
+        const source = text(a, 'source', 40);
+        if (!/^[a-z_]{3,40}$/.test(source as string)) throw new GatewayError('source must be a source name (see app_schema)');
+        if (a.table_id !== undefined && a.table_id !== null && a.table_id !== '') throw new GatewayError('an app action takes a source, not a table_id');
+        payload = { ...payload, source };
+      }
       return {
         fn: 'crew_propose',
         args: {
           p_agent: agentId, p_action: action, p_table: uuid(a, 'table_id', false),
-          p_summary: text(a, 'summary', 400), p_rationale: text(a, 'rationale', 4000, false) ?? '', p_payload: obj(a, 'payload'),
+          p_summary: text(a, 'summary', 400), p_rationale: text(a, 'rationale', 4000, false) ?? '', p_payload: payload,
           p_evidence: obj(a, 'evidence'), p_risk: oneOf(a, 'risk', ['low', 'medium', 'high'] as const, 'medium'),
           p_dedupe: text(a, 'dedupe_key', 200, false), p_ledger_key: text(a, 'ledger_key', 300, false), p_order: uuid(a, 'order_id', false),
         },

@@ -42,6 +42,11 @@ describe('org chart', () => {
     expect(describeAction('draft.filing')).toBe('Draft a tax filing');
     expect(describeAction('record.soft_delete')).toBe('Move a record to the trash');
     expect(describeAction('advice.market_sizing')).toBe('Advice: market sizing');
+    expect(approveLabel('app.create')).toBe('Approve and apply');
+    expect(approveLabel('app.soft_delete')).toBe('Approve and apply');
+    expect(describeAction('app.create')).toBe('Add to KDOps');
+    expect(describeAction('app.update')).toBe('Change in KDOps');
+    expect(describeAction('app.soft_delete')).toBe('Hide in KDOps (soft delete)');
   });
 });
 
