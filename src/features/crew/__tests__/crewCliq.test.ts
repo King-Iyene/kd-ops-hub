@@ -3,16 +3,16 @@ import { formatCrewMessage } from '../../../../supabase/functions/_shared/agent-
 
 describe('crew message in Cliq', () => {
   it('says who wrote it and what kind it is, then the words as they are', () => {
-    const m = formatCrewMessage({ kind: 'challenge', body: 'I advise **against** paying all salaries on the 28th: cash is short by N1,200,000.' }, 'Eleanor Whitfield', 'Chief Financial Officer');
-    expect(m.title).toBe('[CHALLENGE] Eleanor Whitfield, Chief Financial Officer');
+    const m = formatCrewMessage({ kind: 'challenge', body: 'I advise **against** paying all salaries on the 28th: cash is short by N1,200,000.' }, 'Ada Sterling', 'Chief Financial Officer');
+    expect(m.title).toBe('[CHALLENGE] Ada Sterling, Chief Financial Officer');
     expect(m.text).toBe('I advise against paying all salaries on the 28th: cash is short by N1,200,000.');
     expect(m.meta?.severity).toBe('high');
     expect(m.event).toBe('crew');
   });
 
   it('is calm for a report and uses the plain name when the agent has no title', () => {
-    const m = formatCrewMessage({ kind: 'report', body: 'Weekly numbers are in.' }, 'Oliver Grant', '');
-    expect(m.title).toBe('[REPORT] Oliver Grant');
+    const m = formatCrewMessage({ kind: 'report', body: 'Weekly numbers are in.' }, 'Isaac Merrick', '');
+    expect(m.title).toBe('[REPORT] Isaac Merrick');
     expect(m.meta?.severity).toBe('info');
   });
 
