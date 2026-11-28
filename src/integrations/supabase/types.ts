@@ -29752,8 +29752,10 @@ export type Database = {
         Args: { p_code: string; p_decision: string; p_note?: string }
         Returns: Json
       }
+      crew_cliq_effective_owner: { Args: never; Returns: string }
       crew_cliq_mark_notified: { Args: { p_ids: string[] }; Returns: string[] }
       crew_cliq_owner: { Args: never; Returns: string }
+      crew_cliq_owner_link: { Args: never; Returns: Json }
       crew_cliq_pending_list: {
         Args: { p_limit?: number }
         Returns: {
