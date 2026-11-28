@@ -11,7 +11,8 @@ import { stackTags } from './world/nameTags';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
-import { agentAvatar, deskStand, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
+import { drawSciFiGlow } from './world/scifi';
+import { agentAvatar, deskStand, deskWalkable, firstName, placesToVisit, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
 import { applyPetCmd, applyPetSnap, goHome, initPet, petBus, stableAuthority, type AuthorityState, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
@@ -368,7 +369,7 @@ export function OfficeCanvas(props: Props) {
       let best: { id: string; d: number } | null = null;
       for (const [id, s] of agentSims) {
         const dx = wx - s.x, dy = wy - (s.y - 0.6);
-        if (Math.abs(dx) > 0.6 || dy < -1 || dy > 0.9) continue;
+        if (Math.abs(dx) > 0.8 || dy < -1.3 || dy > 1.1) continue;
         const d = Math.hypot(dx, dy);
         if (!best || d < best.d) best = { id, d };
       }
@@ -1010,6 +1011,7 @@ export function OfficeCanvas(props: Props) {
       };
       try {
       drawFloor(ctx, p.map, theme, now, view);
+      drawSciFiGlow(ctx, p.map, now, view);
       {
         const seasonNow = seasonFor(p.seasonMode, Date.now());
         if (!smooth) drawGroundWeather(ctx, p.map, seasonNow, rainFor(p.seasonMode, seasonNow, Date.now()), now, view);
@@ -1036,7 +1038,8 @@ export function OfficeCanvas(props: Props) {
         lastAgentT = nowS;
         const ordered = sortAgents(p.agents);
         const spots = meetingSpots(solid, ordered.length);
-        const ctxA = { solid, owner: p.isOwner ? { x: me.x, y: me.y } : null, meetingSpot: spots[0], rand: Math.random };
+        const walk = deskWalkable(solid);
+        const ctxA = { solid: walk, owner: p.isOwner ? { x: me.x, y: me.y } : null, meetingSpot: spots[0], rand: Math.random, places: placesToVisit(walk, deskStand(0)), others: [...agentSims.values()].map((o) => ({ id: o.id, x: o.x, y: o.y })) };
         const seenIds = new Set<string>();
         ordered.forEach((a, i) => {
           seenIds.add(a.id);
@@ -1046,7 +1049,7 @@ export function OfficeCanvas(props: Props) {
           s.home = home;
           ctxA.meetingSpot = spots[i];
           stepAgent(s, dtA, nowS, a.status, ctxA);
-          people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, name: a.name + ' (AI)', avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
+          people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, seated: s.seated, typing: s.seated, name: firstName(a.name), avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
         });
         for (const id of [...agentSims.keys()]) if (!seenIds.has(id)) agentSims.delete(id);
       } else if (agentSims.size > 0) agentSims.clear();
@@ -1368,7 +1371,7 @@ export function OfficeCanvas(props: Props) {
           cv.width = mw * 2; cv.height = mh * 2;
           const c2 = cv.getContext('2d')!;
           const k2 = (mw * 2) / p.map.w;
-          const FLOORS: Record<string, string> = { wood: '#d8c3a0', grass: '#7bb35f', stone: '#c3c8cf', gray: '#aab2bd', carpet: '#9aa0e0', sand: '#ecdca6' };
+          const FLOORS: Record<string, string> = { wood: '#d8c3a0', grass: '#7bb35f', stone: '#c3c8cf', gray: '#aab2bd', carpet: '#9aa0e0', sand: '#ecdca6', scifi: '#0f1a2e' };
           c2.fillStyle = '#7bb35f';
           c2.fillRect(0, 0, cv.width, cv.height);
           for (const z of p.map.zones) {

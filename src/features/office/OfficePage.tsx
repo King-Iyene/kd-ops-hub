@@ -73,7 +73,8 @@ import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
 import { withWingFurniture } from './world/wing';
-import type { AgentInfo } from './world/agents';
+import { agentAvatar, type AgentInfo } from './world/agents';
+import { AgentProfileDialog } from './AgentProfile';
 import { useCrewAgents } from '@/features/crew/useCrew';
 import { AgentChatPanel } from '@/features/crew/components/AgentChatPanel';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
@@ -340,11 +341,9 @@ function OfficeRoom() {
     [crewAgents, template],
   );
   const [agentChat, setAgentChat] = useState<string | null>(null);
-  const onAgentClick = (id: string) => {
-    if (isSuper) { setAgentChat(id); return; }
-    const a = (crewAgents ?? []).find((x) => x.id === id);
-    if (a) toast({ title: a.name + ' (AI)', description: a.title + '. Only the owner can talk to the agents.' });
-  };
+  // click an executive: their profile (everyone sees who they are and their role; only the owner sees their brief and can message them)
+  const [agentProfile, setAgentProfile] = useState<string | null>(null);
+  const onAgentClick = (id: string) => setAgentProfile(id);
   const [renaming, setRenaming] = useState<SpaceRow | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const removeSpace = async (sp: SpaceRow) => {
@@ -709,7 +708,10 @@ function OfficeRoom() {
   // ---- chat: everyone in the space, and direct messages (saved, so people who were away see them)
   const [chatOpen, setChatOpen] = useState(false);
   const [conv, setConv] = useState<string>(ALL);
-  const openChat = (c: string) => { setConv(c); setChatOpen(true); };
+  const openChat = (c: string) => { setAgentChat(null); setConv(c); setChatOpen(true); };
+  // clicking one of the executives in the Office opens the Chat window on their conversation (the owner only)
+  useEffect(() => { if (agentChat && isSuper) setChatOpen(true); }, [agentChat, isSuper]);
+  const chatAgents = useMemo(() => (isSuper ? agentInfos.map((a) => ({ id: a.id, name: a.name, title: a.title, status: a.status, avatar: agentAvatar(a) })) : undefined), [agentInfos, isSuper]);
   const chatCtx = useRef({ open: false, conv: ALL });
   chatCtx.current = { open: chatOpen, conv };
   const onChatIncoming = (m: ChatMsg) => {
@@ -1607,7 +1609,6 @@ function OfficeRoom() {
           }}
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
-          {agentChat && isSuper ? <AgentChatPanel agentId={agentChat} onClose={() => setAgentChat(null)} /> : null}
           <OfficeCanvas
             vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} agents={agentInfos} isOwner={isSuper} onAgentClick={onAgentClick} spaceId={space.id} items={parkedItems} me={{ ...(meLive ?? me), id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
@@ -2033,9 +2034,11 @@ function OfficeRoom() {
       })()}
       <VisitorsDialog open={visitorsOpen} onClose={() => setVisitorsOpen(false)} meName={me.name} meId={me.id} isAdmin={isAdmin} invites={guests.invites} known={guests.known} create={guests.create} decide={guests.decide} forget={guests.forget} />
       <ChatDialog
-        open={chatOpen} onClose={() => setChatOpen(false)} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
+        agents={chatAgents} agentId={isSuper ? agentChat : null} onAgentId={setAgentChat} renderAgent={(id, back) => <AgentChatPanel agentId={id} embedded onBack={back} />}
+        open={chatOpen} onClose={() => { setChatOpen(false); setAgentChat(null); }} meId={me.id} spaceName={spaces?.find((x) => x.id === roomSpaceId)?.name ?? space.name}
         people={chatPeople} conv={conv} onConv={setConv} msgs={chat.msgs} unread={chat.unread} isAdmin={isAdmin} loading={chat.loading} onRead={chat.markRead} onSend={sendChat} onDelete={chat.remove} onReact={(id, e) => void chat.react(id, e)} reactions={chat.reactions} lastRead={chat.lastRead}
       />
+      <AgentProfileDialog agentId={agentProfile} isOwner={isSuper} onClose={() => setAgentProfile(null)} onMessage={(id) => { setAgentProfile(null); setAgentChat(id); }} />
       <RecordingsDialog open={recordingsOpen} onOpenChange={setRecordingsOpen} meId={me.id} isAdmin={isAdmin} />
 
       <AvatarDialog

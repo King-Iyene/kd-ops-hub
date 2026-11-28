@@ -28,7 +28,7 @@ export interface ItemDef {
 export type ZoneKind = 'meeting' | 'lounge' | 'area' | 'portal' | 'office';
 
 /** What the ground looks like: wood planks, grass, stone paving, grey carpet, lavender carpet. */
-export type FloorKind = 'wood' | 'grass' | 'stone' | 'gray' | 'carpet';
+export type FloorKind = 'wood' | 'grass' | 'stone' | 'gray' | 'carpet' | 'scifi';
 
 /** A named rectangle of the floor: a meeting room, the lounge, or a doorway into another space. */
 export interface Zone {

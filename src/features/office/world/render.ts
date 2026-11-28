@@ -257,7 +257,31 @@ function paintTile(ctx: Ctx, x: number, y: number, ff: string | undefined, zk: s
   const c = pal(theme.dark);
   const px = x * TILE;
   const py = y * TILE;
-    if (ff === 'grass') {
+    if (ff === 'scifi') {
+      // the Executive Wing and the lounge: dark brushed-metal panels, thin cyan seams, a few lit cells and rivets (the moving glow is drawn over it)
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#0f1a2e' : '#0b1424';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = 'rgba(148,163,184,0.08)';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py, 1, TILE);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(px, py + TILE - 1, TILE, 1);
+      ctx.fillRect(px + TILE - 1, py, 1, TILE);
+      ctx.strokeStyle = 'rgba(34,211,238,0.20)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
+      for (const [dx, dy] of [[4, 4], [TILE - 4, 4], [4, TILE - 4], [TILE - 4, TILE - 4]]) disc(ctx, px + dx, py + dy, 1.1, 'rgba(125,211,252,0.35)');
+      const lit = h2(x * 5 + 3, y * 9 + 1);
+      if (lit > 0.86) {
+        ctx.fillStyle = 'rgba(34,211,238,0.10)';
+        ctx.fillRect(px + 5, py + 5, TILE - 10, TILE - 10);
+        ctx.strokeStyle = 'rgba(103,232,249,0.35)';
+        ctx.strokeRect(px + 5.5, py + 5.5, TILE - 11, TILE - 11);
+      } else if (lit < 0.06) {
+        ctx.fillStyle = 'rgba(236,72,153,0.10)';
+        ctx.fillRect(px + 8, py + 8, TILE - 16, TILE - 16);
+      }
+    } else if (ff === 'grass') {
       ctx.fillStyle = (x + y) % 2 === 0 ? (theme.dark ? '#2b6b3b' : '#63c174') : (theme.dark ? '#276235' : '#58b86a');
       ctx.fillRect(px, py, TILE, TILE);
       ctx.strokeStyle = theme.dark ? '#1f4f2b' : '#3f9d55';
@@ -4667,6 +4691,8 @@ export interface DrawPerson {
   vehicle?: 'bike' | 'kart';
   /** sitting down (on a bike or in a kart): the legs do not run, the hands are on the bars */
   seated?: boolean;
+  /** typing all the time while seated (an AI executive at work), not just now and then */
+  typing?: boolean;
 }
 
 /** How far each person has walked in total, so the walk cycle always moves forward (x + y shrinks when walking left or up). */
@@ -4870,7 +4896,7 @@ function drawPersonBase(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
   };
   // sitting still at a seat: the hands type
   // a calm sit: hands rest, with a short gentle bit of typing now and then (no shaking)
-  const typingNow = p.seated && !p.moving && (t % 5200) < 1900;
+  const typingNow = p.seated && !p.moving && (p.typing || (t % 5200) < 1900);
   const armStep = typingNow ? Math.sin(t / 110) * 0.32 : dancing ? Math.sin(beat) * 2.6 : step;
   if (dancing) {
     // arms thrown up and pumping in turn

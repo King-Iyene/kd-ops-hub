@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useCrewAgents, useCrewMessages, useSay } from '../useCrew';
-import { canListen, listen } from '../voice';
+import { canListen, listen, micProblem } from '../voice';
 import { Avatar, StatusDot } from './shared';
 import { ago } from '../helpers';
 
@@ -13,7 +13,7 @@ import { ago } from '../helpers';
  * A chat with one AI executive, opened from the office by clicking their character. Only the owner can open it (the page checks, and the database
  * refuses anyone else). You write; they answer the next time they run, so a reply is not instant: they are woken on their schedule.
  */
-export function AgentChatPanel({ agentId, onClose }: { agentId: string; onClose: () => void }) {
+export function AgentChatPanel({ agentId, onClose, embedded = false, onBack }: { agentId: string; onClose?: () => void; /** inside the Office chat window (fills the conversation area) instead of a floating box */ embedded?: boolean; onBack?: () => void }) {
   const { toast } = useToast();
   const agents = useCrewAgents();
   const messages = useCrewMessages();
@@ -43,21 +43,22 @@ export function AgentChatPanel({ agentId, onClose }: { agentId: string; onClose:
   const toggleMic = () => {
     if (listening) { stop?.(); return; }
     setListening(true);
-    setStop(() => listen((t) => setBody(t), () => { setListening(false); setStop(null); }));
+    setStop(() => listen((t) => setBody(t), (problem) => { setListening(false); setStop(null); if (problem) toast({ title: 'Microphone', description: micProblem(problem), variant: 'destructive' }); }));
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-xl" role="dialog" aria-label={`Chat with ${agent.name}`}>
+    <div className={embedded ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'fixed bottom-4 right-4 z-40 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border bg-card shadow-xl'} role={embedded ? undefined : 'dialog'} aria-label={`Chat with ${agent.name}`}>
       <div className="flex items-center gap-3 border-b p-3">
+        {embedded && onBack ? <button type="button" onClick={onBack} aria-label="Back to conversations" className="rounded p-1 text-muted-foreground hover:bg-muted sm:hidden">←</button> : null}
         <Avatar agent={agent} size={36} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{agent.name} <span className="text-xs font-normal text-muted-foreground">(AI)</span></div>
+          <div className="truncate text-sm font-semibold">{agent.name.split(' ')[0]}</div>
           <div className="truncate text-xs text-muted-foreground">{agent.title}</div>
           <StatusDot status={agent.status} />
         </div>
-        <button type="button" onClick={onClose} aria-label="Close" className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+        {embedded || !onClose ? null : <button type="button" onClick={onClose} aria-label="Close" className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>}
       </div>
-      <div className="max-h-72 min-h-24 space-y-2 overflow-y-auto p-3">
+      <div className={embedded ? 'min-h-0 flex-1 space-y-2 overflow-y-auto p-3' : 'max-h-72 min-h-24 space-y-2 overflow-y-auto p-3'}>
         {thread.length === 0 ? <p className="text-xs text-muted-foreground">Nothing yet. Say what you need: they will answer, and push back if you are wrong.</p> : null}
         {thread.map((m) => (
           <div key={m.id} className={cn('max-w-[85%] rounded-lg px-3 py-2 text-sm', m.from_agent === null ? 'ml-auto bg-primary text-primary-foreground' : 'bg-muted')}>
