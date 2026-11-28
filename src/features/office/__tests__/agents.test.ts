@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildHQ } from '../world/templates';
 import { buildSolid, collides, reachable } from '../world/world';
-import { BOARDROOM, BREAK_SPOTS, CFO_POST, DESK_SLOTS, WING, agentAvatar, deskStand, firstName, initAgentSim, meetingSpots, modeFor, deskWalkable, placesToVisit, sortAgents, statusDot, stepAgent, type AgentCtx, type AgentSim, type AgentStatus } from '../world/agents';
+import { BOARDROOM, BREAK_SPOTS, CFO_POST, DESK_SLOTS, WING, agentAvatar, deskStand, firstName, initAgentSim, meetingSpots, isRestless, modeFor, deskWalkable, placesToVisit, sortAgents, statusDot, stepAgent, type AgentCtx, type AgentSim, type AgentStatus } from '../world/agents';
 
 const map = buildHQ();
 const solid = buildSolid(map, map.items);
@@ -9,6 +9,7 @@ const asolid = deskWalkable(solid); // how the executives walk it: their own cha
 const reach = reachable(asolid, map.spawn.x, map.spawn.y);
 const key = (p: { x: number; y: number }) => `${Math.floor(p.x)},${Math.floor(p.y)}`;
 const seeded = (seed = 7) => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const restless = (p: string): string => { for (let i = 0; ; i++) if (isRestless(p + i)) return p + i; };
 
 describe('the Executive Wing on the map', () => {
   it('is Meeting Rooms 1 and 2 joined and grown over the old courtyard, next to the agents boardroom, and the map did not change size', () => {
@@ -145,9 +146,9 @@ describe('how the agents move', () => {
   it('when idle or offline it sits most of the time, gets up now and then, and sits down again', () => {
     for (const status of ['idle', 'offline'] as AgentStatus[]) {
       const home = deskStand(3);
-      const a = initAgentSim('a', home);
+      const a = initAgentSim(restless('i' + status), home);
       let t = 0, up = 0, sat = 0, away = false;
-      for (let i = 0; i < 30 * 1800; i++) {
+      for (let i = 0; i < 30 * 3000; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, status, ctx());
         if (a.moving) up++;
@@ -167,10 +168,10 @@ describe('how the agents move', () => {
     let farthest = 0;
     for (let seed = 1; seed <= 4; seed++) {
       const home = deskStand(3);
-      const a = initAgentSim('c' + seed, home);
+      const a = initAgentSim(restless('c' + seed), home);
       const c = ctx({ rand: seeded(seed * 13), places });
       let t = 0;
-      for (let i = 0; i < 30 * 1500; i++) {
+      for (let i = 0; i < 30 * 3000; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, 'idle', c);
         expect(collides(asolid, a.x, a.y)).toBe(false);
@@ -183,10 +184,10 @@ describe('how the agents move', () => {
   it('goes to the lounge for a coffee now and then', () => {
     let visited = false;
     for (let seed = 1; seed <= 6 && !visited; seed++) {
-      const a = initAgentSim('b' + seed, deskStand(seed));
+      const a = initAgentSim(restless('b' + seed), deskStand(seed));
       let t = 0;
       const c = ctx({ rand: seeded(seed * 11) });
-      for (let i = 0; i < 30 * 2400; i++) {
+      for (let i = 0; i < 30 * 4000; i++) {
         t += 1 / 30;
         stepAgent(a, 1 / 30, t, 'idle', c);
         if (BREAK_SPOTS.some((b) => Math.hypot(a.x - b.x, a.y - b.y) < 1.2)) { visited = true; break; }
@@ -224,4 +225,28 @@ describe('how the agents move', () => {
     run(a, 'working', 8, ctx());
     expect(a.route.length === 0 || a.stuck < 1.3).toBe(true);
   });
+});
+
+describe('who walks about', () => {
+  it('only about a third of the team ever gets up, and an executive who is not restless never leaves the chair while working or idle', () => {
+    const ids = Array.from({ length: 300 }, (_, i) => 'person' + i);
+    const share = ids.filter(isRestless).length / ids.length;
+    expect(share).toBeGreaterThan(0.25);
+    expect(share).toBeLessThan(0.45);
+    const calm = ids.find((x) => !isRestless(x))!;
+    const home = deskStand(2);
+    const a = initAgentSim(calm, home);
+    let t = 0, moved = false;
+    for (let i = 0; i < 30 * 2400; i++) { t += 1 / 30; stepAgent(a, 1 / 30, t, 'idle', { solid: asolid, owner: null, meetingSpot: home, rand: seeded(3) }); if (a.moving) moved = true; }
+    expect(moved).toBe(false);
+    expect(a.seated).toBe(true);
+  }, 60_000);
+
+  it('never lets more than two be away at once: with two already up, a third stays seated', () => {
+    const id = restless('third');
+    const a = initAgentSim(id, deskStand(4));
+    let t = 0, moved = false;
+    for (let i = 0; i < 30 * 2400; i++) { t += 1 / 30; stepAgent(a, 1 / 30, t, 'idle', { solid: asolid, owner: null, meetingSpot: deskStand(4), rand: seeded(5), away: 2 }); if (a.moving) moved = true; }
+    expect(moved).toBe(false);
+  }, 60_000);
 });
