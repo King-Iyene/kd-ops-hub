@@ -6265,6 +6265,137 @@ export type Database = {
           },
         ]
       }
+      crew_meeting_members: {
+        Row: {
+          agent_id: string
+          meeting_id: string
+          spoke_round: number
+        }
+        Insert: {
+          agent_id: string
+          meeting_id: string
+          spoke_round?: number
+        }
+        Update: {
+          agent_id?: string
+          meeting_id?: string
+          spoke_round?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_meeting_members_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_meeting_members_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "crew_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_meetings: {
+        Row: {
+          brief: string
+          called_by: string | null
+          chair_agent: string
+          closed_at: string | null
+          created_at: string
+          id: string
+          max_rounds: number
+          minutes: Json | null
+          round: number
+          round_started_at: string
+          status: string
+          summarising_at: string | null
+          topic: string
+        }
+        Insert: {
+          brief?: string
+          called_by?: string | null
+          chair_agent: string
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          max_rounds?: number
+          minutes?: Json | null
+          round?: number
+          round_started_at?: string
+          status?: string
+          summarising_at?: string | null
+          topic: string
+        }
+        Update: {
+          brief?: string
+          called_by?: string | null
+          chair_agent?: string
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          max_rounds?: number
+          minutes?: Json | null
+          round?: number
+          round_started_at?: string
+          status?: string
+          summarising_at?: string | null
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "agent_team_v"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "crew_v_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_meetings_chair_agent_fkey"
+            columns: ["chair_agent"]
+            isOneToOne: false
+            referencedRelation: "crew_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crew_messages: {
         Row: {
           body: string
@@ -6274,6 +6405,8 @@ export type Database = {
           from_profile: string | null
           id: string
           kind: string
+          meeting_id: string | null
+          meeting_round: number | null
           read_at: string | null
           ref_order: string | null
           ref_proposal: string | null
@@ -6289,6 +6422,8 @@ export type Database = {
           from_profile?: string | null
           id?: string
           kind?: string
+          meeting_id?: string | null
+          meeting_round?: number | null
           read_at?: string | null
           ref_order?: string | null
           ref_proposal?: string | null
@@ -6304,6 +6439,8 @@ export type Database = {
           from_profile?: string | null
           id?: string
           kind?: string
+          meeting_id?: string | null
+          meeting_round?: number | null
           read_at?: string | null
           ref_order?: string | null
           ref_proposal?: string | null
@@ -6359,6 +6496,13 @@ export type Database = {
             columns: ["from_profile"]
             isOneToOne: false
             referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_messages_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "crew_meetings"
             referencedColumns: ["id"]
           },
           {
@@ -29442,6 +29586,8 @@ export type Database = {
           from_profile: string | null
           id: string
           kind: string
+          meeting_id: string | null
+          meeting_round: number | null
           read_at: string | null
           ref_order: string | null
           ref_proposal: string | null
@@ -29496,6 +29642,42 @@ export type Database = {
         Returns: undefined
       }
       crew_mark_read: { Args: { p_ids: string[] }; Returns: undefined }
+      crew_meeting_call: {
+        Args: {
+          p_agents: string[]
+          p_brief: string
+          p_chair?: string
+          p_topic: string
+        }
+        Returns: string
+      }
+      crew_meeting_clean_list: {
+        Args: { p_list: Json; p_what: string }
+        Returns: Json
+      }
+      crew_meeting_end: { Args: { p_meeting: string }; Returns: undefined }
+      crew_meeting_post: {
+        Args: {
+          p_agent: string
+          p_body: string
+          p_meeting: string
+          p_minutes?: Json
+        }
+        Returns: Json
+      }
+      crew_meeting_say: {
+        Args: { p_body: string; p_meeting: string }
+        Returns: string
+      }
+      crew_meeting_thread: {
+        Args: { p_agent: string; p_meeting: string }
+        Returns: Json
+      }
+      crew_meeting_tick: { Args: never; Returns: Json }
+      crew_meeting_wake: {
+        Args: { p_meeting: string; p_what: string }
+        Returns: number
+      }
       crew_mistake_count: {
         Args: { p_days?: number; p_target: string }
         Returns: number
