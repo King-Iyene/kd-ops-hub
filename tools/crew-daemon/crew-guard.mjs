@@ -6,6 +6,8 @@
 
 const READ = /^ZohoWorkdrive_(Get_|Fetch_|Search_Records$|File_Property$|File_Query$|Recent_Files$|My_Folder_Files$|Sub_Folders$|Shared_With_Me_|Breadcrumbs_Of_File$|Favorite_Files$|Labeled_Files$|Suggested_Files$|List_Team_Groups$|Download_Server_File$)/;
 const META = /ZohoMCP_(listProducts|getFeatures|listTools|getSchema)$/;
+// Zoho Mail: reading and searching mail only. Never send, reply, forward, delete, move, label, flag or change any setting.
+const MAIL_READ = /^ZohoMail_(list_accounts|list_folders|list_mails|list_labels|list_mail_attachments|get_account|get_folder|get_label|get_mail|get_mail_thread|get_mail_headers|get_mail_html|search_mail_advanced|list_sharedmailbox_messages|get_sharedmailbox_message|get_sharedmailbox_counts|build_(address|attachment|content|meta)_search_query)$/;
 
 let s = '';
 process.stdin.on('data', (d) => { s += d; }).on('end', () => {
@@ -22,6 +24,10 @@ process.stdin.on('data', (d) => { s += d; }).on('end', () => {
   if (typeof inner !== 'string') return deny('The safety gate could not tell which WorkDrive operation this is.');
   const allow = String(process.env.CREW_ZOHO_ALLOW || '').split(',').map((x) => x.trim()).filter(Boolean);
   if (allow.includes(inner)) process.exit(0);
+  if (/Zoho_Mail__/.test(j.tool_name)) {
+    if (process.env.CREW_MAIL_READ === '1' && MAIL_READ.test(inner)) process.exit(0);
+    return deny(`${inner} is not allowed. You may only read and search the owner's mail; you never send, reply, delete, move, label or change anything. If something should be done with an email, tell the owner.`);
+  }
   if (process.env.CREW_ZOHO_READ === '1' && READ.test(inner)) process.exit(0);
   return deny(`${inner} is not allowed here. Reading is allowed; creating, changing, sharing or deleting needs the owner's approval first (send a proposal).`);
 });
