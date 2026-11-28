@@ -7,8 +7,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useCrewSettings, useSetOfficeViewers } from '../useCrew';
 
 /**
- * Who can see the AI executives walking about in the Office. By default only you. Tick a person to let them see the executives too (they still
- * cannot talk to them or read their briefs). The rule is enforced in the database, so everyone else simply gets an empty office.
+ * Who can see the AI executives in the Office. By default only you. Tick a person to let them see the executives and ask them questions (they can never
+ * approve, order or change anything, and cannot read the briefs). The rule is enforced in the database, so everyone else simply gets an empty office.
  */
 export function OfficeViewers() {
   const { toast } = useToast();
@@ -42,6 +42,9 @@ export function OfficeViewers() {
         <p className="mt-1 text-xs text-muted-foreground">
           {allowed.size === 0 ? 'Only you, so nobody is distracted.' : `You, and ${allowed.size} ${allowed.size === 1 ? 'person' : 'people'} you chose.`}
           {isOwner ? '' : ' Only the owner can change this.'}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          They can see the agents and ask them questions. They can never approve, order or change anything. Agents are told not to share private finance details with them, but treat this as trust: only add people you trust. You can read every conversation in the Crew panel.
         </p>
       </div>
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person" className="h-8 text-sm" />

@@ -82,7 +82,15 @@ export interface CrewMessage {
   /** Set on a line said in a meeting (the Meetings tab shows those; the inbox and the team channel leave them out). Missing until the meetings migration has run. */
   meeting_id?: string | null;
   meeting_round?: number | null;
+  /** Viewer chat: a person the owner let into the Office asking an executive (from_profile), or the executive answering them (to_profile). Never shown in the inbox. */
+  viewer_chat?: boolean;
+  from_profile?: string | null;
+  to_profile?: string | null;
 }
+
+/** One line of a viewer's own conversation with one executive (what crew_viewer_thread returns). */
+export interface VisitorLine { id: string; mine: boolean; body: string; at: string }
+export interface VisitorThread { messages: VisitorLine[]; waiting: boolean }
 
 export type MeetingStatus = 'open' | 'summarising' | 'closed';
 export interface MeetingMinutes { summary: string; decisions: string[]; needs_owner: string[]; action_items: { agent: string; task: string }[] }

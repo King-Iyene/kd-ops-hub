@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMeeting, type CrewMeetingMember, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
+import { cdb, type CliqConnection, type CrewAgent, type CrewAgentPrivate, type CrewIdea, type CrewMeeting, type CrewMeetingMember, type CrewMistake, type CrewSettings, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus, type VisitorThread } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -38,15 +38,15 @@ export function useCrewProposals(group: keyof typeof GROUPS) {
 }
 
 /**
- * Lines said in a meeting carry a meeting_id and belong to the Meetings tab, not to the inbox or the team channel. They are dropped here rather than in the
- * query, so these screens keep working in the minutes between the app being deployed and the meetings migration being applied.
+ * Lines said in a meeting carry a meeting_id and belong to the Meetings tab, not to the inbox or the team channel; viewer chat (a person the owner let in,
+ * talking to an executive) is read in its own place and is never "to the owner". Both are dropped here as well as in the query below, as a second guard.
  */
-function withoutMeetingLines(q: unknown) {
-  return (q as PromiseLike<{ data: CrewMessage[] | null; error: unknown }>).then((r) => ({ ...r, data: r.data ? r.data.filter((m) => !m.meeting_id) : r.data })) as never;
+function withoutSideLines(q: unknown) {
+  return (q as PromiseLike<{ data: CrewMessage[] | null; error: unknown }>).then((r) => ({ ...r, data: r.data ? r.data.filter((m) => !m.meeting_id && !m.viewer_chat) : r.data })) as never;
 }
 
 export function useCrewMessages() {
-  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutMeetingLines(cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { staleTime: 10_000, refetchInterval: 20_000 });
+  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutSideLines(cdb.from('crew_messages').select('*').eq('viewer_chat', false).or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { staleTime: 10_000, refetchInterval: 20_000 });
 }
 
 export function useCrewOrders() {
@@ -171,7 +171,7 @@ export function useSetOfficeViewers() {
 
 /** The owner's inbox, polled; shared with the Messages tab through the same query key. `enabled` is false for everyone but the owner (no queries are made). */
 export function useCrewInbox(enabled: boolean) {
-  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutMeetingLines(cdb.from('crew_messages').select('*').or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { enabled, staleTime: 10_000, refetchInterval: 20_000 });
+  return useSupabaseQuery<CrewMessage[]>(k.messages(), () => withoutSideLines(cdb.from('crew_messages').select('*').eq('viewer_chat', false).or('to_owner.eq.true,from_agent.is.null').order('created_at', { ascending: false }).limit(150)), { enabled, staleTime: 10_000, refetchInterval: 20_000 });
 }
 
 /** What is waiting on the owner: messages from the executives he has not read, and proposals to decide. */
@@ -199,7 +199,7 @@ export function useRetireAgent() {
 
 /** Every message in the team channel: the executives to you, to each other, and yours to them (the owner reads them all). */
 export function useCrewChannel() {
-  return useSupabaseQuery<CrewMessage[]>([...KEY, 'channel'], () => withoutMeetingLines(cdb.from('crew_messages').select('*').order('created_at', { ascending: false }).limit(300)), { staleTime: 8_000, refetchInterval: 15_000 });
+  return useSupabaseQuery<CrewMessage[]>([...KEY, 'channel'], () => withoutSideLines(cdb.from('crew_messages').select('*').eq('viewer_chat', false).order('created_at', { ascending: false }).limit(300)), { staleTime: 8_000, refetchInterval: 15_000 });
 }
 
 // ── Meetings (owner only: the database lets nobody else read or change them) ──────────────────────────────────────────────────────────────────
@@ -237,4 +237,34 @@ export function useMeetingSay() {
 export function useMeetingEnd() {
   const refresh = useRefresh();
   return useSupabaseMutation<null, string>((meetingId) => cdb.rpc('crew_meeting_end', { p_meeting: meetingId }) as never, { onSuccess: refresh });
+}
+
+// ── Visitors: people the owner let into the Office can see the executives and ask them questions, nothing more ──────────────────────────────────
+/** True for the company owner only. The visitor panel shows the owner every conversation and a visitor only the chat. */
+export function useIsCrewOwner() {
+  return useSupabaseQuery<boolean>([...KEY, 'is-owner'], () => cdb.rpc('crew_is_company_owner') as never, { staleTime: 5 * 60_000 });
+}
+
+/** One viewer's conversation with one executive, polled every 6 s while it is open. `waiting`: the last line is theirs and the executive has not answered yet. */
+export function useVisitorThread(agentId: string | null) {
+  return useSupabaseQuery<VisitorThread>([...KEY, 'visitor-thread', agentId ?? ''], () => cdb.rpc('crew_viewer_thread', { p_agent: agentId }) as never, { enabled: !!agentId, staleTime: 3_000, refetchInterval: 6_000 });
+}
+
+export function useVisitorSay() {
+  const qc = useQueryClient();
+  return useSupabaseMutation<{ id: string; woken: boolean }, { agentId: string; body: string }>(
+    (v) => cdb.rpc('crew_viewer_say', { p_agent: v.agentId, p_body: v.body.trim() }) as never,
+    { onSuccess: (_d, v) => { void qc.invalidateQueries({ queryKey: [...KEY, 'visitor-thread', v.agentId] }); } },
+  );
+}
+
+/** For the owner: every visitor conversation, newest first (the database lets nobody else read the other people's). */
+export function useVisitorConversations(enabled: boolean) {
+  return useSupabaseQuery<CrewMessage[]>([...KEY, 'visitor-conversations'], () => cdb.from('crew_messages').select('*').eq('viewer_chat', true).order('created_at', { ascending: false }).limit(300) as never, { enabled, staleTime: 8_000, refetchInterval: 15_000 });
+}
+
+/** Names for a few profile ids (the owner can read them; used to label who asked). */
+export function usePeopleNames(ids: string[]) {
+  const key = [...ids].sort();
+  return useSupabaseQuery<{ id: string; full_name: string | null }[]>([...KEY, 'people-names', ...key], () => cdb.from('profiles').select('id, full_name').in('id', key) as never, { enabled: key.length > 0, staleTime: 5 * 60_000 });
 }
