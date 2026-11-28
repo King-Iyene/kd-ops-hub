@@ -38,7 +38,7 @@ const POLL_MS = Math.max(5, Number(cfg.POLL_SECONDS || 15)) * 1000;
 const MAX_PARALLEL = Math.max(1, Number(cfg.MAX_PARALLEL || 2));
 const TASK_TIMEOUT_MS = Math.max(60, Number(cfg.TASK_TIMEOUT_SECONDS || 600)) * 1000;
 const CLAUDE = cfg.CLAUDE_BIN || 'claude';
-const MODEL_CFO = cfg.MODEL_CFO || 'claude-opus-4-8';
+const MODEL_CFO = cfg.MODEL_CFO || 'claude-sonnet-5-5';
 const MODEL_TEAM = cfg.MODEL_TEAM || 'claude-sonnet-5-5';
 
 const keyFor = (slug) => cfg['KEY_' + slug.toUpperCase()];

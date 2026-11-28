@@ -178,13 +178,26 @@ function ProposalCard({ p, agent, byId, onLater, thread }: { p: CrewProposal; ag
 
 /** A message from an agent: who, what kind, the whole text, and what you can do with it. */
 function MessageCard({ m, agent, focus, onLater }: { m: CrewMessage; agent?: CrewAgent; focus: boolean; onLater?: (until: number) => void }) {
+  const { toast } = useToast();
   const read = useMarkRead();
+  const quickSay = useSay();
+  const quick = (t: string) => quickSay.mutate({ agentId: m.from_agent!, body: t }, {
+    onSuccess: () => { read.mutate([m.id]); toast({ title: 'Sent: ' + t }); },
+    onError: (e) => toast({ title: 'Not sent', description: e.message, variant: 'destructive' }),
+  });
   const [reply, setReply] = useState(false);
   const q = m.kind === 'question';
   return (
     <div className={cn('rounded-xl border bg-slate-900 p-4 shadow-lg', focus ? 'border-sky-400 ring-2 ring-sky-400/40' : 'border-slate-700', m.read_at && 'opacity-80')}>
       <Who agent={agent} kind={KIND_LABEL[m.kind] ?? m.kind} tone={KIND_TONE[m.kind] ?? 'bg-slate-600/40 text-slate-200'} at={m.created_at} />
       <Detail text={m.body} className="mt-3" />
+      {q && !m.read_at && m.from_agent ? (
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick answers">
+          {['Yes', 'No', 'Not now', 'Tell me more'].map((t) => (
+            <button key={t} type="button" disabled={quickSay.isPending} onClick={() => quick(t)} className="rounded-full border border-sky-400/60 px-3 py-1 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-50">{t}</button>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {m.from_agent ? <Btn tone={q ? 'go' : 'stop'} onClick={() => setReply(!reply)}><MessageSquare className="mr-1 inline h-4 w-4" />{q ? 'Answer' : 'Reply'}</Btn> : null}
         {!m.read_at ? <Btn tone={q ? 'stop' : 'go'} disabled={read.isPending} onClick={() => read.mutate([m.id])}><Check className="mr-1 inline h-4 w-4" />{q ? 'Not needed' : 'Got it'}</Btn> : <span className="text-xs text-slate-500">Handled</span>}
@@ -237,6 +250,36 @@ function AgentRow({ node, depth, inbox, open, onOpen }: { node: OrgNode; depth: 
   );
 }
 
+/** Tell an agent something right now, without leaving the list: pick who, type, send. The CFO is picked first. */
+function AskBar({ agents }: { agents: CrewAgent[] }) {
+  const { toast } = useToast();
+  const say = useSay();
+  const [to, setTo] = useState('');
+  const [text, setText] = useState('');
+  const target = to || agents.find((a) => a.slug === 'cfo')?.id || agents[0]?.id || '';
+  const send = () => {
+    if (!text.trim() || !target) return;
+    say.mutate({ agentId: target, body: text.trim() }, {
+      onSuccess: () => { setText(''); toast({ title: 'Sent', description: 'They will read it and answer.' }); },
+      onError: (e) => toast({ title: 'Not sent', description: e.message, variant: 'destructive' }),
+    });
+  };
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-900 p-3">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Tell someone something</p>
+      <div className="flex flex-wrap gap-2">
+        <select value={target} onChange={(e) => setTo(e.target.value)} aria-label="Who to tell" className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm text-white">
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.name.split(' ')[0]} · {a.title}</option>)}
+        </select>
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') send(); }} placeholder="e.g. Check this week's income against the emails" className="h-9 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white placeholder:text-slate-500" />
+        <Btn tone="go" onClick={send} disabled={!text.trim() || say.isPending}><Send className="mr-1 inline h-4 w-4" />Send</Btn>
+      </div>
+    </div>
+  );
+}
+
+const DOT: Record<string, string> = { working: 'bg-blue-500', thinking: 'bg-violet-500', idle: 'bg-emerald-500', waiting_approval: 'bg-amber-500', walking: 'bg-sky-500', meeting: 'bg-fuchsia-500' };
+
 type Filter = 'all' | 'approvals' | 'questions' | 'alerts' | 'hiring';
 const FILTERS: [Filter, string][] = [['all', 'Everything'], ['approvals', 'Approvals'], ['questions', 'Questions'], ['alerts', 'Alerts and briefings'], ['hiring', 'Hiring']];
 
@@ -244,7 +287,6 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
   const agents = useCrewAgents();
   const inbox = useCrewInbox(true);
   const waiting = useCrewProposals('waiting');
-  const attention = useCrewAttention(true);
   const [tab, setTab] = useState<'todo' | 'agents' | 'orders' | 'team' | 'handoffs'>('todo');
   const orders = useCrewOrders();
   const challenged = (orders.data ?? []).filter((o) => o.status === 'challenged').length;
@@ -292,7 +334,20 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
       <SheetContent side="right" className="flex w-full flex-col gap-0 border-slate-700 bg-slate-950 p-0 text-white sm:max-w-2xl">
         <SheetHeader className="border-b border-slate-800 p-4 text-left">
           <SheetTitle className="text-white">Command Center</SheetTitle>
-          <SheetDescription className="text-slate-400">{total === 0 ? 'Nothing is waiting for you.' : `${total} thing${total > 1 ? 's' : ''} waiting for you · ${attention.unreadCount} unread message${attention.unreadCount === 1 ? '' : 's'}`} · {busy} of {active.length} agents working now</SheetDescription>
+          <SheetDescription className="sr-only">Everything your executives need from you</SheetDescription>
+          <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+            {([['Waiting', total, total ? 'text-amber-300' : 'text-white'], ['Questions', counts.questions, counts.questions ? 'text-sky-300' : 'text-white'], ['Approvals', counts.approvals, counts.approvals ? 'text-amber-300' : 'text-white'], ['Working now', busy, busy ? 'text-emerald-300' : 'text-white']] as const).map(([l, v, t]) => (
+              <div key={l} className="rounded-lg bg-slate-900 p-2"><p className={cn('text-xl font-bold leading-tight', t)}>{v}</p><p className="text-[10px] uppercase tracking-wide text-slate-400">{l}</p></div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="list" aria-label="The team">
+            {active.map((a) => (
+              <button key={a.id} type="button" role="listitem" title={a.name + ' · ' + (STATUS_LABEL[a.status] ?? a.status)} onClick={() => { setTab('agents'); setTalk(a.id); }} className="relative shrink-0 rounded-full transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+                <AvatarFace avatar={agentAvatar(a)} size={40} />
+                <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-slate-950', DOT[a.status] ?? 'bg-slate-500')} />
+              </button>
+            ))}
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {([['todo', `To-Do (${total})`], ['agents', `Agents (${active.length})`], ['orders', challenged ? `Orders (${challenged} challenged)` : 'Orders'], ['handoffs', 'Hand-offs'], ['team', 'Team channel']] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setTab(k)} className={cn('rounded-full px-4 py-1.5 text-sm font-bold transition', tab === k ? 'bg-amber-400 text-slate-900' : 'bg-slate-800 text-slate-300 hover:bg-slate-700')}>{label}</button>
@@ -308,6 +363,7 @@ function CommandCenter({ open, onOpenChange, focusId }: { open: boolean; onOpenC
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {tab === 'todo' ? (
             <div className="space-y-3">
+              <AskBar agents={active} />
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
@@ -375,10 +431,10 @@ function Mailbox({ headless }: { headless: boolean }) {
           {count > 0 ? <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{count > 99 ? '99+' : count}</span> : null}
         </button>
       )}
-      {!open ? (
+      {!open && headless ? (
         <button type="button" onClick={() => { setFocusId(null); setOpen(true); }} aria-label={`Open the Command Center, ${count} waiting`}
-          className={cn('fixed bottom-24 right-4 z-40 flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold shadow-2xl transition hover:scale-105',
-            count > 0 ? 'border-amber-300 bg-amber-400 text-slate-900 ring-4 ring-amber-400/30' : 'border-slate-600 bg-slate-900 text-slate-100')}>
+          className={cn('fixed bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-2xl transition hover:scale-105',
+            count > 0 ? 'border-amber-300 bg-amber-400 text-slate-900 ring-4 ring-amber-400/30' : 'border-slate-600 bg-slate-900/95 text-slate-100')}>
           <Mail className="h-5 w-5" />
           {count > 0 ? <span>{count} waiting for you</span> : <span>Command Center</span>}
         </button>
