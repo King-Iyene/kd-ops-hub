@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -63,6 +63,7 @@ const STATUSES = ['offline', 'idle', 'working', 'thinking', 'waiting_approval', 
 const NOTE_KINDS = ['lesson', 'rule', 'fact', 'preference', 'mistake'] as const;
 const NOTE_SOURCES = ['proposal_outcome', 'owner_feedback', 'self_review', 'order_veto', 'ci_result', 'other'] as const;
 const MSG_KINDS = ['message', 'reply', 'report', 'alert', 'challenge', 'reminder', 'brief'] as const;
+const IDEA_STATUSES = ['open', 'triaged', 'approved', 'building', 'shipped', 'rejected', 'merged'] as const;
 const FILTER_OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'] as const;
 
 function filters(a: Json): Json[] {
@@ -144,6 +145,19 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
     case 'endorse': return {
       fn: 'crew_endorse',
       args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_stance: oneOf(a, 'stance', ['support', 'oppose'] as const), p_note: text(a, 'note', 1000, false) ?? '' },
+    };
+    case 'ideas': return { fn: 'crew_idea_list', args: { p_agent: agentId, p_status: a.status === undefined || a.status === null ? null : oneOf(a, 'status', IDEA_STATUSES) } };
+    case 'idea': return {
+      fn: 'crew_idea_submit',
+      args: { p_agent: agentId, p_title: text(a, 'title', 160), p_problem: text(a, 'problem', 2000), p_proposal: text(a, 'proposal', 2000, false) ?? '', p_evidence: obj(a, 'evidence', 8000) },
+    };
+    case 'idea_support': return { fn: 'crew_idea_support', args: { p_agent: agentId, p_idea: uuid(a, 'idea_id'), p_note: text(a, 'note', 400, false) ?? '' } };
+    case 'idea_triage': return {
+      fn: 'crew_idea_triage',
+      args: {
+        p_agent: agentId, p_idea: uuid(a, 'idea_id'), p_priority: a.priority === undefined || a.priority === null ? null : oneOf(a, 'priority', ['low', 'medium', 'high'] as const),
+        p_spec: text(a, 'spec', 8000, false), p_estimate: text(a, 'estimate', 300, false), p_merge_into: uuid(a, 'merge_into', false),
+      },
     };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
     case 'report_done': return { fn: 'crew_report_done', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_result: obj(a, 'result', 8000) } };

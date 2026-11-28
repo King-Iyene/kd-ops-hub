@@ -6,10 +6,11 @@ import { ApprovalsTab } from '@/features/crew/components/ApprovalsTab';
 import { MessagesTab } from '@/features/crew/components/MessagesTab';
 import { OrdersTab } from '@/features/crew/components/OrdersTab';
 import { BrainTab } from '@/features/crew/components/BrainTab';
+import { IdeasTab } from '@/features/crew/components/IdeasTab';
 import { TeamTab } from '@/features/crew/components/TeamTab';
 import { useCrewMessages, useCrewProposals } from '@/features/crew/useCrew';
 
-type Tab = 'approvals' | 'messages' | 'orders' | 'team' | 'brain';
+type Tab = 'approvals' | 'messages' | 'orders' | 'ideas' | 'team' | 'brain';
 
 /**
  * Crew: the AI executives. Super Admin only (the route guard and every database policy check the role).
@@ -25,6 +26,7 @@ export default function Crew() {
     { key: 'approvals', label: 'Approvals', badge: nWaiting },
     { key: 'messages', label: 'Messages', badge: nUnread },
     { key: 'orders', label: 'Orders' },
+    { key: 'ideas', label: 'Ideas' },
     { key: 'team', label: 'Team' },
     { key: 'brain', label: 'Company brain' },
   ];
@@ -33,7 +35,7 @@ export default function Crew() {
       <PageHeader
         title="Crew"
         icon={Users}
-        description="Your CFO, the VP Finance and finance team, and the heads of operations, tasks, product, marketing, engineering and NDI. They read, think, advise and propose. Nothing changes until you approve it."
+        description="Your CFO, the VP Finance and finance team, and the heads of operations, tasks, people, product, marketing, engineering and NDI. They read, think, advise and propose. Nothing changes until you approve it."
       />
       <div className="mb-6 flex flex-wrap gap-2" role="tablist">
         {tabs.map((t) => (
@@ -46,6 +48,7 @@ export default function Crew() {
       {tab === 'approvals' ? <ApprovalsTab /> : null}
       {tab === 'messages' ? <MessagesTab /> : null}
       {tab === 'orders' ? <OrdersTab /> : null}
+      {tab === 'ideas' ? <IdeasTab /> : null}
       {tab === 'team' ? <TeamTab /> : null}
       {tab === 'brain' ? <BrainTab /> : null}
     </div>

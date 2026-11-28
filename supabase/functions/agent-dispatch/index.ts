@@ -12,7 +12,7 @@ import { type ConnectionKind } from '../_shared/agent-deliver-core.ts';
 import { ccFor, managerOf, mentionFor } from '../_shared/agent-mention.ts';
 import { accessSaver, readConnectionSecrets } from '../_shared/agent-conn-secrets.ts';
 import { buildRecordMessage, effectiveConfig } from '../_shared/tm-record-message.ts';
-import { MAX_ATTEMPTS, formatFlag, formatFollowup, formatSummary, isTeamRule, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
+import { MAX_ATTEMPTS, formatCrewMessage, formatFlag, formatFollowup, formatSummary, isTeamRule, type FlagRow, type SummaryRow } from '../_shared/agent-dispatch-core.ts';
 
 function equal(a: string | null, b: string | undefined): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   try {
     const { data: rows } = await db.from('agent_outbox').select('id, connection_id, kind, ref_id, rule_id, attempts').eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true }).limit(20);
-    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary' | 'record' | 'followup'; ref_id: string; rule_id: string | null; attempts: number }[]) {
+    for (const row of (rows ?? []) as { id: string; connection_id: string; kind: 'flag' | 'summary' | 'record' | 'followup' | 'crew'; ref_id: string; rule_id: string | null; attempts: number }[]) {
       const finish = (patch: Record<string, unknown>) => db.from('agent_outbox').update(patch).eq('id', row.id);
       const { data: conn } = await db.from('agent_connections').select('id, kind, name, config, vault_secret_names').eq('id', row.connection_id).maybeSingle();
       if (!conn) { await finish({ status: 'failed', error: 'The connection was deleted.' }); out.failed++; continue; }
@@ -69,6 +69,14 @@ Deno.serve(async (req) => {
         const mention = await mentionFor(db, conn.kind, toManager ? managerId : f.person_id);
         const cc = !toManager && (conn.config as Record<string, unknown>).cc_manager !== false && f.person_id ? await ccFor(db, conn.kind, f.person_id, f.person_id) : undefined;
         msg = { ...formatFollowup(f as FlagRow, person, fu.stage, managerName), mention, cc };
+      } else if (row.kind === 'crew') {
+        // A message an AI executive wrote to the owner, posted in the chosen channel with the owner tagged.
+        const { data: m } = await db.from('crew_messages').select('id, from_agent, kind, body').eq('id', row.ref_id).maybeSingle();
+        if (!m) { await finish({ status: 'failed', error: 'The message no longer exists.' }); out.failed++; continue; }
+        const { data: a } = m.from_agent ? await db.from('crew_agents').select('name, title').eq('id', m.from_agent).maybeSingle() : { data: null };
+        const { data: st } = await db.from('crew_settings').select('notify_profile_id').eq('id', true).maybeSingle();
+        const mention = await mentionFor(db, conn.kind, st?.notify_profile_id as string | null | undefined);
+        msg = { ...formatCrewMessage({ kind: m.kind as string, body: m.body as string }, (a?.name as string | undefined) ?? 'Crew', (a?.title as string | undefined) ?? ''), mention };
       } else if (row.kind === 'record') {
         // A new entry in a Task table, sent through the rule that asked for it.
         const built = row.rule_id ? await buildRecordMessage(db, row.rule_id, row.ref_id, appUrl, conn.kind as string) : null;
@@ -91,6 +99,7 @@ Deno.serve(async (req) => {
       const attempts = row.attempts + 1;
       if (r.ok) {
         await finish({ status: 'sent', attempts, error: null, sent_at: new Date().toISOString() });
+        if (row.kind === 'crew') await db.from('crew_messages').update({ cliq_sent_at: new Date().toISOString() }).eq('id', row.ref_id);
         if (row.kind === 'record' && row.rule_id) await db.from('tm_table_connections').update({ last_sent_at: new Date().toISOString() }).eq('id', row.rule_id);
         await db.from('agent_connections').update({ status: 'connected', last_error: null }).eq('id', conn.id);
         out.sent++;

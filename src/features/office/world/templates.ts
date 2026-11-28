@@ -1,6 +1,7 @@
 // The two office layouts: the company team office (open floor, lounge, three meeting rooms) and a personal office.
 // Geometry (walls, rooms, doors) lives here; furniture is a list that a saved layout may replace.
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './types';
+import { DESK_SLOTS } from './wing';
 
 function grid(w: number, h: number): boolean[][] {
   return Array.from({ length: h }, () => Array.from({ length: w }, () => false));
@@ -137,6 +138,8 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   wallRect(walls, 46, 29, 61, 29);
   wallRect(walls, 46, 11, 46, 29);
   for (const y0 of [12, 18, 24]) gap(walls, 46, y0 + 1, 46, y0 + 2);
+  // Meeting Rooms 1 and 2 become one open floor, the Executive Wing: take out the wall between them (its end pillars stay)
+  for (let x = 47; x <= 60; x++) walls[17][x] = false;
   // the boardroom
   wallRect(walls, 16, 34, 28, 34);
   wallRect(walls, 16, 44, 28, 44);
@@ -204,7 +207,10 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
       sign: { name: p ? p.name : 'Free office', avatar: p?.avatar },
     });
   }
-  [12, 18, 24].forEach((y0, i) => zones.push({ id: `meeting-${i + 1}`, name: `Meeting Room ${i + 1}`, kind: 'meeting', x: 47, y: y0, w: 14, h: 5, floor: 'carpet' }));
+  zones.push(
+    { id: 'execwing', name: 'Executive Wing', kind: 'area', x: 47, y: 12, w: 14, h: 11, floor: 'carpet' },
+    { id: 'meeting-3', name: "Agents' boardroom", kind: 'meeting', x: 47, y: 24, w: 14, h: 5, floor: 'carpet' },
+  );
   zones.push(
     { id: 'boardroom', name: 'Boardroom', kind: 'meeting', x: 17, y: 35, w: 11, h: 9, floor: 'carpet' },
     { id: 'auditorium', name: 'Auditorium', kind: 'meeting', x: 38, y: 32, w: 23, h: 17, floor: 'stone' },
@@ -260,12 +266,17 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   items.push(it('hedge', 35, 12), it('hedge', 40, 12), it('bench', 36, 19), it('bench', 39, 19));
   items.push(it('flowers', 35, 17), it('flowers', 41, 17), it('flowers', 36, 21), it('flowers', 41, 21), it('mat', 37, 21));
 
-  // meeting rooms
-  [12, 18, 24].forEach((y0) => {
+  // the agents' boardroom (Meeting Room 3): a table, chairs, a whiteboard
+  [24].forEach((y0) => {
     items.push(it('whiteboard', 48, y0), it('tv', 55, y0), it('table', 51, y0 + 2));
     for (let dx = 0; dx < 3; dx++) items.push(it('chair', 51 + dx, y0 + 1), it('chair', 51 + dx, y0 + 4));
     items.push(it('papers', 52, y0 + 2), it('mug', 51, y0 + 3), it('plant', 60, y0 + 4), it('flowers', 60, y0), it('plant', 47, y0 + 4), it('lamp', 58, y0 + 2));
   });
+  // the Executive Wing (Meeting Rooms 1 and 2 joined): a desk for each AI executive with its own chair and screen, and one spare for the next hire
+  DESK_SLOTS.forEach(({ x, y }, i) => {
+    items.push(it('desk', x, y), it((['computer', 'dualmonitor', 'computer', 'ultrawide'] as const)[i % 4], x, y), it((['papers', 'mug', 'laptop', 'globe'] as const)[i % 4], x + 1, y), it('chair', x + 1, y + 1));
+  });
+  items.push(it('plant', 60, 15), it('plant', 60, 19), it('lamp', 47, 15), it('lamp', 47, 19));
 
   // boardroom: a long table, ten chairs, screens
   items.push(it('table', 20, 38), it('table', 23, 38));

@@ -4,7 +4,7 @@ import { approveLabel, buildOrgTree, describeAction, riskOrder } from '../orgCha
 import { hash, speakable, voiceFor } from '../voice';
 
 const agent = (id: string, name: string, department: string, reports_to: string | null = null): CrewAgent => ({
-  id, slug: id, name, title: name, role: 'x', department, company: 'All', reports_to, status: 'idle', activity: '', last_seen_at: null, color: '#000', active: true,
+  id, slug: id, name, title: name, role: 'x', department, company: 'All', reports_to, status: 'idle', activity: '', last_seen_at: null, office_x: null, office_y: null, color: '#000', active: true,
 });
 
 describe('org chart', () => {
