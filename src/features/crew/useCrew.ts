@@ -151,3 +151,8 @@ export function useSaveCrewSettings() {
     { onSuccess: refresh },
   );
 }
+
+export function useSetOfficeViewers() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<string[], string[]>((ids) => cdb.rpc('crew_set_office_viewers', { p_ids: ids }) as never, { onSuccess: refresh });
+}

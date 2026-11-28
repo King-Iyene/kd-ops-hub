@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useCrewAgents, useCrewMessages, useMarkRead, useSay } from '../useCrew';
-import { canListen, canSpeak, listen, speak, stopSpeaking } from '../voice';
+import { canListen, canSpeak, listen, micProblem, speak, stopSpeaking } from '../voice';
 import { Avatar, Empty } from './shared';
 import { agentName, ago } from '../helpers';
 
@@ -57,7 +57,7 @@ export function MessagesTab() {
   const toggleMic = () => {
     if (listening) { stopListening.current?.(); return; }
     setListening(true);
-    stopListening.current = listen((t) => setBody(t), () => setListening(false));
+    stopListening.current = listen((t) => setBody(t), (problem) => { setListening(false); if (problem) toast({ title: 'Microphone', description: micProblem(problem), variant: 'destructive' }); });
   };
   const send = () => {
     if (!to || !body.trim()) return;

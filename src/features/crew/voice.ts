@@ -64,21 +64,50 @@ function recognitionCtor(): RecognitionCtor | null {
 
 export const canListen = (): boolean => recognitionCtor() !== null;
 
-/** Starts listening; returns a stop function. onText gets the whole sentence so far. */
-export function listen(onText: (text: string, final: boolean) => void, onEnd: () => void, lang = 'en-NG'): () => void {
+/** What to tell the person when the microphone does not work (the browser gives a short code). */
+export function micProblem(code?: string): string {
+  switch (code) {
+    case 'not-allowed':
+    case 'service-not-allowed': return 'The browser has blocked the microphone. Click the lock icon beside the address, allow the microphone for this site, then try again.';
+    case 'audio-capture': return 'No microphone was found. Plug one in or choose it in your computer settings.';
+    case 'no-speech': return 'I did not hear anything. Try again, a little closer to the microphone.';
+    case 'network': return 'Speech to text needs an internet connection (the browser sends the sound to its own speech service). Check your connection and try again.';
+    case 'language-not-supported': return 'This browser cannot understand that language.';
+    default: return 'The microphone stopped. Try again.';
+  }
+}
+
+/**
+ * Starts listening; returns a stop function. onText gets the whole sentence so far. onEnd says why it stopped when it was a problem
+ * (a code to pass to micProblem), so the page can tell the person instead of doing nothing.
+ */
+export function listen(onText: (text: string, final: boolean) => void, onEnd: (problem?: string) => void, lang = 'en-NG'): () => void {
   const Ctor = recognitionCtor();
-  if (!Ctor) { onEnd(); return () => undefined; }
-  const r = new Ctor();
-  r.lang = lang;
-  r.interimResults = true;
-  r.continuous = false;
-  r.onresult = (e) => {
-    let text = '';
-    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
-    onText(text, false);
+  if (!Ctor) { onEnd('unsupported'); return () => undefined; }
+  let current: RecognitionLike | null = null;
+  let stopped = false;
+  const begin = (language: string, retry: boolean) => {
+    const r = new Ctor();
+    current = r;
+    let problem: string | undefined;
+    let heard = false;
+    r.lang = language;
+    r.interimResults = true;
+    r.continuous = false;
+    r.onresult = (e) => {
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      if (text) heard = true;
+      onText(text, false);
+    };
+    r.onerror = (e) => { problem = e.error ?? 'unknown'; };
+    r.onend = () => {
+      // some browsers do not know en-NG: try plain English once before giving up
+      if (retry && !stopped && !heard && problem === 'language-not-supported') { begin('en-US', false); return; }
+      onEnd(problem && problem !== 'aborted' ? problem : undefined);
+    };
+    try { r.start(); } catch { onEnd('unknown'); }
   };
-  r.onerror = () => onEnd();
-  r.onend = () => onEnd();
-  r.start();
-  return () => { try { r.stop(); } catch { /* already stopped */ } };
+  begin(lang, true);
+  return () => { stopped = true; try { current?.stop(); } catch { /* already stopped */ } };
 }

@@ -87,7 +87,8 @@ export function ChatWidget() {
     if (open && view === 'chat') textareaRef.current?.focus();
   }, [open, view]);
 
-  if (location.pathname.startsWith('/assistant')) return null;
+  // the Office has its own chat (and the agents' chat box sits where this button would be)
+  if (location.pathname.startsWith('/assistant') || location.pathname.startsWith('/office')) return null;
   if (!user) return null;
 
   // ── Data helpers ─────────────────────────────────────────────────────────

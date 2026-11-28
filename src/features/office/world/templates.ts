@@ -1,7 +1,7 @@
 // The two office layouts: the company team office (open floor, lounge, three meeting rooms) and a personal office.
 // Geometry (walls, rooms, doors) lives here; furniture is a list that a saved layout may replace.
 import type { AvatarStyle, Item, ItemType, MapDef, Zone } from './types';
-import { DESK_SLOTS } from './wing';
+import { DESK_SLOTS, WING } from './wing';
 
 function grid(w: number, h: number): boolean[][] {
   return Array.from({ length: h }, () => Array.from({ length: w }, () => false));
@@ -140,6 +140,11 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
   for (const y0 of [12, 18, 24]) gap(walls, 46, y0 + 1, 46, y0 + 2);
   // Meeting Rooms 1 and 2 become one open floor, the Executive Wing: take out the wall between them (its end pillars stay)
   for (let x = 47; x <= 60; x++) walls[17][x] = false;
+  // ...and the wing takes over the courtyard garden beside it: the old west wall goes and a wall closes the top. It stays open to the west
+  // and to the lounge below, so the executives can walk out for a coffee. The wall between the lounge and the agents' boardroom goes too.
+  for (let y = WING.y0; y <= WING.y1; y++) walls[y][46] = false;
+  wallRect(walls, WING.x0, 11, 46, 11);
+  for (let y = 24; y <= 28; y++) walls[y][46] = false;
   // the boardroom
   wallRect(walls, 16, 34, 28, 34);
   wallRect(walls, 16, 44, 28, 44);
@@ -177,7 +182,6 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     { id: 'outdoor', name: 'Garden', kind: 'area', x: 0, y: 0, w, h, floor: 'grass' },
     { id: 'path', name: 'Path', kind: 'area', x: 30, y: 49, w: 2, h: 15, floor: 'stone' },
     { id: 'building', name: 'Headquarters', kind: 'area', x: 3, y: 3, w: 58, h: 46, floor: 'wood' },
-    { id: 'courtyard', name: 'Courtyard', kind: 'area', x: 33, y: 12, w: 12, h: 11, floor: 'grass' },
     { id: 'reception', name: 'Reception', kind: 'area', x: 21, y: 43, w: 17, h: 6, floor: 'stone' },
     { id: 'stage', name: 'Stage', kind: 'area', x: 43, y: 32, w: 12, h: 4, floor: 'wood' },
     { id: 'annex', name: 'Campus East', kind: 'area', x: 65, y: 3, w: 36, h: 46, floor: 'wood' },
@@ -208,13 +212,13 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     });
   }
   zones.push(
-    { id: 'execwing', name: 'Executive Wing', kind: 'area', x: 47, y: 12, w: 14, h: 11, floor: 'carpet' },
-    { id: 'meeting-3', name: "Agents' boardroom", kind: 'meeting', x: 47, y: 24, w: 14, h: 5, floor: 'carpet' },
+    { id: 'execwing', name: 'Executive Wing', kind: 'area', x: WING.x0, y: WING.y0, w: WING.x1 - WING.x0 + 1, h: WING.y1 - WING.y0 + 1, floor: 'scifi' },
+    { id: 'meeting-3', name: "Agents' boardroom", kind: 'meeting', x: 47, y: 24, w: 14, h: 5, floor: 'scifi' },
   );
   zones.push(
     { id: 'boardroom', name: 'Boardroom', kind: 'meeting', x: 17, y: 35, w: 11, h: 9, floor: 'carpet' },
     { id: 'auditorium', name: 'Auditorium', kind: 'meeting', x: 38, y: 32, w: 23, h: 17, floor: 'stone' },
-    { id: 'lounge', name: 'Lounge', kind: 'lounge', x: 33, y: 24, w: 12, h: 7, floor: 'carpet' },
+    { id: 'lounge', name: 'Lounge', kind: 'lounge', x: 33, y: 24, w: 14, h: 7, floor: 'scifi' },
     { id: 'music', name: 'Music corner', kind: 'lounge', x: 3, y: 34, w: 11, h: 13, floor: 'carpet' },
     { id: 'game', name: 'Game room', kind: 'lounge', x: 65, y: 8, w: 15, h: 9, floor: 'carpet' },
     { id: 'library', name: 'Quiet library', kind: 'meeting', x: 65, y: 18, w: 15, h: 14, floor: 'carpet' },
@@ -272,11 +276,18 @@ export function buildHQ(people: (HqPerson | undefined)[] = []): MapDef {
     for (let dx = 0; dx < 3; dx++) items.push(it('chair', 51 + dx, y0 + 1), it('chair', 51 + dx, y0 + 4));
     items.push(it('papers', 52, y0 + 2), it('mug', 51, y0 + 3), it('plant', 60, y0 + 4), it('flowers', 60, y0), it('plant', 47, y0 + 4), it('lamp', 58, y0 + 2));
   });
-  // the Executive Wing (Meeting Rooms 1 and 2 joined): a desk for each AI executive with its own chair and screen, and one spare for the next hire
+  // the Executive Wing (Meeting Rooms 1 and 2 joined, and grown over the courtyard garden): the garden's trees, fountain and benches go first
+  // (the foosball and card tables on its south edge stay). The bike and the two pets move to the corridor and the wing's south aisle.
+  for (let i = items.length - 1; i >= 0; i--) {
+    const q = items[i];
+    if (q.x >= WING.x0 && q.x <= 46 && q.y >= 11 && q.y <= 21) items.splice(i, 1);
+  }
+  items.push(it('bike', 31, 15), it('dog', 36, 22), it('cat', 40, 22));
+  // a desk for each AI executive with its own chair and screen (21 desks: 15 are taken, six are ready for the next hires)
   DESK_SLOTS.forEach(({ x, y }, i) => {
     items.push(it('desk', x, y), it((['computer', 'dualmonitor', 'computer', 'ultrawide'] as const)[i % 4], x, y), it((['papers', 'mug', 'laptop', 'globe'] as const)[i % 4], x + 1, y), it('chair', x + 1, y + 1));
   });
-  items.push(it('plant', 60, 15), it('plant', 60, 19), it('lamp', 47, 15), it('lamp', 47, 19));
+  items.push(it('plant', 60, 15), it('plant', 60, 19), it('plant', 33, 14), it('plant', 33, 18), it('lamp', 37, 15), it('lamp', 45, 19), it('lamp', 53, 15), it('lamp', 57, 19));
 
   // boardroom: a long table, ten chairs, screens
   items.push(it('table', 20, 38), it('table', 23, 38));

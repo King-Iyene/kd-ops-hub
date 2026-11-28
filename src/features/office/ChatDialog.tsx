@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, Award, Download, File as FileIcon, FileArchive, FileAudio, FileSpreadsheet, FileText, FileVideo, Megaphone, Paperclip, Presentation, Search, Send, Smile, Users, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
@@ -88,7 +88,12 @@ const dayLabel = (iso: string) => {
  * Chat: everyone in the space, and direct messages. Saved, so people who were away see what they missed.
  * Everyone-channel messages notify only for @mentions and announcements; direct messages always notify.
  */
-export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onConv, msgs, unread, isAdmin, loading, onRead, onSend, onDelete, onReact, reactions, lastRead }: {
+export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onConv, msgs, unread, isAdmin, loading, onRead, onSend, onDelete, onReact, reactions, lastRead, agents, agentId, onAgentId, renderAgent }: {
+  /** the owner's AI executives, listed under the people; picking one shows their conversation (the owner only: leave out for everyone else) */
+  agents?: { id: string; name: string; title: string; avatar: AvatarStyle; status: string }[];
+  agentId?: string | null;
+  onAgentId?: (id: string | null) => void;
+  renderAgent?: (id: string, onBack: () => void) => ReactNode;
   open: boolean;
   onClose: () => void;
   meId: string;
@@ -226,8 +231,8 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
     const m = last.get(id);
     const u = unread[id] ?? 0;
     return (
-      <button key={id} type="button" onClick={() => { onConv(id); setListOpen(false); }}
-        className={`relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${conv === id ? 'bg-[#00ECFF]/[0.10] ring-1 ring-inset ring-[#00ECFF]/20' : 'hover:bg-white/[0.06]'}`}>
+      <button key={id} type="button" onClick={() => { onAgentId?.(null); onConv(id); setListOpen(false); }}
+        className={`relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${!agentId && conv === id ?'bg-[#00ECFF]/[0.10] ring-1 ring-inset ring-[#00ECFF]/20' : 'hover:bg-white/[0.06]'}`}>
         {avatar ? <span className="relative shrink-0"><AvatarFace avatar={avatar} size={30} dim={!online && !active} />{online ? <span title="In the Office" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-popover bg-emerald-500" /> : active ? <span title="Active in the app" className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-popover bg-[#00ECFF]" /> : null}</span>
           : <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary"><Users className="h-4 w-4" /></span>}
         <span className="min-w-0 flex-1">
@@ -260,11 +265,29 @@ export function ChatDialog({ open, onClose, meId, spaceName, people, conv, onCon
             <p className="px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#D6AC50]">Direct messages</p>
             {list.map((p) => row(p.id, p.name, p.avatar, p.online, !!p.active))}
             {list.length === 0 && <p className="px-2.5 py-3 text-xs text-muted-foreground">No one matches.</p>}
+            {agents && agents.length > 0 && onAgentId && (
+              <>
+                <p className="px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#00ECFF]">Your executives</p>
+                {agents.filter((a) => !q.trim() || a.name.toLowerCase().includes(q.trim().toLowerCase())).map((a) => (
+                  <button key={a.id} type="button" onClick={() => { onAgentId(a.id); setListOpen(false); }}
+                    className={`relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${agentId === a.id ? 'bg-[#00ECFF]/[0.10] ring-1 ring-inset ring-[#00ECFF]/20' : 'hover:bg-white/[0.06]'}`}>
+                    <span className="relative shrink-0"><AvatarFace avatar={a.avatar} size={30} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold">{a.name.split(' ')[0]}</span>
+                      <span className="block truncate text-[11.5px] text-muted-foreground">{a.title}</span>
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </aside>
 
+        {/* a conversation with one of the owner's executives */}
+        {agentId && renderAgent ? <section className={`${listOpen ? 'hidden' : 'flex'} relative min-w-0 flex-1 flex-col sm:flex`}>{renderAgent(agentId, () => setListOpen(true))}</section> : null}
+
         {/* the conversation */}
-        <section onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); }} className={`${listOpen ? 'hidden' : 'flex'} relative min-w-0 flex-1 flex-col sm:flex`}>
+        <section onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); }} className={`${agentId && renderAgent ? 'hidden' : `${listOpen ? 'hidden' : 'flex'} sm:flex`} relative min-w-0 flex-1 flex-col`}>
           {drag && <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-[#00ECFF]/70 bg-[#031a26]/90 text-center"><div><Paperclip className="mx-auto mb-2 h-7 w-7 text-[#00ECFF]" /><p className="font-bold">Drop to attach</p><p className="text-xs text-muted-foreground">Pictures, PDFs, documents, sheets, zips, audio, video (up to 25 MB)</p></div></div>}
           <header className="flex items-center gap-3 border-b border-[#00ECFF]/10 bg-gradient-to-r from-[#00ECFF]/[0.07] to-transparent px-4 py-3">
             <button type="button" aria-label="Back to conversations" onClick={() => setListOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10 sm:hidden"><ArrowLeft className="h-4 w-4" /></button>
