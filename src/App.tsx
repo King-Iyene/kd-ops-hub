@@ -82,6 +82,7 @@ const Placements       = lazy(() => import('./pages/Placements'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const OpsAgent         = lazy(() => import('./pages/OpsAgent'));
+const Crew             = lazy(() => import('./pages/Crew'));
 const ZohoOAuthCallback = lazy(() => import('./pages/ZohoOAuthCallback'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const GuidePage        = lazy(() => import('./pages/Guide'));
@@ -989,6 +990,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <OpsAgent />
+            </RoleGuard>
+          }
+        />
+
+        {/* Crew: the AI executives and their approval queue. Super Admin only (also enforced in the database). */}
+        <Route
+          path="/crew"
+          element={
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
+              <Crew />
             </RoleGuard>
           }
         />

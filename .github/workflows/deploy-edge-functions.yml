@@ -218,6 +218,11 @@ jobs:
       - name: Deploy agent-cliq-monitor
         run: supabase functions deploy agent-cliq-monitor --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
 
+      # Crew gateway: the one door the AI executives use. Each agent proves itself with its own hashed token, not a user JWT; it can only read
+      # what it is allowed to read and put proposals in the approval queue.
+      - name: Deploy crew-gateway
+        run: supabase functions deploy crew-gateway --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt --yes
+
       # Inbound webhooks for Database automations. Callers are external services, so no Supabase JWT: --no-verify-jwt,
       # and the function authenticates every request by an HMAC signature (X-KDOps-Signature) against the automation's secret.
       - name: Deploy webhook-inflow

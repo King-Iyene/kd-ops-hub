@@ -45,6 +45,7 @@ const ITEMS: Item[] = [
   { title: 'Messages',        path: '/messages',      icon: MessageCircle,  roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chat direct message' },
   { title: 'AI Assistant',    path: '/assistant',     icon: Bot,            roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'chatbot ask help' },
   { title: 'My Profile',      path: '/profile',       icon: UserIcon,       roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'account settings payslips' },
+  { title: 'Crew',            path: '/crew',          icon: Users,          roles: SUPER_ADMIN_ONLY_ROLES, group: 'navigate', keywords: 'crew agents cfo deputy approvals proposals team executives' },
   { title: 'Agent',           path: '/agent',         icon: Bot,            roles: SUPER_ADMIN_ONLY_ROLES, group: 'navigate', keywords: 'agent flags reports missing summaries operations' },
   { title: 'Task',            path: '/task',          icon: CheckSquare,    roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'tasks lists folders tables todo' },
   { title: 'Guide',           path: '/guide',         icon: HelpCircle,      roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'help how to manual documentation onboarding roles permissions' },

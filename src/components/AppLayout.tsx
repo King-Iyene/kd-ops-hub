@@ -92,6 +92,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/approval-workflows':   'Approval Workflows',
   '/task':                 'Task',
   '/agent':                'Agent',
+  '/crew':                 'Crew',
   '/task/my-tasks':        'My Tasks',
   '/task/dashboards':      'Task Dashboard',
 };
