@@ -12,6 +12,18 @@ describe('crew gateway: what an agent can ask for', () => {
     for (const op of OPS) expect(op).not.toMatch(/delete|execute|pay|deploy|write|decide|issue_token|^approve/);
   });
 
+  it('lets a manager log a mistake and see the team counts, and propose letting someone go and a replacement', async () => {
+    expect(await run('mistake', { agent: 'cfo', kind: 'wrong_numbers', note: 'Posted 10x the amount' })).toMatchObject({ fn: 'crew_report_mistake', args: { p_agent: AGENT, p_target: known.cfo, p_kind: 'wrong_numbers' } });
+    await expect(run('mistake', { agent: 'nobody_here', note: 'x' })).rejects.toThrow('no agent called');
+    await expect(run('mistake', { agent: 'cfo', kind: 'failed_proposal', note: 'x' })).rejects.toThrow('kind must be one of');
+    await expect(run('mistake', { agent: 'cfo; drop', note: 'x' })).rejects.toThrow('slug');
+    await expect(run('mistake', { agent: 'cfo' })).rejects.toThrow('note is required');
+    expect(await run('mistakes')).toMatchObject({ fn: 'crew_team_mistakes', args: { p_agent: AGENT } });
+    expect(await run('propose', { action: 'agent.retire', summary: 'Let the controller go', payload: { agent: 'controller', reason: 'x' } })).toMatchObject({ args: { p_action: 'agent.retire' } });
+    expect(await run('propose', { action: 'agent.hire', summary: 'Hire a controller', payload: { name: 'Roland Ashby', replaces: 'controller' } })).toMatchObject({ args: { p_action: 'agent.hire' } });
+    await expect(run('propose', { action: 'agent.promote', summary: 'x' })).rejects.toThrow('unknown action');
+  });
+
   it('refuses an unknown operation with 404', async () => {
     await expect(run('execute_sql')).rejects.toMatchObject({ status: 404 });
     await expect(run(undefined)).rejects.toBeInstanceOf(GatewayError);

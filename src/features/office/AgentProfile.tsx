@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { agentAvatar } from './world/agents';
 import { AvatarFace } from './AvatarFace';
 import { useCrewAgents, useCrewPrivate, useCrewProposals, useCrewRuns } from '@/features/crew/useCrew';
+import { AgentAccountability } from './AgentAccountability';
 import { StatusDot } from '@/features/crew/components/shared';
 import { ago } from '@/features/crew/helpers';
 
@@ -80,6 +81,7 @@ export function AgentProfileDialog({ agentId, isOwner, onClose, onMessage }: { a
             </dl>
             <p className="text-xs text-muted-foreground">An AI executive. Everything {first} proposes waits for the owner to approve it.</p>
             {isOwner ? <OwnerView agentId={agent.id} /> : null}
+            {isOwner ? <AgentAccountability agentId={agent.id} name={agent.name} onGone={onClose} /> : null}
             {isOwner ? (
               <div className="flex justify-end gap-2 pt-1">
                 <Button onClick={() => onMessage(agent.id)}><MessageSquare className="mr-1.5 h-4 w-4" />Message {first}</Button>
