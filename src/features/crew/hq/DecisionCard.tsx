@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { CrewAgent, CrewMessage, CrewOrder, CrewProposal } from '../crewDb';
 import { ago } from '../helpers';
-import { AppChangeView, useAppPreview } from '../components/AppChangeView';
+import { AppChangeOrFallback } from '../components/AppChangeView';
 import type { HqActions } from './actions';
 import { useHotkeys } from './hotkeys';
 import { actionLabel, approveText, changeView, needsConfirm, nextStep, questionLabel, tomorrowAt8, type DecisionItem, type QuestionState } from './logic';
@@ -78,8 +78,6 @@ function ProposalBody({ p, agent, byId, actions, paused, compact, hotkeys, onOpe
   const target = retire ? [...byId.values()].find((a) => a.slug === pay.agent) : undefined;
   const ev = Object.entries(p.evidence ?? {}).slice(0, 12);
   const change = changeView(p);
-  const appPreview = useAppPreview(p);   // app.* waiting proposals: the live "now vs proposed" table; if it is unavailable the table below is the fallback
-  const showApp = p.action.startsWith('app.') && !compact && !appPreview.isError;
   const who = agent?.name.split(' ')[0] ?? 'The agent';
   const next = nextStep(p.action, who);
   const confirm = needsConfirm(p);
@@ -106,8 +104,8 @@ function ProposalBody({ p, agent, byId, actions, paused, compact, hotkeys, onOpe
 
       {p.rationale ? <div className="mt-4"><Eyebrow>Why</Eyebrow><Prose text={p.rationale} lines={compact ? 3 : 6} className="mt-1" /></div> : null}
 
-      {showApp ? <AppChangeView proposal={p} /> : null}
-      {change && !compact && !showApp ? (
+      <AppChangeOrFallback proposal={p} enabled={!compact}>
+      {change && !compact ? (
         <div className="mt-4">
           <Eyebrow>{change.title}: before and after</Eyebrow>
           <div className="mt-1 overflow-hidden rounded-xl border border-border text-sm" role="table" aria-label="Exact change">
@@ -123,6 +121,7 @@ function ProposalBody({ p, agent, byId, actions, paused, compact, hotkeys, onOpe
           {change.rows.some((r) => r.before === undefined) && p.action.endsWith('update') ? <p className="mt-1 text-xs text-muted-foreground">The proposal did not carry the old values, so only the new ones are shown.</p> : null}
         </div>
       ) : null}
+      </AppChangeOrFallback>
 
       {p.endorsements?.length && !compact ? (
         <ul className="mt-3 space-y-1 text-xs">{p.endorsements.map((e, i) => <li key={i} className={e.stance === 'oppose' ? 'text-[hsl(var(--hq-risk))]' : 'text-[hsl(var(--hq-ok))]'}>{[...byId.values()].find((a) => a.id === e.agent)?.name ?? 'A colleague'} {e.stance === 'oppose' ? 'advises against' : 'supports'}{e.note ? `: ${e.note}` : ''}</li>)}</ul>

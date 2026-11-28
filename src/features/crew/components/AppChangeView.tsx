@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useSupabaseQuery } from '@/queries/useSupabaseQuery';
 import { cn } from '@/lib/utils';
 import { cdb } from '../crewDb';
@@ -79,4 +80,15 @@ export function AppChangeView({ proposal, tone = 'light' }: Props) {
       {remove ? <p className={cn('mt-1', dark ? 'text-slate-400' : 'text-muted-foreground')}>{data.delete_means ?? 'The record is hidden, nothing is erased.'}</p> : null}
     </div>
   );
+}
+
+function Live({ proposal, tone, children }: Props & { children?: ReactNode }) {
+  const q = useAppPreview(proposal);
+  return q.isError ? <>{children}</> : <AppChangeView proposal={proposal} tone={tone} />;
+}
+
+/** For a card that has its own before/after table: shows the live preview for an app.* proposal, and the card's own table (children) when it is not an app.* one, is off, or the preview cannot be read. */
+export function AppChangeOrFallback({ proposal, tone, enabled = true, children }: Props & { enabled?: boolean; children?: ReactNode }) {
+  if (!enabled || !proposal.action.startsWith('app.')) return <>{children}</>;
+  return <Live proposal={proposal} tone={tone}>{children}</Live>;
 }
