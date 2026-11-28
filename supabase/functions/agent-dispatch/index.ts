@@ -77,10 +77,12 @@ Deno.serve(async (req) => {
         const { data: m } = await db.from('crew_messages').select('id, from_agent, kind, body').eq('id', row.ref_id).maybeSingle();
         if (!m) { await finish({ status: 'failed', error: 'The message no longer exists.' }); out.failed++; continue; }
         const { data: a } = m.from_agent ? await db.from('crew_agents').select('name, title').eq('id', m.from_agent).maybeSingle() : { data: null };
-        const { data: st } = await db.from('crew_settings').select('notify_profile_id, cliq_dm, cliq_owner_id').eq('id', true).maybeSingle();
+        const { data: st } = await db.from('crew_settings').select('notify_profile_id, cliq_dm').eq('id', true).maybeSingle();
         const crewMsg = formatCrewMessage({ kind: m.kind as string, body: m.body as string }, (a?.name as string | undefined) ?? 'Crew', (a?.title as string | undefined) ?? '');
         // "Me, as a direct message": the owner is sent the message directly (no tag needed) instead of it being posted in the channel.
-        const ownerCliq = st?.cliq_dm === true && (conn.config as Record<string, unknown>).mode === 'api' && validDmTarget(st?.cliq_owner_id) ? (st?.cliq_owner_id as string) : null;
+        // His Cliq account is the one typed in Crew settings, else the one saved for his profile in the Ops Agent's identity map.
+        const { data: eff } = st?.cliq_dm === true ? await db.rpc('crew_cliq_effective_owner') : { data: null };
+        const ownerCliq = st?.cliq_dm === true && (conn.config as Record<string, unknown>).mode === 'api' && validDmTarget(eff) ? (eff as string) : null;
         if (ownerCliq) { dmTarget = ownerCliq; msg = { ...crewMsg, cliq: { dm: ownerCliq } }; }
         else msg = { ...crewMsg, mention: await mentionFor(db, conn.kind, st?.notify_profile_id as string | null | undefined) };
       } else if (row.kind === 'record') {

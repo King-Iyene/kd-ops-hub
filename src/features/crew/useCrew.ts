@@ -152,6 +152,11 @@ export function useCliqConnections() {
   return useSupabaseQuery<CliqConnection[]>([...KEY, 'cliq-connections'], () => cdb.from('agent_connections').select('id, name, kind, status, config').eq('kind', 'cliq').order('name') as never, { staleTime: 60_000 });
 }
 
+/** Is a Cliq id saved for the owner's profile in the Ops Agent (Agent > Settings > Team)? Only yes or no: the id itself is never sent to the page. */
+export function useCliqOwnerLink() {
+  return useSupabaseQuery<{ linked: boolean; override: boolean }>([...KEY, 'cliq-owner-link'], () => cdb.rpc('crew_cliq_owner_link') as never, { staleTime: 30_000, retry: false });
+}
+
 export function useSaveCrewSettings() {
   const refresh = useRefresh();
   // commands / ownerId / dm are sent only when given: left out, the database keeps what it has ('' for ownerId clears it).

@@ -46,9 +46,13 @@ export async function runCrewCliq(db: SupabaseClient, doFetch: Fetch = fetch): P
   const { data: s } = await db.from('crew_settings')
     .select('cliq_enabled, cliq_commands_enabled, cliq_connection_id, cliq_owner_id, cliq_cursor_ms, owner_profile_id, cliq_dm, cliq_dm_chat_id, cliq_error, cliq_error_at').eq('id', true).maybeSingle();
   const st = s as Settings | null;
-  // Dormant: nothing is read, nothing is posted, until the owner has switched everything on and typed his Cliq account.
-  if (!st || !st.cliq_enabled || !st.cliq_commands_enabled || !st.cliq_connection_id || !st.cliq_owner_id) return { ok: true, active: false, commands: 0, ignored: 0, notified: 0, note: 'switched off' };
-  const out = await run(db, st, doFetch);
+  // His Cliq account: the id typed in Crew settings (an override), else the one saved for his profile in the Ops Agent's identity map (Agent > Settings > Team),
+  // the same place the Ops Agent takes the id it tags people with.
+  const { data: eff } = await db.rpc('crew_cliq_effective_owner');
+  const ownerId = typeof eff === 'string' && eff !== '' ? eff : null;
+  // Dormant: nothing is read, nothing is posted, until the owner has switched everything on and his Cliq account is known.
+  if (!st || !st.cliq_enabled || !st.cliq_commands_enabled || !st.cliq_connection_id || !ownerId) return { ok: true, active: false, commands: 0, ignored: 0, notified: 0, note: 'switched off' };
+  const out = await run(db, st, ownerId, doFetch);
   // Keep the last problem where the settings card can show it (and clear it once things work). Written only when it changes.
   const was = st.cliq_error ?? null;
   const now = out.error ?? null;
@@ -56,10 +60,9 @@ export async function runCrewCliq(db: SupabaseClient, doFetch: Fetch = fetch): P
   return out;
 }
 
-async function run(db: SupabaseClient, st: Settings, doFetch: Fetch): Promise<CrewCliqResult> {
+async function run(db: SupabaseClient, st: Settings, ownerId: string, doFetch: Fetch): Promise<CrewCliqResult> {
   const out: CrewCliqResult = { ok: true, active: true, commands: 0, ignored: 0, notified: 0 };
   const fail = (error: string): CrewCliqResult => ({ ...out, ok: false, error });
-  const ownerId = st.cliq_owner_id as string;
   const dm = st.cliq_dm === true;
 
   const { data: conn } = await db.from('agent_connections').select('id, kind, name, config, vault_secret_names').eq('id', st.cliq_connection_id as string).maybeSingle();

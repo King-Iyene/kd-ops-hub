@@ -8,6 +8,7 @@
 
 import { validDc, type CliqDc } from './agent-cliq-core.ts';
 import { OWN_MARK } from './agent-cliq-monitor-core.ts';
+import { RISK_EMOJI, clean, firstName, headline, withFooter } from './crew-cliq-look.ts';
 
 // ── commands ───────────────────────────────────────────────────────────────
 export type Command =
@@ -177,76 +178,75 @@ export const needsConfirm = (p: { risk: string; action: string }): boolean => p.
 /** A payment or a payroll run is never approved from Cliq: the app is where a person carries those out. */
 export const approvedInAppOnly = (action: string): boolean => action === 'draft.batch_payment' || action === 'draft.payroll_run';
 
-/** Text written by an agent or by Zoho is shown as plain words: no tags, no invisible characters, no long runs of blank lines. */
+/** Text written by an agent or by Zoho is shown as plain words (see crew-cliq-look.ts): no tags, no invisible characters, no stray formatting marks. */
 export function plain(text: unknown, max: number): string {
-  const s = typeof text === 'string' ? text : '';
-  return cleanText(s).replace(/\{@[^}]*\}/g, '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ').slice(0, max).trim();
+  return clean(text, max);
 }
 
-const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
+export type CliqMsg = { title: string; text: string };
 
-/** A new proposal waiting for the owner: who, what, why it matters, and the exact lines to reply with. */
-export function formatProposal(p: ProposalLine): { title: string; text: string } {
-  const who = firstName(plain(p.agent_name, 80));
-  const title = plain(`${who}${p.agent_title ? ` (${plain(p.agent_title, 80)})` : ''} needs your decision`, 200);
+/** A new proposal waiting for the owner: headline, what it wants, why it matters, the exact lines to reply with, and a quiet footer. */
+export function formatProposal(p: ProposalLine): CliqMsg {
   const code = p.code.toLowerCase();
-  const lines = [`Wants to: ${actionLabel(p.action)}`, plain(p.summary, 400), `Risk: ${p.risk}`, ''];
+  const risk = `Risk: ${RISK_EMOJI[p.risk] ? `${RISK_EMOJI[p.risk]} ` : ''}${clean(p.risk, 12)}`;
+  const lines = [`Wants to: ${actionLabel(p.action)}`, clean(p.summary, 300), risk, ''];
   if (approvedInAppOnly(p.action)) {
-    lines.push('Payments are approved in the app, never from Cliq. To say no, reply:', `reject ${code} your reason`);
+    lines.push('Payments are approved in the app, never from Cliq.', 'To say no, reply:', `reject ${code} your reason`);
   } else {
-    lines.push('Reply with one of these:', `approve ${code}${needsConfirm(p) ? ' confirm' : ''}`, `reject ${code} your reason`);
-    if (needsConfirm(p)) lines.push('(The word confirm is needed because this one is high-risk or about the team.)');
+    lines.push('Reply with:', `approve ${code}${needsConfirm(p) ? ' confirm' : ''}`, `reject ${code} your reason`);
+    if (needsConfirm(p)) lines.push('(confirm is needed: this one is high-risk or about the team)');
   }
-  return { title, text: lines.join('\n') };
+  return { title: headline('approval', p.agent_name, p.agent_title), text: withFooter(lines) };
 }
 
 // ── replies ────────────────────────────────────────────────────────────────
-export function formatHelp(): { title: string; text: string } {
+export function formatHelp(): CliqMsg {
   return {
-    title: 'Crew commands',
-    text: [
-      'approve a1b2c3          say yes to a proposal',
-      'approve a1b2c3 confirm  needed for high-risk ones',
-      'reject a1b2c3 reason    say no (the reason is optional)',
-      'hale: your message      write to an executive (first name or slug; @hale works too)',
-      'status                  list what is waiting for you',
+    title: 'ℹ️ Crew commands',
+    text: withFooter([
+      'approve a1b2c3 · say yes to a proposal',
+      'approve a1b2c3 confirm · needed for high-risk ones',
+      'reject a1b2c3 reason · say no (the reason is optional)',
+      'hale: your message · write to an executive (first name or slug; @hale works too)',
+      'status · list what is waiting for you',
+      '',
       'Only your own Cliq account is obeyed. Payments are approved in the app.',
-    ].join('\n'),
+    ]),
   };
 }
 
-export function formatStatus(rows: ProposalLine[]): { title: string; text: string } {
-  if (rows.length === 0) return { title: 'Crew status', text: 'Nothing is waiting for you.' };
-  const lines = rows.map((r) => `${r.code.toLowerCase()}  ${firstName(plain(r.agent_name, 80))}: ${plain(r.summary, 120)} (${r.risk})`);
-  return { title: `Crew status: ${rows.length} waiting`, text: [...lines, '', 'Reply approve <code> or reject <code> reason.'].join('\n') };
+export function formatStatus(rows: ProposalLine[]): CliqMsg {
+  if (rows.length === 0) return { title: '📋 Nothing is waiting for you', text: withFooter(['All clear.']) };
+  const lines = rows.map((r) => `${r.code.toLowerCase()} · ${firstName(r.agent_name)}: ${clean(r.summary, 110)} ${RISK_EMOJI[r.risk] ?? ''}`.trim());
+  return { title: `📋 ${rows.length} waiting for you`, text: withFooter([...lines, '', 'Reply approve <code> or reject <code> reason.']) };
 }
 
 export interface DecisionResult { status?: string; error?: string | null; agent?: string; summary?: string }
 
 /** What happened after approve or reject. `status` is what crew_decide returned: rejected, executed, approved or failed. */
-export function formatDecision(verb: 'approve' | 'reject', r: DecisionResult): { title: string; text: string } {
-  const who = r.agent ? firstName(plain(r.agent, 80)) : 'The executive';
-  const what = r.summary ? `\n${plain(r.summary, 200)}` : '';
-  if (verb === 'reject' || r.status === 'rejected') return { title: 'Rejected', text: `Rejected. ${who} has been told and will not repeat it without asking.${what}` };
-  if (r.status === 'failed') return { title: 'Approved, but it did not run', text: `Approved, but it could not be carried out: ${plain(r.error, 200) || 'no reason given'}.${what}` };
-  if (r.status === 'executed') return { title: 'Approved and done', text: `Approved and done.${what}` };
-  return { title: 'Approved', text: `Approved. It now waits for you to carry it out in the app.${what}` };
+export function formatDecision(verb: 'approve' | 'reject', r: DecisionResult): CliqMsg {
+  const who = r.agent ? firstName(r.agent) : 'The executive';
+  const what = r.summary ? [clean(r.summary, 200)] : [];
+  if (verb === 'reject' || r.status === 'rejected') return { title: '❌ Rejected', text: withFooter([`${who} has been told and will not repeat it without asking.`, ...what]) };
+  if (r.status === 'failed') return { title: '⚠️ Approved, but it did not run', text: withFooter([`It could not be carried out: ${clean(r.error, 200) || 'no reason given'}.`, ...what]) };
+  if (r.status === 'executed') return { title: '✅ Approved and done', text: withFooter(what.length ? what : ['Done.']) };
+  return { title: '✅ Approved', text: withFooter(['It now waits for you to carry it out in the app.', ...what]) };
 }
 
-export function formatSaid(agentName: string): { title: string; text: string } {
-  const who = firstName(plain(agentName, 80));
-  return { title: `Sent to ${who}`, text: `Sent to ${who}. They read it when they next run and will answer you here or in the app.` };
+export function formatSaid(agentName: string): CliqMsg {
+  const who = firstName(agentName);
+  return { title: `📨 Sent to ${who}`, text: withFooter([`${who} reads it when they next run and will answer you here or in the app.`]) };
 }
 
 /** The database explains in a plain sentence (for example "that one is already approved"). Only that sentence goes to Cliq. */
-export function formatError(message: unknown): { title: string; text: string } {
-  const s = plain(message, 300).replace(/^[A-Z_0-9]+:\s*/, '');
-  return { title: 'Could not do that', text: s || 'Something went wrong. Try again, or use the app.' };
+export function formatError(message: unknown): CliqMsg {
+  const s = clean(message, 300).replace(/^[A-Z_0-9]+:\s*/, '');
+  return { title: '⚠️ Could not do that', text: withFooter([s || 'Something went wrong. Try again, or use the app.']) };
 }
 
-export function formatWelcome(waiting: number): { title: string; text: string } {
+export function formatWelcome(waiting: number): CliqMsg {
   const n = waiting === 0 ? 'Nothing is waiting for you right now.' : `${waiting} proposal${waiting === 1 ? ' is' : 's are'} already waiting: reply status to list them.`;
-  return { title: 'Crew commands are on', text: `You can now approve, reject and reply from this channel. Only your own Cliq account is obeyed. Reply help to see the commands.\n${n}` };
+  return { title: '👋 Crew commands are on', text: withFooter(['You can now approve, reject and reply from here.', 'Only your own Cliq account is obeyed.', n, 'Reply help to see the commands.']) };
 }
 
 // ── a direct message instead of a channel ──────────────────────────────────
@@ -304,5 +304,5 @@ export function dmFailureText(status: number | undefined, connectionName: string
 
 /** The only thing ever posted in a shared channel when direct messages fail: no proposal, no name, no amount. */
 export function formatChannelNotice(): { title: string; text: string } {
-  return { title: 'Crew could not send you a direct message', text: 'Crew has something for you but could not send it as a direct message. Open KD Ops > Crew > Cliq alerts to see why. Nothing private is posted in this channel.' };
+  return { title: '⚠️ Crew could not send you a direct message', text: withFooter(['Crew has something for you but could not send it as a direct message.', 'Open KD Ops > Crew > Cliq alerts to see why.', 'Nothing private is posted in this channel.']) };
 }
