@@ -105,7 +105,7 @@ export type NavItem = {
    *  the link shows. */
   permission?: string;
   /** Live counter badge — payload sourced by the consumer. */
-  badge?: 'approvals' | 'anomalies';
+  badge?: 'approvals' | 'anomalies' | 'crew';
 };
 
 export const ALL_NAV: NavItem[] = [
@@ -225,7 +225,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Virtual Office',   url: '/office',            icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Task',             url: '/task',              icon: CheckSquare,     roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Agent',            url: '/agent',             icon: Bot,             roles: ['super_admin', 'admin'] },
-  { title: 'Crew',             url: '/crew',              icon: Users,           roles: ['super_admin'] },
+  { title: 'Crew',             url: '/crew',              icon: Users,           roles: ['super_admin'], badge: 'crew' },
   { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
