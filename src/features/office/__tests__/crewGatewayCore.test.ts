@@ -75,6 +75,19 @@ describe('crew gateway: what an agent can ask for', () => {
     expect(await run('knowledge', { topic: 'clients' })).toMatchObject({ fn: 'crew_get_knowledge', args: { p_topic: 'clients' } });
   });
 
+  it('ideas: file, support, list and (Engineering only, enforced in the database) triage', async () => {
+    expect(await run('ideas')).toMatchObject({ fn: 'crew_idea_list', args: { p_agent: AGENT, p_status: null } });
+    expect(await run('ideas', { status: 'approved' })).toMatchObject({ args: { p_status: 'approved' } });
+    await expect(run('ideas', { status: 'everything' })).rejects.toThrow('status must be');
+    expect(await run('idea', { title: 'Daily huddle reminder', problem: 'Someone must remember to announce the huddle every morning.', proposal: 'A reminder at 9am' })).toMatchObject({ fn: 'crew_idea_submit', args: { p_agent: AGENT, p_title: 'Daily huddle reminder' } });
+    await expect(run('idea', { title: 'x'.repeat(161), problem: 'long enough problem text' })).rejects.toThrow('too long');
+    await expect(run('idea', { problem: 'a problem without a title' })).rejects.toThrow('title is required');
+    expect(await run('idea_support', { idea_id: TABLE, note: 'Finance needs this too' })).toMatchObject({ fn: 'crew_idea_support', args: { p_idea: TABLE } });
+    await expect(run('idea_support', { idea_id: 'nope' })).rejects.toThrow('must be an id');
+    expect(await run('idea_triage', { idea_id: TABLE, priority: 'high', estimate: '2 days', merge_into: AGENT })).toMatchObject({ fn: 'crew_idea_triage', args: { p_priority: 'high', p_estimate: '2 days', p_merge_into: AGENT } });
+    await expect(run('idea_triage', { idea_id: TABLE, priority: 'urgent' })).rejects.toThrow('priority must be');
+  });
+
   it('heartbeat: status from the fixed list, numbers only', async () => {
     expect(await run('heartbeat', { status: 'walking', activity: 'to the owner', x: 10, y: 4.5 })).toMatchObject({ fn: 'crew_heartbeat', args: { p_status: 'walking', p_x: 10, p_y: 4.5 } });
     await expect(run('heartbeat', { status: 'sleeping' })).rejects.toThrow('status must be');

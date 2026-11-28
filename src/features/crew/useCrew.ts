@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useSupabaseMutation, useSupabaseQuery } from '@/queries/useSupabaseQuery';
-import { cdb, type CrewAgent, type CrewAgentPrivate, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
+import { cdb, type CrewIdea, type CrewAgent, type CrewAgentPrivate, type CrewKnowledge, type CrewMessage, type CrewNote, type CrewOrder, type CrewProposal, type CrewRun, type ProposalStatus } from './crewDb';
 
 /** Every hook here only reads on mount. A write happens from a button, never from a render. */
 const KEY = ['crew'] as const;
@@ -114,4 +114,24 @@ export function useIssueToken() {
 
 export function useRevokeTokens() {
   return useSupabaseMutation<number, string>((slug) => cdb.rpc('crew_revoke_tokens', { p_slug: slug }) as never);
+}
+
+export function useCrewIdeas() {
+  return useSupabaseQuery<CrewIdea[]>([...KEY, 'ideas'], () => cdb.from('crew_ideas').select('*').neq('status', 'merged').order('support_count', { ascending: false }).order('created_at', { ascending: false }).limit(200) as never, { staleTime: 15_000, refetchInterval: 30_000 });
+}
+
+export function useDecideIdea() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<null, { id: string; decision: 'approve' | 'reject' | 'building' | 'shipped'; note?: string }>(
+    (v) => cdb.rpc('crew_idea_decide', { p_idea: v.id, p_decision: v.decision, p_note: v.note?.trim() ? v.note.trim() : null }) as never,
+    { onSuccess: refresh },
+  );
+}
+
+export function useAddIdea() {
+  const refresh = useRefresh();
+  return useSupabaseMutation<string, { title: string; problem: string; proposal: string }>(
+    (v) => cdb.rpc('crew_idea_owner_add', { p_title: v.title.trim(), p_problem: v.problem.trim(), p_proposal: v.proposal.trim() }) as never,
+    { onSuccess: refresh },
+  );
 }

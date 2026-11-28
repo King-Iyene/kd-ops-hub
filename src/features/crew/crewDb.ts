@@ -107,3 +107,23 @@ export interface CrewNote {
 export interface CrewKnowledge { topic: string; body: string; updated_at: string; updated_by_agent: string | null }
 
 export interface CrewRun { id: string; agent_id: string; kind: string; started_at: string; finished_at: string | null; ok: boolean | null; summary: string }
+
+export type IdeaStatus = 'open' | 'triaged' | 'approved' | 'building' | 'shipped' | 'rejected' | 'merged';
+export interface IdeaSupporter { agent: string; department: string; note: string; at: string }
+export interface CrewIdea {
+  id: string;
+  title: string;
+  problem: string;
+  proposal: string;
+  requested_by: string | null;
+  evidence: Record<string, unknown>;
+  supporters: IdeaSupporter[];
+  departments: string[];
+  support_count: number;
+  status: IdeaStatus;
+  priority: 'low' | 'medium' | 'high';
+  spec: string;
+  estimate: string;
+  owner_note: string | null;
+  created_at: string;
+}
