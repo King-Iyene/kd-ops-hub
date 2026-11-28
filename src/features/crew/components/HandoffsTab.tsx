@@ -8,15 +8,15 @@ import { useCrewAgents, useCrewChannel } from '../useCrew';
 import { ago } from '../helpers';
 
 const KIND_TONE: Record<string, string> = {
-  question: 'bg-sky-500/20 text-sky-300', alert: 'bg-red-500/20 text-red-300', report: 'bg-emerald-500/20 text-emerald-300',
-  challenge: 'bg-orange-500/20 text-orange-300', brief: 'bg-violet-500/20 text-violet-300', reminder: 'bg-amber-500/20 text-amber-300',
+  question: 'bg-primary/15 text-primary', alert: 'bg-red-500/20 text-red-700 dark:text-red-300', report: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  challenge: 'bg-orange-500/20 text-orange-700 dark:text-orange-300', brief: 'bg-violet-500/20 text-violet-700 dark:text-violet-300', reminder: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
 };
 const WAITING_SLOW_MS = 30 * 60_000;
 
 interface Handoff { m: CrewMessage; from?: CrewAgent; to?: CrewAgent; answeredAt: string | null }
 
 function Face({ a }: { a?: CrewAgent }) {
-  return a ? <AvatarFace avatar={agentAvatar(a)} size={40} /> : <span className="h-10 w-10 shrink-0 rounded-full bg-slate-700" />;
+  return a ? <AvatarFace avatar={agentAvatar(a)} size={40} /> : <span className="h-10 w-10 shrink-0 rounded-full bg-muted" />;
 }
 
 /**
@@ -53,41 +53,41 @@ export function HandoffsTab() {
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-4">
-        {[['Hand-offs in 24 h', String(today.length), 'text-white'], ['Waiting for an answer', String(waiting.length), waiting.length ? 'text-amber-300' : 'text-white'], ['Stuck over 30 min', String(slow.length), slow.length ? 'text-red-300' : 'text-white'], ['Average answer time', avgMin === null ? '–' : `${avgMin} min`, 'text-white']].map(([label, value, tone]) => (
-          <div key={label} className="rounded-lg bg-slate-900 p-3"><p className="text-[11px] text-slate-400">{label}</p><p className={cn('text-xl font-bold', tone)}>{value}</p></div>
+        {[['Hand-offs in 24 h', String(today.length), 'text-foreground'], ['Waiting for an answer', String(waiting.length), waiting.length ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'], ['Stuck over 30 min', String(slow.length), slow.length ? 'text-red-700 dark:text-red-300' : 'text-foreground'], ['Average answer time', avgMin === null ? '–' : `${avgMin} min`, 'text-foreground']].map(([label, value, tone]) => (
+          <div key={label} className="rounded-lg bg-card p-3"><p className="text-[11px] text-muted-foreground">{label}</p><p className={cn('text-xl font-bold', tone)}>{value}</p></div>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Show hand-offs of" className="h-9 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm text-white">
+        <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Show hand-offs of" className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground">
           <option value="">Everyone</option>
           {active.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-        <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={onlyWaiting} onChange={(e) => setOnlyWaiting(e.target.checked)} />Only the ones still waiting</label>
+        <label className="flex items-center gap-2 text-sm text-foreground/80"><input type="checkbox" checked={onlyWaiting} onChange={(e) => setOnlyWaiting(e.target.checked)} />Only the ones still waiting</label>
       </div>
-      {shown.length === 0 ? <p className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">No hand-offs yet. When one agent passes work, a question or a challenge to another, it shows up here with who answered and how fast.</p> : null}
+      {shown.length === 0 ? <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No hand-offs yet. When one agent passes work, a question or a challenge to another, it shows up here with who answered and how fast.</p> : null}
       {shown.map((h) => {
         const open = needsAnswer(h) && !h.answeredAt;
         const age = Date.now() - new Date(h.m.created_at).getTime();
         return (
-          <div key={h.m.id} className={cn('rounded-xl border bg-slate-900 p-4', open && age > WAITING_SLOW_MS ? 'border-red-400/60' : open ? 'border-amber-400/40' : 'border-slate-700')}>
+          <div key={h.m.id} className={cn('rounded-xl border bg-card p-4', open && age > WAITING_SLOW_MS ? 'border-red-400/60' : open ? 'border-amber-400/40' : 'border-border')}>
             <div className="flex items-center gap-3">
               <Face a={h.from} />
-              <ArrowRight className="h-4 w-4 shrink-0 text-slate-500" />
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               <Face a={h.to} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm"><span className="font-bold text-white">{h.from?.name.split(' ')[0] ?? 'Someone'}</span><span className="text-slate-400"> handed to </span><span className="font-bold text-white">{h.to?.name.split(' ')[0] ?? 'someone'}</span></p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                  <span className={cn('rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide', KIND_TONE[h.m.kind] ?? 'bg-slate-600/40 text-slate-200')}>{h.m.kind}</span>
+                <p className="truncate text-sm"><span className="font-bold text-foreground">{h.from?.name.split(' ')[0] ?? 'Someone'}</span><span className="text-muted-foreground"> handed to </span><span className="font-bold text-foreground">{h.to?.name.split(' ')[0] ?? 'someone'}</span></p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className={cn('rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide', KIND_TONE[h.m.kind] ?? 'bg-muted text-muted-foreground')}>{h.m.kind}</span>
                   <span>{ago(h.m.created_at)}</span>
                 </p>
               </div>
               {needsAnswer(h) ? (
                 h.answeredAt
-                  ? <span className="shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-300">Answered {ago(h.answeredAt)}</span>
-                  : <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', age > WAITING_SLOW_MS ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300')}>Waiting for {h.to?.name.split(' ')[0] ?? 'them'}</span>
+                  ? <span className="shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Answered {ago(h.answeredAt)}</span>
+                  : <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold', age > WAITING_SLOW_MS ? 'bg-red-500/20 text-red-700 dark:text-red-300' : 'bg-amber-500/20 text-amber-700 dark:text-amber-300')}>Waiting for {h.to?.name.split(' ')[0] ?? 'them'}</span>
               ) : null}
             </div>
-            <p className="mt-3 line-clamp-5 whitespace-pre-wrap text-[14px] leading-relaxed text-slate-200">{h.m.body}</p>
+            <p className="mt-3 line-clamp-5 whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">{h.m.body}</p>
           </div>
         );
       })}
