@@ -82,6 +82,9 @@ describe('everybody who is here is shown with their own name, even when the onli
 
   it('never lists another window of the same account', async () => {
     const a = renderHook(() => useOffice({ id: 'user-king', name: 'King Iyene', avatar: defaultAvatar('user-king') }, 'space1'));
+    // the newer window of an account is the one that answers, so make sure b really is newer than a (two windows opened in the very same
+    // millisecond are ordered by a random id, which made this test fail now and then on a fast machine)
+    await flush(20);
     const b = renderHook(() => useOffice({ id: 'user-king', name: 'King Iyene', avatar: defaultAvatar('user-king') }, 'space1'));
     await flush(100);
     h.hiddenFrom.set(a.result.current.connId, new Set([b.result.current.connId]));
