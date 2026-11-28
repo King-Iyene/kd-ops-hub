@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post', 'cliq_post',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -72,6 +72,14 @@ function names(a: Json, k: string): string[] | null {
   const v = a[k];
   if (v === undefined || v === null) return null;
   if (!Array.isArray(v) || v.length === 0 || v.length > 60 || !v.every((x) => typeof x === 'string' && /^[a-z][a-z0-9_]{0,60}$/.test(x))) throw new GatewayError(`${k} must be a list of column names`);
+  return v as string[];
+}
+
+/** The people named in a post: a short list of full names (at most 8, each at most 80 characters); missing means nobody. */
+function tagList(a: Json): string[] {
+  const v = a.tag;
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v) || v.length > 8 || !v.every((x) => typeof x === 'string' && x.trim() !== '' && x.length <= 80)) throw new GatewayError('tag must be a list of at most 8 full names');
   return v as string[];
 }
 
@@ -222,6 +230,12 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
       const minutes = minutesOf(a);
       return { fn: 'crew_meeting_post', args: { p_agent: agentId, p_meeting: uuid(a, 'meeting_id'), p_body: text(a, 'body', 1200, minutes === null) ?? '', p_minutes: minutes } };
     }
+    // a post to the TEAM in Cliq, under the owner's standing permission. Only the shape is checked here: the database decides (permission, daily cap, kinds,
+    // the text rules, who may be tagged) and writes every attempt, allowed or refused, to the log. The gateway then posts what the database allowed.
+    case 'cliq_post': return {
+      fn: 'crew_cliq_post_reserve',
+      args: { p_agent: agentId, p_kind: oneOf(a, 'kind', ['tracking_followup', 'announcement'] as const), p_text: text(a, 'text', 4000), p_tag: tagList(a) },
+    };
     case 'mistakes': return { fn: 'crew_team_mistakes', args: { p_agent: agentId } };
     case 'my_approved': return { fn: 'crew_my_approved', args: { p_agent: agentId } };
     case 'report_done': return { fn: 'crew_report_done', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id'), p_result: obj(a, 'result', 8000) } };

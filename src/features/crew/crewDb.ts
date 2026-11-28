@@ -159,6 +159,16 @@ export interface CrewSettings {
   /** Send to the owner as a direct message instead of a channel, and the last problem sending or reading in Cliq (plain words). Missing until the migration has run. */
   cliq_dm?: boolean; cliq_error?: string | null; cliq_error_at?: string | null;
 }
-export interface CliqConnection { id: string; name: string; kind: string; config: { channel?: string; mode?: string } }
+export interface CliqConnection { id: string; name: string; kind: string; status?: string; config: { channel?: string; mode?: string } }
+
+/** What an agent may do on its own inside limits the owner sets (see crew_standing_permissions). Today: post to the team in a Cliq channel. */
+export type PostKindKey = 'tracking_followup' | 'announcement';
+export interface StandingPermission {
+  id: string; agent_id: string; kind: 'cliq_post'; connection_id: string | null; enabled: boolean; max_posts_per_day: number; allowed_kinds: PostKindKey[]; created_at: string; updated_at: string;
+}
+/** One post an agent made (or tried to make) under a standing permission. */
+export interface CliqPostLogRow {
+  id: string; agent_id: string; kind: string; body: string; tagged: { person_id: string; name: string; tagged: boolean }[]; status: 'reserved' | 'sent' | 'failed' | 'refused'; error: string | null; created_at: string; sent_at: string | null;
+}
 
 export interface CrewMistake { id: string; agent_id: string; kind: string; note: string; created_at: string; reported_by_agent: string | null; reported_by_profile: string | null }
