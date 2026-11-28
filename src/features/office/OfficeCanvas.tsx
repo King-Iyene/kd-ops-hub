@@ -11,6 +11,7 @@ import { stackTags } from './world/nameTags';
 import { drawGroundWeather, drawSky } from './world/skyfx';
 import { lightning, rainFor, seasonFor, skyState, type SeasonMode, type TimeMode } from './world/sky';
 import { ambient } from './ambient';
+import { agentAvatar, deskStand, initAgentSim, meetingSpots, sortAgents, statusDot, stepAgent, type AgentInfo, type AgentSim } from './world/agents';
 import { applyPetCmd, applyPetSnap, goHome, initPet, petBus, stableAuthority, type AuthorityState, petCmdFor, petRegistry, petSnap, playTick, stepPet, type PetCmd, type PetSnap, type PetState } from './world/pets';
 
 import type { EditTool } from './EditorPanel';
@@ -18,6 +19,12 @@ export type { EditTool };
 
 interface Props {
   map: MapDef;
+  /** the AI executives, shown at their desks in the Executive Wing and walking about (everybody sees them) */
+  agents?: AgentInfo[];
+  /** the viewer is the owner: agents who want him walk up to his character */
+  isOwner?: boolean;
+  /** an agent's character was clicked */
+  onAgentClick?: (id: string) => void;
   /** the office being shown (people announced in a different office are hidden) */
   spaceId: string | null;
   items: Item[];
@@ -350,6 +357,23 @@ export function OfficeCanvas(props: Props) {
       const hit = best as { id: string; isMe: boolean; x: number; y: number } | null;
       return hit ? { id: hit.id, isMe: hit.isMe, near: Math.hypot(hit.x - m.x, hit.y - m.y) <= 8, headX: r.left + ox + hit.x * TILE * scale, headY: r.top + oy + (hit.y - 1.6) * TILE * scale } : null;
     };
+    const agentSims = new Map<string, AgentSim>();
+    const agentAt = (e: MouseEvent): string | null => {
+      const p = propsRef.current;
+      if (!p.agents || p.agents.length === 0) return null;
+      const r = canvas.getBoundingClientRect();
+      const { ox, oy, scale } = cam.current;
+      const wx = (e.clientX - r.left - ox) / (TILE * scale);
+      const wy = (e.clientY - r.top - oy) / (TILE * scale);
+      let best: { id: string; d: number } | null = null;
+      for (const [id, s] of agentSims) {
+        const dx = wx - s.x, dy = wy - (s.y - 0.6);
+        if (Math.abs(dx) > 0.6 || dy < -1 || dy > 0.9) continue;
+        const d = Math.hypot(dx, dy);
+        if (!best || d < best.d) best = { id, d };
+      }
+      return (best as { id: string } | null)?.id ?? null;
+    };
     const petAt = (e: MouseEvent): PetState | null => {
       const r = canvas.getBoundingClientRect();
       const { ox, oy, scale } = cam.current;
@@ -453,6 +477,8 @@ export function OfficeCanvas(props: Props) {
       if (!propsRef.current.editing) {
         const pet = petAt(e);
         if (pet) { petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
+        const ag = agentAt(e);
+        if (ag) { propsRef.current.onAgentClick?.(ag); return; }
       }
       if (propsRef.current.editing) { propsRef.current.onTile(toTile(e)); return; }
       const ct = toTile(e);
@@ -516,6 +542,8 @@ export function OfficeCanvas(props: Props) {
       if (p.editing) { p.onTile(tile); return; }
       const pet = petAt(e);
       if (pet) { petBus.queue.push({ kind: petCmdFor(pet, propsRef.current.me.id), id: pet.id }); return; }
+      const ag = agentAt(e);
+      if (ag) { p.onAgentClick?.(ag); return; }
       const who = personAt(e);
       if (who) { p.onHoverPerson({ personId: who.id, isMe: who.isMe, cx, cy, near: who.near }); return; }
       p.onHoverPerson(null);
@@ -586,6 +614,7 @@ export function OfficeCanvas(props: Props) {
     let slowSince = 0;
     let fpsFrames = 0;
     let fpsAt = 0;
+    let lastAgentT = 0;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       // Smooth mode: about 30 pictures a second (every other beat of a 60 Hz screen)
@@ -1000,6 +1029,27 @@ export function OfficeCanvas(props: Props) {
           name: info?.name ?? '', avatar: info?.avatar ?? defaultAvatar(id), isMe: false, id, bubbleScale: p.bubbleScale, seated: !info?.riding && !(pm.vx || pm.vy) && !!seatAt(p.items, pos.x, pos.y), riding: !!info?.riding, dancing: !!info?.dancing, phantom: !!info?.phantom, dot: dotColor(info?.status), vehicle: (info?.bike && propsRef.current.vehicleKinds?.[info.bike]) || 'bike', bubble: p.bubbles.current.get(id), speaking: p.speaking.current.has(id), 
         });
       }
+      // the AI executives: a small local simulation from their public status (no network, no cost)
+      if (p.agents && p.agents.length > 0) {
+        const nowS = now / 1000;
+        const dtA = Math.min(0.1, lastAgentT ? Math.max(0, nowS - lastAgentT) : 0);
+        lastAgentT = nowS;
+        const ordered = sortAgents(p.agents);
+        const spots = meetingSpots(solid, ordered.length);
+        const ctxA = { solid, owner: p.isOwner ? { x: me.x, y: me.y } : null, meetingSpot: spots[0], rand: Math.random };
+        const seenIds = new Set<string>();
+        ordered.forEach((a, i) => {
+          seenIds.add(a.id);
+          const home = deskStand(i);
+          let s = agentSims.get(a.id);
+          if (!s) { s = initAgentSim(a.id, home, nowS); agentSims.set(a.id, s); }
+          s.home = home;
+          ctxA.meetingSpot = spots[i];
+          stepAgent(s, dtA, nowS, a.status, ctxA);
+          people.push({ x: s.x, y: s.y, dir: s.dir, moving: s.moving, name: a.name + ' (AI)', avatar: agentAvatar(a), isMe: false, id: 'agent:' + a.id, dot: statusDot(a.status), bubbleScale: p.bubbleScale });
+        });
+        for (const id of [...agentSims.keys()]) if (!seenIds.has(id)) agentSims.delete(id);
+      } else if (agentSims.size > 0) agentSims.clear();
       if (danceRef.current && (Math.hypot(me.sx, me.sy) > 0.25 || sitRef.current || p.riding || p.editing)) { danceRef.current = false; p.onDance?.(false); }
       people.push({ x: me.x, y: me.y, dir: me.dir, dancing: danceRef.current, moving: Math.hypot(me.sx, me.sy) > 0.25, name: p.me.name, avatar: p.me.avatar, isMe: true, id: p.me.id, phantom: ghostRef.current, seated: !!sitRef.current && !p.riding, riding: p.riding, vehicle: p.rideKind ?? 'bike', bubbleScale: p.bubbleScale, bubble: p.bubbles.current.get(p.me.id), speaking: p.speaking.current.has(''), dot: dotColor(p.myStatus ?? who.get(p.me.id)?.status) });
 

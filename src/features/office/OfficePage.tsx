@@ -72,6 +72,10 @@ import { ensurePersonalOffice, useOfficeMembers, useOfficeDecor, useDeskClaims, 
 import { buildTemplate, type TemplateName } from './world/templates';
 import { ITEM_DEFS, applyTileEdits, canPlace, isRoom, wallBetween, itemCells, itemSize, newItemId, sanitizeItems, zoneAt } from './world/world';
 import { defaultAvatar, officeInfo } from './world/render';
+import { withWingFurniture } from './world/wing';
+import type { AgentInfo } from './world/agents';
+import { useCrewAgents } from '@/features/crew/useCrew';
+import { AgentChatPanel } from '@/features/crew/components/AgentChatPanel';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
 import { cleanZones } from './world/clock';
 import { skyState, type SeasonMode, type TimeMode } from './world/sky';
@@ -121,6 +125,7 @@ function OfficeRoom() {
   const { toast } = useToast();
   const { data: spaces } = useSpaces();
   const { data: directory } = useDirectory();
+  const { data: crewAgents } = useCrewAgents();
   const { data: lastSeen } = useLastSeen();
   const { data: myAvatar } = useMyAvatar(profile?.id);
   const actions = useOfficeMutations();
@@ -217,14 +222,14 @@ function OfficeRoom() {
   // each private office shows what its owner put there (the building's own furniture fills the rest)
   const { data: decor } = useOfficeDecor(space?.id ?? null);
   const composedItems = useMemo(() => {
-    let list = savedItems;
+    let list = template === 'team' ? withWingFurniture(savedItems, map.items) : savedItems;
     for (const z of map.zones) {
       if (z.kind !== 'office' || !decor?.[z.id]) continue;
       const inside = (i: Item) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h;
       list = [...list.filter((i) => !inside(i)), ...sanitizeItems(map, decor[z.id]).filter(inside)];
     }
     return list;
-  }, [savedItems, decor, map]);
+  }, [savedItems, decor, map, template]);
 
   const { connId, multi, superseded, claim, ghosts, roster: rosterRaw, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setMedia, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
   // everybody is called by the name on their profile, the same everywhere
@@ -329,6 +334,17 @@ function OfficeRoom() {
   const [gamesOpen, setGamesOpen] = useState(false);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const isSuper = profile?.role === 'super_admin';
+  // the AI executives: everybody sees them in the Executive Wing; only the owner can open one to talk (the database enforces it too)
+  const agentInfos = useMemo<AgentInfo[]>(
+    () => (template === 'team' ? crewAgents ?? [] : []).map((a) => ({ id: a.id, slug: a.slug, name: a.name, title: a.title, color: a.color, status: a.status, department: a.department })),
+    [crewAgents, template],
+  );
+  const [agentChat, setAgentChat] = useState<string | null>(null);
+  const onAgentClick = (id: string) => {
+    if (isSuper) { setAgentChat(id); return; }
+    const a = (crewAgents ?? []).find((x) => x.id === id);
+    if (a) toast({ title: a.name + ' (AI)', description: a.title + '. Only the owner can talk to the agents.' });
+  };
   const [renaming, setRenaming] = useState<SpaceRow | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const removeSpace = async (sp: SpaceRow) => {
@@ -1591,8 +1607,9 @@ function OfficeRoom() {
           }}
         >
           {!editing && <SkyControl timeMode={timeMode} seasonMode={seasonMode} canEdit={isAdmin} onOpen={() => { setManageTab('sky'); setManageOpen(true); }} />}
+          {agentChat && isSuper ? <AgentChatPanel agentId={agentChat} onClose={() => setAgentChat(null)} /> : null}
           <OfficeCanvas
-            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} spaceId={space.id} items={parkedItems} me={{ ...(meLive ?? me), id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
+            vehicleKinds={vehicleKinds} rideKind={rideBike ? vehicleKinds[rideBike] ?? 'bike' : 'bike'} map={map} agents={agentInfos} isOwner={isSuper} onAgentClick={onAgentClick} spaceId={space.id} items={parkedItems} me={{ ...(meLive ?? me), id: connId, uid: me.id }} showOwnTabs={multi} roster={roster} peers={peers} sendPet={sendPet} petInbox={petInbox} bubbles={bubbles} speaking={talking} update={update}
             onZone={onZone} onPortal={onPortal} canEnter={(id) => canEnterRoom(id, lockedRef.current, admitted.current)} onBlocked={onBlocked}
             jump={jump} follow={follow} followOnce={followOnce} onFollowEnd={() => setFollow(null)}
             editArea={scope ? { x: scope.x, y: scope.y, w: scope.w, h: scope.h } : null}

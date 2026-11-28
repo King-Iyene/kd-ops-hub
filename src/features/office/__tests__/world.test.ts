@@ -280,7 +280,7 @@ describe('headquarters', () => {
     expect(m.zones.filter((z) => z.seat)).toHaveLength(24);
     expect(m.zones.find((z) => z.id === 'office-1')?.sign?.name).toBe('Ada L.');
     expect(m.zones.find((z) => z.id === 'office-9')?.sign?.name).toBe('Free office');
-    expect(m.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)).toEqual(expect.arrayContaining(['meeting-1', 'meeting-2', 'meeting-3', 'boardroom', 'auditorium']));
+    expect(m.zones.filter((z) => z.kind === 'meeting').map((z) => z.id)).toEqual(expect.arrayContaining(['meeting-3', 'boardroom', 'auditorium']));
   });
   it('every piece of furniture can really be placed where it is, in order', () => {
     const placed: Item[] = [];

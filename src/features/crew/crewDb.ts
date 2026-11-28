@@ -19,6 +19,8 @@ export interface CrewAgent {
   status: CrewStatus;
   activity: string;
   last_seen_at: string | null;
+  office_x: number | null;
+  office_y: number | null;
   color: string;
   active: boolean;
 }
