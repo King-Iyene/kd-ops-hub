@@ -18,7 +18,7 @@ export type Plan = RpcPlan | ReadPlan;
 
 export const OPS = [
   'whoami', 'team', 'tables', 'read', 'propose', 'withdraw', 'proposals', 'inbox', 'message', 'note', 'retire_note', 'save_summary',
-  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post',
+  'signals', 'heartbeat', 'begin_run', 'log_run', 'respond_order', 'endorse', 'my_approved', 'report_done', 'knowledge', 'ideas', 'idea', 'idea_support', 'idea_triage', 'sources', 'app', 'mistake', 'mistakes', 'wake', 'wakes', 'meeting', 'meeting_post', 'visitor_questions',
 ] as const;
 export type Op = (typeof OPS)[number];
 
@@ -149,8 +149,19 @@ export async function plan(op: unknown, a: Json, agentId: string, lookup: (slug:
     }
     case 'withdraw': return { fn: 'crew_withdraw', args: { p_agent: agentId, p_proposal: uuid(a, 'proposal_id') } };
     case 'inbox': return { fn: 'crew_inbox', args: { p_agent: agentId, p_limit: int(a, 'limit', 1, 200, 50) } };
+    // questions from visitors (not the owner): kept out of the inbox so they can never be mistaken for the owner's words
+    case 'visitor_questions': return { fn: 'crew_viewer_questions', args: { p_agent: agentId } };
     case 'message': {
       const to = a.to;
+      // An answer to a visitor (a person the owner let into the Office, who asked this agent something): always a short 'reply', for that person only.
+      // Whether they asked in the last 24 hours and are still allowed in is checked in the database function, not here.
+      const toProfile = uuid(a, 'to_profile', false);
+      if (toProfile) {
+        if (to !== undefined && to !== null) throw new GatewayError('to_profile cannot be combined with to: answer the visitor on their own');
+        if (a.ref_proposal !== undefined && a.ref_proposal !== null) throw new GatewayError('an answer to a visitor cannot refer to a proposal');
+        if (a.ref_order !== undefined && a.ref_order !== null) throw new GatewayError('an answer to a visitor cannot refer to an order');
+        return { fn: 'crew_post_message', args: { p_agent: agentId, p_to_agent: null, p_body: text(a, 'body', 2000), p_kind: 'reply', p_ref_proposal: null, p_ref_order: null, p_to_profile: toProfile } };
+      }
       let toId: string | null = null;
       if (to !== undefined && to !== null && to !== 'owner') {
         if (typeof to !== 'string' || !/^[a-z][a-z0-9_]{1,30}$/.test(to)) throw new GatewayError('to must be "owner" or an agent slug');
