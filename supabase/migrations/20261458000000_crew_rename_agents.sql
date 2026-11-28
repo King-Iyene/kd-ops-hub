@@ -2,7 +2,7 @@
 -- Idempotent: running it again changes nothing.
 UPDATE public.crew_agents a SET name = v.n
 FROM (VALUES
-  ('cfo',              'Ada Hale'),
+  ('cfo',              'Hale King'),
   ('payroll',          'Hedy Caldwell'),
   ('compliance_head',  'Joan Prescott'),
   ('engineering_head', 'Arthur Hargreaves'),
