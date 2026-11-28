@@ -73,7 +73,12 @@ END $f$;
 -- A Drive proposal must say exactly what it will do, only on Google Drive, and is never lower than medium risk (trash is always high).
 CREATE OR REPLACE FUNCTION public.crew_check_drive_proposal() RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public', 'pg_temp' AS $f$
 BEGIN
-  IF NEW.payload ->> 'provider' IS DISTINCT FROM 'google_drive' THEN RAISE EXCEPTION 'a Drive action needs payload.provider = "google_drive"'; END IF;
+  IF NEW.payload ->> 'provider' IS NULL OR NEW.payload ->> 'provider' NOT IN ('google_drive', 'zoho_workdrive') THEN RAISE EXCEPTION 'a Drive action needs payload.provider = "google_drive" or "zoho_workdrive"'; END IF;
+  -- Zoho WorkDrive: text files only, created in a named folder or a new version of a named file; there is no trash or delete there
+  IF NEW.payload ->> 'provider' = 'zoho_workdrive' THEN
+    IF NEW.action = 'drive.trash' THEN RAISE EXCEPTION 'Zoho WorkDrive files cannot be deleted by agents'; END IF;
+    IF NEW.action = 'drive.create' AND coalesce(btrim(NEW.payload ->> 'folder_id'), '') = '' THEN RAISE EXCEPTION 'a Zoho WorkDrive create needs payload.folder_id'; END IF;
+  END IF;
   IF NEW.action = 'drive.create' AND (coalesce(btrim(NEW.payload ->> 'title'), '') = '' OR jsonb_typeof(NEW.payload -> 'content') IS DISTINCT FROM 'string') THEN
     RAISE EXCEPTION 'drive.create needs payload {provider, title, content, folder_id?}';
   END IF;
