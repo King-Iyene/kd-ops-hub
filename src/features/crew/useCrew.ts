@@ -184,3 +184,8 @@ export function useRetireAgent() {
   const refresh = useRefresh();
   return useSupabaseMutation<{ retired: string }, { agentId: string; reason: string }>((v) => cdb.rpc('crew_retire_agent', { p_agent: v.agentId, p_reason: v.reason.trim() }) as never, { onSuccess: refresh });
 }
+
+/** Every message in the team channel: the executives to you, to each other, and yours to them (the owner reads them all). */
+export function useCrewChannel() {
+  return useSupabaseQuery<CrewMessage[]>([...KEY, 'channel'], () => cdb.from('crew_messages').select('*').order('created_at', { ascending: false }).limit(300) as never, { staleTime: 8_000, refetchInterval: 15_000 });
+}

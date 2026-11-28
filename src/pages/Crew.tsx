@@ -4,27 +4,29 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ApprovalsTab } from '@/features/crew/components/ApprovalsTab';
 import { MessagesTab } from '@/features/crew/components/MessagesTab';
+import { ChannelTab } from '@/features/crew/components/ChannelTab';
 import { OrdersTab } from '@/features/crew/components/OrdersTab';
 import { BrainTab } from '@/features/crew/components/BrainTab';
 import { IdeasTab } from '@/features/crew/components/IdeasTab';
 import { TeamTab } from '@/features/crew/components/TeamTab';
 import { useCrewMessages, useCrewProposals } from '@/features/crew/useCrew';
 
-type Tab = 'approvals' | 'messages' | 'orders' | 'ideas' | 'team' | 'brain';
+type Tab = 'channel' | 'approvals' | 'messages' | 'orders' | 'ideas' | 'team' | 'brain';
 
 /**
  * Crew: the AI executives. Super Admin only (the route guard and every database policy check the role).
  * They read, advise and propose; nothing they propose changes anything until you approve it here.
  */
 export default function Crew() {
-  const [tab, setTab] = useState<Tab>('approvals');
+  const [tab, setTab] = useState<Tab>('channel');
   const waiting = useCrewProposals('waiting');
   const messages = useCrewMessages();
   const nWaiting = waiting.data?.length ?? 0;
   const nUnread = (messages.data ?? []).filter((m) => m.to_owner && !m.read_at).length;
   const tabs: { key: Tab; label: string; badge?: number }[] = [
+    { key: 'channel', label: 'Team channel', badge: nUnread },
     { key: 'approvals', label: 'Approvals', badge: nWaiting },
-    { key: 'messages', label: 'Messages', badge: nUnread },
+    { key: 'messages', label: 'Messages' },
     { key: 'orders', label: 'Orders' },
     { key: 'ideas', label: 'Ideas' },
     { key: 'team', label: 'Team' },
@@ -45,6 +47,7 @@ export default function Crew() {
           </Button>
         ))}
       </div>
+      {tab === 'channel' ? <ChannelTab /> : null}
       {tab === 'approvals' ? <ApprovalsTab /> : null}
       {tab === 'messages' ? <MessagesTab /> : null}
       {tab === 'orders' ? <OrdersTab /> : null}
