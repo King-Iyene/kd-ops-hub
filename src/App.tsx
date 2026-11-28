@@ -83,6 +83,7 @@ const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const OpsAgent         = lazy(() => import('./pages/OpsAgent'));
 const Crew             = lazy(() => import('./pages/Crew'));
+const Mailbox          = lazy(() => import('./pages/Mailbox'));
 const ZohoOAuthCallback = lazy(() => import('./pages/ZohoOAuthCallback'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const GuidePage        = lazy(() => import('./pages/Guide'));
@@ -1000,6 +1001,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
               <Crew />
+            </RoleGuard>
+          }
+        />
+
+        {/* Mailbox: every message from the AI executives. Super Admin only (and the database only returns it to the owner). */}
+        <Route
+          path="/mailbox"
+          element={
+            <RoleGuard roles={SUPER_ADMIN_ONLY_ROLES}>
+              <Mailbox />
             </RoleGuard>
           }
         />
