@@ -6732,6 +6732,7 @@ export type Database = {
           agent_id: string
           approved_by_agent: string | null
           base_id: string | null
+          cliq_notified_at: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -6762,6 +6763,7 @@ export type Database = {
           agent_id: string
           approved_by_agent?: string | null
           base_id?: string | null
+          cliq_notified_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -6792,6 +6794,7 @@ export type Database = {
           agent_id?: string
           approved_by_agent?: string | null
           base_id?: string | null
+          cliq_notified_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -6926,8 +6929,11 @@ export type Database = {
       }
       crew_settings: {
         Row: {
+          cliq_commands_enabled: boolean
           cliq_connection_id: string | null
+          cliq_cursor_ms: number
           cliq_enabled: boolean
+          cliq_owner_id: string | null
           id: boolean
           last_event_scan_at: string | null
           notify_kinds: string[]
@@ -6940,8 +6946,11 @@ export type Database = {
           watch_only_online: boolean
         }
         Insert: {
+          cliq_commands_enabled?: boolean
           cliq_connection_id?: string | null
+          cliq_cursor_ms?: number
           cliq_enabled?: boolean
+          cliq_owner_id?: string | null
           id?: boolean
           last_event_scan_at?: string | null
           notify_kinds?: string[]
@@ -6954,8 +6963,11 @@ export type Database = {
           watch_only_online?: boolean
         }
         Update: {
+          cliq_commands_enabled?: boolean
           cliq_connection_id?: string | null
+          cliq_cursor_ms?: number
           cliq_enabled?: boolean
+          cliq_owner_id?: string | null
           id?: boolean
           last_event_scan_at?: string | null
           notify_kinds?: string[]
@@ -29262,6 +29274,59 @@ export type Database = {
         Args: { p_agent: string; p_max?: number }
         Returns: Json
       }
+      crew_cliq_decide: {
+        Args: { p_code: string; p_decision: string; p_note?: string }
+        Returns: Json
+      }
+      crew_cliq_mark_notified: { Args: { p_ids: string[] }; Returns: string[] }
+      crew_cliq_owner: { Args: never; Returns: string }
+      crew_cliq_pending_list: {
+        Args: { p_limit?: number }
+        Returns: {
+          action: string
+          agent_name: string
+          agent_title: string
+          code: string
+          id: string
+          risk: string
+          summary: string
+        }[]
+      }
+      crew_cliq_pending_rows: {
+        Args: never
+        Returns: {
+          action: string
+          agent_name: string
+          agent_title: string
+          code: string
+          created_at: string
+          id: string
+          notified: boolean
+          risk: string
+          summary: string
+        }[]
+      }
+      crew_cliq_pending_to_notify: {
+        Args: { p_limit?: number }
+        Returns: {
+          action: string
+          agent_name: string
+          agent_title: string
+          code: string
+          id: string
+          risk: string
+          summary: string
+        }[]
+      }
+      crew_cliq_say: {
+        Args: { p_agent_slug: string; p_body: string }
+        Returns: Json
+      }
+      crew_cliq_tick: { Args: never; Returns: undefined }
+      crew_cliq_unmark_notified: {
+        Args: { p_ids: string[] }
+        Returns: undefined
+      }
       crew_decide: {
         Args: { p_decision: string; p_note?: string; p_proposal: string }
         Returns: Json
@@ -29442,6 +29507,7 @@ export type Database = {
           agent_id: string
           approved_by_agent: string | null
           base_id: string | null
+          cliq_notified_at: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -29579,9 +29645,11 @@ export type Database = {
       }
       crew_save_settings: {
         Args: {
+          p_commands?: boolean
           p_connection: string
           p_enabled: boolean
           p_kinds: string[]
+          p_owner_id?: string
           p_profile: string
         }
         Returns: undefined
