@@ -33,6 +33,7 @@ function Mailbox() {
   const [open, setOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [reply, setReply] = useState('');
+  const [alertsOn, setAlertsOn] = useState(() => typeof Notification === 'undefined' || Notification.permission !== 'default');
 
   useEffect(() => {
     const h = (e: Event) => { setOpenId((e as CustomEvent<{ id: string | null }>).detail?.id ?? null); setOpen(true); };
@@ -61,10 +62,19 @@ function Mailbox() {
   return (
     <>
       <button type="button" onClick={() => { setOpenId(null); setOpen(true); }} aria-label={`Mailbox, ${attention.unreadCount} unread`} title="Messages from your executives"
-        className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground">
-        <Mail className="h-[18px] w-[18px]" />
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30 transition hover:bg-primary/25">
+        <Mail className="h-5 w-5" />
         {attention.unreadCount > 0 ? <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{attention.unreadCount > 99 ? '99+' : attention.unreadCount}</span> : null}
       </button>
+      {/* the standing mailbox: always on screen, with how many messages are waiting; click it to open the panel */}
+      {!open ? (
+        <button type="button" onClick={() => { setOpenId(null); setOpen(true); }} aria-label={`Open the mailbox, ${attention.unreadCount} unread`}
+          className={cn('fixed bottom-24 right-4 z-40 flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold shadow-2xl transition hover:scale-105',
+            attention.unreadCount > 0 ? 'border-primary bg-primary text-primary-foreground ring-4 ring-primary/30' : 'border-border bg-card text-foreground')}>
+          <Mail className="h-5 w-5" />
+          {attention.unreadCount > 0 ? <span>{attention.unreadCount} unread</span> : <span>Mailbox</span>}
+        </button>
+      ) : null}
       <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) setOpenId(null); }}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
           <SheetHeader className="border-b p-4 text-left">
@@ -97,6 +107,12 @@ function Mailbox() {
             </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto">
+              {!alertsOn ? (
+                <div className="flex items-center gap-3 border-b bg-primary/5 px-4 py-3 text-[13px]">
+                  <span className="flex-1">Get a desktop alert when an executive writes to you, even when this tab is in the background.</span>
+                  <Button size="sm" onClick={() => { void Notification.requestPermission().then(() => setAlertsOn(true)); }}>Turn on</Button>
+                </div>
+              ) : null}
               {mail.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">Nothing yet. When an executive writes to you it lands here.</p> : null}
               <ul className="divide-y">
                 {mail.map((m) => {
