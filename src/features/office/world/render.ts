@@ -1,6 +1,7 @@
 // Canvas drawing for the office: a warm modern 2.5D style (textured floors, windows with light, detailed furniture,
 // soft shadows, gentle animation). Everything is drawn from code, so there are no image files to license or load.
 import { DEFAULT_ZONES, to12h, zoneAbbr, zoneParts } from './clock';
+import { drawExecutive } from './executive';
 import type { AvatarStyle, Item, MapDef, Zone } from './types';
 import { TOP_ITEMS, isMirrored, itemSize } from './world';
 
@@ -4693,6 +4694,8 @@ export interface DrawPerson {
   seated?: boolean;
   /** typing all the time while seated (an AI executive at work), not just now and then */
   typing?: boolean;
+  /** an AI executive: drawn in their own finer style (see executive.ts) */
+  executive?: boolean;
 }
 
 /** How far each person has walked in total, so the walk cycle always moves forward (x + y shrinks when walking left or up). */
@@ -4711,6 +4714,7 @@ function stridePhase(p: DrawPerson, t: number): number {
 
 /** People are drawn a little larger than life so they are easy to find when zoomed out (the avatar preview has no name and stays as it is). */
 export function drawPerson(ctx: Ctx, p: DrawPerson, t: number, theme: Theme) {
+  if (p.executive) { drawExecutive(ctx as unknown as CanvasRenderingContext2D, p, t, !!theme.dark); return; }
   if (!p.name) { drawPersonBase(ctx, p, t, theme); return; }
   const fx = p.x * TILE;
   const fy = p.y * TILE + 11;
