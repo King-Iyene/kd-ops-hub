@@ -8,7 +8,7 @@ export interface ConnectionLite { kind: ConnectionKind; name: string; config: Re
 export interface Secrets { url?: string | null; token?: string | null; secret?: string | null; refresh?: string | null; access?: string | null }
 export interface OutgoingMeta { severity?: string; rule?: string; person?: string }
 import { renderMention } from './agent-mention-core.ts';
-import { messagesUrl, validChannel, validDc } from './agent-cliq-core.ts';
+import { dmMessageUrl, messagesUrl, validChannel, validDc } from './agent-cliq-core.ts';
 import { OWN_MARK } from './agent-cliq-monitor-core.ts';
 
 export interface OutgoingLink { url: string; label: string }
@@ -25,7 +25,7 @@ export interface Outgoing { title?: string; text: string; event?: string; meta?:
    */
   ask?: { observation: string; question: string; followUp: string };
   /** Cliq API only: post in this channel (its unique name) instead of the connection's own, as a reply in the thread of this message. */
-  cliq?: { channel?: string; replyTo?: string } }
+  cliq?: { channel?: string; replyTo?: string; /** Cliq API only: send as a direct message to this Cliq user id or email instead of posting in a channel. */ dm?: string } }
 
 // ── Outbound addresses ─────────────────────────────────────────────────────
 // A person with Super Admin rights types these addresses, so they are still checked: HTTPS only, no credentials in
@@ -231,6 +231,15 @@ export async function buildRequest(conn: ConnectionLite, secrets: Secrets, msg: 
     // Everything the agent posts to Cliq carries an invisible mark, so the Cliq watch never mistakes it for something a person wrote.
     const bodyText = `${title ? `*${title}*\n${content}` : content}${api ? OWN_MARK : ''}`;
     const body = JSON.stringify({ text: bodyText, ...(replyTo ? { reply_to: replyTo } : {}) });
+    if (api && msg.cliq?.dm !== undefined) {
+      // A direct message to one person (Crew: the owner). The address is checked: a plain Cliq user id or email, on a fixed Zoho host.
+      if (!validDc(cfg.dc)) return { type: 'error', error: 'The Zoho data center is missing.' };
+      const url = dmMessageUrl(cfg.dc, msg.cliq.dm);
+      if (!url) return { type: 'error', error: 'The Cliq user id or email for the direct message is not valid.' };
+      if (!secrets.access) return { type: 'error', error: 'Cliq did not give an access token.' };
+      return { type: 'http', url, retryAuthorization: `Bearer ${secrets.access}`,
+        init: { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Zoho-oauthtoken ${secrets.access}` }, body: JSON.stringify({ text: bodyText }) } };
+    }
     if (api) {
       const channel = msg.cliq?.channel ?? cfg.channel;
       if (!validDc(cfg.dc)) return { type: 'error', error: 'The Zoho data center is missing.' };

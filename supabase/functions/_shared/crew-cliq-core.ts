@@ -248,3 +248,61 @@ export function formatWelcome(waiting: number): { title: string; text: string } 
   const n = waiting === 0 ? 'Nothing is waiting for you right now.' : `${waiting} proposal${waiting === 1 ? ' is' : 's are'} already waiting: reply status to list them.`;
   return { title: 'Crew commands are on', text: `You can now approve, reject and reply from this channel. Only your own Cliq account is obeyed. Reply help to see the commands.\n${n}` };
 }
+
+// ── a direct message instead of a channel ──────────────────────────────────
+// With "Me, as a direct message" the owner's Cliq id (or email) is who gets the alerts, and the commands are read from his direct chat with the
+// connected Zoho account. In a direct chat with oneself EVERYTHING arrives from the owner's own account, our posts included, so the invisible
+// OWN_MARK rule (ignoreAsOurOwn, used by planCommands) is what stops the bot obeying its own proposals. Only fixed Zoho hosts are called.
+
+/** The list of direct chats the connected Zoho account has (Zoho: GET /api/v2/chats, permission ZohoCliq.Chats.READ; about 5 calls a minute are allowed). */
+export function dmChatsUrl(dc: CliqDc, nextToken?: string | null): string | null {
+  if (!validDc(dc)) return null;
+  const q = new URLSearchParams({ limit: '100' });
+  if (nextToken && /^[A-Za-z0-9_.:=+/-]{1,1000}$/.test(nextToken)) q.set('next_token', nextToken);
+  return `https://cliq.zoho.${dc}/api/v2/chats?${q.toString()}`;
+}
+
+export interface DmChat { chatId: string; userIds: string[]; participants: number | null; modified: number }
+
+/** The direct chats out of what Zoho returned (read defensively; groups, channels and removed chats are left out). */
+export function parseDmChats(json: unknown): { chats: DmChat[]; next: string | null } {
+  const j = obj(json);
+  const list = Array.isArray(j.chats) ? j.chats : Array.isArray(j.data) ? j.data : [];
+  const chats: DmChat[] = [];
+  for (const raw of list) {
+    const c = obj(raw);
+    const chatId = str(c.chat_id) || str(c.id);
+    if (!/^[A-Za-z0-9_.:-]{1,120}$/.test(chatId)) continue;
+    if (str(c.chat_type).toLowerCase() !== 'dm' || c.removed === true) continue;
+    const userIds = (Array.isArray(c.recipients_summary) ? c.recipients_summary : []).map((r) => str(obj(r).user_id) || str(obj(r).id)).filter(Boolean);
+    const count = Number(c.participant_count);
+    const t = Date.parse(str(c.last_modified_time)) || Number(obj(c.last_message_info).time) || 0;
+    chats.push({ chatId, userIds, participants: Number.isFinite(count) ? count : null, modified: t < 1e11 && t > 0 ? t * 1000 : t });
+  }
+  const next = str(j.next_token) || str(obj(j.pagination).next_token);
+  return { chats, next: next || null };
+}
+
+/** The direct chat that has the owner in it (and nobody else): the newest one if Zoho shows more than one. Null when there is none yet. */
+export function pickDmChat(chats: DmChat[], ownerUserId: string | null | undefined): string | null {
+  const owner = norm(ownerUserId);
+  if (!owner) return null;
+  const mine = chats.filter((c) => c.userIds.some((u) => norm(u) === owner) && (c.participants === null || c.participants <= 2));
+  mine.sort((a, b) => b.modified - a.modified);
+  return mine[0]?.chatId ?? null;
+}
+
+/** What to tell the owner when a direct message could not be sent. 401 and 403 are Zoho's way of saying the sign-in lacks a permission. */
+export function dmFailureText(status: number | undefined, connectionName: string): string {
+  if (status === 401 || status === 403) {
+    return `Zoho needs one more permission for direct messages: open Agent > Connections > ${plain(connectionName, 80) || 'your Cliq connection'} and press Reconnect to Zoho.`;
+  }
+  if (status === 400 || status === 404) return 'Zoho could not find that person to send a direct message to. Check the Cliq user id or email, and that they are in the same Zoho organisation as the connected account.';
+  if (status === 429) return 'Zoho asked us to slow down. It will try again in a moment.';
+  return 'The direct message could not be sent. It will be tried again.';
+}
+
+/** The only thing ever posted in a shared channel when direct messages fail: no proposal, no name, no amount. */
+export function formatChannelNotice(): { title: string; text: string } {
+  return { title: 'Crew could not send you a direct message', text: 'Crew has something for you but could not send it as a direct message. Open KD Ops > Crew > Cliq alerts to see why. Nothing private is posted in this channel.' };
+}
