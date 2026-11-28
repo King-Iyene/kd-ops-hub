@@ -78,6 +78,7 @@ export const ITEM_DEFS: Record<ItemType, ItemDef> = {
   phonebooth: { w: 1, h: 2, solid: true, label: 'Quiet phone booth' },
   arcade: { w: 1, h: 1, solid: true, label: 'Arcade machine' },
   gong: { w: 1, h: 1, solid: true, label: 'Gong' },
+  mailbox: { w: 1, h: 1, solid: true, label: 'Mailbox' },
   gametable: { w: 2, h: 2, solid: true, label: 'Game table' },
   pollboard: { w: 2, h: 1, solid: true, label: 'Poll board' },
   eventboard: { w: 3, h: 1, solid: true, label: 'Events board' },
@@ -148,7 +149,7 @@ export function itemSize(item: Pick<Item, 't' | 'r'>): { w: number; h: number } 
 /** Pieces that already use the turn for something else (a bike's direction), are alive, or carry writing that must never be back to front. */
 const NO_MIRROR: ReadonlySet<string> = new Set([
   'bike', 'kart', 'dog', 'cat', 'dogball', 'whiteboard', 'tv', 'wallclock', 'valueswall', 'missionwall', 'noticeboard', 'pollboard', 'eventboard',
-  'orgchart', 'barchart', 'worldmap', 'kanban', 'frame', 'mirror', 'gong',
+  'orgchart', 'barchart', 'worldmap', 'kanban', 'frame', 'mirror', 'gong', 'mailbox',
 ]);
 
 /**
@@ -172,6 +173,7 @@ export const INTERACTIVE: Partial<Record<ItemType, string>> = {
   bike: 'Ride the bike',
   kart: 'Ride the bike',
   gong: 'Ring the gong',
+  mailbox: 'Open the mailbox',
   arcade: 'Play a game',
   pollboard: 'Open the polls',
   eventboard: 'See what is on',

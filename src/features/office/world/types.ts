@@ -11,7 +11,7 @@ export type ItemType =
   | 'pinetree' | 'campfire' | 'log' | 'stump' | 'tent' | 'mushrooms' | 'firewood' | 'lantern' | 'coffeebar'
   | 'gamingchair' | 'diningchair' | 'barstool' | 'executivechair' | 'rockingchair'
   | 'longtable' | 'worktable' | 'sidetable' | 'conference' | 'bed' | 'singlebed' | 'nightstand' | 'wardrobe' | 'dresser' | 'mirror' | 'clothesrack' | 'mannequin' | 'shoerack' | 'armchair' | 'loveseat' | 'ottoman'
-  | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard' | 'podium';
+  | 'standingdesk' | 'execdesk' | 'cornerdesk' | 'dualmonitor' | 'ultrawide' | 'barchart' | 'orgchart' | 'worldmap' | 'kanban' | 'sunflowers' | 'orchid' | 'lavender' | 'tulips' | 'monstera' | 'filecabinet' | 'foosball' | 'tabletennis' | 'phonebooth' | 'arcade' | 'gong' | 'gametable' | 'pollboard' | 'eventboard' | 'podium' | 'mailbox';
 
 /** A piece of furniture. r is the rotation in quarter turns (a 2x1 desk rotated once becomes 1x2). */
 export interface Item { id: string; t: ItemType; x: number; y: number; r?: 0 | 1 | 2 | 3; /** paint colour: an index into ITEM_COLORS (none = the original look) */ c?: number }

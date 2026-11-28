@@ -75,6 +75,8 @@ import { defaultAvatar, officeInfo } from './world/render';
 import { withWingFurniture } from './world/wing';
 import { agentAvatar, type AgentInfo } from './world/agents';
 import { AgentProfileDialog } from './AgentProfile';
+import { openMailbox } from '@/features/crew/CrewMailbox';
+import { setMailboxUnread } from './world/render';
 import { useCrewAgents, useCrewAttention } from '@/features/crew/useCrew';
 import { AgentChatPanel } from '@/features/crew/components/AgentChatPanel';
 import { BoardDialog, ClockDialog, type BoardData } from './Interact';
@@ -229,8 +231,8 @@ function OfficeRoom() {
       const inside = (i: Item) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h;
       list = [...list.filter((i) => !inside(i)), ...sanitizeItems(map, decor[z.id]).filter(inside)];
     }
-    return list;
-  }, [savedItems, decor, map, template]);
+    return profile?.role === 'super_admin' && template === 'team' ? [...list, { id: 'crew-mailbox', t: 'mailbox' as const, x: 34, y: 15 }] : list;
+  }, [profile?.role, savedItems, decor, map, template]);
 
   const { connId, multi, superseded, claim, ghosts, roster: rosterRaw, connected, peers, update, announce, setRecording, setLocked, setStatus, setRiding, isKnown, setDancing, setGhost, setShare, setMedia, setTownHall, setTownMuted, mine, sendRtc, setRtcHandler, sendDoor, setDoorHandler, sendPing, setPingHandler, sendSpeaking, peerTalking, sendEmote, emotes, sendPet, petInbox } = useOffice(meLive, space?.id ?? null);
   // everybody is called by the name on their profile, the same everywhere
@@ -477,7 +479,7 @@ function OfficeRoom() {
     try {
       if (scope) {
         // an owner saves only their own office
-        await actions.saveDecor(space.id, scope.id, draft.filter(inScope), profile?.id);
+        await actions.saveDecor(space.id, scope.id, draft.filter(inScope).filter((i) => i.id !== 'crew-mailbox'), profile?.id);
         toast({ title: 'Looking good. Your office is saved.' });
         stopEdit();
         return;
@@ -491,7 +493,7 @@ function OfficeRoom() {
       }
       const changed = JSON.stringify(draft) !== JSON.stringify(map.items);
       // walls and floors are the building: only an admin's changes to them are saved, everybody else's save keeps what is already there
-      await actions.saveLayout(space, template, changed ? draft : undefined, overrides, isAdmin ? tileDraft : savedTiles);
+      await actions.saveLayout(space, template, changed ? draft.filter((i) => i.id !== 'crew-mailbox') : undefined, overrides, isAdmin ? tileDraft : savedTiles);
       // offices decorated by their owners keep following what the owner sees, so keep them in step
       for (const z of map.zones) if (z.kind === 'office' && decor?.[z.id]) await actions.saveDecor(space.id, z.id, draft.filter((i) => i.x >= z.x && i.x < z.x + z.w && i.y >= z.y && i.y < z.y + z.h), profile?.id);
       toast({ title: 'Space saved', description: 'Everyone sees the new look right away.' });
@@ -712,6 +714,7 @@ function OfficeRoom() {
   // clicking one of the executives in the Office opens the Chat window on their conversation (the owner only)
   useEffect(() => { if (agentChat && isSuper) setChatOpen(true); }, [agentChat, isSuper]);
   const crewAttention = useCrewAttention(isSuper);
+  useEffect(() => { setMailboxUnread(crewAttention.unreadCount); }, [crewAttention.unreadCount]);
   const chatAgents = useMemo(() => (isSuper ? agentInfos.map((a) => ({ id: a.id, name: a.name, title: a.title, status: a.status, avatar: agentAvatar(a), unread: crewAttention.unread.filter((m) => m.from_agent === a.id).length })) : undefined), [agentInfos, isSuper, crewAttention.unread]);
   const chatCtx = useRef({ open: false, conv: ALL });
   chatCtx.current = { open: chatOpen, conv };
@@ -1620,7 +1623,7 @@ function OfficeRoom() {
               if (!it || it.t !== 'valueswall') return;
               try { if (localStorage.getItem('kd:office:seen-values')) return; localStorage.setItem('kd:office:seen-values', '1'); } catch { return; }
               toast({ title: 'Our core values are on this wall', description: 'Press F to read them.' });
-            }} onInteract={(it) => { if (it.t === 'podium') { setTownOpen(true); return; } if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
+            }} onInteract={(it) => { if (it.t === 'mailbox') { openMailbox(); return; } if (it.t === 'podium') { setTownOpen(true); return; } if (it.t === 'eventboard') { setEventsOpen(true); return; } if (it.t === 'foosball' || it.t === 'tabletennis') { if (gamesOn(space?.layout?.settings)) setMini({ game: it.t === 'foosball' ? 'football' : 'tennis', key: it.id }); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'pollboard') { setPollsOpen(true); return; } if (it.t === 'kanban') { setTaskBoardId(it.id); return; } if (it.t === 'arcade' || it.t === 'gametable') { if (gamesOn(space?.layout?.settings)) setGamesOpen(true); else toast({ title: 'Games are switched off', description: 'An admin can turn them back on in the office settings.' }); return; } if (it.t === 'gong') { ambient.gong(); sendEmote('🔔'); toast({ title: 'You rang the gong', description: 'Everyone in the office heard it.' }); return; } setPanel(it); }} bubbleScale={[0.65, 1, 1.5, 2.1][traySize]}
             onContext={(c) => setCtx(c)}
             onMapClick={(t) => {
               const hit = items.find((i) => (i.t === 'wallclock' || i.t === 'valueswall' || i.t === 'missionwall' || i.t === 'noticeboard' || i.t === 'pollboard' || i.t === 'eventboard' || i.t === 'podium' || i.t === 'kanban' || i.t === 'foosball' || i.t === 'tabletennis') && t.x >= i.x && t.y >= i.y && t.x < i.x + itemSize(i).w && t.y < i.y + itemSize(i).h);
